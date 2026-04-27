@@ -91,7 +91,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const menuItems = getMenuItems();
 
   return (
-    <header className={`glass border-b border-slate-200/50 flex flex-col sticky top-0 z-40 transition-all duration-500 ${layoutMode === 'topbar' ? 'h-32' : 'h-20'}`}>
+    <header className={`glass border-b border-slate-200/50 flex flex-col sticky top-0 z-40 shrink-0 transition-all duration-500 ${layoutMode === 'topbar' ? 'h-32' : 'h-20'}`}>
       {/* Top Section */}
       <div className="flex-1 flex items-center justify-between px-8">
         <div className="flex items-center gap-6">

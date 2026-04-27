@@ -8,9 +8,9 @@ export interface Document {
   org_unit_id: string;
   owner_id: string;
   file_path: string;
-  file_type: string | null;    // mime type: "application/pdf", etc.
+  file_type: string | null;    // normalized short type: "pdf", "docx", etc.
   file_size: number | null;    // bytes
-  mime_type?: string;
+  mime_type?: string;          // full MIME type: "application/pdf", etc.
   document_category_id: string | null;
   category_code: string | null;
   category_name: string | null;
@@ -151,12 +151,16 @@ export function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-export function getFileTypeLabel(mimeType: string | null): string {
-  if (!mimeType) return 'FILE';
-  if (mimeType.includes('pdf')) return 'PDF';
-  if (mimeType.includes('word') || mimeType.includes('docx')) return 'DOCX';
-  if (mimeType.includes('sheet') || mimeType.includes('excel') || mimeType.includes('xlsx')) return 'EXCEL';
-  if (mimeType.startsWith('image/')) return 'IMAGE';
+export function getFileTypeLabel(fileType: string | null): string {
+  if (!fileType) return 'FILE';
+  const normalized = fileType.toLowerCase();
+  if (normalized.includes('pdf')) return 'PDF';
+  if (normalized.includes('word') || normalized.includes('docx') || normalized === 'doc') return 'DOCX';
+  if (normalized.includes('sheet') || normalized.includes('excel') || normalized.includes('xlsx') || normalized === 'xls') return 'EXCEL';
+  if (
+    normalized.startsWith('image/') ||
+    ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tif', 'tiff'].includes(normalized)
+  ) return 'IMAGE';
   return 'FILE';
 }
 

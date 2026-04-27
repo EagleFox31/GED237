@@ -68,7 +68,7 @@ const LibraryView: React.FC = () => {
           {docs.map((doc) => (
             <div key={doc.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-50 hover:border-slate-200 transition-all cursor-pointer">
               <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 italic font-black text-xs">
-                {getFileTypeLabel(doc.file_type)}
+                {getFileTypeLabel(doc.mime_type || doc.file_type)}
               </div>
               <div className="flex-1">
                 <p className="text-xs font-black text-slate-800 uppercase italic">{doc.title}</p>

@@ -29,6 +29,7 @@ import DisplaySettings from './profiles/tenant-admin/pages/DisplaySettings';
 import DirectoryIngestion from './profiles/tenant-admin/pages/DirectoryIngestion';
 import NeedsReviewInbox from './profiles/tenant-admin/pages/NeedsReviewInbox';
 import PendingAssignmentsInbox from './profiles/tenant-admin/pages/PendingAssignmentsInbox';
+import SpacesPage from './profiles/tenant-admin/pages/SpacesPage';
 
 // Route → activeTab mapping (pour la compatibilité Sidebar/Header)
 const ROUTE_TO_TAB: Record<string, string> = {
@@ -42,6 +43,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/settings': 'settings',
   '/settings/display': 'settings_display',
   '/org': 'org',
+  '/spaces': 'spaces',
   '/rules': 'ged_rules',
   '/needs-review': 'needs_review',
   '/pending-assignments': 'pending_assignments',
@@ -59,6 +61,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'settings': '/settings',
   'settings_display': '/settings/display',
   'org': '/org',
+  'spaces': '/spaces',
   'ged_rules': '/rules',
   'needs_review': '/needs-review',
   'pending_assignments': '/pending-assignments',
@@ -155,11 +158,11 @@ const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex transition-all duration-500 overflow-hidden relative">
+    <div className="h-screen bg-slate-50 flex transition-all duration-500 overflow-hidden relative">
       {layoutMode === 'sidebar' && (
         <Sidebar activeTab={activeTab} onTabChange={handleTabChange} userProfile={userProfile} />
       )}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-500 ${layoutMode === 'sidebar' ? 'ml-64' : 'ml-0'}`}>
+      <main className={`flex-1 flex flex-col h-screen min-h-0 transition-all duration-500 ${layoutMode === 'sidebar' ? 'ml-64' : 'ml-0'}`}>
         <Header
           userProfile={userProfile}
           layoutMode={layoutMode}
@@ -167,7 +170,7 @@ const AppLayout: React.FC = () => {
           onTabChange={handleTabChange}
           onOpenSettings={() => navigate('/settings/display')}
         />
-        <div className="flex-1 overflow-y-auto scroll-smooth">
+        <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<ProfileDashboard profileId={userProfile?.id} />} />
@@ -180,6 +183,7 @@ const AppLayout: React.FC = () => {
             <Route path="/settings" element={<DisplaySettings layoutMode={layoutMode} setLayoutMode={setLayoutMode} />} />
             <Route path="/settings/display" element={<DisplaySettings layoutMode={layoutMode} setLayoutMode={setLayoutMode} />} />
             <Route path="/org" element={<OrganizationPage />} />
+            <Route path="/spaces" element={<SpacesPage />} />
             <Route path="/rules" element={<GEDRulesPage />} />
             <Route path="/needs-review" element={<NeedsReviewInbox />} />
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />

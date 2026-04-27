@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from app.models.workflow import ActionType
 from app.models.gedrules import AssignmentScope
 
@@ -107,6 +107,7 @@ class RoutingRuleUpdate(BaseModel):
 class SimulateRequest(BaseModel):
     document_category_id: UUID
     org_unit_id: Optional[UUID] = None
+    owner_id: Optional[UUID] = None
 
 
 class SimulateResolvedActor(BaseModel):
@@ -114,6 +115,8 @@ class SimulateResolvedActor(BaseModel):
     label: str
     expected_action_type: str
     assignment_scope: str
+    resolution_status: str
+    resolution_note: Optional[str] = None
     resolved_user_id: Optional[UUID] = None
     resolved_user_name: Optional[str] = None
     resolved_role_label: Optional[str] = None
@@ -125,6 +128,9 @@ class SimulateResponse(BaseModel):
     matched_rule_name: Optional[str] = None
     template_id: Optional[UUID] = None
     template_name: Optional[str] = None
+    selected_owner_id: Optional[UUID] = None
+    selected_owner_name: Optional[str] = None
+    selected_owner_role: Optional[str] = None
     resolved_steps: List[SimulateResolvedActor]
     explanation: str
 

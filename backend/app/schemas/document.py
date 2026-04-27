@@ -1,6 +1,6 @@
 # backend/app/schemas/document.py
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -38,6 +38,7 @@ class DocumentRead(DocumentBase):
     owner_id: UUID
     file_path: str
     file_type: Optional[str] = None
+    mime_type: Optional[str] = None
     file_size: Optional[int] = None
     status: DocumentStatus
     processing_mode: ProcessingMode = "process"

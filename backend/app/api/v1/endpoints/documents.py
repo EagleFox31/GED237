@@ -1,4 +1,5 @@
 # backend/app/api/v1/endpoints/documents.py
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -20,10 +21,12 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
+from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.document_category import DocumentCategory
 from app.models.document_version import DocumentVersion
+from app.models.org_unit import OrgUnit
 from app.models.user import User
 from app.schemas.document import (
     DirectoryIngestRequest,
@@ -60,6 +63,33 @@ def _require_org_unit(user: User) -> UUID:
             detail="User must be attached to an org unit for this operation",
         )
     return user.org_unit_id
+
+
+async def _resolve_target_org_unit_id(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    requested_org_unit_id: Optional[UUID],
+) -> UUID:
+    if requested_org_unit_id is None:
+        return _require_org_unit(current_user)
+
+    assert_org_unit_scope(requested_org_unit_id, current_user)
+
+    result = await db.execute(
+        select(OrgUnit).where(
+            OrgUnit.id == requested_org_unit_id,
+            OrgUnit.tenant_id == current_user.tenant_id,
+            OrgUnit.is_active,
+        )
+    )
+    org_unit = result.scalar_one_or_none()
+    if org_unit is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Target org unit not found or inactive in this tenant",
+        )
+    return org_unit.id
 
 
 async def _can_read_document(user: User, document: Document) -> bool:
@@ -168,6 +198,37 @@ async def _validate_category_for_tenant(
         )
 
 
+async def _collect_descendant_org_unit_ids(
+    db: AsyncSession, *, tenant_id: UUID, root_org_unit_id: UUID
+) -> List[UUID]:
+    """Return the selected org unit plus all descendants using parent_id links.
+
+    This avoids depending on org_unit_closure, which may be empty in local/dev data.
+    """
+    result = await db.execute(
+        select(OrgUnit.id, OrgUnit.parent_id).where(OrgUnit.tenant_id == tenant_id)
+    )
+    rows = result.all()
+
+    children_by_parent: Dict[Optional[UUID], List[UUID]] = {}
+    for org_unit_id, parent_id in rows:
+        children_by_parent.setdefault(parent_id, []).append(org_unit_id)
+
+    collected: List[UUID] = []
+    stack: List[UUID] = [root_org_unit_id]
+    seen: set[UUID] = set()
+
+    while stack:
+        current_id = stack.pop()
+        if current_id in seen:
+            continue
+        seen.add(current_id)
+        collected.append(current_id)
+        stack.extend(children_by_parent.get(current_id, []))
+
+    return collected
+
+
 def _audit_document_action(
     *,
     user: User,
@@ -183,6 +244,20 @@ def _audit_document_action(
         action=action,
         new_data=details or {},
     )
+
+
+def _derive_file_type(
+    filename: Optional[str], mime_type: Optional[str]
+) -> Optional[str]:
+    if filename:
+        extension = os.path.splitext(filename)[1].lower().lstrip(".")
+        if extension:
+            return extension[:50]
+    if mime_type:
+        subtype = mime_type.split("/")[-1].lower().strip()
+        if subtype:
+            return subtype[:50]
+    return None
 
 
 def _parse_next_version(versions: List[DocumentVersion]) -> str:
@@ -275,6 +350,7 @@ async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
     document_category_id: Optional[UUID] = Form(None),
+    org_unit_id: Optional[UUID] = Form(None),
     tags: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     processing_mode: str = Form("process"),
@@ -295,8 +371,12 @@ async def upload_document(
         await _validate_category_for_tenant(
             db, document_category_id, current_user.tenant_id
         )
-    org_unit_id = _require_org_unit(current_user)
-    directory = f"{current_user.tenant_id}/{org_unit_id}"
+    target_org_unit_id = await _resolve_target_org_unit_id(
+        db,
+        current_user=current_user,
+        requested_org_unit_id=org_unit_id,
+    )
+    directory = f"{current_user.tenant_id}/{target_org_unit_id}"
 
     file_path, checksum = await storage_service.save_file_with_checksum(
         file, directory=directory
@@ -340,18 +420,20 @@ async def upload_document(
 
     tag_list = [t.strip() for t in tags.split(",")] if tags else []
     file_size = file.size or 0
+    file_mime_type = file.content_type or "application/octet-stream"
+    file_type = _derive_file_type(file.filename, file_mime_type)
 
     db_document = Document(
         title=title,
         file_path=file_path,
-        file_type=file.content_type,
+        file_type=file_type,
         file_size=file_size,
-        mime_type=file.content_type,
+        mime_type=file_mime_type,
         document_category_id=document_category_id,
         tags=tag_list,
         owner_id=current_user.id,
         tenant_id=current_user.tenant_id,
-        org_unit_id=org_unit_id,
+        org_unit_id=target_org_unit_id,
         status="draft",
         processing_mode=processing_mode,
         extra_data={"description": description} if description else {},
@@ -364,7 +446,7 @@ async def upload_document(
         version_number="1.0",
         file_path=file_path,
         file_size=file_size,
-        mime_type=file.content_type,
+        mime_type=file_mime_type,
         checksum_sha256=checksum,
         uploaded_by_id=current_user.id,
         uploaded_at=datetime.now(timezone.utc),
@@ -410,13 +492,11 @@ async def upload_document(
     )
     db_document = result.scalar_one()
 
-    if file.content_type and (
-        file.content_type.startswith("image/") or file.content_type == "application/pdf"
+    if file_mime_type and (
+        file_mime_type.startswith("image/") or file_mime_type == "application/pdf"
     ):
         try:
-            process_document_ocr.delay(
-                str(db_document.id), file_path, file.content_type
-            )
+            process_document_ocr.delay(str(db_document.id), file_path, file_mime_type)
         except Exception as exc:
             print(f"Warning: Could not queue OCR task: {exc}")
 
@@ -679,12 +759,12 @@ async def list_workspace_documents(
     )
 
     if recursive:
-        from app.models.org_unit import OrgUnitClosure
-
-        sub_units_query = select(OrgUnitClosure.descendant_id).where(
-            OrgUnitClosure.ancestor_id == target_unit_id
+        org_unit_ids = await _collect_descendant_org_unit_ids(
+            db,
+            tenant_id=current_user.tenant_id,
+            root_org_unit_id=target_unit_id,
         )
-        query = query.where(Document.org_unit_id.in_(sub_units_query))
+        query = query.where(Document.org_unit_id.in_(org_unit_ids))
     else:
         query = query.where(Document.org_unit_id == target_unit_id)
 
@@ -911,11 +991,12 @@ async def get_document_ocr(
         ocr_status = "completed"
         if document.extra_data and "ocr_confidence" in document.extra_data:
             ocr_confidence = document.extra_data["ocr_confidence"]
-    elif document.file_type and (
-        document.file_type.startswith("image/")
-        or document.file_type == "application/pdf"
-    ):
-        ocr_status = "processing"
+    else:
+        ocr_source_type = document.mime_type or document.file_type
+        if ocr_source_type and (
+            ocr_source_type.startswith("image/") or ocr_source_type == "application/pdf"
+        ):
+            ocr_status = "processing"
 
     return DocumentOCRContent(
         document_id=document.id,
@@ -1200,12 +1281,14 @@ async def upload_new_version(
 
     new_version_num = _parse_next_version(versions)
     file_size = file.size or 0
+    file_mime_type = file.content_type or "application/octet-stream"
+    file_type = _derive_file_type(file.filename, file_mime_type)
     db_version = DocumentVersion(
         document_id=document.id,
         version_number=new_version_num,
         file_path=file_path,
         file_size=file_size,
-        mime_type=file.content_type,
+        mime_type=file_mime_type,
         checksum_sha256=checksum,
         uploaded_by_id=current_user.id,
         uploaded_at=datetime.now(timezone.utc),
@@ -1217,8 +1300,8 @@ async def upload_new_version(
     document.current_version_id = db_version.id
     document.file_path = file_path
     document.file_size = file_size
-    document.file_type = file.content_type
-    document.mime_type = file.content_type
+    document.file_type = file_type
+    document.mime_type = file_mime_type
 
     db.add(
         _audit_document_action(

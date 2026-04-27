@@ -22,7 +22,7 @@ from app.schemas.gedrules import (
     SimulateResponse,
 )
 from app.services.gedrules_service import SimulateRoutingUseCase
-from app.core.authz import authorize_or_403, ctx_from_resource
+from app.core.authz import authorize_or_403
 
 
 async def _get_categories_for_tenant(
@@ -193,7 +193,7 @@ async def update_template(
         # par une règle de routage active, pour éviter des incohérences en vol.
         used_result = await db.execute(
             select(RoutingRule).filter(
-                RoutingRule.workflow_template_id == id, RoutingRule.is_active == True
+                RoutingRule.workflow_template_id == id, RoutingRule.is_active
             )
         )
         if used_result.scalars().first():
@@ -470,5 +470,6 @@ async def simulate_routing(
         tenant_id=current_user.tenant_id,
         document_category_id=request.document_category_id,
         org_unit_id=request.org_unit_id,
+        owner_id=request.owner_id,
     )
     return SimulateResponse(**result)

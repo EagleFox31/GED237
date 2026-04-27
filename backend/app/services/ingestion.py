@@ -66,6 +66,14 @@ class IngestionReport:
         }
 
 
+def _derive_file_type(filename: str, mime_type: str) -> str | None:
+    extension = os.path.splitext(filename)[1].lower().lstrip(".")
+    if extension:
+        return extension[:50]
+    subtype = (mime_type or "").split("/")[-1].lower().strip()
+    return subtype[:50] if subtype else None
+
+
 class DirectoryIngestionService:
     """
     Scans a directory, copies each supported file into GED storage,
@@ -174,7 +182,6 @@ class DirectoryIngestionService:
         Import a single file: copy to storage, create Document, run rules, queue OCR.
         """
         filename = os.path.basename(file_path)
-        file_ext = os.path.splitext(filename)[1].lower()
         file_size = os.path.getsize(file_path)
         mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
 
@@ -201,11 +208,12 @@ class DirectoryIngestionService:
             .replace("-", " ")
             .title()
         )
+        file_type = _derive_file_type(filename, mime_type)
 
         document = Document(
             title=title,
             file_path=relative_path,
-            file_type=mime_type,
+            file_type=file_type,
             file_size=file_size,
             mime_type=mime_type,
             document_category_id=document_category_id,

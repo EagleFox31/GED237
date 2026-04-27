@@ -3,7 +3,6 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 from typing import List, Any
 from functools import lru_cache
-import os
 
 
 class Settings(BaseSettings):
@@ -132,7 +131,7 @@ def get_settings() -> Settings:
     s = Settings()
     if (
         s.ENVIRONMENT == "production"
-        and s.SECRET_KEY == "dev-secret-key-change-this-in-production"
+        and s.SECRET_KEY == "dev-secret-key-change-this-in-production"  # nosec B105 - explicit production guard against unchanged dev default
     ):
         raise RuntimeError(
             "SECRET_KEY must be changed in production! Set a strong random key via the SECRET_KEY environment variable."

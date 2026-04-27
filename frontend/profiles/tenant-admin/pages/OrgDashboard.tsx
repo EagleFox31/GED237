@@ -53,7 +53,7 @@ const OrgDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-1">Vue d'ensemble</h2>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase mb-1">Vue D&apos;Ensemble</h2>
           <p className="text-slate-500 text-sm font-medium">Métriques clés et activité du ministère pour la période en cours.</p>
         </div>
         <div className="flex gap-3">
@@ -107,7 +107,7 @@ const OrgDashboard: React.FC = () => {
         <div className="rounded-3xl bg-gradient-to-br from-rdpc-blue/5 via-white to-emerald-50 border border-rdpc-blue/20 p-6 md:p-8">
           <div className="flex items-center gap-3 mb-2">
             <span className="material-symbols-outlined text-2xl text-rdpc-blue">waving_hand</span>
-            <h3 className="text-base font-black text-slate-900 tracking-tight">
+            <h3 className="text-base font-black text-slate-900 tracking-tighter italic uppercase">
               Bienvenue {userProfile?.name?.split(' ')[0] || ''}, par où commencer ?
             </h3>
           </div>
@@ -173,7 +173,7 @@ const OrgDashboard: React.FC = () => {
         <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Résumé des Workflows</h3>
+              <h3 className="text-base font-black text-slate-800 tracking-tighter italic uppercase">Résumé Des Workflows</h3>
               <p className="text-xs text-slate-400 font-medium mt-1">Répartition des étapes de validation.</p>
             </div>
           </div>
@@ -204,7 +204,7 @@ const OrgDashboard: React.FC = () => {
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <span className="material-symbols-outlined text-slate-400">cloud_queue</span>
-              <h3 className="text-sm font-bold text-slate-800">Stockage Tenant</h3>
+              <h3 className="text-sm font-black text-slate-800 tracking-tighter italic uppercase">Stockage Tenant</h3>
             </div>
             {(() => {
               const used = metrics?.documents?.storage_used_mb ?? 0;

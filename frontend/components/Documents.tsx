@@ -146,8 +146,8 @@ const Documents: React.FC = () => {
             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-0 group-hover:animate-shine group-hover:opacity-10" />
 
             <div className="flex items-center justify-between">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${getTypeStyle(doc.file_type)}`}>
-                <span className="material-symbols-outlined text-3xl font-bold">{getTypeIcon(doc.file_type)}</span>
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${getTypeStyle(doc.mime_type || doc.file_type)}`}>
+                <span className="material-symbols-outlined text-3xl font-bold">{getTypeIcon(doc.mime_type || doc.file_type)}</span>
               </div>
               <div className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${getStatusStyle(doc.status)}`}>
                 {getStatusLabel(doc.status)}
@@ -158,7 +158,7 @@ const Documents: React.FC = () => {
               <h4 className="font-bold text-slate-800 line-clamp-1 group-hover:text-rdpc-blue transition-colors text-lg tracking-tight">{doc.title}</h4>
               <div className="flex items-center gap-2">
                 {doc.category_name && <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-tighter">{doc.category_name}</span>}
-                <span className="text-[10px] font-medium text-slate-400">V{doc.current_version_number} • {getFileTypeLabel(doc.file_type)}</span>
+                <span className="text-[10px] font-medium text-slate-400">V{doc.current_version_number} • {getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
               </div>
             </div>
 

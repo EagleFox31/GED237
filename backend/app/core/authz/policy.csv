@@ -48,6 +48,7 @@ p, tenant_admin, gedrules.templates, manage
 p, tenant_admin, gedrules.rules, manage
 p, tenant_admin, users, manage
 p, tenant_admin, org_units, manage
+p, tenant_admin, documents, create
 p, tenant_admin, documents, read
 p, tenant_admin, documents, update
 p, tenant_admin, documents, delete

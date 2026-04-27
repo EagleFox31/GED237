@@ -4,6 +4,8 @@ import { useAuthStore } from '../../../stores/authStore';
 import { CreateOrgUnitModal } from '../../super-admin/pages/tenant-detail/CreateOrgUnitModal';
 import { CreateAdminModal } from '../../super-admin/pages/tenant-detail/CreateAdminModal';
 import type { OrgUnitNode as SuperOrgUnitNode, TenantUser } from '../../super-admin/pages/tenant-detail/types';
+import type { Document } from '../../../types';
+import { formatDate, formatFileSize, getFileTypeLabel } from '../../../types';
 
 // Interface matching the backend Schema
 interface OrgUnitNode {
@@ -87,6 +89,9 @@ const OrganizationPage: React.FC = () => {
   const [selectedUnit, setSelectedUnit] = useState<OrgUnitNode | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'staff' | 'chart'>('info');
   const [loading, setLoading] = useState(true);
+  const [unitDocuments, setUnitDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [createdUserInfo, setCreatedUserInfo] = useState<{ matricule: string; password?: string } | null>(null);
@@ -95,6 +100,31 @@ const OrganizationPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const loadUnitDocuments = async () => {
+      if (!selectedUnit) {
+        setUnitDocuments([]);
+        setDocumentsError(null);
+        return;
+      }
+
+      try {
+        setDocumentsLoading(true);
+        setDocumentsError(null);
+        const docs = await api.getWorkspaceDocuments(selectedUnit.id, true);
+        setUnitDocuments(docs);
+      } catch (e) {
+        console.error('Failed to fetch workspace documents', e);
+        setUnitDocuments([]);
+        setDocumentsError("Impossible de charger les documents de ce service.");
+      } finally {
+        setDocumentsLoading(false);
+      }
+    };
+
+    loadUnitDocuments();
+  }, [selectedUnit?.id]);
 
   const fetchData = async () => {
     try {
@@ -257,7 +287,12 @@ const OrganizationPage: React.FC = () => {
                           </div>
                         </div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Documents Actifs</p>
-                        <p className="text-3xl font-black mt-1">--</p>
+                        <p className="text-3xl font-black mt-1">
+                          {documentsLoading ? '...' : unitDocuments.length}
+                        </p>
+                        <p className="mt-2 text-[11px] font-medium text-slate-400">
+                          {documentsError ? documentsError : 'Cette unité et ses sous-services'}
+                        </p>
                       </div>
                       <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-white/5 to-transparent skew-x-12"></div>
                     </div>
@@ -308,6 +343,75 @@ const OrganizationPage: React.FC = () => {
                         <textarea rows={3} value={selectedUnit.description || ''} readOnly className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none resize-none" />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-black text-slate-800 tracking-tighter italic uppercase">Documents Du Service</h3>
+                        <p className="text-sm font-medium text-slate-500">
+                          Vue simple des documents rangés dans cette unité et ses sous-services.
+                        </p>
+                      </div>
+                      <div className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-widest">
+                        {documentsLoading ? 'Chargement...' : `${unitDocuments.length} document${unitDocuments.length > 1 ? 's' : ''}`}
+                      </div>
+                    </div>
+
+                    {documentsError ? (
+                      <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-medium text-red-600">
+                        {documentsError}
+                      </div>
+                    ) : documentsLoading ? (
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-8 text-center text-sm font-medium text-slate-500">
+                        Chargement des documents...
+                      </div>
+                    ) : unitDocuments.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
+                        <p className="text-sm font-bold text-slate-600">Aucun document visible dans ce service.</p>
+                        <p className="mt-2 text-xs font-medium text-slate-400">
+                          Importez un document dans ce service ou dans l'un de ses sous-services pour le voir apparaître ici.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-hidden rounded-[2rem] border border-slate-100">
+                        <table className="w-full text-left">
+                          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <tr>
+                              <th className="px-6 py-4">Document</th>
+                              <th className="px-6 py-4">Type</th>
+                              <th className="px-6 py-4">Catégorie</th>
+                              <th className="px-6 py-4">Taille</th>
+                              <th className="px-6 py-4">Mis à jour</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50 bg-white">
+                            {unitDocuments.slice(0, 8).map((doc) => (
+                              <tr key={doc.id} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="px-6 py-4">
+                                  <div>
+                                    <p className="text-sm font-bold text-slate-800">{doc.title}</p>
+                                    <p className="mt-1 text-[11px] font-medium text-slate-400">V{doc.current_version_number || '1.0'}</p>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-xs font-bold text-slate-600">
+                                  {getFileTypeLabel(doc.mime_type || doc.file_type)}
+                                </td>
+                                <td className="px-6 py-4 text-xs font-medium text-slate-500">
+                                  {doc.category_name || 'Non classé'}
+                                </td>
+                                <td className="px-6 py-4 text-xs font-medium text-slate-500">
+                                  {formatFileSize(doc.file_size)}
+                                </td>
+                                <td className="px-6 py-4 text-xs font-medium text-slate-500">
+                                  {formatDate(doc.updated_at)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

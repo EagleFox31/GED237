@@ -132,7 +132,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
             <div>
               <h2 className="text-xl font-bold text-slate-800 tracking-tight">{document.title}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{getFileTypeLabel(document.file_type)}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{getFileTypeLabel(document.mime_type || document.file_type)}</span>
                 <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                   document.status === 'validated' || document.status === 'signed' ? 'bg-green-100 text-green-600' :
@@ -197,7 +197,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
                     </div>
                     <div>
                       <p className="text-slate-400 font-medium">Type de document</p>
-                      <p className="font-bold text-slate-700">{getFileTypeLabel(document.file_type)}</p>
+                      <p className="font-bold text-slate-700">{getFileTypeLabel(document.mime_type || document.file_type)}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 font-medium">Taille</p>

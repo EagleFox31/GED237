@@ -403,6 +403,18 @@ export const api = {
         return response.json();
     },
 
+    getWorkspaceDocuments: async (orgUnitId?: string, recursive = false) => {
+        const params = new URLSearchParams();
+        if (orgUnitId) params.set('org_unit_id', orgUnitId);
+        if (recursive) params.set('recursive', 'true');
+        const qs = params.toString() ? `?${params.toString()}` : '';
+        const response = await fetchWithRefresh(`${API_URL}/documents/workspace${qs}`, {
+            headers: getHeaders(),
+        });
+        if (!response.ok) throw new Error('Fetch workspace documents failed');
+        return response.json();
+    },
+
     getWorkflowStats: async (tenantId?: string) => {
         const qs = tenantId ? `?tenant_id=${tenantId}` : '';
         const response = await fetchWithRefresh(`${API_URL}/workflows/stats${qs}`, {
@@ -600,7 +612,7 @@ export const api = {
         return true;
     },
 
-    simulateRouting: async (payload: { document_category_id: string; org_unit_id: string | null }) => {
+    simulateRouting: async (payload: { document_category_id: string; org_unit_id: string | null; owner_id?: string | null }) => {
         const response = await fetchWithRefresh(`${API_URL}/gedrules/simulate`, {
             method: 'POST',
             headers: getHeaders(),

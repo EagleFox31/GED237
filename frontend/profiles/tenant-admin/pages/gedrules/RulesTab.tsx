@@ -51,15 +51,18 @@ const RulesTab: React.FC = () => {
   };
 
   const handleOpenEdit = (r: any) => {
+    const documentCategoryIds = Array.isArray(r.document_category_ids) && r.document_category_ids.length > 0
+      ? r.document_category_ids
+      : Array.isArray(r.document_categories)
+        ? r.document_categories.map((category: any) => category?.id).filter(Boolean)
+        : [];
+
     setEditingRuleId(r.id);
     setNewRule({
       code: r.code,
       name: r.name,
       description: r.description || '',
-      document_category_ids: r.category_codes ? r.category_codes.map((_: any, i: number) => r.document_categories ? r.document_categories[i]?.id : r.document_category_ids?.[i] || r.document_categories_ids?.[i] || '') : [], // fallback for read
-      // Since API returns categories within rule if we use proper Schema... Wait, let's just make sure we map correctly using RuleRead
-      // Wait, API returns `category_codes` and `category_names`. It doesn't return `document_category_ids`. I should rely on the raw object if it has it, or modify API to return `document_category_ids`. I will modify API schema to include `document_category_ids`.
-      document_category_ids: r.document_category_ids || [],
+      document_category_ids: documentCategoryIds,
       org_unit_ids: r.org_unit_ids || [],
       workflow_template_id: r.workflow_template_id || '',
       priority: r.priority ?? 100,
@@ -212,6 +215,12 @@ const RulesTab: React.FC = () => {
       return categories.find(c => c.id === id)?.name || id;
   };
 
+  const getRuleCategoryIds = (rule: any): string[] =>
+    Array.isArray(rule?.document_category_ids) ? rule.document_category_ids : [];
+
+  const getRuleOrgUnitIds = (rule: any): string[] =>
+    Array.isArray(rule?.org_unit_ids) ? rule.org_unit_ids : [];
+
   return (
     <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-18rem)]">
       {/* Liste des Règles */}
@@ -272,15 +281,23 @@ const RulesTab: React.FC = () => {
                       <div className="w-3 h-3 bg-white rounded-full shadow-sm" />
                       </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 mt-3 ml-7">
-                   {index === 0 && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rdpc-blue/10 text-rdpc-blue uppercase tracking-widest">En tête</span>}
-                   {r.document_category_id ? (
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-100 text-purple-600 uppercase tracking-widest truncate">{getCategoryName(r.document_category_id)}</span>
-                   ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-100 text-slate-400 uppercase tracking-widest italic">Tout type</span>
-                   )}
-                </div>
+                 </div>
+                 <div className="flex items-center gap-2 mt-3 ml-7">
+                    {index === 0 && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rdpc-blue/10 text-rdpc-blue uppercase tracking-widest">En tête</span>}
+                    {getRuleCategoryIds(r).length > 0 ? (
+                       <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-100 text-purple-600 uppercase tracking-widest truncate">
+                         {(() => {
+                           const ruleCategoryIds = getRuleCategoryIds(r);
+                           const firstCategoryId = ruleCategoryIds[0];
+                           return ruleCategoryIds.length === 1 && firstCategoryId
+                             ? getCategoryName(firstCategoryId)
+                             : `${ruleCategoryIds.length} types`;
+                         })()}
+                       </span>
+                    ) : (
+                       <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-100 text-slate-400 uppercase tracking-widest italic">Tout type</span>
+                    )}
+                 </div>
              </div>
           ))
         )}
@@ -315,21 +332,29 @@ const RulesTab: React.FC = () => {
                               <span className="material-symbols-outlined">category</span>
                            </div>
                            <div>
-                               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Type de document</p>
-                               <p className="font-black text-slate-800 italic uppercase">{selectedRule.document_category_id ? getCategoryName(selectedRule.document_category_id) : "Tous les types"}</p>
+                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Type de document</p>
+                                <p className="font-black text-slate-800 italic uppercase">
+                                  {getRuleCategoryIds(selectedRule).length > 0
+                                    ? getRuleCategoryIds(selectedRule).map(getCategoryName).join(' • ')
+                                    : 'Tous les types'}
+                                </p>
+                             </div>
+                         </div>
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                               <span className="material-symbols-outlined">corporate_fare</span>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                              <span className="material-symbols-outlined">corporate_fare</span>
-                           </div>
-                           <div>
-                              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Unité Organisationnelle</p>
-                              <p className="font-black text-slate-800 italic uppercase">{selectedRule.org_unit_id ? getOrgUnitName(selectedRule.org_unit_id) : "Toutes les unités"}</p>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
+                            <div>
+                               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Unité Organisationnelle</p>
+                               <p className="font-black text-slate-800 italic uppercase">
+                                 {getRuleOrgUnitIds(selectedRule).length > 0
+                                   ? getRuleOrgUnitIds(selectedRule).map(getOrgUnitName).join(' • ')
+                                   : 'Toutes les unités'}
+                               </p>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
 
                   <div className="flex justify-center -my-2 relative z-10">
                      <div className="w-10 h-10 bg-rdpc-blue text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-200 border-4 border-white">
@@ -405,21 +430,21 @@ const RulesTab: React.FC = () => {
                </div>
 
                <div className="rounded-2xl border-2 border-slate-200 bg-white p-5 mb-6">
-                 <div className="flex items-center gap-2 mb-2">
-                   <span className="material-symbols-outlined text-amber-600 text-base">priority_high</span>
-                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">La priorité — quand plusieurs règles correspondent</p>
-                 </div>
-                 <p className="text-xs text-slate-600 leading-relaxed mb-3">
-                   Si un document peut déclencher <span className="font-bold">plusieurs règles à la fois</span>, le système choisit celle dont le <span className="font-bold">numéro de priorité est le plus petit</span>. <span className="italic">0 = priorité maximale, 999 = priorité minimale.</span>
-                 </p>
-                 <div className="text-xs bg-slate-50 rounded-xl p-3 border border-slate-100">
-                   <p className="text-slate-500 italic mb-1">Exemple : une facture arrive à la Direction Financière</p>
-                   <ul className="space-y-1 text-slate-700">
-                     <li>• Règle A — « Toutes les factures » (priorité <span className="font-bold">100</span>)</li>
-                     <li>• Règle B — « Factures de la Direction Financière » (priorité <span className="font-bold text-emerald-600">10</span>) ← appliquée</li>
-                   </ul>
-                 </div>
-                 <p className="text-[11px] italic text-slate-400 mt-2">Conseil : laissez 100 par défaut. Baissez la priorité (10, 20…) seulement pour les règles « plus spécifiques » qui doivent l'emporter.</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-amber-600 text-base">priority_high</span>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">Priorité — ordre d'application des règles</p>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                    Si un document correspond à <span className="font-bold">plusieurs règles à la fois</span>, le système applique d'abord <span className="font-bold">la règle la plus haute dans cette liste</span>. En arrière-plan, cela correspond aussi à la <span className="font-bold">plus petite priorité technique</span>.
+                  </p>
+                  <div className="text-xs bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-slate-500 italic mb-1">Exemple : un rapport arrive au Service des Applications</p>
+                    <ul className="space-y-1 text-slate-700">
+                      <li>• Règle A — « Circuit par défaut » placée plus bas dans la liste</li>
+                      <li>• Règle B — « Documents techniques SSI » placée plus haut dans la liste ← appliquée</li>
+                    </ul>
+                  </div>
+                  <p className="text-[11px] italic text-slate-400 mt-2">Conseil : placez les règles les plus spécifiques en haut, puis laissez les règles génériques plus bas. Les flèches de réordonnancement mettent la priorité à jour automatiquement.</p>
                </div>
 
                <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">

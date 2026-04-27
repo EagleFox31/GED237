@@ -173,3 +173,17 @@ class RoutingRule(Base, UUIDMixin, TimestampMixin):
             if self.document_categories
             else []
         )
+
+    @property
+    def document_category_ids(self) -> list[str]:
+        return (
+            [str(category.id) for category in self.document_categories]
+            if self.document_categories
+            else []
+        )
+
+    @property
+    def org_unit_ids(self) -> list[str]:
+        return (
+            [str(org_unit.id) for org_unit in self.org_units] if self.org_units else []
+        )
