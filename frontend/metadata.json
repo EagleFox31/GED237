@@ -1,0 +1,7 @@
+{
+  "name": "E-Dossier Cameroun",
+  "description": "Solution de Gestion Électronique de Documents (GED) premium pour l'administration camerounaise, alliant modernité, sécurité et identité nationale.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

@@ -1,0 +1,35 @@
+# Gitleaks configuration for GED237
+# Ref: T6.9 — OWASP A07 secrets detection
+
+title = "GED237 Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  '''venv/''',
+  '''node_modules/''',
+  '''\.git/''',
+  '''dist/''',
+  '''__pycache__/''',
+  '''\.pytest_cache/''',
+  '''package-lock\.json''',
+]
+
+# Allow docker-compose env var substitution patterns (not actual secrets)
+regexTarget = "line"
+regexes = [
+  '''\$\{[A-Z_]+:-[^}]+\}''',
+]
+
+# Allow the dev-default SECRET_KEY that has a production guard (raises RuntimeError)
+[[rules]]
+id = "dev-default-secret-key"
+description = "Dev default SECRET_KEY with production guard — not a leak"
+regex = '''dev-secret-key-change-(this-in|in)-production'''
+[rules.allowlist]
+description = "Intentional dev default with runtime guard"
+regexTarget = "line"
+regexes = ['''dev-secret-key''']

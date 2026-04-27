@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<!-- Post-login SaaS GED. Exemple de domaine: https://app.your-ged.com -->
+<!-- Remplacer {tenant-id} par l'ID réel du tenant. -->
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/dashboard</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/activity</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/documents</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.9</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/my</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/shared-with-me</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/favorites</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.6</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/recent</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.6</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/trash</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>0.5</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/archive</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/search</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.9</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/duplicates</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/versions</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/tasks</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/workflows</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/classification/rules</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/classification/inbox</loc><lastmod>2025-10-03</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/agents</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/agents/policies</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/users</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/groups</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/roles</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/structure</loc><lastmod>2025-10-03</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/security</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/retention</loc><lastmod>2025-10-03</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/settings</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/billing</loc><lastmod>2025-10-03</lastmod><changefreq>monthly</changefreq><priority>0.4</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/audit</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/reports</loc><lastmod>2025-10-03</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/admin/api</loc><lastmod>2025-10-03</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+
+
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/help</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.4</priority></url>
+<url><loc>https://app.your-ged.com/t/{tenant-id}/app/onboarding</loc><lastmod>2025-10-03</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+</urlset>

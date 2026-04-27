@@ -1,0 +1,118 @@
+{
+  "extends": [
+    "airbnb",
+    "airbnb-typescript",
+    "airbnb/hooks"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "react",
+    "react-hooks",
+    "import"
+  ],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-uses-react": "off",
+    "import/no-unresolved": "error",
+    "import/extensions": "off",
+    "@typescript-eslint/no-unused-vars": "error",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/prefer-nullish-coalescing": "off",
+    "@typescript-eslint/prefer-optional-chain": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+
+    "no-console": "warn",
+    "react/button-has-type": "warn",
+    "react/no-unescaped-entities": "off",
+    "react/function-component-definition": "off",
+    "react/require-default-props": "off",
+    "react/jsx-props-no-spreading": "off",
+    "react/no-array-index-key": "warn",
+    "jsx-a11y/label-has-associated-control": "off",
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/anchor-is-valid": "off",
+    "import/prefer-default-export": "off",
+    "no-alert": "off",
+    "no-restricted-syntax": "off",
+    "no-param-reassign": ["error", { "props": false }],
+    "consistent-return": "off",
+
+    "@typescript-eslint/indent": "off",
+    "@typescript-eslint/quotes": "off",
+    "@typescript-eslint/comma-dangle": "off",
+    "@typescript-eslint/lines-between-class-members": "off",
+    "@typescript-eslint/semi": "off",
+    "linebreak-style": "off",
+    "no-trailing-spaces": "off",
+    "object-curly-newline": "off",
+    "arrow-parens": "off",
+    "react/jsx-indent": "off",
+    "react/jsx-indent-props": "off",
+    "react/jsx-one-expression-per-line": "off",
+    "react/self-closing-comp": "off",
+    "react/jsx-closing-bracket-location": "off",
+    "react/jsx-closing-tag-location": "off",
+    "react/jsx-curly-brace-presence": "off",
+    "react/jsx-wrap-multilines": "off",
+    "max-len": "off",
+    "padded-blocks": "off",
+    "eol-last": "off",
+    "no-multiple-empty-lines": "off",
+    "operator-linebreak": "off",
+    "implicit-arrow-linebreak": "off",
+    "function-paren-newline": "off",
+    "object-curly-spacing": "off",
+    "nonblock-statement-body-position": "off",
+    "quote-props": "off",
+    "@typescript-eslint/object-curly-spacing": "off",
+    "@typescript-eslint/keyword-spacing": "off",
+    "react/jsx-max-props-per-line": "off",
+    "react/jsx-tag-spacing": "off",
+    "react/jsx-first-prop-new-line": "off",
+    "no-multi-spaces": "off",
+    "arrow-body-style": "off",
+    "no-nested-ternary": "off",
+    "@typescript-eslint/no-use-before-define": "off",
+    "radix": "off",
+    "no-confusing-arrow": "off",
+    "no-restricted-globals": "off",
+    "object-shorthand": "off",
+    "@typescript-eslint/dot-notation": "off",
+    "@typescript-eslint/no-throw-literal": "off",
+    "@typescript-eslint/no-shadow": "off",
+    "no-empty": "warn",
+    "import/no-extraneous-dependencies": ["error", { "devDependencies": ["**/*.config.ts", "e2e/**"] }],
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/control-has-associated-label": "off",
+    "import/newline-after-import": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    },
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true
+      }
+    }
+  },
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "node": true
+  },
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "*.js",
+    "e2e/"
+  ]
+}

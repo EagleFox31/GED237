@@ -1,0 +1,128 @@
+# backend/app/core/authz/policy.csv
+#
+# Policies RBAC pour GED237.
+#
+# Format : p, <role>, <resource>, <action>
+# Héritage de rôle : g, <role_enfant>, <role_parent>
+#
+# Actions normalisées (VOCABULAIRE FIGÉ — ne pas en créer d'autres) :
+#   read          lire n'importe quelle ressource du scope
+#   read_own      lire uniquement ses propres ressources
+#   create        créer
+#   update        mettre à jour n'importe quelle ressource du scope
+#   update_own    mettre à jour uniquement ses propres ressources
+#   delete        supprimer n'importe quelle ressource du scope
+#   delete_own    supprimer uniquement ses propres ressources
+#   trash_own     mettre à la corbeille ses propres ressources
+#   manage        shortcut → toutes les actions ci-dessus (géré dans le matcher)
+#   assign        assigner une tâche workflow
+#   resolve_review valider/rejeter/retourner un step workflow
+#   simulate      simuler un routage GEDRules
+#
+# DETTE EXPLICITE :
+#   Ce fichier CSV est la source de vérité en DEV/STAGING uniquement.
+#   En production multi-instance, migrer vers un SQLAlchemyAdapter Casbin
+#   pour que les policies vivent en base et soient partagées entre instances.
+#   Ticket : "P6 - Casbin SQLAlchemyAdapter"
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# SUPER ADMIN — gouvernance plateforme
+# ─────────────────────────────────────────────────────────────────────────────
+p, super_admin, tenants, manage
+p, super_admin, users, manage
+p, super_admin, org_units, manage
+p, super_admin, categories, manage
+p, super_admin, gedrules.templates, manage
+p, super_admin, gedrules.rules, manage
+p, super_admin, documents, manage
+p, super_admin, workflows, manage
+p, super_admin, analytics.tenant, read
+p, super_admin, analytics.platform, read
+p, super_admin, audit_logs, read
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TENANT ADMIN — gouvernance tenant
+# ─────────────────────────────────────────────────────────────────────────────
+p, tenant_admin, categories, manage
+p, tenant_admin, gedrules.templates, manage
+p, tenant_admin, gedrules.rules, manage
+p, tenant_admin, users, manage
+p, tenant_admin, org_units, manage
+p, tenant_admin, documents, read
+p, tenant_admin, documents, update
+p, tenant_admin, documents, delete
+p, tenant_admin, workflows, manage
+p, tenant_admin, analytics.tenant, read
+p, tenant_admin, audit_logs, read
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UNIT ADMIN — gouvernance unité organisationnelle
+# ─────────────────────────────────────────────────────────────────────────────
+p, unit_admin, documents, read
+p, unit_admin, documents, update
+p, unit_admin, documents, delete
+p, unit_admin, users, read
+p, unit_admin, org_units, read
+p, unit_admin, workflows, manage
+p, unit_admin, analytics.tenant, read
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AUDITOR — lecture seule tenant-wide
+# ─────────────────────────────────────────────────────────────────────────────
+p, auditor, documents, read
+p, auditor, workflows, read
+p, auditor, categories, read
+p, auditor, users, read
+p, auditor, org_units, read
+p, auditor, analytics.tenant, read
+p, auditor, audit_logs, read
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MANAGER — supervision unité
+# ─────────────────────────────────────────────────────────────────────────────
+p, manager, documents, read
+p, manager, documents, update_own
+p, manager, documents, trash_own
+p, manager, documents, create
+p, manager, workflows, read
+p, manager, workflows, assign
+p, manager, workflows, resolve_review
+p, manager, analytics.tenant, read
+
+# ─────────────────────────────────────────────────────────────────────────────
+# READER — consultation unité
+# ─────────────────────────────────────────────────────────────────────────────
+p, reader, documents, read
+p, reader, workflows, read
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STANDARD (collaborateur) — ses propres documents + stats tenant
+# ─────────────────────────────────────────────────────────────────────────────
+p, standard, analytics.tenant, read
+p, standard, tenants, read
+p, standard, documents, create
+p, standard, workflows, update_own
+p, standard, documents, read_own
+p, standard, documents, update_own
+p, standard, documents, delete_own
+p, standard, documents, trash_own
+p, standard, workflows, read_own
+p, standard, workflows, resolve_review
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TENANTS — gestion plateforme (super_admin + tenant_admin lecture seule)
+# ─────────────────────────────────────────────────────────────────────────────
+p, tenant_admin, tenants, read
+p, tenant_admin, tenants, update
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GEDRules simulate — tous les admins peuvent simuler
+# ─────────────────────────────────────────────────────────────────────────────
+p, tenant_admin, gedrules.rules, simulate
+p, unit_admin, gedrules.rules, simulate
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Héritage de rôles (optionnel — non utilisé pour l'instant)
+# Décommenter si on veut que unit_admin hérite de manager, etc.
+# g, unit_admin, manager
+# ─────────────────────────────────────────────────────────────────────────────

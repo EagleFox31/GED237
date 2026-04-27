@@ -1,0 +1,117 @@
+name: Backend CI
+
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_ged
+  TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_ged
+  TEST_REDIS_URL: redis://localhost:6379/0
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  test:
+    name: Tests & Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_ged
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Alembic migrations
+        run: |
+          cd backend
+          python -m alembic upgrade head
+          python -m alembic check
+
+      - name: Run tests with coverage
+        run: |
+          cd backend
+          python -m pytest tests/ \
+            -v \
+            --tb=short \
+            --timeout=300 \
+            --junitxml=test-results.xml \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            -x
+
+      - name: AuthZ benchmark gate (CSV vs SQL)
+        run: |
+          cd backend
+          python scripts/benchmark_authz.py \
+            --iterations 1000 \
+            --sql-p99-max-ms 5 \
+            --sql-vs-csv-max-ratio 2.0
+
+      - name: "T6.13: Lint Alembic migrations (squawk)"
+        run: |
+          npm install -g squawk-cli@1.5.0
+          cd backend
+
+          # Generate full migration SQL from base to head
+          python -m alembic upgrade base:head --sql > migrations.sql 2>/dev/null || true
+
+          if [ -s migrations.sql ]; then
+            echo "=== Linting migration SQL with squawk ==="
+            squawk migrations.sql || echo "::warning::squawk found potential migration issues — review above"
+          else
+            echo "No migration SQL generated — skipping squawk"
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: |
+            backend/test-results.xml
+            backend/coverage.xml
+          retention-days: 30

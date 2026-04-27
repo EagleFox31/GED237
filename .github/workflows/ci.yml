@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Stage 1 — Backend + Frontend + Security (parallel)
+  # ──────────────────────────────────────────────
+  backend:
+    name: Backend
+    uses: ./.github/workflows/backend.yml
+
+  frontend:
+    name: Frontend
+    uses: ./.github/workflows/frontend.yml
+
+  security:
+    name: Security
+    uses: ./.github/workflows/security.yml
+
+  # ──────────────────────────────────────────────
+  # Stage 2 — Gate (single required status check)
+  # ──────────────────────────────────────────────
+  gate:
+    name: CI Gate
+    if: always()
+    needs: [backend, frontend, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Check pipeline results
+        run: |
+          echo "Backend:  ${{ needs.backend.result }}"
+          echo "Frontend: ${{ needs.frontend.result }}"
+          echo "Security: ${{ needs.security.result }}"
+
+          if [[ "${{ needs.backend.result }}" == "failure" ]]; then
+            echo "::error::Backend pipeline failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.frontend.result }}" == "failure" ]]; then
+            echo "::error::Frontend pipeline failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security.result }}" == "failure" ]]; then
+            echo "::error::Security pipeline failed"
+            exit 1
+          fi
+
+          echo "All pipelines passed"

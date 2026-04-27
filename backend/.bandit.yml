@@ -1,0 +1,16 @@
+# Bandit SAST configuration for GED237 backend
+# Ref: T6.7 — OWASP A03/A07 compliance
+
+skips:
+  # B101: assert — acceptable in test helpers and debug guards with production RuntimeError fallback
+  - B101
+
+exclude_dirs:
+  - venv
+  - tests
+  - alembic
+  - .pytest_cache
+
+# Severity threshold — only HIGH and above block CI
+severity: LOW
+confidence: LOW

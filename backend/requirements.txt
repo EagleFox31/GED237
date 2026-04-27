@@ -1,0 +1,55 @@
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy[asyncio]==2.0.27
+asyncpg==0.29.0
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# Redis
+redis==5.0.1
+
+# Security
+python-jose[cryptography]==3.3.0
+passlib[argon2]==1.7.4
+python-multipart==0.0.9
+slowapi==0.1.9
+casbin==1.43.0
+casbin-sqlalchemy-adapter==1.4.0
+
+# Celery
+celery==5.3.6
+flower==2.0.1
+
+# OCR & Processing
+spacy>=3.7.0          # NLP normalisation — fr_core_news_sm required (python -m spacy download fr_core_news_sm)
+pytesseract==0.3.10
+easyocr==1.7.1
+torch==2.1.2
+torchvision==0.16.2
+Pillow==10.2.0
+PyPDF2==3.0.1
+
+# Utilities
+python-dotenv==1.0.1
+httpx==0.26.0
+
+# Cloud Storage
+boto3==1.34.40
+
+# Testing
+pytest==8.0.2
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
+pytest-timeout==2.3.1
+pytest-benchmark==4.0.0
+
+# Security scanning (T6.7, T6.8)
+bandit==1.8.3
+pip-audit==2.7.3
+pre-commit==3.8.0
+ruff==0.6.9
+resend==2.4.0
