@@ -14,10 +14,10 @@ const GEDRulesPage: React.FC = () => {
         <div>
           <h1 className="text-4xl font-black text-slate-800 tracking-tighter uppercase italic flex items-center gap-3">
             <span className="material-symbols-outlined text-4xl text-rdpc-blue">directions</span>
-            Types de Docs & Aiguillage
+            Traitement des documents
           </h1>
           <p className="text-slate-500 font-medium italic mt-2">
-            Gérez les différents types de pièces administratives. Chaque type peut déclencher un chemin de validation précis et être distribué automatiquement.
+            Définissez comment les documents circulent : types officiels, circuits de visa et de signature, règles d’aiguillage automatique.
           </p>
         </div>
       </div>

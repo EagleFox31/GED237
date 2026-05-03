@@ -9,6 +9,8 @@ DocumentStatus = Literal[
     "draft", "in_review", "validated", "signed", "archived", "rejected", "returned"
 ]
 ProcessingMode = Literal["archive", "process"]
+ClassificationScope = Literal["person", "service", "subdirectorate", "directorate"]
+ClassificationStatus = Literal["pending", "classified", "needs_review", "rejected"]
 
 
 class DocumentBase(BaseModel):
@@ -42,6 +44,18 @@ class DocumentRead(DocumentBase):
     file_size: Optional[int] = None
     status: DocumentStatus
     processing_mode: ProcessingMode = "process"
+    classification_domain_id: Optional[UUID] = None
+    classification_domain_name: Optional[str] = None
+    classification_activity_id: Optional[UUID] = None
+    classification_activity_name: Optional[str] = None
+    classification_year: Optional[int] = None
+    classification_scope: ClassificationScope = "service"
+    classification_target_org_unit_id: Optional[UUID] = None
+    classification_target_user_id: Optional[UUID] = None
+    classification_status: ClassificationStatus = "pending"
+    logical_space_path: Optional[str] = None
+    source_relative_path: Optional[str] = None
+    import_job_id: Optional[UUID] = None
     current_version_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
@@ -115,7 +129,7 @@ class RuleSuggestion(BaseModel):
 class ResolveReviewPayload(BaseModel):
     """Payload de la résolution d'un document en revue manuelle"""
 
-    target_folder_id: str
+    target_folder_id: Optional[str] = None
     document_category_id: Optional[UUID] = None
     comment: Optional[str] = None
     resolution_reason: Optional[str] = None

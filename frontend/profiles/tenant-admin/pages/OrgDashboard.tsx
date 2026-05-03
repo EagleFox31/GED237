@@ -146,7 +146,7 @@ const OrgDashboard: React.FC = () => {
               color="text-emerald-600"
               title="Trier les documents en attente"
               desc="Affecter ou re-classer les documents que les règles n'ont pas pu traiter automatiquement."
-              onClick={() => navigate('/needs-review')}
+              onClick={() => navigate('/classification-reviews')}
             />
             <FirstStep
               num="5"

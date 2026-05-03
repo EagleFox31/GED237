@@ -27,9 +27,10 @@ flower==2.0.1
 # OCR & Processing
 spacy>=3.7.0          # NLP normalisation — fr_core_news_sm required (python -m spacy download fr_core_news_sm)
 pytesseract==0.3.10
-easyocr==1.7.1
-torch==2.1.2
-torchvision==0.16.2
+easyocr==1.7.2
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
 Pillow==10.2.0
 PyPDF2==3.0.1
 

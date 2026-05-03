@@ -1,5 +1,5 @@
 import { API_URL } from '../constants';
-import { fetchWithRefresh, getHeaders } from './api';
+import { fetchWithRefresh, getHeaders } from './http/client';
 import { DocumentCategory, DocumentCategoryCreate } from '../types';
 export type { DocumentCategory, DocumentCategoryCreate };
 

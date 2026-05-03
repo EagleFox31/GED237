@@ -4,7 +4,7 @@ import { test, expect } from '../fixtures/authenticated.fixture';
  * SC-ADM-REVIEW — Arbitrage humain des documents non classés
  *
  * Après l'upload massif, les documents que le moteur n'a pas su classer
- * remontent sur /needs_review. Le tenant_admin doit les reprendre un par un
+ * remontent sur /classification-reviews (avec compat /needs-review). Le tenant_admin doit les reprendre un par un
  * pour décider du classement ou confirmer qu'ils restent non classés.
  *
  * Ce spec :
@@ -20,20 +20,20 @@ const MAX_ARBITRATIONS = 5;
 
 test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-REVIEW)', () => {
 
-  test('Given tenant_admin, When /needs_review, Then la page charge', async ({ page }) => {
-    await page.goto('needs_review');
+  test('Given tenant_admin, When /needs-review, Then la page charge', async ({ page }) => {
+    await page.goto('needs-review');
     await page.waitForLoadState('networkidle');
 
-    const heading = page.getByText(/documents à revoir|needs review|à revoir/i).first();
+    const heading = page.getByText(/revue de classement|documents à revoir|needs review|à revoir|classement manuel/i).first();
     await expect(heading).toBeVisible({ timeout: 10_000 });
   });
 
   test('SC-ADM-REVIEW — arbitrage séquentiel des documents en rebut', async ({ page }) => {
-    await page.goto('needs_review');
+    await page.goto('needs-review');
     await page.waitForLoadState('networkidle');
 
     // Liste des documents en rebut — on cible les lignes cliquables
-    const docRows = page.locator('[class*="cursor-pointer"]').filter({ has: page.locator('text=/\\.(pdf|docx|xlsx|pptx)/i') });
+    const docRows = page.getByRole('button').filter({ has: page.locator('span.material-symbols-outlined:text("warning")') });
     const initialCount = await docRows.count().catch(() => 0);
 
     if (initialCount === 0) {
@@ -61,7 +61,7 @@ test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-REVIEW)', (
       await commentField.fill(`Arbitrage E2E ${Date.now()} — document conservé sans classement`);
 
       // Bouton valider l'arbitrage
-      const resolveBtn = page.getByRole('button', { name: /valider|résoudre|confirmer|arbitrer/i }).first();
+      const resolveBtn = page.getByRole('button', { name: /valider|résoudre|confirmer|arbitrer|classer et relancer/i }).first();
       if (!(await resolveBtn.isVisible().catch(() => false))) {
         console.log(`[needs-review] bouton de résolution introuvable à l'itération ${i}`);
         break;
@@ -69,7 +69,7 @@ test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-REVIEW)', (
 
       // Intercepter l'appel API pour confirmer la résolution côté réseau
       const responsePromise = page.waitForResponse(
-        (r) => /\/documents\/[^/]+\/resolve-review/.test(r.url()) && r.request().method() === 'POST',
+        (r) => /\/classification-reviews\/[^/]+\/resolve/.test(r.url()) && r.request().method() === 'POST',
         { timeout: 10_000 },
       );
       await resolveBtn.click();

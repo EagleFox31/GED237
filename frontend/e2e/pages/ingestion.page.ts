@@ -1,61 +1,32 @@
-import { type Page, type Locator, expect } from '@playwright/test';
+import { type Locator, type Page, expect } from '@playwright/test';
 
-/**
- * Page Object Model for DirectoryIngestion (profiles/tenant-admin/pages/DirectoryIngestion.tsx).
- */
 export class IngestionPage {
   readonly page: Page;
-
-  // Header
   readonly heading: Locator;
   readonly badge: Locator;
-
-  // Config form
   readonly directoryInput: Locator;
-  readonly categorySelect: Locator;
+  readonly filesInput: Locator;
+  readonly analyzeButton: Locator;
+  readonly commitButton: Locator;
   readonly recursiveCheckbox: Locator;
-  readonly ingestButton: Locator;
-  readonly errorMessage: Locator;
-  readonly loadingSpinner: Locator;
-
-  // Supported formats
   readonly formatsSection: Locator;
-
-  // Results
-  readonly summaryCards: Locator;
-  readonly totalFoundCard: Locator;
-  readonly importedCard: Locator;
-  readonly skippedCard: Locator;
-  readonly errorsCard: Locator;
-  readonly importedFilesList: Locator;
-  readonly errorsList: Locator;
+  readonly previewTable: Locator;
+  readonly importedSection: Locator;
+  readonly errorMessage: Locator;
 
   constructor(page: Page) {
-    // Header
-    this.heading = page.getByText('Ingestion Répertoire');
-    this.badge = page.getByText('Import en Masse');
-
-    // Config form
-    this.directoryInput = page.getByPlaceholder(/Documents.*Inbox/i);
-    this.categorySelect = page.locator('select').filter({ hasText: /aucune.*classement/i });
-    this.recursiveCheckbox = page.locator('input[type="checkbox"]');
-    this.ingestButton = page.getByRole('button', { name: /lancer l'ingestion/i });
-    this.errorMessage = page.locator('.bg-red-50.border-red-100 p.text-red-600');
-    this.loadingSpinner = page.locator('.animate-spin');
-
-    // Formats
-    this.formatsSection = page.getByText('Formats pris en charge');
-
-    // Results
-    this.summaryCards = page.locator('.glass.text-center');
-    this.totalFoundCard = page.getByText('Fichiers trouvés');
-    this.importedCard = page.getByText(/^importés$/i);
-    this.skippedCard = page.getByText(/^ignorés$/i);
-    this.errorsCard = page.getByText(/^erreurs$/i).first();
-    this.importedFilesList = page.getByText(/documents importés/i);
-    this.errorsList = page.locator('.bg-red-50\\/50').filter({ hasText: /erreurs/i });
-
     this.page = page;
+    this.heading = page.getByRole('heading', { name: /import batch pilote/i });
+    this.badge = page.getByText('Sprint 4');
+    this.directoryInput = page.locator('input[type="file"]').nth(0);
+    this.filesInput = page.locator('input[type="file"]').nth(1);
+    this.analyzeButton = page.getByRole('button', { name: /analyser le lot/i });
+    this.commitButton = page.getByRole('button', { name: /lancer l'import/i });
+    this.recursiveCheckbox = page.locator('input[type="checkbox"]');
+    this.formatsSection = page.getByText('Formats pris en charge');
+    this.previewTable = page.locator('table');
+    this.importedSection = page.getByText(/documents importes/i);
+    this.errorMessage = page.locator('.bg-red-50.border-red-100 p.text-red-600');
   }
 
   async goto() {
@@ -63,45 +34,35 @@ export class IngestionPage {
   }
 
   async expectPageVisible() {
-    await expect(this.heading).toBeVisible({ timeout: 10_000 });
+    await expect(this.heading).toBeVisible({ timeout: 10000 });
+    await expect(this.badge).toBeVisible();
   }
 
-  async fillDirectoryPath(path: string) {
-    await this.directoryInput.fill(path);
+  async uploadFiles(files: Array<{ name: string; mimeType: string; buffer: Buffer }>) {
+    await this.filesInput.setInputFiles(files);
   }
 
-  async selectCategory(category: string) {
-    await this.categorySelect.selectOption(category);
+  async clickAnalyze() {
+    await this.analyzeButton.click();
   }
 
-  async toggleRecursive() {
-    await this.recursiveCheckbox.click();
+  async clickCommit() {
+    await this.commitButton.click();
   }
 
-  async startIngestion() {
-    await this.ingestButton.click();
+  async expectAnalyzeDisabled() {
+    await expect(this.analyzeButton).toBeDisabled();
   }
 
-  async expectIngesting() {
-    await expect(this.loadingSpinner).toBeVisible();
+  async expectAnalyzeEnabled() {
+    await expect(this.analyzeButton).toBeEnabled();
   }
 
-  async expectResultsVisible() {
-    await expect(this.totalFoundCard).toBeVisible({ timeout: 30_000 });
+  async expectCommitDisabled() {
+    await expect(this.commitButton).toBeDisabled();
   }
 
-  async expectErrorMessage(text?: string) {
-    await expect(this.errorMessage).toBeVisible();
-    if (text) {
-      await expect(this.errorMessage).toContainText(text);
-    }
-  }
-
-  async expectButtonDisabled() {
-    await expect(this.ingestButton).toBeDisabled();
-  }
-
-  async expectButtonEnabled() {
-    await expect(this.ingestButton).toBeEnabled();
+  async expectCommitEnabled() {
+    await expect(this.commitButton).toBeEnabled();
   }
 }

@@ -3,6 +3,8 @@ import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 
+import ErrorBoundary from './components/ErrorBoundary';
+import ErrorOverlay from './components/ErrorOverlay';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -20,6 +22,7 @@ import PlatformUsers from './profiles/super-admin/pages/PlatformUsers';
 import OrgDashboard from './profiles/tenant-admin/pages/OrgDashboard';
 import OrganizationPage from './profiles/tenant-admin/pages/OrganizationPage';
 import GEDRulesPage from './profiles/tenant-admin/pages/GEDRulesPage';
+import ClassementPage from './profiles/tenant-admin/pages/ClassementPage';
 import ServiceDashboard from './profiles/unit-admin/pages/ServiceDashboard';
 import ValidationHub from './profiles/manager/pages/ValidationHub';
 import DraftWorkspace from './profiles/collaborator/pages/DraftWorkspace';
@@ -27,9 +30,9 @@ import LibraryView from './profiles/reader/pages/LibraryView';
 import AuditLogs from './profiles/auditor/pages/AuditLogs';
 import DisplaySettings from './profiles/tenant-admin/pages/DisplaySettings';
 import DirectoryIngestion from './profiles/tenant-admin/pages/DirectoryIngestion';
-import NeedsReviewInbox from './profiles/tenant-admin/pages/NeedsReviewInbox';
 import PendingAssignmentsInbox from './profiles/tenant-admin/pages/PendingAssignmentsInbox';
 import SpacesPage from './profiles/tenant-admin/pages/SpacesPage';
+import ClassificationReviewPage from './profiles/tenant-admin/pages/ClassificationReviewPage';
 
 // Route → activeTab mapping (pour la compatibilité Sidebar/Header)
 const ROUTE_TO_TAB: Record<string, string> = {
@@ -45,7 +48,9 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/org': 'org',
   '/spaces': 'spaces',
   '/rules': 'ged_rules',
+  '/classement': 'classement',
   '/needs-review': 'needs_review',
+  '/classification-reviews': 'needs_review',
   '/pending-assignments': 'pending_assignments',
   '/ingestion': 'ingestion',
   '/audit': 'audit_central',
@@ -63,7 +68,8 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'org': '/org',
   'spaces': '/spaces',
   'ged_rules': '/rules',
-  'needs_review': '/needs-review',
+  'classement': '/classement',
+  'needs_review': '/classification-reviews',
   'pending_assignments': '/pending-assignments',
   'ingestion': '/ingestion',
   'audit_central': '/audit',
@@ -162,7 +168,7 @@ const AppLayout: React.FC = () => {
       {layoutMode === 'sidebar' && (
         <Sidebar activeTab={activeTab} onTabChange={handleTabChange} userProfile={userProfile} />
       )}
-      <main className={`flex-1 flex flex-col h-screen min-h-0 transition-all duration-500 ${layoutMode === 'sidebar' ? 'ml-64' : 'ml-0'}`}>
+      <main className={`flex-1 flex flex-col h-screen min-h-0 transition-all duration-500 ${layoutMode === 'sidebar' ? 'ml-72' : 'ml-0'}`}>
         <Header
           userProfile={userProfile}
           layoutMode={layoutMode}
@@ -185,7 +191,9 @@ const AppLayout: React.FC = () => {
             <Route path="/org" element={<OrganizationPage />} />
             <Route path="/spaces" element={<SpacesPage />} />
             <Route path="/rules" element={<GEDRulesPage />} />
-            <Route path="/needs-review" element={<NeedsReviewInbox />} />
+            <Route path="/classement" element={<ClassementPage />} />
+            <Route path="/classification-reviews" element={<ClassificationReviewPage />} />
+            <Route path="/needs-review" element={<Navigate to="/classification-reviews" replace />} />
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />
             <Route path="/ingestion" element={<DirectoryIngestion />} />
             <Route path="/audit" element={<AuditLogs />} />
@@ -208,11 +216,12 @@ const AppLayout: React.FC = () => {
 const App: React.FC = () => {
   const { isLoggedIn, login } = useAuthStore();
 
-  if (!isLoggedIn) {
-    return <LoginPage onLogin={login} />;
-  }
-
-  return <AppLayout />;
+  return (
+    <ErrorBoundary>
+      {isLoggedIn ? <AppLayout /> : <LoginPage onLogin={login} />}
+      <ErrorOverlay />
+    </ErrorBoundary>
+  );
 };
 
 export default App;

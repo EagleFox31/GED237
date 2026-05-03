@@ -32,7 +32,8 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
   {
     section: "Configuration GED",
     items: [
-      { id: 'ged_rules', label: 'Paramétrage', icon: 'tune', subItems: ['Types de documents', 'Circuits de validation', "Règles d'aiguillage", 'Simulateur'] },
+      { id: 'ged_rules', label: 'Traitement des documents', icon: 'directions', subItems: ['Types de documents', 'Circuits de validation', "Règles d'aiguillage", 'Simulateur'] },
+      { id: 'classement', label: 'Plan de classement', icon: 'account_tree', subItems: ['Domaines métier', 'Activités', 'Règles de classement', 'Simulateur'] },
       { id: 'ingestion', label: 'Import en masse', icon: 'drive_folder_upload', subItems: ['Scanner un dossier', 'Classement automatique'] },
     ]
   },

@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
-from uuid import UUID
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class OrgUnitBase(BaseModel):
@@ -38,7 +39,23 @@ class OrgUnitRead(OrgUnitBase):
 
 
 class OrgUnitTree(OrgUnitRead):
-    children: List["OrgUnitTree"] = []
+    children: List["OrgUnitTree"] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
+
+
+class OrgUnitTreeNode(BaseModel):
+    id: UUID
+    name: str
+    code: str
+    level: int
+    parent_id: Optional[UUID] = None
+    children: List["OrgUnitTreeNode"] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+OrgUnitTree.model_rebuild()
+OrgUnitTreeNode.model_rebuild()

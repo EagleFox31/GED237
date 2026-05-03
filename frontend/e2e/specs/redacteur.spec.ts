@@ -127,7 +127,7 @@ test.describe.serial('Feature: Parcours rédacteur (SC-RED-02..05)', () => {
     await expect(page.locator('.grid').getByText(docTitle)).toBeHidden({ timeout: 10_000 });
   });
 
-  test('SC-RED-05 — Given documents indexés, When recherche par mot-clé, Then résultat filtré', async ({ loginAs, page, request }) => {
+  test('SC-RED-05 — Given documents indexés, When recherche par mot-clé, Then résultat filtré', async ({ loginAs, page }) => {
     await loginAs('collaborator');
     const ws = new DraftWorkspacePage(page);
     await ws.expectPageVisible();

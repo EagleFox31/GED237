@@ -3,11 +3,19 @@ EasyOCR Engine (SRP: Handle EasyOCR-specific OCR)
 Best for: Photos, screenshots, real-world images, scene text
 """
 
+import logging
 import time
 from PIL import Image
 import numpy as np
 import easyocr
 from .base import OCREngine, OCRResult
+
+try:
+    import torch
+except ImportError:  # pragma: no cover - depends on optional runtime install
+    torch = None
+
+logger = logging.getLogger(__name__)
 
 
 class EasyOCREngine(OCREngine):
@@ -28,28 +36,55 @@ class EasyOCREngine(OCREngine):
     - Rotated or skewed images
     """
 
-    # Class-level reader (singleton pattern for performance)
-    _reader = None
+    # Cache readers by (languages, gpu_mode) to avoid rebuilding models.
+    _readers: dict[tuple[tuple[str, ...], bool], easyocr.Reader] = {}
 
-    def __init__(self, languages: list[str] = None, use_gpu: bool = False):
+    def __init__(self, languages: list[str] = None, use_gpu: bool | None = None):
         """
         Initialize EasyOCR engine
 
         Args:
             languages: List of language codes (default: ['fr', 'en'])
-            use_gpu: Use GPU acceleration if available
+            use_gpu: `None` = auto-detect, otherwise force CPU/GPU preference
         """
         self.languages = languages or ["fr", "en"]
-        self.use_gpu = use_gpu
+        self.use_gpu = self._resolve_gpu_mode(use_gpu)
+        self._reader_key = (tuple(self.languages), self.use_gpu)
         self._ensure_reader()
 
+    @staticmethod
+    def _resolve_gpu_mode(requested: bool | None) -> bool:
+        """Resolve GPU usage without making CUDA mandatory."""
+        gpu_available = bool(torch and torch.cuda.is_available())
+        if requested is None:
+            return gpu_available
+        if requested and not gpu_available:
+            logger.warning(
+                "EasyOCR GPU requested but CUDA is unavailable. Falling back to CPU."
+            )
+            return False
+        return requested
+
     def _ensure_reader(self):
-        """Lazy initialization of EasyOCR reader (singleton)"""
-        if EasyOCREngine._reader is None:
-            print(f"Initializing EasyOCR reader for {self.languages}...")
-            print("(This may take a moment on first use - downloading models)")
-            EasyOCREngine._reader = easyocr.Reader(self.languages, gpu=self.use_gpu)
-            print("EasyOCR reader ready!")
+        """Lazy initialization of EasyOCR reader with CPU/GPU aware caching."""
+        if self._reader_key not in EasyOCREngine._readers:
+            mode = "GPU" if self.use_gpu else "CPU"
+            logger.info(
+                "Initializing EasyOCR reader for languages=%s using %s mode",
+                ",".join(self.languages),
+                mode,
+            )
+            logger.info(
+                "EasyOCR first initialization may take time while models download."
+            )
+            EasyOCREngine._readers[self._reader_key] = easyocr.Reader(
+                self.languages, gpu=self.use_gpu
+            )
+            logger.info("EasyOCR reader ready in %s mode", mode)
+
+    @property
+    def reader(self) -> easyocr.Reader:
+        return EasyOCREngine._readers[self._reader_key]
 
     @property
     def name(self) -> str:
@@ -95,7 +130,7 @@ class EasyOCREngine(OCREngine):
             image_np = np.array(image)
 
             # Perform OCR
-            results = EasyOCREngine._reader.readtext(image_np)
+            results = self.reader.readtext(image_np)
 
             # Extract text and confidences
             text_parts = []
@@ -117,9 +152,11 @@ class EasyOCREngine(OCREngine):
             word_count = len([w for w in extracted_text.split() if w.strip()])
             char_count = len(extracted_text)
 
-            print(
-                f"EasyOCR: Extracted {len(text_parts)} text segments "
-                f"with {avg_confidence:.2%} confidence in {processing_time:.2f}s"
+            logger.info(
+                "EasyOCR extracted %s text segments with %.2f%% confidence in %.2fs",
+                len(text_parts),
+                avg_confidence * 100,
+                processing_time,
             )
 
             return OCRResult(
@@ -131,8 +168,8 @@ class EasyOCREngine(OCREngine):
                 processing_time=processing_time,
             )
 
-        except Exception as e:
-            print(f"EasyOCR error: {e}")
+        except Exception:
+            logger.exception("EasyOCR extraction failed")
             return OCRResult(
                 text="",
                 confidence=0.0,

@@ -7,6 +7,12 @@ from app.models.role import Role
 from app.models.org_unit import OrgUnitType, OrgUnit, OrgUnitClosure
 from app.models.user import User
 from app.models.document import Document
+from app.models.classification_domain import ClassificationDomain
+from app.models.classification_activity import ClassificationActivity
+from app.models.classification_rule import ClassificationRule
+from app.models.classification_review import ClassificationReview
+from app.models.import_job import ImportJob
+from app.models.import_job_item import ImportJobItem
 from app.models.document_version import DocumentVersion
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.gedrules import (
@@ -33,6 +39,12 @@ __all__ = [
     "OrgUnitClosure",
     "User",
     "Document",
+    "ClassificationDomain",
+    "ClassificationActivity",
+    "ClassificationRule",
+    "ClassificationReview",
+    "ImportJob",
+    "ImportJobItem",
     "DocumentVersion",
     "WorkflowStep",
     "WorkflowAction",

@@ -46,6 +46,9 @@ export const test = base.extend<AuthedFixtures>({
 
   accessToken: async ({ sessionDump }, use) => {
     const token = sessionDump['access_token'];
+    if (!token) {
+      throw new Error('Missing access_token in authenticated fixture session dump.');
+    }
     await use(token);
   },
 });

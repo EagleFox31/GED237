@@ -1,5 +1,7 @@
 # FRONTEND - Couverture API des Pages (Thème GED Cameroun)
 
+> Mise à jour de cohérence au 2026-04-30, après relecture du code frontend et des services API.
+
 ## Légende priorité
 - `P0` : bloquant fonctionnel / incohérence métier
 - `P1` : important pour la prod
@@ -10,11 +12,8 @@
 - [x] `/org` - `frontend/profiles/tenant-admin/pages/OrganizationPage.tsx` - `P0`
   API partielle: arbre + users + création OK; `Modifier`/`Supprimer` non branchés; onglets `Règles GED` et `Statistiques` surtout visuels.
 
-- [x] `/needs-review` - `frontend/profiles/tenant-admin/pages/NeedsReviewInbox.tsx` - `P0`
-  API partielle: chargement OK; payload de résolution à aligner (`resolver_comment` / `target_category_id` côté UI vs `comment` / `document_category_id` attendu côté backend).
-
-- [x] `/ingestion` - `frontend/profiles/tenant-admin/pages/DirectoryIngestion.tsx` - `P0`
-  API partielle: ingestion branchée; catégories encore en liste statique texte alors que l’API attend un `document_category_id` (UUID).
+- [x] `/spaces` - `frontend/profiles/tenant-admin/pages/SpacesPage.tsx` - `P1`
+  API partielle: l'écran est riche et branché (`tree`, documents, domaines, activités, filtres métier, slide-over de classement), mais les filtres métier restent majoritairement côté client. Le backend `/spaces/documents` ne prend pas encore en charge `domain`, `activity`, `year`, `status`, `q` comme dans le plan V1.
 
 - [x] `/documents` - `frontend/components/Documents.tsx` - `P1`
   API partielle: listing/upload OK; filtres/recherche/pagination restent majoritairement côté client, pas de pagination serveur.
@@ -29,7 +28,7 @@
   API partielle: tâches + validation OK; bloc "graphique performance" non branché à des métriques réelles.
 
 - [x] `/dashboard` (profil `collab`) - `frontend/profiles/collaborator/pages/DraftWorkspace.tsx` - `P1`
-  API partielle: upload + workflow OK; modal upload utilise des champs non normalisés (`category` texte) à aligner avec catégories UUID.
+  API partielle: upload + workflow OK; modal upload utilise encore des champs non normalisés (`category` texte) à aligner avec catégories UUID.
 
 - [x] Header global recherche/notifications - `frontend/components/Header.tsx` - `P2`
   API partielle: recherche et notifications chargent bien; navigation approfondie depuis résultat de recherche encore limitée.
@@ -39,6 +38,11 @@
 - [x] `/login` + OTP - `frontend/components/LoginPage.tsx`
 - [x] `/authz` - `frontend/profiles/super-admin/pages/AuthzAdmin.tsx`
 - [x] `/rules` - `frontend/profiles/tenant-admin/pages/GEDRulesPage.tsx` + tabs
+  Couvre maintenant le paramétrage GED historique et l'administration de classement documentaire via `ClassificationSettingsTab`.
+- [x] `/classification-reviews` - `frontend/profiles/tenant-admin/pages/ClassificationReviewPage.tsx`
+  Route active pour la revue manuelle; `/needs-review` est conservee comme redirection legacy.
+- [x] `/ingestion` - `frontend/profiles/tenant-admin/pages/DirectoryIngestion.tsx`
+  Flux analyse -> import reel branche sur `/imports/analyze` et `/imports/{jobId}/commit`, avec categories UUID chargees depuis l'API.
 - [x] `/pending-assignments` - `frontend/profiles/tenant-admin/pages/PendingAssignmentsInbox.tsx`
 - [x] `/audit` - `frontend/profiles/auditor/pages/AuditLogs.tsx`
 - [x] `/dashboard` (profils `super`, `tenant`, `manager`, `reader`) - pages dashboard dédiées
@@ -62,7 +66,7 @@
 
 ## 4) Ordre d’exécution recommandé
 
-- [ ] Étape 1 (`P0`) : corriger `/needs-review`, `/ingestion`, et compléter `/org` (edit/delete réels).
+- [ ] Étape 1 (`P0`) : compléter `/org` (edit/delete réels) et décider si `spaces` doit réellement filtrer côté serveur comme dans le plan V1.
 - [ ] Étape 2 (`P1`) : fiabiliser `/documents` (pagination/filtrage serveur) + normaliser `DraftWorkspace`.
 - [ ] Étape 3 (`P1`) : créer `403`, `Centre notifications`, `Corbeille`, `Santé`.
 - [ ] Étape 4 (`P2`) : recherche avancée et finitions UX (graphes, deep-link résultats).

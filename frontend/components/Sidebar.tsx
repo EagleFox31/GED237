@@ -99,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
   };
 
   return (
-    <div className="w-64 h-screen glass border-r border-slate-200/50 flex flex-col fixed left-0 top-0 z-50">
+    <div className="w-72 h-screen glass border-r border-slate-200/50 flex flex-col fixed left-0 top-0 z-50">
       <div className="p-6 shrink-0 border-b border-slate-100/50">
         <Logo className="scale-90 origin-left" />
       </div>

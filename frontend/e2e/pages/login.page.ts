@@ -42,13 +42,32 @@ export class LoginPage {
   }
 
   async goto() {
-    await this.page.goto('');
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      try {
+        await this.page.goto('', { waitUntil: 'load', timeout: 10_000 });
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 5) {
+          throw error;
+        }
+        await this.page.waitForTimeout(750 * attempt);
+      }
+    }
+    throw lastError;
   }
 
   // --- Step 1: Credentials ---
 
   async selectInstitution(institution: string) {
-    await this.institutionSelect.selectOption({ label: institution });
+    await this.institutionSelect.waitFor({ state: 'visible' });
+    const tagName = await this.institutionSelect.evaluate((element) => element.tagName.toLowerCase());
+    if (tagName === 'select') {
+      await this.institutionSelect.selectOption({ label: institution });
+      return;
+    }
+    await this.institutionSelect.fill(institution);
   }
 
   async fillCredentials(institution: string, matricule: string, password: string) {

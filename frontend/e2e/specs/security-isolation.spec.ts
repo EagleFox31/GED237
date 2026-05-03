@@ -1,5 +1,4 @@
-import { test, expect, TEST_USERS } from '../fixtures/auth.fixture';
-import { LoginPage } from '../pages/login.page';
+import { test, expect } from '../fixtures/auth.fixture';
 
 /**
  * SC-SEC-01..03 — Isolation multi-tenant et séparation des pouvoirs

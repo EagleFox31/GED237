@@ -11,7 +11,7 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: 'http://localhost:5173/edossier/',
+    baseURL: 'http://127.0.0.1:5173/edossier/',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -48,10 +48,17 @@ export default defineConfig({
       },
       dependencies: ['setup'],
     },
+    {
+      name: 'mocked-chromium',
+      testMatch: /(classification-admin|classification-reviews|ingestion|spaces)\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173/edossier/',
+    url: 'http://127.0.0.1:5173/edossier/',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },

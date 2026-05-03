@@ -3,20 +3,28 @@ import { api } from '../../../services/api';
 
 interface NeedsReviewDocument {
   id: string;
-  name: string;
+  title: string;
   status: string;
+  classification_status?: string;
   created_at: string;
+  logical_space_path?: string | null;
+  category_name?: string | null;
   metadata?: any;
-  arbitration_reason: string;
+  arbitration_reason?: string | null;
   suggested_rule?: any;
 }
 
 interface AuditLog {
   id: string;
   action: string;
-  status: string;
-  details: any;
-  timestamp: string;
+  old_data?: Record<string, any> | null;
+  new_data?: Record<string, any> | null;
+  created_at: string;
+}
+
+interface OrgUnitOption {
+  id: string;
+  name: string;
 }
 
 // Traduction des actions techniques en libellés métier
@@ -31,6 +39,7 @@ const NeedsReviewInbox: React.FC = () => {
   const [documents, setDocuments] = useState<NeedsReviewDocument[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<NeedsReviewDocument | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [orgUnits, setOrgUnits] = useState<OrgUnitOption[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
@@ -43,7 +52,10 @@ const NeedsReviewInbox: React.FC = () => {
   const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
   const showToast = (t: NonNullable<typeof toast>) => { setToast(t); setTimeout(() => setToast(null), 4000); };
 
-  useEffect(() => { fetchDocuments(); }, []);
+  useEffect(() => {
+    fetchDocuments();
+    api.getOrgUnits().then(setOrgUnits).catch(console.error);
+  }, []);
 
   const fetchDocuments = async () => {
     setLoadingDocs(true);
@@ -83,9 +95,9 @@ const NeedsReviewInbox: React.FC = () => {
     try {
       await api.resolveReview(selectedDoc.id, {
         target_folder_id: targetFolderId || undefined,
-        resolver_comment: resolverComment,
+        comment: resolverComment || undefined,
         new_filename: newFilename || undefined,
-        target_category_id: undefined,
+        mark_as_resolved: true,
       });
       showToast({ tone: 'success', message: 'Document traité et classé avec succès.' });
       fetchDocuments();
@@ -173,10 +185,10 @@ const NeedsReviewInbox: React.FC = () => {
               >
                 <div className="flex items-start gap-2 mb-1.5">
                   <span className="material-symbols-outlined text-amber-500 text-lg shrink-0 mt-0.5">warning</span>
-                  <p className="text-sm font-bold text-slate-800 leading-tight">{doc.name}</p>
+                  <p className="text-sm font-bold text-slate-800 leading-tight">{doc.title}</p>
                 </div>
                 <p className="text-[10px] text-slate-500 font-medium leading-snug line-clamp-2 ml-6">
-                  {doc.arbitration_reason}
+                  {doc.arbitration_reason || 'Document en attente de classement manuel.'}
                 </p>
               </div>
             ))
@@ -188,12 +200,30 @@ const NeedsReviewInbox: React.FC = () => {
           {selectedDoc ? (
             <>
               <h3 className="font-black text-lg text-slate-800 mb-1 tracking-tighter uppercase italic">
-                {selectedDoc.name}
+                {selectedDoc.title}
               </h3>
               <div className="flex items-center gap-2 mb-5">
                 <span className="material-symbols-outlined text-amber-500 text-sm">warning</span>
-                <p className="text-xs text-amber-700 font-bold">{selectedDoc.arbitration_reason}</p>
+                <p className="text-xs text-amber-700 font-bold">{selectedDoc.arbitration_reason || 'Classement manuel requis.'}</p>
               </div>
+              <div className="mb-5 flex flex-wrap gap-2">
+                {selectedDoc.classification_status && (
+                  <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-widest border border-amber-200">
+                    {selectedDoc.classification_status}
+                  </span>
+                )}
+                {selectedDoc.category_name && (
+                  <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200">
+                    {selectedDoc.category_name}
+                  </span>
+                )}
+              </div>
+              {selectedDoc.logical_space_path && (
+                <div className="mb-5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Destination logique actuelle</p>
+                  <p className="text-xs text-slate-600 font-medium break-words">{selectedDoc.logical_space_path}</p>
+                </div>
+              )}
 
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
                 Historique du document
@@ -207,6 +237,8 @@ const NeedsReviewInbox: React.FC = () => {
                 <div className="space-y-3">
                   {auditLogs.map((log) => {
                     const meta = ACTION_LABELS[log.action] || { label: log.action, icon: 'history', color: 'bg-slate-100 text-slate-500' };
+                    const details = log.new_data || log.old_data || {};
+                    const logState = details?.error ? 'failed' : 'success';
                     return (
                       <div key={log.id} className="flex items-start gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
@@ -216,18 +248,18 @@ const NeedsReviewInbox: React.FC = () => {
                           <div className="flex items-center justify-between gap-2">
                             <p className="font-bold text-slate-800 text-sm">{meta.label}</p>
                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 ${
-                              log.status === 'success' ? 'bg-green-100 text-green-700' :
-                              log.status === 'failed' ? 'bg-red-100 text-red-700' :
+                              logState === 'success' ? 'bg-green-100 text-green-700' :
+                              logState === 'failed' ? 'bg-red-100 text-red-700' :
                               'bg-slate-100 text-slate-500'
                             }`}>
-                              {log.status === 'success' ? 'Réussi' : log.status === 'failed' ? 'Échoué' : log.status}
+                              {logState === 'success' ? 'Réussi' : logState === 'failed' ? 'Échoué' : logState}
                             </span>
                           </div>
-                          {log.details?.reason && (
-                            <p className="text-xs text-slate-500 mt-1">{log.details.reason}</p>
+                          {(details?.reason || details?.comment || details?.resolution_reason) && (
+                            <p className="text-xs text-slate-500 mt-1">{details.reason || details.comment || details.resolution_reason}</p>
                           )}
-                          {log.timestamp && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">{new Date(log.timestamp).toLocaleString('fr-FR')}</p>
+                          {log.created_at && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">{new Date(log.created_at).toLocaleString('fr-FR')}</p>
                           )}
                         </div>
                       </div>
@@ -257,14 +289,17 @@ const NeedsReviewInbox: React.FC = () => {
 
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Service de destination</label>
-                  <input
-                    type="text"
+                  <select
                     value={targetFolderId}
                     onChange={(e) => setTargetFolderId(e.target.value)}
-                    placeholder="ID du dossier cible"
                     className="w-full bg-slate-50 border-2 border-slate-100 focus:border-rdpc-blue outline-none rounded-xl py-2.5 px-3 text-sm font-bold text-slate-700"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">Laissez vide pour ne pas rediriger.</p>
+                  >
+                    <option value="">-- Conserver le service actuel --</option>
+                    {orgUnits.map((orgUnit) => (
+                      <option key={orgUnit.id} value={orgUnit.id}>{orgUnit.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">Choisissez un service si vous voulez rediriger le document.</p>
                 </div>
 
                 <div>
@@ -273,7 +308,7 @@ const NeedsReviewInbox: React.FC = () => {
                     type="text"
                     value={newFilename}
                     onChange={(e) => setNewFilename(e.target.value)}
-                    placeholder={selectedDoc.name}
+                    placeholder={selectedDoc.title}
                     className="w-full bg-slate-50 border-2 border-slate-100 focus:border-rdpc-blue outline-none rounded-xl py-2.5 px-3 text-sm font-bold text-slate-700"
                   />
                 </div>

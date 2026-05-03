@@ -1,5 +1,6 @@
 import os
 import hashlib
+import shutil
 from fastapi import UploadFile
 from typing import Tuple, Optional
 
@@ -73,6 +74,15 @@ class LocalStorageService(IStorageService):
                 return new_filename
             return posixpath.join(dir_relative, new_filename)
         return None
+
+    def copy_file(self, source_relative_path: str, target_relative_path: str) -> bool:
+        source_full_path = self.get_full_path(source_relative_path)
+        target_full_path = self.get_full_path(target_relative_path)
+        if not os.path.exists(source_full_path):
+            return False
+        os.makedirs(os.path.dirname(target_full_path), exist_ok=True)
+        shutil.copy2(source_full_path, target_full_path)
+        return True
 
     def get_file_content(self, relative_path: str) -> bytes:
         full_path = self.get_full_path(relative_path)

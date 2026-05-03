@@ -1,4 +1,6 @@
 import os
+import hashlib
+import tempfile
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import UploadFile
@@ -36,6 +38,31 @@ class S3StorageService(IStorageService):
 
         return object_name
 
+    async def save_file_with_checksum(self, file: UploadFile, directory: str = ""):
+        filename = file.filename
+        object_name = f"{directory}/{filename}" if directory else filename
+        object_name = object_name.replace("\\", "/")
+
+        await file.seek(0)
+        sha256 = hashlib.sha256()
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp_path = tmp.name
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                sha256.update(chunk)
+                tmp.write(chunk)
+
+        try:
+            self.s3_client.upload_file(tmp_path, self.bucket_name, object_name)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            await file.seek(0)
+
+        return object_name, sha256.hexdigest()
+
     def get_full_path(self, relative_path: str) -> str:
         """
         For S3, this could return a presigned URL, or just the S3 URI.
@@ -46,6 +73,32 @@ class S3StorageService(IStorageService):
     def delete_file(self, relative_path: str) -> bool:
         try:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=relative_path)
+            return True
+        except ClientError:
+            return False
+
+    def rename_file(self, old_relative_path: str, new_filename: str):
+        directory = os.path.dirname(old_relative_path).replace("\\", "/")
+        new_relative_path = f"{directory}/{new_filename}" if directory else new_filename
+        new_relative_path = new_relative_path.replace("\\", "/")
+        try:
+            self.s3_client.copy_object(
+                Bucket=self.bucket_name,
+                CopySource={"Bucket": self.bucket_name, "Key": old_relative_path},
+                Key=new_relative_path,
+            )
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=old_relative_path)
+            return new_relative_path
+        except ClientError:
+            return None
+
+    def copy_file(self, source_relative_path: str, target_relative_path: str) -> bool:
+        try:
+            self.s3_client.copy_object(
+                Bucket=self.bucket_name,
+                CopySource={"Bucket": self.bucket_name, "Key": source_relative_path},
+                Key=target_relative_path,
+            )
             return True
         except ClientError:
             return False

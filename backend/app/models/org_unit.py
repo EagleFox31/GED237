@@ -71,7 +71,11 @@ class OrgUnit(Base, UUIDMixin, TimestampMixin):
     type = relationship("OrgUnitType", back_populates="org_units")
     parent = relationship("OrgUnit", remote_side="OrgUnit.id", backref="children")
     users = relationship("User", back_populates="org_unit")
-    documents = relationship("Document", back_populates="org_unit")
+    documents = relationship(
+        "Document",
+        back_populates="org_unit",
+        foreign_keys="Document.org_unit_id",
+    )
 
     __table_args__ = (
         Index("idx_org_units_tenant_code", "tenant_id", "code", unique=True),

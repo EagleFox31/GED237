@@ -57,7 +57,6 @@ test.describe.serial('Feature: Versement massif + classement (SC-E2E-BULK)', () 
   });
 
   test('Given corpus sur disque, When upload de tous les fichiers, Then le moteur classe', async ({
-    page,
     accessToken,
     request,
   }) => {

@@ -86,7 +86,7 @@ class DashboardFacade:
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
             func.count(Document.id)
-            .filter(Document.status == "à_revoir")
+            .filter(Document.classification_status.in_(("pending", "needs_review")))
             .label("needs_review"),
         ).where(
             Document.tenant_id == tenant_id,

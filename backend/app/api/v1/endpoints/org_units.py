@@ -17,7 +17,7 @@ from app.core.tenant_guard import assert_org_unit_scope
 from app.models.user import User
 from app.models.org_unit import OrgUnit, OrgUnitType
 from app.models.document import Document
-from app.schemas.org_unit import OrgUnitCreate, OrgUnitRead, OrgUnitUpdate
+from app.schemas.org_unit import OrgUnitCreate, OrgUnitRead, OrgUnitTreeNode, OrgUnitUpdate
 
 router = APIRouter()
 
@@ -72,7 +72,7 @@ async def create_org_unit(
     return db_org_unit
 
 
-@router.get("/tree")
+@router.get("/tree", response_model=List[OrgUnitTreeNode])
 async def get_org_units_tree(
     tenant_id: Optional[UUID] = None,
     current_user: User = Depends(get_current_user),

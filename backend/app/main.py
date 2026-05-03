@@ -10,6 +10,7 @@ from app.api.v1.router import api_router
 from app.core.rate_limit import limiter
 from app.core.authz.casbin_enforcer import reload_enforcer
 from app.core.observability.request_id import set_request_id, reset_request_id
+from app.core.errors import register_error_handlers
 
 from contextlib import asynccontextmanager
 from app.services.notifications.listeners import register_all_listeners
@@ -59,6 +60,11 @@ async def request_id_middleware(request: Request, call_next):
 # Rate Limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Module unifié d'erreurs (RFC 9457 + correlation_id + séparation public/log).
+# Doit être enregistré APRÈS le rate-limit handler pour que celui-ci garde
+# la priorité sur RateLimitExceeded.
+register_error_handlers(app)
 
 # CORS Middleware
 app.add_middleware(

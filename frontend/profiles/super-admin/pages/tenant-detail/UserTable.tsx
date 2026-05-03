@@ -340,6 +340,9 @@ export const UserTable: React.FC<{ users: TenantUser[]; showRole: boolean; orgTr
                   return <span className="text-[11px] text-slate-300 italic">—</span>;
                 }
                 const leaf = path[path.length - 1];
+                if (!leaf) {
+                  return <span className="text-[11px] text-slate-300 italic">—</span>;
+                }
                 const ancestors = path.slice(0, -1);
                 return (
                   <div className="min-w-0" title={path.map((p) => p.name).join(' › ')}>

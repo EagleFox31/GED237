@@ -5,7 +5,7 @@ export interface Document {
   id: string;
   title: string;
   tenant_id: string;
-  org_unit_id: string;
+  org_unit_id: string | null;
   owner_id: string;
   file_path: string;
   file_type: string | null;    // normalized short type: "pdf", "docx", etc.
@@ -23,6 +23,219 @@ export interface Document {
   updated_at: string;
   owner_name?: string | null;
   description?: string | null;
+  classification_domain_id?: string | null;
+  classification_domain_name?: string | null;
+  classification_activity_id?: string | null;
+  classification_activity_name?: string | null;
+  classification_year?: number | null;
+  classification_scope?: 'person' | 'service' | 'subdirectorate' | 'directorate';
+  classification_target_org_unit_id?: string | null;
+  classification_target_user_id?: string | null;
+  classification_status?: 'pending' | 'classified' | 'needs_review' | 'rejected';
+  logical_space_path?: string | null;
+  source_relative_path?: string | null;
+  import_job_id?: string | null;
+}
+
+export type ClassificationReviewStatus = 'open' | 'resolved' | 'cancelled';
+
+export interface ClassificationReview {
+  id: string;
+  tenant_id: string;
+  document_id?: string | null;
+  import_job_item_id?: string | null;
+  review_source: 'document' | 'import_job_item';
+  review_status: ClassificationReviewStatus;
+  processing_mode?: 'archive' | 'process' | null;
+  arbitration_reason?: string | null;
+  suggested_domain_id?: string | null;
+  suggested_activity_id?: string | null;
+  suggested_year?: number | null;
+  suggested_scope?: 'person' | 'service' | 'subdirectorate' | 'directorate' | null;
+  suggested_target_org_unit_id?: string | null;
+  suggested_target_user_id?: string | null;
+  resolved_by_id?: string | null;
+  resolved_at?: string | null;
+  resolution_comment?: string | null;
+  created_at: string;
+  updated_at: string;
+  document?: Document | null;
+  import_job_item?: ImportJobItem | null;
+}
+
+export interface ResolveClassificationReviewPayload {
+  classification_domain_id: string;
+  classification_activity_id: string;
+  classification_year: number;
+  classification_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
+  classification_target_org_unit_id?: string;
+  classification_target_user_id?: string;
+  document_category_id?: string;
+  new_filename?: string;
+  comment?: string;
+  relaunch_workflow?: boolean;
+}
+
+export interface ResolveClassificationReviewResponse {
+  success: boolean;
+  review_id: string;
+  document_id: string;
+  review_status: ClassificationReviewStatus;
+  document_classification_status: string;
+  logical_space_path?: string | null;
+  workflow_relaunched: boolean;
+  document: Document;
+}
+
+export interface ClassificationDomain {
+  id: string;
+  tenant_id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassificationActivity {
+  id: string;
+  tenant_id: string;
+  domain_id: string;
+  domain_name?: string | null;
+  code: string;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassificationRule {
+  id: string;
+  tenant_id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  priority: number;
+  is_active: boolean;
+  source_scope: 'person' | 'service' | 'subdirectorate';
+  source_org_unit_id?: string | null;
+  source_org_unit_name?: string | null;
+  source_user_id?: string | null;
+  source_user_name?: string | null;
+  document_category_id?: string | null;
+  document_category_name?: string | null;
+  filename_pattern?: string | null;
+  mime_type_pattern?: string | null;
+  target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
+  target_org_unit_id?: string | null;
+  target_org_unit_name?: string | null;
+  target_user_id?: string | null;
+  target_user_name?: string | null;
+  domain_id?: string | null;
+  domain_name?: string | null;
+  activity_id?: string | null;
+  activity_name?: string | null;
+  year_strategy: 'current' | 'from_filename' | 'from_metadata' | 'fixed';
+  fixed_year?: number | null;
+  workflow_template_id?: string | null;
+  workflow_template_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassificationSimulationResponse {
+  status: 'classified' | 'needs_review' | 'no_rule' | 'rejected';
+  rule_id?: string | null;
+  rule_code?: string | null;
+  rule_name?: string | null;
+  rule_priority?: number | null;
+  message: string;
+  logical_space_path?: string | null;
+  classification_scope?: 'person' | 'service' | 'subdirectorate' | 'directorate' | null;
+  classification_target_org_unit_id?: string | null;
+  classification_target_org_unit_name?: string | null;
+  classification_target_user_id?: string | null;
+  classification_target_user_name?: string | null;
+  classification_domain_id?: string | null;
+  classification_domain_name?: string | null;
+  classification_activity_id?: string | null;
+  classification_activity_name?: string | null;
+  classification_year?: number | null;
+}
+
+export type ImportSourceScope = 'person' | 'service' | 'subdirectorate';
+export type ImportJobStatus =
+  | 'draft'
+  | 'analyzed'
+  | 'running'
+  | 'completed'
+  | 'completed_with_errors'
+  | 'cancelled';
+export type ImportJobItemStatus =
+  | 'pending'
+  | 'classified'
+  | 'needs_review'
+  | 'duplicate'
+  | 'ignored'
+  | 'imported'
+  | 'failed';
+export type ImportProcessingMode = 'archive' | 'process';
+
+export interface ImportJobItem {
+  id: string;
+  import_job_id: string;
+  original_filename: string;
+  source_relative_path: string;
+  mime_type: string | null;
+  file_size: number;
+  checksum_sha256?: string | null;
+  detected_document_category_id?: string | null;
+  resolved_domain_id?: string | null;
+  resolved_activity_id?: string | null;
+  resolved_year?: number | null;
+  resolved_scope?: string | null;
+  resolved_target_org_unit_id?: string | null;
+  resolved_target_user_id?: string | null;
+  workflow_template_id?: string | null;
+  logical_space_path?: string | null;
+  status: ImportJobItemStatus;
+  error_message?: string | null;
+  document_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImportJob {
+  id: string;
+  tenant_id: string;
+  created_by_id: string;
+  source_scope: ImportSourceScope;
+  target_org_unit_id?: string | null;
+  target_user_id?: string | null;
+  default_document_category_id?: string | null;
+  forced_year?: number | null;
+  processing_mode: ImportProcessingMode;
+  status: ImportJobStatus;
+  total_files: number;
+  supported_files: number;
+  ignored_files: number;
+  duplicate_files: number;
+  error_files: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImportJobWithItems extends ImportJob {
+  items: ImportJobItem[];
+}
+
+export interface ImportCommitResponse {
+  job: ImportJobWithItems;
+  imported_documents: number;
+  pending_review_items: number;
+  failed_items: number;
 }
 
 export interface WorkflowStep {
@@ -129,11 +342,17 @@ export interface AuthzHealthResponse {
 
 export interface AuditLogEntry {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
   user_id: string | null;
+  user_name?: string | null;
+  user_matricule?: string | null;
   table_name: string;
+  table_label?: string | null;
   record_id: string;
+  resource_label?: string | null;
   action: string;
+  action_label?: string | null;
+  detail?: string | null;
   old_data: Record<string, unknown> | null;
   new_data: Record<string, unknown> | null;
   ip_address: string | null;

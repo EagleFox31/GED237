@@ -47,6 +47,14 @@ class IStorageService(ABC):
         pass
 
     @abstractmethod
+    def copy_file(self, source_relative_path: str, target_relative_path: str) -> bool:
+        """
+        Copy a stored file to another relative path in the same backend.
+        Returns True if successful.
+        """
+        pass
+
+    @abstractmethod
     def get_file_content(self, relative_path: str) -> bytes:
         """
         Read the entire file content into memory.

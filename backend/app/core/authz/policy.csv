@@ -35,6 +35,9 @@ p, super_admin, categories, manage
 p, super_admin, gedrules.templates, manage
 p, super_admin, gedrules.rules, manage
 p, super_admin, documents, manage
+p, super_admin, spaces, read
+p, super_admin, classification_rules, manage
+p, super_admin, classification_reviews, manage
 p, super_admin, workflows, manage
 p, super_admin, analytics.tenant, read
 p, super_admin, analytics.platform, read
@@ -52,6 +55,9 @@ p, tenant_admin, documents, create
 p, tenant_admin, documents, read
 p, tenant_admin, documents, update
 p, tenant_admin, documents, delete
+p, tenant_admin, spaces, read
+p, tenant_admin, classification_rules, manage
+p, tenant_admin, classification_reviews, manage
 p, tenant_admin, workflows, manage
 p, tenant_admin, analytics.tenant, read
 p, tenant_admin, audit_logs, read
@@ -62,6 +68,9 @@ p, tenant_admin, audit_logs, read
 p, unit_admin, documents, read
 p, unit_admin, documents, update
 p, unit_admin, documents, delete
+p, unit_admin, spaces, read
+p, unit_admin, classification_rules, manage
+p, unit_admin, classification_reviews, manage
 p, unit_admin, users, read
 p, unit_admin, org_units, read
 p, unit_admin, workflows, manage
@@ -71,6 +80,7 @@ p, unit_admin, analytics.tenant, read
 # AUDITOR — lecture seule tenant-wide
 # ─────────────────────────────────────────────────────────────────────────────
 p, auditor, documents, read
+p, auditor, spaces, read
 p, auditor, workflows, read
 p, auditor, categories, read
 p, auditor, users, read
@@ -85,6 +95,7 @@ p, manager, documents, read
 p, manager, documents, update_own
 p, manager, documents, trash_own
 p, manager, documents, create
+p, manager, spaces, read
 p, manager, workflows, read
 p, manager, workflows, assign
 p, manager, workflows, resolve_review
@@ -94,6 +105,7 @@ p, manager, analytics.tenant, read
 # READER — consultation unité
 # ─────────────────────────────────────────────────────────────────────────────
 p, reader, documents, read
+p, reader, spaces, read
 p, reader, workflows, read
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -102,6 +114,7 @@ p, reader, workflows, read
 p, standard, analytics.tenant, read
 p, standard, tenants, read
 p, standard, documents, create
+p, standard, spaces, read
 p, standard, workflows, update_own
 p, standard, documents, read_own
 p, standard, documents, update_own

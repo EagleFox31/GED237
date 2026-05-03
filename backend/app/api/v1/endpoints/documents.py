@@ -11,9 +11,11 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
     status,
 )
+from app.core.rate_limit import limiter
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -37,7 +39,9 @@ from app.schemas.document import (
     NeedsReviewDocument,
     ResolveReviewPayload,
 )
+from app.services.classification_review_service import ClassificationReviewService
 from app.services.ingestion import DirectoryIngestionService
+from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.services.storage.factory import get_storage_service
 from app.workers.tasks import process_document_ocr
 
@@ -50,6 +54,16 @@ ORG_UNIT_READ_ROLES = {"manager", "reader"}
 OWNER_MUTABLE_STATUSES = {"draft", "rejected"}
 ARCHIVABLE_SOURCE_STATUSES = {"validated", "signed"}
 LOCK_DURATION_MINUTES = 30
+
+
+def _document_load_options():
+    return (
+        selectinload(Document.document_category),
+        selectinload(Document.current_version),
+        selectinload(Document.classification_domain),
+        selectinload(Document.classification_activity),
+        selectinload(Document.owner),
+    )
 
 
 def _role_code(user: User) -> str:
@@ -246,6 +260,24 @@ def _audit_document_action(
     )
 
 
+def _serialize_audit_log(audit_log: AuditLog) -> Dict[str, Any]:
+    return {
+        "id": str(audit_log.id),
+        "tenant_id": str(audit_log.tenant_id) if audit_log.tenant_id else None,
+        "user_id": str(audit_log.user_id) if audit_log.user_id else None,
+        "table_name": audit_log.table_name,
+        "record_id": str(audit_log.record_id),
+        "action": audit_log.action,
+        "old_data": audit_log.old_data,
+        "new_data": audit_log.new_data,
+        "ip_address": str(audit_log.ip_address) if audit_log.ip_address else None,
+        "user_agent": audit_log.user_agent,
+        "created_at": audit_log.created_at.isoformat()
+        if audit_log.created_at
+        else None,
+    }
+
+
 def _derive_file_type(
     filename: Optional[str], mime_type: Optional[str]
 ) -> Optional[str]:
@@ -258,6 +290,48 @@ def _derive_file_type(
         if subtype:
             return subtype[:50]
     return None
+
+
+def _serialize_document(document: Document) -> DocumentRead:
+    owner_name: Optional[str] = None
+    if document.owner:
+        owner_name = document.owner.full_name or document.owner.matricule
+
+    return DocumentRead(
+        id=document.id,
+        title=document.title,
+        document_category_id=document.document_category_id,
+        tags=document.tags or [],
+        description=None,
+        category_code=document.category_code,
+        category_name=document.category_name,
+        tenant_id=document.tenant_id,
+        org_unit_id=document.org_unit_id,
+        owner_id=document.owner_id,
+        file_path=document.file_path,
+        file_type=document.file_type,
+        mime_type=document.mime_type,
+        file_size=document.file_size,
+        status=document.status,
+        processing_mode=document.processing_mode or "process",
+        classification_domain_id=document.classification_domain_id,
+        classification_domain_name=document.classification_domain_name,
+        classification_activity_id=document.classification_activity_id,
+        classification_activity_name=document.classification_activity_name,
+        classification_year=document.classification_year,
+        classification_scope=document.classification_scope or "service",
+        classification_target_org_unit_id=document.classification_target_org_unit_id,
+        classification_target_user_id=document.classification_target_user_id,
+        classification_status=document.classification_status or "pending",
+        logical_space_path=document.logical_space_path,
+        source_relative_path=document.source_relative_path,
+        import_job_id=document.import_job_id,
+        current_version_id=document.current_version_id,
+        created_at=document.created_at,
+        updated_at=document.updated_at,
+        owner_name=owner_name,
+        current_version_number=document.current_version_number,
+    )
 
 
 def _parse_next_version(versions: List[DocumentVersion]) -> str:
@@ -283,10 +357,7 @@ async def _get_document_or_404(
 ) -> Document:
     result = await db.execute(
         select(Document)
-        .options(
-            selectinload(Document.document_category),
-            selectinload(Document.current_version),
-        )
+        .options(*_document_load_options())
         .where(Document.id == document_id, Document.tenant_id == tenant_id)
     )
     document = result.scalar_one_or_none()
@@ -455,6 +526,17 @@ async def upload_document(
     await db.flush()
 
     db_document.current_version_id = db_version.id
+    classification_engine = ClassificationRuleEngine(db)
+    await classification_engine.classify_document(
+        document=db_document,
+        source_scope="service",
+        source_user_id=current_user.id,
+        filename=file.filename or title,
+        mime_type=file_mime_type,
+    )
+    if db_document.classification_status in {"pending", "needs_review"}:
+        review_service = ClassificationReviewService(db)
+        await review_service.ensure_open_review_for_document(document=db_document)
     await db.commit()
     await db.refresh(db_document)
 
@@ -484,10 +566,7 @@ async def upload_document(
     # Reload with category and current_version relationships for serialization
     result = await db.execute(
         select(Document)
-        .options(
-            selectinload(Document.document_category),
-            selectinload(Document.current_version),
-        )
+        .options(*_document_load_options())
         .where(Document.id == db_document.id)
     )
     db_document = result.scalar_one()
@@ -500,7 +579,7 @@ async def upload_document(
         except Exception as exc:
             print(f"Warning: Could not queue OCR task: {exc}")
 
-    return db_document
+    return _serialize_document(db_document)
 
 
 @router.get("/", response_model=List[DocumentRead])
@@ -526,11 +605,9 @@ async def list_documents(
     if document_status:
         query = query.where(Document.status == document_status)
 
-    query = query.options(
-        selectinload(Document.document_category), selectinload(Document.current_version)
-    )
+    query = query.options(*_document_load_options())
     result = await db.execute(query.offset(skip).limit(limit))
-    return result.scalars().all()
+    return [_serialize_document(document) for document in result.scalars().all()]
 
 
 @router.get("/trash", response_model=List[DocumentRead])
@@ -552,14 +629,13 @@ async def list_trashed_documents(
         query = query.where(Document.owner_id == current_user.id)
     result = await db.execute(
         query.options(
-            selectinload(Document.document_category),
-            selectinload(Document.current_version),
+            *_document_load_options(),
         )
         .order_by(Document.deleted_at.desc())
         .offset(skip)
         .limit(limit)
     )
-    return result.scalars().all()
+    return [_serialize_document(document) for document in result.scalars().all()]
 
 
 @router.get("/needs-review", response_model=List[NeedsReviewDocument])
@@ -570,51 +646,11 @@ async def list_needs_review(
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "documents", "manage")
-
-    query = select(Document).where(
-        Document.tenant_id == current_user.tenant_id,
-        Document.status == "returned",
-        Document.deleted_at.is_(None),
+    service = ClassificationReviewService(db)
+    documents = await service.list_legacy_needs_review_documents(
+        tenant_id=current_user.tenant_id
     )
-    result = await db.execute(
-        query.options(
-            selectinload(Document.document_category),
-            selectinload(Document.current_version),
-        )
-        .order_by(Document.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    docs = result.scalars().all()
-
-    response_items: List[NeedsReviewDocument] = []
-    for document in docs:
-        parsed = NeedsReviewDocument.model_validate(document)
-        audit_query = (
-            select(AuditLog.new_data)
-            .where(
-                AuditLog.table_name == "ged_rules",
-                cast(AuditLog.new_data["document_id"], String) == f'"{document.id}"',
-            )
-            .order_by(AuditLog.created_at.desc())
-            .limit(1)
-        )
-        audit_result = await db.execute(audit_query)
-        latest = audit_result.scalar_one_or_none()
-        if latest:
-            reports = latest.get("actions", [])
-            sys_report = next(
-                (
-                    item
-                    for item in reports
-                    if item.get("rule_id") == "system-arbitration"
-                ),
-                None,
-            )
-            if sys_report:
-                parsed.arbitration_reason = sys_report.get("arbitration_reason")
-        response_items.append(parsed)
-    return response_items
+    return documents[skip : skip + limit]
 
 
 @router.get("/{document_id}/audit-logs")
@@ -642,7 +678,7 @@ async def get_document_audit_logs(
         .order_by(AuditLog.created_at.desc())
     )
     result = await db.execute(query)
-    return result.scalars().all()
+    return [_serialize_audit_log(audit_log) for audit_log in result.scalars().all()]
 
 
 @router.post("/{document_id}/resolve-review")
@@ -656,20 +692,34 @@ async def resolve_manual_review(
     await authorize_or_403(
         current_user, "workflows", "resolve_review", ctx_from_resource(document)
     )
-    if document.status != "returned":
+    is_classification_review = document.classification_status in {
+        "pending",
+        "needs_review",
+    }
+    is_legacy_returned_review = document.status == "returned"
+    if is_classification_review:
         raise HTTPException(
-            status_code=400, detail="Document is not in returned status"
+            status_code=410,
+            detail="Classification review resolution moved to /api/v1/classification-reviews/{review_id}/resolve.",
+        )
+    if not is_legacy_returned_review:
+        raise HTTPException(
+            status_code=400,
+            detail="Document is not in a legacy workflow reviewable state",
         )
 
     previous_status = document.status
+    previous_classification_status = document.classification_status
 
     if payload.target_folder_id:
         try:
-            document.org_unit_id = UUID(payload.target_folder_id)
+            target_folder_uuid = UUID(payload.target_folder_id)
         except ValueError as exc:
             raise HTTPException(
                 status_code=400, detail="target_folder_id must be a valid UUID"
             ) from exc
+        document.org_unit_id = target_folder_uuid
+        document.classification_target_org_unit_id = target_folder_uuid
 
     if payload.document_category_id:
         await _validate_category_for_tenant(
@@ -690,12 +740,20 @@ async def resolve_manual_review(
             new_rel_path = storage_service.rename_file(document.file_path, new_name)
             if new_rel_path:
                 document.file_path = new_rel_path
+                if document.current_version_id:
+                    current_version = await db.get(
+                        DocumentVersion, document.current_version_id
+                    )
+                    if current_version:
+                        current_version.file_path = new_rel_path
 
         # Keep title business-friendly (without extension).
         document.title = os.path.splitext(new_name)[0]
 
     if payload.mark_as_resolved:
-        document.status = "validated"
+        document.classification_status = "classified"
+        if is_legacy_returned_review:
+            document.status = "validated"
 
     db.add(document)
     audit = _audit_document_action(
@@ -705,6 +763,8 @@ async def resolve_manual_review(
         details={
             "previous_status": previous_status,
             "new_status": document.status,
+            "previous_classification_status": previous_classification_status,
+            "new_classification_status": document.classification_status,
             "target_folder_id": payload.target_folder_id,
             "document_category_id": str(payload.document_category_id)
             if payload.document_category_id
@@ -724,6 +784,8 @@ async def resolve_manual_review(
         "document_id": str(document.id),
         "previous_status": previous_status,
         "new_status": document.status,
+        "previous_classification_status": previous_classification_status,
+        "new_classification_status": document.classification_status,
         "target_folder_id": payload.target_folder_id,
         "document_category_id": str(document.document_category_id)
         if document.document_category_id
@@ -790,8 +852,7 @@ async def list_workspace_documents(
 
     result = await db.execute(
         query.options(
-            selectinload(Document.document_category),
-            selectinload(Document.current_version),
+            *_document_load_options(),
         )
     )
     return result.scalars().all()
@@ -852,7 +913,7 @@ async def get_document(
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
-    return document
+    return _serialize_document(document)
 
 
 @router.get("/{document_id}/versions")
@@ -894,6 +955,104 @@ async def get_document_versions(
         }
         for version, user in versions
     ]
+
+
+@router.get("/{document_id}/content")
+@limiter.limit("60/minute")
+async def get_document_content(
+    request: Request,
+    document_id: UUID,
+    disposition: str = "inline",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Sert le contenu binaire d'un document.
+
+    Sécurité :
+    - OWASP API 2023 #1 (BOLA) : 404 défensif sur cross-tenant via _get_document_or_404,
+      puis _can_read_document (RBAC + scope unité organisationnelle).
+    - OWASP API 2023 #4 (Resource Consumption) : rate-limit 60/min/IP.
+    - Audit ISO 27001 A.8.15 + RGPD art.30 : trace de chaque consultation.
+    - Headers de sécurité : X-Content-Type-Options=nosniff, CSP minimaliste,
+      Cache-Control private (multi-tenant — jamais de cache partagé).
+    - Content-Disposition RFC 6266 + filename* RFC 5987 (UTF-8 pour accents FR).
+
+    Query params :
+    - disposition: "inline" (par défaut, pour <iframe>/<img>) ou "attachment" (download).
+    """
+    if disposition not in ("inline", "attachment"):
+        raise HTTPException(
+            status_code=400, detail="disposition must be 'inline' or 'attachment'"
+        )
+
+    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    if not await _can_read_document(current_user, document):
+        # 404 plutôt que 403 : on évite de signaler l'existence d'une ressource
+        # à un utilisateur non autorisé (anti-énumération).
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not document.file_path:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Audit obligatoire de la consultation (mode = inline → preview ; attachment → download).
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=document.id,
+            action="content_viewed",
+            details={"disposition": disposition},
+        )
+    )
+    await db.commit()
+
+    # Nom de fichier : title + extension d'origine si manquante.
+    filename = document.title or "document"
+    ext = os.path.splitext(document.file_path)[1]
+    if ext and not filename.lower().endswith(ext.lower()):
+        filename += ext
+
+    # RFC 5987 : encodage UTF-8 pour les noms avec accents.
+    from urllib.parse import quote
+    safe_ascii = filename.encode("ascii", errors="ignore").decode("ascii") or "document"
+    content_disposition = (
+        f"{disposition}; filename=\"{safe_ascii}\"; "
+        f"filename*=UTF-8''{quote(filename)}"
+    )
+
+    media_type = document.mime_type or "application/octet-stream"
+
+    # Headers de sécurité communs (locaux + S3).
+    common_headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "Cache-Control": "private, no-store, max-age=0",
+        "Content-Disposition": content_disposition,
+        "Referrer-Policy": "no-referrer",
+    }
+
+    full_path = storage_service.get_full_path(document.file_path)
+
+    # ── Stockage S3 ────────────────────────────────────────────────────
+    if full_path.startswith("s3://"):
+        content = storage_service.get_file_content(document.file_path)
+        if not content:
+            raise HTTPException(status_code=404, detail="Document not found")
+        from fastapi import Response
+        return Response(content=content, media_type=media_type, headers=common_headers)
+
+    # ── Stockage local : FileResponse gère Range automatiquement ──────
+    if not os.path.exists(full_path):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=full_path,
+        media_type=media_type,
+        headers=common_headers,
+        # On laisse FileResponse poser sa propre Content-Disposition par défaut,
+        # mais notre `headers` la remplace (override explicite RFC-compliant).
+    )
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1083,10 +1242,7 @@ async def start_workflow_a_posteriori(
 
     result = await db.execute(
         select(Document)
-        .options(
-            selectinload(Document.document_category),
-            selectinload(Document.current_version),
-        )
+        .options(*_document_load_options())
         .where(Document.id == document.id)
     )
     return result.scalar_one()
