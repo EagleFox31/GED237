@@ -1,19 +1,20 @@
 # backend/tests/api/test_gedrules.py
-import pytest
-import uuid
 import asyncio
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
+
 from app.models.document import Document
-from app.models.workflow import WorkflowStep
+from app.models.document_category import DocumentCategory
 from app.models.gedrules import (
+    AssignmentScope,
     RoutingRule,
     WorkflowTemplate,
     WorkflowTemplateStep,
-    AssignmentScope,
 )
 from app.models.routing_audit import DocumentRoutingDecision
-from app.models.user import User
+from app.models.workflow import WorkflowStep
 
 
 @pytest.mark.asyncio
@@ -23,6 +24,10 @@ async def test_automatic_routing_on_upload(
     """
     Vérifie qu'un upload avec la catégorie 'note_de_service' déclenche
     automatiquement la création des steps de workflow via GEDRules.
+
+    Le seul utilisateur seedé pour le rôle cible est aussi l'initiateur du
+    document. La protection anti-auto-validation doit donc conserver l'étape
+    mais la placer en attente d'une affectation manuelle.
     """
     # 1. Préparation du fichier
     file_content = b"Contenu de test pour routage auto"
@@ -54,8 +59,8 @@ async def test_automatic_routing_on_upload(
 
     assert len(steps) == 1
     assert steps[0].label == "Visa Direction"
-    assert steps[0].status == "current"
-    assert str(steps[0].assigned_to) == str(db_seed["user_id"])
+    assert steps[0].status == "pending_assignment"
+    assert steps[0].assigned_to is None
 
     # 4. Vérification de l'audit de décision
     stmt = select(DocumentRoutingDecision).where(
@@ -65,9 +70,10 @@ async def test_automatic_routing_on_upload(
     decision = result.scalar_one_or_none()
 
     assert decision is not None
-    assert decision.status == "success"
+    assert decision.status == "partial_failure"
     assert decision.routing_rule_id == db_seed["rule_id"]
     assert decision.workflow_template_id == db_seed["template_id"]
+    assert "affectation manuelle" in decision.explanation
     await asyncio.sleep(0.1)
 
 
@@ -85,7 +91,7 @@ async def test_routing_fallback_to_pending_assignment(
     new_role = Role(code="empty_role", label="Rôle sans utilisateur", hierarchy_level=9)
     db_session.add(new_role)
     await db_session.flush()
-    UNUSED_ROLE_ID = new_role.id
+    unused_role_id = new_role.id
     template = WorkflowTemplate(
         tenant_id=db_seed["tenant_id"],
         code="FALLBACK_TEMPLATE",
@@ -100,19 +106,20 @@ async def test_routing_fallback_to_pending_assignment(
         step_order=1,
         label="Étape Impossible",
         expected_action_type="visa",
-        role_id=UNUSED_ROLE_ID,
+        role_id=unused_role_id,
         assignment_scope=AssignmentScope.same_org_unit,
     )
     db_session.add(t_step)
 
+    category = await db_session.get(DocumentCategory, db_seed["category_id"])
+    assert category is not None
     rule = RoutingRule(
         tenant_id=db_seed["tenant_id"],
         code="FALLBACK_RULE",
         name="Règle Fallback",
         priority=5,  # Plus forte que la règle de base (10) → sera sélectionnée
-        document_category_id=db_seed[
-            "category_id"
-        ],  # Même catégorie → compétition sur la priorité
+        document_categories=[category],
+        org_units=[],
         workflow_template_id=template.id,
         is_active=True,
     )
@@ -136,7 +143,7 @@ async def test_routing_fallback_to_pending_assignment(
 
     assert len(steps) == 1
     assert steps[0].assigned_to is None
-    assert steps[0].status == "pending_assignment"  # Le statut spécifique de blocage
+    assert steps[0].status == "pending_assignment"
 
     # 4. Vérification de l'audit
     stmt = select(DocumentRoutingDecision).where(
@@ -145,9 +152,10 @@ async def test_routing_fallback_to_pending_assignment(
     result = await db_session.execute(stmt)
     decision = result.scalar_one_or_none()
 
+    assert decision is not None
     assert decision.status == "partial_failure"
     assert "Étape Impossible" in str(decision.resolved_steps_summary)
-    assert "certaines étapes n'ont pas d'assignation" in decision.explanation
+    assert "affectation manuelle" in decision.explanation
     await asyncio.sleep(0.1)
 
 
@@ -180,7 +188,6 @@ async def test_no_routing_if_category_unknown(
     document = result.scalar_one()
     assert document.status == "draft"
     await asyncio.sleep(0.1)
-    await asyncio.sleep(0.1)
 
 
 @pytest.mark.asyncio
@@ -203,12 +210,15 @@ async def test_routing_priority_resolution(
     db_session.add(template_b)
     await db_session.flush()
 
+    category = await db_session.get(DocumentCategory, db_seed["category_id"])
+    assert category is not None
     rule_b = RoutingRule(
         tenant_id=db_seed["tenant_id"],
         code="HIGH_PRIO_RULE",
         name="Règle Haute Priorité",
         priority=5,  # Plus forte que 10
-        document_category_id=db_seed["category_id"],  # Même catégorie que db_seed
+        document_categories=[category],
+        org_units=[],
         workflow_template_id=template_b.id,
         is_active=True,
     )
@@ -237,9 +247,7 @@ async def test_routing_priority_resolution(
 
     assert decision is not None
     assert decision.status == "success"
-    assert (
-        decision.routing_rule_id == rule_b.id
-    )  # La règle B (prio 5) doit gagner contre la règle seed (prio 10)
+    assert decision.routing_rule_id == rule_b.id
     assert decision.workflow_template_id == template_b.id
 
     await asyncio.sleep(0.1)
