@@ -1,5 +1,5 @@
 from app.services.ocr.base import OCRResult
-from app.services.ocr.strategy import OCRStrategy
+from app.services.ocr.strategy import DocumentType, OCRStrategy
 
 
 class FakeEngine:
@@ -28,7 +28,9 @@ def test_fallback_is_used_when_primary_result_is_empty(monkeypatch):
     primary = FakeEngine(_result("", 0.0, "primary"))
     fallback = FakeEngine(_result("Recovered text", 0.88, "fallback"))
 
-    monkeypatch.setattr(strategy, "_detect_document_type", lambda _path: object())
+    monkeypatch.setattr(
+        strategy, "_detect_document_type", lambda _path: DocumentType.UNKNOWN
+    )
     monkeypatch.setattr(strategy, "_select_engines", lambda _type: (primary, fallback))
 
     result = strategy.process_image("scan.png")
@@ -44,7 +46,9 @@ def test_reliable_primary_result_does_not_trigger_fallback(monkeypatch):
     primary = FakeEngine(_result("Good text", 0.92, "primary"))
     fallback = FakeEngine(_result("Other text", 0.99, "fallback"))
 
-    monkeypatch.setattr(strategy, "_detect_document_type", lambda _path: object())
+    monkeypatch.setattr(
+        strategy, "_detect_document_type", lambda _path: DocumentType.UNKNOWN
+    )
     monkeypatch.setattr(strategy, "_select_engines", lambda _type: (primary, fallback))
 
     result = strategy.process_image("scan.png")
