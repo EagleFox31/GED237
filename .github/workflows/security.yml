@@ -141,7 +141,9 @@ jobs:
 
   # ──────────────────────────────────────────────
   # T6.12 — Docker Image Scan (Trivy)
-  # Container security — HIGH/CRITICAL detection
+  # Container security — CRITICAL findings block CI.
+  # Build/scan images sequentially to keep the hosted runner below its disk
+  # limit; the backend OCR image is materially larger than a normal API image.
   # ──────────────────────────────────────────────
   trivy:
     name: "Container: Trivy"
@@ -155,26 +157,46 @@ jobs:
       - name: Build backend image
         run: docker build -t ged237-backend:ci ./backend
 
-      - name: Build frontend image
-        run: docker build -t ged237-frontend:ci ./frontend
+      - name: Drop backend build cache before scan
+        run: docker builder prune -af
 
       - name: Scan backend image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ged237-backend:ci
+          scanners: vuln
           format: table
           exit-code: 1
           severity: CRITICAL
           ignore-unfixed: true
 
+      - name: Remove backend image
+        if: always()
+        run: |
+          docker image rm -f ged237-backend:ci || true
+          docker builder prune -af || true
+
+      - name: Build frontend image
+        run: docker build -t ged237-frontend:ci ./frontend
+
+      - name: Drop frontend build cache before scan
+        run: docker builder prune -af
+
       - name: Scan frontend image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ged237-frontend:ci
+          scanners: vuln
           format: table
           exit-code: 1
           severity: CRITICAL
           ignore-unfixed: true
+
+      - name: Remove frontend image
+        if: always()
+        run: |
+          docker image rm -f ged237-frontend:ci || true
+          docker builder prune -af || true
 
       - name: Scan docker-compose config
         uses: aquasecurity/trivy-action@v0.36.0
