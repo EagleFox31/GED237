@@ -123,7 +123,8 @@ def upgrade() -> None:
     op.drop_index("idx_users_org_unit", table_name="users")
     op.drop_index("idx_users_role", table_name="users")
     op.drop_index("idx_users_tenant", table_name="users")
-    op.drop_constraint("users_matricule_key", "users", type_="unique")
+    # The initial schema never created a global users_matricule_key constraint.
+    # Matricule uniqueness is tenant-scoped via idx_users_tenant_matricule.
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
     op.create_index(op.f("ix_users_matricule"), "users", ["matricule"], unique=False)
     op.create_index(
@@ -156,7 +157,6 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_users_org_unit_id"), table_name="users")
     op.drop_index(op.f("ix_users_matricule"), table_name="users")
     op.drop_index(op.f("ix_users_email"), table_name="users")
-    op.create_unique_constraint("users_matricule_key", "users", ["matricule"])
     op.create_index("idx_users_tenant", "users", ["tenant_id"], unique=False)
     op.create_index("idx_users_role", "users", ["role_id"], unique=False)
     op.create_index("idx_users_org_unit", "users", ["org_unit_id"], unique=False)
