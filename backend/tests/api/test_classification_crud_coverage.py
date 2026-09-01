@@ -111,18 +111,20 @@ async def test_classification_domain_activity_rule_crud_and_simulation(
     assert patched.json()["code"] == "coverage_rule_updated"
     assert patched.json()["priority"] == 2
 
+    # A service-scoped simulation is anchored by the source org unit. Supplying a
+    # source user would mix person-level context into a service-level scenario and
+    # does not reflect the rule created above (source_user_id=None).
     simulation = await admin_client.post(
         "/api/v1/classification-rules/simulate",
         json={
             "document_category_id": str(db_seed["category_id"]),
             "source_scope": "service",
             "source_org_unit_id": str(db_seed["org_unit_id"]),
-            "source_user_id": str(db_seed["user_id"]),
             "filename": "coverage-note.txt",
             "mime_type": "text/plain",
         },
     )
-    assert simulation.status_code == 200
+    assert simulation.status_code == 200, simulation.text
     simulated = simulation.json()
     assert simulated["status"] == "classified"
     assert simulated["rule_id"] == rule["id"]
