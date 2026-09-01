@@ -54,10 +54,14 @@ async def _seed_rule(
     org_unit_id,
     code: str,
 ) -> ClassificationRule:
+    # The public API normalizes classification rule codes before persistence.
+    # Keep direct test seeding aligned with that invariant so duplicate-code
+    # tests exercise the endpoint logic rather than an artificial casing drift.
+    normalized_code = code.strip().lower()
     rule = ClassificationRule(
         tenant_id=tenant_id,
-        code=code,
-        name=f"Rule {code}",
+        code=normalized_code,
+        name=f"Rule {normalized_code}",
         priority=10,
         source_scope="service",
         document_category_id=category_id,
