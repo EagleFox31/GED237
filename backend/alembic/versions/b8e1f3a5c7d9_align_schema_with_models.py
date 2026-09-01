@@ -11,6 +11,7 @@ installations that already passed the historical revisions.
 
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
 
@@ -20,39 +21,33 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _make_timestamp_naive_if_needed(table_name: str, column_name: str) -> None:
+    """Convert a timestamptz column only when the live schema actually uses it."""
+    inspector = sa.inspect(op.get_bind())
+    columns = {column["name"]: column for column in inspector.get_columns(table_name)}
+    column = columns.get(column_name)
+    if column is None:
+        return
+
+    column_type = column["type"]
+    if getattr(column_type, "timezone", False):
+        op.alter_column(
+            table_name,
+            column_name,
+            existing_type=column_type,
+            type_=sa.TIMESTAMP(timezone=False),
+            postgresql_using=f"{column_name} AT TIME ZONE 'UTC'",
+        )
+
+
 def upgrade() -> None:
     """Align database objects with the current SQLAlchemy metadata."""
-    # The current models use timezone-naive TimestampMixin columns.
-    op.execute(
-        "ALTER TABLE document_categories "
-        "ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE "
-        "USING created_at AT TIME ZONE 'UTC'"
-    )
-    op.execute(
-        "ALTER TABLE document_categories "
-        "ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE "
-        "USING updated_at AT TIME ZONE 'UTC'"
-    )
-    op.execute(
-        "ALTER TABLE workflow_steps "
-        "ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE "
-        "USING created_at AT TIME ZONE 'UTC'"
-    )
-    op.execute(
-        "ALTER TABLE workflow_steps "
-        "ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE "
-        "USING updated_at AT TIME ZONE 'UTC'"
-    )
-    op.execute(
-        "ALTER TABLE workflow_actions "
-        "ALTER COLUMN created_at TYPE TIMESTAMP WITHOUT TIME ZONE "
-        "USING created_at AT TIME ZONE 'UTC'"
-    )
-    op.execute(
-        "ALTER TABLE workflow_actions "
-        "ALTER COLUMN updated_at TYPE TIMESTAMP WITHOUT TIME ZONE "
-        "USING updated_at AT TIME ZONE 'UTC'"
-    )
+    # The current models use timezone-naive TimestampMixin columns. Historical
+    # databases are inspected first so an already-correct naive timestamp is
+    # never shifted by a second timezone conversion.
+    for table_name in ("document_categories", "workflow_steps", "workflow_actions"):
+        _make_timestamp_naive_if_needed(table_name, "created_at")
+        _make_timestamp_naive_if_needed(table_name, "updated_at")
 
     # Historical rows may have a NULL upload timestamp; normalise before
     # enforcing the model's NOT NULL invariant.
