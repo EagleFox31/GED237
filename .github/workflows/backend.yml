@@ -4,10 +4,6 @@ on:
   workflow_call: {}
   workflow_dispatch: {}
 
-concurrency:
-  group: backend-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   PYTHON_VERSION: '3.12'
   DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_ged
