@@ -93,7 +93,9 @@ async def test_duplicate_detection(auth_client: AsyncClient, db_seed):
     )
 
     assert dup_resp.status_code == 409
-    assert dup_resp.json()["detail"]["error"] == "duplicate_file"
+    body = dup_resp.json()
+    assert body["error_code"] == "DUPLICATE_FILE"
+    assert body["detail"] == "Un fichier identique existe deja dans ce tenant."
 
 
 @pytest.mark.asyncio
