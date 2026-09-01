@@ -16,8 +16,14 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install CPU-only PyTorch wheels first. EasyOCR needs torch/torchvision, but
+# the default Linux wheels pull large CUDA libraries that are unused in this
+# CPU container and can exhaust GitHub-hosted runner disk space during Trivy
+# image export/scanning.
+RUN pip install --no-cache-dir \
+      --index-url https://download.pytorch.org/whl/cpu \
+      torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
