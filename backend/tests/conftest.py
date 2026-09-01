@@ -51,7 +51,7 @@ def reset_redis_singleton():
 
 @pytest_asyncio.fixture
 async def test_engine():
-    """Create a single engine for the entire test session."""
+    """Create an isolated engine for the current test context."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
     yield engine
     await engine.dispose()
@@ -59,8 +59,16 @@ async def test_engine():
 
 @pytest_asyncio.fixture(autouse=True)
 async def prepare_database(test_engine):
-    """Create and drop tables for each test."""
+    """Reset application tables before and after every test.
+
+    CI runs Alembic migrations before pytest, and some migrations seed reference
+    data such as roles. A bare ``create_all`` therefore preserves those rows and
+    makes test fixtures that use deterministic primary keys fail on the very
+    first test. Drop/create gives each test the same clean starting state,
+    independent of whether the database was freshly migrated or reused locally.
+    """
     async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
