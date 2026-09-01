@@ -76,7 +76,9 @@ def upgrade() -> None:
         unique=False,
         postgresql_ops={"created_at": "DESC"},
     )
-    op.drop_index("ix_routing_rules_document_category_id", table_name="routing_rules")
+    # Some older fresh-schema paths never created this auto-named index.
+    # IF EXISTS keeps the migration valid for both historical and fresh databases.
+    op.execute("DROP INDEX IF EXISTS ix_routing_rules_document_category_id")
     op.drop_constraint(
         "routing_rules_org_unit_id_fkey", "routing_rules", type_="foreignkey"
     )
