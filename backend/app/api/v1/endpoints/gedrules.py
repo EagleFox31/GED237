@@ -228,6 +228,7 @@ async def update_template(
     await db.commit()
     result = await db.execute(
         select(WorkflowTemplate)
+        .execution_options(populate_existing=True)
         .options(selectinload(WorkflowTemplate.steps))
         .filter_by(id=template.id)
     )
