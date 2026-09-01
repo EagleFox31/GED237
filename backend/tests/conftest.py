@@ -185,7 +185,7 @@ async def db_seed(test_engine):
         session.add(template)
         await session.flush()
 
-        # 6. WorkflowTemplateStep
+        # 7. WorkflowTemplateStep
         t_step = WorkflowTemplateStep(
             id=uuid.uuid4(),
             template_id=template_id,
@@ -199,6 +199,9 @@ async def db_seed(test_engine):
         await session.flush()
 
         # 8. RoutingRule
+        # RoutingRule is multi-category / multi-org-unit now. Use ORM
+        # relationships instead of the removed legacy scalar FK fields
+        # document_category_id and org_unit_id.
         rule_id = uuid.uuid4()
         rule = RoutingRule(
             id=rule_id,
@@ -206,8 +209,8 @@ async def db_seed(test_engine):
             code="NS_RULE",
             name="Règle Note de Service",
             priority=10,
-            document_category_id=category_id,
-            org_unit_id=None,  # Match all units
+            document_categories=[cat],
+            org_units=[],  # Empty list means the rule is not restricted to one unit.
             workflow_template_id=template_id,
             is_active=True,
         )
