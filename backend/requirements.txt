@@ -14,7 +14,7 @@ psycopg2-binary==2.9.9
 redis==5.0.1
 
 # Security
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.4.0
 passlib[argon2]==1.7.4
 python-multipart==0.0.9
 slowapi==0.1.9
@@ -29,9 +29,9 @@ flower==2.0.1
 spacy>=3.7.0          # NLP normalisation — fr_core_news_sm required (python -m spacy download fr_core_news_sm)
 pytesseract==0.3.10
 easyocr==1.7.2
-torch==2.2.2
-torchvision==0.17.2
-torchaudio==2.2.2
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
 Pillow==10.2.0
 PyPDF2==3.0.1
 pdf2image==1.17.0
