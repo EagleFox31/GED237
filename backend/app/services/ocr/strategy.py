@@ -4,11 +4,14 @@ OCR Strategy - Intelligent engine selection (SRP: Choose the right engine)
 
 from enum import Enum
 from typing import Optional
-from PIL import Image
+
 import PyPDF2
+from pdf2image import convert_from_path
+from PIL import Image
+
 from .base import OCREngine, OCRResult
-from .tesseract_engine import TesseractOCREngine
 from .easyocr_engine import EasyOCREngine
+from .tesseract_engine import TesseractOCREngine
 
 
 class DocumentType(Enum):
@@ -36,6 +39,20 @@ class OCRStrategy:
     def __init__(self):
         self.tesseract = TesseractOCREngine()
         self.easyocr = EasyOCREngine()
+
+    @staticmethod
+    def _should_use_fallback(result: OCRResult) -> bool:
+        """Fallback when the primary engine failed or produced weak OCR."""
+        return not result.text.strip() or not result.is_reliable
+
+    @staticmethod
+    def _prefer_fallback(primary: OCRResult, fallback: OCRResult) -> bool:
+        """Prefer a fallback that recovers missing text or improves confidence."""
+        if not fallback.text.strip():
+            return False
+        if not primary.text.strip():
+            return True
+        return fallback.confidence > primary.confidence
 
     def process_image(
         self,
@@ -66,18 +83,17 @@ class OCRStrategy:
         # Try primary engine
         result = primary_engine.extract_from_image(image_path)
 
-        # Try fallback if result is poor and fallback is enabled
-        if try_fallback and not result.is_reliable and result.text:
+        # Try fallback if the primary result is empty or unreliable.
+        if try_fallback and self._should_use_fallback(result):
             print(
-                f"⚠️ Low confidence ({result.confidence:.2%}), "
+                f"⚠️ Primary OCR weak/empty ({result.confidence:.2%}), "
                 f"trying fallback engine: {fallback_engine.name}"
             )
             fallback_result = fallback_engine.extract_from_image(image_path)
 
-            # Use fallback if it's better
-            if fallback_result.confidence > result.confidence:
+            if self._prefer_fallback(result, fallback_result):
                 print(
-                    f"✓ Fallback engine performed better "
+                    f"✓ Fallback engine selected "
                     f"({fallback_result.confidence:.2%} vs {result.confidence:.2%})"
                 )
                 return fallback_result
@@ -86,7 +102,7 @@ class OCRStrategy:
 
     def process_pdf(self, pdf_path: str) -> tuple[str, float]:
         """
-        Process PDF - extract native text first, OCR if needed
+        Process PDF - extract native text first, then OCR scanned pages if needed.
 
         Args:
             pdf_path: Path to PDF file
@@ -95,7 +111,7 @@ class OCRStrategy:
             Tuple of (text, confidence)
         """
         try:
-            # Try native text extraction first (fast)
+            # Try native text extraction first (fast).
             text = ""
             with open(pdf_path, "rb") as file:
                 reader = PyPDF2.PdfReader(file)
@@ -105,16 +121,34 @@ class OCRStrategy:
                         text += extracted + "\n"
 
             if text.strip():
-                # Native text extraction successful
                 print("PDF: Native text extraction successful")
                 return text, 0.95
 
-            # No text found - might be scanned PDF
-            print("PDF: No native text found. This appears to be a scanned PDF.")
-            print(
-                "⚠️ Note: OCR on scanned PDFs requires pdf2image (not yet implemented)"
-            )
-            return "", 0.0
+            # No native text: render pages and OCR them.
+            print("PDF: No native text found. Running OCR on scanned pages.")
+            pages = convert_from_path(pdf_path, dpi=200)
+            extracted_pages: list[str] = []
+            confidences: list[float] = []
+
+            for page_number, page_image in enumerate(pages, start=1):
+                result = self.tesseract.extract_from_pil_image(page_image)
+
+                if self._should_use_fallback(result):
+                    fallback_result = self.easyocr.extract_from_pil_image(page_image)
+                    if self._prefer_fallback(result, fallback_result):
+                        result = fallback_result
+
+                if result.text.strip():
+                    extracted_pages.append(result.text.strip())
+                    confidences.append(result.confidence)
+                else:
+                    print(f"PDF: No OCR text extracted from page {page_number}")
+
+            if not extracted_pages:
+                return "", 0.0
+
+            average_confidence = sum(confidences) / len(confidences)
+            return "\n\n".join(extracted_pages), average_confidence
 
         except Exception as e:
             print(f"PDF extraction error: {e}")
