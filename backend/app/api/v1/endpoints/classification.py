@@ -675,7 +675,7 @@ async def simulate_classification(
     )
 
     return ClassificationSimulationResponse(
-        status=resolution.status,
+        status=resolution.status.value,
         rule_id=resolution.rule.id if resolution.rule else None,
         rule_code=resolution.rule.code if resolution.rule else None,
         rule_name=resolution.rule.name if resolution.rule else None,
