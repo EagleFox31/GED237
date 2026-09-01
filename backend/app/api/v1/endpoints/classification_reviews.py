@@ -37,7 +37,7 @@ def _rollback_storage_renames(renames: list[tuple[str, str]]) -> None:
             continue
 
 
-@router.get("/", response_model=list[ClassificationReviewRead])
+@router.get("", response_model=list[ClassificationReviewRead])
 async def list_classification_reviews(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
