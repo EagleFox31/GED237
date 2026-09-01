@@ -109,11 +109,12 @@ services:
     networks:
       - edossier_network
 
-  # Frontend Vite (internal only)
+  # Frontend Vite development target (internal only)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: development
     container_name: edossier_frontend
     volumes:
       - ./frontend:/app
