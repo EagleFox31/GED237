@@ -338,6 +338,29 @@ async def _validate_rule_payload(
         )
 
 
+# JSONB columns holding UUID lists: they need str values, unlike UUID FKs.
+_RULE_JSONB_ID_LISTS = (
+    "document_category_ids",
+    "source_org_unit_ids",
+    "source_org_unit_excluded_ids",
+    "source_user_ids",
+)
+
+
+def _rule_column_values(payload, **dump_kwargs) -> dict:
+    """Dump a rule payload into ORM column values.
+
+    Only the JSONB lists are serialized to strings: scalar FKs must stay UUIDs,
+    otherwise relationships (domain, activity...) cannot be resolved on the
+    instance after commit and names such as domain_name come back empty.
+    """
+    values = payload.model_dump(**dump_kwargs)
+    for field in _RULE_JSONB_ID_LISTS:
+        if values.get(field) is not None:
+            values[field] = [str(item) for item in values[field]]
+    return values
+
+
 def _classification_rule_query():
     return select(ClassificationRule).options(
         selectinload(ClassificationRule.document_category),
@@ -643,12 +666,10 @@ async def create_classification_rule(
         tenant_id=current_user.tenant_id,
         payload=payload,
     )
-    # mode='json' sérialise les UUID en str (utile pour les listes en JSONB).
-    # Les colonnes UUID acceptent les strings et SQLAlchemy les recoerce.
     rule = ClassificationRule(
         tenant_id=current_user.tenant_id,
         code=code,
-        **payload.model_dump(exclude={"code"}, mode="json"),
+        **_rule_column_values(payload, exclude={"code"}),
     )
     db.add(rule)
     await db.commit()
@@ -675,7 +696,7 @@ async def update_classification_rule(
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(status_code=404, detail="Regle de classement introuvable.")
-    update_data = payload.model_dump(exclude_unset=True, mode="json")
+    update_data = _rule_column_values(payload, exclude_unset=True)
     if "code" in update_data and update_data["code"]:
         update_data["code"] = _normalize_code(update_data["code"])
         await _ensure_rule_code_unique(

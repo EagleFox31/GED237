@@ -136,6 +136,10 @@ def make_rule(**overrides):
         "document_category_id": None,
         "source_org_unit_id": None,
         "source_user_id": None,
+        "document_category_ids": None,
+        "source_org_unit_ids": None,
+        "source_org_unit_excluded_ids": None,
+        "source_user_ids": None,
         "filename_pattern": None,
         "mime_type_pattern": None,
         "target_scope": "service",
@@ -181,33 +185,35 @@ async def test_classification_rule_engine_patterns(monkeypatch):
         filename_pattern="note|memo",
         mime_type_pattern="pdf",
     )
-    assert engine._matches_rule(
-        rule=matching_rule,
-        document_category_id=category_id,
-        source_scope="service",
-        source_org_unit_id=org_id,
-        source_user_id=None,
-        filename="NOTE interne.pdf",
-        mime_type="application/pdf",
-    )
+    async def matches(rule, **context):
+        values = {
+            "document_category_id": category_id,
+            "source_scope": "service",
+            "source_org_unit_id": org_id,
+            "source_user_id": None,
+            "filename": "note.pdf",
+            "mime_type": "application/pdf",
+        }
+        values.update(context)
+        diagnostic = await engine._evaluate_rule(rule=rule, **values)
+        return diagnostic.matched
+
+    assert await matches(matching_rule, filename="NOTE interne.pdf")
+    assert await matches(make_rule(document_category_ids=[uuid.uuid4(), category_id]))
+    # Unit names are only loaded to explain a rejection; keep the DB out of it.
+    engine._load_org_unit = AsyncMock(return_value=None)
     for changed in (
         {"source_scope": "person"},
         {"document_category_id": uuid.uuid4()},
+        {"document_category_ids": [uuid.uuid4()]},
         {"source_org_unit_id": uuid.uuid4()},
         {"source_user_id": uuid.uuid4()},
+        {"source_user_ids": [uuid.uuid4()]},
         {"filename_pattern": "facture"},
         {"mime_type_pattern": "image/"},
     ):
-        bad_rule = make_rule(**changed)
-        assert not engine._matches_rule(
-            rule=bad_rule,
-            document_category_id=category_id,
-            source_scope="service",
-            source_org_unit_id=org_id,
-            source_user_id=None,
-            filename="note.pdf",
-            mime_type="application/pdf",
-        )
+        assert not await matches(make_rule(**changed)), changed
+    del engine._load_org_unit
 
     engine._load_rules = AsyncMock(return_value=[])
     engine.path_builder.build_pending_full_path = AsyncMock(
