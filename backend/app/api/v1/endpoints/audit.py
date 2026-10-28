@@ -21,6 +21,8 @@ TABLE_LABELS = {
     "workflows": "Workflows",
     "users": "Utilisateurs",
     "ged_rules": "Regles GED",
+    "local_organize_events": "Rangement local",
+    "user_local_arrangement_snapshots": "Bibliotheque locale (compte)",
 }
 
 ACTION_LABELS = {
@@ -40,6 +42,8 @@ ACTION_LABELS = {
     "lock": "Verrouillage",
     "unlock": "Deverrouillage",
     "archive": "Archivage",
+    "local_organize": "Rangement local sur poste",
+    "local_snap_put": "Bibliotheque locale (sync)",
 }
 
 
