@@ -17,7 +17,9 @@ class AuditLog(Base, UUIDMixin):
 
     table_name = Column(String(100), nullable=False)
     record_id = Column(UUID(as_uuid=True), nullable=False)
-    action = Column(String(20), nullable=False)
+    # Audit actions are semantic event identifiers, not fixed CRUD verbs. Keep
+    # enough room for explicit names such as ``workflow_started_a_posteriori``.
+    action = Column(String(64), nullable=False)
 
     old_data = Column(JSONB)
     new_data = Column(JSONB)

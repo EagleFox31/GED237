@@ -4,10 +4,6 @@ on:
   workflow_call: {}
   workflow_dispatch: {}
 
-concurrency:
-  group: frontend-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   NODE_VERSION: '20'
 

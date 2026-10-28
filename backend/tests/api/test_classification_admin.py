@@ -54,10 +54,14 @@ async def _seed_rule(
     org_unit_id,
     code: str,
 ) -> ClassificationRule:
+    # The public API normalizes classification rule codes before persistence.
+    # Keep direct test seeding aligned with that invariant so duplicate-code
+    # tests exercise the endpoint logic rather than an artificial casing drift.
+    normalized_code = code.strip().lower()
     rule = ClassificationRule(
         tenant_id=tenant_id,
-        code=code,
-        name=f"Rule {code}",
+        code=normalized_code,
+        name=f"Rule {normalized_code}",
         priority=10,
         source_scope="service",
         document_category_id=category_id,
@@ -73,7 +77,7 @@ async def _seed_rule(
 
 @pytest.mark.asyncio
 async def test_create_classification_rule_rejects_activity_outside_domain(
-    auth_client, db_session: AsyncSession, db_seed
+    admin_client, db_session: AsyncSession, db_seed
 ):
     domain_a = await _seed_domain(
         db_session, tenant_id=db_seed["tenant_id"], code="marches", name="Marches"
@@ -90,7 +94,7 @@ async def test_create_classification_rule_rejects_activity_outside_domain(
     )
     await db_session.commit()
 
-    response = await auth_client.post(
+    response = await admin_client.post(
         "/api/v1/classification-rules/rules",
         json={
             "code": "RULE_MISMATCH",
@@ -113,9 +117,9 @@ async def test_create_classification_rule_rejects_activity_outside_domain(
 
 @pytest.mark.asyncio
 async def test_create_classification_rule_rejects_target_user_for_non_person_scope(
-    auth_client, db_seed
+    admin_client, db_seed
 ):
-    response = await auth_client.post(
+    response = await admin_client.post(
         "/api/v1/classification-rules/rules",
         json={
             "code": "RULE_BAD_TARGET",
@@ -137,9 +141,9 @@ async def test_create_classification_rule_rejects_target_user_for_non_person_sco
 
 @pytest.mark.asyncio
 async def test_create_classification_rule_rejects_fixed_year_without_value(
-    auth_client, db_seed
+    admin_client, db_seed
 ):
-    response = await auth_client.post(
+    response = await admin_client.post(
         "/api/v1/classification-rules/rules",
         json={
             "code": "RULE_FIXED_YEAR",
@@ -160,7 +164,7 @@ async def test_create_classification_rule_rejects_fixed_year_without_value(
 
 @pytest.mark.asyncio
 async def test_update_classification_domain_rejects_duplicate_code(
-    auth_client, db_session: AsyncSession, db_seed
+    admin_client, db_session: AsyncSession, db_seed
 ):
     domain_a = await _seed_domain(
         db_session, tenant_id=db_seed["tenant_id"], code="courrier", name="Courrier"
@@ -170,7 +174,7 @@ async def test_update_classification_domain_rejects_duplicate_code(
     )
     await db_session.commit()
 
-    response = await auth_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/classification-rules/domains/{domain_b.id}",
         json={"code": domain_a.code},
     )
@@ -181,7 +185,7 @@ async def test_update_classification_domain_rejects_duplicate_code(
 
 @pytest.mark.asyncio
 async def test_update_classification_activity_rejects_duplicate_code_within_domain(
-    auth_client, db_session: AsyncSession, db_seed
+    admin_client, db_session: AsyncSession, db_seed
 ):
     domain = await _seed_domain(
         db_session, tenant_id=db_seed["tenant_id"], code="marches", name="Marches"
@@ -202,7 +206,7 @@ async def test_update_classification_activity_rejects_duplicate_code_within_doma
     )
     await db_session.commit()
 
-    response = await auth_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/classification-rules/activities/{activity_b.id}",
         json={"code": activity_a.code},
     )
@@ -213,7 +217,7 @@ async def test_update_classification_activity_rejects_duplicate_code_within_doma
 
 @pytest.mark.asyncio
 async def test_update_classification_rule_rejects_duplicate_code(
-    auth_client, db_session: AsyncSession, db_seed
+    admin_client, db_session: AsyncSession, db_seed
 ):
     rule_a = await _seed_rule(
         db_session,
@@ -231,7 +235,7 @@ async def test_update_classification_rule_rejects_duplicate_code(
     )
     await db_session.commit()
 
-    response = await auth_client.patch(
+    response = await admin_client.patch(
         f"/api/v1/classification-rules/rules/{rule_b.id}",
         json={"code": rule_a.code},
     )
@@ -242,9 +246,9 @@ async def test_update_classification_rule_rejects_duplicate_code(
 
 @pytest.mark.asyncio
 async def test_simulate_classification_rejects_foreign_source_context(
-    auth_client, db_seed
+    admin_client, db_seed
 ):
-    response = await auth_client.post(
+    response = await admin_client.post(
         "/api/v1/classification-rules/simulate",
         json={
             "document_category_id": str(db_seed["category_id"]),

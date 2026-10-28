@@ -51,7 +51,7 @@ def reset_redis_singleton():
 
 @pytest_asyncio.fixture
 async def test_engine():
-    """Create a single engine for the entire test session."""
+    """Create an isolated engine for the current test context."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
     yield engine
     await engine.dispose()
@@ -59,8 +59,16 @@ async def test_engine():
 
 @pytest_asyncio.fixture(autouse=True)
 async def prepare_database(test_engine):
-    """Create and drop tables for each test."""
+    """Reset application tables before and after every test.
+
+    CI runs Alembic migrations before pytest, and some migrations seed reference
+    data such as roles. A bare ``create_all`` therefore preserves those rows and
+    makes test fixtures that use deterministic primary keys fail on the very
+    first test. Drop/create gives each test the same clean starting state,
+    independent of whether the database was freshly migrated or reused locally.
+    """
     async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
@@ -177,7 +185,7 @@ async def db_seed(test_engine):
         session.add(template)
         await session.flush()
 
-        # 6. WorkflowTemplateStep
+        # 7. WorkflowTemplateStep
         t_step = WorkflowTemplateStep(
             id=uuid.uuid4(),
             template_id=template_id,
@@ -191,6 +199,9 @@ async def db_seed(test_engine):
         await session.flush()
 
         # 8. RoutingRule
+        # RoutingRule is multi-category / multi-org-unit now. Use ORM
+        # relationships instead of the removed legacy scalar FK fields
+        # document_category_id and org_unit_id.
         rule_id = uuid.uuid4()
         rule = RoutingRule(
             id=rule_id,
@@ -198,8 +209,8 @@ async def db_seed(test_engine):
             code="NS_RULE",
             name="Règle Note de Service",
             priority=10,
-            document_category_id=category_id,
-            org_unit_id=None,  # Match all units
+            document_categories=[cat],
+            org_units=[],  # Empty list means the rule is not restricted to one unit.
             workflow_template_id=template_id,
             is_active=True,
         )

@@ -18,13 +18,30 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Ajouter la contrainte unique (tenant_id, code) sur document_categories
-    op.create_unique_constraint(
-        "uq_category_tenant_code", "document_categories", ["tenant_id", "code"]
+    # 1. Add the tenant/category uniqueness only when it is missing.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'uq_category_tenant_code'
+                  AND conrelid = 'document_categories'::regclass
+            ) THEN
+                ALTER TABLE document_categories
+                ADD CONSTRAINT uq_category_tenant_code UNIQUE (tenant_id, code);
+            END IF;
+        END
+        $$;
+        """
     )
 
-    # 2. Changer ondelete CASCADE → RESTRICT sur routing_rules.document_category_id
-    op.drop_constraint("fk_rules_category", "routing_rules", type_="foreignkey")
+    # 2. Normalise FK semantics. DROP IF EXISTS makes this work whether the
+    # historical CASCADE FK is present or not.
+    op.execute(
+        "ALTER TABLE routing_rules DROP CONSTRAINT IF EXISTS fk_rules_category"
+    )
     op.create_foreign_key(
         "fk_rules_category",
         "routing_rules",
@@ -36,8 +53,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Remettre CASCADE
-    op.drop_constraint("fk_rules_category", "routing_rules", type_="foreignkey")
+    op.execute(
+        "ALTER TABLE routing_rules DROP CONSTRAINT IF EXISTS fk_rules_category"
+    )
     op.create_foreign_key(
         "fk_rules_category",
         "routing_rules",
@@ -46,6 +64,6 @@ def downgrade() -> None:
         ["id"],
         ondelete="CASCADE",
     )
-
-    # Supprimer la contrainte unique
-    op.drop_constraint("uq_category_tenant_code", "document_categories", type_="unique")
+    op.execute(
+        "ALTER TABLE document_categories DROP CONSTRAINT IF EXISTS uq_category_tenant_code"
+    )

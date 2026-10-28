@@ -34,6 +34,25 @@ services:
     networks:
       - edossier_network
 
+  # Apply database migrations once PostgreSQL is healthy.
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edossier_migrate
+    command: alembic upgrade head
+    environment:
+      DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:-changeme}@postgres/edossier
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - edossier_network
+    restart: "no"
+
   # FastAPI Backend (internal only)
   api:
     build:
@@ -59,6 +78,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - edossier_network
 
@@ -79,16 +100,21 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       STORAGE_PATH: /var/storage_data
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - edossier_network
 
-  # Frontend Vite (internal only)
+  # Frontend Vite development target (internal only)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: development
     container_name: edossier_frontend
     volumes:
       - ./frontend:/app

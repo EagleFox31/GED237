@@ -113,12 +113,44 @@ async def legacy_edossier_handler(
 # ─────────────────────────────────────────────────────────────────────
 
 
+def _normalize_http_detail(detail: Any, status_code: int) -> tuple[str, str]:
+    """Preserve safe semantic codes from legacy structured HTTPException details.
+
+    Older endpoints still raise ``HTTPException(detail={"error": ..., "message": ...})``.
+    RFC 9457 requires ``detail`` to remain a string, so we translate only those two
+    public fields into the canonical top-level ``detail`` and ``error_code`` fields.
+    Other keys are deliberately not exposed because they may contain internal IDs.
+    """
+    fallback_code = _http_status_to_error_code(status_code)
+    if isinstance(detail, str):
+        return detail, fallback_code
+
+    if not isinstance(detail, dict):
+        return "Erreur.", fallback_code
+
+    raw_message = detail.get("message")
+    user_message = (
+        raw_message.strip()
+        if isinstance(raw_message, str) and raw_message.strip()
+        else "Erreur."
+    )
+
+    raw_error = detail.get("error")
+    if not isinstance(raw_error, str) or not raw_error.strip():
+        return user_message, fallback_code
+
+    candidate = raw_error.strip().upper().replace("-", "_").replace(" ", "_")
+    if len(candidate) > 64 or not candidate.replace("_", "").isalnum():
+        return user_message, fallback_code
+
+    return user_message, candidate
+
+
 async def http_exception_handler(
     request: Request, exc: StarletteHTTPException
 ) -> JSONResponse:
     cid = _correlation_id()
-    detail = exc.detail if isinstance(exc.detail, str) else "Erreur."
-    code = _http_status_to_error_code(exc.status_code)
+    detail, code = _normalize_http_detail(exc.detail, exc.status_code)
     severity = Severity.warning if exc.status_code < 500 else Severity.error
 
     if exc.status_code >= 500:

@@ -1,5 +1,17 @@
-from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, TIMESTAMP, Index
+from sqlalchemy import (
+    Column,
+    String,
+    Boolean,
+    Integer,
+    ForeignKey,
+    TIMESTAMP,
+    Index,
+    and_,
+    case,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.base import UUIDMixin, TimestampMixin
@@ -74,12 +86,26 @@ class User(Base, UUIDMixin, TimestampMixin):
         ),
     )
 
-    @property
+    @hybrid_property
     def full_name(self):
         """Get full name"""
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
         return self.matricule
+
+    @full_name.expression
+    def full_name(cls):
+        """SQL form of full_name, so it can be used in select()/where()."""
+        return case(
+            (
+                and_(
+                    func.coalesce(cls.first_name, "") != "",
+                    func.coalesce(cls.last_name, "") != "",
+                ),
+                cls.first_name + " " + cls.last_name,
+            ),
+            else_=cls.matricule,
+        )
 
     def __repr__(self):
         return f"<User(matricule={self.matricule}, role={self.role_id})>"
