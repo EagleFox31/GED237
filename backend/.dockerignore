@@ -1,0 +1,41 @@
+# Environnements Python locaux (jamais dans l'image : l'image a son propre Python)
+venv/
+.venv/
+venv*/
+env/
+
+# Caches Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Secrets et config locale (fournis par compose / variables d'environnement)
+.env
+.env.*
+!.env.example
+
+# Données et artefacts locaux
+backups/
+storage/
+*.log
+*.sqlite3
+*.db
+
+# Git / IDE / OS
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docs et tooling non nécessaires au runtime
+docs/
+deployment/
+*.md
