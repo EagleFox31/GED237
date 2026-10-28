@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ClassificationActivityPayload, type ClassificationDomainPayload, type ClassificationRulePayload } from '../../../../services/api';
+import { MultiCheckSelect } from '../../../../components/ui/MultiCheckSelect';
+import { SimulationTracePanel } from '../../../../components/classification/SimulationTracePanel';
 import { categoriesApi, type DocumentCategory } from '../../../../services/categories.api';
 import type {
   ClassificationActivity,
@@ -10,9 +12,10 @@ import type {
 
 type Toast = { tone: 'success' | 'error' | 'info'; message: string } | null;
 type AdminTab = 'domains' | 'activities' | 'rules' | 'simulator';
-type OrgUnitOption = { id: string; name: string };
+type OrgUnitOption = { id: string; name: string; parent_id?: string | null; level?: number };
 type UserOption = { id: string; full_name: string; org_unit_id?: string | null; role_label?: string };
 type WorkflowTemplateOption = { id: string; name: string; is_active?: boolean };
+type TargetRoutingMode = 'origin' | 'parent_subdirectorate' | 'parent_directorate' | 'specific_org_unit' | 'person';
 
 type DomainFormState = {
   id?: string;
@@ -39,6 +42,10 @@ type RuleFormState = {
   source_org_unit_id: string;
   source_user_id: string;
   document_category_id: string;
+  document_category_ids: string[];
+  source_org_unit_ids: string[];
+  source_org_unit_excluded_ids: string[];
+  source_user_ids: string[];
   filename_pattern: string;
   mime_type_pattern: string;
   target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
@@ -77,6 +84,10 @@ const EMPTY_RULE: RuleFormState = {
   source_org_unit_id: '',
   source_user_id: '',
   document_category_id: '',
+  document_category_ids: [],
+  source_org_unit_ids: [],
+  source_org_unit_excluded_ids: [],
+  source_user_ids: [],
   filename_pattern: '',
   mime_type_pattern: '',
   target_scope: 'service',
@@ -112,6 +123,13 @@ const STATUS_STYLES: Record<string, string> = {
   needs_review: 'bg-amber-50 text-amber-700 border-amber-100',
   no_rule: 'bg-slate-100 text-slate-700 border-slate-200',
   rejected: 'bg-rose-50 text-rose-700 border-rose-100',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  classified: 'Classifié',
+  needs_review: 'À revoir',
+  no_rule: 'Sans règle',
+  rejected: 'Rejeté',
 };
 
 const slugifyCode = (value: string) =>
@@ -152,6 +170,367 @@ const formatYearStrategy = (strategy: RuleFormState['year_strategy']) => {
   }
 };
 
+const scopeFromOrgUnitLevel = (level?: number | null): RuleFormState['target_scope'] => {
+  if (level === 2) return 'directorate';
+  if (level === 3) return 'subdirectorate';
+  return 'service';
+};
+
+const deriveTargetRoutingMode = (
+  targetScope?: RuleFormState['target_scope'] | ClassificationRule['target_scope'] | null,
+  targetOrgUnitId?: string | null,
+) : TargetRoutingMode => {
+  if (targetScope === 'person') return 'person';
+  if (targetOrgUnitId) return 'specific_org_unit';
+  if (targetScope === 'subdirectorate') return 'parent_subdirectorate';
+  if (targetScope === 'directorate') return 'parent_directorate';
+  return 'origin';
+};
+
+const formatTargetRoutingMode = (mode: TargetRoutingMode) => {
+  switch (mode) {
+    case 'origin':
+      return "Conserver l'unité d'origine";
+    case 'parent_subdirectorate':
+      return 'Sous-direction parente';
+    case 'parent_directorate':
+      return 'Direction parente';
+    case 'specific_org_unit':
+      return 'Unité précise';
+    case 'person':
+      return 'Personne précise';
+    default:
+      return mode;
+  }
+};
+
+const splitRuleKeywords = (pattern?: string | null) =>
+  (pattern || '')
+    .split(/[;,|]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+const FILE_FORMAT_OPTIONS = [
+  { value: 'pdf', label: 'PDF' },
+  { value: 'doc', label: 'DOC' },
+  { value: 'docx', label: 'DOCX' },
+  { value: 'xls', label: 'XLS' },
+  { value: 'xlsx', label: 'XLSX' },
+  { value: 'ppt', label: 'PPT' },
+  { value: 'pptx', label: 'PPTX' },
+  { value: 'odt', label: 'ODT' },
+  { value: 'ods', label: 'ODS' },
+  { value: 'odp', label: 'ODP' },
+  { value: 'txt', label: 'TXT' },
+  { value: 'csv', label: 'CSV' },
+  { value: 'rtf', label: 'RTF' },
+  { value: 'png', label: 'PNG' },
+  { value: 'jpg', label: 'JPG' },
+  { value: 'jpeg', label: 'JPEG' },
+  { value: 'tiff', label: 'TIFF' },
+  { value: 'tif', label: 'TIF' },
+  { value: 'bmp', label: 'BMP' },
+  { value: 'gif', label: 'GIF' },
+  { value: 'webp', label: 'WEBP' },
+] as const;
+
+const MIME_ALIAS_LABELS: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'application/msword': 'DOC',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+  'application/vnd.ms-excel': 'XLS',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+  'application/vnd.ms-powerpoint': 'PPT',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+  'application/vnd.oasis.opendocument.text': 'ODT',
+  'application/vnd.oasis.opendocument.spreadsheet': 'ODS',
+  'application/vnd.oasis.opendocument.presentation': 'ODP',
+  'text/plain': 'TXT',
+  'text/csv': 'CSV',
+  'application/rtf': 'RTF',
+  'image/png': 'PNG',
+  'image/jpeg': 'JPG',
+  'image/tiff': 'TIFF',
+  'image/bmp': 'BMP',
+  'image/gif': 'GIF',
+  'image/webp': 'WEBP',
+};
+
+const FILE_FORMAT_TO_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  odt: 'application/vnd.oasis.opendocument.text',
+  ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  odp: 'application/vnd.oasis.opendocument.presentation',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  rtf: 'application/rtf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  tiff: 'image/tiff',
+  tif: 'image/tiff',
+  bmp: 'image/bmp',
+  gif: 'image/gif',
+  webp: 'image/webp',
+};
+
+const splitMimeTokens = (pattern?: string | null) =>
+  (pattern || '')
+    .split(/[;,|]+/)
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+
+const normalizeMimeTokens = (pattern?: string | null) =>
+  splitMimeTokens(pattern).map((token) => {
+    if (token.includes('/')) {
+      const mapped = Object.entries(MIME_ALIAS_LABELS).find(([mime]) => mime === token);
+      return mapped?.[1].toLowerCase() ?? token;
+    }
+    return token;
+  });
+
+const formatMimeTokenLabel = (token: string) => {
+  const normalized = token.toLowerCase();
+  if (MIME_ALIAS_LABELS[normalized]) return MIME_ALIAS_LABELS[normalized];
+  const option = FILE_FORMAT_OPTIONS.find((item) => item.value === normalized);
+  if (option) return option.label;
+  return token.toUpperCase();
+};
+
+const inferMimeTypeFromFilename = (filename: string) => {
+  const match = filename.toLowerCase().match(/\.([a-z0-9]+)$/);
+  if (!match) return '';
+  const extension = match[1] || '';
+  return FILE_FORMAT_TO_MIME[extension] || '';
+};
+
+const inferSimulationSourceScope = (orgUnit?: OrgUnitOption | null): SimulatorFormState['source_scope'] => {
+  if (!orgUnit?.level) return 'service';
+  return orgUnit.level >= 4 ? 'service' : 'subdirectorate';
+};
+
+const formatOriginSummaryLabel = (orgUnit: OrgUnitOption, hasChildren: boolean) =>
+  hasChildren ? `Toutes les unités de ${orgUnit.name}` : orgUnit.name;
+
+type OriginDecisionState = {
+  decision: 'include' | 'exclude' | 'none';
+  sourceId: string | null;
+  explicitInclude: boolean;
+  explicitExclude: boolean;
+  inherited: boolean;
+};
+
+const OriginScopeSelect: React.FC<{
+  units: OrgUnitOption[];
+  included: string[];
+  excluded: string[];
+  onChange: (nextIncluded: string[], nextExcluded: string[]) => void;
+  disabled?: boolean;
+}> = ({ units, included, excluded, onChange, disabled = false }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    window.document.addEventListener('mousedown', handler);
+    return () => window.document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const unitById = useMemo(() => new Map(units.map((unit) => [unit.id, unit])), [units]);
+
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string | null, OrgUnitOption[]>();
+    units.forEach((unit) => {
+      const parentId = unit.parent_id || null;
+      const bucket = map.get(parentId) || [];
+      bucket.push(unit);
+      map.set(parentId, bucket);
+    });
+    map.forEach((bucket) => bucket.sort((a, b) => a.name.localeCompare(b.name)));
+    return map;
+  }, [units]);
+
+  const ancestorsById = useMemo(() => {
+    const map = new Map<string, string[]>();
+    const build = (unit: OrgUnitOption): string[] => {
+      if (map.has(unit.id)) return map.get(unit.id)!;
+      const parent = unit.parent_id ? unitById.get(unit.parent_id) : null;
+      const ancestors = parent ? [...build(parent), parent.id] : [];
+      map.set(unit.id, ancestors);
+      return ancestors;
+    };
+    units.forEach(build);
+    return map;
+  }, [unitById, units]);
+
+  const includeSet = useMemo(() => new Set(included), [included]);
+  const excludeSet = useMemo(() => new Set(excluded), [excluded]);
+
+  const resolveDecision = (unitId: string): OriginDecisionState => {
+    const chain = [...(ancestorsById.get(unitId) || []), unitId];
+    let decision: 'include' | 'exclude' | 'none' = 'none';
+    let sourceId: string | null = null;
+    chain.forEach((id) => {
+      if (includeSet.has(id)) {
+        decision = 'include';
+        sourceId = id;
+      }
+      if (excludeSet.has(id)) {
+        decision = 'exclude';
+        sourceId = id;
+      }
+    });
+    return {
+      decision,
+      sourceId,
+      explicitInclude: includeSet.has(unitId),
+      explicitExclude: excludeSet.has(unitId),
+      inherited: sourceId !== null && sourceId !== unitId,
+    };
+  };
+
+  const matchesQuery = (unitId: string, value: string): boolean => {
+    if (!value.trim()) return true;
+    const q = value.toLowerCase();
+    const unit = unitById.get(unitId);
+    if (!unit) return false;
+    if (unit.name.toLowerCase().includes(q)) return true;
+    return (childrenByParent.get(unitId) || []).some((child) => matchesQuery(child.id, value));
+  };
+
+  const toggleUnit = (unitId: string) => {
+    const current = resolveDecision(unitId);
+    let nextIncluded = [...included];
+    let nextExcluded = [...excluded];
+
+    if (current.decision === 'include') {
+      if (current.explicitInclude && !current.inherited) {
+        nextIncluded = nextIncluded.filter((id) => id !== unitId);
+      } else {
+        nextIncluded = nextIncluded.filter((id) => id !== unitId);
+        if (!nextExcluded.includes(unitId)) nextExcluded.push(unitId);
+      }
+    } else {
+      nextExcluded = nextExcluded.filter((id) => id !== unitId);
+      if (!nextIncluded.includes(unitId)) nextIncluded.push(unitId);
+    }
+
+    onChange(nextIncluded, nextExcluded);
+  };
+
+  const clearExceptions = () => onChange(included, []);
+  const clearAll = () => onChange([], []);
+
+  const summary = useMemo(() => {
+    if (included.length === 0) return 'Toutes les unités';
+    const first = included[0] ? unitById.get(included[0]) : undefined;
+    if (!first) return `${included.length} origine(s) sélectionnée(s)`;
+    return included.length === 1 ? first.name : `${first.name} +${included.length - 1}`;
+  }, [included, unitById]);
+
+  const renderUnit = (unit: OrgUnitOption, depth = 0): React.ReactNode => {
+    if (!matchesQuery(unit.id, query)) return null;
+    const children = childrenByParent.get(unit.id) || [];
+    const current = resolveDecision(unit.id);
+    const hasChildren = children.length > 0;
+    const chipTone =
+      current.decision === 'exclude'
+        ? 'text-rose-600 bg-rose-50 border-rose-200'
+        : current.decision === 'include'
+          ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+          : 'text-slate-400 bg-white border-slate-200';
+
+    return (
+      <div key={unit.id}>
+        <button
+          type="button"
+          onClick={() => toggleUnit(unit.id)}
+          className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${current.decision === 'none' ? 'hover:bg-slate-50' : 'bg-slate-50 hover:bg-slate-100'}`}
+          style={{ paddingLeft: `${12 + depth * 18}px` }}
+        >
+          <span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${chipTone}`}>
+            <span className="material-symbols-outlined text-[14px]">
+              {current.decision === 'exclude' ? 'remove' : current.decision === 'include' ? 'check' : 'add'}
+            </span>
+          </span>
+          <span className="text-sm font-medium text-slate-700 flex-1">
+            {unit.name}
+          </span>
+          {hasChildren && (
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Branche
+            </span>
+          )}
+          {current.decision === 'exclude' && (
+            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600">
+              Sauf
+            </span>
+          )}
+        </button>
+        {children.map((child) => renderUnit(child, depth + 1))}
+      </div>
+    );
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((state) => !state)}
+        className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 disabled:opacity-50 flex items-center justify-between gap-2 text-left"
+      >
+        <span className={included.length === 0 ? 'text-slate-400 font-medium' : ''}>{summary}</span>
+        <span className="material-symbols-outlined text-base text-slate-400 shrink-0">
+          {open ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+
+      {open && !disabled && (
+        <div className="absolute z-30 mt-2 w-full max-h-[26rem] overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-xl flex flex-col">
+          <div className="p-2 border-b border-slate-100 shrink-0">
+            <input
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Rechercher une unité…"
+              className="w-full bg-slate-50 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none"
+            />
+          </div>
+          <div className="overflow-y-auto flex-1 custom-scrollbar py-1">
+            {(childrenByParent.get(null) || []).map((unit) => renderUnit(unit))}
+          </div>
+          <div className="border-t border-slate-100 px-3 py-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest shrink-0">
+            <span className="text-slate-400">{included.length} origine(s) • {excluded.length} exception(s)</span>
+            <div className="flex items-center gap-3">
+              {excluded.length > 0 && (
+                <button type="button" onClick={clearExceptions} className="text-slate-500 hover:text-rose-600 transition-colors">
+                  Effacer les exceptions
+                </button>
+              )}
+              {(included.length > 0 || excluded.length > 0) && (
+                <button type="button" onClick={clearAll} className="text-slate-500 hover:text-rose-600 transition-colors">
+                  Tout effacer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ToastView: React.FC<{ toast: NonNullable<Toast> }> = ({ toast }) => (
   <div
     className={`fixed bottom-6 right-6 z-[120] px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 ${
@@ -189,6 +568,18 @@ const ClassificationSettingsTab: React.FC = () => {
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
   const [showAdvancedRule, setShowAdvancedRule] = useState(false);
+  const [showAdvancedSim, setShowAdvancedSim] = useState(false);
+  const [simulatorDocs, setSimulatorDocs] = useState<{
+    id: string;
+    title: string;
+    mime_type?: string;
+    file_type: string | null;
+    document_category_id: string | null;
+    org_unit_id: string | null;
+    owner_id: string;
+  }[]>([]);
+  const [pickerQuery, setPickerQuery] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const showToast = (next: NonNullable<Toast>) => {
     setToast(next);
@@ -233,9 +624,8 @@ const ClassificationSettingsTab: React.FC = () => {
           message: 'Certaines références de paramétrage n’ont pas pu être chargées. Le module reste utilisable en mode dégradé.',
         });
       }
-    } catch (error) {
-      console.error('Failed to load classification administration data', error);
-      showToast({ tone: 'error', message: 'Chargement du module de classement impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setLoading(false);
     }
@@ -244,6 +634,48 @@ const ClassificationSettingsTab: React.FC = () => {
   useEffect(() => {
     void loadData();
   }, []);
+
+  // Charge la liste des documents au passage sur l'onglet Simulateur, pour
+  // permettre le pré-remplissage du formulaire depuis un document existant.
+  useEffect(() => {
+    if (activeTab !== 'simulator' || simulatorDocs.length > 0) return;
+    api.getDocuments({ limit: 200 })
+      .then((docs) => setSimulatorDocs(docs.map((d) => ({
+        id: d.id,
+        title: d.title,
+        mime_type: d.mime_type,
+        file_type: d.file_type,
+        document_category_id: d.document_category_id,
+        org_unit_id: d.org_unit_id,
+        owner_id: d.owner_id,
+      }))))
+      .catch(() => { /* silencieux : le simulateur reste utilisable en saisie libre */ });
+  }, [activeTab, simulatorDocs.length]);
+
+  const applyDocumentToSimulation = (docId: string) => {
+    const doc = simulatorDocs.find((d) => d.id === docId);
+    if (!doc) return;
+    const docOrgUnit = doc.org_unit_id ? orgUnits.find((orgUnit) => orgUnit.id === doc.org_unit_id) : null;
+    setSimulationForm((prev) => ({
+      ...prev,
+      filename: doc.title,
+      mime_type: doc.mime_type || inferMimeTypeFromFilename(doc.title) || prev.mime_type,
+      document_category_id: doc.document_category_id || '',
+      source_org_unit_id: doc.org_unit_id || '',
+      source_user_id: doc.owner_id || '',
+      source_scope: doc.org_unit_id ? inferSimulationSourceScope(docOrgUnit) : prev.source_scope,
+    }));
+    setPickerOpen(false);
+    setPickerQuery('');
+  };
+
+  const filteredSimulatorDocs = useMemo(() => {
+    if (!pickerQuery.trim()) return simulatorDocs.slice(0, 50);
+    const q = pickerQuery.toLowerCase();
+    return simulatorDocs
+      .filter((d) => d.title.toLowerCase().includes(q))
+      .slice(0, 50);
+  }, [simulatorDocs, pickerQuery]);
 
   const selectedDomain = useMemo(
     () => domains.find((domain) => domain.id === selectedDomainId) ?? null,
@@ -257,14 +689,78 @@ const ClassificationSettingsTab: React.FC = () => {
     () => rules.find((rule) => rule.id === selectedRuleId) ?? null,
     [rules, selectedRuleId],
   );
+  const selectedRuleKeywords = useMemo(
+    () => splitRuleKeywords(selectedRule?.filename_pattern),
+    [selectedRule?.filename_pattern],
+  );
+  const selectedRuleMimeTokens = useMemo(
+    () => normalizeMimeTokens(selectedRule?.mime_type_pattern),
+    [selectedRule?.mime_type_pattern],
+  );
+  const orgUnitById = useMemo(() => new Map(orgUnits.map((orgUnit) => [orgUnit.id, orgUnit])), [orgUnits]);
+  const childrenByParentId = useMemo(() => {
+    const map = new Map<string | null, OrgUnitOption[]>();
+    orgUnits.forEach((orgUnit) => {
+      const parentId = orgUnit.parent_id || null;
+      const bucket = map.get(parentId) || [];
+      bucket.push(orgUnit);
+      map.set(parentId, bucket);
+    });
+    return map;
+  }, [orgUnits]);
+  const selectedRuleOriginLabels = useMemo(() => {
+    if (!selectedRule) return [];
+    const includeIds = selectedRule.source_org_unit_ids || [];
+    if (includeIds.length > 0) {
+      return includeIds.map((id) => {
+        const unit = orgUnitById.get(id);
+        if (!unit) return id;
+        return formatOriginSummaryLabel(unit, (childrenByParentId.get(id) || []).length > 0);
+      });
+    }
+    if (selectedRule.source_org_unit_name) return [selectedRule.source_org_unit_name];
+    return [`Toute origine de niveau ${formatScope(selectedRule.source_scope)}`];
+  }, [childrenByParentId, orgUnitById, selectedRule]);
+  const selectedRuleExcludedOriginLabels = useMemo(() => {
+    if (!selectedRule) return [];
+    return (selectedRule.source_org_unit_excluded_ids || []).map((id) => {
+      const unit = orgUnitById.get(id);
+      if (!unit) return id;
+      return formatOriginSummaryLabel(unit, (childrenByParentId.get(id) || []).length > 0);
+    });
+  }, [childrenByParentId, orgUnitById, selectedRule]);
+  const targetRoutingMode = useMemo<TargetRoutingMode>(
+    () => deriveTargetRoutingMode(ruleForm.target_scope, ruleForm.target_org_unit_id || null),
+    [ruleForm.target_org_unit_id, ruleForm.target_scope],
+  );
+  const selectedMimeTokens = useMemo(
+    () => normalizeMimeTokens(ruleForm.mime_type_pattern),
+    [ruleForm.mime_type_pattern],
+  );
+  const selectedSimulatorFormatToken = useMemo(() => {
+    const mime = simulationForm.mime_type.trim().toLowerCase();
+    if (!mime) return '';
+    const alias = Object.entries(FILE_FORMAT_TO_MIME).find(([, knownMime]) => knownMime === mime);
+    return alias?.[0] || '';
+  }, [simulationForm.mime_type]);
+  const selectedRuleTargetRoutingMode = useMemo<TargetRoutingMode>(
+    () => deriveTargetRoutingMode(selectedRule?.target_scope, selectedRule?.target_org_unit_id ?? null),
+    [selectedRule],
+  );
+  const selectedRuleTargetStrategyLabel = useMemo(
+    () => formatTargetRoutingMode(selectedRuleTargetRoutingMode),
+    [selectedRuleTargetRoutingMode],
+  );
+  const selectedRuleExplicitTargetLabel = useMemo(() => {
+    if (!selectedRule) return null;
+    if (selectedRuleTargetRoutingMode === 'person') return selectedRule.target_user_name || null;
+    if (selectedRuleTargetRoutingMode === 'specific_org_unit') return selectedRule.target_org_unit_name || null;
+    return null;
+  }, [selectedRule, selectedRuleTargetRoutingMode]);
 
   const activityOptions = useMemo(
     () => activities.filter((activity) => !ruleForm.domain_id || activity.domain_id === ruleForm.domain_id),
     [activities, ruleForm.domain_id],
-  );
-  const filteredActivities = useMemo(
-    () => activities.filter((activity) => !activityForm.domain_id || activity.domain_id === activityForm.domain_id),
-    [activities, activityForm.domain_id],
   );
   const simulatorUsers = useMemo(() => {
     if (!simulationForm.source_org_unit_id) return users;
@@ -311,6 +807,10 @@ const ClassificationSettingsTab: React.FC = () => {
         source_org_unit_id: selectedRule.source_org_unit_id || '',
         source_user_id: selectedRule.source_user_id || '',
         document_category_id: selectedRule.document_category_id || '',
+        document_category_ids: selectedRule.document_category_ids || [],
+        source_org_unit_ids: selectedRule.source_org_unit_ids || [],
+        source_org_unit_excluded_ids: selectedRule.source_org_unit_excluded_ids || [],
+        source_user_ids: selectedRule.source_user_ids || [],
         filename_pattern: selectedRule.filename_pattern || '',
         mime_type_pattern: selectedRule.mime_type_pattern || '',
         target_scope: selectedRule.target_scope,
@@ -402,6 +902,10 @@ const ClassificationSettingsTab: React.FC = () => {
       source_org_unit_id: rule.source_org_unit_id || '',
       source_user_id: rule.source_user_id || '',
       document_category_id: rule.document_category_id || '',
+      document_category_ids: rule.document_category_ids || [],
+      source_org_unit_ids: rule.source_org_unit_ids || [],
+      source_org_unit_excluded_ids: rule.source_org_unit_excluded_ids || [],
+      source_user_ids: rule.source_user_ids || [],
       filename_pattern: rule.filename_pattern || '',
       mime_type_pattern: rule.mime_type_pattern || '',
       target_scope: (rule.target_scope as RuleFormState['target_scope']) || 'service',
@@ -418,6 +922,74 @@ const ClassificationSettingsTab: React.FC = () => {
     setRuleModalOpen(true);
   };
   const closeRuleModal = () => setRuleModalOpen(false);
+
+  const handleTargetRoutingModeChange = (mode: TargetRoutingMode) => {
+    setRuleForm((prev) => {
+      switch (mode) {
+        case 'origin':
+          return {
+            ...prev,
+            target_scope: 'service',
+            target_org_unit_id: '',
+            target_user_id: '',
+          };
+        case 'parent_subdirectorate':
+          return {
+            ...prev,
+            target_scope: 'subdirectorate',
+            target_org_unit_id: '',
+            target_user_id: '',
+          };
+        case 'parent_directorate':
+          return {
+            ...prev,
+            target_scope: 'directorate',
+            target_org_unit_id: '',
+            target_user_id: '',
+          };
+        case 'specific_org_unit':
+          return {
+            ...prev,
+            target_scope: prev.target_org_unit_id
+              ? scopeFromOrgUnitLevel(orgUnitById.get(prev.target_org_unit_id)?.level)
+              : 'service',
+            target_org_unit_id: prev.target_org_unit_id,
+            target_user_id: '',
+          };
+        case 'person':
+          return {
+            ...prev,
+            target_scope: 'person',
+            target_org_unit_id: '',
+            target_user_id: prev.target_user_id,
+          };
+        default:
+          return prev;
+      }
+    });
+  };
+
+  const handleSpecificTargetOrgUnitChange = (targetOrgUnitId: string) => {
+    const targetUnit = orgUnitById.get(targetOrgUnitId);
+    setRuleForm((prev) => ({
+      ...prev,
+      target_org_unit_id: targetOrgUnitId,
+      target_user_id: '',
+      target_scope: scopeFromOrgUnitLevel(targetUnit?.level),
+    }));
+  };
+
+  const toggleMimeToken = (token: string) => {
+    setRuleForm((prev) => {
+      const current = new Set(normalizeMimeTokens(prev.mime_type_pattern));
+      if (current.has(token)) current.delete(token);
+      else current.add(token);
+      return {
+        ...prev,
+        mime_type_pattern: Array.from(current).join(';'),
+      };
+    });
+  };
 
   const resetActivityForm = () => {
     setSelectedActivityId(null);
@@ -453,9 +1025,8 @@ const ClassificationSettingsTab: React.FC = () => {
       await loadData();
       resetDomainForm();
       setDomainModalOpen(false);
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Enregistrement du domaine impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setWorking(null);
     }
@@ -473,9 +1044,8 @@ const ClassificationSettingsTab: React.FC = () => {
       }
       await loadData();
       if (selectedDomainId === domain.id) resetDomainForm();
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Mise à jour du domaine impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setWorking(null);
     }
@@ -510,9 +1080,8 @@ const ClassificationSettingsTab: React.FC = () => {
       await loadData();
       resetActivityForm();
       setActivityModalOpen(false);
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Enregistrement de l’activité impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setWorking(null);
     }
@@ -530,9 +1099,8 @@ const ClassificationSettingsTab: React.FC = () => {
       }
       await loadData();
       if (selectedActivityId === activity.id) resetActivityForm();
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Mise à jour de l’activité impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setWorking(null);
     }
@@ -559,9 +1127,15 @@ const ClassificationSettingsTab: React.FC = () => {
       priority: Number.parseInt(ruleForm.priority, 10) || 100,
       is_active: ruleForm.is_active,
       source_scope: ruleForm.source_scope,
-      source_org_unit_id: ruleForm.source_org_unit_id || null,
-      source_user_id: ruleForm.source_user_id || null,
-      document_category_id: ruleForm.document_category_id || null,
+      // Si une multi-sélection est utilisée, on neutralise le legacy single FK.
+      // L'inverse est aussi vrai : un legacy single FK est conservé si la liste est vide.
+      source_org_unit_id: ruleForm.source_org_unit_ids.length > 0 ? null : ruleForm.source_org_unit_id || null,
+      source_user_id: ruleForm.source_user_ids.length > 0 ? null : ruleForm.source_user_id || null,
+      document_category_id: ruleForm.document_category_ids.length > 0 ? null : ruleForm.document_category_id || null,
+      document_category_ids: ruleForm.document_category_ids.length > 0 ? ruleForm.document_category_ids : null,
+      source_org_unit_ids: ruleForm.source_org_unit_ids.length > 0 ? ruleForm.source_org_unit_ids : null,
+      source_org_unit_excluded_ids: ruleForm.source_org_unit_excluded_ids.length > 0 ? ruleForm.source_org_unit_excluded_ids : null,
+      source_user_ids: ruleForm.source_user_ids.length > 0 ? ruleForm.source_user_ids : null,
       filename_pattern: ruleForm.filename_pattern.trim() || null,
       mime_type_pattern: ruleForm.mime_type_pattern.trim() || null,
       target_scope: ruleForm.target_scope,
@@ -592,9 +1166,8 @@ const ClassificationSettingsTab: React.FC = () => {
       await loadData();
       resetRuleForm();
       setRuleModalOpen(false);
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Enregistrement de la règle impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setWorking(null);
     }
@@ -606,9 +1179,8 @@ const ClassificationSettingsTab: React.FC = () => {
       await api.updateClassificationRule(rule.id, { is_active: !rule.is_active });
       showToast({ tone: 'success', message: `Règle « ${rule.name} » ${rule.is_active ? 'désactivée' : 'réactivée'}.` });
       await loadData();
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Mise à jour de la règle impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setWorking(null);
     }
@@ -624,9 +1196,8 @@ const ClassificationSettingsTab: React.FC = () => {
       showToast({ tone: 'success', message: `Règle « ${rule.name} » supprimée.` });
       await loadData();
       if (selectedRuleId === rule.id) resetRuleForm();
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Suppression de la règle impossible.' });
+    } catch {
+      // L'erreur est publiée au bus global (useErrorBus) par buildApiError.
     } finally {
       setWorking(null);
     }
@@ -649,9 +1220,10 @@ const ClassificationSettingsTab: React.FC = () => {
         mime_type: simulationForm.mime_type.trim() || null,
       });
       setSimulationResult(result);
-    } catch (error) {
-      console.error(error);
-      showToast({ tone: 'error', message: 'Simulation de classement impossible.' });
+    } catch {
+      // L'erreur est déjà publiée au bus global (useErrorBus) par buildApiError
+      // → toast/modal automatique + log dev avec technicalDetail (Pydantic).
+      // Pas de showToast local ni de console.error : éviterait un doublon.
     } finally {
       setWorking(null);
     }
@@ -662,7 +1234,7 @@ const ClassificationSettingsTab: React.FC = () => {
       activities.filter((a) => a.domain_id === domainId).length;
 
     return (
-      <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-22rem)]">
+      <div className="flex flex-col lg:flex-row gap-8 h-full">
         {/* LEFT — Liste des domaines */}
         <div className="w-full lg:w-1/3 flex flex-col gap-3 overflow-y-auto pr-2 custom-scrollbar">
           <button
@@ -936,7 +1508,7 @@ const ClassificationSettingsTab: React.FC = () => {
   };
 
   const renderActivitiesTab = () => (
-    <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-22rem)]">
+    <div className="flex flex-col lg:flex-row gap-8 h-full">
       {/* LEFT — Liste des activités */}
       <div className="w-full lg:w-1/3 flex flex-col gap-3 overflow-y-auto pr-2 custom-scrollbar">
         <button
@@ -948,7 +1520,7 @@ const ClassificationSettingsTab: React.FC = () => {
           Nouvelle Activité
         </button>
 
-        {filteredActivities.length === 0 ? (
+        {activities.length === 0 ? (
           <div className="p-5 rounded-[1.5rem] border-2 border-dashed border-slate-200 bg-white/40 text-center">
             <p className="text-xs italic text-slate-500 leading-relaxed">
               Aucune activité pour l&apos;instant.<br />
@@ -956,7 +1528,7 @@ const ClassificationSettingsTab: React.FC = () => {
             </p>
           </div>
         ) : (
-          filteredActivities.map((activity) => (
+          activities.map((activity) => (
             <button
               type="button"
               key={activity.id}
@@ -1171,7 +1743,8 @@ const ClassificationSettingsTab: React.FC = () => {
   );
 
   const renderRuleFormFields = () => {
-    const targetIsPerson = ruleForm.target_scope === 'person';
+    const targetIsPerson = targetRoutingMode === 'person';
+    const targetIsSpecificOrgUnit = targetRoutingMode === 'specific_org_unit';
     return (
       <>
         {/* IDENTITÉ */}
@@ -1204,34 +1777,88 @@ const ClassificationSettingsTab: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">description</span>Type de document</label>
-              <select aria-label="Type de document" value={ruleForm.document_category_id} onChange={(event) => setRuleForm((prev) => ({ ...prev, document_category_id: event.target.value }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-rdpc-blue">
-                <option value="">N&apos;importe quel type</option>
-                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
-              <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Devis, Facture, Note de service…</p>
+              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">description</span>Type(s) de document</label>
+              <MultiCheckSelect
+                ariaLabel="Type de document"
+                placeholder="N'importe quel type"
+                accent="rdpc-blue"
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                selected={ruleForm.document_category_ids}
+                onChange={(next) => setRuleForm((prev) => ({ ...prev, document_category_ids: next }))}
+              />
+              <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Cochez un ou plusieurs types — la règle s&apos;applique si <span className="font-bold not-italic">au moins un</span> est sélectionné. Vide = tous types.</p>
             </div>
 
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">apartment</span>Vient du service</label>
-              <select aria-label="Service d&apos;origine" value={ruleForm.source_org_unit_id} onChange={(event) => setRuleForm((prev) => ({ ...prev, source_org_unit_id: event.target.value }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-rdpc-blue">
-                <option value="">N&apos;importe quel service</option>
-                {orgUnits.map((orgUnit) => <option key={orgUnit.id} value={orgUnit.id}>{orgUnit.name}</option>)}
-              </select>
+              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">apartment</span>Origine concernée</label>
+              <OriginScopeSelect
+                units={orgUnits}
+                included={ruleForm.source_org_unit_ids}
+                excluded={ruleForm.source_org_unit_excluded_ids}
+                onChange={(nextIncluded, nextExcluded) => setRuleForm((prev) => ({
+                  ...prev,
+                  source_org_unit_ids: nextIncluded,
+                  source_org_unit_excluded_ids: nextExcluded,
+                  source_scope: 'service',
+                }))}
+              />
+              <p className="text-[10px] text-slate-400 italic mt-1 ml-1">
+                Choisissez une ou plusieurs branches de l&apos;organisation. Si vous retirez une sous-unité d&apos;une branche incluse, elle devient une exception.
+              </p>
+              {ruleForm.source_org_unit_excluded_ids.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {ruleForm.source_org_unit_excluded_ids.map((id) => (
+                    <span key={id} className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-widest">
+                      Sauf {orgUnitById.get(id)?.name || id}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">person</span>Envoyé par</label>
-              <select aria-label="Agent émetteur" value={ruleForm.source_user_id} onChange={(event) => setRuleForm((prev) => ({ ...prev, source_user_id: event.target.value }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-rdpc-blue">
-                <option value="">N&apos;importe quel agent</option>
-                {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
-              </select>
+              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">person</span>Agent(s) émetteur(s)</label>
+              <MultiCheckSelect
+                ariaLabel="Agent émetteur"
+                placeholder="N'importe quel agent"
+                accent="rdpc-blue"
+                options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+                selected={ruleForm.source_user_ids}
+                onChange={(next) => setRuleForm((prev) => ({ ...prev, source_user_ids: next }))}
+              />
+              <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Vide = tous les agents.</p>
             </div>
 
             <div>
               <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">search</span>Mots-clés dans le nom du fichier</label>
               <input aria-label="Mots-clés nom fichier" value={ruleForm.filename_pattern} onChange={(event) => setRuleForm((prev) => ({ ...prev, filename_pattern: event.target.value }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-rdpc-blue" placeholder="marche;devis" />
               <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Plusieurs mots séparés par <span className="font-mono">;</span> — la règle s&apos;applique si <span className="font-bold not-italic">au moins un</span> mot est trouvé. Accents et majuscules ignorés (« marche » attrape aussi « Marché », « MARCHÉS »). Laisser vide pour ignorer ce critère.</p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">draft</span>Formats acceptés</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {FILE_FORMAT_OPTIONS.map((formatOption) => {
+                  const selected = selectedMimeTokens.includes(formatOption.value);
+                  return (
+                    <button
+                      key={formatOption.value}
+                      type="button"
+                      onClick={() => toggleMimeToken(formatOption.value)}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                        selected
+                          ? 'bg-rdpc-blue text-white border-rdpc-blue'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-rdpc-blue hover:text-rdpc-blue'
+                      }`}
+                    >
+                      {formatOption.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-slate-400 italic mt-2 ml-1">
+                Ne cochez rien pour accepter tous les formats. Cochez seulement les formats à filtrer si la règle doit être plus stricte.
+              </p>
             </div>
           </div>
         </div>
@@ -1283,11 +1910,17 @@ const ClassificationSettingsTab: React.FC = () => {
             </div>
 
             <div className="md:col-span-2">
-              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-emerald-600">forward_to_inbox</span>Qui doit recevoir ce document ?</label>
-              <select aria-label="Niveau du destinataire" value={ruleForm.target_scope} onChange={(event) => setRuleForm((prev) => ({ ...prev, target_scope: event.target.value as RuleFormState['target_scope'], target_user_id: event.target.value === 'person' ? prev.target_user_id : '', target_org_unit_id: event.target.value === 'person' ? '' : prev.target_org_unit_id }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
-                <option value="service">Le service (origine ou précis)</option>
-                <option value="subdirectorate">La sous-direction</option>
-                <option value="directorate">La direction</option>
+              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-emerald-600">forward_to_inbox</span>Comment déterminer le destinataire ?</label>
+              <select
+                aria-label="Stratégie de destination"
+                value={targetRoutingMode}
+                onChange={(event) => handleTargetRoutingModeChange(event.target.value as TargetRoutingMode)}
+                className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="origin">Conserver l&apos;unité d&apos;origine</option>
+                <option value="parent_subdirectorate">Sous-direction parente</option>
+                <option value="parent_directorate">Direction parente</option>
+                <option value="specific_org_unit">Une unité précise</option>
                 <option value="person">Une personne précise</option>
               </select>
               {targetIsPerson ? (
@@ -1295,11 +1928,17 @@ const ClassificationSettingsTab: React.FC = () => {
                   <option value="">Choisir un agent</option>
                   {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
                 </select>
-              ) : (
-                <select aria-label="Service destinataire" value={ruleForm.target_org_unit_id} onChange={(event) => setRuleForm((prev) => ({ ...prev, target_org_unit_id: event.target.value }))} className="w-full mt-2 bg-white border-2 border-emerald-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
-                  <option value="">Reprendre le service d&apos;origine</option>
+              ) : targetIsSpecificOrgUnit ? (
+                <select aria-label="Unité destinataire" value={ruleForm.target_org_unit_id} onChange={(event) => handleSpecificTargetOrgUnitChange(event.target.value)} className="w-full mt-2 bg-white border-2 border-emerald-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
+                  <option value="">Choisir une unité</option>
                   {orgUnits.map((orgUnit) => <option key={orgUnit.id} value={orgUnit.id}>{orgUnit.name}</option>)}
                 </select>
+              ) : (
+                <p className="mt-2 rounded-2xl border-2 border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm font-medium text-slate-600">
+                  {targetRoutingMode === 'origin' && "Le document reste rattaché à l'unité qui l'a émis, quel que soit son niveau dans la hiérarchie."}
+                  {targetRoutingMode === 'parent_subdirectorate' && "Le document remonte vers la sous-direction parente de l'unité d'origine."}
+                  {targetRoutingMode === 'parent_directorate' && "Le document remonte vers la direction parente de l'unité d'origine."}
+                </p>
               )}
             </div>
           </div>
@@ -1316,7 +1955,7 @@ const ClassificationSettingsTab: React.FC = () => {
           <button type="button" onClick={() => setShowAdvancedRule((s) => !s)} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-violet-600 transition-colors">
             <span className="material-symbols-outlined text-base">{showAdvancedRule ? 'expand_less' : 'expand_more'}</span>
             Options avancées
-            <span className="text-[10px] font-medium italic text-slate-400 normal-case tracking-normal">(priorité, format de fichier, code technique, niveau d&apos;origine)</span>
+            <span className="text-[10px] font-medium italic text-slate-400 normal-case tracking-normal">(priorité, code technique)</span>
           </button>
           {showAdvancedRule && (
             <div className="mt-4 space-y-5">
@@ -1325,25 +1964,20 @@ const ClassificationSettingsTab: React.FC = () => {
                 <input aria-label="Code règle classement" value={ruleForm.code} onChange={(event) => setRuleForm((prev) => ({ ...prev, code: slugifyCode(event.target.value) }))} placeholder="route_marche_service" className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-mono font-bold text-slate-700 focus:outline-none focus:border-slate-400" />
                 <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Lettres, chiffres, underscores. À fixer en mise en production.</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Priorité</label>
                   <input aria-label="Priorité" type="number" min="0" value={ruleForm.priority} onChange={(event) => setRuleForm((prev) => ({ ...prev, priority: event.target.value }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-slate-400" />
                   <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Plus haut = passe en premier si plusieurs règles correspondent.</p>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Niveau de l&apos;origine</label>
-                  <select aria-label="Scope source" value={ruleForm.source_scope} onChange={(event) => setRuleForm((prev) => ({ ...prev, source_scope: event.target.value as RuleFormState['source_scope'] }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-slate-400">
-                    <option value="service">Service</option>
-                    <option value="subdirectorate">Sous-direction</option>
-                    <option value="person">Personne</option>
-                  </select>
-                  <p className="text-[10px] text-slate-400 italic mt-1 ml-1">À quel niveau remonter pour identifier l&apos;origine.</p>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Format du fichier</label>
-                  <input aria-label="Format MIME" value={ruleForm.mime_type_pattern} onChange={(event) => setRuleForm((prev) => ({ ...prev, mime_type_pattern: event.target.value }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-mono font-medium text-slate-700 focus:outline-none focus:border-slate-400" placeholder="application/pdf" />
-                  <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Type MIME (ex : <span className="font-mono">application/pdf</span>). Vide = tous formats.</p>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Formats du fichier</label>
+                  <div className="mt-1 min-h-[52px] rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
+                    {selectedMimeTokens.length > 0
+                      ? selectedMimeTokens.map((token) => formatMimeTokenLabel(token)).join(', ')
+                      : 'Tous les formats sont acceptés.'}
+                  </div>
+                  <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Le choix se fait plus haut avec les pastilles PDF, DOCX, XLSX, images, etc.</p>
                 </div>
               </div>
             </div>
@@ -1354,7 +1988,7 @@ const ClassificationSettingsTab: React.FC = () => {
   };
 
   const renderRulesTab = () => (
-    <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-22rem)]">
+    <div className="flex flex-col lg:flex-row gap-8 h-full">
       {/* LEFT — Liste des règles */}
       <div className="w-full lg:w-1/3 flex flex-col gap-3 overflow-y-auto pr-2 custom-scrollbar">
         <button
@@ -1426,12 +2060,41 @@ const ClassificationSettingsTab: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Si le document vient de…</p>
-                <p className="mt-1 font-bold text-slate-800">{formatScope(selectedRule.source_scope)}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Origine concernée</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedRuleOriginLabels.map((originLabel) => (
+                    <span
+                      key={originLabel}
+                      className="px-3 py-1 rounded-full bg-blue-100 text-rdpc-blue text-[10px] font-black uppercase tracking-widest"
+                    >
+                      {originLabel}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">…on le range vers</p>
-                <p className="mt-1 font-bold text-slate-800">{formatScope(selectedRule.target_scope)}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sauf</p>
+                {selectedRuleExcludedOriginLabels.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedRuleExcludedOriginLabels.map((orgUnitName) => (
+                      <span
+                        key={orgUnitName}
+                        className="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black uppercase tracking-widest"
+                      >
+                        {orgUnitName}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 font-bold text-slate-400">Aucune exception</p>
+                )}
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stratégie de destination</p>
+                <p className="mt-1 font-bold text-slate-800">{selectedRuleTargetStrategyLabel}</p>
+                {selectedRuleExplicitTargetLabel && (
+                  <p className="mt-1 text-sm font-medium text-slate-500">{selectedRuleExplicitTargetLabel}</p>
+                )}
               </div>
               {selectedRule.document_category_name && (
                 <div className="rounded-2xl bg-slate-50 px-4 py-3">
@@ -1442,6 +2105,41 @@ const ClassificationSettingsTab: React.FC = () => {
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Année appliquée</p>
                 <p className="mt-1 font-bold text-slate-800">{formatYearStrategy(selectedRule.year_strategy as RuleFormState['year_strategy'])}{selectedRule.fixed_year ? ` (${selectedRule.fixed_year})` : ''}</p>
+              </div>
+              {selectedRuleKeywords.length > 0 && (
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 md:col-span-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mots-clés dans le nom du fichier</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedRuleKeywords.map((keyword) => (
+                      <span
+                        key={keyword}
+                        className="px-3 py-1 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black uppercase tracking-widest"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] italic text-slate-400">
+                    La règle s&apos;applique si au moins un de ces mots est trouvé dans le nom du fichier.
+                  </p>
+                </div>
+              )}
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 md:col-span-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Formats acceptés</p>
+                {selectedRuleMimeTokens.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedRuleMimeTokens.map((token) => (
+                      <span
+                        key={token}
+                        className="px-3 py-1 rounded-full bg-sky-100 text-sky-700 text-[10px] font-black uppercase tracking-widest"
+                      >
+                        {formatMimeTokenLabel(token)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 font-bold text-slate-800">Tous les formats</p>
+                )}
               </div>
             </div>
 
@@ -1590,58 +2288,232 @@ const ClassificationSettingsTab: React.FC = () => {
   );
 
   const renderSimulatorTab = () => (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-8">
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8 space-y-5">
-        <div>
-          <h3 className="text-lg font-black uppercase italic tracking-tighter text-slate-800">Simulateur de classement</h3>
-          <p className="text-xs text-slate-500 font-medium mt-1">Testez les correspondances avant d’exposer les règles aux imports en masse.</p>
+    <div className="flex flex-col lg:flex-row gap-8 h-full">
+      <div className="w-full lg:w-1/3 flex flex-col min-h-0 gap-3">
+        <div className="overflow-y-auto pr-2 custom-scrollbar flex-1 space-y-3">
+        {/* PICKER — Pré-remplir depuis un document existant */}
+        <div className="rounded-[1.5rem] border-2 border-amber-200 bg-amber-50/30 p-5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-2">Pré-remplir depuis un document existant</p>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setPickerOpen((s) => !s)}
+              className="w-full bg-white border-2 border-amber-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-500 flex items-center justify-between gap-2 text-left"
+              aria-haspopup="listbox"
+              aria-expanded={pickerOpen}
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="material-symbols-outlined text-base text-amber-600 shrink-0">search</span>
+                <span className="truncate text-slate-400 font-medium">Rechercher un document importé…</span>
+              </span>
+              <span className="material-symbols-outlined text-base text-slate-400 shrink-0">{pickerOpen ? 'expand_less' : 'expand_more'}</span>
+            </button>
+            {pickerOpen && (
+              <div className="absolute z-30 mt-2 w-full max-h-72 overflow-hidden rounded-2xl border-2 border-amber-200 bg-white shadow-xl flex flex-col">
+                <div className="p-2 border-b border-slate-100 shrink-0">
+                  <input
+                    type="text"
+                    value={pickerQuery}
+                    onChange={(e) => setPickerQuery(e.target.value)}
+                    placeholder="Tapez un titre…"
+                    autoFocus
+                    className="w-full bg-slate-50 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none"
+                    aria-label="Rechercher un document"
+                  />
+                </div>
+                <div className="overflow-y-auto flex-1 custom-scrollbar">
+                  {filteredSimulatorDocs.length === 0 ? (
+                    <p className="text-xs italic text-slate-400 text-center py-4 px-3">
+                      {simulatorDocs.length === 0 ? 'Aucun document importé pour l’instant.' : 'Aucun document ne correspond.'}
+                    </p>
+                  ) : (
+                    filteredSimulatorDocs.map((doc) => (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => applyDocumentToSimulation(doc.id)}
+                        className="w-full text-left px-3 py-2 hover:bg-amber-50 transition-colors flex items-start gap-2"
+                      >
+                        <span className="material-symbols-outlined text-base text-slate-400 mt-0.5">description</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-700 truncate">{doc.title}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-slate-400">{(doc.file_type || 'fichier').toUpperCase()}</p>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-500 italic mt-2">
+            Remplit automatiquement le formulaire ci-dessous.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* FORMULAIRE — Décrire le document à tester */}
+        <div className="rounded-[1.5rem] border-2 border-slate-200 bg-white p-5 space-y-4">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nom de fichier</label>
-            <input aria-label="Nom fichier simulation classement" value={simulationForm.filename} onChange={(event) => setSimulationForm((prev) => ({ ...prev, filename: event.target.value }))} className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-300" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-700 mb-1">Décrivez le document à tester</p>
+            <p className="text-[10px] italic text-slate-400">Aucun document n’est créé — c’est 100 % à blanc.</p>
           </div>
+
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">MIME</label>
-            <input aria-label="Mime simulation classement" value={simulationForm.mime_type} onChange={(event) => setSimulationForm((prev) => ({ ...prev, mime_type: event.target.value }))} className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-amber-300" />
+            <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              <span className="material-symbols-outlined text-base text-amber-600">description</span>
+              Nom du fichier
+            </label>
+            <input
+              aria-label="Nom du fichier"
+              value={simulationForm.filename}
+              onChange={(event) => {
+                const nextFilename = event.target.value;
+                const inferredMime = inferMimeTypeFromFilename(nextFilename);
+                setSimulationForm((prev) => ({
+                  ...prev,
+                  filename: nextFilename,
+                  mime_type: inferredMime || prev.mime_type,
+                }));
+              }}
+              placeholder="ex : devis_marche_2026.pdf"
+              className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-500"
+            />
           </div>
+
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Catégorie</label>
-            <select aria-label="Catégorie simulation classement" value={simulationForm.document_category_id} onChange={(event) => setSimulationForm((prev) => ({ ...prev, document_category_id: event.target.value }))} className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-300">
-              <option value="">Toute catégorie</option>
+            <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              <span className="material-symbols-outlined text-base text-amber-600">category</span>
+              Type de document
+            </label>
+            <select
+              aria-label="Type de document"
+              value={simulationForm.document_category_id}
+              onChange={(event) => setSimulationForm((prev) => ({ ...prev, document_category_id: event.target.value }))}
+              className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-500"
+            >
+              <option value="">N’importe quel type</option>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </div>
+
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Scope source</label>
-            <select aria-label="Scope simulation classement" value={simulationForm.source_scope} onChange={(event) => setSimulationForm((prev) => ({ ...prev, source_scope: event.target.value as SimulatorFormState['source_scope'] }))} className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-300">
-              <option value="service">Service</option>
-              <option value="subdirectorate">Sous-direction</option>
-              <option value="person">Personne</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Unité source</label>
-            <select aria-label="Unité simulation classement" value={simulationForm.source_org_unit_id} onChange={(event) => setSimulationForm((prev) => ({ ...prev, source_org_unit_id: event.target.value }))} className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-300">
-              <option value="">Toutes les unités</option>
+            <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              <span className="material-symbols-outlined text-base text-amber-600">apartment</span>
+              Service d’origine
+            </label>
+            <select
+              aria-label="Service d'origine"
+              value={simulationForm.source_org_unit_id}
+              onChange={(event) => {
+                const nextOrgUnitId = event.target.value;
+                const nextOrgUnit = orgUnits.find((orgUnit) => orgUnit.id === nextOrgUnitId);
+                setSimulationForm((prev) => ({
+                  ...prev,
+                  source_org_unit_id: nextOrgUnitId,
+                  source_scope: nextOrgUnitId ? inferSimulationSourceScope(nextOrgUnit) : prev.source_scope,
+                }));
+              }}
+              className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-500"
+            >
+              <option value="">Aucun (générique)</option>
               {orgUnits.map((orgUnit) => <option key={orgUnit.id} value={orgUnit.id}>{orgUnit.name}</option>)}
             </select>
           </div>
+
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Utilisateur source</label>
-            <select aria-label="Utilisateur simulation classement" value={simulationForm.source_user_id} onChange={(event) => setSimulationForm((prev) => ({ ...prev, source_user_id: event.target.value }))} className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-300">
-              <option value="">Tout utilisateur</option>
+            <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              <span className="material-symbols-outlined text-base text-amber-600">draft</span>
+              Format du fichier
+            </label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {FILE_FORMAT_OPTIONS.map((formatOption) => {
+                const selected = selectedSimulatorFormatToken === formatOption.value;
+                return (
+                  <button
+                    key={formatOption.value}
+                    type="button"
+                    onClick={() => setSimulationForm((prev) => ({
+                      ...prev,
+                      mime_type: FILE_FORMAT_TO_MIME[formatOption.value] || '',
+                    }))}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                      selected
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-white text-slate-500 border-slate-200 hover:border-amber-500 hover:text-amber-700'
+                    }`}
+                  >
+                    {formatOption.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-400 italic mt-2 ml-1">
+              Proposé automatiquement depuis le nom du fichier. Ajustez ici si besoin.
+            </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              <span className="material-symbols-outlined text-base text-amber-600">person</span>
+              Agent émetteur
+            </label>
+            <select
+              aria-label="Agent émetteur"
+              value={simulationForm.source_user_id}
+              onChange={(event) => setSimulationForm((prev) => ({ ...prev, source_user_id: event.target.value }))}
+              className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-500"
+            >
+              <option value="">Aucun (générique)</option>
               {simulatorUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
             </select>
           </div>
-        </div>
 
-        <div className="pt-3 flex justify-end">
-          <button type="button" onClick={() => void runSimulation()} disabled={working === 'simulate'} className="px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-amber-500 disabled:opacity-50">
-            {working === 'simulate' ? 'Simulation...' : 'Lancer la simulation'}
-          </button>
+          {/* OPTIONS AVANCÉES */}
+          <div className="border-t border-slate-200 pt-4">
+            <button type="button" onClick={() => setShowAdvancedSim((s) => !s)} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-amber-600 transition-colors">
+              <span className="material-symbols-outlined text-base">{showAdvancedSim ? 'expand_less' : 'expand_more'}</span>
+              Options avancées
+              <span className="text-[10px] font-medium italic text-slate-400 normal-case tracking-normal">(lecture technique)</span>
+            </button>
+            {showAdvancedSim && (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Format technique détecté</label>
+                  <input
+                    aria-label="Format MIME"
+                    value={simulationForm.mime_type}
+                    readOnly
+                    className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-mono font-medium text-slate-700 focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Valeur technique réellement transmise au moteur.</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Niveau d’origine détecté</label>
+                  <input
+                    aria-label="Niveau d'origine détecté"
+                    value={formatScope(simulationForm.source_scope)}
+                    readOnly
+                    className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Déduit automatiquement depuis l’unité d’origine ou le document choisi.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
+        </div>
+        {/* Bouton sticky en bas de colonne — toujours accessible quoi que l'on
+            ait scrollé dans le formulaire au-dessus. */}
+        <button
+          type="button"
+          onClick={() => { void runSimulation(); }}
+          disabled={working === 'simulate'}
+          className="shrink-0 w-full px-5 py-3 rounded-[1.5rem] bg-amber-600 text-white text-xs font-black uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-amber-200"
+        >
+          <span className="material-symbols-outlined text-base">science</span>
+          {working === 'simulate' ? 'Simulation…' : 'Lancer la simulation'}
+        </button>
       </div>
 
       <div className="flex-1 bg-white rounded-[2.5rem] border-2 border-slate-200 relative overflow-hidden flex flex-col p-8 shadow-sm">
@@ -1652,7 +2524,7 @@ const ClassificationSettingsTab: React.FC = () => {
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter text-slate-800">Résultat du test</h2>
                 <p className="text-xs text-slate-500 font-medium mt-1">{simulationResult.message}</p>
               </div>
-              <span className={`px-3 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest ${STATUS_STYLES[simulationResult.status] || STATUS_STYLES.no_rule}`}>{simulationResult.status}</span>
+              <span className={`px-3 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest ${STATUS_STYLES[simulationResult.status] || STATUS_STYLES.no_rule}`}>{STATUS_LABELS[simulationResult.status] || simulationResult.status}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
@@ -1673,6 +2545,9 @@ const ClassificationSettingsTab: React.FC = () => {
                 <p className="mt-1 font-bold text-slate-800">{simulationResult.classification_target_user_name || simulationResult.classification_target_org_unit_name || 'Aucune cible résolue'}</p>
                 <p className="text-xs text-slate-500 mt-1">Niveau {formatScope(simulationResult.classification_scope)}</p>
               </div>
+            </div>
+            <div className="mt-6">
+              <SimulationTracePanel stages={simulationResult.stages} />
             </div>
           </div>
         ) : (
@@ -1761,8 +2636,8 @@ const ClassificationSettingsTab: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-2.5 mb-2 border-b-2 border-slate-200 shrink-0 overflow-x-auto custom-scrollbar">
+    <div className="flex flex-col gap-6 h-full min-h-0">
+      <div className="flex gap-2.5 border-b-2 border-slate-200 shrink-0 overflow-x-auto custom-scrollbar">
         {TAB_ORDER.map((tab) => {
           const meta = TAB_META[tab];
           const isActive = activeTab === tab;
@@ -1782,16 +2657,16 @@ const ClassificationSettingsTab: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="py-20 flex justify-center">
+        <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rdpc-blue" />
         </div>
       ) : (
-        <>
+        <div className="flex-1 min-h-0 overflow-hidden">
           {activeTab === 'domains' && renderDomainsTab()}
           {activeTab === 'activities' && renderActivitiesTab()}
           {activeTab === 'rules' && renderRulesTab()}
           {activeTab === 'simulator' && renderSimulatorTab()}
-        </>
+        </div>
       )}
 
       {toast && <ToastView toast={toast} />}

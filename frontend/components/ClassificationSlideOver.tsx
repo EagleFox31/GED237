@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, type SpaceTreeNode } from '../services/api';
+import { SimulationTracePanel } from './classification/SimulationTracePanel';
 import type { Document } from '../types';
 import { getFileTypeLabel, formatFileSize, formatDate } from '../types';
 import { DocumentPreview } from './preview';
+import type { ClassificationSimulationResponse } from '../types';
 
 interface ClassificationDomainOption {
   id: string;
@@ -33,6 +35,42 @@ interface ClassificationSlideOverProps {
   onSuccess: () => void;
 }
 
+type SuggestionBannerState =
+  | {
+      kind: 'loading';
+    }
+  | {
+      kind: 'classified';
+      result: ClassificationSimulationResponse;
+      applied: boolean;
+      reason?: string;
+    }
+  | {
+      kind: 'manual_required';
+      result: ClassificationSimulationResponse;
+      reason: string;
+    };
+
+const resolveSimulationSourceScope = (
+  document: Document,
+): 'person' | 'service' | 'subdirectorate' => {
+  if (document.classification_scope === 'person') return 'person';
+  if (document.classification_scope === 'subdirectorate') return 'subdirectorate';
+  return 'service';
+};
+
+const resolveSimulationFilename = (document: Document): string => {
+  const candidate =
+    document.source_relative_path ||
+    document.file_path ||
+    document.title;
+  const rawName = candidate.split('/').filter(Boolean).pop() || document.title;
+  const hasExtension = /\.[a-z0-9]+$/i.test(rawName);
+  if (hasExtension) return rawName;
+  if (document.file_type) return `${rawName}.${document.file_type}`;
+  return rawName;
+};
+
 export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = ({
   isOpen,
   onClose,
@@ -46,8 +84,10 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
   const [activityId, setActivityId] = useState('');
   const [orgUnitId, setOrgUnitId] = useState('');
   const [year, setYear] = useState('');
+  const [scope, setScope] = useState<'service' | 'subdirectorate' | 'directorate'>('service');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestionBanner, setSuggestionBanner] = useState<SuggestionBannerState | null>(null);
 
   // Initialize form when document changes
   useEffect(() => {
@@ -56,9 +96,95 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
       setActivityId(document.classification_activity_id || '');
       setOrgUnitId(document.classification_target_org_unit_id || document.org_unit_id || '');
       setYear(document.classification_year ? String(document.classification_year) : String(new Date().getFullYear()));
+      setScope(
+        document.classification_scope && document.classification_scope !== 'person'
+          ? document.classification_scope
+          : 'service',
+      );
       setError(null);
+      setSuggestionBanner(null);
     }
   }, [document]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const runAutoSuggestion = async () => {
+      if (!isOpen || !document) return;
+
+      setSuggestionBanner({ kind: 'loading' });
+      try {
+        const result = await api.simulateClassification({
+          document_category_id: document.document_category_id || null,
+          source_scope: resolveSimulationSourceScope(document),
+          source_org_unit_id: document.org_unit_id || null,
+          source_user_id:
+            resolveSimulationSourceScope(document) === 'person'
+              ? document.owner_id
+              : null,
+          filename: resolveSimulationFilename(document),
+          mime_type: document.mime_type || null,
+        });
+
+        if (cancelled) return;
+
+        if (result.status === 'classified') {
+          const suggestedScope = result.classification_scope || 'service';
+          if (
+            suggestedScope === 'person'
+            || !result.classification_domain_id
+            || !result.classification_activity_id
+            || !result.classification_target_org_unit_id
+            || !result.classification_year
+          ) {
+            setSuggestionBanner({
+              kind: 'manual_required',
+              result,
+              reason:
+                suggestedScope === 'person'
+                  ? 'Une règle personnelle a été trouvée, mais cet inspecteur ne permet pas encore de cibler un agent. Choix manuel requis.'
+                  : 'Une règle a été trouvée, mais la suggestion est incomplète pour un remplissage automatique fiable.',
+            });
+            return;
+          }
+
+          setDomainId(result.classification_domain_id);
+          setActivityId(result.classification_activity_id);
+          setOrgUnitId(result.classification_target_org_unit_id);
+          setYear(String(result.classification_year));
+          setScope(suggestedScope);
+          setSuggestionBanner({
+            kind: 'classified',
+            result,
+            applied: true,
+          });
+          return;
+        }
+
+        if (result.status === 'needs_review') {
+          setSuggestionBanner({
+            kind: 'manual_required',
+            result,
+            reason:
+              'Plusieurs règles correspondent ou la cible reste ambiguë. Le moteur demande un arbitrage manuel.',
+          });
+          return;
+        }
+
+        setSuggestionBanner(null);
+      } catch {
+        if (!cancelled) {
+          setSuggestionBanner(null);
+        }
+      }
+    };
+
+    runAutoSuggestion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [document, isOpen]);
 
   // Reset activity if domain changes and current activity doesn't belong to it
   useEffect(() => {
@@ -71,7 +197,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
   }, [domainId, activityId, activities]);
 
   const availableActivities = useMemo(() => {
-    return domainId 
+    return domainId
       ? activities.filter(a => a.domain_id === domainId).sort((a, b) => a.name.localeCompare(b.name))
       : activities.slice().sort((a, b) => a.name.localeCompare(b.name));
   }, [activities, domainId]);
@@ -79,28 +205,66 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
   const previewPath = useMemo(() => {
     if (!document) return '';
     const parts = [];
-    
+
     if (orgUnitId) {
       const unit = flatUnits.find(u => u.id === orgUnitId);
       if (unit) parts.push(unit.name);
     }
-    
+
     if (domainId) {
       const domain = domains.find(d => d.id === domainId);
       if (domain) parts.push(domain.name);
     }
-    
+
     if (activityId) {
       const activity = activities.find(a => a.id === activityId);
       if (activity) parts.push(activity.name);
     }
-    
+
     if (year) {
       parts.push(year);
     }
-    
+
     return parts.join(' / ') || 'Chemin non défini';
   }, [orgUnitId, domainId, activityId, year, flatUnits, domains, activities, document]);
+
+  const applySuggestedClassification = () => {
+    if (!suggestionBanner || suggestionBanner.kind !== 'classified') return;
+    const { result } = suggestionBanner;
+    if (
+      result.classification_domain_id
+      && result.classification_activity_id
+      && result.classification_target_org_unit_id
+      && result.classification_year
+      && result.classification_scope
+      && result.classification_scope !== 'person'
+    ) {
+      setDomainId(result.classification_domain_id);
+      setActivityId(result.classification_activity_id);
+      setOrgUnitId(result.classification_target_org_unit_id);
+      setYear(String(result.classification_year));
+      setScope(result.classification_scope);
+      setSuggestionBanner({
+        ...suggestionBanner,
+        applied: true,
+      });
+    }
+  };
+
+  const clearSuggestedClassification = () => {
+    setDomainId('');
+    setActivityId('');
+    setOrgUnitId(document?.org_unit_id || '');
+    setYear(String(new Date().getFullYear()));
+    setScope('service');
+    if (suggestionBanner?.kind === 'classified') {
+      setSuggestionBanner({
+        ...suggestionBanner,
+        applied: false,
+        reason: 'Suggestion effacée. Vous pouvez compléter le classement manuellement.',
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +279,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
         classification_activity_id: activityId || null,
         classification_target_org_unit_id: orgUnitId || null,
         classification_year: year ? parseInt(year, 10) : null,
+        classification_scope: scope,
         classification_status: 'classified',
       });
       onSuccess();
@@ -134,7 +299,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
 
       {/* Slide-over panel */}
       <div className="relative flex w-full max-w-[95vw] flex-col bg-white shadow-2xl md:flex-row h-full animate-in slide-in-from-right duration-300">
-        
+
         {/* Left side: Document preview */}
         <div className="hidden flex-1 flex-col bg-slate-100 md:flex border-r border-slate-200">
           <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
@@ -177,6 +342,105 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
                 {formatFileSize(document.file_size)} • {formatDate(document.created_at)}
               </p>
             </div>
+
+            {suggestionBanner?.kind === 'loading' && (
+              <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="material-symbols-outlined text-slate-400">auto_awesome</span>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+                      Suggestion automatique
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-600">
+                      Analyse de la meilleure règle de classement en cours…
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {suggestionBanner?.kind === 'classified' && (
+              <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+                <div className="flex items-start gap-3">
+                  <span className="material-symbols-outlined text-blue-500">auto_awesome</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                      Suggéré automatiquement par le moteur
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      Règle « {suggestionBanner.result.rule_name || suggestionBanner.result.rule_code || 'Sans nom'} »
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-slate-600">
+                      {[
+                        suggestionBanner.result.classification_target_org_unit_name,
+                        suggestionBanner.result.classification_domain_name,
+                        suggestionBanner.result.classification_activity_name,
+                        suggestionBanner.result.classification_year,
+                      ].filter(Boolean).join(' / ')}
+                    </p>
+                    {suggestionBanner.reason && (
+                      <p className="mt-2 text-xs font-medium text-blue-700">{suggestionBanner.reason}</p>
+                    )}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={applySuggestedClassification}
+                        className="rounded-xl bg-blue-600 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-blue-700"
+                      >
+                        {suggestionBanner.applied ? 'Réappliquer' : 'Conserver'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSuggestionBanner({
+                            ...suggestionBanner,
+                            applied: false,
+                            reason: 'Suggestion conservée comme base. Vous pouvez modifier les champs ci-dessous.',
+                          })
+                        }
+                        className="rounded-xl bg-white px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-100"
+                      >
+                        Modifier les champs
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearSuggestedClassification}
+                        className="rounded-xl bg-white px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-500 transition-colors hover:bg-slate-100"
+                      >
+                        Effacer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <SimulationTracePanel stages={suggestionBanner.result.stages} compact title="Pourquoi cette suggestion" />
+                </div>
+              </div>
+            )}
+
+            {suggestionBanner?.kind === 'manual_required' && (
+              <div className="mb-6 rounded-2xl border border-amber-100 bg-amber-50 p-5">
+                <div className="flex items-start gap-3">
+                  <span className="material-symbols-outlined text-amber-500">warning</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                      Choix manuel requis
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      {suggestionBanner.result.rule_name
+                        ? `La règle « ${suggestionBanner.result.rule_name} » ne peut pas être appliquée automatiquement.`
+                        : 'Le moteur n a pas pu proposer une destination fiable.'}
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-slate-600">
+                      {suggestionBanner.reason}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <SimulationTracePanel stages={suggestionBanner.result.stages} compact title="Pourquoi le moteur hésite" />
+                </div>
+              </div>
+            )}
 
             <form id="classification-form" onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-4">

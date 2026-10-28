@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
-import { categoriesApi, type DocumentCategory } from '../../../services/categories.api';
 import type { Document } from '../../../types';
 import { formatDate, formatFileSize, getFileTypeLabel, getStatusLabel } from '../../../types';
 import { ClassificationSlideOver } from '../../../components/ClassificationSlideOver';
+import { DocumentPreview } from '../../../components/preview';
+import { Tooltip } from '../../../components/ui/Tooltip';
 
 interface UserNode {
   id: string;
@@ -45,6 +46,16 @@ const CLASSIFICATION_STATUS_BADGES: Record<string, string> = {
   rejected: 'bg-rose-50 text-rose-700 border-rose-100',
 };
 
+// Statut absorbé dans la couleur de l'icône (préattentif, WCAG 1.4.1 :
+// le tooltip + label texte conservés ailleurs garantissent que la couleur
+// n'est pas le seul canal porteur d'information).
+const CLASSIFICATION_STATUS_ICON: Record<string, string> = {
+  classified: 'text-emerald-600',
+  needs_review: 'text-amber-600',
+  pending: 'text-rdpc-blue',
+  rejected: 'text-rose-600',
+};
+
 const SCOPE_LABELS: Record<string, string> = {
   person: 'Personne',
   service: 'Service',
@@ -61,10 +72,20 @@ const flattenUnits = (
     ...flattenUnits(node.children ?? [], depth + 1),
   ]);
 
-const collectDescendantIds = (node: SpaceTreeNode): string[] => [
-  node.id,
-  ...(node.children ?? []).flatMap((child) => collectDescendantIds(child)),
-];
+const buildBreadcrumbSegments = (
+  unitId: string,
+  unitsById: Map<string, FlatUnitNode>
+): FlatUnitNode[] => {
+  const path: FlatUnitNode[] = [];
+  let current = unitsById.get(unitId) || null;
+
+  while (current) {
+    path.unshift(current);
+    current = current.parent_id ? unitsById.get(current.parent_id) || null : null;
+  }
+
+  return path;
+};
 
 const getClassificationStatusLabel = (status?: string | null) =>
   CLASSIFICATION_STATUS_LABELS[status || 'pending'] || status || 'En attente de classement';
@@ -72,11 +93,35 @@ const getClassificationStatusLabel = (status?: string | null) =>
 const getClassificationStatusBadge = (status?: string | null) =>
   CLASSIFICATION_STATUS_BADGES[status || 'pending'] || CLASSIFICATION_STATUS_BADGES.pending;
 
+const getClassificationStatusIconColor = (status?: string | null) =>
+  CLASSIFICATION_STATUS_ICON[status || 'pending'] || CLASSIFICATION_STATUS_ICON.pending;
+
+const truncateLabel = (value: string, maxLength = 28) =>
+  value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+
+const getDocumentFilename = (document: Document) => {
+  const candidate = document.source_relative_path || document.file_path || document.title;
+  const rawName = candidate.split('/').filter(Boolean).pop() || document.title;
+  const hasExtension = /\.[a-z0-9]+$/i.test(rawName);
+  if (hasExtension) return rawName;
+  if (document.file_type) return `${rawName}.${document.file_type}`;
+  return rawName;
+};
+
+type ViewMode = 'details' | 'icons';
+
+type ContextMenuState =
+  | {
+      kind: 'document';
+      x: number;
+      y: number;
+      document: Document;
+    };
+
 const SpacesPage: React.FC = () => {
   const navigate = useNavigate();
   const [treeData, setTreeData] = useState<SpaceTreeNode[]>([]);
   const [users, setUsers] = useState<UserNode[]>([]);
-  const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [domains, setDomains] = useState<ClassificationDomainOption[]>([]);
   const [activities, setActivities] = useState<ClassificationActivityOption[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
@@ -84,16 +129,21 @@ const SpacesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recursive, setRecursive] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [classificationStatusFilter, setClassificationStatusFilter] = useState('');
-  const [domainFilter, setDomainFilter] = useState('');
-  const [activityFilter, setActivityFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
+  const [recursive, setRecursive] = useState(false);
+  // La recherche par texte est portée par l'URL (`?q=`) — la barre de
+  // recherche globale (Header) écrit dedans.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
+  const setSearchQuery = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next) nextParams.set('q', next);
+    else nextParams.delete('q');
+    setSearchParams(nextParams, { replace: true });
+  };
+  const [viewMode, setViewMode] = useState<ViewMode>('icons');
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -107,9 +157,8 @@ const SpacesPage: React.FC = () => {
           setSelectedUnitId(flattened[0]?.id || '');
         }
 
-        const [usersResult, categoriesResult, domainsResult, activitiesResult] = await Promise.allSettled([
+        const [usersResult, domainsResult, activitiesResult] = await Promise.allSettled([
           api.getUsers(),
-          categoriesApi.list(),
           api.getClassificationDomains(),
           api.getClassificationActivities(),
         ]);
@@ -119,13 +168,6 @@ const SpacesPage: React.FC = () => {
         } else {
           console.warn('Failed to load users for spaces view', usersResult.reason);
           setUsers([]);
-        }
-
-        if (categoriesResult.status === 'fulfilled') {
-          setCategories(categoriesResult.value);
-        } else {
-          console.warn('Failed to load categories for spaces view', categoriesResult.reason);
-          setCategories([]);
         }
 
         if (domainsResult.status === 'fulfilled') {
@@ -157,9 +199,22 @@ const SpacesPage: React.FC = () => {
   }, []);
 
   const flatUnits = useMemo(() => flattenUnits(treeData), [treeData]);
+  const unitsById = useMemo(
+    () => new Map(flatUnits.map((unit) => [unit.id, unit])),
+    [flatUnits]
+  );
   const selectedUnit = useMemo(
     () => flatUnits.find((unit) => unit.id === selectedUnitId) || null,
     [flatUnits, selectedUnitId]
+  );
+  const parentUnit = useMemo(
+    () => (selectedUnit?.parent_id ? unitsById.get(selectedUnit.parent_id) || null : null),
+    [selectedUnit, unitsById]
+  );
+  const childUnits = selectedUnit?.children ?? [];
+  const breadcrumbUnits = useMemo(
+    () => (selectedUnitId ? buildBreadcrumbSegments(selectedUnitId, unitsById) : []),
+    [selectedUnitId, unitsById]
   );
 
   const orgUnitNames = useMemo(
@@ -172,16 +227,6 @@ const SpacesPage: React.FC = () => {
     [users]
   );
 
-  useEffect(() => {
-    if (!activityFilter) {
-      return;
-    }
-    const activity = activities.find((item) => item.id === activityFilter);
-    if (activity && domainFilter && activity.domain_id !== domainFilter) {
-      setActivityFilter('');
-    }
-  }, [activities, activityFilter, domainFilter]);
-
     const loadDocuments = async () => {
       if (!selectedUnitId) {
         setDocuments([]);
@@ -191,7 +236,11 @@ const SpacesPage: React.FC = () => {
       try {
         setDocumentsLoading(true);
         setError(null);
-        const docs = await api.getSpaceDocuments(selectedUnitId, recursive);
+        // Une recherche active impose le mode récursif : par définition,
+        // l'utilisateur veut chercher partout dans la branche, pas seulement
+        // dans le service courant.
+        const effective = recursive || Boolean(searchQuery.trim());
+        const docs = await api.getSpaceDocuments(selectedUnitId, effective);
         setDocuments(docs);
       } catch (e) {
         console.error('Failed to fetch space documents', e);
@@ -208,56 +257,31 @@ const SpacesPage: React.FC = () => {
 
   useEffect(() => {
     loadDocuments();
-  }, [selectedUnitId, recursive]);
+    // searchQuery participe à la dep : on recharge si l'utilisateur active
+    // ou désactive une recherche, pour bénéficier du mode récursif forcé.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUnitId, recursive, Boolean(searchQuery.trim())]);
 
-  const descendantIds = useMemo(
-    () => (selectedUnit ? new Set(collectDescendantIds(selectedUnit)) : new Set<string>()),
-    [selectedUnit]
-  );
+  useEffect(() => {
+    if (!contextMenu) {
+      return;
+    }
 
-  const staffCount = useMemo(
-    () => users.filter((user) => descendantIds.has(user.org_unit_id)).length,
-    [users, descendantIds]
-  );
+    const closeMenu = () => setContextMenu(null);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null);
+      }
+    };
 
-  const subUnitCount = selectedUnit?.children?.length || 0;
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('keydown', closeOnEscape);
 
-  const availableTypes = useMemo(
-    () =>
-      Array.from(
-        new Set(documents.map((doc) => getFileTypeLabel(doc.mime_type || doc.file_type)).filter(Boolean))
-      ).sort(),
-    [documents]
-  );
-
-  const availableCategories = useMemo(
-    () => categories.slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [categories]
-  );
-
-  const availableWorkflowStatuses = useMemo(
-    () => Array.from(new Set(documents.map((doc) => doc.status))).sort((a, b) => a.localeCompare(b)),
-    [documents]
-  );
-
-  const availableActivities = useMemo(() => {
-    const source = domainFilter
-      ? activities.filter((activity) => activity.domain_id === domainFilter)
-      : activities;
-    return source.slice().sort((a, b) => a.name.localeCompare(b.name));
-  }, [activities, domainFilter]);
-
-  const availableYears = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          documents
-            .map((doc) => doc.classification_year)
-            .filter((year): year is number => typeof year === 'number')
-        )
-      ).sort((a, b) => b - a),
-    [documents]
-  );
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [contextMenu]);
 
   const getTargetLabel = (doc: Document) => {
     if (doc.classification_scope === 'person' && doc.classification_target_user_id) {
@@ -273,12 +297,11 @@ const SpacesPage: React.FC = () => {
   const filteredDocuments = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     return documents.filter((doc) => {
-      const typeLabel = getFileTypeLabel(doc.mime_type || doc.file_type);
-      const categoryLabel = doc.category_name || 'Non classe';
       const targetUnitName = getTargetLabel(doc);
       const searchCorpus = [
         doc.title,
-        categoryLabel,
+        doc.category_name || 'Non classe',
+        getFileTypeLabel(doc.mime_type || doc.file_type),
         doc.logical_space_path || '',
         doc.classification_domain_name || '',
         doc.classification_activity_name || '',
@@ -287,83 +310,88 @@ const SpacesPage: React.FC = () => {
         .join(' ')
         .toLowerCase();
 
-      const matchesSearch = !normalizedQuery || searchCorpus.includes(normalizedQuery);
-      const matchesType = !typeFilter || typeLabel === typeFilter;
-      const matchesCategory = !categoryFilter || doc.document_category_id === categoryFilter;
-      const matchesWorkflowStatus = !statusFilter || doc.status === statusFilter;
-      const matchesClassificationStatus =
-        !classificationStatusFilter || (doc.classification_status || 'pending') === classificationStatusFilter;
-      const matchesDomain = !domainFilter || doc.classification_domain_id === domainFilter;
-      const matchesActivity = !activityFilter || doc.classification_activity_id === activityFilter;
-      const matchesYear = !yearFilter || String(doc.classification_year || '') === yearFilter;
-
-      return (
-        matchesSearch &&
-        matchesType &&
-        matchesCategory &&
-        matchesWorkflowStatus &&
-        matchesClassificationStatus &&
-        matchesDomain &&
-        matchesActivity &&
-        matchesYear
-      );
+      return !normalizedQuery || searchCorpus.includes(normalizedQuery);
     });
-  }, [
-    activityFilter,
-    categoryFilter,
-    classificationStatusFilter,
-    documents,
-    domainFilter,
-    orgUnitNames,
-    searchQuery,
-    statusFilter,
-    typeFilter,
-    userNames,
-    yearFilter,
-  ]);
+  }, [documents, orgUnitNames, searchQuery, userNames]);
 
-  const classifiedCount = useMemo(
-    () => documents.filter((doc) => doc.classification_status === 'classified').length,
-    [documents]
+  const isSearchMode = Boolean(searchQuery.trim());
+
+  const visibleDocuments = useMemo(() => {
+    // En mode recherche : on lève la contrainte de portée (le tenant entier
+    // visible) — l'utilisateur veut voir tous les matches, pas seulement
+    // ceux strictement rattachés au service courant.
+    if (isSearchMode) return filteredDocuments;
+    if (!selectedUnitId) {
+      return filteredDocuments;
+    }
+
+    if (childUnits.length === 0) {
+      return filteredDocuments;
+    }
+
+    return filteredDocuments.filter((doc) => {
+      const targetOrgUnitId = doc.classification_target_org_unit_id || doc.org_unit_id;
+      return targetOrgUnitId === selectedUnitId;
+    });
+  }, [childUnits.length, filteredDocuments, isSearchMode, selectedUnitId]);
+
+  const hiddenDescendantDocumentsCount = Math.max(
+    filteredDocuments.length - visibleDocuments.length,
+    0
   );
 
   const reviewCount = useMemo(
-    () => documents.filter((doc) => doc.classification_status === 'needs_review' || doc.classification_status === 'pending').length,
-    [documents]
+    () =>
+      visibleDocuments.filter(
+        (doc) =>
+          doc.classification_status === 'needs_review' ||
+          doc.classification_status === 'pending'
+      ).length,
+    [visibleDocuments]
   );
 
-  const distinctPathsCount = useMemo(
-    () =>
-      new Set(documents.map((doc) => doc.logical_space_path).filter((path): path is string => Boolean(path))).size,
-    [documents]
-  );
+  const openFolder = (unitId: string) => {
+    setSelectedUnitId(unitId);
+    setContextMenu(null);
+  };
+
+  const openPreview = (document: Document) => {
+    setPreviewDocument(document);
+    setContextMenu(null);
+  };
+
+  const openClassification = (document: Document) => {
+    setDocumentToClassify(document);
+    setContextMenu(null);
+  };
+
+  const handleDocumentContextMenu = (
+    event: React.MouseEvent,
+    document: Document
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      kind: 'document',
+      x: event.clientX,
+      y: event.clientY,
+      document,
+    });
+  };
+
+  const handleCopyPath = async (path: string) => {
+    if (!path) return;
+    try {
+      await navigator.clipboard.writeText(path);
+    } catch {
+      /* no-op */
+    } finally {
+      setContextMenu(null);
+    }
+  };
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
-      <div className="max-w-5xl space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-[10px] font-black uppercase tracking-[0.25em] text-rdpc-blue">
-          Espaces documentaires
-        </div>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase">
-              Vue documentaire metier
-            </h1>
-            <p className="text-sm font-medium text-slate-500">
-              Retrouvez les documents classes par service, domaine, activite et annee sans quitter la structure de votre organisation.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/ingestion')}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 hover:scale-[1.02]"
-          >
-            <span className="material-symbols-outlined text-lg">upload_file</span>
-            Importer
-          </button>
-        </div>
-      </div>
-
+    <div className="p-8 animate-in fade-in duration-500">
       {loading ? (
         <div className="rounded-[2rem] border border-slate-100 bg-white p-10 text-center text-sm font-medium text-slate-500">
           Chargement des espaces...
@@ -373,251 +401,275 @@ const SpacesPage: React.FC = () => {
           {error}
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)_minmax(280px,0.8fr)] xl:items-start">
-              <div className="space-y-3">
-                <div>
-                  <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">1. Cibler le service</h2>
-                  <p className="mt-2 text-sm font-medium text-slate-500">
-                    Choisissez l'unite organisationnelle qui porte les documents a consulter.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Service
-                  </label>
-                  <select
-                    aria-label="Service documentaire"
-                    value={selectedUnitId}
-                    onChange={(e) => setSelectedUnitId(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
+        <div className="mx-auto max-w-[1280px] space-y-5">
+          <div className="flex flex-wrap items-center gap-3 px-2 text-sm font-semibold text-slate-400">
+            {breadcrumbUnits.length > 0 ? (
+              breadcrumbUnits.map((unit, index) => (
+                <React.Fragment key={unit.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUnitId(unit.id)}
+                    className={`transition-colors ${
+                      index === breadcrumbUnits.length - 1
+                        ? 'text-rdpc-blue'
+                        : 'hover:text-slate-600'
+                    }`}
                   >
-                    {flatUnits.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {`${'— '.repeat(unit.depth)}${unit.name}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <label className="flex items-start gap-3 rounded-[2rem] border border-slate-100 bg-slate-50 px-5 py-5 cursor-pointer h-full">
-                <input
-                  type="checkbox"
-                  checked={recursive}
-                  onChange={(e) => setRecursive(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-rdpc-blue focus:ring-rdpc-blue"
-                />
-                <div>
-                  <p className="text-sm font-bold text-slate-700">Inclure les sous-services</p>
-                  <p className="mt-1 text-xs font-medium leading-6 text-slate-400">
-                    Utilisez cette vue pour une direction complete ou limitez-vous a un bureau precis.
-                  </p>
-                </div>
-              </label>
-
-              <div className="rounded-[2rem] bg-slate-900 p-5 text-white h-full">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Lecture metier</p>
-                <p className="mt-3 text-sm font-medium text-slate-200">
-                  Le chemin logique conserve le rangement documentaire attendu, sans imposer une arborescence physique fragile sur le serveur.
-                </p>
-              </div>
-            </div>
+                    {unit.name}
+                  </button>
+                  {index < breadcrumbUnits.length - 1 && <span>/</span>}
+                </React.Fragment>
+              ))
+            ) : (
+              <span>Aucun service sélectionné</span>
+            )}
           </div>
 
-          <div className="space-y-6">
-            <div className="rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">2. Espace cible</p>
-                  <h2 className="mt-2 text-3xl font-black tracking-tighter italic uppercase text-slate-900">
-                    {selectedUnit?.name || 'Aucun service'}
-                  </h2>
-                  <p className="mt-2 text-sm font-medium text-slate-500">
-                    {recursive ? 'Service et sous-services inclus.' : 'Service uniquement.'}
-                  </p>
+            <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+            <div className="flex flex-col gap-6 border-b border-slate-100 px-8 py-7 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-6">
+                {parentUnit && (
+                  <button
+                    type="button"
+                    onClick={() => openFolder(parentUnit.id)}
+                    className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700"
+                    aria-label={`Retour vers ${parentUnit.name}`}
+                  >
+                    <span className="material-symbols-outlined text-2xl">arrow_back</span>
+                  </button>
+                )}
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-white text-rdpc-blue shadow-sm">
+                  <span className="material-symbols-outlined text-4xl">description</span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3 lg:min-w-[420px] xl:grid-cols-4">
-                  <div className="rounded-2xl bg-slate-50 px-4 py-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Documents</p>
-                    <p className="mt-2 text-3xl font-black text-slate-900">{documentsLoading ? '...' : documents.length}</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Classes</p>
-                    <p className="mt-2 text-3xl font-black text-slate-900">{documentsLoading ? '...' : classifiedCount}</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">A revoir</p>
-                    <p className="mt-2 text-3xl font-black text-slate-900">{documentsLoading ? '...' : reviewCount}</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chemins</p>
-                    <p className="mt-2 text-3xl font-black text-slate-900">{documentsLoading ? '...' : distinctPathsCount}</p>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <h2 className="text-4xl font-black tracking-tight text-slate-900">
+                      {selectedUnit?.name || 'Aucun service'}
+                    </h2>
+                    {selectedUnit?.code && (
+                      <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-rdpc-blue">
+                        {selectedUnit.code}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Agents</p>
-                  <p className="mt-2 text-xl font-black text-slate-900">{staffCount}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sous-services</p>
-                  <p className="mt-2 text-xl font-black text-slate-900">{subUnitCount}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Domaines actifs</p>
-                  <p className="mt-2 text-xl font-black text-slate-900">{domains.length}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Activites actives</p>
-                  <p className="mt-2 text-xl font-black text-slate-900">{activities.length}</p>
+              <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-500">
+                <span>{visibleDocuments.length} document{visibleDocuments.length > 1 ? 's' : ''}</span>
+                <span>·</span>
+                <span>{reviewCount} à revoir</span>
+                <button
+                  type="button"
+                  onClick={() => loadDocuments()}
+                  className="ml-2 inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-600 transition-colors hover:bg-slate-200"
+                >
+                  Actualiser
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/ingestion')}
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-white transition-colors hover:bg-emerald-700"
+                >
+                  Importer
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-slate-100 px-8 py-7">
+              <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_280px] xl:items-center">
+                <label className="inline-flex items-center gap-3 text-base font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={recursive}
+                    onChange={(e) => setRecursive(e.target.checked)}
+                    className="h-6 w-6 rounded-lg border-slate-300 text-rdpc-blue focus:ring-rdpc-blue"
+                  />
+                  Inclure les sous-services
+                </label>
+
+                {searchQuery && (
+                  <div className="flex items-center justify-between gap-3 px-4 py-2 rounded-[1.4rem] border border-blue-100 bg-blue-50/50">
+                    <p className="text-xs text-slate-600 italic truncate">
+                      <span className="material-symbols-outlined text-base align-middle text-rdpc-blue mr-1">search</span>
+                      Recherche : <span className="font-bold not-italic text-slate-800">« {searchQuery} »</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rdpc-blue shrink-0"
+                    >
+                      Effacer
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex justify-start xl:justify-end">
+                  <div className="inline-flex rounded-[1.35rem] border border-slate-200 bg-white p-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('details')}
+                      className={`inline-flex items-center gap-3 rounded-[1rem] px-6 py-4 text-sm font-black tracking-[0.16em] transition-colors ${
+                        viewMode === 'details'
+                          ? 'bg-slate-50 text-slate-800'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-xl">table_rows</span>
+                      Détails
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('icons')}
+                      className={`inline-flex items-center gap-3 rounded-[1rem] px-6 py-4 text-sm font-black tracking-[0.16em] transition-colors ${
+                        viewMode === 'icons'
+                          ? 'bg-slate-50 text-rdpc-blue'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-xl">grid_view</span>
+                      Icônes
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm space-y-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-black text-slate-800 tracking-tighter italic uppercase">Liste des documents</h3>
-                  <p className="text-sm font-medium text-slate-500">
-                    Filtrez les documents par criteres metier et verifiez leur chemin logique de classement.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 w-full lg:w-auto">
-                  <div className="relative flex-1 lg:w-80">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">search</span>
-                    <input
-                      aria-label="Recherche documentaire"
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Rechercher (document, chemin...)"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-sm font-medium text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                    />
+            <div className="min-h-[560px] px-8 py-8">
+              {childUnits.length > 0 && !isSearchMode && (
+                <div className="mb-8 space-y-4">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                    Sous-services
                   </div>
-                  <div className="shrink-0 rounded-full bg-blue-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-rdpc-blue">
-                    {filteredDocuments.length} trouve{filteredDocuments.length > 1 ? 's' : ''}
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {childUnits.map((child) => {
+                      const isTruncated = child.name.length > 34;
+                      return (
+                        <Tooltip
+                          key={child.id}
+                          content={isTruncated ? child.name : undefined}
+                          align="left"
+                          className="block"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => openFolder(child.id)}
+                            onDoubleClick={() => openFolder(child.id)}
+                            className="group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50"
+                          >
+                            <div className="flex items-start gap-4">
+                              <span className="material-symbols-outlined text-4xl text-amber-500">folder</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-lg font-bold text-slate-800">
+                                  {truncateLabel(child.name, 34)}
+                                </p>
+                                <p className="mt-1 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                                  {child.code}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        </Tooltip>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-                <select
-                  aria-label="Filtre domaine"
-                  value={domainFilter}
-                  onChange={(e) => {
-                    setDomainFilter(e.target.value);
-                    setActivityFilter('');
-                  }}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                >
-                  <option value="">Tous les domaines</option>
-                  {domains
-                    .slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((domain) => (
-                      <option key={domain.id} value={domain.id}>{domain.name}</option>
-                    ))}
-                </select>
+              {childUnits.length > 0 && hiddenDescendantDocumentsCount > 0 && !isSearchMode && (
+                <div className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-600">
+                  {hiddenDescendantDocumentsCount} document{hiddenDescendantDocumentsCount > 1 ? 's' : ''} disponible{hiddenDescendantDocumentsCount > 1 ? 's' : ''} dans les sous-services.
+                </div>
+              )}
 
-                <select
-                  aria-label="Filtre activite"
-                  value={activityFilter}
-                  onChange={(e) => setActivityFilter(e.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                >
-                  <option value="">Toutes les activites</option>
-                  {availableActivities.map((activity) => (
-                    <option key={activity.id} value={activity.id}>{activity.name}</option>
-                  ))}
-                </select>
-
-                <select
-                  aria-label="Filtre annee"
-                  value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                >
-                  <option value="">Toutes les annees</option>
-                  {availableYears.map((year) => (
-                    <option key={year} value={String(year)}>{year}</option>
-                  ))}
-                </select>
-
-                <select
-                  aria-label="Filtre statut de classement"
-                  value={classificationStatusFilter}
-                  onChange={(e) => setClassificationStatusFilter(e.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                >
-                  <option value="">Tous les statuts de classement</option>
-                  {Object.entries(CLASSIFICATION_STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-
-                <select
-                  aria-label="Filtre statut GED"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                >
-                  <option value="">Tous les statuts GED</option>
-                  {availableWorkflowStatuses.map((status) => (
-                    <option key={status} value={status}>{getStatusLabel(status)}</option>
-                  ))}
-                </select>
-
-                <select
-                  aria-label="Filtre categorie"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                >
-                  <option value="">Toutes les categories</option>
-                  {availableCategories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
-                  ))}
-                </select>
-
-                <select
-                  aria-label="Filtre type"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-rdpc-blue focus:bg-white"
-                >
-                  <option value="">Tous les types</option>
-                  {availableTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              {error && selectedUnitId ? (
+              {error && selectedUnitId && (
                 <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-medium text-red-600">
                   {error}
                 </div>
-              ) : documentsLoading ? (
+              )}
+
+              {!error && documentsLoading && (
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-10 text-center text-sm font-medium text-slate-500">
                   Chargement des documents...
                 </div>
-              ) : filteredDocuments.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
-                  <p className="text-base font-bold text-slate-700">
-                    {documents.length === 0 ? 'Aucun document dans cet espace.' : 'Aucun document ne correspond a vos criteres.'}
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-slate-400">
-                    {documents.length === 0
-                      ? 'Utilisez l import en masse ou l ajout de document pour alimenter cet espace.'
-                      : 'Elargissez les filtres ou la recherche pour retrouver le document attendu.'}
-                  </p>
+              )}
+
+              {!error && !documentsLoading && visibleDocuments.length > 0 && viewMode === 'icons' && (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {visibleDocuments
+                    .slice()
+                    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                    .map((doc) => {
+                      const isTitleTruncated = doc.title.length > 26;
+                      // Chemin du service de rattachement du doc — affiché en
+                      // mode recherche pour donner le contexte de l'origine.
+                      const docUnitId = doc.classification_target_org_unit_id || doc.org_unit_id;
+                      const docPath = docUnitId
+                        ? buildBreadcrumbSegments(docUnitId, unitsById).map((s) => s.name).join(' / ')
+                        : '';
+                      // Tooltip = nom complet + statut humain (couleur seule
+                      // n'est pas porteuse d'info — WCAG 1.4.1) + chemin.
+                      const tooltipContent = (
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-800">{doc.title}</p>
+                          <p className="text-[11px] uppercase tracking-widest text-slate-400">
+                            {getClassificationStatusLabel(doc.classification_status)}
+                          </p>
+                          {docPath && (
+                            <p className="text-[11px] text-slate-500 italic">{docPath}</p>
+                          )}
+                        </div>
+                      );
+                      return (
+                        <Tooltip
+                          key={doc.id}
+                          content={tooltipContent}
+                          align="left"
+                          className="block"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => openPreview(doc)}
+                            onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
+                            aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                            className="group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue"
+                          >
+                            <div className="flex items-start gap-4">
+                              <span
+                                className={`material-symbols-outlined text-4xl shrink-0 ${getClassificationStatusIconColor(doc.classification_status)}`}
+                              >
+                                description
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-base font-bold leading-tight text-slate-800 truncate">
+                                  {isTitleTruncated ? truncateLabel(doc.title, 26) : doc.title}
+                                </p>
+                                <p className="mt-1 text-xs font-medium text-slate-400">
+                                  {getFileTypeLabel(doc.mime_type || doc.file_type)}
+                                  {' · '}
+                                  {formatFileSize(doc.file_size)}
+                                  {' · '}
+                                  {formatDate(doc.updated_at)}
+                                </p>
+                                {isSearchMode && docPath && (
+                                  <p className="mt-1.5 text-[10px] font-medium text-rdpc-blue/80 truncate flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[12px]">folder_open</span>
+                                    {docPath}
+                                  </p>
+                                )}
+                              </div>
+                              <span className="material-symbols-outlined text-lg text-slate-300 group-hover:text-slate-500 transition-colors">
+                                more_vert
+                              </span>
+                            </div>
+                          </button>
+                        </Tooltip>
+                      );
+                    })}
                 </div>
-              ) : (
+              )}
+
+              {!error && !documentsLoading && visibleDocuments.length > 0 && viewMode === 'details' && (
                 <div className="overflow-hidden rounded-[2rem] border border-slate-100">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -631,13 +683,18 @@ const SpacesPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {filteredDocuments
+                      {visibleDocuments
                         .slice()
                         .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
                         .map((doc) => {
                           const targetUnitName = getTargetLabel(doc);
                           return (
-                            <tr key={doc.id} className="align-top transition-colors hover:bg-slate-50">
+                            <tr
+                              key={doc.id}
+                              onDoubleClick={() => openPreview(doc)}
+                              onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
+                              className="align-top transition-colors hover:bg-slate-50"
+                            >
                               <td className="px-6 py-5">
                                 <div className="space-y-2">
                                   <p className="text-sm font-bold text-slate-800">{doc.title}</p>
@@ -678,6 +735,7 @@ const SpacesPage: React.FC = () => {
                               <td className="px-6 py-5 text-right align-middle">
                                 {(!doc.classification_status || doc.classification_status === 'pending' || doc.classification_status === 'needs_review') && (
                                   <button
+                                    type="button"
                                     onClick={() => setDocumentToClassify(doc)}
                                     className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:bg-rdpc-blue hover:text-white"
                                   >
@@ -696,6 +754,149 @@ const SpacesPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(event) => event.stopPropagation()}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          <>
+              <button
+                type="button"
+                onClick={() => openPreview(contextMenu.document)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                <span className="material-symbols-outlined text-base text-slate-400">preview</span>
+                Ouvrir
+              </button>
+              {(!contextMenu.document.classification_status
+                || contextMenu.document.classification_status === 'pending'
+                || contextMenu.document.classification_status === 'needs_review') && (
+                <button
+                  type="button"
+                  onClick={() => openClassification(contextMenu.document)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <span className="material-symbols-outlined text-base text-slate-400">rule</span>
+                  Classer
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleCopyPath(contextMenu.document.logical_space_path || '')}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                Copier le chemin logique
+              </button>
+          </>
+        </div>
+      )}
+
+      {previewDocument && (
+        <div className="fixed inset-0 z-40 flex justify-end bg-slate-950/45 backdrop-blur-sm">
+          <div className="absolute inset-0" onClick={() => setPreviewDocument(null)} />
+
+          <div className="relative flex h-full w-full max-w-[95vw] animate-in slide-in-from-right duration-300 flex-col bg-white shadow-2xl lg:max-w-[88vw] lg:flex-row">
+            <div className="flex min-h-0 flex-1 flex-col border-b border-slate-200 bg-slate-100 lg:border-b-0 lg:border-r">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                    Aperçu du document
+                  </p>
+                  <h3 className="truncate text-lg font-black text-slate-900">
+                    {previewDocument.title}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewDocument(null)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-auto p-4 lg:p-6">
+                <DocumentPreview
+                  documentId={previewDocument.id}
+                  filename={getDocumentFilename(previewDocument)}
+                  mimeType={previewDocument.mime_type}
+                  className="h-full w-full"
+                />
+              </div>
+            </div>
+
+            <aside className="flex w-full flex-col bg-white lg:w-[340px]">
+              <div className="border-b border-slate-100 px-6 py-5">
+                <h4 className="text-lg font-black tracking-tight text-slate-900">Détails du document</h4>
+                <p className="text-xs font-medium text-slate-500">Consultation rapide et actions disponibles</p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Type</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {getFileTypeLabel(previewDocument.mime_type || previewDocument.file_type)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Taille</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {formatFileSize(previewDocument.file_size)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Mise à jour</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {formatDate(previewDocument.updated_at)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Classement</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {previewDocument.logical_space_path || 'Chemin logique non encore determine'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 px-6 py-4">
+                <div className="flex flex-wrap gap-3">
+                  {(!previewDocument.classification_status
+                    || previewDocument.classification_status === 'pending'
+                    || previewDocument.classification_status === 'needs_review') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewDocument(null);
+                        openClassification(previewDocument);
+                      }}
+                      className="inline-flex items-center justify-center rounded-xl bg-rdpc-blue px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-blue-700"
+                    >
+                      Classer ce document
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleCopyPath(previewDocument.logical_space_path || '')}
+                    className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-600 transition-colors hover:bg-slate-200"
+                  >
+                    Copier le chemin
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
+
       <ClassificationSlideOver
         isOpen={!!documentToClassify}
         onClose={() => setDocumentToClassify(null)}

@@ -25,6 +25,8 @@ from app.core.dependencies import get_current_user
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
+from app.models.classification_activity import ClassificationActivity
+from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
 from app.models.document_category import DocumentCategory
 from app.models.document_version import DocumentVersion
@@ -39,6 +41,7 @@ from app.schemas.document import (
     NeedsReviewDocument,
     ResolveReviewPayload,
 )
+from app.services.space_path_builder import SpacePathBuilder
 from app.services.classification_review_service import ClassificationReviewService
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
@@ -1014,9 +1017,10 @@ async def get_document_content(
 
     # RFC 5987 : encodage UTF-8 pour les noms avec accents.
     from urllib.parse import quote
+
     safe_ascii = filename.encode("ascii", errors="ignore").decode("ascii") or "document"
     content_disposition = (
-        f"{disposition}; filename=\"{safe_ascii}\"; "
+        f'{disposition}; filename="{safe_ascii}"; '
         f"filename*=UTF-8''{quote(filename)}"
     )
 
@@ -1039,6 +1043,7 @@ async def get_document_content(
         if not content:
             raise HTTPException(status_code=404, detail="Document not found")
         from fastapi import Response
+
         return Response(content=content, media_type=media_type, headers=common_headers)
 
     # ── Stockage local : FileResponse gère Range automatiquement ──────
@@ -1046,6 +1051,7 @@ async def get_document_content(
         raise HTTPException(status_code=404, detail="Document not found")
 
     from fastapi.responses import FileResponse
+
     return FileResponse(
         path=full_path,
         media_type=media_type,
@@ -1108,6 +1114,19 @@ async def update_document(
             # Désaffectation de catégorie : réservé aux admins
             await authorize_or_403(current_user, "documents", "manage")
     requested_status = update_data.pop("status", None)
+    classification_update = {
+        key: update_data.pop(key)
+        for key in (
+            "classification_domain_id",
+            "classification_activity_id",
+            "classification_year",
+            "classification_scope",
+            "classification_target_org_unit_id",
+            "classification_target_user_id",
+            "classification_status",
+        )
+        if key in update_data
+    }
 
     if requested_status is not None:
         if requested_status != "archived":
@@ -1122,6 +1141,155 @@ async def update_document(
                 detail="Only validated or signed documents can be archived",
             )
         document.status = "archived"
+
+    if classification_update:
+        requested_scope = classification_update.get(
+            "classification_scope", document.classification_scope or "service"
+        )
+        requested_domain_id = classification_update.get(
+            "classification_domain_id", document.classification_domain_id
+        )
+        requested_activity_id = classification_update.get(
+            "classification_activity_id", document.classification_activity_id
+        )
+        requested_year = classification_update.get(
+            "classification_year", document.classification_year
+        )
+        requested_target_org_unit_id = classification_update.get(
+            "classification_target_org_unit_id", document.classification_target_org_unit_id
+        )
+        requested_target_user_id = classification_update.get(
+            "classification_target_user_id", document.classification_target_user_id
+        )
+        requested_classification_status = classification_update.get(
+            "classification_status", document.classification_status or "pending"
+        )
+
+        domain = None
+        if requested_domain_id is not None:
+            domain_result = await db.execute(
+                select(ClassificationDomain).where(
+                    ClassificationDomain.id == requested_domain_id,
+                    ClassificationDomain.tenant_id == current_user.tenant_id,
+                    ClassificationDomain.is_active,
+                )
+            )
+            domain = domain_result.scalar_one_or_none()
+            if domain is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Classification domain is invalid.",
+                )
+
+        activity = None
+        if requested_activity_id is not None:
+            activity_result = await db.execute(
+                select(ClassificationActivity).where(
+                    ClassificationActivity.id == requested_activity_id,
+                    ClassificationActivity.tenant_id == current_user.tenant_id,
+                    ClassificationActivity.is_active,
+                )
+            )
+            activity = activity_result.scalar_one_or_none()
+            if activity is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Classification activity is invalid.",
+                )
+            if domain and activity.domain_id != domain.id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Classification activity does not belong to the selected domain.",
+                )
+
+        target_user = None
+        if requested_target_user_id is not None:
+            target_user_result = await db.execute(
+                select(User).where(
+                    User.id == requested_target_user_id,
+                    User.tenant_id == current_user.tenant_id,
+                    User.is_active,
+                )
+            )
+            target_user = target_user_result.scalar_one_or_none()
+            if target_user is None or not target_user.org_unit_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Classification target user is invalid.",
+                )
+
+        if requested_scope == "person":
+            if target_user is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A target user is required for person scope.",
+                )
+            requested_target_org_unit_id = target_user.org_unit_id
+        elif requested_target_org_unit_id is not None:
+            target_unit_result = await db.execute(
+                select(OrgUnit).where(
+                    OrgUnit.id == requested_target_org_unit_id,
+                    OrgUnit.tenant_id == current_user.tenant_id,
+                    OrgUnit.is_active,
+                )
+            )
+            if target_unit_result.scalar_one_or_none() is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Classification target org unit is invalid.",
+                )
+
+        logical_space_path = document.logical_space_path
+        if requested_classification_status == "classified":
+            if (
+                domain is None
+                or activity is None
+                or requested_year is None
+                or requested_scope is None
+                or (
+                    requested_scope == "person"
+                    and requested_target_user_id is None
+                )
+                or (
+                    requested_scope in {"service", "subdirectorate", "directorate"}
+                    and requested_target_org_unit_id is None
+                )
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Incomplete classification data for a classified document.",
+                )
+
+            logical_space_path = await SpacePathBuilder(db).build_full_path(
+                tenant_id=current_user.tenant_id,
+                target_org_unit_id=requested_target_org_unit_id,
+                target_user_id=requested_target_user_id,
+                domain_name=domain.name,
+                activity_name=activity.name,
+                classification_year=requested_year,
+            )
+        elif requested_classification_status in {"pending", "needs_review"}:
+            logical_space_path = await SpacePathBuilder(db).build_pending_full_path(
+                tenant_id=current_user.tenant_id,
+                target_org_unit_id=requested_target_org_unit_id,
+                target_user_id=requested_target_user_id,
+                classification_year=requested_year,
+            )
+
+        document.classification_domain_id = requested_domain_id
+        document.classification_activity_id = requested_activity_id
+        document.classification_year = requested_year
+        document.classification_scope = requested_scope
+        document.classification_target_org_unit_id = requested_target_org_unit_id
+        document.classification_target_user_id = requested_target_user_id
+        document.classification_status = requested_classification_status
+        document.logical_space_path = logical_space_path
+
+        if requested_scope == "person" and target_user is not None:
+            document.owner_id = target_user.id
+            document.org_unit_id = target_user.org_unit_id
+        elif requested_target_org_unit_id is not None:
+            document.org_unit_id = requested_target_org_unit_id
 
     for field, value in update_data.items():
         setattr(document, field, value)

@@ -126,6 +126,11 @@ export interface ClassificationRule {
   source_user_name?: string | null;
   document_category_id?: string | null;
   document_category_name?: string | null;
+  // Multi-sélection (sémantique OU). Liste non vide = prime sur les 3 single FK ci-dessus.
+  document_category_ids?: string[] | null;
+  source_org_unit_ids?: string[] | null;
+  source_org_unit_excluded_ids?: string[] | null;
+  source_user_ids?: string[] | null;
   filename_pattern?: string | null;
   mime_type_pattern?: string | null;
   target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
@@ -163,6 +168,40 @@ export interface ClassificationSimulationResponse {
   classification_activity_id?: string | null;
   classification_activity_name?: string | null;
   classification_year?: number | null;
+  diagnostics?: ClassificationRuleDiagnostic[];
+  stages?: ClassificationSimulationStage[];
+}
+
+export interface ClassificationRuleCheck {
+  key: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface ClassificationRuleDiagnostic {
+  rule_id: string;
+  rule_code: string;
+  rule_name: string;
+  rule_priority: number;
+  matched: boolean;
+  checks: ClassificationRuleCheck[];
+}
+
+export interface ClassificationStageRule {
+  rule_id: string;
+  rule_code: string;
+  rule_name: string;
+  rule_priority: number;
+  detail: string;
+}
+
+export interface ClassificationSimulationStage {
+  key: string;
+  label: string;
+  summary: string;
+  remaining_rules: ClassificationStageRule[];
+  removed_rules: ClassificationStageRule[];
 }
 
 export type ImportSourceScope = 'person' | 'service' | 'subdirectorate';
