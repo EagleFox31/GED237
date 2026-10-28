@@ -22,7 +22,10 @@ from app.services.ocr.base import OCRResult
 from app.services.ocr.tesseract_engine import TesseractOCREngine
 from app.services.space_path_builder import SpacePathBuilder
 from app.services.storage.local import LocalStorageService
-from app.services.workflow_service import SubmitWorkflowActionUseCase, WorkflowActionPolicy
+from app.services.workflow_service import (
+    SubmitWorkflowActionUseCase,
+    WorkflowActionPolicy,
+)
 
 
 class FakeScalars:
@@ -161,9 +164,16 @@ async def test_classification_rule_engine_patterns(monkeypatch):
     assert engine._matches_filename_pattern("anything.pdf", " ; ")
     assert engine._matches_mime_type("application/pdf", "PDF")
     assert not engine._matches_mime_type(None, "pdf")
-    assert engine._resolve_year(filename="note-2024.pdf", strategy="from_filename") == 2024
-    assert engine._resolve_year(filename="note-2099.pdf", strategy="from_filename") == 2026
-    assert engine._resolve_year(filename="note.pdf", strategy="fixed", fixed_year=2021) == 2021
+    assert (
+        engine._resolve_year(filename="note-2024.pdf", strategy="from_filename") == 2024
+    )
+    assert (
+        engine._resolve_year(filename="note-2099.pdf", strategy="from_filename") == 2026
+    )
+    assert (
+        engine._resolve_year(filename="note.pdf", strategy="fixed", fixed_year=2021)
+        == 2021
+    )
 
     matching_rule = make_rule(
         document_category_id=category_id,
@@ -200,7 +210,9 @@ async def test_classification_rule_engine_patterns(monkeypatch):
         )
 
     engine._load_rules = AsyncMock(return_value=[])
-    engine.path_builder.build_pending_full_path = AsyncMock(return_value="Root / A classer / 2026")
+    engine.path_builder.build_pending_full_path = AsyncMock(
+        return_value="Root / A classer / 2026"
+    )
     no_rule = await engine.simulate(
         tenant_id=tenant_id,
         document_category_id=category_id,
@@ -215,7 +227,9 @@ async def test_classification_rule_engine_patterns(monkeypatch):
 
     tied = [make_rule(priority=1), make_rule(priority=1)]
     engine._load_rules = AsyncMock(return_value=tied)
-    engine.path_builder.build_pending_full_path = AsyncMock(return_value="Root / A revoir / 2026")
+    engine.path_builder.build_pending_full_path = AsyncMock(
+        return_value="Root / A revoir / 2026"
+    )
     needs_review = await engine.simulate(
         tenant_id=tenant_id,
         document_category_id=None,
@@ -231,7 +245,9 @@ async def test_classification_rule_engine_patterns(monkeypatch):
     target_org = SimpleNamespace(id=org_id)
     engine._load_rules = AsyncMock(return_value=[winner])
     engine._resolve_target = AsyncMock(return_value=(target_org, None))
-    engine.path_builder.build_full_path = AsyncMock(return_value="Root / Finances / Budget / 2026")
+    engine.path_builder.build_full_path = AsyncMock(
+        return_value="Root / Finances / Budget / 2026"
+    )
     classified = await engine.simulate(
         tenant_id=tenant_id,
         document_category_id=None,
@@ -256,6 +272,8 @@ async def test_classification_rule_engine_patterns(monkeypatch):
     )
     assert rejected.status == ClassificationStatus.rejected
 
+    # Restore the real _resolve_target (mocked above for simulate) before testing it.
+    del engine._resolve_target
     target_user = SimpleNamespace(id=user_id, org_unit_id=org_id)
     engine._load_user = AsyncMock(return_value=target_user)
     engine._load_org_unit = AsyncMock(return_value=target_org)
@@ -338,15 +356,27 @@ async def test_classification_rule_engine_patterns(monkeypatch):
     )
     assert document.classification_status == "classified"
     await engine.classify_document(
-        document=document, source_scope="service", source_user_id=None, filename="x.pdf", mime_type="application/pdf"
+        document=document,
+        source_scope="service",
+        source_user_id=None,
+        filename="x.pdf",
+        mime_type="application/pdf",
     )
     assert document.classification_status == "needs_review"
     await engine.classify_document(
-        document=document, source_scope="service", source_user_id=None, filename="x.pdf", mime_type="application/pdf"
+        document=document,
+        source_scope="service",
+        source_user_id=None,
+        filename="x.pdf",
+        mime_type="application/pdf",
     )
     assert document.classification_status == "pending"
     await engine.classify_document(
-        document=document, source_scope="service", source_user_id=None, filename="x.pdf", mime_type="application/pdf"
+        document=document,
+        source_scope="service",
+        source_user_id=None,
+        filename="x.pdf",
+        mime_type="application/pdf",
     )
     assert document.classification_status == "rejected"
 
@@ -409,7 +439,10 @@ async def test_space_path_builder_patterns():
         activity_name="Appels / offres",
         classification_year=2026,
     )
-    assert full == "Ministère - Test / Service Finance / Alice Doe / Marchés / Appels - offres / 2026"
+    assert (
+        full
+        == "Ministère - Test / Service Finance / Alice Doe / Marchés / Appels - offres / 2026"
+    )
 
     pending = await builder.build_pending_full_path(
         tenant_id=tenant_id,
@@ -441,8 +474,6 @@ async def test_space_path_builder_patterns():
 
 @pytest.mark.asyncio
 async def test_local_storage_patterns(monkeypatch, tmp_path):
-    import app.services.storage.local as local_module
-
     service = LocalStorageService()
     service.base_path = str(tmp_path)
     payload = b"ged-patterns" * 100
@@ -483,11 +514,17 @@ def test_tesseract_engine_patterns(monkeypatch):
     marker = object()
     delegated = OCRResult("delegated", 1.0, engine.name, 9, 1, 0.01)
     monkeypatch.setattr(module.Image, "open", lambda _path: marker)
-    monkeypatch.setattr(engine, "extract_from_pil_image", lambda image: delegated if image is marker else None)
+    monkeypatch.setattr(
+        engine,
+        "extract_from_pil_image",
+        lambda image: delegated if image is marker else None,
+    )
     assert engine.extract_from_image("scan.png") is delegated
 
     engine = TesseractOCREngine(["fra"])
-    monkeypatch.setattr(module.pytesseract, "image_to_string", lambda *args, **kwargs: "Bonjour monde")
+    monkeypatch.setattr(
+        module.pytesseract, "image_to_string", lambda *args, **kwargs: "Bonjour monde"
+    )
     monkeypatch.setattr(
         module.pytesseract,
         "image_to_data",
@@ -500,7 +537,9 @@ def test_tesseract_engine_patterns(monkeypatch):
     assert result.char_count == len("Bonjour monde")
     assert result.is_reliable and not result.needs_review
 
-    monkeypatch.setattr(module.pytesseract, "image_to_data", lambda *args, **kwargs: {"conf": ["-1"]})
+    monkeypatch.setattr(
+        module.pytesseract, "image_to_data", lambda *args, **kwargs: {"conf": ["-1"]}
+    )
     zero_conf = engine.extract_from_pil_image(object())
     assert zero_conf.confidence == 0.0 and zero_conf.needs_review
 
@@ -518,30 +557,46 @@ async def test_dashboard_facade_patterns():
     tenant_db = QueueDB(
         scalar_values=[4],
         results=[
-            FakeResult(first=SimpleNamespace(total_docs=3, total_storage_bytes=2 * 1024 * 1024)),
+            FakeResult(
+                first=SimpleNamespace(total_docs=3, total_storage_bytes=2 * 1024 * 1024)
+            ),
             FakeResult(first=SimpleNamespace(pending=2, completed=5, rejected=1)),
         ],
     )
-    tenant_metrics = await DashboardFacade(tenant_db).get_tenant_metrics(str(uuid.uuid4()))
+    tenant_metrics = await DashboardFacade(tenant_db).get_tenant_metrics(
+        str(uuid.uuid4())
+    )
     assert tenant_metrics["users"]["total"] == 4
     assert tenant_metrics["documents"]["storage_used_mb"] == 2.0
     assert tenant_metrics["workflows"] == {"pending": 2, "completed": 5, "rejected": 1}
 
     manager_db = QueueDB(
         results=[
-            FakeResult(first=SimpleNamespace(total_docs=6, total_storage_bytes=1024 * 1024, needs_review=2)),
+            FakeResult(
+                first=SimpleNamespace(
+                    total_docs=6, total_storage_bytes=1024 * 1024, needs_review=2
+                )
+            ),
             FakeResult(first=SimpleNamespace(active_workflows=3)),
         ]
     )
     manager = await DashboardFacade(manager_db).get_manager_metrics(
         str(uuid.uuid4()), str(uuid.uuid4())
     )
-    assert manager["documents"] == {"total": 6, "storage_used_mb": 1.0, "needs_review": 2}
+    assert manager["documents"] == {
+        "total": 6,
+        "storage_used_mb": 1.0,
+        "needs_review": 2,
+    }
     assert manager["active_workflows"] == 3
 
     platform_db = QueueDB(
         scalar_values=[2, 10],
-        results=[FakeResult(first=SimpleNamespace(total_docs=20, total_storage_bytes=2 * 1024**3))],
+        results=[
+            FakeResult(
+                first=SimpleNamespace(total_docs=20, total_storage_bytes=2 * 1024**3)
+            )
+        ],
     )
     platform = await DashboardFacade(platform_db).get_platform_metrics()
     assert platform["tenants"]["total"] == 2
@@ -628,8 +683,12 @@ async def test_auth_service_patterns(monkeypatch):
         }
     )
     monkeypatch.setattr(module, "get_redis", AsyncMock(return_value=verify_redis))
-    monkeypatch.setattr(module, "create_access_token", lambda data: "access-" + data["sub"])
-    monkeypatch.setattr(module, "create_refresh_token", lambda data: "refresh-" + data["sub"])
+    monkeypatch.setattr(
+        module, "create_access_token", lambda data: "access-" + data["sub"]
+    )
+    monkeypatch.setattr(
+        module, "create_refresh_token", lambda data: "refresh-" + data["sub"]
+    )
     verify_db = QueueDB(results=[FakeResult(scalar=user), FakeResult(scalar=role)])
     verified = await service.verify_otp(verify_db, "session-token", "123456")
     assert verified["access_token"].startswith("access-")
@@ -660,9 +719,7 @@ async def test_auth_service_patterns(monkeypatch):
         module,
         "get_redis",
         AsyncMock(
-            return_value=FakeRedis(
-                {"otp:s": "111111", "session:s": str(user.id)}
-            )
+            return_value=FakeRedis({"otp:s": "111111", "session:s": str(user.id)})
         ),
     )
     with pytest.raises(NotFoundError):
@@ -788,7 +845,9 @@ async def test_workflow_service_patterns(monkeypatch):
         },
     )
 
-    final_step = SimpleNamespace(**{**step.__dict__, "status": "current", "completed_at": None})
+    final_step = SimpleNamespace(
+        **{**step.__dict__, "status": "current", "completed_at": None}
+    )
     final_doc = SimpleNamespace(**{**document.__dict__, "status": "in_review"})
     final_db = QueueDB(
         results=[
@@ -802,7 +861,9 @@ async def test_workflow_service_patterns(monkeypatch):
     )
     assert final_doc.status == "validated"
 
-    returned_step = SimpleNamespace(**{**step.__dict__, "status": "current", "completed_at": None})
+    returned_step = SimpleNamespace(
+        **{**step.__dict__, "status": "current", "completed_at": None}
+    )
     returned_doc = SimpleNamespace(**{**document.__dict__, "status": "in_review"})
     pending = SimpleNamespace(status="pending")
     returned_action = action.model_copy(update={"outcome": OutcomeType.returned})
@@ -823,7 +884,9 @@ async def test_workflow_service_patterns(monkeypatch):
     assert returned_doc.status == "returned"
     assert pending.status == "cancelled"
 
-    rejected_step = SimpleNamespace(**{**step.__dict__, "status": "current", "completed_at": None})
+    rejected_step = SimpleNamespace(
+        **{**step.__dict__, "status": "current", "completed_at": None}
+    )
     rejected_doc = SimpleNamespace(**{**document.__dict__, "status": "in_review"})
     rejected_pending = SimpleNamespace(status="pending")
     rejected_action = action.model_copy(update={"outcome": OutcomeType.rejected})
@@ -926,7 +989,9 @@ async def test_classification_review_document_resolution_pattern(monkeypatch):
     service._rename_document_file = lambda **_kwargs: ("old.pdf", "renamed.pdf")
     service._build_review_audit_log = lambda **_kwargs: SimpleNamespace()
     service._has_workflow_steps = AsyncMock(return_value=False)
-    service._build_dispatch_payload = lambda _document: {"document_id": str(_document.id)}
+    service._build_dispatch_payload = lambda _document: {
+        "document_id": str(_document.id)
+    }
 
     outcome = await service._resolve_document_review(
         review=review,
@@ -946,7 +1011,9 @@ async def test_classification_review_document_resolution_pattern(monkeypatch):
     assert review.review_status == "resolved"
     assert service.db.flushes == 1
 
-    bad_document = SimpleNamespace(**{**document.__dict__, "classification_status": "classified"})
+    bad_document = SimpleNamespace(
+        **{**document.__dict__, "classification_status": "classified"}
+    )
     service._get_document_for_review = AsyncMock(return_value=bad_document)
     with pytest.raises(Exception) as not_reviewable:
         await service._resolve_document_review(
@@ -977,3 +1044,14 @@ async def test_classification_review_document_resolution_pattern(monkeypatch):
             target_user=None,
         )
     assert getattr(no_path.value, "status_code", None) == 400
+
+
+async def test_space_path_builder_user_name_runs_on_real_database(db_session, db_seed):
+    # Regression: User.full_name was a plain @property, so select(User.full_name)
+    # raised ArgumentError on every non-cached lookup.
+    builder = SpacePathBuilder(db_session)
+
+    name = await builder._user_name(db_seed["user_id"], db_seed["tenant_id"])
+
+    assert name == "Test User"
+    assert await builder._user_name(uuid.uuid4(), db_seed["tenant_id"]) is None
