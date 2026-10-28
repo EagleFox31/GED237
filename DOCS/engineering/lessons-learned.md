@@ -76,3 +76,101 @@ première requête utilisateur.
 **Résolution** — À faire : lot A de `AUDIT.md`.
 **Prévention** — Ajouter au DoD : travail poussé sur une branche distante ; test CI « une seule tête Alembic » (`alembic heads` = 1 ligne).
 **Leçon généralisée** — Un travail non poussé n'existe pas pour la CI ni pour les autres agents.
+
+### LESSON-2026-003 — Churn de fins de ligne (CRLF/autocrlf) dans les diffs
+
+- **Date :** 2026-10-28
+- **Catégorie :** process
+- **Statut :** captured
+- **Liens :** commit `chore: normalize line endings to LF…` (lot A)
+
+**Contexte** — Consolidation de deux mois de travail fait sous Windows.
+**Échec / near miss** — Des fichiers entiers apparaissaient modifiés (CRLF ↔ LF), masquant les vrais changements et rendant la revue impossible.
+**Cause racine** — `core.autocrlf` variable selon les postes, pas de normalisation imposée par le dépôt.
+**Résolution** — Commit dédié de normalisation LF, isolé des commits fonctionnels.
+**Prévention** — À faire : `.gitattributes` (`* text=auto eol=lf`) suivi d'un commit `git add --renormalize` isolé. En attendant : un commit de normalisation est toujours séparé.
+**Leçon généralisée** — Les conventions de fins de ligne appartiennent au dépôt, pas au poste.
+
+### LESSON-2026-004 — Propriété Python non requêtable (`select(User.full_name)`)
+
+- **Date :** 2026-10-28
+- **Catégorie :** data
+- **Statut :** prevention-added
+- **Liens :** PR #1, commit 901d312
+
+**Contexte** — Endpoint sélectionnant `User.full_name` en SQL.
+**Échec / near miss** — `@property` Python : l'expression SQL plantait à l'exécution.
+**Cause racine** — Tests avec utilisateurs mockés (`MagicMock`) qui n'exécutent jamais la requête réelle.
+**Résolution** — `hybrid_property` avec expression SQL ; test sur base réelle.
+**Prévention** — Test DB réel couvrant la requête.
+**Leçon généralisée** — Un attribut utilisé dans `select()` doit être testé contre PostgreSQL, pas contre un mock.
+
+### LESSON-2026-005 — Mock laissé sur une instance partagée
+
+- **Date :** 2026-10-28
+- **Catégorie :** testing
+- **Statut :** prevention-added
+- **Liens :** PR #1, commit 901d312
+
+**Contexte** — Test du moteur de règles.
+**Échec / near miss** — `engine._resolve_target = AsyncMock(...)` restait en place pour les assertions suivantes ; le test validait le mock, pas le code.
+**Cause racine** — Patch manuel d'attribut d'instance sans restauration.
+**Résolution** — `del engine._resolve_target` ; privilégier `monkeypatch.setattr` (restauré automatiquement).
+**Prévention** — Revue : pas d'affectation directe de mock sur une instance hors `monkeypatch`.
+**Leçon généralisée** — Tout patch doit avoir une portée bornée et un retour automatique à l'état initial.
+
+### LESSON-2026-006 — Dérive index modèle ↔ migration et deux têtes Alembic
+
+- **Date :** 2026-10-28
+- **Catégorie :** data
+- **Statut :** prevention-added
+- **Liens :** commit `chore(db): merge runtime-hardening…` (révision `e1f2a3b4c5d6`)
+
+**Contexte** — Rebase de la consolidation sur la PR #1.
+**Échec / near miss** — Deux têtes Alembic ; `alembic check` signalait des index déclarés différemment dans les modèles `local_organize_event` / `user_local_arrangement_snapshot` et dans leurs migrations. `pytest` utilise `create_all` et ne voit pas cet écart.
+**Cause racine** — Migrations écrites à la main sans `alembic check` ; tests qui ne passent pas par les migrations.
+**Résolution** — Révision de fusion (pas de re-chaînage : sûr pour les bases déjà migrées sur l'une ou l'autre branche) ; index des modèles alignés.
+**Prévention** — Vérifié : base vierge → `upgrade head`, rejeu no-op, `alembic check` propre, bases à chaque ancienne tête → `head`. À automatiser en CI (`alembic heads` = 1, `alembic check`).
+**Leçon généralisée** — Les tests ORM ne prouvent pas les migrations ; les tester séparément.
+
+### LESSON-2026-007 — `model_dump(mode="json")` sur des colonnes FK
+
+- **Date :** 2026-10-28
+- **Catégorie :** data
+- **Statut :** prevention-added
+- **Liens :** commit `fix(classification): keep FK columns typed…`
+
+**Contexte** — Persistance des règles de classification multi-filtres (listes JSONB).
+**Échec / near miss** — `mode="json"` transformait aussi les UUID des FK en chaînes : `domain_name` / `activity_name` cassés à la création.
+**Cause racine** — Sérialisation globale appliquée pour le seul besoin des colonnes JSONB.
+**Résolution** — Helper `_rule_column_values` : seules les listes JSONB sont converties.
+**Prévention** — Test moteur sur `_evaluate_rule(...).matched` ; CRUD classification couvert.
+**Leçon généralisée** — Sérialiser au plus près du besoin (colonne), pas tout le payload.
+
+### LESSON-2026-008 — Hooks pre-commit jamais exécutés, seuil de couverture jamais évalué
+
+- **Date :** 2026-10-28
+- **Catégorie :** ci-cd
+- **Statut :** captured
+- **Liens :** PR #1, lot A, `AUDIT.md` lot B item 8
+
+**Contexte** — Premiers commits avec pre-commit réellement installé ; première CI verte depuis des mois.
+**Échec / near miss** — ruff/bandit remontent une dette existante sur tout `app/` (commits faits avec `SKIP=ruff,ruff-format,bandit`) ; le gate `--cov-fail-under=70` n'avait jamais été atteint car la CI cassait avant (consolidation à 67,6 %, rattrapée par des tests API reports/usage).
+**Cause racine** — Garde-fous déclarés mais jamais exercés ; une CI rouge masque tous les gates en aval.
+**Résolution** — Tests ciblés pour repasser le seuil ; dette lint isolée au lot B.
+**Prévention** — Lot B item 8 : baseline ruff/bandit puis hooks bloquants ; ne jamais laisser `main` rouge.
+**Leçon généralisée** — Un garde-fou qui n'a jamais échoué ni réussi n'est pas un garde-fou.
+
+### LESSON-2026-009 — Wheels CUDA de PyTorch en CI
+
+- **Date :** 2026-10-28
+- **Catégorie :** ci-cd
+- **Statut :** prevention-added
+- **Liens :** PR #1, commit 7d9574f
+
+**Contexte** — Job backend installant `requirements.txt` (EasyOCR → torch).
+**Échec / near miss** — pip tirait les wheels CUDA (triton ~253 Mo…) : disque runner saturé / téléchargements en échec.
+**Cause racine** — Index PyPI par défaut ; versions torch non contraintes à la variante CPU.
+**Résolution** — Installation préalable de torch CPU (`download.pytorch.org/whl/cpu`), versions lues dans `requirements.txt`.
+**Prévention** — Étape CI dédiée ; même règle pour l'image Docker backend.
+**Leçon généralisée** — Les dépendances lourdes à variantes matérielles doivent être épinglées sur la variante voulue.
