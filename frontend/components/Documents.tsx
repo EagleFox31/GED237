@@ -1,5 +1,6 @@
 // frontend/components/Documents.tsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import DocumentDetailModal from './DocumentDetailModal';
 import UploadDocumentModal from './UploadDocumentModal';
@@ -16,7 +17,15 @@ const Documents: React.FC = () => {
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
+  const setSearchQuery = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next) nextParams.set('q', next);
+    else nextParams.delete('q');
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
@@ -86,20 +95,23 @@ const Documents: React.FC = () => {
           </button>
         </div>
 
-        {/* Barre de Recherche & Filtres */}
+        {/* Barre de filtres — la recherche par texte vit dans la navbar globale (?q=). */}
         <div className="glass p-4 rounded-[2rem] border-white flex flex-wrap items-center gap-4">
-          <div className="flex-1 relative min-w-[300px]">
-            <span className="absolute inset-y-0 left-5 flex items-center text-slate-400">
-              <span className="material-symbols-outlined text-xl">search</span>
-            </span>
-            <input
-              type="text"
-              placeholder="Rechercher par nom, métadonnées ou contenu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-14 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold placeholder:text-slate-300 focus:ring-8 focus:ring-blue-500/5 transition-all outline-none"
-            />
-          </div>
+          {searchQuery && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl border border-blue-100 bg-blue-50/50">
+              <span className="material-symbols-outlined text-base text-rdpc-blue">search</span>
+              <p className="text-xs text-slate-600 italic">
+                <span className="font-bold not-italic text-slate-800">« {searchQuery} »</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rdpc-blue"
+              >
+                Effacer
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-hide">
             <select

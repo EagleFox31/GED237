@@ -1,11 +1,20 @@
 // frontend/profiles/tenant-admin/pages/PendingAssignmentsInbox.tsx
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../../services/api';
 
 const PendingAssignmentsInbox: React.FC = () => {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get('q') || '';
+  const setSearch = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next) nextParams.set('q', next);
+    else nextParams.delete('q');
+    setSearchParams(nextParams, { replace: true });
+  };
   const [users, setUsers] = useState<any[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<any | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
@@ -74,15 +83,22 @@ const PendingAssignmentsInbox: React.FC = () => {
       </div>
 
       <div className="flex gap-4 mb-8">
-        <div className="relative flex-1">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-          <input
-            type="text"
-            placeholder="Rechercher par document ou étape..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white border-2 border-slate-200 rounded-3xl py-4 pl-12 pr-6 text-slate-700 font-medium italic focus:outline-none focus:border-rdpc-blue transition-colors"
-          />
+        <div className="flex-1">
+          {search && (
+            <div className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-blue-100 bg-blue-50/50">
+              <span className="material-symbols-outlined text-base text-rdpc-blue">search</span>
+              <p className="text-xs text-slate-600 italic">
+                <span className="font-bold not-italic text-slate-800">« {search} »</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rdpc-blue"
+              >
+                Effacer
+              </button>
+            </div>
+          )}
         </div>
         <button onClick={fetchAssignments} className="bg-white border-2 border-slate-200 text-slate-700 w-14 rounded-3xl flex items-center justify-center hover:border-rdpc-blue hover:text-rdpc-blue transition-colors">
           <span className="material-symbols-outlined">refresh</span>
