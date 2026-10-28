@@ -606,8 +606,7 @@ const LocalLibraryPage: React.FC = () => {
                   run={serverRun}
                   expanded={expandedRunId === serverRun.id}
                   onToggle={() =>
-                    setExpandedRunId((prev) => (prev === serverRun.id ? null : serverRun.id))
-                  }
+                    setExpandedRunId((prev) => (prev === serverRun.id ? null : serverRun.id))}
                   onDelete={() => setConfirmation({ kind: 'clear-server' })}
                   onRelaunch={() =>
                     navigate('/ingestion', {
@@ -622,8 +621,7 @@ const LocalLibraryPage: React.FC = () => {
                           })),
                         },
                       },
-                    })
-                  }
+                    })}
                   storageHint="Compte"
                 />
               </section>
@@ -646,8 +644,7 @@ const LocalLibraryPage: React.FC = () => {
                           kind: 'delete-run',
                           runId: run.id,
                           runLabel: run.destination || formatDate(run.created_at),
-                        })
-                      }
+                        })}
                       onRelaunch={() =>
                         navigate('/ingestion', {
                           state: {
@@ -661,8 +658,7 @@ const LocalLibraryPage: React.FC = () => {
                               })),
                             },
                           },
-                        })
-                      }
+                        })}
                     />
                   ))}
                 </div>

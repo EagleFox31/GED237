@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, type SpaceTreeNode } from '../services/api';
 import { SimulationTracePanel } from './classification/SimulationTracePanel';
-import type { Document } from '../types';
+import type { Document, ClassificationSimulationResponse } from '../types';
 import { getFileTypeLabel, formatFileSize, formatDate } from '../types';
 import { DocumentPreview } from './preview';
-import type { ClassificationSimulationResponse } from '../types';
+
 
 interface ClassificationDomainOption {
   id: string;
@@ -396,8 +396,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
                             ...suggestionBanner,
                             applied: false,
                             reason: 'Suggestion conservée comme base. Vous pouvez modifier les champs ci-dessous.',
-                          })
-                        }
+                          })}
                         className="rounded-xl bg-white px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-100"
                       >
                         Modifier les champs

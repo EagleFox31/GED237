@@ -395,6 +395,10 @@ export const ReportsWorkflowPanel: React.FC<ReportsWorkflowPanelProps> = ({
   error = null,
 }) => {
   const [selectedKpiId, setSelectedKpiId] = useState<WorkflowKpiId | null>(null);
+  const selectedKpi = useMemo(
+    () => kpis.find((kpi) => kpi.id === selectedKpiId) ?? null,
+    [kpis, selectedKpiId],
+  );
 
   if (loading) {
     return (
@@ -418,10 +422,6 @@ export const ReportsWorkflowPanel: React.FC<ReportsWorkflowPanelProps> = ({
   const hasByStep = (activity?.by_step?.length ?? 0) > 0;
   const hasPendingActions = (activity?.pending_actions?.length ?? 0) > 0;
   const hasSlowestSteps = (activity?.slowest_steps?.length ?? 0) > 0;
-  const selectedKpi = useMemo(
-    () => kpis.find((kpi) => kpi.id === selectedKpiId) ?? null,
-    [kpis, selectedKpiId],
-  );
 
   return (
     <>

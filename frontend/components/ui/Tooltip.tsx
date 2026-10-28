@@ -27,7 +27,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   className = '',
 }) => {
   if (!content) {
-    return <>{children}</>;
+    return children;
   }
 
   return (

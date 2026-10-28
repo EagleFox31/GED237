@@ -765,8 +765,7 @@ const SpacesPage: React.FC = () => {
             event.stopPropagation();
           }}
         >
-          <>
-              <button
+          <button
                 type="button"
                 onClick={() => openPreview(contextMenu.document)}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
@@ -794,7 +793,6 @@ const SpacesPage: React.FC = () => {
                 <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
               </button>
-          </>
         </div>
       )}
 
