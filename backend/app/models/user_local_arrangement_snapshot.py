@@ -12,7 +12,7 @@ choix produit assume cet échange volontaire contre la synchronisation du
 catalogue « bibliothécaire ».
 """
 
-from sqlalchemy import Column, ForeignKey, TIMESTAMP
+from sqlalchemy import Column, ForeignKey, Index, TIMESTAMP
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
@@ -29,10 +29,15 @@ class UserLocalArrangementSnapshot(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    tenant_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    tenant_id = Column(UUID(as_uuid=True), nullable=False)
 
     payload = Column(JSONB, nullable=False)
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Same index as migration d4e5f6a7b8c9 (alembic check must stay clean).
+    __table_args__ = (
+        Index("idx_ul_snapshots_tenant_updated", "tenant_id", "updated_at"),
+    )
 
     def __repr__(self) -> str:
         return f"<UserLocalArrangementSnapshot(user={self.user_id})>"

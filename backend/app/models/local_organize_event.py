@@ -7,7 +7,7 @@ respecte la promesse du mode local (« rien ne sort de votre poste »)
 tout en permettant à l'admin tenant de mesurer l'usage de la
 fonctionnalité dans /reports.
 """
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, TIMESTAMP
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, TIMESTAMP, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -40,8 +40,9 @@ class LocalOrganizeEvent(Base, UUIDMixin):
         Index(
             "idx_local_org_tenant_created",
             "tenant_id",
-            "created_at",
-            postgresql_ops={"created_at": "DESC"},
+            # Ordering is part of the index expression (as in migration
+            # c9e8d7a4b210); postgresql_ops only sets operator classes.
+            text("created_at DESC"),
         ),
     )
 
