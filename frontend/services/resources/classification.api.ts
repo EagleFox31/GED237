@@ -38,6 +38,10 @@ export interface ClassificationRulePayload {
     source_org_unit_id?: string | null;
     source_user_id?: string | null;
     document_category_id?: string | null;
+    document_category_ids?: string[] | null;
+    source_org_unit_ids?: string[] | null;
+    source_org_unit_excluded_ids?: string[] | null;
+    source_user_ids?: string[] | null;
     filename_pattern?: string | null;
     mime_type_pattern?: string | null;
     target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';

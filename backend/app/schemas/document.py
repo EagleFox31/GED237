@@ -29,6 +29,13 @@ class DocumentUpdate(BaseModel):
     document_category_id: Optional[UUID] = None
     tags: Optional[List[str]] = None
     status: Optional[DocumentStatus] = None
+    classification_domain_id: Optional[UUID] = None
+    classification_activity_id: Optional[UUID] = None
+    classification_year: Optional[int] = None
+    classification_scope: Optional[ClassificationScope] = None
+    classification_target_org_unit_id: Optional[UUID] = None
+    classification_target_user_id: Optional[UUID] = None
+    classification_status: Optional[ClassificationStatus] = None
 
 
 class DocumentRead(DocumentBase):

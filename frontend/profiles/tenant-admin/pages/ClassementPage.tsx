@@ -3,7 +3,7 @@ import React from 'react';
 import ClassificationSettingsTab from './gedrules/ClassificationSettingsTab';
 
 const ClassementPage: React.FC = () => (
-  <div className="p-8 pb-32 flex flex-col h-full animate-in fade-in duration-500">
+  <div className="p-8 pb-8 flex flex-col h-full min-h-0 animate-in fade-in duration-500">
     <div className="flex justify-between items-center mb-8 shrink-0">
       <div>
         <h1 className="text-4xl font-black text-slate-800 tracking-tighter uppercase italic flex items-center gap-3">

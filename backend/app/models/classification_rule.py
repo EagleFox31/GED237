@@ -8,7 +8,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -55,6 +55,13 @@ class ClassificationRule(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         index=True,
     )
+    # Multi-sélection (sémantique OU). Si non vide, prime sur le single FK.
+    # Pas de FK : permet la conservation des règles si une cible est supprimée
+    # (les IDs orphelins sont simplement ignorés au matching).
+    document_category_ids = Column(JSONB, nullable=True)
+    source_org_unit_ids = Column(JSONB, nullable=True)
+    source_org_unit_excluded_ids = Column(JSONB, nullable=True)
+    source_user_ids = Column(JSONB, nullable=True)
     filename_pattern = Column(String(255))
     mime_type_pattern = Column(String(100))
     target_scope = Column(String(30), nullable=False)

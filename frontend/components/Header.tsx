@@ -1,10 +1,61 @@
 // frontend/components/Header.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../stores/authStore';
+
+/**
+ * Configuration de la barre de recherche par route.
+ *
+ * - `mode: 'global'` (défaut) → comportement historique : debounce 500ms,
+ *   appel à `api.searchDocuments`, dropdown de résultats.
+ * - `mode: 'page-local'` → la barre devient le **filtre principal de la page
+ *   courante**. Aucune requête HTTP. La valeur saisie est écrite dans le
+ *   query param `?q=` ; la page lit ce param via `useSearchParams` et
+ *   filtre sa propre liste.
+ *
+ * Pattern Slack/GitHub/Notion : la search globale s'adapte au contexte de
+ * la page, évitant la duplication d'un champ de recherche sur chaque écran.
+ */
+type SearchMode = 'global' | 'page-local';
+interface RouteSearchConfig {
+  mode: SearchMode;
+  placeholder: string;
+}
+const ROUTE_SEARCH_CONFIG: Record<string, RouteSearchConfig> = {
+  '/users': {
+    mode: 'page-local',
+    placeholder: 'Rechercher un agent (nom, matricule, email)…',
+  },
+  '/spaces': {
+    mode: 'page-local',
+    placeholder: 'Rechercher un document, un chemin…',
+  },
+  '/documents': {
+    mode: 'page-local',
+    placeholder: 'Rechercher par nom, métadonnées ou contenu…',
+  },
+  '/pending-assignments': {
+    mode: 'page-local',
+    placeholder: 'Rechercher par document ou étape…',
+  },
+};
+const DEFAULT_SEARCH_CONFIG: RouteSearchConfig = {
+  mode: 'global',
+  placeholder: 'Rechercher avec le Moteur Avancé (Documents, Intérieur OCR)…',
+};
+
+const resolveSearchConfig = (pathname: string): RouteSearchConfig => {
+  // Longest-prefix match pour gérer /users/123 si on l'ajoute plus tard.
+  const matches = Object.keys(ROUTE_SEARCH_CONFIG)
+    .filter((r) => pathname === r || pathname.startsWith(r + '/'))
+    .sort((a, b) => b.length - a.length);
+  const match = matches[0];
+  if (!match) return DEFAULT_SEARCH_CONFIG;
+  return ROUTE_SEARCH_CONFIG[match] ?? DEFAULT_SEARCH_CONFIG;
+};
 
 interface HeaderProps {
   userProfile?: any;
@@ -15,7 +66,29 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onTabChange, onOpenSettings }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchConfig = resolveSearchConfig(location.pathname);
+  const isPageLocalSearch = searchConfig.mode === 'page-local';
+
+  // En mode "global" : state local + appels API. En mode "page-local" :
+  // la valeur est portée par l'URL (?q=...) → pas de duplication de state.
+  const urlQuery = searchParams.get('q') || '';
+  const [globalQuery, setGlobalQuery] = useState('');
+  const searchQuery = isPageLocalSearch ? urlQuery : globalQuery;
+  const setSearchQuery = (next: string) => {
+    if (isPageLocalSearch) {
+      // `replace: true` pour ne pas polluer l'historique du navigateur à
+      // chaque frappe — on garde une seule entrée pour la session de filtrage.
+      const nextParams = new URLSearchParams(searchParams);
+      if (next) nextParams.set('q', next);
+      else nextParams.delete('q');
+      setSearchParams(nextParams, { replace: true });
+    } else {
+      setGlobalQuery(next);
+    }
+  };
+
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -24,6 +97,16 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const userMenuRef = useRef<HTMLDivElement>(null);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+
+  // Au changement de route, on nettoie l'état UI hérité (dropdown global) :
+  // pas de sens d'afficher des résultats /spaces quand on arrive sur /users.
+  useEffect(() => {
+    setShowResults(false);
+    setSearchResults([]);
+    if (isPageLocalSearch) {
+      setGlobalQuery('');
+    }
+  }, [location.pathname, isPageLocalSearch]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -55,6 +138,9 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   }, []);
 
   useEffect(() => {
+    // En mode "page-local", la frappe pilote le filtre via `?q=` ; pas
+    // d'appel API global à déclencher.
+    if (isPageLocalSearch) return;
     const delayDebounceFn = setTimeout(async () => {
       if (searchQuery.length >= 2) {
         setIsSearching(true);
@@ -75,7 +161,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+  }, [searchQuery, isPageLocalSearch]);
 
   const getMenuItems = () => {
     if (userProfile?.id === 'tenant') {
@@ -120,13 +206,16 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => { if (searchQuery.length >= 2) setShowResults(true); }}
-                placeholder="Rechercher avec le Moteur Avancé (Documents, Intérieur OCR)..."
+                onFocus={() => {
+                  if (!isPageLocalSearch && searchQuery.length >= 2) setShowResults(true);
+                }}
+                placeholder={searchConfig.placeholder}
+                aria-label={searchConfig.placeholder}
                 className="block w-full pl-12 pr-4 py-2.5 bg-slate-100/50 border border-transparent rounded-2xl focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-200 transition-all outline-none text-[13px] font-medium"
               />
             </div>
-            {/* Search Results Dropdown */}
-            {showResults && (
+            {/* Search Results Dropdown — uniquement en mode global */}
+            {!isPageLocalSearch && showResults && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                 {searchResults.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">

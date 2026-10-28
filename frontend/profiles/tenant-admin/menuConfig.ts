@@ -25,7 +25,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
     section: "Mon Organisation",
     items: [
       { id: 'org', label: 'Structure hiérarchique', icon: 'corporate_fare', subItems: ['Organigramme', 'Annuaire des services'] },
-      { id: 'spaces', label: 'Espaces Documentaires', icon: 'folder_managed', subItems: ['Fichiers par service', 'Archives'] },
+      { id: 'spaces', label: 'Explorateur documentaire', icon: 'folder_managed', subItems: ['Par service', 'Archives'] },
       { id: 'users', label: 'Agents & Rôles', icon: 'group', subItems: ['Liste des agents', 'Rôles & permissions', 'Groupes'] },
     ]
   },
@@ -35,6 +35,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
       { id: 'ged_rules', label: 'Traitement des documents', icon: 'directions', subItems: ['Types de documents', 'Circuits de validation', "Règles d'aiguillage", 'Simulateur'] },
       { id: 'classement', label: 'Plan de classement', icon: 'account_tree', subItems: ['Domaines métier', 'Activités', 'Règles de classement', 'Simulateur'] },
       { id: 'ingestion', label: 'Import en masse', icon: 'drive_folder_upload', subItems: ['Scanner un dossier', 'Classement automatique'] },
+      { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library', subItems: ['Recherche', 'Historique des rangements'] },
     ]
   },
   {

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -82,6 +82,11 @@ class ClassificationRuleBase(BaseModel):
     source_org_unit_id: Optional[UUID] = None
     source_user_id: Optional[UUID] = None
     document_category_id: Optional[UUID] = None
+    # Multi-select OR. Liste non vide → prime sur le single FK ci-dessus.
+    document_category_ids: Optional[List[UUID]] = None
+    source_org_unit_ids: Optional[List[UUID]] = None
+    source_org_unit_excluded_ids: Optional[List[UUID]] = None
+    source_user_ids: Optional[List[UUID]] = None
     filename_pattern: Optional[str] = Field(default=None, max_length=255)
     mime_type_pattern: Optional[str] = Field(default=None, max_length=100)
     target_scope: ClassificationTargetScope
@@ -108,6 +113,10 @@ class ClassificationRuleUpdate(BaseModel):
     source_org_unit_id: Optional[UUID] = None
     source_user_id: Optional[UUID] = None
     document_category_id: Optional[UUID] = None
+    document_category_ids: Optional[List[UUID]] = None
+    source_org_unit_ids: Optional[List[UUID]] = None
+    source_org_unit_excluded_ids: Optional[List[UUID]] = None
+    source_user_ids: Optional[List[UUID]] = None
     filename_pattern: Optional[str] = Field(default=None, max_length=255)
     mime_type_pattern: Optional[str] = Field(default=None, max_length=100)
     target_scope: Optional[ClassificationTargetScope] = None

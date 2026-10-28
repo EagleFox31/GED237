@@ -23,6 +23,7 @@ import OrgDashboard from './profiles/tenant-admin/pages/OrgDashboard';
 import OrganizationPage from './profiles/tenant-admin/pages/OrganizationPage';
 import GEDRulesPage from './profiles/tenant-admin/pages/GEDRulesPage';
 import ClassementPage from './profiles/tenant-admin/pages/ClassementPage';
+import UsersPage from './profiles/tenant-admin/pages/UsersPage';
 import ServiceDashboard from './profiles/unit-admin/pages/ServiceDashboard';
 import ValidationHub from './profiles/manager/pages/ValidationHub';
 import DraftWorkspace from './profiles/collaborator/pages/DraftWorkspace';
@@ -33,6 +34,8 @@ import DirectoryIngestion from './profiles/tenant-admin/pages/DirectoryIngestion
 import PendingAssignmentsInbox from './profiles/tenant-admin/pages/PendingAssignmentsInbox';
 import SpacesPage from './profiles/tenant-admin/pages/SpacesPage';
 import ClassificationReviewPage from './profiles/tenant-admin/pages/ClassificationReviewPage';
+import ReportsPage from './profiles/tenant-admin/pages/ReportsPage';
+import LocalLibraryPage from './profiles/tenant-admin/pages/LocalLibraryPage';
 
 // Route → activeTab mapping (pour la compatibilité Sidebar/Header)
 const ROUTE_TO_TAB: Record<string, string> = {
@@ -49,11 +52,14 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/spaces': 'spaces',
   '/rules': 'ged_rules',
   '/classement': 'classement',
+  '/users': 'users',
   '/needs-review': 'needs_review',
   '/classification-reviews': 'needs_review',
   '/pending-assignments': 'pending_assignments',
   '/ingestion': 'ingestion',
+  '/local-library': 'local_library',
   '/audit': 'audit_central',
+  '/reports': 'reports',
 };
 
 const TAB_TO_ROUTE: Record<string, string> = {
@@ -69,10 +75,13 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'spaces': '/spaces',
   'ged_rules': '/rules',
   'classement': '/classement',
+  'users': '/users',
   'needs_review': '/classification-reviews',
   'pending_assignments': '/pending-assignments',
   'ingestion': '/ingestion',
+  'local_library': '/local-library',
   'audit_central': '/audit',
+  'reports': '/reports',
 };
 
 const DEFAULT_ROUTE_BY_PROFILE: Record<string, string> = {
@@ -192,11 +201,14 @@ const AppLayout: React.FC = () => {
             <Route path="/spaces" element={<SpacesPage />} />
             <Route path="/rules" element={<GEDRulesPage />} />
             <Route path="/classement" element={<ClassementPage />} />
+            <Route path="/users" element={<UsersPage />} />
             <Route path="/classification-reviews" element={<ClassificationReviewPage />} />
             <Route path="/needs-review" element={<Navigate to="/classification-reviews" replace />} />
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />
             <Route path="/ingestion" element={<DirectoryIngestion />} />
+            <Route path="/local-library" element={<LocalLibraryPage />} />
             <Route path="/audit" element={<AuditLogs />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

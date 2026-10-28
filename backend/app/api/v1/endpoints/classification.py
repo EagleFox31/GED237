@@ -144,6 +144,64 @@ async def _validate_optional_refs(
         if result.scalar_one_or_none() is None:
             raise HTTPException(status_code=400, detail="Template workflow invalide.")
 
+    # Multi-sélection : valider que tous les IDs appartiennent au tenant.
+    # On filtre les invalides plutôt que de tout rejeter ? Non — au create/update
+    # on est strict (l'admin doit voir l'erreur). Au matching runtime, par
+    # contre, les IDs orphelins sont silencieusement ignorés (cf. moteur).
+    if payload.document_category_ids:
+        result = await db.execute(
+            select(DocumentCategory.id).where(
+                DocumentCategory.id.in_(payload.document_category_ids),
+                DocumentCategory.tenant_id == tenant_id,
+            )
+        )
+        found = {row[0] for row in result.all()}
+        missing = set(payload.document_category_ids) - found
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail="Categorie(s) documentaire(s) invalide(s).",
+            )
+    if payload.source_org_unit_ids:
+        result = await db.execute(
+            select(OrgUnit.id).where(
+                OrgUnit.id.in_(payload.source_org_unit_ids),
+                OrgUnit.tenant_id == tenant_id,
+            )
+        )
+        found = {row[0] for row in result.all()}
+        missing = set(payload.source_org_unit_ids) - found
+        if missing:
+            raise HTTPException(
+                status_code=400, detail="Service(s) source(s) invalide(s)."
+            )
+    if payload.source_org_unit_excluded_ids:
+        result = await db.execute(
+            select(OrgUnit.id).where(
+                OrgUnit.id.in_(payload.source_org_unit_excluded_ids),
+                OrgUnit.tenant_id == tenant_id,
+            )
+        )
+        found = {row[0] for row in result.all()}
+        missing = set(payload.source_org_unit_excluded_ids) - found
+        if missing:
+            raise HTTPException(
+                status_code=400, detail="Exception(s) d'origine invalide(s)."
+            )
+    if payload.source_user_ids:
+        result = await db.execute(
+            select(User.id).where(
+                User.id.in_(payload.source_user_ids),
+                User.tenant_id == tenant_id,
+            )
+        )
+        found = {row[0] for row in result.all()}
+        missing = set(payload.source_user_ids) - found
+        if missing:
+            raise HTTPException(
+                status_code=400, detail="Agent(s) source(s) invalide(s)."
+            )
+
 
 async def _ensure_domain_code_unique(
     db: AsyncSession,
@@ -231,6 +289,8 @@ async def _validate_rule_payload(
     target_user_id = effective("target_user_id")
     year_strategy = effective("year_strategy")
     fixed_year = effective("fixed_year")
+    source_org_unit_ids = effective("source_org_unit_ids") or []
+    source_org_unit_excluded_ids = effective("source_org_unit_excluded_ids") or []
 
     if activity_id and not domain_id:
         raise HTTPException(
@@ -270,6 +330,35 @@ async def _validate_rule_payload(
             status_code=400,
             detail="fixed_year ne peut etre renseigne que si year_strategy vaut 'fixed'.",
         )
+
+    if source_org_unit_excluded_ids and not source_org_unit_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Des exceptions d'origine nécessitent au moins une origine concernée.",
+        )
+
+
+# JSONB columns holding UUID lists: they need str values, unlike UUID FKs.
+_RULE_JSONB_ID_LISTS = (
+    "document_category_ids",
+    "source_org_unit_ids",
+    "source_org_unit_excluded_ids",
+    "source_user_ids",
+)
+
+
+def _rule_column_values(payload, **dump_kwargs) -> dict:
+    """Dump a rule payload into ORM column values.
+
+    Only the JSONB lists are serialized to strings: scalar FKs must stay UUIDs,
+    otherwise relationships (domain, activity...) cannot be resolved on the
+    instance after commit and names such as domain_name come back empty.
+    """
+    values = payload.model_dump(**dump_kwargs)
+    for field in _RULE_JSONB_ID_LISTS:
+        if values.get(field) is not None:
+            values[field] = [str(item) for item in values[field]]
+    return values
 
 
 def _classification_rule_query():
@@ -580,7 +669,7 @@ async def create_classification_rule(
     rule = ClassificationRule(
         tenant_id=current_user.tenant_id,
         code=code,
-        **payload.model_dump(exclude={"code"}),
+        **_rule_column_values(payload, exclude={"code"}),
     )
     db.add(rule)
     await db.commit()
@@ -607,7 +696,7 @@ async def update_classification_rule(
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(status_code=404, detail="Regle de classement introuvable.")
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = _rule_column_values(payload, exclude_unset=True)
     if "code" in update_data and update_data["code"]:
         update_data["code"] = _normalize_code(update_data["code"])
         await _ensure_rule_code_unique(
@@ -675,6 +764,9 @@ async def simulate_classification(
     )
 
     return ClassificationSimulationResponse(
+        # Pydantic v2 ne déballe pas automatiquement un Enum (même str-subclass)
+        # vers sa valeur quand le champ est déclaré en Literal[...] → on passe
+        # explicitement .value pour éviter une 422 sur la sérialisation.
         status=resolution.status.value,
         rule_id=resolution.rule.id if resolution.rule else None,
         rule_code=resolution.rule.code if resolution.rule else None,
@@ -706,4 +798,51 @@ async def simulate_classification(
             resolution.activity.name if resolution.activity else None
         ),
         classification_year=resolution.classification_year,
+        diagnostics=[
+            {
+                "rule_id": diagnostic.rule.id,
+                "rule_code": diagnostic.rule.code,
+                "rule_name": diagnostic.rule.name,
+                "rule_priority": diagnostic.rule.priority,
+                "matched": diagnostic.matched,
+                "checks": [
+                    {
+                        "key": check.key,
+                        "label": check.label,
+                        "passed": check.passed,
+                        "detail": check.detail,
+                    }
+                    for check in diagnostic.checks
+                ],
+            }
+            for diagnostic in resolution.diagnostics
+        ],
+        stages=[
+            {
+                "key": stage.key,
+                "label": stage.label,
+                "summary": stage.summary,
+                "remaining_rules": [
+                    {
+                        "rule_id": item.rule.id,
+                        "rule_code": item.rule.code,
+                        "rule_name": item.rule.name,
+                        "rule_priority": item.rule.priority,
+                        "detail": item.detail,
+                    }
+                    for item in stage.remaining_rules
+                ],
+                "removed_rules": [
+                    {
+                        "rule_id": item.rule.id,
+                        "rule_code": item.rule.code,
+                        "rule_name": item.rule.name,
+                        "rule_priority": item.rule.priority,
+                        "detail": item.detail,
+                    }
+                    for item in stage.removed_rules
+                ],
+            }
+            for stage in resolution.stages
+        ],
     )

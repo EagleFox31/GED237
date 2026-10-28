@@ -164,7 +164,7 @@ test.describe('Feature: Espaces documentaires metier', () => {
   test('Given classified documents, When user opens spaces, Then logical path and filters expose the business view', async ({ page }) => {
     await page.goto('spaces');
 
-    await expect(page.getByRole('heading', { name: /vue documentaire metier/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /explorateur documentaire/i })).toBeVisible();
     await expect(page.getByText('Direction des infrastructures / Marches / Reparation / 2026')).toBeVisible();
     await expect(page.getByText('Service des marches', { exact: true }).last()).toBeVisible();
 

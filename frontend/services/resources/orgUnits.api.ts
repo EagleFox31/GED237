@@ -28,21 +28,23 @@ export const orgUnitsApi = {
         ),
 
     getOrgUnits: (): Promise<any[]> =>
-        apiCall<any[]>('/org-units', {}, 'Récupération des services impossible'),
+        // Trailing slash → évite le 307 redirect FastAPI sur les routes
+        // déclarées avec `/` final (cf. users.api.ts).
+        apiCall<any[]>('/org-units/', {}, 'Récupération des services impossible'),
 
     getOrgUnitTypes: (): Promise<OrgUnitType[]> =>
         apiCall<OrgUnitType[]>('/org-units/types', {}, 'Récupération des types d\'unité impossible'),
 
     getOrgUnitsForTenant: (tenantId: string): Promise<any[]> =>
         apiCall<any[]>(
-            `/org-units?tenant_id=${tenantId}`,
+            `/org-units/?tenant_id=${tenantId}`,
             {},
             'Récupération des unités pour ce tenant impossible',
         ),
 
     createOrgUnit: (data: any): Promise<any> =>
         apiCall<any>(
-            '/org-units',
+            '/org-units/',
             { method: 'POST', body: JSON.stringify(data) },
             'Création du service impossible',
         ),

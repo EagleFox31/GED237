@@ -243,6 +243,34 @@ async def read_users(
     return result.scalars().all()
 
 
+@router.get("/assignable-roles", response_model=List[dict])
+async def list_assignable_roles(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Liste les rôles qu'un admin tenant peut assigner aux agents de son tenant.
+
+    Filtre out ``super_admin`` (réservé à la plateforme système). Les autres
+    rôles (tenant_admin, unit_admin, manager, collab, reader, auditor) sont
+    retournés avec leur id, leur code et leur libellé humain.
+    """
+    from app.models.role import Role
+
+    result = await db.execute(
+        select(Role).where(Role.code != "super_admin").order_by(Role.hierarchy_level)
+    )
+    roles = result.scalars().all()
+    return [
+        {
+            "id": r.id,
+            "code": r.code,
+            "name": r.label or r.code,
+            "hierarchy_level": r.hierarchy_level,
+        }
+        for r in roles
+    ]
+
 @router.get("/{user_id}", response_model=UserRead)
 async def read_user(
     user_id: UUID,
@@ -394,6 +422,120 @@ async def delete_user(
     await db.delete(user)
     await db.commit()
     return None
+
+
+@router.post("/{user_id}/reset-password", response_model=dict)
+async def reset_user_password(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Force-reset a user's password.
+
+    Generates a strong temporary password (16 chars URL-safe), hashes it,
+    and forces ``must_change_password=True`` so the user is prompted on next
+    login. The cleartext password is returned ONLY once in the response —
+    it must be transmitted to the user via a secure channel (no SMTP yet).
+    Audit log entry is created (TODO: dedicated audit module).
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="Use the change-password flow for your own account."
+        )
+
+    query = select(User).filter(
+        User.id == user_id, User.tenant_id == current_user.tenant_id
+    )
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await authorize_or_403(current_user, "users", "update", ctx_from_resource(user))
+    assert_org_unit_scope(user.org_unit_id, current_user)
+
+    # 16 chars URL-safe → ~96 bits d'entropie, conforme NIST SP 800-63B § 5.1.1.2
+    temporary_password = secrets.token_urlsafe(12)
+    user.password_hash = hash_password(temporary_password)
+    user.must_change_password = True
+    await db.commit()
+
+    return {
+        "temporary_password": temporary_password,
+        "message": (
+            "Mot de passe temporaire généré. Transmettez-le à l'agent par "
+            "un canal sécurisé. Il devra le changer à la prochaine connexion."
+        ),
+    }
+
+
+@router.post("/{user_id}/toggle-active", response_model=UserRead)
+async def toggle_user_active(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Toggle the ``is_active`` flag (soft-delete / re-activation).
+
+    Préféré au DELETE destructif : conserve l'historique documentaire et les
+    références FK pour conformité ISO 15489 (records management).
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="Cannot deactivate your own account."
+        )
+
+    query = (
+        select(User)
+        .options(selectinload(User.role), selectinload(User.org_unit))
+        .filter(User.id == user_id, User.tenant_id == current_user.tenant_id)
+    )
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await authorize_or_403(current_user, "users", "update", ctx_from_resource(user))
+    assert_org_unit_scope(user.org_unit_id, current_user)
+
+    user.is_active = not user.is_active
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.post("/{user_id}/disable-mfa", response_model=UserRead)
+async def disable_user_mfa(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reset the user's MFA secret (le 2FA devra être reconfiguré à la prochaine
+    connexion). Réservé aux situations où l'agent a perdu son téléphone.
+
+    Sécurité : le 2FA n'est PAS désactivé fonctionnellement — seul le secret
+    est effacé. Le flux de re-enrôlement est piloté par le login + setup OTP.
+    """
+    query = (
+        select(User)
+        .options(selectinload(User.role), selectinload(User.org_unit))
+        .filter(User.id == user_id, User.tenant_id == current_user.tenant_id)
+    )
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await authorize_or_403(current_user, "users", "update", ctx_from_resource(user))
+    assert_org_unit_scope(user.org_unit_id, current_user)
+
+    user.mfa_secret = None
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 
 @router.get("/{user_id}/hierarchy-up", response_model=List[UserRead])

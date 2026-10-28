@@ -28,8 +28,10 @@ export { notificationsApi }    from './resources/notifications.api';
 export { authzApi }            from './resources/authz.api';
 export { auditApi }            from './resources/audit.api';
 export { analyticsApi }        from './resources/analytics.api';
+export { reportsApi }          from './resources/reports.api';
 export { searchApi }           from './resources/search.api';
 export { healthApi }           from './resources/health.api';
+export { usageApi }            from './resources/usage.api';
 
 // Re-exports http/ pour les rares cas où un hook/composant a besoin du
 // transport directement (ex: categories.api.ts, stores d'auth).
@@ -57,8 +59,10 @@ import { notificationsApi }  from './resources/notifications.api';
 import { authzApi }          from './resources/authz.api';
 import { auditApi }          from './resources/audit.api';
 import { analyticsApi }      from './resources/analytics.api';
+import { reportsApi }        from './resources/reports.api';
 import { searchApi }         from './resources/search.api';
 import { healthApi }         from './resources/health.api';
+import { usageApi }          from './resources/usage.api';
 
 export const api = {
     // Auth
@@ -113,11 +117,15 @@ export const api = {
     deleteOrgUnit:            orgUnitsApi.deleteOrgUnit,
 
     // Users
-    getUsers:         usersApi.getUsers,
-    getPlatformUsers: usersApi.getPlatformUsers,
-    createUser:       usersApi.createUser,
-    updateUser:       usersApi.updateUser,
-    deleteUser:       usersApi.deleteUser,
+    getUsers:           usersApi.getUsers,
+    getPlatformUsers:   usersApi.getPlatformUsers,
+    createUser:         usersApi.createUser,
+    updateUser:         usersApi.updateUser,
+    deleteUser:         usersApi.deleteUser,
+    getAssignableRoles: usersApi.getAssignableRoles,
+    resetUserPassword:  usersApi.resetUserPassword,
+    toggleUserActive:   usersApi.toggleUserActive,
+    disableUserMfa:     usersApi.disableUserMfa,
 
     // Tenants
     getPublicTenants: tenantsApi.getPublicTenants,
@@ -179,9 +187,21 @@ export const api = {
     getTenantAnalytics:   analyticsApi.getTenantAnalytics,
     getPlatformAnalytics: analyticsApi.getPlatformAnalytics,
 
+    // Reports
+    getReportsEvolution:  reportsApi.getReportsEvolution,
+    getReportsDocumentActivity: reportsApi.getReportsDocumentActivity,
+    getReportsWorkflowActivity: reportsApi.getReportsWorkflowActivity,
+    getReportsServiceActivity: reportsApi.getReportsServiceActivity,
+
     // Search
     searchDocuments: searchApi.searchDocuments,
 
     // Health
     getHealth: healthApi.getHealth,
+
+    // Usage telemetry
+    recordLocalOrganize: usageApi.recordLocalOrganize,
+    getLocalArrangementSnapshot: usageApi.getLocalArrangementSnapshot,
+    putLocalArrangementSnapshot: usageApi.putLocalArrangementSnapshot,
+    deleteLocalArrangementSnapshot: usageApi.deleteLocalArrangementSnapshot,
 } as const;
