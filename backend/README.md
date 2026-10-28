@@ -40,6 +40,18 @@ Important : la suite de tests exige un environnement prepare.
 - `TEST_DATABASE_URL` doit etre defini
 - certains tests utilisent Redis
 
+Sans Python 3.12 / PostgreSQL / Redis locaux (ex. Windows), lancer la suite comme en CI via Docker :
+
+```bash
+bash backend/scripts/test-in-docker.sh                     # suite complete + seuil de couverture 70 %
+bash backend/scripts/test-in-docker.sh python -m pytest -q tests/api/test_users.py
+MIGRATION_DB=mig_fresh bash backend/scripts/test-in-docker.sh alembic upgrade head
+```
+
+Le script cree au besoin le reseau, PostgreSQL, Redis et les volumes (`gedtest-*`) puis les reutilise.
+`pytest` cree le schema via `create_all` : tester les migrations separement (`alembic upgrade head`,
+`alembic check` sur une base vierge).
+
 ## Outils et runbooks
 
 - runbook AuthZ : `docs/AUTHZ_ROLLOUT_RUNBOOK.md`
