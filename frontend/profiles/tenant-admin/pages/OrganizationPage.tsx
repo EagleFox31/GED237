@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../stores/authStore';
 import { CreateOrgUnitModal } from '../../super-admin/pages/tenant-detail/CreateOrgUnitModal';
-import { CreateAdminModal } from '../../super-admin/pages/tenant-detail/CreateAdminModal';
-import type { OrgUnitNode as SuperOrgUnitNode, TenantUser } from '../../super-admin/pages/tenant-detail/types';
+// CreateAdminModal n'est plus nécessaire : la création d'agents passe par /users.
 import type { Document } from '../../../types';
 import { formatDate, formatFileSize, getFileTypeLabel } from '../../../types';
 
@@ -84,6 +84,17 @@ const OrgTreeNode: React.FC<OrgTreeNodeProps> = ({ node, selectedId, onSelect, d
 
 const OrganizationPage: React.FC = () => {
   const userProfile = useAuthStore((s) => s.userProfile);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isTenantAdmin = userProfile?.id === 'tenant';
+  // SoC : la page Org est en lecture seule sur le personnel ; toute action
+  // d'écriture (création, modification, suppression) renvoie vers /users.
+  // On embarque le pathname courant dans `state.from` pour permettre au
+  // bouton « Retour » côté /users de revenir exactement ici.
+  const navigateToUsers = (extra?: Record<string, unknown>) =>
+    navigate('/users', {
+      state: { from: location.pathname + location.search, ...extra },
+    });
   const [treeData, setTreeData] = useState<OrgUnitNode[]>([]);
   const [allUsers, setAllUsers] = useState<UserNode[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<OrgUnitNode | null>(null);
@@ -93,8 +104,7 @@ const OrganizationPage: React.FC = () => {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
 
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [createdUserInfo, setCreatedUserInfo] = useState<{ matricule: string; password?: string } | null>(null);
+  // L'ouverture de modal de création/édition d'agent vit maintenant dans /users.
   const [orgModalParent, setOrgModalParent] = useState<{ id: string; name: string; level: number } | null | undefined>(undefined);
 
   useEffect(() => {
@@ -419,12 +429,21 @@ const OrganizationPage: React.FC = () => {
               {activeTab === 'staff' && (
                 <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-right-8 duration-500">
                   <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-                    <h3 className="text-sm font-black uppercase text-slate-500 tracking-widest">Effectif du Service</h3>
-                    <div className="flex gap-2">
-                      <button onClick={() => setIsUserModalOpen(true)} className="px-4 py-2 bg-rdpc-blue text-white rounded-xl text-[10px] font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm">person_add</span> Créer Utilisateur
-                      </button>
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-slate-500 tracking-widest">Effectif du Service</h3>
+                      <p className="text-[10px] italic text-slate-400 mt-1">
+                        Vue lecture seule. Pour créer ou modifier un agent, ouvrez sa fiche dans <span className="font-bold">Agents &amp; Rôles</span>.
+                      </p>
                     </div>
+                    {isTenantAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => navigateToUsers({ action: 'create' })}
+                        className="px-4 py-2 bg-rdpc-blue text-white rounded-xl text-[10px] font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm">person_add</span> Créer un agent
+                      </button>
+                    )}
                   </div>
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
@@ -474,8 +493,16 @@ const OrganizationPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button className="text-slate-400 hover:text-rdpc-blue transition-colors mr-2"><span className="material-symbols-outlined">edit</span></button>
-                              <button className="text-slate-400 hover:text-red-500 transition-colors"><span className="material-symbols-outlined">delete</span></button>
+                              <button
+                                type="button"
+                                onClick={() => navigateToUsers({ agentId: agent.id })}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-rdpc-blue hover:bg-blue-50 transition-colors"
+                                title="Voir la fiche de l'agent"
+                                aria-label={`Voir la fiche de ${agent.first_name || ''} ${agent.last_name || ''}`}
+                              >
+                                <span className="material-symbols-outlined text-base">visibility</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Voir</span>
+                              </button>
                             </td>
                           </tr>
                         ))
@@ -546,32 +573,9 @@ const OrganizationPage: React.FC = () => {
         )}
       </div>
 
-      {isUserModalOpen && userProfile?.tenantId && selectedUnit && (
-        <CreateAdminModal
-          tenantId={userProfile.tenantId}
-          orgTree={treeData as unknown as SuperOrgUnitNode[]}
-          existingUsers={allUsers as unknown as TenantUser[]}
-          defaultOrgUnitId={selectedUnit.id}
-          defaultRole="collaborator"
-          onClose={() => setIsUserModalOpen(false)}
-          onSuccess={fetchData}
-          onCreated={(info) => setCreatedUserInfo({ matricule: info.matricule, password: info.password })}
-        />
-      )}
-
-      {createdUserInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-lg font-black text-slate-900">Compte créé</h3>
-            <p className="text-sm text-slate-600">Communiquez ces identifiants à l'utilisateur. Il sera obligé de changer son mot de passe à la première connexion.</p>
-            <div className="bg-slate-50 rounded-xl p-4 space-y-2 font-mono text-sm">
-              <div><span className="text-slate-400">Matricule:</span> <strong>{createdUserInfo.matricule}</strong></div>
-              {createdUserInfo.password && <div><span className="text-slate-400">Mot de passe:</span> <strong>{createdUserInfo.password}</strong></div>}
-            </div>
-            <button onClick={() => setCreatedUserInfo(null)} className="w-full py-3 rounded-xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-widest hover:bg-blue-800">Fermer</button>
-          </div>
-        </div>
-      )}
+      {/* Création / édition / suppression d'agents : déplacées dans /users
+          (Single Source of Truth). Cette page reste lecture-seule sur le
+          personnel via la fiche détail accessible par l'icône "œil". */}
 
       {orgModalParent !== undefined && userProfile?.tenantId && (
         <CreateOrgUnitModal
