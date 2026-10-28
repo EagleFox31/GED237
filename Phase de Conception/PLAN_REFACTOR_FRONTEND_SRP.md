@@ -3,7 +3,7 @@
 ## Constat
 Deux fichiers dépassent 800 lignes et concentrent trop de responsabilités :
 
-1. `frontend/profiles/tenant-admin/pages/gedrules/ClassificationSettingsTab.tsx` - 1802 lignes
+1. `frontend/profiles/tenant-admin/pages/gedrules/ClassificationSettingsTab.tsx` - 2011 lignes
 2. `frontend/profiles/tenant-admin/pages/DirectoryIngestion.tsx` - 1010 lignes
 
 Ces deux composants mélangent :
@@ -18,6 +18,22 @@ Ces deux composants mélangent :
 
 1. `ClassificationSettingsTab.tsx`
 2. `DirectoryIngestion.tsx`
+
+## Objectif réel du refactor
+
+Ce chantier ne vise pas a "decomposer pour decomposer".
+
+Le but est de :
+- reduire le couplage entre orchestration, donnees, actions et rendu
+- rendre les sous-flux testables et maintenables
+- faciliter la reutilisation des briques UI et des hooks
+- conserver strictement le comportement metier existant sauf correction explicite
+
+Ce chantier n'est pas :
+- une reecriture fonctionnelle
+- une refonte visuelle
+- un changement de contrat backend/frontend
+- un pretexte pour renommer massivement ou deplacer des concepts sans gain clair
 
 ## Diagnostic par fichier
 
@@ -157,12 +173,153 @@ Objectif : séparer clairement sélection, contexte, analyse, commit et restitut
 - `frontend/profiles/tenant-admin/pages/ingestion/utils/`
 - `frontend/profiles/tenant-admin/pages/ingestion/types/`
 
+## Reutilisation obligatoire avant creation
+
+Avant d'introduire un nouveau composant ou helper, verifier si le besoin est deja couvert.
+
+Briques a reevaluer avant toute creation :
+- `frontend/components/ui/DataTable.tsx`
+- `frontend/components/ui/StatCard.tsx`
+- `frontend/components/ui/MultiCheckSelect.tsx`
+- composants de badges/statuts deja presents dans les pages voisines
+- helpers de formatage deja presents dans `frontend/types.ts` ou `frontend/utils/`
+
+Regle :
+- on cree un nouveau composant seulement si l'existant ne couvre pas le besoin sans forcer un contournement sale
+- on n'extrait pas un composant purement local si son seul role est de masquer 10 lignes de JSX sans clarifier le flux
+
 ## Cibles de taille
 - page orchestratrice : 150 à 250 lignes
 - hook métier : 120 à 220 lignes
 - section UI : 150 à 300 lignes
 - modal formulaire : 80 à 180 lignes
 - utilitaires purs : 20 à 120 lignes
+
+Ces cibles sont des repères, pas des objectifs rigides.
+
+Une extraction est valide si elle :
+- clarifie une responsabilite
+- reduit le couplage
+- n'eclate pas artificiellement la lecture
+
+Une extraction est a eviter si elle :
+- deplace seulement le bruit sans reduire la complexite
+- produit des hooks "god object"
+- cree trop de fichiers triviaux mono-usage
+
+## Contrat des hooks
+
+Chaque hook extrait doit documenter explicitement :
+- ce qu'il possede comme etat
+- ce qu'il expose comme API
+- les effets reseau qu'il a le droit d'executer
+- ce qu'il ne doit pas faire
+
+### Contrat cible - `useClassificationAdminData`
+- possede : les collections de reference (`domains`, `activities`, `rules`, `orgUnits`, `users`, `categories`, `templates`)
+- expose : `loading`, `partialFailure`, `reload`
+- autorise : chargement initial et rechargement des referentiels
+- interdit : creation, update, delete, gestion des modales, gestion du tab actif
+
+### Contrat cible - `useDomainActions`
+- possede : etat de soumission du sous-flux domaine
+- expose : `createDomain`, `updateDomain`, `deleteDomain`
+- autorise : appels API CRUD domaine et normalisation minimale du payload
+- interdit : connaissance du rendu global de page et du simulateur
+
+### Contrat cible - `useActivityActions`
+- possede : etat de soumission du sous-flux activite
+- expose : `createActivity`, `updateActivity`, `deleteActivity`
+- autorise : appels API CRUD activite
+- interdit : gestion du tab actif, gestion des regles
+
+### Contrat cible - `useRuleActions`
+- possede : etat de soumission du sous-flux regle
+- expose : `createRule`, `updateRule`, `deleteRule`
+- autorise : appels API CRUD regle et mapping du formulaire vers payload
+- interdit : chargement des referentiels et rendu du simulateur
+
+### Contrat cible - `useImportReferenceData`
+- possede : `categories`, `orgUnits`, `users`, `workflowTemplates`, `loading`, `error`
+- expose : `reload`
+- autorise : chargement des referentiels necessaires a l'import
+- interdit : `analyze`, `commit`, gestion des fichiers selectionnes
+
+### Contrat cible - `useBatchImportState`
+- possede : formulaire local, selection de fichiers, `selectionLabel`, `unsupportedCount`
+- expose : setters metier, `resetSelection`, `buildAnalyzePayload`
+- autorise : validation locale pure et preparation de donnees
+- interdit : appels reseau, gestion de la progression backend
+
+### Contrat cible - `useBatchImportExecution`
+- possede : `analyzedJob`, `commitResult`, `progress`, `isAnalyzing`, `isCommitting`, `error`
+- expose : `analyze`, `commit`, `resetExecution`
+- autorise : appels backend d'analyse et de commit
+- interdit : acces direct aux refs DOM, rendu de cartes, logique de selection locale
+
+## Invariants a preserver
+
+Le refactor doit conserver les invariants suivants :
+- routes frontend inchangées
+- contrats API inchanges
+- payloads backend inchanges
+- libelles metier inchanges sauf correction explicite
+- comportement `analyze`, `commit`, `simulate`, `CRUD` identique
+- ordre des etapes et priorites metier identiques
+- toasts, reset et refresh preserves ou ameliores sans regression
+- aucune logique metier de validation perdue lors du deplacement vers les hooks
+
+## Critères d'acceptation
+
+Le refactor n'est considere termine que si :
+- `npm run typecheck` est vert
+- `npm run lint` est vert
+- `npm run build` est vert
+- les deux pages restent fonctionnelles de bout en bout
+- aucun contrat API n'a change
+- aucun comportement metier attendu n'a regresse
+
+## Validation minimale par page
+
+### Validation - `ClassificationSettingsTab.tsx`
+- chargement des referentiels OK
+- navigation entre tabs OK
+- creation/modification/suppression domaine OK
+- creation/modification/suppression activite OK
+- creation/modification/suppression regle OK
+- simulation de classement OK
+- toasts, erreurs et reload coherents
+
+### Validation - `DirectoryIngestion.tsx`
+- chargement des referentiels OK
+- selection dossier/fichiers OK
+- validation pre-analyse OK
+- analyse batch OK
+- affichage preview OK
+- commit batch OK
+- affichage resultat OK
+- reset et relance OK
+
+## Strategie de test recommandee
+
+Minimum obligatoire apres chaque phase :
+- verification manuelle ciblee de l'ecran refactorise
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+
+Si possible :
+- ajouter ou adapter une spec Playwright ciblee
+- au minimum documenter une checklist de non-regression executable
+
+## Anti-patterns a eviter
+
+- extraire un hook qui devient un nouveau composant monolithique cache
+- dupliquer les appels API dans plusieurs hooks voisins
+- faire porter au composant page des details de mapping payload qui devraient etre encapsules
+- multiplier les composants presentationnels vides de sens
+- creer des types locaux redondants si `frontend/types.ts` ou l'API typed suffit deja
+- deplacer de la logique metier critique dans du JSX "pour faire court"
 
 ## Règles de refactor
 - un hook pour la donnée
@@ -174,6 +331,6 @@ Objectif : séparer clairement sélection, contexte, analyse, commit et restitut
 
 ## Ordre d'exécution recommandé
 1. refactor `ClassificationSettingsTab.tsx`
-2. stabiliser et valider
+2. valider (`typecheck`, `lint`, `build`, smoke test)
 3. refactor `DirectoryIngestion.tsx`
-4. stabiliser et valider
+4. valider (`typecheck`, `lint`, `build`, smoke test)
