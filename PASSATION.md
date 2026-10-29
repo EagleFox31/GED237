@@ -1,9 +1,8 @@
 # PASSATION — GED237
 
 ## Objectif en cours
-Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5). `.gitattributes` : PR #16, CI verte, fusion à
-faire par le PO (fusion refusée à l'agent : merge sans revue). Item 6 (tests API) fait sur
-`test/api-coverage-lot-b6`, empilée sur #16.
+Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5), `.gitattributes` fusionné (PR #16). Item 6
+(tests API) : PR #17 sur `test/api-coverage-lot-b6`, reciblée sur `main`.
 
 ## Fait (2026-10-29) — branche `test/api-coverage-lot-b6`
 - 35de807 : fixture `client_as` + `tests/api/test_{users,org_units,reports,usage}.py` (bornes authz,
@@ -34,7 +33,7 @@ faire par le PO (fusion refusée à l'agent : merge sans revue). Item 6 (tests A
 - `backend/fix.py` (script ponctuel, chemin `e:\` codé en dur) laissé en place : hors périmètre.
 
 ## Reste à faire
-1. PO : fusionner #16, puis la PR Lot B6 ; passer les deux walkthroughs en DONE. Vérifier la durée CI des
+1. PO : fusionner #17 une fois la CI verte ; passer son walkthrough en DONE. Vérifier la durée CI des
    tests sur la PR Lot B6 (traçage greenlet ; `timeout-minutes: 15`). Relever le gate de 70 % : décision à part.
 2. PO : trancher les constats du walkthrough Lot B6 (`assignable-roles` sans RBAC, `standard` sans
    `users:update_own`, upsert du snapshot par `user_id` seul).

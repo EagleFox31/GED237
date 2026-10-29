@@ -1,6 +1,6 @@
 # [Claude] Lot B — `.gitattributes` et fichiers suivis portables — 2026-10-29
 
-> Statut : EN REVUE — branche `chore/gitattributes`
+> Statut : DONE — PR #16 fusionnée le 2026-10-29
 
 ## Ce qui va être fait
 
