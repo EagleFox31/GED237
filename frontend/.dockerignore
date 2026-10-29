@@ -1,0 +1,23 @@
+# Dépendances : installées dans l'image par `npm ci` (binaires Linux), jamais copiées de l'hôte
+node_modules/
+
+# Artefacts de build et de test
+dist/
+playwright-report/
+test-results/
+coverage/
+*.log
+
+# Secrets et sessions locales (fournis par compose / variables d'environnement)
+.env
+.env.*
+.auth/
+
+# Git / IDE / OS / hooks locaux
+.git/
+.gitignore
+.husky/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
