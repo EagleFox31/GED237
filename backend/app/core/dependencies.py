@@ -10,7 +10,6 @@ from app.core.database import get_db, AsyncSessionLocal
 from app.core.security import decode_token
 from app.core.redis import get_redis
 from app.models.user import User
-import redis.asyncio as redis
 
 security = HTTPBearer()
 

@@ -1,4 +1,3 @@
-from typing import Dict, Any
 from app.services.notifications.base import INotifier
 from app.services.notifications.in_app import InAppNotifier
 

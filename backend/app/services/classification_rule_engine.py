@@ -27,6 +27,7 @@ class ClassificationStatus(str, Enum):
     rejected = "rejected"
     pending = "pending"
 
+
 @dataclass
 class ClassificationResolution:
     status: ClassificationStatus
@@ -290,7 +291,9 @@ class ClassificationRuleEngine:
                 key="document_category",
                 label="Type de document",
                 passed=category_ok,
-                detail="Le type correspond." if category_ok else "Le type du document ne correspond pas a la regle.",
+                detail="Le type correspond."
+                if category_ok
+                else "Le type du document ne correspond pas a la regle.",
             )
         )
 
@@ -331,7 +334,9 @@ class ClassificationRuleEngine:
 
         filename_ok = True
         if rule.filename_pattern:
-            filename_ok = self._matches_filename_pattern(filename, rule.filename_pattern)
+            filename_ok = self._matches_filename_pattern(
+                filename, rule.filename_pattern
+            )
         checks.append(
             RuleCheck(
                 key="filename_pattern",
@@ -370,7 +375,9 @@ class ClassificationRuleEngine:
         diagnostics: list[RuleDiagnostic],
         matching_rules: list[ClassificationRule],
     ) -> list[SimulationStage]:
-        diagnostics_by_rule_id = {str(diagnostic.rule.id): diagnostic for diagnostic in diagnostics}
+        diagnostics_by_rule_id = {
+            str(diagnostic.rule.id): diagnostic for diagnostic in diagnostics
+        }
         ordered_checks = [
             ("document_category", "Filtre sur le type de document"),
             ("source_origin", "Filtre sur l'origine concernee"),
@@ -408,7 +415,8 @@ class ClassificationRuleEngine:
                 if not diagnostic:
                     continue
                 rule_check = next(
-                    (check for check in diagnostic.checks if check.key == check_key), None
+                    (check for check in diagnostic.checks if check.key == check_key),
+                    None,
                 )
                 if rule_check and rule_check.passed:
                     next_remaining_ids.add(rule_id)
@@ -444,11 +452,13 @@ class ClassificationRuleEngine:
             )
             return stages
 
-        kept_rules = [rule for rule in rules if str(rule.id) in {str(item.id) for item in matching_rules}]
-        first = matching_rules[0]
-        tie_rules = [
-            rule for rule in matching_rules if rule.priority == first.priority
+        kept_rules = [
+            rule
+            for rule in rules
+            if str(rule.id) in {str(item.id) for item in matching_rules}
         ]
+        first = matching_rules[0]
+        tie_rules = [rule for rule in matching_rules if rule.priority == first.priority]
 
         if len(tie_rules) > 1:
             stages.append(
@@ -558,35 +568,40 @@ class ClassificationRuleEngine:
 
         if include_ids:
             if source_org_unit_id is None:
-                return False, "Aucune unite d'origine n'a ete fournie alors que la regle cible un perimetre precis."
+                return (
+                    False,
+                    "Aucune unite d'origine n'a ete fournie alors que la regle cible un perimetre precis.",
+                )
             ancestor_ids = await self._ancestor_ids_for_org_unit(source_org_unit_id)
             matched_include_ids = ancestor_ids.intersection(include_ids)
             blocked_exclude_ids = ancestor_ids.intersection(exclude_ids)
             source_org_unit = await self._load_org_unit(source_org_unit_id, None)
-            source_name = source_org_unit.name if source_org_unit else str(source_org_unit_id)
+            source_name = (
+                source_org_unit.name if source_org_unit else str(source_org_unit_id)
+            )
             include_names = await self._org_unit_names(include_ids)
             exclude_names = await self._org_unit_names(exclude_ids)
 
             if not matched_include_ids:
                 return (
                     False,
-                    f"L'unite testee « {source_name} » n'appartient pas aux origines concernees: {', '.join(include_names) or 'aucune'}."
+                    f"L'unite testee « {source_name} » n'appartient pas aux origines concernees: {', '.join(include_names) or 'aucune'}.",
                 )
             if blocked_exclude_ids:
                 return (
                     False,
-                    f"L'unite testee « {source_name} » entre dans une exception de la regle: {', '.join(exclude_names) or 'exception non resolue'}."
+                    f"L'unite testee « {source_name} » entre dans une exception de la regle: {', '.join(exclude_names) or 'exception non resolue'}.",
                 )
             matched_names = await self._org_unit_names(list(matched_include_ids))
             return (
                 True,
-                f"L'unite testee « {source_name} » appartient bien au perimetre couvre par: {', '.join(matched_names) or 'la regle'}."
+                f"L'unite testee « {source_name} » appartient bien au perimetre couvre par: {', '.join(matched_names) or 'la regle'}.",
             )
 
         if rule_source_scope != source_scope:
             return (
                 False,
-                f"Le niveau d'origine teste est « {source_scope} », alors que la regle attend « {rule_source_scope} »."
+                f"Le niveau d'origine teste est « {source_scope} », alors que la regle attend « {rule_source_scope} ».",
             )
 
         if self._matches_id_constraint(
@@ -602,10 +617,12 @@ class ClassificationRuleEngine:
                 if source_org_unit_id
                 else None
             )
-            expected_org_unit = await self._load_org_unit(single_source_org_unit_id, None)
+            expected_org_unit = await self._load_org_unit(
+                single_source_org_unit_id, None
+            )
             return (
                 False,
-                f"L'unite testee « {source_org_unit.name if source_org_unit else source_org_unit_id} » ne correspond pas a l'unite attendue « {expected_org_unit.name if expected_org_unit else single_source_org_unit_id} »."
+                f"L'unite testee « {source_org_unit.name if source_org_unit else source_org_unit_id} » ne correspond pas a l'unite attendue « {expected_org_unit.name if expected_org_unit else single_source_org_unit_id} ».",
             )
         return True, "Aucune contrainte d'unite source supplementaire sur cette regle."
 
@@ -626,13 +643,19 @@ class ClassificationRuleEngine:
             select(OrgUnit.id, OrgUnit.name).where(OrgUnit.id.in_(org_unit_ids))
         )
         names_by_id = {str(row[0]): row[1] for row in result.all()}
-        return [names_by_id.get(org_unit_id, org_unit_id) for org_unit_id in org_unit_ids]
+        return [
+            names_by_id.get(org_unit_id, org_unit_id) for org_unit_id in org_unit_ids
+        ]
 
     @staticmethod
     def _matches_mime_type(mime_type: Optional[str], pattern: str) -> bool:
         if not mime_type:
             return False
-        tokens = [token.strip().lower() for token in re.split(r"[;,|]+", pattern) if token.strip()]
+        tokens = [
+            token.strip().lower()
+            for token in re.split(r"[;,|]+", pattern)
+            if token.strip()
+        ]
         if not tokens:
             return True
 
@@ -699,7 +722,9 @@ class ClassificationRuleEngine:
                 target_user = await self._load_user(target_user_id, tenant_id)
                 # Important: resolve the user's org unit to preserve hierarchical paths
                 if target_user and target_user.org_unit_id:
-                    target_org_unit = await self._load_org_unit(target_user.org_unit_id, tenant_id)
+                    target_org_unit = await self._load_org_unit(
+                        target_user.org_unit_id, tenant_id
+                    )
         else:
             if rule.target_org_unit_id:
                 target_org_unit = await self._load_org_unit(
@@ -754,7 +779,6 @@ class ClassificationRuleEngine:
         if target_scope == "service":
             return 4
         return None
-
 
     async def _load_org_unit(
         self, org_unit_id: UUID, tenant_id: Optional[UUID]

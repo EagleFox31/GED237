@@ -14,16 +14,16 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError, HTTPException as FastAPIHTTPException
+from fastapi.exceptions import (
+    RequestValidationError,
+    HTTPException as FastAPIHTTPException,
+)
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.errors.domain import (
     AppError,
-    AuthenticationError,
-    AuthorizationError,
-    NotFoundError,
     Severity,
 )
 from app.core.errors.problem import build_problem_detail
@@ -237,9 +237,7 @@ async def pydantic_validation_handler(
 # ─────────────────────────────────────────────────────────────────────
 
 
-async def unhandled_exception_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     cid = _correlation_id()
     logger.exception(
         "UnhandledException",

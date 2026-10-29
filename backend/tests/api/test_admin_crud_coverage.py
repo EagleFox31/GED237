@@ -3,11 +3,9 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
 
 from app.models.audit import AuditLog
 from app.models.notification import Notification
-from app.models.user import User
 
 
 @pytest.mark.asyncio
@@ -106,9 +104,7 @@ async def test_org_unit_admin_crud_and_delete_guards(
         "level": 3,
         "is_active": True,
     }
-    grandchild = await admin_client.post(
-        "/api/v1/org-units/", json=grandchild_payload
-    )
+    grandchild = await admin_client.post("/api/v1/org-units/", json=grandchild_payload)
     assert grandchild.status_code == 201
     grandchild_id = grandchild.json()["id"]
 
@@ -219,9 +215,7 @@ async def test_user_admin_crud_and_hierarchy(admin_client: AsyncClient, db_seed)
     assert up.status_code == 200
     assert up.json()[0]["id"] == str(db_seed["user_id"])
 
-    down = await admin_client.get(
-        f"/api/v1/users/{db_seed['user_id']}/hierarchy-down"
-    )
+    down = await admin_client.get(f"/api/v1/users/{db_seed['user_id']}/hierarchy-down")
     assert down.status_code == 200
     assert any(row["id"] == user["id"] for row in down.json())
 

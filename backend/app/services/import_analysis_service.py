@@ -2,7 +2,6 @@ import json
 import os
 import uuid
 from dataclasses import replace
-from typing import Iterable
 
 from fastapi import UploadFile
 from sqlalchemy import select
@@ -50,9 +49,19 @@ class ImportAnalysisService:
         job.error_files = 0
 
         for index, file in enumerate(files):
-            source_relative_path = source_relative_paths[index] if index < len(source_relative_paths) else None
-            source_relative_path = source_relative_path or file.filename or f"file-{index + 1}"
-            original_filename = os.path.basename(source_relative_path) or file.filename or f"file-{index + 1}"
+            source_relative_path = (
+                source_relative_paths[index]
+                if index < len(source_relative_paths)
+                else None
+            )
+            source_relative_path = (
+                source_relative_path or file.filename or f"file-{index + 1}"
+            )
+            original_filename = (
+                os.path.basename(source_relative_path)
+                or file.filename
+                or f"file-{index + 1}"
+            )
             extension = os.path.splitext(original_filename)[1].lower()
             mime_type = file.content_type or "application/octet-stream"
             file_size = await self._file_size(file)
@@ -83,7 +92,10 @@ class ImportAnalysisService:
                 try:
                     file.filename = staging_name
                     staging_directory = f"imports/staging/{job.tenant_id}/{job.id}"
-                    staging_path, checksum = await self.storage_service.save_file_with_checksum(
+                    (
+                        staging_path,
+                        checksum,
+                    ) = await self.storage_service.save_file_with_checksum(
                         file, directory=staging_directory
                     )
                     item.staging_file_path = staging_path
@@ -96,7 +108,9 @@ class ImportAnalysisService:
                     checksum=item.checksum_sha256, tenant_id=job.tenant_id
                 ):
                     item.status = "duplicate"
-                    item.error_message = "Un fichier identique existe deja dans ce tenant."
+                    item.error_message = (
+                        "Un fichier identique existe deja dans ce tenant."
+                    )
                     if item.staging_file_path:
                         self.storage_service.delete_file(item.staging_file_path)
                     job.duplicate_files += 1
@@ -210,12 +224,14 @@ class ImportAnalysisService:
                 if updated.status == ClassificationStatus.needs_review
                 else SpacePathBuilder.PENDING_LABEL
             )
-            updated.logical_space_path = await self.path_builder.build_pending_full_path(
-                tenant_id=tenant_id,
-                target_org_unit_id=source_org_unit_id,
-                target_user_id=source_user_id if source_scope == "person" else None,
-                classification_year=forced_year,
-                pending_label=pending_label,
+            updated.logical_space_path = (
+                await self.path_builder.build_pending_full_path(
+                    tenant_id=tenant_id,
+                    target_org_unit_id=source_org_unit_id,
+                    target_user_id=source_user_id if source_scope == "person" else None,
+                    classification_year=forced_year,
+                    pending_label=pending_label,
+                )
             )
         return updated
 

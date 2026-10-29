@@ -20,7 +20,11 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "classification_rules",
-        sa.Column("source_org_unit_excluded_ids", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            "source_org_unit_excluded_ids",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=True,
+        ),
     )
 
 

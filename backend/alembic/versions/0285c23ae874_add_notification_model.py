@@ -176,16 +176,20 @@ def downgrade() -> None:
     op.create_index("idx_users_tenant", "users", ["tenant_id"], unique=False)
     op.create_index("idx_users_role", "users", ["role_id"], unique=False)
     op.create_index("idx_users_org_unit", "users", ["org_unit_id"], unique=False)
-    op.drop_index(
-        op.f("ix_roles_hierarchy_level"), table_name="roles", if_exists=True
-    )
+    op.drop_index(op.f("ix_roles_hierarchy_level"), table_name="roles", if_exists=True)
     op.create_index(
         "idx_roles_hierarchy_level", "roles", ["hierarchy_level"], unique=False
     )
-    op.drop_index(op.f("ix_org_units_tenant_id"), table_name="org_units", if_exists=True)
-    op.drop_index(op.f("ix_org_units_parent_id"), table_name="org_units", if_exists=True)
+    op.drop_index(
+        op.f("ix_org_units_tenant_id"), table_name="org_units", if_exists=True
+    )
+    op.drop_index(
+        op.f("ix_org_units_parent_id"), table_name="org_units", if_exists=True
+    )
     op.create_index("idx_org_units_tenant", "org_units", ["tenant_id"], unique=False)
-    op.drop_index(op.f("ix_ged_rules_tenant_id"), table_name="ged_rules", if_exists=True)
+    op.drop_index(
+        op.f("ix_ged_rules_tenant_id"), table_name="ged_rules", if_exists=True
+    )
     op.drop_index("idx_rules_priority", table_name="ged_rules", if_exists=True)
     op.create_index(
         "idx_rules_priority",
@@ -193,15 +197,23 @@ def downgrade() -> None:
         ["tenant_id", sa.text("priority DESC")],
         unique=False,
     )
-    op.drop_index(op.f("ix_documents_tenant_id"), table_name="documents", if_exists=True)
+    op.drop_index(
+        op.f("ix_documents_tenant_id"), table_name="documents", if_exists=True
+    )
     op.drop_index(op.f("ix_documents_owner_id"), table_name="documents", if_exists=True)
-    op.drop_index(op.f("ix_documents_org_unit_id"), table_name="documents", if_exists=True)
+    op.drop_index(
+        op.f("ix_documents_org_unit_id"), table_name="documents", if_exists=True
+    )
     op.drop_index("idx_documents_created", table_name="documents", if_exists=True)
     op.create_index(
         "idx_documents_created", "documents", [sa.text("created_at DESC")], unique=False
     )
-    op.drop_index(op.f("ix_audit_logs_user_id"), table_name="audit_logs", if_exists=True)
-    op.drop_index(op.f("ix_audit_logs_tenant_id"), table_name="audit_logs", if_exists=True)
+    op.drop_index(
+        op.f("ix_audit_logs_user_id"), table_name="audit_logs", if_exists=True
+    )
+    op.drop_index(
+        op.f("ix_audit_logs_tenant_id"), table_name="audit_logs", if_exists=True
+    )
     op.drop_index("idx_audit_user_created", table_name="audit_logs", if_exists=True)
     op.create_index(
         "idx_audit_user_created",
@@ -216,9 +228,19 @@ def downgrade() -> None:
         ["tenant_id", sa.text("created_at DESC")],
         unique=False,
     )
-    op.drop_index(op.f("ix_notifications_user_id"), table_name="notifications", if_exists=True)
-    op.drop_index(op.f("ix_notifications_tenant_id"), table_name="notifications", if_exists=True)
-    op.drop_index(op.f("ix_notifications_is_read"), table_name="notifications", if_exists=True)
-    op.drop_index("idx_notifications_user_read", table_name="notifications", if_exists=True)
-    op.drop_index("idx_notifications_tenant_user", table_name="notifications", if_exists=True)
+    op.drop_index(
+        op.f("ix_notifications_user_id"), table_name="notifications", if_exists=True
+    )
+    op.drop_index(
+        op.f("ix_notifications_tenant_id"), table_name="notifications", if_exists=True
+    )
+    op.drop_index(
+        op.f("ix_notifications_is_read"), table_name="notifications", if_exists=True
+    )
+    op.drop_index(
+        "idx_notifications_user_read", table_name="notifications", if_exists=True
+    )
+    op.drop_index(
+        "idx_notifications_tenant_user", table_name="notifications", if_exists=True
+    )
     op.execute("DROP TABLE IF EXISTS notifications")

@@ -78,10 +78,12 @@ async def test_analyze_import_job_creates_preview(
             "source_scope": "service",
             "default_document_category_id": str(db_seed["category_id"]),
             "processing_mode": "archive",
-            "source_relative_paths": json.dumps([
-                "service/reparation_note.txt",
-                "service/budget.pdf",
-            ]),
+            "source_relative_paths": json.dumps(
+                [
+                    "service/reparation_note.txt",
+                    "service/budget.pdf",
+                ]
+            ),
         },
     )
 
@@ -116,7 +118,9 @@ async def test_analyze_import_job_detects_duplicate(
 
     response = await auth_client.post(
         "/api/v1/imports/analyze",
-        files=[("files", ("duplicate.txt", io.BytesIO(duplicate_content), "text/plain"))],
+        files=[
+            ("files", ("duplicate.txt", io.BytesIO(duplicate_content), "text/plain"))
+        ],
         data={
             "source_scope": "service",
             "default_document_category_id": str(db_seed["category_id"]),
@@ -161,7 +165,9 @@ async def test_commit_import_job_creates_documents(
 
     analyze = await auth_client.post(
         "/api/v1/imports/analyze",
-        files=[("files", ("reparation_batch.txt", io.BytesIO(b"content"), "text/plain"))],
+        files=[
+            ("files", ("reparation_batch.txt", io.BytesIO(b"content"), "text/plain"))
+        ],
         data={
             "source_scope": "service",
             "default_document_category_id": str(db_seed["category_id"]),
@@ -196,7 +202,10 @@ async def test_commit_import_job_handles_partial_validity(
         files=[
             ("files", ("reparation_batch.txt", io.BytesIO(b"ok"), "text/plain")),
             ("files", ("inconnu.txt", io.BytesIO(b"unknown"), "text/plain")),
-            ("files", ("unsupported.exe", io.BytesIO(b"bad"), "application/octet-stream")),
+            (
+                "files",
+                ("unsupported.exe", io.BytesIO(b"bad"), "application/octet-stream"),
+            ),
         ],
         data={
             "source_scope": "service",
@@ -257,9 +266,7 @@ async def test_non_admin_cannot_target_another_user_for_person_scope(
 
 
 @pytest.mark.asyncio
-async def test_import_job_read_endpoints(
-    auth_client, db_seed, storage_tmp_path
-):
+async def test_import_job_read_endpoints(auth_client, db_seed, storage_tmp_path):
     analyze = await auth_client.post(
         "/api/v1/imports/analyze",
         files=[("files", ("single.txt", io.BytesIO(b"one"), "text/plain"))],

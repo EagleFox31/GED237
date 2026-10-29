@@ -5,6 +5,7 @@ Revises: c9e8d7a4b210
 Create Date: 2026-05-10
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -43,5 +44,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_ul_snapshots_tenant_updated", table_name="user_local_arrangement_snapshots")
+    op.drop_index(
+        "idx_ul_snapshots_tenant_updated", table_name="user_local_arrangement_snapshots"
+    )
     op.drop_table("user_local_arrangement_snapshots")

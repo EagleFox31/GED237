@@ -11,6 +11,7 @@ exclude_dirs:
   - alembic
   - .pytest_cache
 
-# Severity threshold — only HIGH and above block CI
+# Any finding blocks, in CI and in the pre-commit hook (baseline: 0 on 2026-10-29).
+# Accept a justified exception inline with `# nosec BXXX - reason`, never by raising a threshold.
 severity: LOW
 confidence: LOW

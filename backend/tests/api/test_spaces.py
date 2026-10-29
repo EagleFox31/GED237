@@ -22,7 +22,14 @@ async def test_spaces_tree_and_documents(auth_client: AsyncClient, db_seed):
     tree = tree_response.json()
     assert isinstance(tree, list)
     assert tree
-    assert set(tree[0].keys()) == {"id", "name", "code", "level", "parent_id", "children"}
+    assert set(tree[0].keys()) == {
+        "id",
+        "name",
+        "code",
+        "level",
+        "parent_id",
+        "children",
+    }
 
     documents_response = await auth_client.get(
         "/api/v1/spaces/documents",

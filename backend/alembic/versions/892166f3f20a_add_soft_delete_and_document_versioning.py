@@ -117,7 +117,10 @@ def downgrade() -> None:
         op.add_column(
             "documents",
             sa.Column(
-                "current_version", sa.VARCHAR(length=20), autoincrement=False, nullable=True
+                "current_version",
+                sa.VARCHAR(length=20),
+                autoincrement=False,
+                nullable=True,
             ),
         )
 
@@ -126,7 +129,9 @@ def downgrade() -> None:
     inspector = sa.inspect(bind)
     for fk in inspector.get_foreign_keys("documents"):
         if fk.get("constrained_columns") == ["deleted_by"] and fk.get("name"):
-            op.execute(f'ALTER TABLE documents DROP CONSTRAINT IF EXISTS "{fk["name"]}"')
+            op.execute(
+                f'ALTER TABLE documents DROP CONSTRAINT IF EXISTS "{fk["name"]}"'
+            )
 
     op.drop_index("idx_documents_deleted", table_name="documents", if_exists=True)
     op.drop_index("idx_documents_created", table_name="documents", if_exists=True)

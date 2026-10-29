@@ -1,0 +1,7 @@
+# Ruff configuration for the backend (pre-commit and CI read it from here).
+# Default rule set (E4, E7, E9, F); only the exceptions below are declared.
+
+[lint.per-file-ignores]
+# These entry points set sys.path / environment before importing the app.
+"tests/conftest.py" = ["E402"]
+"scripts/*.py" = ["E402"]

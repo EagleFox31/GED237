@@ -151,8 +151,8 @@ première requête utilisateur.
 
 - **Date :** 2026-10-28
 - **Catégorie :** ci-cd
-- **Statut :** captured
-- **Liens :** PR #1, lot A, `AUDIT.md` lot B item 8
+- **Statut :** prevention-added (2026-10-29, branche `chore/lint-blocking` : baseline 0, job CI ruff, bandit CI = hook)
+- **Liens :** PR #1, lot A, `AUDIT.md` lot B item 8, LESSON-2026-010
 
 **Contexte** — Premiers commits avec pre-commit réellement installé ; première CI verte depuis des mois.
 **Échec / near miss** — ruff/bandit remontent une dette existante sur tout `app/` (commits faits avec `SKIP=ruff,ruff-format,bandit`) ; le gate `--cov-fail-under=70` n'avait jamais été atteint car la CI cassait avant (consolidation à 67,6 %, rattrapée par des tests API reports/usage).
@@ -174,3 +174,31 @@ première requête utilisateur.
 **Résolution** — Installation préalable de torch CPU (`download.pytorch.org/whl/cpu`), versions lues dans `requirements.txt`.
 **Prévention** — Étape CI dédiée ; même règle pour l'image Docker backend.
 **Leçon généralisée** — Les dépendances lourdes à variantes matérielles doivent être épinglées sur la variante voulue.
+
+### LESSON-2026-010 — Gates lint divergents entre hook et CI
+
+- **Date :** 2026-10-29
+- **Catégorie :** ci-cd
+- **Statut :** prevention-added
+- **Liens :** branche `chore/lint-blocking`, `AUDIT.md` lot B item 8, LESSON-2026-008
+
+**Contexte** — Baseline ruff/bandit avant de rendre les hooks bloquants.
+**Échec / near miss** — ruff tournait en pre-commit mais dans aucun workflow CI ; bandit bloquait dès LOW en local mais seulement sur HIGH en CI ; 5 `except: pass/continue` avalaient sans trace des échecs de nettoyage stockage et d'envoi OCR. Le correctif ruff E712 (`== True` → `is True`) aurait cassé les filtres SQLAlchemy s'il avait été appliqué en `--unsafe-fixes`.
+**Cause racine** — Deux définitions du même gate (hook et workflow) maintenues à la main, versions d'outils non partagées.
+**Résolution** — Job CI `Lint (ruff)` ; bandit CI sans seuil propre (lit `.bandit.yml` comme le hook) ; versions lues dans `requirements.txt` ; E712 corrigé à la main en `.is_(True/False)` ; échecs best-effort journalisés (`logger.warning`).
+**Prévention** — Hook et CI lisent la même config (`backend/ruff.toml`, `backend/.bandit.yml`) et la même version épinglée ; pas de `--unsafe-fixes` sans relecture ; exception bandit uniquement via `# nosec BXXX - raison`.
+**Leçon généralisée** — Un gate n'a qu'une source de vérité : le hook local et la CI doivent appeler la même config, sinon ils divergent en silence.
+
+### LESSON-2026-011 — CVE publiée dans l'image de base entre deux builds
+
+- **Date :** 2026-10-29
+- **Catégorie :** security
+- **Statut :** prevention-added
+- **Liens :** PR #4, `frontend/Dockerfile`
+
+**Contexte** — PR sans changement frontend ; le job Trivy reconstruit l'image `ged237-frontend:ci`.
+**Échec / near miss** — CVE-2026-111497 (CRITICAL, `brotli-libs` 1.2.0-r1) dans `nginx:stable-alpine` : CI rouge sans lien avec le diff.
+**Cause racine** — L'image runtime prenait les paquets OS figés au build de l'image amont ; le correctif Alpine (1.2.1-r0) existait déjà.
+**Résolution** — `RUN apk upgrade --no-cache` dans l'étape `production`.
+**Prévention** — Toute image runtime Alpine/Debian applique les correctifs OS au build ; Trivy reste bloquant sur CRITICAL.
+**Leçon généralisée** — Un gate de vulnérabilités sur image peut virer au rouge sans changement de code : appliquer les mises à jour de sécurité au build plutôt qu'attendre l'image amont.

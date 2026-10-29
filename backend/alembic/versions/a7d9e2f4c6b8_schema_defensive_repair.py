@@ -36,9 +36,7 @@ def upgrade() -> None:
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_matricule "
         "ON users (tenant_id, matricule)"
     )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_users_matricule ON users (matricule)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_users_matricule ON users (matricule)")
     op.execute(
         "CREATE INDEX IF NOT EXISTS idx_audit_tenant_created "
         "ON audit_logs (tenant_id, created_at DESC)"

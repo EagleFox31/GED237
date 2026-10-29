@@ -7,6 +7,7 @@ respecte la promesse du mode local (« rien ne sort de votre poste »)
 tout en permettant à l'admin tenant de mesurer l'usage de la
 fonctionnalité dans /reports.
 """
+
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, TIMESTAMP, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func

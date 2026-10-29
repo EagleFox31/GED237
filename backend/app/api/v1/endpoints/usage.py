@@ -8,6 +8,7 @@ manifest per user (names + relative paths produced by the client organizer)
 when the front sends it — so the bibliothèque view can follow the user across
 browsers. Filenames only reach the server if the client chooses to sync.
 """
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession

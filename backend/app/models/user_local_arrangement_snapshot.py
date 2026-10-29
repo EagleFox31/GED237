@@ -32,7 +32,9 @@ class UserLocalArrangementSnapshot(Base):
     tenant_id = Column(UUID(as_uuid=True), nullable=False)
 
     payload = Column(JSONB, nullable=False)
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Same index as migration d4e5f6a7b8c9 (alembic check must stay clean).
     __table_args__ = (

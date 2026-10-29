@@ -77,7 +77,7 @@ class EventDispatcher:
                     exc_info=True,
                 )
 
-        await asyncio.gather(*(_safe_call(l) for l in listeners))
+        await asyncio.gather(*(_safe_call(listener) for listener in listeners))
 
 
 # Global Singleton Dispatcher

@@ -32,6 +32,10 @@ RUN npm run build
 # surface and prevents build-tool CVEs from appearing in the runtime image.
 FROM nginx:stable-alpine AS production
 
+# Pick up Alpine security fixes released after the upstream image was built
+# (e.g. brotli-libs CVE-2026-111497), so the Trivy gate does not depend on it.
+RUN apk upgrade --no-cache
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 

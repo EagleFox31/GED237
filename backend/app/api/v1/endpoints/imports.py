@@ -1,6 +1,16 @@
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,13 +22,19 @@ from app.core.dependencies import get_current_user
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.document_category import DocumentCategory
 from app.models.import_job import ImportJob
-from app.models.import_job_item import ImportJobItem
 from app.models.org_unit import OrgUnit
 from app.models.user import User
-from app.schemas.imports import ImportCommitResponse, ImportJobItemRead, ImportJobRead, ImportJobWithItemsRead
+from app.schemas.imports import (
+    ImportCommitResponse,
+    ImportJobItemRead,
+    ImportJobRead,
+    ImportJobWithItemsRead,
+)
 from app.services.import_analysis_service import ImportAnalysisService
 from app.services.import_execution_service import ImportExecutionService
 from app.services.storage.factory import get_storage_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -85,7 +101,9 @@ async def _resolve_target_user(
     target_user = result.scalar_one_or_none()
     if target_user is None:
         raise HTTPException(status_code=400, detail="Utilisateur cible invalide.")
-    if _role_code(current_user) not in ADMIN_ROLES and str(target_user.id) != str(current_user.id):
+    if _role_code(current_user) not in ADMIN_ROLES and str(target_user.id) != str(
+        current_user.id
+    ):
         raise HTTPException(
             status_code=403,
             detail="Vous ne pouvez cibler que votre propre utilisateur pour un import personnel.",
@@ -147,10 +165,14 @@ def _delete_storage_paths(paths: list[str]) -> None:
         try:
             storage_service.delete_file(path)
         except Exception:
-            continue
+            logger.warning("Storage cleanup failed for %s", path, exc_info=True)
 
 
-@router.post("/analyze", response_model=ImportJobWithItemsRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/analyze",
+    response_model=ImportJobWithItemsRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def analyze_import_job(
     files: list[UploadFile] = File(...),
     source_scope: str = Form("service"),
@@ -236,7 +258,10 @@ async def commit_import_job(
     if not await _can_read_job(current_user, job):
         raise HTTPException(status_code=403, detail="Acces refuse a ce batch d'import.")
     if not _can_commit_job(current_user, job):
-        raise HTTPException(status_code=403, detail="Seul le createur ou un admin peut executer ce batch.")
+        raise HTTPException(
+            status_code=403,
+            detail="Seul le createur ou un admin peut executer ce batch.",
+        )
     if job.status != "analyzed":
         raise HTTPException(
             status_code=409,
@@ -264,7 +289,9 @@ async def commit_import_job(
             try:
                 process_document_ocr.delay(document_id, file_path, mime_type)
             except Exception:
-                pass
+                logger.warning(
+                    "OCR enqueue failed for document %s", document_id, exc_info=True
+                )
     job = await _get_job_or_404(db, job_id)
     return ImportCommitResponse(
         job=ImportJobWithItemsRead.model_validate(job),

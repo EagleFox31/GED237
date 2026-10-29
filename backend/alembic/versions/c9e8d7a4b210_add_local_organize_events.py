@@ -59,6 +59,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("idx_local_org_tenant_created", table_name="local_organize_events")
-    op.drop_index("ix_local_organize_events_user_id", table_name="local_organize_events")
-    op.drop_index("ix_local_organize_events_tenant_id", table_name="local_organize_events")
+    op.drop_index(
+        "ix_local_organize_events_user_id", table_name="local_organize_events"
+    )
+    op.drop_index(
+        "ix_local_organize_events_tenant_id", table_name="local_organize_events"
+    )
     op.drop_table("local_organize_events")

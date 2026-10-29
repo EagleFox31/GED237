@@ -94,9 +94,7 @@ async def test_classification_domain_activity_rule_crud_and_simulation(
     assert rules.status_code == 200
     assert any(row["id"] == rule["id"] for row in rules.json())
 
-    fetched = await admin_client.get(
-        f"/api/v1/classification-rules/rules/{rule['id']}"
-    )
+    fetched = await admin_client.get(f"/api/v1/classification-rules/rules/{rule['id']}")
     assert fetched.status_code == 200
 
     patched = await admin_client.patch(
@@ -172,7 +170,9 @@ async def test_classification_domain_activity_rule_crud_and_simulation(
 
 
 @pytest.mark.asyncio
-async def test_classification_reference_validation_errors(admin_client: AsyncClient, db_seed):
+async def test_classification_reference_validation_errors(
+    admin_client: AsyncClient, db_seed
+):
     invalid_category = await admin_client.post(
         "/api/v1/classification-rules/rules",
         json={

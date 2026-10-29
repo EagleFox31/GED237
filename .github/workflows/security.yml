@@ -28,26 +28,22 @@ jobs:
           python-version: "3.12"
 
       - name: Install Bandit
-        run: pip install bandit
+        # Same pinned version as requirements.txt and .pre-commit-config.yaml.
+        run: pip install $(grep -E '^bandit==' backend/requirements.txt)
 
-      - name: Run Bandit (severity HIGH+)
+      - name: Run Bandit (JSON report)
         run: |
           cd backend
           bandit -r app/ \
             -c .bandit.yml \
             -f json \
             -o bandit-report.json \
-            --severity-level high \
-            --confidence-level medium \
             || true
 
-      - name: Check for HIGH/CRITICAL findings
+      - name: Check for findings (same gate as the pre-commit hook)
         run: |
           cd backend
-          bandit -r app/ \
-            -c .bandit.yml \
-            --severity-level high \
-            --confidence-level medium
+          bandit -r app/ -c .bandit.yml
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v4

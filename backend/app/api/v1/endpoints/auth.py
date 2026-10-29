@@ -6,8 +6,6 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
-
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import AuthenticationError, NotFoundError
@@ -25,6 +23,8 @@ from app.core.dependencies import get_current_user
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import ChangePasswordRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 auth_service = AuthService()

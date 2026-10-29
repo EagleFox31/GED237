@@ -49,12 +49,8 @@ def upgrade() -> None:
             "suggested_scope IS NULL OR suggested_scope IN ('person', 'service', 'subdirectorate', 'directorate')",
             name="check_classification_reviews_scope",
         ),
-        sa.ForeignKeyConstraint(
-            ["document_id"], ["documents.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["resolved_by_id"], ["users.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["resolved_by_id"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(
             ["suggested_activity_id"],
             ["classification_activities.id"],
@@ -73,7 +69,9 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("document_id", name="uq_classification_reviews_document_id"),
+        sa.UniqueConstraint(
+            "document_id", name="uq_classification_reviews_document_id"
+        ),
     )
     op.create_index(
         "idx_classification_reviews_tenant_status",
@@ -126,7 +124,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_classification_reviews_tenant_id"), table_name="classification_reviews")
+    op.drop_index(
+        op.f("ix_classification_reviews_tenant_id"), table_name="classification_reviews"
+    )
     op.drop_index(
         op.f("ix_classification_reviews_suggested_target_user_id"),
         table_name="classification_reviews",
@@ -147,6 +147,11 @@ def downgrade() -> None:
         op.f("ix_classification_reviews_resolved_by_id"),
         table_name="classification_reviews",
     )
-    op.drop_index(op.f("ix_classification_reviews_document_id"), table_name="classification_reviews")
-    op.drop_index("idx_classification_reviews_tenant_status", table_name="classification_reviews")
+    op.drop_index(
+        op.f("ix_classification_reviews_document_id"),
+        table_name="classification_reviews",
+    )
+    op.drop_index(
+        "idx_classification_reviews_tenant_status", table_name="classification_reviews"
+    )
     op.drop_table("classification_reviews")

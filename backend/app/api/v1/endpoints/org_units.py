@@ -17,7 +17,12 @@ from app.core.tenant_guard import assert_org_unit_scope
 from app.models.user import User
 from app.models.org_unit import OrgUnit, OrgUnitType
 from app.models.document import Document
-from app.schemas.org_unit import OrgUnitCreate, OrgUnitRead, OrgUnitTreeNode, OrgUnitUpdate
+from app.schemas.org_unit import (
+    OrgUnitCreate,
+    OrgUnitRead,
+    OrgUnitTreeNode,
+    OrgUnitUpdate,
+)
 
 router = APIRouter()
 

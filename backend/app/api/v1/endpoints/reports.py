@@ -49,7 +49,9 @@ async def get_reports_evolution(
 
     if not is_super and _role_code(current_user) in {"manager", "reader"}:
         if current_user.org_unit_id is None:
-            raise HTTPException(status_code=403, detail="Portée organisationnelle invalide.")
+            raise HTTPException(
+                status_code=403, detail="Portée organisationnelle invalide."
+            )
         if org_unit_id is not None:
             assert_org_unit_scope(org_unit_id, current_user)
         effective_org_unit_id = current_user.org_unit_id
@@ -93,7 +95,9 @@ async def get_reports_document_activity(
 
     if not is_super and _role_code(current_user) in {"manager", "reader"}:
         if current_user.org_unit_id is None:
-            raise HTTPException(status_code=403, detail="Portée organisationnelle invalide.")
+            raise HTTPException(
+                status_code=403, detail="Portée organisationnelle invalide."
+            )
         if org_unit_id is not None:
             assert_org_unit_scope(org_unit_id, current_user)
         effective_org_unit_id = current_user.org_unit_id
@@ -131,7 +135,9 @@ async def get_reports_workflow_activity(
 
     if not is_super and _role_code(current_user) in {"manager", "reader"}:
         if current_user.org_unit_id is None:
-            raise HTTPException(status_code=403, detail="Portée organisationnelle invalide.")
+            raise HTTPException(
+                status_code=403, detail="Portée organisationnelle invalide."
+            )
         if org_unit_id is not None:
             assert_org_unit_scope(org_unit_id, current_user)
         effective_org_unit_id = current_user.org_unit_id
@@ -169,7 +175,9 @@ async def get_reports_service_activity(
 
     if not is_super and _role_code(current_user) in {"manager", "reader"}:
         if current_user.org_unit_id is None:
-            raise HTTPException(status_code=403, detail="Portée organisationnelle invalide.")
+            raise HTTPException(
+                status_code=403, detail="Portée organisationnelle invalide."
+            )
         if org_unit_id is not None:
             assert_org_unit_scope(org_unit_id, current_user)
         effective_org_unit_id = current_user.org_unit_id

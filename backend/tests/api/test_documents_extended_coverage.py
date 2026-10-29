@@ -33,9 +33,7 @@ async def test_document_read_content_update_ocr_and_audit_endpoints(
     )
     document_id = uploaded["id"]
 
-    listing = await admin_client.get(
-        "/api/v1/documents/", params={"status": "draft"}
-    )
+    listing = await admin_client.get("/api/v1/documents/", params={"status": "draft"})
     assert listing.status_code == 200
     assert any(row["id"] == document_id for row in listing.json())
 
@@ -65,9 +63,7 @@ async def test_document_read_content_update_ocr_and_audit_endpoints(
     assert content.headers["cache-control"].startswith("private")
     assert "attachment" in content.headers["content-disposition"]
 
-    audit_logs = await admin_client.get(
-        f"/api/v1/documents/{document_id}/audit-logs"
-    )
+    audit_logs = await admin_client.get(f"/api/v1/documents/{document_id}/audit-logs")
     assert audit_logs.status_code == 200
     assert any(row["action"] == "content_viewed" for row in audit_logs.json())
 
@@ -92,7 +88,9 @@ async def test_document_read_content_update_ocr_and_audit_endpoints(
     assert ocr.status_code == 200
     assert ocr.json()["ocr_status"] == "not_processed"
 
-    result = await db_session.execute(select(Document).where(Document.id == document_id))
+    result = await db_session.execute(
+        select(Document).where(Document.id == document_id)
+    )
     document = result.scalar_one()
     document.mime_type = "image/png"
     document.ocr_content = None
@@ -125,9 +123,7 @@ async def test_document_start_workflow_trash_restore_purge_and_hard_delete(
     )
     first_id = first["id"]
 
-    started = await admin_client.post(
-        f"/api/v1/documents/{first_id}/start-workflow"
-    )
+    started = await admin_client.post(f"/api/v1/documents/{first_id}/start-workflow")
     assert started.status_code == 200
     assert started.json()["processing_mode"] == "process"
 
@@ -172,7 +168,5 @@ async def test_document_start_workflow_trash_restore_purge_and_hard_delete(
     hard_deleted = await admin_client.delete(f"/api/v1/documents/{second['id']}")
     assert hard_deleted.status_code == 204
 
-    missing_after_delete = await admin_client.get(
-        f"/api/v1/documents/{second['id']}"
-    )
+    missing_after_delete = await admin_client.get(f"/api/v1/documents/{second['id']}")
     assert missing_after_delete.status_code == 404

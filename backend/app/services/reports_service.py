@@ -65,14 +65,24 @@ class ReportsService:
             "activity_id": activity_id,
             "document_category_id": document_category_id,
         }
-        documents_created = await self._build_series(metric="documents_created", **common_kwargs)
-        documents_auto_classified = await self._build_series(metric="documents_auto_classified", **common_kwargs)
-        documents_needing_review = await self._build_series(metric="documents_needing_review", **common_kwargs)
+        documents_created = await self._build_series(
+            metric="documents_created", **common_kwargs
+        )
+        documents_auto_classified = await self._build_series(
+            metric="documents_auto_classified", **common_kwargs
+        )
+        documents_needing_review = await self._build_series(
+            metric="documents_needing_review", **common_kwargs
+        )
 
         totals = ReportsEvolutionTotals(
             documents_created=sum(point.value for point in documents_created),
-            documents_auto_classified=sum(point.value for point in documents_auto_classified),
-            documents_needing_review=sum(point.value for point in documents_needing_review),
+            documents_auto_classified=sum(
+                point.value for point in documents_auto_classified
+            ),
+            documents_needing_review=sum(
+                point.value for point in documents_needing_review
+            ),
         )
 
         breakdown_kwargs = {
@@ -159,12 +169,19 @@ class ReportsService:
         by_file_type = await self._group_documents_by_file_type(common_filters)
         by_org_unit = await self._group_documents_by_org_unit(common_filters)
 
-        local_runs, local_files, local_files_unranged = await self._local_organize_metrics(
-            tenant_id=tenant_id
-        )
+        (
+            local_runs,
+            local_files,
+            local_files_unranged,
+        ) = await self._local_organize_metrics(tenant_id=tenant_id)
         signals = ReportsDocumentActivitySignals(
             unclassified_documents=await self._count_documents(
-                [*common_filters, Document.classification_status.in_(("pending", "needs_review", "rejected"))]
+                [
+                    *common_filters,
+                    Document.classification_status.in_(
+                        ("pending", "needs_review", "rejected")
+                    ),
+                ]
             ),
             documents_missing_information=await self._count_documents(
                 [
@@ -178,7 +195,9 @@ class ReportsService:
                 ]
             ),
             documents_needing_review=reviewed_documents,
-            imports_needing_review=await self._count_open_import_reviews(tenant_id=tenant_id),
+            imports_needing_review=await self._count_open_import_reviews(
+                tenant_id=tenant_id
+            ),
             local_organize_runs=local_runs,
             local_organize_files=local_files,
             local_organize_files_unranged=local_files_unranged,
@@ -216,16 +235,25 @@ class ReportsService:
         )
 
         active_steps = await self._count_workflow_steps(
-            [*workflow_filters, WorkflowStep.status.in_(("current", "pending", "pending_assignment"))]
+            [
+                *workflow_filters,
+                WorkflowStep.status.in_(("current", "pending", "pending_assignment")),
+            ]
         )
         completed_steps = await self._count_workflow_steps(
             [*workflow_filters, WorkflowStep.status == "completed"]
         )
         rejected_steps = await self._count_workflow_steps(
-            [*workflow_filters, WorkflowStep.status.in_(("rejected", "returned", "cancelled"))]
+            [
+                *workflow_filters,
+                WorkflowStep.status.in_(("rejected", "returned", "cancelled")),
+            ]
         )
         open_workflows = await self._count_distinct_workflow_documents(
-            [*workflow_filters, WorkflowStep.status.in_(("current", "pending", "pending_assignment"))]
+            [
+                *workflow_filters,
+                WorkflowStep.status.in_(("current", "pending", "pending_assignment")),
+            ]
         )
         completed_workflows = await self._count_distinct_workflow_documents(
             [*workflow_filters, WorkflowStep.status == "completed"]
@@ -248,7 +276,9 @@ class ReportsService:
             by_step=await self._group_workflow_steps_by_label(workflow_filters),
             pending_actions=await self._group_pending_actions(workflow_filters),
             slowest_steps=await self._group_workflow_delays_by_step(workflow_filters),
-            delay_by_org_unit=await self._group_workflow_delays_by_org_unit(workflow_filters),
+            delay_by_org_unit=await self._group_workflow_delays_by_org_unit(
+                workflow_filters
+            ),
             availability=ReportsWorkflowActivityAvailability(),
         )
 
@@ -298,12 +328,19 @@ class ReportsService:
                 [*unit_filters, Document.classification_status == "needs_review"]
             )
             open_workflows = await self._count_distinct_workflow_documents(
-                [*workflow_filters, WorkflowStep.status.in_(("current", "pending", "pending_assignment"))]
+                [
+                    *workflow_filters,
+                    WorkflowStep.status.in_(
+                        ("current", "pending", "pending_assignment")
+                    ),
+                ]
             )
             estimated_delays = await self._count_distinct_workflow_documents(
                 [
                     *workflow_filters,
-                    WorkflowStep.status.in_(("current", "pending", "pending_assignment")),
+                    WorkflowStep.status.in_(
+                        ("current", "pending", "pending_assignment")
+                    ),
                     WorkflowStep.created_at < datetime.utcnow() - timedelta(days=5),
                 ]
             )
@@ -314,15 +351,17 @@ class ReportsService:
                 recursive=True,
             )
 
-            if any([
-                documents_total,
-                documents_in_progress,
-                documents_needing_review,
-                open_workflows,
-                estimated_delays,
-                active_users,
-                inactive_users,
-            ]):
+            if any(
+                [
+                    documents_total,
+                    documents_in_progress,
+                    documents_needing_review,
+                    open_workflows,
+                    estimated_delays,
+                    active_users,
+                    inactive_users,
+                ]
+            ):
                 services.append(
                     ReportsServiceActivityItem(
                         id=unit.id,
@@ -352,9 +391,15 @@ class ReportsService:
             services=services[:12],
             total_services=len(services),
             overloaded_services=len(
-                [item for item in services if item.documents_in_progress > 0 or item.estimated_delays > 0]
+                [
+                    item
+                    for item in services
+                    if item.documents_in_progress > 0 or item.estimated_delays > 0
+                ]
             ),
-            services_with_reviews=len([item for item in services if item.documents_needing_review > 0]),
+            services_with_reviews=len(
+                [item for item in services if item.documents_needing_review > 0]
+            ),
             availability={
                 "active_users": True,
                 "inactive_users": True,
@@ -382,17 +427,19 @@ class ReportsService:
                 bucket_expr.label("bucket_start"),
                 func.count(Document.id).label("value"),
             )
-            .where(*self._document_filters(
-                metric=metric,
-                tenant_id=tenant_id,
-                date_from=date_from,
-                date_to=date_to,
-                org_unit_id=org_unit_id,
-                recursive=recursive,
-                domain_id=domain_id,
-                activity_id=activity_id,
-                document_category_id=document_category_id,
-            ))
+            .where(
+                *self._document_filters(
+                    metric=metric,
+                    tenant_id=tenant_id,
+                    date_from=date_from,
+                    date_to=date_to,
+                    org_unit_id=org_unit_id,
+                    recursive=recursive,
+                    domain_id=domain_id,
+                    activity_id=activity_id,
+                    document_category_id=document_category_id,
+                )
+            )
             .group_by(bucket_expr)
             .order_by(bucket_expr.asc())
         )
@@ -436,17 +483,19 @@ class ReportsService:
                 func.count(Document.id).label("value"),
             )
             .join(OrgUnit, OrgUnit.id == Document.org_unit_id)
-            .where(*self._document_filters(
-                metric=metric,
-                tenant_id=tenant_id,
-                date_from=date_from,
-                date_to=date_to,
-                org_unit_id=org_unit_id,
-                recursive=recursive,
-                domain_id=domain_id,
-                activity_id=activity_id,
-                document_category_id=document_category_id,
-            ))
+            .where(
+                *self._document_filters(
+                    metric=metric,
+                    tenant_id=tenant_id,
+                    date_from=date_from,
+                    date_to=date_to,
+                    org_unit_id=org_unit_id,
+                    recursive=recursive,
+                    domain_id=domain_id,
+                    activity_id=activity_id,
+                    document_category_id=document_category_id,
+                )
+            )
             .group_by(OrgUnit.id, OrgUnit.name)
             .order_by(func.count(Document.id).desc(), OrgUnit.name.asc())
             .limit(5)
@@ -478,7 +527,9 @@ class ReportsService:
         if date_from is not None:
             filters.append(Document.created_at >= self._start_of_day(date_from))
         if date_to is not None:
-            filters.append(Document.created_at < self._start_of_day(date_to + timedelta(days=1)))
+            filters.append(
+                Document.created_at < self._start_of_day(date_to + timedelta(days=1))
+            )
 
         if org_unit_id:
             if recursive:
@@ -602,9 +653,7 @@ class ReportsService:
         result = await self.db.execute(stmt)
         return int(result.scalar_one() or 0)
 
-    async def _local_organize_metrics(
-        self, *, tenant_id: UUID
-    ) -> tuple[int, int, int]:
+    async def _local_organize_metrics(self, *, tenant_id: UUID) -> tuple[int, int, int]:
         """Compteurs agrégés du mode « Ranger sur mon poste » pour le tenant.
 
         Retourne (nb_runs, total_files, total_files_unranged). Aucun fichier
@@ -759,10 +808,13 @@ class ReportsService:
         self,
         filters: list,
     ) -> list[ReportsWorkflowDelayItem]:
-        duration_days = func.extract(
-            "epoch",
-            WorkflowStep.completed_at - WorkflowStep.created_at,
-        ) / 86400.0
+        duration_days = (
+            func.extract(
+                "epoch",
+                WorkflowStep.completed_at - WorkflowStep.created_at,
+            )
+            / 86400.0
+        )
         stmt = (
             select(
                 WorkflowStep.label,
@@ -795,10 +847,13 @@ class ReportsService:
         self,
         filters: list,
     ) -> list[ReportsWorkflowDelayItem]:
-        duration_days = func.extract(
-            "epoch",
-            WorkflowStep.completed_at - WorkflowStep.created_at,
-        ) / 86400.0
+        duration_days = (
+            func.extract(
+                "epoch",
+                WorkflowStep.completed_at - WorkflowStep.created_at,
+            )
+            / 86400.0
+        )
         stmt = (
             select(
                 OrgUnit.id,
@@ -830,10 +885,13 @@ class ReportsService:
         ]
 
     async def _average_workflow_days(self, filters: list) -> float:
-        duration_days = func.extract(
-            "epoch",
-            WorkflowStep.completed_at - WorkflowStep.created_at,
-        ) / 86400.0
+        duration_days = (
+            func.extract(
+                "epoch",
+                WorkflowStep.completed_at - WorkflowStep.created_at,
+            )
+            / 86400.0
+        )
         stmt = (
             select(func.avg(duration_days))
             .select_from(WorkflowStep)
@@ -911,7 +969,9 @@ class ReportsService:
         )
         active_result = await self.db.execute(active_stmt)
         inactive_result = await self.db.execute(inactive_stmt)
-        return int(active_result.scalar_one() or 0), int(inactive_result.scalar_one() or 0)
+        return int(active_result.scalar_one() or 0), int(
+            inactive_result.scalar_one() or 0
+        )
 
     @staticmethod
     def _normalize_dates(

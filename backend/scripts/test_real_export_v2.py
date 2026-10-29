@@ -19,7 +19,6 @@ L'OCR simulé lit le CONTENU TEXTE réel des documents (pas juste le titre).
 
 import os
 import sys
-import json
 import shutil
 import asyncio
 import datetime
@@ -560,7 +559,7 @@ def build_ocr_text(
         )
         lines.insert(
             2,
-            f"Rattachement provisoire. Les deux services partagent des elements de contexte.",
+            "Rattachement provisoire. Les deux services partagent des elements de contexte.",
         )
 
     if severity >= 1:
@@ -1069,7 +1068,6 @@ async def main():
     print("=" * 65)
     for service_dir in sorted(REMOTE_SERVER.iterdir()):
         if service_dir.is_dir():
-            file_count = sum(1 for _ in service_dir.rglob("*") if _.is_file())
             print(f"\n  📁 {service_dir.name}/")
             for year_dir in sorted(service_dir.iterdir()):
                 if year_dir.is_dir():
