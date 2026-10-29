@@ -188,3 +188,17 @@ première requête utilisateur.
 **Résolution** — Job CI `Lint (ruff)` ; bandit CI sans seuil propre (lit `.bandit.yml` comme le hook) ; versions lues dans `requirements.txt` ; E712 corrigé à la main en `.is_(True/False)` ; échecs best-effort journalisés (`logger.warning`).
 **Prévention** — Hook et CI lisent la même config (`backend/ruff.toml`, `backend/.bandit.yml`) et la même version épinglée ; pas de `--unsafe-fixes` sans relecture ; exception bandit uniquement via `# nosec BXXX - raison`.
 **Leçon généralisée** — Un gate n'a qu'une source de vérité : le hook local et la CI doivent appeler la même config, sinon ils divergent en silence.
+
+### LESSON-2026-011 — CVE publiée dans l'image de base entre deux builds
+
+- **Date :** 2026-10-29
+- **Catégorie :** security
+- **Statut :** prevention-added
+- **Liens :** PR #4, `frontend/Dockerfile`
+
+**Contexte** — PR sans changement frontend ; le job Trivy reconstruit l'image `ged237-frontend:ci`.
+**Échec / near miss** — CVE-2026-111497 (CRITICAL, `brotli-libs` 1.2.0-r1) dans `nginx:stable-alpine` : CI rouge sans lien avec le diff.
+**Cause racine** — L'image runtime prenait les paquets OS figés au build de l'image amont ; le correctif Alpine (1.2.1-r0) existait déjà.
+**Résolution** — `RUN apk upgrade --no-cache` dans l'étape `production`.
+**Prévention** — Toute image runtime Alpine/Debian applique les correctifs OS au build ; Trivy reste bloquant sur CRITICAL.
+**Leçon généralisée** — Un gate de vulnérabilités sur image peut virer au rouge sans changement de code : appliquer les mises à jour de sécurité au build plutôt qu'attendre l'image amont.
