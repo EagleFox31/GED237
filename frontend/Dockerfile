@@ -1,5 +1,5 @@
 # Development image: keep Vite/HMR for local docker-compose usage.
-FROM node:20-alpine AS development
+FROM node:25-alpine AS development
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ CMD ["npm", "run", "dev", "--", "--host"]
 
 
 # Build stage: dev tooling (Vite/esbuild) is needed only to produce static assets.
-FROM node:20-alpine AS build
+FROM node:25-alpine AS build
 
 WORKDIR /app
 
