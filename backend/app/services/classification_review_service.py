@@ -54,7 +54,9 @@ class ClassificationReviewService:
         self.path_builder = SpacePathBuilder(db)
         self.storage_service = get_storage_service()
 
-    async def list_open_reviews(self, *, tenant_id: UUID) -> List[ClassificationReviewRead]:
+    async def list_open_reviews(
+        self, *, tenant_id: UUID
+    ) -> List[ClassificationReviewRead]:
         reviews = await self._load_open_reviews(tenant_id=tenant_id)
         return [self._to_review_read(review) for review in reviews]
 
@@ -306,7 +308,9 @@ class ClassificationReviewService:
         workflow_relaunched = False
         dispatch_payload = None
         if payload.relaunch_workflow and document.processing_mode == "process":
-            workflow_relaunched = not await self._has_workflow_steps(document_id=document.id)
+            workflow_relaunched = not await self._has_workflow_steps(
+                document_id=document.id
+            )
             if workflow_relaunched:
                 dispatch_payload = self._build_dispatch_payload(document)
 
@@ -384,7 +388,9 @@ class ClassificationReviewService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Un fichier identique existe deja dans ce tenant.",
             )
-        if not self.storage_service.copy_file(item.staging_file_path, final_relative_path):
+        if not self.storage_service.copy_file(
+            item.staging_file_path, final_relative_path
+        ):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Copie du fichier vers le stockage final impossible.",
@@ -515,7 +521,9 @@ class ClassificationReviewService:
             rollback_delete_paths=rollback_delete_paths,
         )
 
-    async def _load_open_reviews(self, *, tenant_id: UUID) -> list[ClassificationReview]:
+    async def _load_open_reviews(
+        self, *, tenant_id: UUID
+    ) -> list[ClassificationReview]:
         result = await self.db.execute(
             select(ClassificationReview)
             .options(
@@ -623,9 +631,7 @@ class ClassificationReviewService:
             if sys_report and sys_report.get("arbitration_reason"):
                 return sys_report["arbitration_reason"]
         if document.classification_status == "needs_review":
-            return (
-                "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
-            )
+            return "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
         return "Aucune regle deterministe n a permis de classer ce document."
 
     async def _get_review_or_404(
@@ -644,7 +650,9 @@ class ClassificationReviewService:
         result = await self.db.execute(stmt)
         review = result.scalar_one_or_none()
         if review is None:
-            raise HTTPException(status_code=404, detail="Classification review not found.")
+            raise HTTPException(
+                status_code=404, detail="Classification review not found."
+            )
         return review
 
     async def _get_document_for_review(
@@ -856,7 +864,9 @@ class ClassificationReviewService:
         )
         return result.scalar_one_or_none() is not None
 
-    async def _ensure_not_locked_for_write(self, *, document: Document, actor: User) -> None:
+    async def _ensure_not_locked_for_write(
+        self, *, document: Document, actor: User
+    ) -> None:
         now = datetime.now(timezone.utc)
         if await can_perform(actor, "documents", "manage", ctx_from_resource(document)):
             return
@@ -876,7 +886,9 @@ class ClassificationReviewService:
                 },
             )
 
-    async def _is_duplicate_checksum(self, *, checksum: str | None, tenant_id: UUID) -> bool:
+    async def _is_duplicate_checksum(
+        self, *, checksum: str | None, tenant_id: UUID
+    ) -> bool:
         if not checksum:
             return False
         result = await self.db.execute(
@@ -897,7 +909,9 @@ class ClassificationReviewService:
             return
 
         result = await self.db.execute(
-            select(ImportJobItem.status).where(ImportJobItem.import_job_id == import_job_id)
+            select(ImportJobItem.status).where(
+                ImportJobItem.import_job_id == import_job_id
+            )
         )
         statuses = list(result.scalars().all())
         has_failed = any(status == "failed" for status in statuses)
@@ -957,9 +971,7 @@ class ClassificationReviewService:
         if item.error_message:
             return item.error_message
         if item.status == "needs_review":
-            return (
-                "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
-            )
+            return "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
         return "Aucune regle deterministe n a permis de classer ce fichier du batch."
 
     @staticmethod

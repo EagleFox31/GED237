@@ -39,17 +39,33 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("'draft'"),
         ),
-        sa.Column("total_files", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column("supported_files", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column("ignored_files", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column("duplicate_files", sa.Integer(), nullable=False, server_default=sa.text("0")),
-        sa.Column("error_files", sa.Integer(), nullable=False, server_default=sa.text("0")),
+        sa.Column(
+            "total_files", sa.Integer(), nullable=False, server_default=sa.text("0")
+        ),
+        sa.Column(
+            "supported_files", sa.Integer(), nullable=False, server_default=sa.text("0")
+        ),
+        sa.Column(
+            "ignored_files", sa.Integer(), nullable=False, server_default=sa.text("0")
+        ),
+        sa.Column(
+            "duplicate_files", sa.Integer(), nullable=False, server_default=sa.text("0")
+        ),
+        sa.Column(
+            "error_files", sa.Integer(), nullable=False, server_default=sa.text("0")
+        ),
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["default_document_category_id"], ["document_categories.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["target_org_unit_id"], ["org_units.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["default_document_category_id"],
+            ["document_categories.id"],
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["target_org_unit_id"], ["org_units.id"], ondelete="SET NULL"
+        ),
         sa.ForeignKeyConstraint(["target_user_id"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -70,19 +86,53 @@ def upgrade() -> None:
             name="check_import_jobs_has_target",
         ),
     )
-    op.create_index("idx_import_jobs_tenant_status", "import_jobs", ["tenant_id", "status"], unique=False)
-    op.create_index("idx_import_jobs_creator_status", "import_jobs", ["created_by_id", "status"], unique=False)
-    op.create_index(op.f("ix_import_jobs_tenant_id"), "import_jobs", ["tenant_id"], unique=False)
-    op.create_index(op.f("ix_import_jobs_created_by_id"), "import_jobs", ["created_by_id"], unique=False)
-    op.create_index(op.f("ix_import_jobs_target_org_unit_id"), "import_jobs", ["target_org_unit_id"], unique=False)
-    op.create_index(op.f("ix_import_jobs_target_user_id"), "import_jobs", ["target_user_id"], unique=False)
-    op.create_index(op.f("ix_import_jobs_default_document_category_id"), "import_jobs", ["default_document_category_id"], unique=False)
+    op.create_index(
+        "idx_import_jobs_tenant_status",
+        "import_jobs",
+        ["tenant_id", "status"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_import_jobs_creator_status",
+        "import_jobs",
+        ["created_by_id", "status"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_jobs_tenant_id"), "import_jobs", ["tenant_id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_import_jobs_created_by_id"),
+        "import_jobs",
+        ["created_by_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_jobs_target_org_unit_id"),
+        "import_jobs",
+        ["target_org_unit_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_jobs_target_user_id"),
+        "import_jobs",
+        ["target_user_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_jobs_default_document_category_id"),
+        "import_jobs",
+        ["default_document_category_id"],
+        unique=False,
+    )
 
     op.add_column(
         "documents",
         sa.Column("import_job_id", sa.UUID(), nullable=True),
     )
-    op.create_index(op.f("ix_documents_import_job_id"), "documents", ["import_job_id"], unique=False)
+    op.create_index(
+        op.f("ix_documents_import_job_id"), "documents", ["import_job_id"], unique=False
+    )
     op.create_foreign_key(
         "fk_documents_import_job_id",
         "documents",
@@ -99,7 +149,9 @@ def upgrade() -> None:
         sa.Column("source_relative_path", sa.String(length=1000), nullable=False),
         sa.Column("staging_file_path", sa.String(length=1000), nullable=True),
         sa.Column("mime_type", sa.String(length=100), nullable=True),
-        sa.Column("file_size", sa.Integer(), nullable=False, server_default=sa.text("0")),
+        sa.Column(
+            "file_size", sa.Integer(), nullable=False, server_default=sa.text("0")
+        ),
         sa.Column("checksum_sha256", sa.String(length=64), nullable=True),
         sa.Column("detected_document_category_id", sa.UUID(), nullable=True),
         sa.Column("resolved_domain_id", sa.UUID(), nullable=True),
@@ -121,14 +173,32 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(["detected_document_category_id"], ["document_categories.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["detected_document_category_id"],
+            ["document_categories.id"],
+            ondelete="SET NULL",
+        ),
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["import_job_id"], ["import_jobs.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["resolved_activity_id"], ["classification_activities.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["resolved_domain_id"], ["classification_domains.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["resolved_target_org_unit_id"], ["org_units.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["resolved_target_user_id"], ["users.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["workflow_template_id"], ["workflow_templates.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["import_job_id"], ["import_jobs.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["resolved_activity_id"],
+            ["classification_activities.id"],
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["resolved_domain_id"], ["classification_domains.id"], ondelete="SET NULL"
+        ),
+        sa.ForeignKeyConstraint(
+            ["resolved_target_org_unit_id"], ["org_units.id"], ondelete="SET NULL"
+        ),
+        sa.ForeignKeyConstraint(
+            ["resolved_target_user_id"], ["users.id"], ondelete="SET NULL"
+        ),
+        sa.ForeignKeyConstraint(
+            ["workflow_template_id"], ["workflow_templates.id"], ondelete="SET NULL"
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.CheckConstraint(
             "status IN ('pending', 'classified', 'needs_review', 'duplicate', 'ignored', 'imported', 'failed')",
@@ -139,28 +209,99 @@ def upgrade() -> None:
             name="check_import_job_items_resolved_scope",
         ),
     )
-    op.create_index("idx_import_job_items_job_status", "import_job_items", ["import_job_id", "status"], unique=False)
-    op.create_index(op.f("ix_import_job_items_import_job_id"), "import_job_items", ["import_job_id"], unique=False)
-    op.create_index(op.f("ix_import_job_items_checksum_sha256"), "import_job_items", ["checksum_sha256"], unique=False)
-    op.create_index(op.f("ix_import_job_items_detected_document_category_id"), "import_job_items", ["detected_document_category_id"], unique=False)
-    op.create_index(op.f("ix_import_job_items_resolved_domain_id"), "import_job_items", ["resolved_domain_id"], unique=False)
-    op.create_index(op.f("ix_import_job_items_resolved_activity_id"), "import_job_items", ["resolved_activity_id"], unique=False)
-    op.create_index(op.f("ix_import_job_items_resolved_target_org_unit_id"), "import_job_items", ["resolved_target_org_unit_id"], unique=False)
-    op.create_index(op.f("ix_import_job_items_resolved_target_user_id"), "import_job_items", ["resolved_target_user_id"], unique=False)
-    op.create_index(op.f("ix_import_job_items_workflow_template_id"), "import_job_items", ["workflow_template_id"], unique=False)
-    op.create_index(op.f("ix_import_job_items_document_id"), "import_job_items", ["document_id"], unique=False)
+    op.create_index(
+        "idx_import_job_items_job_status",
+        "import_job_items",
+        ["import_job_id", "status"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_import_job_id"),
+        "import_job_items",
+        ["import_job_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_checksum_sha256"),
+        "import_job_items",
+        ["checksum_sha256"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_detected_document_category_id"),
+        "import_job_items",
+        ["detected_document_category_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_resolved_domain_id"),
+        "import_job_items",
+        ["resolved_domain_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_resolved_activity_id"),
+        "import_job_items",
+        ["resolved_activity_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_resolved_target_org_unit_id"),
+        "import_job_items",
+        ["resolved_target_org_unit_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_resolved_target_user_id"),
+        "import_job_items",
+        ["resolved_target_user_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_workflow_template_id"),
+        "import_job_items",
+        ["workflow_template_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_job_items_document_id"),
+        "import_job_items",
+        ["document_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_import_job_items_document_id"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_workflow_template_id"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_resolved_target_user_id"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_resolved_target_org_unit_id"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_resolved_activity_id"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_resolved_domain_id"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_detected_document_category_id"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_checksum_sha256"), table_name="import_job_items")
-    op.drop_index(op.f("ix_import_job_items_import_job_id"), table_name="import_job_items")
+    op.drop_index(
+        op.f("ix_import_job_items_document_id"), table_name="import_job_items"
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_workflow_template_id"), table_name="import_job_items"
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_resolved_target_user_id"),
+        table_name="import_job_items",
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_resolved_target_org_unit_id"),
+        table_name="import_job_items",
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_resolved_activity_id"), table_name="import_job_items"
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_resolved_domain_id"), table_name="import_job_items"
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_detected_document_category_id"),
+        table_name="import_job_items",
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_checksum_sha256"), table_name="import_job_items"
+    )
+    op.drop_index(
+        op.f("ix_import_job_items_import_job_id"), table_name="import_job_items"
+    )
     op.drop_index("idx_import_job_items_job_status", table_name="import_job_items")
     op.drop_table("import_job_items")
 
@@ -168,7 +309,9 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_documents_import_job_id"), table_name="documents")
     op.drop_column("documents", "import_job_id")
 
-    op.drop_index(op.f("ix_import_jobs_default_document_category_id"), table_name="import_jobs")
+    op.drop_index(
+        op.f("ix_import_jobs_default_document_category_id"), table_name="import_jobs"
+    )
     op.drop_index(op.f("ix_import_jobs_target_user_id"), table_name="import_jobs")
     op.drop_index(op.f("ix_import_jobs_target_org_unit_id"), table_name="import_jobs")
     op.drop_index(op.f("ix_import_jobs_created_by_id"), table_name="import_jobs")

@@ -38,7 +38,9 @@ class ClassificationReview(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         index=True,
     )
-    review_status = Column(String(20), nullable=False, default="open", server_default="open")
+    review_status = Column(
+        String(20), nullable=False, default="open", server_default="open"
+    )
     arbitration_reason = Column(String(1000), nullable=True)
 
     suggested_domain_id = Column(
@@ -80,10 +82,18 @@ class ClassificationReview(Base, UUIDMixin, TimestampMixin):
     tenant = relationship("Tenant")
     document = relationship("Document")
     import_job_item = relationship("ImportJobItem")
-    suggested_domain = relationship("ClassificationDomain", foreign_keys=[suggested_domain_id])
-    suggested_activity = relationship("ClassificationActivity", foreign_keys=[suggested_activity_id])
-    suggested_target_org_unit = relationship("OrgUnit", foreign_keys=[suggested_target_org_unit_id])
-    suggested_target_user = relationship("User", foreign_keys=[suggested_target_user_id])
+    suggested_domain = relationship(
+        "ClassificationDomain", foreign_keys=[suggested_domain_id]
+    )
+    suggested_activity = relationship(
+        "ClassificationActivity", foreign_keys=[suggested_activity_id]
+    )
+    suggested_target_org_unit = relationship(
+        "OrgUnit", foreign_keys=[suggested_target_org_unit_id]
+    )
+    suggested_target_user = relationship(
+        "User", foreign_keys=[suggested_target_user_id]
+    )
     resolved_by = relationship("User", foreign_keys=[resolved_by_id])
 
     __table_args__ = (

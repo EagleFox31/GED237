@@ -89,7 +89,9 @@ async def test_list_and_resolve_classification_review(
     assert resolved["success"] is True
     assert resolved["review_status"] == "resolved"
     assert resolved["document_classification_status"] == "classified"
-    assert resolved["logical_space_path"] == "Direction Test / Marches / Reparation / 2026"
+    assert (
+        resolved["logical_space_path"] == "Direction Test / Marches / Reparation / 2026"
+    )
 
     refreshed = await admin_client.get("/api/v1/classification-reviews")
     assert refreshed.status_code == 200

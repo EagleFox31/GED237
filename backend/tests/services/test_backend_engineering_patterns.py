@@ -185,6 +185,7 @@ async def test_classification_rule_engine_patterns(monkeypatch):
         filename_pattern="note|memo",
         mime_type_pattern="pdf",
     )
+
     async def matches(rule, **context):
         values = {
             "document_category_id": category_id,

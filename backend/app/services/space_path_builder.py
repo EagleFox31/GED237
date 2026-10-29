@@ -108,11 +108,7 @@ class SpacePathBuilder:
 
         rows = result.all()
         closure_ids = [row.id for row in rows]
-        chain = [
-            cleaned
-            for row in rows
-            if (cleaned := self._clean_segment(row.name))
-        ]
+        chain = [cleaned for row in rows if (cleaned := self._clean_segment(row.name))]
 
         # A valid closure chain must contain the target itself (depth = 0).
         # If it does not, rebuild from parent pointers. This covers legacy/test
@@ -132,10 +128,7 @@ class SpacePathBuilder:
                 OrgUnit.tenant_id == tenant_id
             )
         )
-        units = {
-            row.id: (row.parent_id, row.name)
-            for row in result.all()
-        }
+        units = {row.id: (row.parent_id, row.name) for row in result.all()}
 
         chain: list[str] = []
         seen: set[UUID] = set()

@@ -1,9 +1,8 @@
-
-file_path = r'e:\GED237\backend\app\api\v1\endpoints\documents.py'
-with open(file_path, 'r', encoding='utf-8') as f:
+file_path = r"e:\GED237\backend\app\api\v1\endpoints\documents.py"
+with open(file_path, "r", encoding="utf-8") as f:
     content = f.read()
 
-target = '    document = await _get_document_or_404(db, current_user.tenant_id, document_id)\n    if not await _can_mutate_document(current_user, document):'
+target = "    document = await _get_document_or_404(db, current_user.tenant_id, document_id)\n    if not await _can_mutate_document(current_user, document):"
 
 replacement = '''        }
         for version, user in versions
@@ -68,8 +67,8 @@ async def delete_document(
 
 if target in content:
     new_content = content.replace(target, replacement, 1)
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(new_content)
-    print('SUCCESS')
+    print("SUCCESS")
 else:
-    print('TARGET NOT FOUND')
+    print("TARGET NOT FOUND")

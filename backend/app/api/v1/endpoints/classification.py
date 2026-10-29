@@ -442,9 +442,7 @@ async def create_classification_domain(
 ):
     await authorize_or_403(current_user, "classification_rules", "create")
     code = _normalize_code(payload.code)
-    await _ensure_domain_code_unique(
-        db, tenant_id=current_user.tenant_id, code=code
-    )
+    await _ensure_domain_code_unique(db, tenant_id=current_user.tenant_id, code=code)
     domain = ClassificationDomain(
         tenant_id=current_user.tenant_id,
         code=code,

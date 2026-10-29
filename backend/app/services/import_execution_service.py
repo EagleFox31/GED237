@@ -49,9 +49,7 @@ class ImportExecutionService:
             if item.status in {"pending", "needs_review"}:
                 if not item.staging_file_path or not item.checksum_sha256:
                     item.status = "failed"
-                    item.error_message = (
-                        "Fichier de staging introuvable pour cet item en attente de revue."
-                    )
+                    item.error_message = "Fichier de staging introuvable pour cet item en attente de revue."
                     summary.failed_items += 1
                     continue
                 await review_service.ensure_open_review_for_import_item(item=item)
@@ -77,7 +75,9 @@ class ImportExecutionService:
 
                 if await self._is_duplicate(item, tenant_id=job.tenant_id):
                     item.status = "duplicate"
-                    item.error_message = "Un fichier identique existe deja dans ce tenant."
+                    item.error_message = (
+                        "Un fichier identique existe deja dans ce tenant."
+                    )
                     job.duplicate_files += 1
                     summary.post_commit_delete_paths.append(item.staging_file_path)
                     continue
@@ -86,13 +86,17 @@ class ImportExecutionService:
                     item.staging_file_path, final_relative_path
                 )
                 if not copied:
-                    raise RuntimeError("Copie du fichier vers le stockage final impossible.")
+                    raise RuntimeError(
+                        "Copie du fichier vers le stockage final impossible."
+                    )
                 summary.rollback_delete_paths.append(final_relative_path)
 
                 document = Document(
                     title=os.path.splitext(item.original_filename)[0],
                     file_path=final_relative_path,
-                    file_type=self._derive_file_type(item.original_filename, item.mime_type),
+                    file_type=self._derive_file_type(
+                        item.original_filename, item.mime_type
+                    ),
                     file_size=item.file_size,
                     mime_type=item.mime_type,
                     document_category_id=item.detected_document_category_id,
@@ -136,7 +140,10 @@ class ImportExecutionService:
                 summary.post_commit_delete_paths.append(item.staging_file_path)
                 summary.imported_documents += 1
 
-                if job.processing_mode == "process" and document.classification_status == "classified":
+                if (
+                    job.processing_mode == "process"
+                    and document.classification_status == "classified"
+                ):
                     summary.dispatch_payloads.append(
                         {
                             "document_id": str(document.id),
@@ -210,12 +217,18 @@ class ImportExecutionService:
             return owner_id, user.org_unit_id
         if job.target_org_unit_id:
             return owner_id, job.target_org_unit_id
-        raise RuntimeError("Impossible de determiner l'unite organisationnelle du document.")
+        raise RuntimeError(
+            "Impossible de determiner l'unite organisationnelle du document."
+        )
 
     @staticmethod
-    def _build_final_relative_path(*, tenant_id, org_unit_id, original_filename: str) -> str:
+    def _build_final_relative_path(
+        *, tenant_id, org_unit_id, original_filename: str
+    ) -> str:
         safe_name = os.path.basename(original_filename)
-        return f"{tenant_id}/{org_unit_id}/{uuid.uuid4().hex}_{safe_name}".replace("\\", "/")
+        return f"{tenant_id}/{org_unit_id}/{uuid.uuid4().hex}_{safe_name}".replace(
+            "\\", "/"
+        )
 
     @staticmethod
     def _document_classification_status(item: ImportJobItem) -> str:

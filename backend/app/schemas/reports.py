@@ -32,7 +32,9 @@ class ReportsTimeseriesPoint(BaseModel):
 
 class ReportsEvolutionSeries(BaseModel):
     documents_created: list[ReportsTimeseriesPoint] = Field(default_factory=list)
-    documents_auto_classified: list[ReportsTimeseriesPoint] = Field(default_factory=list)
+    documents_auto_classified: list[ReportsTimeseriesPoint] = Field(
+        default_factory=list
+    )
     documents_needing_review: list[ReportsTimeseriesPoint] = Field(default_factory=list)
     imports_completed: list[ReportsTimeseriesPoint] = Field(default_factory=list)
     workflow_steps_completed: list[ReportsTimeseriesPoint] = Field(default_factory=list)
@@ -106,10 +108,18 @@ class ReportsDocumentActivityResponse(BaseModel):
     archived_documents: int = 0
     reviewed_documents: int = 0
     by_status: list[ReportsDocumentActivityBreakdownItem] = Field(default_factory=list)
-    by_file_type: list[ReportsDocumentActivityBreakdownItem] = Field(default_factory=list)
-    by_org_unit: list[ReportsDocumentActivityBreakdownItem] = Field(default_factory=list)
-    signals: ReportsDocumentActivitySignals = Field(default_factory=ReportsDocumentActivitySignals)
-    availability: ReportsDocumentActivityAvailability = Field(default_factory=ReportsDocumentActivityAvailability)
+    by_file_type: list[ReportsDocumentActivityBreakdownItem] = Field(
+        default_factory=list
+    )
+    by_org_unit: list[ReportsDocumentActivityBreakdownItem] = Field(
+        default_factory=list
+    )
+    signals: ReportsDocumentActivitySignals = Field(
+        default_factory=ReportsDocumentActivitySignals
+    )
+    availability: ReportsDocumentActivityAvailability = Field(
+        default_factory=ReportsDocumentActivityAvailability
+    )
 
 
 class ReportsWorkflowActivityBreakdownItem(BaseModel):
@@ -139,10 +149,14 @@ class ReportsWorkflowActivityResponse(BaseModel):
     completed_workflows: int = 0
     blocked_workflows_estimated: int = 0
     by_step: list[ReportsWorkflowActivityBreakdownItem] = Field(default_factory=list)
-    pending_actions: list[ReportsWorkflowActivityBreakdownItem] = Field(default_factory=list)
+    pending_actions: list[ReportsWorkflowActivityBreakdownItem] = Field(
+        default_factory=list
+    )
     slowest_steps: list[ReportsWorkflowDelayItem] = Field(default_factory=list)
     delay_by_org_unit: list[ReportsWorkflowDelayItem] = Field(default_factory=list)
-    availability: ReportsWorkflowActivityAvailability = Field(default_factory=ReportsWorkflowActivityAvailability)
+    availability: ReportsWorkflowActivityAvailability = Field(
+        default_factory=ReportsWorkflowActivityAvailability
+    )
 
 
 class ReportsServiceActivityItem(BaseModel):

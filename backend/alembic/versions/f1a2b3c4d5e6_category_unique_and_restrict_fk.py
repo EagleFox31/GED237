@@ -39,9 +39,7 @@ def upgrade() -> None:
 
     # 2. Normalise FK semantics. DROP IF EXISTS makes this work whether the
     # historical CASCADE FK is present or not.
-    op.execute(
-        "ALTER TABLE routing_rules DROP CONSTRAINT IF EXISTS fk_rules_category"
-    )
+    op.execute("ALTER TABLE routing_rules DROP CONSTRAINT IF EXISTS fk_rules_category")
     op.create_foreign_key(
         "fk_rules_category",
         "routing_rules",
@@ -53,9 +51,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "ALTER TABLE routing_rules DROP CONSTRAINT IF EXISTS fk_rules_category"
-    )
+    op.execute("ALTER TABLE routing_rules DROP CONSTRAINT IF EXISTS fk_rules_category")
     op.create_foreign_key(
         "fk_rules_category",
         "routing_rules",

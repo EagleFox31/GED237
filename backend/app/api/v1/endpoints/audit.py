@@ -47,7 +47,9 @@ ACTION_LABELS = {
 }
 
 
-def _extract_resource_label(log: AuditLog, documents_by_id: dict[UUID, Document]) -> str:
+def _extract_resource_label(
+    log: AuditLog, documents_by_id: dict[UUID, Document]
+) -> str:
     if log.table_name == "documents":
         document = documents_by_id.get(log.record_id)
         if document is not None:
@@ -56,12 +58,21 @@ def _extract_resource_label(log: AuditLog, documents_by_id: dict[UUID, Document]
     for payload in (log.new_data, log.old_data):
         if not isinstance(payload, dict):
             continue
-        for key in ("document_title", "title", "name", "rule_name", "label", "filename"):
+        for key in (
+            "document_title",
+            "title",
+            "name",
+            "rule_name",
+            "label",
+            "filename",
+        ):
             value = payload.get(key)
             if value:
                 return str(value)
 
-    table_label = TABLE_LABELS.get(log.table_name, log.table_name.replace("_", " ").title())
+    table_label = TABLE_LABELS.get(
+        log.table_name, log.table_name.replace("_", " ").title()
+    )
     return f"{table_label} #{str(log.record_id)[:8]}"
 
 

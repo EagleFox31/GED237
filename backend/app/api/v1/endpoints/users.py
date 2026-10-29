@@ -270,6 +270,7 @@ async def list_assignable_roles(
         for r in roles
     ]
 
+
 @router.get("/{user_id}", response_model=UserRead)
 async def read_user(
     user_id: UUID,

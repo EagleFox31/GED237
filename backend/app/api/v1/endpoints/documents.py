@@ -1156,7 +1156,8 @@ async def update_document(
             "classification_year", document.classification_year
         )
         requested_target_org_unit_id = classification_update.get(
-            "classification_target_org_unit_id", document.classification_target_org_unit_id
+            "classification_target_org_unit_id",
+            document.classification_target_org_unit_id,
         )
         requested_target_user_id = classification_update.get(
             "classification_target_user_id", document.classification_target_user_id
@@ -1246,10 +1247,7 @@ async def update_document(
                 or activity is None
                 or requested_year is None
                 or requested_scope is None
-                or (
-                    requested_scope == "person"
-                    and requested_target_user_id is None
-                )
+                or (requested_scope == "person" and requested_target_user_id is None)
                 or (
                     requested_scope in {"service", "subdirectorate", "directorate"}
                     and requested_target_org_unit_id is None

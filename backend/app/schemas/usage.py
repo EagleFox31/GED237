@@ -1,4 +1,5 @@
 """Pydantic schemas for the lightweight usage telemetry endpoints."""
+
 from datetime import datetime
 from typing import Literal
 from uuid import UUID

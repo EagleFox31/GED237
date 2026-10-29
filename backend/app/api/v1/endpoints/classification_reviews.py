@@ -37,7 +37,11 @@ def _rollback_storage_renames(renames: list[tuple[str, str]]) -> None:
         try:
             storage_service.rename_file(current_relative_path, previous_filename)
         except Exception:
-            logger.warning("Storage rename rollback failed for %s", current_relative_path, exc_info=True)
+            logger.warning(
+                "Storage rename rollback failed for %s",
+                current_relative_path,
+                exc_info=True,
+            )
 
 
 @router.get("", response_model=list[ClassificationReviewRead])
@@ -88,6 +92,8 @@ async def resolve_classification_review(
         try:
             process_document_ocr.delay(document_id, file_path, mime_type)
         except Exception:
-            logger.warning("OCR enqueue failed for document %s", document_id, exc_info=True)
+            logger.warning(
+                "OCR enqueue failed for document %s", document_id, exc_info=True
+            )
 
     return service.build_resolve_response(outcome=outcome)

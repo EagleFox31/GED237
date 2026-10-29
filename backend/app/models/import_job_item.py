@@ -83,7 +83,9 @@ class ImportJobItem(Base, UUIDMixin, TimestampMixin):
     detected_document_category = relationship(
         "DocumentCategory", foreign_keys=[detected_document_category_id]
     )
-    resolved_domain = relationship("ClassificationDomain", foreign_keys=[resolved_domain_id])
+    resolved_domain = relationship(
+        "ClassificationDomain", foreign_keys=[resolved_domain_id]
+    )
     resolved_activity = relationship(
         "ClassificationActivity", foreign_keys=[resolved_activity_id]
     )
