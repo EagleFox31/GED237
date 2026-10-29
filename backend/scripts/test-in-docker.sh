@@ -10,6 +10,9 @@
 #
 # Settings (env): GED_TEST_PREFIX (default gedtest), PYTHON_IMAGE (python:3.12-slim),
 # POSTGRES_IMAGE (postgres:16-alpine), REDIS_IMAGE (redis:7-alpine), MIGRATION_DB (test_ged).
+# Resource caps (env): RUNNER_MEMORY (2g), RUNNER_CPUS (2), PG_MEMORY (512m), PG_CPUS (1),
+# REDIS_MEMORY (128m). Applied to existing containers too (docker update), so a host
+# never gives the test stack all its RAM/CPU. Logs are capped at 2 x 10 MB per container.
 set -euo pipefail
 
 PREFIX="${GED_TEST_PREFIX:-gedtest}"
@@ -20,6 +23,12 @@ PYTHON_IMAGE="${PYTHON_IMAGE:-python:3.12-slim}"
 POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:16-alpine}"
 REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"
 DB="${MIGRATION_DB:-test_ged}"
+RUNNER_MEMORY="${RUNNER_MEMORY:-2g}"
+RUNNER_CPUS="${RUNNER_CPUS:-2}"
+PG_MEMORY="${PG_MEMORY:-512m}"
+PG_CPUS="${PG_CPUS:-1}"
+REDIS_MEMORY="${REDIS_MEMORY:-128m}"
+LOG_OPTS=(--log-opt max-size=10m --log-opt max-file=2)
 
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Docker Desktop on Windows needs a native path for bind mounts.
@@ -32,12 +41,17 @@ fi
 docker network inspect "$NET" >/dev/null 2>&1 || docker network create "$NET" >/dev/null
 
 if ! docker container inspect "$PG" >/dev/null 2>&1; then
-  docker run -d --name "$PG" --network "$NET" -e POSTGRES_PASSWORD=postgres "$POSTGRES_IMAGE" >/dev/null
+  docker run -d --name "$PG" --network "$NET" "${LOG_OPTS[@]}" --shm-size=128m \
+    -e POSTGRES_PASSWORD=postgres "$POSTGRES_IMAGE" >/dev/null
 fi
+# --memory-swap equal to --memory: no swap on top of the cap. No-op when already applied.
+docker update --memory "$PG_MEMORY" --memory-swap "$PG_MEMORY" --cpus "$PG_CPUS" "$PG" >/dev/null
 docker start "$PG" >/dev/null
 if ! docker container inspect "$REDIS" >/dev/null 2>&1; then
-  docker run -d --name "$REDIS" --network "$NET" "$REDIS_IMAGE" >/dev/null
+  docker run -d --name "$REDIS" --network "$NET" "${LOG_OPTS[@]}" "$REDIS_IMAGE" \
+    redis-server --save "" --appendonly no >/dev/null
 fi
+docker update --memory "$REDIS_MEMORY" --memory-swap "$REDIS_MEMORY" --cpus 0.5 "$REDIS" >/dev/null
 docker start "$REDIS" >/dev/null
 
 until docker exec "$PG" pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
@@ -47,7 +61,8 @@ for name in test_ged "$DB"; do
 done
 
 # The source is mounted read-only and copied, so the container never writes into the repo.
-MSYS_NO_PATHCONV=1 docker run --rm --network "$NET" \
+MSYS_NO_PATHCONV=1 docker run --rm --network "$NET" "${LOG_OPTS[@]}" \
+  --memory "$RUNNER_MEMORY" --memory-swap "$RUNNER_MEMORY" --cpus "$RUNNER_CPUS" \
   -v "$BACKEND_DIR":/src:ro -v "$PREFIX-pip":/root/.cache/pip -v "$PREFIX-venv":/venv \
   -e TEST_DATABASE_URL="postgresql+asyncpg://postgres:postgres@$PG:5432/test_ged" \
   -e TEST_REDIS_URL="redis://$REDIS:6379/0" \
