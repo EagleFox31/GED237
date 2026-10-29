@@ -250,3 +250,17 @@ première requête utilisateur.
 **Résolution** — Renommage d'index seul (`update-index`) de `docs/engineering/*` vers `DOCS/engineering/*`, chemin utilisé par toutes les références.
 **Prévention** — `scripts/check-tracked-files.sh` (pre-commit + CI) refuse les chemins qui ne diffèrent que par la casse, dossiers compris.
 **Leçon généralisée** — Sous Windows, relire `git status` après toute commande d'indexation globale (`add .`, `--renormalize`) : des ajouts inattendus signalent souvent une collision de casse.
+
+### LESSON-2026-015 — Configuration de couverture jamais lue
+
+- **Date :** 2026-10-29
+- **Catégorie :** testing
+- **Statut :** prevention-added
+- **Liens :** `backend/.coveragerc`, `backend/tests/test_coverage_config.py`
+
+**Contexte** — Lot B6 (tests API users, org_units, reports, usage) : `users.py` restait à 40 % de couverture alors que presque toutes ses routes étaient testées.
+**Échec / near miss** — Les sections `[coverage:run]` et `[coverage:report]` de `backend/pytest.ini` n'ont jamais été appliquées : `app/workers/*` et `app/core/ocr/*` étaient mesurés malgré `omit`, et `skip_covered` n'agissait pas. Le gate de 70 % tenait grâce au seul `--cov-fail-under` de la ligne de commande. En plus, sans `concurrency = greenlet`, les lignes exécutées après une requête SQLAlchemy async n'étaient pas comptées.
+**Cause racine** — coverage.py lit `.coveragerc`, `setup.cfg`, `tox.ini` et `pyproject.toml`, jamais `pytest.ini`, et ne signale pas une section qu'il ne lit pas.
+**Résolution** — Réglages déplacés dans `backend/.coveragerc` (source unique), avec `concurrency = greenlet, thread`.
+**Prévention** — `tests/test_coverage_config.py` charge la configuration comme le fait coverage.py et échoue si `concurrency`, `omit` ou `fail_under` ne sont plus lus.
+**Leçon généralisée** — Un réglage d'outil qui ne produit aucun effet visible doit être prouvé chargé, par un test ou une sortie qui en dépend.
