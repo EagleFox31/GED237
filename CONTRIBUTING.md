@@ -69,16 +69,30 @@ Les hooks pre-commit sont configures via `.pre-commit-config.yaml` (backend) et 
 
 ## CI Pipeline
 
-Chaque PR declenche automatiquement :
+Chaque PR declenche `ci.yml`. Le job `Change impact` (`reusable-impact-analysis.yml` de
+`EagleFox31/appfactory-project-automation`, epingle par SHA) lit `.github/appfactory-impact.json` et ne
+lance que les jobs dont la surface est touchee :
 
 ```
 ci.yml
-  |-- backend.yml   (pytest + migrations + coverage >= 70% + benchmark)
-  |-- frontend.yml  (typecheck + eslint + build)
-  |-- security.yml  (bandit + pip-audit + npm audit + gitleaks + trivy)
+  |-- Change impact  (fichiers modifies -> surfaces -> gates)
+  |-- backend.yml    gate backend          (pytest + migrations + coverage >= 70% + benchmark)
+  |-- frontend.yml   gate frontend         (typecheck + eslint + build)
+  |-- security.yml   gitleaks toujours ; bandit (sast), pip-audit + npm audit (dependency-audit),
+  |                  trivy (container-scan)
+  |-- actionlint     gate workflow-lint    (+ scripts/check-impact-gates.py)
+  |-- Tracked files  toujours
   |
-  +-- CI Gate       (status check unique pour branch protection)
+  +-- CI Gate        (status check unique ; echoue si l'analyse d'impact echoue)
 ```
+
+- Doc seule (`*.md`, `DOCS/`, `gestion-projet/`, `walkthrough/`...) : seuls gitleaks et Tracked files tournent.
+- `.github/**`, `scripts/**`, `.pre-commit-config.yaml`, `.gitattributes` : tout tourne.
+- Chemin absent de la carte : tout tourne (fallback de securite).
+- Tout relancer : `Run workflow` sur `CI` (`workflow_dispatch`, mode `all`).
+- Nouveau job lourd : ajouter son gate a une surface de la carte et
+  `if: ${{ contains(fromJSON(needs.impact.outputs.gates), '<gate>') }}` sur le job. Le hook
+  `impact-gates` et le job actionlint refusent un gate present d'un seul cote.
 
 ## Branch Protection Setup
 
