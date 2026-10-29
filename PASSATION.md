@@ -51,5 +51,7 @@ faire par le PO (fusion refusée à l'agent : merge sans revue). Item 6 (tests A
 - Sous Windows, relire `git status` après un `git add` global : collision de casse possible (LESSON-2026-014).
 - Ne jamais écrire de Markdown via `echo`/`>>` PowerShell (LESSON-2026-013).
 - Trivy peut virer au rouge sans changement de code (nouvelle CVE dans une image de base).
+- La CI ne tourne que sur les PR vers `main`/`develop` : une PR empilée (#17 sur #16) n'a aucun check
+  avant d'être reciblée sur `main` (automatique quand #16 est fusionnée et sa branche supprimée).
 - Identité git : AKAA Jennifer. Aucune mention d'IA dans commits/PR.
 - Fichier non suivi `gestion-projet/walkthrough/[Gemini] Etat de sante du projet - 2026-10-29.md` : pas à nous, ne pas commiter.
