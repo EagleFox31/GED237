@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: actionlint (same version as .pre-commit-config.yaml)
         run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.7 -no-color -oneline
 
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check tracked files
         run: bash scripts/check-tracked-files.sh
 
