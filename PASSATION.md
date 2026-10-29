@@ -1,8 +1,18 @@
 # PASSATION — GED237
 
 ## Objectif en cours
-Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5). `.gitattributes` fait sur `chore/gitattributes`
-(PR ouverte, à fusionner après CI verte). Prochaine étape : item 6 (tests API).
+Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5). `.gitattributes` : PR #16, CI verte, fusion à
+faire par le PO (fusion refusée à l'agent : merge sans revue). Item 6 (tests API) fait sur
+`test/api-coverage-lot-b6`, empilée sur #16.
+
+## Fait (2026-10-29) — branche `test/api-coverage-lot-b6`
+- 35de807 : fixture `client_as` + `tests/api/test_{users,org_units,reports,usage}.py` (bornes authz,
+  mutation-vérifiés).
+- c114b2a : config coverage déplacée de `pytest.ini` (jamais lu par coverage.py) vers `backend/.coveragerc`,
+  avec `concurrency = greenlet, thread` ; `tests/test_coverage_config.py` ; LESSON-2026-015.
+- Suite Docker : 226 passed ; couverture **85,16 %** (avant : 71,21 %, mesure faussée).
+- Walkthrough `walkthrough/[Claude] Lot B6 - Tests API authz - 2026-10-29.md` (constats authz hors
+  périmètre à trancher par le PO).
 
 ## Fait (2026-10-29) — branche `chore/gitattributes`
 - 2d88228 : `tasks/lessons.md` réparé (git le voyait binaire : double encodage cp1252, bloc UTF-16LE,
@@ -24,9 +34,10 @@ Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5). `.gitattributes` fait
 - `backend/fix.py` (script ponctuel, chemin `e:\` codé en dur) laissé en place : hors périmètre.
 
 ## Reste à faire
-1. Fusionner la PR `chore/gitattributes` une fois la CI verte ; passer le walkthrough en DONE.
-2. Lot B item 6 : tests API reports, users, org_units, usage ; marge de couverture faible (70,34 %) → piste
-   `[tool.coverage.run] concurrency = ["greenlet", "thread"]` (aucun `pyproject.toml` backend : à créer ou `.coveragerc`).
+1. PO : fusionner #16, puis la PR Lot B6 ; passer les deux walkthroughs en DONE. Vérifier la durée CI des
+   tests sur la PR Lot B6 (traçage greenlet ; `timeout-minutes: 15`). Relever le gate de 70 % : décision à part.
+2. PO : trancher les constats du walkthrough Lot B6 (`assignable-roles` sans RBAC, `standard` sans
+   `users:update_own`, upsert du snapshot par `user_id` seul).
 3. Retirer le `define` GEMINI_API_KEY inutilisé de `frontend/vite.config.ts` (clé injectée dans le bundle si renseignée).
 4. Lancer une fois `release-integrity.yml` à la main (`workflow_dispatch`) pour valider SBOM + manifeste ; supprimer les branches distantes fusionnées si le PO le souhaite.
 5. `docker prune` : le PO a dit non, ne pas le proposer.
