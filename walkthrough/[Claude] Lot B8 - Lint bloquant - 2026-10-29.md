@@ -1,6 +1,6 @@
 # [Claude] Lot B item 8 — Lint ruff/bandit bloquant — 2026-10-29
 
-> Statut : DONE (2026-10-29) — CI de la PR à confirmer
+> Statut : DONE (2026-10-29) — PR #4 CI 18/18 verte, fusionnée dans `main` (6d1999a)
 
 ## Ce qui va être fait
 
