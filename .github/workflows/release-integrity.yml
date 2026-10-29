@@ -21,6 +21,9 @@ jobs:
     name: SBOM + Manifest + GPG signature
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The secrets context is not allowed in step-level `if:`; expose a flag instead.
+    env:
+      HAS_GPG_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY != '' && secrets.RELEASE_GPG_PASSPHRASE != '' }}
 
     steps:
       - name: Checkout code
@@ -62,16 +65,16 @@ jobs:
 
       - name: Build SHA256 manifest
         run: |
-          (cd sbom && sha256sum *.json > manifest.sha256)
+          (cd sbom && sha256sum -- *.json > manifest.sha256)
           sha256sum sbom/manifest.sha256 > sbom/manifest.sha256.sha256
 
       - name: Sign manifest (ASCII armored)
-        if: ${{ secrets.RELEASE_GPG_PRIVATE_KEY != '' && secrets.RELEASE_GPG_PASSPHRASE != '' }}
+        if: env.HAS_GPG_KEY == 'true'
         env:
           RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
         run: |
-          export GNUPGHOME="$(mktemp -d)"
+          GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
           chmod 700 "$GNUPGHOME"
           echo "$RELEASE_GPG_PRIVATE_KEY" | gpg --batch --import
           gpg --batch --yes --pinentry-mode loopback \
@@ -81,7 +84,7 @@ jobs:
             sbom/manifest.sha256
 
       - name: Note when signing secrets are missing
-        if: ${{ !(secrets.RELEASE_GPG_PRIVATE_KEY != '' && secrets.RELEASE_GPG_PASSPHRASE != '') }}
+        if: env.HAS_GPG_KEY != 'true'
         run: |
           echo "::warning::RELEASE_GPG_PRIVATE_KEY / RELEASE_GPG_PASSPHRASE not configured; manifest generated but not signed."
 

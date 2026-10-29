@@ -28,7 +28,7 @@ jobs:
 
       - name: Install ruff
         # Same pinned version as requirements.txt and .pre-commit-config.yaml.
-        run: pip install $(grep -E '^ruff==' backend/requirements.txt)
+        run: pip install "$(grep -E '^ruff==' backend/requirements.txt)"
 
       - name: Ruff check and format
         run: |
@@ -84,8 +84,8 @@ jobs:
           # CPU-only PyTorch first (same as backend/Dockerfile): the default
           # wheels pull several GB of CUDA libraries that exhaust runner disk
           # and fail to download. Versions come from requirements.txt.
-          pip install --index-url https://download.pytorch.org/whl/cpu \
-            $(grep -E '^(torch|torchvision|torchaudio)==' requirements.txt)
+          grep -E '^(torch|torchvision|torchaudio)==' requirements.txt \
+            | xargs pip install --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
 
       - name: Verify Alembic migrations

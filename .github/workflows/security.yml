@@ -29,7 +29,7 @@ jobs:
 
       - name: Install Bandit
         # Same pinned version as requirements.txt and .pre-commit-config.yaml.
-        run: pip install $(grep -E '^bandit==' backend/requirements.txt)
+        run: pip install "$(grep -E '^bandit==' backend/requirements.txt)"
 
       - name: Run Bandit (JSON report)
         run: |
