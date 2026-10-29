@@ -46,8 +46,9 @@ Les notes de conception (patterns, arbitrages) restent dans [`tasks/lessons.md`]
 
 - **Date :** 2026-10-27 (reprise de `CLAUDE.md` « Lessons récentes »)
 - **Catégorie :** data
-- **Statut :** captured
-- **Liens :** `CLAUDE.md` § Lessons récentes
+- **Statut :** prevention-added
+- **Liens :** `CLAUDE.md` § Lessons récentes ; `backend/app/core/schema_check.py` ;
+  `backend/tests/services/test_schema_check.py`
 
 **Contexte** — Fonctionnalité livrée avec une nouvelle table (migration Alembic).
 **Échec / near miss** — Base cible non migrée : `UndefinedTableError` → HTTP 500, affiché
@@ -58,6 +59,10 @@ ou en CI ; la migration dépend d'une action manuelle par environnement (`edossi
 **Prévention** — Actuellement un rappel documentaire (insuffisant selon RAIDER). À ajouter :
 contrôle « schéma à jour » (ex. `alembic check` / comparaison `current` vs `head`) en CI et
 au démarrage de l'API, avec message d'erreur explicite.
+*Ajouté le 2026-10-29* : au démarrage (`lifespan`), l'API compare `alembic_version` aux heads
+des scripts et refuse de démarrer (`SchemaNotAtHeadError`, message avec la commande à lancer) ;
+`SCHEMA_CHECK_MODE=fail|warn|off` (défaut `fail`). `alembic check` reste en CI (`backend.yml`) ;
+le compose démarre `api`/`worker` seulement après le service `migrate`.
 **Leçon généralisée** — Un écart de schéma doit échouer tôt et lisiblement, pas à la
 première requête utilisateur.
 **Évolution de standard** — Règle GED237 : toute PR avec migration coche « Idempotent »

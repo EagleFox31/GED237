@@ -11,6 +11,8 @@ from app.core.rate_limit import limiter
 from app.core.authz.casbin_enforcer import reload_enforcer
 from app.core.observability.request_id import set_request_id, reset_request_id
 from app.core.errors import register_error_handlers
+from app.core.database import engine
+from app.core.schema_check import enforce_schema_at_head
 
 from contextlib import asynccontextmanager
 from app.services.notifications.listeners import register_all_listeners
@@ -27,6 +29,8 @@ register_gedrules_listeners()
 async def lifespan(app: FastAPI):
     # Startup actions
     logger.info("Starting up e-Dossier API...")
+    # Fail fast if the database has not been migrated to the code's revision.
+    await enforce_schema_at_head(engine, settings.SCHEMA_CHECK_MODE)
     if settings.AUTHZ_BACKEND in {"sql", "shadow"}:
         # Fail fast at boot if SQL authz backend is misconfigured or unavailable.
         await reload_enforcer()
