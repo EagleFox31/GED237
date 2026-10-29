@@ -23,10 +23,8 @@ Lot B de `AUDIT.md` : items 6, 7, 8 et `.gitattributes` fusionnés (PR #4, #5, #
 - Pas de `--unsafe-fixes` ruff ; Bandit CI = hook (`.bandit.yml`) ; un seul script pour hook et CI.
 
 ## Reste à faire
-1. **PO : régler la facturation GitHub Actions** (depuis le 2026-10-29, tous les jobs échouent sans
-   démarrer : « recent account payments have failed or your spending limit needs to be increased »).
-   Puis vérifier la CI de la PR Impact-Aware CI (toutes les gates attendues), fusionner, passer son
-   walkthrough en DONE.
+1. PO : fusionner #19 (CI 12/12 verte) ; passer son walkthrough en DONE.
+   Dépôt passé en **public** le 2026-10-30 (Actions refusées sur le privé faute de facturation).
 2. Proposer en amont (appfactory) : `git -c core.quotePath=false diff -z --name-only` dans
    `analyze.mjs` — un chemin non ASCII déclenche aujourd'hui le fallback `all`.
 3. PO : trancher les constats du walkthrough Lot B6 (`assignable-roles` sans RBAC, `standard` sans
@@ -42,7 +40,8 @@ Lot B de `AUDIT.md` : items 6, 7, 8 et `.gitattributes` fusionnés (PR #4, #5, #
 - `docker prune` : le PO a dit non, ne pas le proposer.
 - Rejouer le moteur d'impact : tarball appfactory v1.4.0 extrait **dans** un conteneur Node
   (`tar` Git Bash échoue sur `C:/…`), `MSYS_NO_PATHCONV=1`.
-- Branch protection / rulesets : API 403 sur ce plan (dépôt privé gratuit) ; seul `CI Gate` fait foi.
+- `main` non protégée. Possible depuis le passage en public (l'API répondait 403 en privé) :
+  exiger `CI Gate` via `scripts/setup-branch-protection.sh` ou la Repository Governance d'appfactory.
 - `gh` : préfixer `export GODEBUG=;`. pre-commit : `export PATH="$HOME/.local/bin:$PATH"`.
 - pre-commit refuse de tourner si `.pre-commit-config.yaml` a des modifs non indexées : `git stash push --keep-index -- <fichiers>`.
 - Sous Windows, relire `git status` après un `git add` global : collision de casse possible (LESSON-2026-014).

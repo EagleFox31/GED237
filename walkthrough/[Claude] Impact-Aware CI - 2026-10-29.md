@@ -1,6 +1,6 @@
 # [Claude] Impact-Aware CI — 2026-10-29
 
-> Statut : EN REVUE — PR à fusionner (CI GitHub bloquée par la facturation du compte, voir Résultats)
+> Statut : EN REVUE — PR #19 CI verte, à fusionner
 
 ## Ce qui va être fait
 
@@ -37,8 +37,7 @@ Reuse-first : **Adopt** de `reusable-impact-analysis.yml`, épinglé sur le SHA 
    (`cancelled` passait avant).
 3. `security.yml` — entrée `gates` (défaut : tous les scans) : bandit, audit de dépendances et Trivy
    suivent l'impact, gitleaks tourne toujours. Lancement manuel inchangé.
-4. `quality-gate.yml` supprimé. Aucune protection de branche ne l'exige (indisponible sur ce plan :
-   l'API renvoie 403).
+4. `quality-gate.yml` supprimé. Aucune protection de branche ne l'exige (`main` non protégée).
 5. `scripts/check-impact-gates.py` — hook pre-commit `impact-gates` + étape du job actionlint : refuse
    un gate utilisé mais jamais émis, déclaré mais jamais utilisé, ou absent du défaut d'une entrée
    `gates`. Build justifié : appfactory ne fournit pas ce contrôle côté consommateur.
@@ -76,8 +75,9 @@ Reuse-first : **Adopt** de `reusable-impact-analysis.yml`, épinglé sur le SHA 
 - Limite amont : le moteur lit `git diff --name-only` sans `core.quotePath=false`, donc un chemin
   non ASCII (8 fichiers de doc) arrive entre guillemets et déclenche le fallback. Sûr mais coûteux : à
   corriger dans appfactory (`git -c core.quotePath=false diff -z`).
-- CI GitHub : non exécutée. Depuis le 2026-10-29, tous les jobs du compte échouent sans démarrer
-  (« recent account payments have failed or your spending limit needs to be increased »).
+- CI GitHub (PR #19, run 40972817496) : premier passage refusé par la facturation du compte (dépôt
+  privé) ; relancé après passage du dépôt en public : 12/12 verts, gates émises = toutes les six
+  (diff sur `.github/**`). #17 affichait 20 checks : les 8 doublons de `quality-gate.yml` ont disparu.
 
 ## Checklist RAIDER
 
