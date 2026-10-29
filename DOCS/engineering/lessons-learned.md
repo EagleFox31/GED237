@@ -86,14 +86,14 @@ première requête utilisateur.
 
 - **Date :** 2026-10-28
 - **Catégorie :** process
-- **Statut :** captured
-- **Liens :** commit `chore: normalize line endings to LF…` (lot A)
+- **Statut :** prevention-added
+- **Liens :** commit `chore: normalize line endings to LF…` (lot A), commits 65e6080 et 1d95776 (`chore/gitattributes`)
 
 **Contexte** — Consolidation de deux mois de travail fait sous Windows.
 **Échec / near miss** — Des fichiers entiers apparaissaient modifiés (CRLF ↔ LF), masquant les vrais changements et rendant la revue impossible.
 **Cause racine** — `core.autocrlf` variable selon les postes, pas de normalisation imposée par le dépôt.
 **Résolution** — Commit dédié de normalisation LF, isolé des commits fonctionnels.
-**Prévention** — À faire : `.gitattributes` (`* text=auto eol=lf`) suivi d'un commit `git add --renormalize` isolé. En attendant : un commit de normalisation est toujours séparé.
+**Prévention** — `.gitattributes` (`* text=auto eol=lf`, binaires déclarés) puis `git add --renormalize .` dans un commit isolé (77 fichiers), ignoré par `git blame`. Le dépôt stocke désormais LF quel que soit `core.autocrlf` ; `scripts/check-tracked-files.sh` refuse tout fichier vu comme binaire sans règle `binary`.
 **Leçon généralisée** — Les conventions de fins de ligne appartiennent au dépôt, pas au poste.
 
 ### LESSON-2026-004 — Propriété Python non requêtable (`select(User.full_name)`)
@@ -221,3 +221,32 @@ première requête utilisateur.
 **Résolution** — Drapeau `HAS_GPG_KEY` calculé dans l'`env` du job, testé par `env.HAS_GPG_KEY` dans les steps ; avertissements shellcheck des workflows corrigés.
 **Prévention** — actionlint bloquant : hook `actionlint-docker` dans pre-commit et job `Workflow lint (actionlint)` requis par le `CI Gate`, même version (1.7.7).
 **Leçon généralisée** — Un échec rouge permanent masque les vrais échecs : un échec récurrent « connu » se corrige ou s'explique, il ne se tolère pas.
+
+### LESSON-2026-013 — Fichier Markdown corrompu par des écritures PowerShell
+
+- **Date :** 2026-10-29
+- **Catégorie :** process
+- **Statut :** prevention-added
+- **Liens :** commit 2d88228, `scripts/check-tracked-files.sh`, `.github/workflows/ci.yml`
+
+**Contexte** — Ajout du `.gitattributes` (LESSON-2026-003) : inventaire des fins de ligne de l'index.
+
+**Échec / near miss** — `tasks/lessons.md` était vu comme binaire par git : diff illisible, et la renormalisation l'aurait ignoré. Trois dégâts superposés : en-tête relu en cp1252 puis réécrit en UTF-8 (« Ã© »), un bloc en UTF-16LE, et des leçons 16 à 33 où PowerShell avait mangé des lettres (`` `a `` → bell, `` `b `` → backspace, `` `n `` → saut de ligne), remplacé les accents par U+FFFD et « → » par « ? ».
+**Cause racine** — Ajouts faits en ligne de commande PowerShell (`>>` / `Add-Content` en encodage par défaut, chaînes entre guillemets doubles où le backtick est un caractère d'échappement), sans aucun contrôle d'encodage avant commit.
+**Résolution** — Script de réparation : annulation du double encodage, décodage du bloc UTF-16, restauration des accents et lettres d'après le contexte (assertions sur le nombre d'occurrences). Les backticks de code inline perdus ne sont pas réinventés.
+**Prévention** — `scripts/check-tracked-files.sh`, hook pre-commit et job CI `Tracked files` requis par le `CI Gate` : échoue sur un fichier détecté binaire sans règle `binary`, sur tout caractère de contrôle hors tabulation/saut de ligne et sur U+FFFD. Testé sur l'ancien fichier et sur des échantillons ESC/U+FFFD/CRLF.
+**Leçon généralisée** — Ne pas écrire de contenu Markdown/code via `echo`/`>>` PowerShell : passer par l'éditeur ou un outil qui écrit en UTF-8 explicite. Un texte que git voit comme binaire est un signal de corruption, pas un détail.
+
+### LESSON-2026-014 — Même dossier suivi sous deux casses (`DOCS/` et `docs/`)
+
+- **Date :** 2026-10-29
+- **Catégorie :** process
+- **Statut :** prevention-added
+- **Liens :** commit eafff21, `scripts/check-tracked-files.sh`
+
+**Contexte** — `git add --renormalize .` sous Windows.
+**Échec / near miss** — La commande a indexé en doublon les 5 fichiers de `docs/engineering/` sous `DOCS/engineering/` (retirés avant commit). Le dépôt suivait déjà les deux casses : un seul dossier sous Windows/macOS, deux sous Linux, donc les liens relatifs entre `README.md` et `lessons-learned.md` étaient cassés en CI et sur GitHub.
+**Cause racine** — Système de fichiers insensible à la casse : un fichier créé sous `docs/` alors que `DOCS/` existait n'a rien signalé localement.
+**Résolution** — Renommage d'index seul (`update-index`) de `docs/engineering/*` vers `DOCS/engineering/*`, chemin utilisé par toutes les références.
+**Prévention** — `scripts/check-tracked-files.sh` (pre-commit + CI) refuse les chemins qui ne diffèrent que par la casse, dossiers compris.
+**Leçon généralisée** — Sous Windows, relire `git status` après toute commande d'indexation globale (`add .`, `--renormalize`) : des ajouts inattendus signalent souvent une collision de casse.

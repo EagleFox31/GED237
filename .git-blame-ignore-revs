@@ -1,3 +1,5 @@
 # Bulk formatting commits, skipped by `git blame` (git config blame.ignoreRevsFile .git-blame-ignore-revs).
 # style(backend): apply ruff format to the whole backend
 2a30afaa07fa2825e27f971f5b6fcd8c2a5ac35b
+# chore: renormalize line endings to LF
+1d957763e3c30164406dbcb1c7eea765b557c7ec
