@@ -151,8 +151,8 @@ première requête utilisateur.
 
 - **Date :** 2026-10-28
 - **Catégorie :** ci-cd
-- **Statut :** captured
-- **Liens :** PR #1, lot A, `AUDIT.md` lot B item 8
+- **Statut :** prevention-added (2026-10-29, branche `chore/lint-blocking` : baseline 0, job CI ruff, bandit CI = hook)
+- **Liens :** PR #1, lot A, `AUDIT.md` lot B item 8, LESSON-2026-010
 
 **Contexte** — Premiers commits avec pre-commit réellement installé ; première CI verte depuis des mois.
 **Échec / near miss** — ruff/bandit remontent une dette existante sur tout `app/` (commits faits avec `SKIP=ruff,ruff-format,bandit`) ; le gate `--cov-fail-under=70` n'avait jamais été atteint car la CI cassait avant (consolidation à 67,6 %, rattrapée par des tests API reports/usage).
@@ -174,3 +174,17 @@ première requête utilisateur.
 **Résolution** — Installation préalable de torch CPU (`download.pytorch.org/whl/cpu`), versions lues dans `requirements.txt`.
 **Prévention** — Étape CI dédiée ; même règle pour l'image Docker backend.
 **Leçon généralisée** — Les dépendances lourdes à variantes matérielles doivent être épinglées sur la variante voulue.
+
+### LESSON-2026-010 — Gates lint divergents entre hook et CI
+
+- **Date :** 2026-10-29
+- **Catégorie :** ci-cd
+- **Statut :** prevention-added
+- **Liens :** branche `chore/lint-blocking`, `AUDIT.md` lot B item 8, LESSON-2026-008
+
+**Contexte** — Baseline ruff/bandit avant de rendre les hooks bloquants.
+**Échec / near miss** — ruff tournait en pre-commit mais dans aucun workflow CI ; bandit bloquait dès LOW en local mais seulement sur HIGH en CI ; 5 `except: pass/continue` avalaient sans trace des échecs de nettoyage stockage et d'envoi OCR. Le correctif ruff E712 (`== True` → `is True`) aurait cassé les filtres SQLAlchemy s'il avait été appliqué en `--unsafe-fixes`.
+**Cause racine** — Deux définitions du même gate (hook et workflow) maintenues à la main, versions d'outils non partagées.
+**Résolution** — Job CI `Lint (ruff)` ; bandit CI sans seuil propre (lit `.bandit.yml` comme le hook) ; versions lues dans `requirements.txt` ; E712 corrigé à la main en `.is_(True/False)` ; échecs best-effort journalisés (`logger.warning`).
+**Prévention** — Hook et CI lisent la même config (`backend/ruff.toml`, `backend/.bandit.yml`) et la même version épinglée ; pas de `--unsafe-fixes` sans relecture ; exception bandit uniquement via `# nosec BXXX - raison`.
+**Leçon généralisée** — Un gate n'a qu'une source de vérité : le hook local et la CI doivent appeler la même config, sinon ils divergent en silence.
