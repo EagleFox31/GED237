@@ -1,0 +1,19 @@
+# coverage.py ignores pytest.ini, so its settings live here.
+[run]
+source = app
+# SQLAlchemy's async layer switches greenlets on every query; without this,
+# lines that run after an awaited query are not recorded.
+concurrency = greenlet, thread
+omit =
+    app/workers/*
+    app/core/ocr/*
+    alembic/*
+
+[report]
+fail_under = 70
+show_missing = true
+skip_covered = true
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__
+    if TYPE_CHECKING

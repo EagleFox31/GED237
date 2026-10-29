@@ -1,8 +1,17 @@
 # PASSATION — GED237
 
 ## Objectif en cours
-Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5). `.gitattributes` fait sur `chore/gitattributes`
-(PR ouverte, à fusionner après CI verte). Prochaine étape : item 6 (tests API).
+Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5), `.gitattributes` fusionné (PR #16). Item 6
+(tests API) : PR #17 sur `test/api-coverage-lot-b6`, reciblée sur `main`.
+
+## Fait (2026-10-29) — branche `test/api-coverage-lot-b6`
+- 35de807 : fixture `client_as` + `tests/api/test_{users,org_units,reports,usage}.py` (bornes authz,
+  mutation-vérifiés).
+- c114b2a : config coverage déplacée de `pytest.ini` (jamais lu par coverage.py) vers `backend/.coveragerc`,
+  avec `concurrency = greenlet, thread` ; `tests/test_coverage_config.py` ; LESSON-2026-015.
+- Suite Docker : 226 passed ; couverture **85,16 %** (avant : 71,21 %, mesure faussée).
+- Walkthrough `walkthrough/[Claude] Lot B6 - Tests API authz - 2026-10-29.md` (constats authz hors
+  périmètre à trancher par le PO).
 
 ## Fait (2026-10-29) — branche `chore/gitattributes`
 - 2d88228 : `tasks/lessons.md` réparé (git le voyait binaire : double encodage cp1252, bloc UTF-16LE,
@@ -24,9 +33,10 @@ Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5). `.gitattributes` fait
 - `backend/fix.py` (script ponctuel, chemin `e:\` codé en dur) laissé en place : hors périmètre.
 
 ## Reste à faire
-1. Fusionner la PR `chore/gitattributes` une fois la CI verte ; passer le walkthrough en DONE.
-2. Lot B item 6 : tests API reports, users, org_units, usage ; marge de couverture faible (70,34 %) → piste
-   `[tool.coverage.run] concurrency = ["greenlet", "thread"]` (aucun `pyproject.toml` backend : à créer ou `.coveragerc`).
+1. PO : fusionner #17 une fois la CI verte ; passer son walkthrough en DONE. Vérifier la durée CI des
+   tests sur la PR Lot B6 (traçage greenlet ; `timeout-minutes: 15`). Relever le gate de 70 % : décision à part.
+2. PO : trancher les constats du walkthrough Lot B6 (`assignable-roles` sans RBAC, `standard` sans
+   `users:update_own`, upsert du snapshot par `user_id` seul).
 3. Retirer le `define` GEMINI_API_KEY inutilisé de `frontend/vite.config.ts` (clé injectée dans le bundle si renseignée).
 4. Lancer une fois `release-integrity.yml` à la main (`workflow_dispatch`) pour valider SBOM + manifeste ; supprimer les branches distantes fusionnées si le PO le souhaite.
 5. `docker prune` : le PO a dit non, ne pas le proposer.
@@ -40,5 +50,7 @@ Lot B de `AUDIT.md` : items 7 et 8 fusionnés (PR #4, #5). `.gitattributes` fait
 - Sous Windows, relire `git status` après un `git add` global : collision de casse possible (LESSON-2026-014).
 - Ne jamais écrire de Markdown via `echo`/`>>` PowerShell (LESSON-2026-013).
 - Trivy peut virer au rouge sans changement de code (nouvelle CVE dans une image de base).
+- La CI ne tourne que sur les PR vers `main`/`develop` : une PR empilée (#17 sur #16) n'a aucun check
+  avant d'être reciblée sur `main` (automatique quand #16 est fusionnée et sa branche supprimée).
 - Identité git : AKAA Jennifer. Aucune mention d'IA dans commits/PR.
 - Fichier non suivi `gestion-projet/walkthrough/[Gemini] Etat de sante du projet - 2026-10-29.md` : pas à nous, ne pas commiter.
