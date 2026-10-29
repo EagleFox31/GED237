@@ -46,8 +46,9 @@ Les notes de conception (patterns, arbitrages) restent dans [`tasks/lessons.md`]
 
 - **Date :** 2026-10-27 (reprise de `CLAUDE.md` « Lessons récentes »)
 - **Catégorie :** data
-- **Statut :** captured
-- **Liens :** `CLAUDE.md` § Lessons récentes
+- **Statut :** prevention-added
+- **Liens :** `CLAUDE.md` § Lessons récentes ; `backend/app/core/schema_check.py` ;
+  `backend/tests/services/test_schema_check.py`
 
 **Contexte** — Fonctionnalité livrée avec une nouvelle table (migration Alembic).
 **Échec / near miss** — Base cible non migrée : `UndefinedTableError` → HTTP 500, affiché
@@ -58,6 +59,10 @@ ou en CI ; la migration dépend d'une action manuelle par environnement (`edossi
 **Prévention** — Actuellement un rappel documentaire (insuffisant selon RAIDER). À ajouter :
 contrôle « schéma à jour » (ex. `alembic check` / comparaison `current` vs `head`) en CI et
 au démarrage de l'API, avec message d'erreur explicite.
+*Ajouté le 2026-10-29* : au démarrage (`lifespan`), l'API compare `alembic_version` aux heads
+des scripts et refuse de démarrer (`SchemaNotAtHeadError`, message avec la commande à lancer) ;
+`SCHEMA_CHECK_MODE=fail|warn|off` (défaut `fail`). `alembic check` reste en CI (`backend.yml`) ;
+le compose démarre `api`/`worker` seulement après le service `migrate`.
 **Leçon généralisée** — Un écart de schéma doit échouer tôt et lisiblement, pas à la
 première requête utilisateur.
 **Évolution de standard** — Règle GED237 : toute PR avec migration coche « Idempotent »
@@ -202,3 +207,17 @@ première requête utilisateur.
 **Résolution** — `RUN apk upgrade --no-cache` dans l'étape `production`.
 **Prévention** — Toute image runtime Alpine/Debian applique les correctifs OS au build ; Trivy reste bloquant sur CRITICAL.
 **Leçon généralisée** — Un gate de vulnérabilités sur image peut virer au rouge sans changement de code : appliquer les mises à jour de sécurité au build plutôt qu'attendre l'image amont.
+
+### LESSON-2026-012 — Workflow invalide en échec silencieux à chaque push
+
+- **Date :** 2026-10-29
+- **Catégorie :** ci
+- **Statut :** prevention-added
+- **Liens :** PR #5, `.github/workflows/release-integrity.yml`, `.github/workflows/ci.yml`, `.pre-commit-config.yaml`
+
+**Contexte** — Workflow `release-integrity.yml` (SBOM + signature GPG), déclenché sur release ou à la main.
+**Échec / near miss** — Une exécution « failure » sans aucun job à chaque push, sur toutes les branches, depuis le snapshot initial : bruit rouge que l'équipe avait appris à ignorer.
+**Cause racine** — `secrets.*` utilisé dans un `if:` de step, contexte non autorisé : GitHub rejette le fichier entier, donc la signature de release n'aurait jamais tourné. Aucune validation des workflows avant fusion.
+**Résolution** — Drapeau `HAS_GPG_KEY` calculé dans l'`env` du job, testé par `env.HAS_GPG_KEY` dans les steps ; avertissements shellcheck des workflows corrigés.
+**Prévention** — actionlint bloquant : hook `actionlint-docker` dans pre-commit et job `Workflow lint (actionlint)` requis par le `CI Gate`, même version (1.7.7).
+**Leçon généralisée** — Un échec rouge permanent masque les vrais échecs : un échec récurrent « connu » se corrige ou s'explique, il ne se tolère pas.

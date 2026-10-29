@@ -88,6 +88,20 @@ class Settings(BaseSettings):
             raise ValueError("AUTHZ_METRICS_BACKEND must be one of: memory, redis")
         return value
 
+    # Startup check that the database is at the Alembic head
+    # fail : refuse to start (default) ; warn : log only ; off : skip
+    SCHEMA_CHECK_MODE: str = "fail"
+
+    @field_validator("SCHEMA_CHECK_MODE", mode="before")
+    @classmethod
+    def validate_schema_check_mode(cls, v: Any) -> str:
+        if v is None:
+            return "fail"
+        value = str(v).strip().lower()
+        if value not in {"fail", "warn", "off"}:
+            raise ValueError("SCHEMA_CHECK_MODE must be one of: fail, warn, off")
+        return value
+
     # Email (Resend)
     RESEND_API_KEY: str = Field(default="")
     RESEND_FROM: str = Field(default="onboarding@resend.dev")
