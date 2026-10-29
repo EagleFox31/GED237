@@ -19,8 +19,6 @@ Création de la table workflow_actions :
 """
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = "b7c8d9e0f1a2"
 down_revision = "3720d938ac5b"

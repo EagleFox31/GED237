@@ -19,11 +19,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import AsyncGenerator
 from unittest.mock import MagicMock
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker

@@ -470,7 +470,7 @@ async def test_action_returned_cancels_subsequent_steps(
         ],
     )
 
-    pending_resp = await auth_client.get(f"/api/v1/workflows/pending")
+    pending_resp = await auth_client.get("/api/v1/workflows/pending")
     step_1_id = pending_resp.json()[0]["id"]
 
     action_resp = await auth_client.post(
@@ -588,7 +588,7 @@ async def test_concurrent_workflow_action_submission(auth_client: AsyncClient, d
         ],
     )
 
-    pending_resp = await auth_client.get(f"/api/v1/workflows/pending")
+    pending_resp = await auth_client.get("/api/v1/workflows/pending")
     step_1_id = pending_resp.json()[0]["id"]
 
     # Send two concurrent action requests
@@ -645,7 +645,7 @@ async def test_get_document_action_history(auth_client: AsyncClient, db_seed):
         ],
     )
 
-    pending_resp = await auth_client.get(f"/api/v1/workflows/pending")
+    pending_resp = await auth_client.get("/api/v1/workflows/pending")
     step_1_id = pending_resp.json()[0]["id"]
 
     action_resp = await auth_client.post(

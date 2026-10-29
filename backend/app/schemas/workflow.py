@@ -1,6 +1,6 @@
 # backend/app/schemas/workflow.py
 from pydantic import BaseModel, Field
-from typing import Optional, List, Literal
+from typing import Optional, Literal
 from uuid import UUID
 from datetime import datetime
 from app.models.workflow import ActionType, OutcomeType

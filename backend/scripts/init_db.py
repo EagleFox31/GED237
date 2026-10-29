@@ -7,12 +7,10 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
 from app.models import Tenant, Role, OrgUnit, User, OrgUnitType
-import uuid
 
 
 async def create_seed_data():

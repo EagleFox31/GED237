@@ -7,7 +7,6 @@ from typing import Optional
 
 import PyPDF2
 from pdf2image import convert_from_path
-from PIL import Image
 
 from .base import OCREngine, OCRResult
 from .easyocr_engine import EasyOCREngine

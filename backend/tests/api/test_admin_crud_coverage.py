@@ -3,11 +3,9 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
 
 from app.models.audit import AuditLog
 from app.models.notification import Notification
-from app.models.user import User
 
 
 @pytest.mark.asyncio

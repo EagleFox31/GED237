@@ -24,9 +24,8 @@ from app.schemas.user import (
     UserRead,
     UserUpdate,
     UserCreateResponse,
-    ChangePasswordRequest,
 )
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password
 from app.services.email_service import send_account_created
 import secrets
 

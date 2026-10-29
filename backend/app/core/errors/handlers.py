@@ -21,9 +21,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.errors.domain import (
     AppError,
-    AuthenticationError,
-    AuthorizationError,
-    NotFoundError,
     Severity,
 )
 from app.core.errors.problem import build_problem_detail

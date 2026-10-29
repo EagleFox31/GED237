@@ -128,7 +128,7 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
 
             # Warn if confidence is low
             if confidence < 0.7:
-                print(f"  ⚠️ WARNING: Low confidence. Manual review recommended.")
+                print("  ⚠️ WARNING: Low confidence. Manual review recommended.")
 
             return True
 

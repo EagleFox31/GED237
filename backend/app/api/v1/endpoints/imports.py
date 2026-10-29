@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -12,13 +13,14 @@ from app.core.dependencies import get_current_user
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.document_category import DocumentCategory
 from app.models.import_job import ImportJob
-from app.models.import_job_item import ImportJobItem
 from app.models.org_unit import OrgUnit
 from app.models.user import User
 from app.schemas.imports import ImportCommitResponse, ImportJobItemRead, ImportJobRead, ImportJobWithItemsRead
 from app.services.import_analysis_service import ImportAnalysisService
 from app.services.import_execution_service import ImportExecutionService
 from app.services.storage.factory import get_storage_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -147,7 +149,7 @@ def _delete_storage_paths(paths: list[str]) -> None:
         try:
             storage_service.delete_file(path)
         except Exception:
-            continue
+            logger.warning("Storage cleanup failed for %s", path, exc_info=True)
 
 
 @router.post("/analyze", response_model=ImportJobWithItemsRead, status_code=status.HTTP_201_CREATED)
@@ -264,7 +266,7 @@ async def commit_import_job(
             try:
                 process_document_ocr.delay(document_id, file_path, mime_type)
             except Exception:
-                pass
+                logger.warning("OCR enqueue failed for document %s", document_id, exc_info=True)
     job = await _get_job_or_404(db, job_id)
     return ImportCommitResponse(
         job=ImportJobWithItemsRead.model_validate(job),

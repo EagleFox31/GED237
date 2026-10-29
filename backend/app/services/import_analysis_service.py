@@ -2,7 +2,6 @@ import json
 import os
 import uuid
 from dataclasses import replace
-from typing import Iterable
 
 from fastapi import UploadFile
 from sqlalchemy import select

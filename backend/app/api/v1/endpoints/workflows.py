@@ -1,6 +1,5 @@
 # backend/app/api/v1/endpoints/workflows.py
-from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +12,7 @@ from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
 from app.models.document import Document
-from app.models.workflow import WorkflowStep, ActionType, OutcomeType, WorkflowAction
+from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.user import User
 from app.schemas.workflow import (
     WorkflowStepCreate,
@@ -457,7 +456,7 @@ async def assign_step_admin(
         select(User).where(
             User.id == request.assigned_to,
             User.tenant_id == current_user.tenant_id,
-            User.is_active == True,
+            User.is_active.is_(True),
         )
     )
     user = user_result.scalar_one_or_none()

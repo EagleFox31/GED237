@@ -1,5 +1,4 @@
 from logging.config import fileConfig
-import os
 import sys
 from pathlib import Path
 
@@ -14,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # Import models and database configuration
 from app.core.database import Base
 from app.core.config import settings
-import app.models  # This imports all models
+import app.models  # noqa: F401 - registers all models on Base.metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

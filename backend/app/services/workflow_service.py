@@ -1,11 +1,10 @@
 # backend/app/services/workflow_service.py
-from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
-from app.models.workflow import WorkflowStep, WorkflowAction, ActionType, OutcomeType
+from app.models.workflow import WorkflowStep, WorkflowAction, OutcomeType
 from app.models.document import Document
 from app.models.user import User
 from app.schemas.workflow import WorkflowActionCreate

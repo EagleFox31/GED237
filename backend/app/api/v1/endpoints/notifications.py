@@ -58,7 +58,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
     try:
         while True:
             # We just keep connection open, optionally reading ping/pong
-            data = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket, user_id)
 
@@ -77,7 +77,7 @@ async def get_notifications(
     stmt = select(Notification).filter(Notification.user_id == current_user.id)
 
     if unread_only:
-        stmt = stmt.filter(Notification.is_read == False)
+        stmt = stmt.filter(Notification.is_read.is_(False))
 
     stmt = stmt.order_by(Notification.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
@@ -129,7 +129,7 @@ async def mark_all_as_read(
     """
     stmt = (
         update(Notification)
-        .where(Notification.user_id == current_user.id, Notification.is_read == False)
+        .where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
         .values(is_read=True)
     )
 
