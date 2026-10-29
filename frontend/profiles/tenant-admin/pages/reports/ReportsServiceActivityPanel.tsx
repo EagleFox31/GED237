@@ -68,7 +68,7 @@ const renderServiceChart = (
                 borderColor: '#e2e8f0',
                 boxShadow: '0 12px 24px rgba(15, 23, 42, 0.08)',
               }}
-              formatter={(value?: number | string) => [`${value ?? 0}`, valueLabel]}
+              formatter={(value) => [`${value ?? 0}`, valueLabel]}
             />
             <Bar dataKey="value" fill={color} radius={[0, 10, 10, 0]} maxBarSize={28}>
               <LabelList
