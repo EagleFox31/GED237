@@ -30,7 +30,7 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
       await api.updateUser(user.id, { is_active: !user.is_active });
       onAfter();
     } catch (e) {
-      window.alert('Échec : ' + errorMessage(e));
+      window.alert(`Échec : ${errorMessage(e)}`);
     }
   };
 
@@ -42,7 +42,7 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
       await api.updateUser(user.id, { password: pwd });
       window.alert('Mot de passe réinitialisé.');
     } catch (e) {
-      window.alert('Échec : ' + errorMessage(e));
+      window.alert(`Échec : ${errorMessage(e)}`);
     }
   };
 

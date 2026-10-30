@@ -50,7 +50,7 @@ const DEFAULT_SEARCH_CONFIG: RouteSearchConfig = {
 const resolveSearchConfig = (pathname: string): RouteSearchConfig => {
   // Longest-prefix match pour gérer /users/123 si on l'ajoute plus tard.
   const matches = Object.keys(ROUTE_SEARCH_CONFIG)
-    .filter((r) => pathname === r || pathname.startsWith(r + '/'))
+    .filter((r) => pathname === r || pathname.startsWith(`${r}/`))
     .sort((a, b) => b.length - a.length);
   const match = matches[0];
   if (!match) return DEFAULT_SEARCH_CONFIG;
