@@ -237,7 +237,7 @@ export const ReportsSummaryPanel: React.FC<ReportsSummaryPanelProps> = ({
                       borderColor: '#e2e8f0',
                       boxShadow: '0 12px 24px rgba(15, 23, 42, 0.08)',
                     }}
-                    formatter={(value?: number | string, name?: string) => {
+                    formatter={(value, name) => {
                       const safeName = name ?? '';
                       const seriesName = CHART_SERIES_LABELS[safeName as keyof typeof CHART_SERIES_LABELS] ?? safeName;
                       return [`${value ?? 0}`, seriesName];
