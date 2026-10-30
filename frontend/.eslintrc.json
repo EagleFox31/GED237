@@ -94,24 +94,17 @@
     "jsx-a11y/control-has-associated-label": "off",
     "import/newline-after-import": "off",
 
-    "prefer-template": "warn",
     "no-plusplus": "warn",
     "react/state-in-constructor": "warn",
     "class-methods-use-this": "warn",
     "react/destructuring-assignment": "warn",
     "no-bitwise": "warn",
     "react/no-unstable-nested-components": "warn",
-    "react/jsx-boolean-value": "warn",
     "jsx-a11y/no-noninteractive-element-interactions": "warn",
     "jsx-a11y/interactive-supports-focus": "warn",
     "no-continue": "warn",
-    "no-useless-escape": "warn",
-    "key-spacing": "warn",
-    "no-unneeded-ternary": "warn",
     "no-await-in-loop": "warn",
-    "no-void": "warn",
-    "object-property-newline": "warn",
-    "import/first": "warn"
+    "no-void": "warn"
   },
   "settings": {
     "react": {

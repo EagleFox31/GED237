@@ -1,6 +1,7 @@
 # [Claude] Lot B item 8 — Lint ruff/bandit bloquant — 2026-10-29
 
-> Statut : DONE (2026-10-29) — PR #4 CI 18/18 verte, fusionnée dans `main` (6d1999a)
+> Statut : DONE (2026-10-29) — PR #4 CI 18/18 verte, fusionnée dans `main` (6d1999a). Volet frontend
+> (ESLint) ajouté le 2026-10-30, branche `chore/frontend-lint-ratchet` : voir la dernière section.
 
 ## Ce qui va être fait
 
@@ -62,3 +63,33 @@ sur HIGH en CI alors que le hook bloquait dès LOW.
 - **Reuse-first** : outils déjà adoptés (ruff, bandit, pre-commit) ; Impact-Aware CI hors périmètre (lot D).
 - **R — Retroactive** : aucune donnée ni migration touchée ; `fix.py` laissé en place (seuls espaces de fin
   retirés par le hook).
+
+## Volet frontend (ESLint) — 2026-10-30
+
+**Constat.** L'item 8 d'`AUDIT.md` vise aussi les 200 erreurs ESLint du frontend. Elles n'avaient pas été
+corrigées : le commit 1f1f794 avait passé 18 règles en `warn`, sans plafond. Le lint « bloquant » laissait
+donc passer toute nouvelle occurrence de ces règles (605 avertissements mesurés).
+
+**Fait.**
+- `eslint --fix` (Docker, `node:20-alpine`) : 605 → 488 avertissements, 8 fichiers. Corrections purement
+  syntaxiques (gabarits de chaînes, espaces après les clés, ré-exports déplacés après les imports,
+  `x ? x : y` → `x || y`, booléen JSX implicite). Indentation de `EMPTY_RULE` (`RulesTab.tsx`)
+  reprise à la main après le fix `object-property-newline`.
+- 7 règles tombées à zéro retirées de la liste `warn` de `frontend/.eslintrc.json`, donc rendues à `error`
+  par le preset : `prefer-template`, `react/jsx-boolean-value`, `no-useless-escape`, `key-spacing`,
+  `no-unneeded-ternary`, `object-property-newline`, `import/first`.
+- Cliquet : `npm run lint` porte `--max-warnings 488` (`frontend/package.json`), règle décrite dans
+  `CONTRIBUTING.md`. Restent en `warn` : 11 règles héritées (non corrigeables automatiquement) et les règles
+  déjà en `warn` par choix (`no-explicit-any`, `no-console`, `react/button-has-type`…).
+
+**Vérifié (Docker).** `npm run lint` : 0 erreur, 488 avertissements, exit 0 ; `--max-warnings 487` : exit 1 ;
+`eslint --print-config` : les 7 règles en `error` ; `npm run typecheck` : 0 ; `npm run build` : OK.
+
+**RAIDER.**
+- **R / A** : plafond porté par le script `lint`, identique en local et en CI ; aucune config CI dupliquée.
+- **I** : un second `eslint --fix` ne modifie plus rien sur ces règles (0 occurrence restante).
+- **D** : typecheck et build verts ; fixes ESLint sans effet sur le comportement.
+- **Failure memory** : LESSON-2026-018.
+- **E** : dette bornée et mesurable ; règles rétablies au niveau du preset plutôt que forcées à la main.
+- **Reuse-first** : `--max-warnings` natif d'ESLint (Adopt), pas d'outil de baseline supplémentaire.
+- **R — Retroactive** : aucune donnée touchée ; dette restante conservée et plafonnée, pas réécrite.
