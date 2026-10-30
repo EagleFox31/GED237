@@ -1,0 +1,9 @@
+{
+  "repository": {
+    "governance": {
+      "enabled": true,
+      "preset": "solo",
+      "requiredStatusChecks": ["CI Gate"]
+    }
+  }
+}
