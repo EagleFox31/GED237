@@ -160,7 +160,7 @@ const AppLayout: React.FC = () => {
     const exact = ROUTE_TO_TAB[location.pathname];
     if (exact) return exact;
     const match = Object.keys(ROUTE_TO_TAB)
-      .filter((r) => r !== '/' && (location.pathname === r || location.pathname.startsWith(r + '/')))
+      .filter((r) => r !== '/' && (location.pathname === r || location.pathname.startsWith(`${r}/`)))
       .sort((a, b) => b.length - a.length)[0];
     const tab = match ? ROUTE_TO_TAB[match] : undefined;
     return tab ?? location.pathname.replace('/', '');

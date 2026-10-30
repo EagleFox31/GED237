@@ -26,9 +26,14 @@ const RulesTab: React.FC = () => {
   const showToast = (t: NonNullable<Toast>) => { setToast(t); setTimeout(() => setToast(null), 4000); };
 
   const EMPTY_RULE = {
-    code: '', name: '', description: '',
-    document_category_ids: [], org_unit_ids: [],
-    workflow_template_id: '', priority: 100, is_active: true
+    code: '',
+    name: '',
+    description: '',
+    document_category_ids: [],
+    org_unit_ids: [],
+    workflow_template_id: '',
+    priority: 100,
+    is_active: true
   };
 
   // Fermeture propre du modal avec garde
