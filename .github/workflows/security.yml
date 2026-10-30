@@ -1,8 +1,19 @@
 name: Security Scan
 
+# Callers pass the impact gates (ci.yml); without them every scan runs. Gitleaks always runs.
 on:
-  workflow_call: {}
-  workflow_dispatch: {}
+  workflow_call:
+    inputs:
+      gates:
+        description: JSON array of impact gates to run (sast, dependency-audit, container-scan).
+        type: string
+        default: '["sast","dependency-audit","container-scan"]'
+  workflow_dispatch:
+    inputs:
+      gates:
+        description: JSON array of impact gates to run (sast, dependency-audit, container-scan).
+        type: string
+        default: '["sast","dependency-audit","container-scan"]'
 
 permissions:
   contents: read
@@ -15,6 +26,7 @@ jobs:
   # ──────────────────────────────────────────────
   bandit:
     name: "SAST: Bandit"
+    if: ${{ contains(fromJSON(inputs.gates), 'sast') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -59,6 +71,7 @@ jobs:
   # ──────────────────────────────────────────────
   dependency-audit:
     name: "SCA: Dependency Audit"
+    if: ${{ contains(fromJSON(inputs.gates), 'dependency-audit') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -144,6 +157,7 @@ jobs:
   # ──────────────────────────────────────────────
   trivy:
     name: "Container: Trivy"
+    if: ${{ contains(fromJSON(inputs.gates), 'container-scan') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

@@ -1,6 +1,6 @@
 # [Claude] Lot B6 — Tests API : bornes authz users, org_units, reports, usage — 2026-10-29
 
-> Statut : EN REVUE — branche `test/api-coverage-lot-b6` (empilée sur `chore/gitattributes`, PR #16)
+> Statut : DONE — PR #17 CI verte, fusionnée le 2026-10-29 (928aefc). Constats authz : décision PO en attente.
 
 ## Ce qui va être fait
 

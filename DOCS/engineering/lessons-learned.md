@@ -264,3 +264,17 @@ première requête utilisateur.
 **Résolution** — Réglages déplacés dans `backend/.coveragerc` (source unique), avec `concurrency = greenlet, thread`.
 **Prévention** — `tests/test_coverage_config.py` charge la configuration comme le fait coverage.py et échoue si `concurrency`, `omit` ou `fail_under` ne sont plus lus.
 **Leçon généralisée** — Un réglage d'outil qui ne produit aucun effet visible doit être prouvé chargé, par un test ou une sortie qui en dépend.
+
+### LESSON-2026-016 — CI dupliquée et non ciblée
+
+- **Date :** 2026-10-29
+- **Catégorie :** ci-cd
+- **Statut :** prevention-added
+- **Liens :** `.github/appfactory-impact.json`, `scripts/check-impact-gates.py`, walkthrough `[Claude] Impact-Aware CI - 2026-10-29`
+
+**Contexte** — Adoption de l'Impact-Aware CI (écart RAIDER « Scoped execution »).
+**Échec / near miss** — `quality-gate.yml` relançait backend, frontend et sécurité sur les mêmes événements que `ci.yml` dès qu'un fichier `backend/`, `frontend/` ou `.github/workflows/` changeait : 32 runs Quality Gate pour 34 runs CI sur 30 jours, suite backend (≈ 13 min) et Trivy compris. Une PR de doc seule lançait toute la CI. Le 2026-10-29, `main` est rouge : jobs non démarrés pour un motif de facturation (paiement ou plafond de dépenses). Le lien avec cette consommation est probable, non vérifié (facturation illisible avec le jeton `gh` actuel).
+**Cause racine** — Pipeline unifié T6.4 (`quality-gate.yml`) laissé à côté de `ci.yml`, qui appelle les mêmes workflows ; aucune règle ne reliait fichiers modifiés et jobs requis.
+**Résolution** — `quality-gate.yml` supprimé ; `ci.yml` appelle `reusable-impact-analysis.yml` (appfactory v1.4.0) et garde chaque job lourd par son gate.
+**Prévention** — `.github/appfactory-impact.json` est la seule source des chemins ; `scripts/check-impact-gates.py` (hook pre-commit + job `Workflow lint`) refuse un gate utilisé mais jamais émis (job sauté à vie, `CI Gate` vert) ou déclaré mais jamais utilisé ; le `CI Gate` échoue si l'analyse d'impact échoue. Carte validée en passant les 534 fichiers suivis dans le moteur : aucun non couvert.
+**Leçon généralisée** — Un pipeline qui en remplace un autre n'est pas terminé tant que l'ancien tourne : vérifier qu'aucun workflow ne relance les mêmes jobs sur les mêmes événements. Dans une carte de globs, `dir/**` ne couvre pas les dotfiles (`dir/.coveragerc`) : les déclarer (`dir/**/.*`).

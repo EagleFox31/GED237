@@ -5,6 +5,8 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  # Manual full validation: every gate runs.
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -16,29 +18,53 @@ concurrency:
 
 jobs:
   # ──────────────────────────────────────────────
-  # Stage 1 — Backend + Frontend + Security (parallel)
+  # Stage 0 — Change impact (.github/appfactory-impact.json)
+  # ──────────────────────────────────────────────
+  # Changed paths → impacted surfaces → required gates. Unknown paths fan out to every gate.
+  impact:
+    name: Change impact
+    uses: EagleFox31/appfactory-project-automation/.github/workflows/reusable-impact-analysis.yml@0523510a8e42290df3bae5749d034b1637569af5 # v1.4.0
+    with:
+      appfactory_ref: 0523510a8e42290df3bae5749d034b1637569af5 # v1.4.0
+      mode: ${{ github.event_name == 'workflow_dispatch' && 'all' || 'auto' }}
+
+  # ──────────────────────────────────────────────
+  # Stage 1 — Backend + Frontend + Security (parallel, gated by impact)
   # ──────────────────────────────────────────────
   backend:
     name: Backend
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'backend') }}
     uses: ./.github/workflows/backend.yml
 
   frontend:
     name: Frontend
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'frontend') }}
     uses: ./.github/workflows/frontend.yml
 
+  # Gitleaks always runs; the other scans follow the gates.
   security:
     name: Security
+    needs: impact
     uses: ./.github/workflows/security.yml
+    with:
+      gates: ${{ needs.impact.outputs.gates }}
 
   # An invalid workflow file fails on every push with zero jobs; catch it in review.
   workflows:
     name: Workflow lint (actionlint)
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'workflow-lint') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - name: actionlint (same version as .pre-commit-config.yaml)
         run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.7 -no-color -oneline
+      # Same script as the pre-commit hook: a gate name the map never emits would skip its job forever.
+      - name: Impact map and workflow gates agree
+        run: python3 scripts/check-impact-gates.py
 
   # Same script as the pre-commit hook: no case collisions, UTF-16, NUL, control characters or U+FFFD.
   tracked-files:
@@ -56,42 +82,28 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [backend, frontend, security, workflows, tracked-files]
+    needs: [impact, backend, frontend, security, workflows, tracked-files]
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
     steps:
       - name: Check pipeline results
+        env:
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          echo "Backend:  ${{ needs.backend.result }}"
-          echo "Frontend: ${{ needs.frontend.result }}"
-          echo "Security: ${{ needs.security.result }}"
-          echo "Workflows: ${{ needs.workflows.result }}"
-          echo "Tracked files: ${{ needs.tracked-files.result }}"
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
 
-          if [[ "${{ needs.backend.result }}" == "failure" ]]; then
-            echo "::error::Backend pipeline failed"
+          # If the analysis fails, every gated job is skipped and nothing was validated.
+          if [[ "$(echo "$NEEDS" | jq -r '.impact.result')" != "success" ]]; then
+            echo "::error::Change impact analysis did not succeed"
             exit 1
           fi
 
-          if [[ "${{ needs.frontend.result }}" == "failure" ]]; then
-            echo "::error::Frontend pipeline failed"
+          # Skipped means its gate was not required by this change; anything else but success fails.
+          failed=$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(" ")')
+          if [[ -n "$failed" ]]; then
+            echo "::error::Jobs did not succeed: $failed"
             exit 1
           fi
 
-          if [[ "${{ needs.security.result }}" == "failure" ]]; then
-            echo "::error::Security pipeline failed"
-            exit 1
-          fi
-
-          if [[ "${{ needs.workflows.result }}" == "failure" ]]; then
-            echo "::error::Workflow lint failed"
-            exit 1
-          fi
-
-          if [[ "${{ needs.tracked-files.result }}" == "failure" ]]; then
-            echo "::error::Tracked files check failed"
-            exit 1
-          fi
-
-          echo "All pipelines passed"
+          echo "All required pipelines passed"
