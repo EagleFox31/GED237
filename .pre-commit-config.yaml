@@ -9,6 +9,22 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
 
+  # Tracked files are portable: no case collisions, plain UTF-8 text. Same script as the CI job.
+  - repo: local
+    hooks:
+      - id: tracked-files
+        name: tracked files are portable (case, UTF-8)
+        entry: scripts/check-tracked-files.sh
+        language: script
+        pass_filenames: false
+      # Impact map and workflows use the same gate names. Same script as the CI job.
+      - id: impact-gates
+        name: impact map and workflow gates agree
+        entry: python scripts/check-impact-gates.py
+        language: python
+        files: ^\.github/
+        pass_filenames: false
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
     hooks:

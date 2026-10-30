@@ -29,10 +29,10 @@ interface OrgUnitOption {
 
 // Traduction des actions techniques en libellés métier
 const ACTION_LABELS: Record<string, { label: string; icon: string; color: string }> = {
-  rule_execution:   { label: 'Analyse automatique', icon: 'psychology', color: 'bg-blue-100 text-blue-700' },
-  upload:           { label: 'Dépôt du document',   icon: 'upload_file', color: 'bg-slate-100 text-slate-600' },
-  classification:   { label: 'Tentative de classement', icon: 'folder_open', color: 'bg-amber-100 text-amber-700' },
-  needs_review:     { label: 'Mis en attente de décision', icon: 'pending', color: 'bg-orange-100 text-orange-700' },
+  rule_execution: { label: 'Analyse automatique', icon: 'psychology', color: 'bg-blue-100 text-blue-700' },
+  upload: { label: 'Dépôt du document', icon: 'upload_file', color: 'bg-slate-100 text-slate-600' },
+  classification: { label: 'Tentative de classement', icon: 'folder_open', color: 'bg-amber-100 text-amber-700' },
+  needs_review: { label: 'Mis en attente de décision', icon: 'pending', color: 'bg-orange-100 text-orange-700' },
 };
 
 const NeedsReviewInbox: React.FC = () => {

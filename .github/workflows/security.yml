@@ -1,8 +1,19 @@
 name: Security Scan
 
+# Callers pass the impact gates (ci.yml); without them every scan runs. Gitleaks always runs.
 on:
-  workflow_call: {}
-  workflow_dispatch: {}
+  workflow_call:
+    inputs:
+      gates:
+        description: JSON array of impact gates to run (sast, dependency-audit, container-scan).
+        type: string
+        default: '["sast","dependency-audit","container-scan"]'
+  workflow_dispatch:
+    inputs:
+      gates:
+        description: JSON array of impact gates to run (sast, dependency-audit, container-scan).
+        type: string
+        default: '["sast","dependency-audit","container-scan"]'
 
 permissions:
   contents: read
@@ -15,15 +26,16 @@ jobs:
   # ──────────────────────────────────────────────
   bandit:
     name: "SAST: Bandit"
+    if: ${{ contains(fromJSON(inputs.gates), 'sast') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -46,7 +58,7 @@ jobs:
           bandit -r app/ -c .bandit.yml
 
       - name: Upload Bandit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bandit-report
@@ -59,20 +71,21 @@ jobs:
   # ──────────────────────────────────────────────
   dependency-audit:
     name: "SCA: Dependency Audit"
+    if: ${{ contains(fromJSON(inputs.gates), 'dependency-audit') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -106,7 +119,7 @@ jobs:
           npm audit --audit-level=critical
 
       - name: Upload pip-audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-report
@@ -124,12 +137,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -144,12 +157,13 @@ jobs:
   # ──────────────────────────────────────────────
   trivy:
     name: "Container: Trivy"
+    if: ${{ contains(fromJSON(inputs.gates), 'container-scan') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build backend image
         run: docker build -t ged237-backend:ci ./backend
