@@ -1,6 +1,7 @@
 # backend/tests/conftest.py
 import os
 import uuid
+from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
 # Force test database URL BEFORE any app imports
@@ -23,7 +24,7 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-from typing import AsyncGenerator
+from typing import AsyncGenerator, AsyncIterator
 
 from app.main import app
 from app.core.database import get_db, Base
@@ -337,3 +338,44 @@ async def admin_client(test_engine, db_seed) -> AsyncGenerator[AsyncClient, None
         yield client
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture
+def client_as(test_engine):
+    """Factory for a client authenticated as any role (bypasses JWT).
+
+    ``async with client_as("unit_admin", tenant_id=..., org_unit_id=None) as c:``
+    Keyword arguments are set on the fake user as-is, so ``None`` really means
+    ``None``. Clients share the app's dependency overrides: open them one at a
+    time, and not alongside ``auth_client`` / ``admin_client``.
+    """
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async def override_get_db():
+        async with session_factory() as session:
+            yield session
+
+    @asynccontextmanager
+    async def _client(role_code: str, **user_fields) -> AsyncIterator[AsyncClient]:
+        fake_user = _make_fake_user(role_code=role_code)
+        for field, value in user_fields.items():
+            setattr(fake_user, field, value)
+
+        async def override_get_current_user():
+            return fake_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
+                yield client
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
+            app.dependency_overrides.pop(get_db, None)
+
+    return _client

@@ -19,14 +19,13 @@ GED237 applique le standard d'ingénierie **RAIDER** du Project Registry.
 | **D — Durable** | Schémas Pydantic, routes `/api/v1` et contrat `LocalWriteResult` = contrats publics : rupture seulement versionnée et documentée. Une feature n'est pas terminée si seuls ses nouveaux tests passent : pytest backend + build/tests front + e2e du parcours touché restent verts. |
 | **Failure memory** | Incident ou near miss significatif → entrée dans `DOCS/engineering/lessons-learned.md` avec cause racine **et** prévention vérifiable (test, garde, règle CI). `tasks/lessons.md` garde les notes de conception. |
 | **E — Engineering-grade** | Isolation `tenant_id` sur toute requête ; moindre privilège (RBAC par profil) ; secrets et JWT/OTP jamais journalisés ; erreurs actionnables (`pushApiError` / `pushClientOperationError`). **Reuse-first** : avant une brique non triviale, chercher l'existant (packages, OSS, `EagleFox31/appfactory-project-automation`) et noter Adopt / Adapt / Learn / Build dans le walkthrough. |
-| **Scoped execution** | La CI ne lance que les surfaces touchées (backend, frontend, sécurité) ; les fichiers transversaux (`.github/workflows/**`, lockfiles, `docker-compose.yml`) déclenchent toutes les surfaces. |
+| **Scoped execution** | La CI ne lance que les gates des surfaces touchées, selon `.github/appfactory-impact.json` (Impact-Aware CI d'`appfactory-project-automation`). Les fichiers transversaux (`.github/**`, `scripts/**`, `.pre-commit-config.yaml`, `.gitattributes`) déclenchent toutes les surfaces ; un lockfile déclenche sa stack, l'audit de dépendances et le scan d'image ; un chemin inconnu déclenche tout. Gitleaks et `Tracked files` portent sur tout le dépôt et tournent toujours. |
 | **R — Retroactive** | Toute évolution s'applique aux tenants et documents **existants** : migration de données explicite, aucun reset destructif, rien n'est modifié hors du périmètre possédé par la fonctionnalité. |
 
 ## Écarts connus (dérogations à résorber)
 
 | Écart | Principe | Action prévue |
 |---|---|---|
-| `ci.yml` lance backend + frontend + sécurité à chaque push/PR sans analyse d'impact (seul `quality-gate.yml` filtre par chemins). | Scoped execution | Adopter l'Impact-Aware CI (`appfactory-project-automation`, `reusable-impact-analysis.yml` + `.github/appfactory-impact.json`). |
 | Pas de board GitHub Project synchronisé. | Reuse-first | Évaluer `reusable-project-automation.yml` (`.github/project-config.json`). |
 
 ## Definition of Done RAIDER

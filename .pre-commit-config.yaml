@@ -17,6 +17,13 @@ repos:
         entry: scripts/check-tracked-files.sh
         language: script
         pass_filenames: false
+      # Impact map and workflows use the same gate names. Same script as the CI job.
+      - id: impact-gates
+        name: impact map and workflow gates agree
+        entry: python scripts/check-impact-gates.py
+        language: python
+        files: ^\.github/
+        pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9

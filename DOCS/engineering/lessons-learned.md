@@ -250,3 +250,45 @@ première requête utilisateur.
 **Résolution** — Renommage d'index seul (`update-index`) de `docs/engineering/*` vers `DOCS/engineering/*`, chemin utilisé par toutes les références.
 **Prévention** — `scripts/check-tracked-files.sh` (pre-commit + CI) refuse les chemins qui ne diffèrent que par la casse, dossiers compris.
 **Leçon généralisée** — Sous Windows, relire `git status` après toute commande d'indexation globale (`add .`, `--renormalize`) : des ajouts inattendus signalent souvent une collision de casse.
+
+### LESSON-2026-015 — Configuration de couverture jamais lue
+
+- **Date :** 2026-10-29
+- **Catégorie :** testing
+- **Statut :** prevention-added
+- **Liens :** `backend/.coveragerc`, `backend/tests/test_coverage_config.py`
+
+**Contexte** — Lot B6 (tests API users, org_units, reports, usage) : `users.py` restait à 40 % de couverture alors que presque toutes ses routes étaient testées.
+**Échec / near miss** — Les sections `[coverage:run]` et `[coverage:report]` de `backend/pytest.ini` n'ont jamais été appliquées : `app/workers/*` et `app/core/ocr/*` étaient mesurés malgré `omit`, et `skip_covered` n'agissait pas. Le gate de 70 % tenait grâce au seul `--cov-fail-under` de la ligne de commande. En plus, sans `concurrency = greenlet`, les lignes exécutées après une requête SQLAlchemy async n'étaient pas comptées.
+**Cause racine** — coverage.py lit `.coveragerc`, `setup.cfg`, `tox.ini` et `pyproject.toml`, jamais `pytest.ini`, et ne signale pas une section qu'il ne lit pas.
+**Résolution** — Réglages déplacés dans `backend/.coveragerc` (source unique), avec `concurrency = greenlet, thread`.
+**Prévention** — `tests/test_coverage_config.py` charge la configuration comme le fait coverage.py et échoue si `concurrency`, `omit` ou `fail_under` ne sont plus lus.
+**Leçon généralisée** — Un réglage d'outil qui ne produit aucun effet visible doit être prouvé chargé, par un test ou une sortie qui en dépend.
+
+### LESSON-2026-016 — CI dupliquée et non ciblée
+
+- **Date :** 2026-10-29
+- **Catégorie :** ci-cd
+- **Statut :** prevention-added
+- **Liens :** `.github/appfactory-impact.json`, `scripts/check-impact-gates.py`, walkthrough `[Claude] Impact-Aware CI - 2026-10-29`
+
+**Contexte** — Adoption de l'Impact-Aware CI (écart RAIDER « Scoped execution »).
+**Échec / near miss** — `quality-gate.yml` relançait backend, frontend et sécurité sur les mêmes événements que `ci.yml` dès qu'un fichier `backend/`, `frontend/` ou `.github/workflows/` changeait : 32 runs Quality Gate pour 34 runs CI sur 30 jours, suite backend (≈ 13 min) et Trivy compris. Une PR de doc seule lançait toute la CI. Le 2026-10-29, `main` est rouge : jobs non démarrés pour un motif de facturation (paiement ou plafond de dépenses). Le lien avec cette consommation est probable, non vérifié (facturation illisible avec le jeton `gh` actuel).
+**Cause racine** — Pipeline unifié T6.4 (`quality-gate.yml`) laissé à côté de `ci.yml`, qui appelle les mêmes workflows ; aucune règle ne reliait fichiers modifiés et jobs requis.
+**Résolution** — `quality-gate.yml` supprimé ; `ci.yml` appelle `reusable-impact-analysis.yml` (appfactory v1.4.0) et garde chaque job lourd par son gate.
+**Prévention** — `.github/appfactory-impact.json` est la seule source des chemins ; `scripts/check-impact-gates.py` (hook pre-commit + job `Workflow lint`) refuse un gate utilisé mais jamais émis (job sauté à vie, `CI Gate` vert) ou déclaré mais jamais utilisé ; le `CI Gate` échoue si l'analyse d'impact échoue. Carte validée en passant les 534 fichiers suivis dans le moteur : aucun non couvert.
+**Leçon généralisée** — Un pipeline qui en remplace un autre n'est pas terminé tant que l'ancien tourne : vérifier qu'aucun workflow ne relance les mêmes jobs sur les mêmes événements. Dans une carte de globs, `dir/**` ne couvre pas les dotfiles (`dir/.coveragerc`) : les déclarer (`dir/**/.*`).
+
+### LESSON-2026-017 — Protection de branche documentée, jamais appliquée
+
+- **Date :** 2026-10-30
+- **Catégorie :** governance
+- **Statut :** prevention-added
+- **Liens :** `.github/project-config.json`, `CONTRIBUTING.md`, ruleset « AppFactory default branch governance »
+
+**Contexte** — Passage du dépôt en public (Actions refusées en privé faute de facturation) ; vérification de la protection de `main` avant d'y exiger le `CI Gate`.
+**Échec / near miss** — `CONTRIBUTING.md` annonçait « push direct interdit, PR obligatoire, 1 review, CI verte » et renvoyait à `scripts/setup-branch-protection.sh`. Le script n'existait pas et `main` n'avait aucune protection (API : 403 en privé gratuit, puis 404 « Branch not protected »). Toute fusion reposait sur la discipline ; 1 review obligatoire aurait en plus bloqué le seul mainteneur.
+**Cause racine** — Règle rédigée comme un état acquis sans être appliquée ni vérifiée ; aucune source déclarative de la politique.
+**Résolution** — Ruleset géré par la Repository Governance d'appfactory v1.4.0 (preset `solo` + `CI Gate` requis), appliqué en `plan → apply → plan` (dernier `plan` : NO-OP). `CONTRIBUTING.md` décrit la politique réelle.
+**Prévention** — Politique versionnée dans `.github/project-config.json` ; un `plan` de gouvernance qui n'est plus NO-OP signale une dérive.
+**Leçon généralisée** — Une règle de gouvernance documentée n'existe que si son état distant a été lu : vérifier par l'API avant de la citer, et la déclarer dans un fichier réconcilié plutôt que dans de la prose.
