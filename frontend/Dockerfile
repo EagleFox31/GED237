@@ -1,5 +1,8 @@
+# Node major: keep in sync with frontend/.nvmrc (checked by Frontend CI).
+ARG NODE_VERSION=24
+
 # Development image: keep Vite/HMR for local docker-compose usage.
-FROM node:20-alpine AS development
+FROM node:${NODE_VERSION}-alpine AS development
 
 WORKDIR /app
 
@@ -13,7 +16,7 @@ CMD ["npm", "run", "dev", "--", "--host"]
 
 
 # Build stage: dev tooling (Vite/esbuild) is needed only to produce static assets.
-FROM node:20-alpine AS build
+FROM node:${NODE_VERSION}-alpine AS build
 
 WORKDIR /app
 
