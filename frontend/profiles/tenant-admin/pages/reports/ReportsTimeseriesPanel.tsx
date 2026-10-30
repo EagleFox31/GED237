@@ -188,7 +188,7 @@ export const ReportsTimeseriesPanel: React.FC<ReportsTimeseriesPanelProps> = ({
                         borderColor: '#e2e8f0',
                         boxShadow: '0 12px 24px rgba(15, 23, 42, 0.08)',
                       }}
-                      formatter={(value: number | string | undefined) => [`${value ?? 0}`, totalLabel]}
+                      formatter={(value) => [`${value ?? 0}`, totalLabel]}
                       labelFormatter={(label: React.ReactNode) => label}
                     />
                     <Line

@@ -301,7 +301,7 @@ const OrganizationPage: React.FC = () => {
                           {documentsLoading ? '...' : unitDocuments.length}
                         </p>
                         <p className="mt-2 text-[11px] font-medium text-slate-400">
-                          {documentsError ? documentsError : 'Cette unité et ses sous-services'}
+                          {documentsError || 'Cette unité et ses sous-services'}
                         </p>
                       </div>
                       <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-white/5 to-transparent skew-x-12"></div>

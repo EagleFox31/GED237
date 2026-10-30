@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "fallback": "all",
+  "ignorePaths": [
+    "**/*.md",
+    "DOCS/**",
+    "gestion-projet/**",
+    "walkthrough/**",
+    "Phase de Conception/**",
+    "tasks/**",
+    ".agents/**",
+    "extract_docx.py",
+    ".gitignore",
+    ".git-blame-ignore-revs",
+    ".gitleaks.toml"
+  ],
+  "surfaces": {
+    "ci-platform": {
+      "paths": [".github/**", "scripts/**", ".pre-commit-config.yaml", ".gitattributes"],
+      "gates": ["workflow-lint"]
+    },
+    "backend": {
+      "paths": ["backend/**", "backend/**/.*"],
+      "gates": ["backend", "sast"],
+      "dependsOn": ["ci-platform"]
+    },
+    "frontend": {
+      "paths": ["frontend/**", "frontend/**/.*", "frontend/.husky/**"],
+      "gates": ["frontend"],
+      "dependsOn": ["ci-platform"]
+    },
+    "dependencies": {
+      "paths": ["backend/requirements*.txt", "frontend/package.json", "frontend/package-lock.json"],
+      "gates": ["dependency-audit"],
+      "dependsOn": ["ci-platform"]
+    },
+    "containers": {
+      "paths": [
+        "backend/Dockerfile",
+        "backend/.dockerignore",
+        "backend/docker-compose.yml",
+        "frontend/Dockerfile",
+        "frontend/.dockerignore",
+        "frontend/nginx.conf",
+        "nginx/**",
+        "docker-compose.yml"
+      ],
+      "gates": ["container-scan"],
+      "dependsOn": ["ci-platform", "dependencies"]
+    }
+  }
+}

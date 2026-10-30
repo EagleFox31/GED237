@@ -86,14 +86,14 @@ première requête utilisateur.
 
 - **Date :** 2026-10-28
 - **Catégorie :** process
-- **Statut :** captured
-- **Liens :** commit `chore: normalize line endings to LF…` (lot A)
+- **Statut :** prevention-added
+- **Liens :** commit `chore: normalize line endings to LF…` (lot A), commits 65e6080 et 1d95776 (`chore/gitattributes`)
 
 **Contexte** — Consolidation de deux mois de travail fait sous Windows.
 **Échec / near miss** — Des fichiers entiers apparaissaient modifiés (CRLF ↔ LF), masquant les vrais changements et rendant la revue impossible.
 **Cause racine** — `core.autocrlf` variable selon les postes, pas de normalisation imposée par le dépôt.
 **Résolution** — Commit dédié de normalisation LF, isolé des commits fonctionnels.
-**Prévention** — À faire : `.gitattributes` (`* text=auto eol=lf`) suivi d'un commit `git add --renormalize` isolé. En attendant : un commit de normalisation est toujours séparé.
+**Prévention** — `.gitattributes` (`* text=auto eol=lf`, binaires déclarés) puis `git add --renormalize .` dans un commit isolé (77 fichiers), ignoré par `git blame`. Le dépôt stocke désormais LF quel que soit `core.autocrlf` ; `scripts/check-tracked-files.sh` refuse tout fichier vu comme binaire sans règle `binary`.
 **Leçon généralisée** — Les conventions de fins de ligne appartiennent au dépôt, pas au poste.
 
 ### LESSON-2026-004 — Propriété Python non requêtable (`select(User.full_name)`)
@@ -221,3 +221,88 @@ première requête utilisateur.
 **Résolution** — Drapeau `HAS_GPG_KEY` calculé dans l'`env` du job, testé par `env.HAS_GPG_KEY` dans les steps ; avertissements shellcheck des workflows corrigés.
 **Prévention** — actionlint bloquant : hook `actionlint-docker` dans pre-commit et job `Workflow lint (actionlint)` requis par le `CI Gate`, même version (1.7.7).
 **Leçon généralisée** — Un échec rouge permanent masque les vrais échecs : un échec récurrent « connu » se corrige ou s'explique, il ne se tolère pas.
+
+### LESSON-2026-013 — Fichier Markdown corrompu par des écritures PowerShell
+
+- **Date :** 2026-10-29
+- **Catégorie :** process
+- **Statut :** prevention-added
+- **Liens :** commit 2d88228, `scripts/check-tracked-files.sh`, `.github/workflows/ci.yml`
+
+**Contexte** — Ajout du `.gitattributes` (LESSON-2026-003) : inventaire des fins de ligne de l'index.
+
+**Échec / near miss** — `tasks/lessons.md` était vu comme binaire par git : diff illisible, et la renormalisation l'aurait ignoré. Trois dégâts superposés : en-tête relu en cp1252 puis réécrit en UTF-8 (« Ã© »), un bloc en UTF-16LE, et des leçons 16 à 33 où PowerShell avait mangé des lettres (`` `a `` → bell, `` `b `` → backspace, `` `n `` → saut de ligne), remplacé les accents par U+FFFD et « → » par « ? ».
+**Cause racine** — Ajouts faits en ligne de commande PowerShell (`>>` / `Add-Content` en encodage par défaut, chaînes entre guillemets doubles où le backtick est un caractère d'échappement), sans aucun contrôle d'encodage avant commit.
+**Résolution** — Script de réparation : annulation du double encodage, décodage du bloc UTF-16, restauration des accents et lettres d'après le contexte (assertions sur le nombre d'occurrences). Les backticks de code inline perdus ne sont pas réinventés.
+**Prévention** — `scripts/check-tracked-files.sh`, hook pre-commit et job CI `Tracked files` requis par le `CI Gate` : échoue sur un fichier détecté binaire sans règle `binary`, sur tout caractère de contrôle hors tabulation/saut de ligne et sur U+FFFD. Testé sur l'ancien fichier et sur des échantillons ESC/U+FFFD/CRLF.
+**Leçon généralisée** — Ne pas écrire de contenu Markdown/code via `echo`/`>>` PowerShell : passer par l'éditeur ou un outil qui écrit en UTF-8 explicite. Un texte que git voit comme binaire est un signal de corruption, pas un détail.
+
+### LESSON-2026-014 — Même dossier suivi sous deux casses (`DOCS/` et `docs/`)
+
+- **Date :** 2026-10-29
+- **Catégorie :** process
+- **Statut :** prevention-added
+- **Liens :** commit eafff21, `scripts/check-tracked-files.sh`
+
+**Contexte** — `git add --renormalize .` sous Windows.
+**Échec / near miss** — La commande a indexé en doublon les 5 fichiers de `docs/engineering/` sous `DOCS/engineering/` (retirés avant commit). Le dépôt suivait déjà les deux casses : un seul dossier sous Windows/macOS, deux sous Linux, donc les liens relatifs entre `README.md` et `lessons-learned.md` étaient cassés en CI et sur GitHub.
+**Cause racine** — Système de fichiers insensible à la casse : un fichier créé sous `docs/` alors que `DOCS/` existait n'a rien signalé localement.
+**Résolution** — Renommage d'index seul (`update-index`) de `docs/engineering/*` vers `DOCS/engineering/*`, chemin utilisé par toutes les références.
+**Prévention** — `scripts/check-tracked-files.sh` (pre-commit + CI) refuse les chemins qui ne diffèrent que par la casse, dossiers compris.
+**Leçon généralisée** — Sous Windows, relire `git status` après toute commande d'indexation globale (`add .`, `--renormalize`) : des ajouts inattendus signalent souvent une collision de casse.
+
+### LESSON-2026-015 — Configuration de couverture jamais lue
+
+- **Date :** 2026-10-29
+- **Catégorie :** testing
+- **Statut :** prevention-added
+- **Liens :** `backend/.coveragerc`, `backend/tests/test_coverage_config.py`
+
+**Contexte** — Lot B6 (tests API users, org_units, reports, usage) : `users.py` restait à 40 % de couverture alors que presque toutes ses routes étaient testées.
+**Échec / near miss** — Les sections `[coverage:run]` et `[coverage:report]` de `backend/pytest.ini` n'ont jamais été appliquées : `app/workers/*` et `app/core/ocr/*` étaient mesurés malgré `omit`, et `skip_covered` n'agissait pas. Le gate de 70 % tenait grâce au seul `--cov-fail-under` de la ligne de commande. En plus, sans `concurrency = greenlet`, les lignes exécutées après une requête SQLAlchemy async n'étaient pas comptées.
+**Cause racine** — coverage.py lit `.coveragerc`, `setup.cfg`, `tox.ini` et `pyproject.toml`, jamais `pytest.ini`, et ne signale pas une section qu'il ne lit pas.
+**Résolution** — Réglages déplacés dans `backend/.coveragerc` (source unique), avec `concurrency = greenlet, thread`.
+**Prévention** — `tests/test_coverage_config.py` charge la configuration comme le fait coverage.py et échoue si `concurrency`, `omit` ou `fail_under` ne sont plus lus.
+**Leçon généralisée** — Un réglage d'outil qui ne produit aucun effet visible doit être prouvé chargé, par un test ou une sortie qui en dépend.
+
+### LESSON-2026-016 — CI dupliquée et non ciblée
+
+- **Date :** 2026-10-29
+- **Catégorie :** ci-cd
+- **Statut :** prevention-added
+- **Liens :** `.github/appfactory-impact.json`, `scripts/check-impact-gates.py`, walkthrough `[Claude] Impact-Aware CI - 2026-10-29`
+
+**Contexte** — Adoption de l'Impact-Aware CI (écart RAIDER « Scoped execution »).
+**Échec / near miss** — `quality-gate.yml` relançait backend, frontend et sécurité sur les mêmes événements que `ci.yml` dès qu'un fichier `backend/`, `frontend/` ou `.github/workflows/` changeait : 32 runs Quality Gate pour 34 runs CI sur 30 jours, suite backend (≈ 13 min) et Trivy compris. Une PR de doc seule lançait toute la CI. Le 2026-10-29, `main` est rouge : jobs non démarrés pour un motif de facturation (paiement ou plafond de dépenses). Le lien avec cette consommation est probable, non vérifié (facturation illisible avec le jeton `gh` actuel).
+**Cause racine** — Pipeline unifié T6.4 (`quality-gate.yml`) laissé à côté de `ci.yml`, qui appelle les mêmes workflows ; aucune règle ne reliait fichiers modifiés et jobs requis.
+**Résolution** — `quality-gate.yml` supprimé ; `ci.yml` appelle `reusable-impact-analysis.yml` (appfactory v1.4.0) et garde chaque job lourd par son gate.
+**Prévention** — `.github/appfactory-impact.json` est la seule source des chemins ; `scripts/check-impact-gates.py` (hook pre-commit + job `Workflow lint`) refuse un gate utilisé mais jamais émis (job sauté à vie, `CI Gate` vert) ou déclaré mais jamais utilisé ; le `CI Gate` échoue si l'analyse d'impact échoue. Carte validée en passant les 534 fichiers suivis dans le moteur : aucun non couvert.
+**Leçon généralisée** — Un pipeline qui en remplace un autre n'est pas terminé tant que l'ancien tourne : vérifier qu'aucun workflow ne relance les mêmes jobs sur les mêmes événements. Dans une carte de globs, `dir/**` ne couvre pas les dotfiles (`dir/.coveragerc`) : les déclarer (`dir/**/.*`).
+
+### LESSON-2026-017 — Protection de branche documentée, jamais appliquée
+
+- **Date :** 2026-10-30
+- **Catégorie :** governance
+- **Statut :** prevention-added
+- **Liens :** `.github/project-config.json`, `CONTRIBUTING.md`, ruleset « AppFactory default branch governance »
+
+**Contexte** — Passage du dépôt en public (Actions refusées en privé faute de facturation) ; vérification de la protection de `main` avant d'y exiger le `CI Gate`.
+**Échec / near miss** — `CONTRIBUTING.md` annonçait « push direct interdit, PR obligatoire, 1 review, CI verte » et renvoyait à `scripts/setup-branch-protection.sh`. Le script n'existait pas et `main` n'avait aucune protection (API : 403 en privé gratuit, puis 404 « Branch not protected »). Toute fusion reposait sur la discipline ; 1 review obligatoire aurait en plus bloqué le seul mainteneur.
+**Cause racine** — Règle rédigée comme un état acquis sans être appliquée ni vérifiée ; aucune source déclarative de la politique.
+**Résolution** — Ruleset géré par la Repository Governance d'appfactory v1.4.0 (preset `solo` + `CI Gate` requis), appliqué en `plan → apply → plan` (dernier `plan` : NO-OP). `CONTRIBUTING.md` décrit la politique réelle.
+**Prévention** — Politique versionnée dans `.github/project-config.json` ; un `plan` de gouvernance qui n'est plus NO-OP signale une dérive.
+**Leçon généralisée** — Une règle de gouvernance documentée n'existe que si son état distant a été lu : vérifier par l'API avant de la citer, et la déclarer dans un fichier réconcilié plutôt que dans de la prose.
+
+### LESSON-2026-018 — Dette de lint rétrogradée en avertissements, sans plafond
+
+- **Date :** 2026-10-30
+- **Catégorie :** quality-gate
+- **Statut :** prevention-added
+- **Liens :** `frontend/.eslintrc.json`, `frontend/package.json` (`lint`), `CONTRIBUTING.md`, walkthrough `[Claude] Lot B8 - Lint bloquant - 2026-10-29`
+
+**Contexte** — Bilan du Lot B : l'item 8 d'`AUDIT.md` demandait de corriger les 200 erreurs ESLint du frontend puis de rendre le lint bloquant.
+**Échec / near miss** — Le lint frontend était vert et réputé bloquant, mais les 200 erreurs n'avaient jamais été corrigées : 18 règles avaient été passées en `warn` (1f1f794). Sans plafond, toute nouvelle occurrence de ces règles passait la CI ; la dette était montée à 605 avertissements.
+**Cause racine** — Baseline obtenue en baissant la sévérité des règles, sans borne sur le volume ; « lint vert » a été lu comme « lint corrigé ».
+**Résolution** — `eslint --fix` (605 → 488), 7 règles à zéro rendues à `error`, plafond `--max-warnings 488` dans le script `lint`.
+**Prévention** — `npm run lint` échoue au-delà du plafond, en local comme en CI ; `CONTRIBUTING.md` impose de baisser le plafond après chaque nettoyage et interdit de le relever.
+**Leçon généralisée** — Rétrograder des erreurs en avertissements ne vaut baseline que si le volume est plafonné : toute dette tolérée par un gate doit avoir un cliquet chiffré qui ne peut que baisser.

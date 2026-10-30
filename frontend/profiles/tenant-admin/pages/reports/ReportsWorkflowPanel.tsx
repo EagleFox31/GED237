@@ -88,7 +88,7 @@ const renderCountBars = (
                 borderColor: '#e2e8f0',
                 boxShadow: '0 12px 24px rgba(15, 23, 42, 0.08)',
               }}
-              formatter={(value?: number | string) => [`${value ?? 0}`, 'Documents']}
+              formatter={(value) => [`${value ?? 0}`, 'Documents']}
             />
             <Bar dataKey="value" fill={color} radius={[0, 10, 10, 0]} maxBarSize={28}>
               <LabelList
@@ -151,7 +151,7 @@ const renderDelayBars = (
                 borderColor: '#fed7aa',
                 boxShadow: '0 12px 24px rgba(15, 23, 42, 0.08)',
               }}
-              formatter={(value: number | string | undefined, _name?: string, entry?: { payload?: { steps_count?: number } }) => {
+              formatter={(value, _name, entry) => {
                 const point = entry?.payload as { steps_count?: number } | undefined;
                 const days = typeof value === 'number' ? value.toFixed(1) : value ?? 0;
                 const count = point?.steps_count ?? 0;
