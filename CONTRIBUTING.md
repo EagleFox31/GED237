@@ -67,7 +67,9 @@ Les hooks pre-commit sont configures via `.pre-commit-config.yaml` (backend) et 
 - **ruff** : lint + format Python
 - **bandit** : vulnerabilites Python
 - **gitleaks** : detection de secrets
-- **eslint** : lint TypeScript/React
+- **eslint** : lint TypeScript/React. En CI, `npm run lint` echoue sur toute erreur et au-dela de
+  `--max-warnings` (`frontend/package.json`) : plafond de la dette heritee, a baisser au chiffre mesure
+  apres chaque nettoyage, jamais a relever.
 
 ## CI Pipeline
 

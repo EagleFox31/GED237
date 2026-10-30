@@ -499,7 +499,7 @@ const TenantDetail: React.FC = () => {
             {users.length === 0 ? (
               <Empty icon="group" msg="Aucun utilisateur pour cette institution." />
             ) : (
-              <UserTable users={users} showRole={true} orgTree={orgTree} onChange={loadAll} />
+              <UserTable users={users} showRole orgTree={orgTree} onChange={loadAll} />
             )}
           </div>
         </div>

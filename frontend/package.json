@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "prepare": "husky install",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 488",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
