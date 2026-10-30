@@ -1,6 +1,6 @@
 # [Claude] Impact-Aware CI — 2026-10-29
 
-> Statut : EN REVUE — PR #19 CI verte, à fusionner
+> Statut : DONE — PR #19 CI 12/12 verte, fusionnée le 2026-10-30 (75558f5)
 
 ## Ce qui va être fait
 
@@ -74,7 +74,7 @@ Reuse-first : **Adopt** de `reusable-impact-analysis.yml`, épinglé sur le SHA 
   tout. Écart corrigé en route : `backend/**` ne couvrait pas les dotfiles (`backend/.coveragerc`).
 - Limite amont : le moteur lit `git diff --name-only` sans `core.quotePath=false`, donc un chemin
   non ASCII (8 fichiers de doc) arrive entre guillemets et déclenche le fallback. Sûr mais coûteux : à
-  corriger dans appfactory (`git -c core.quotePath=false diff -z`).
+  corriger dans appfactory (`git -c core.quotePath=false diff -z`) : issue appfactory #140.
 - CI GitHub (PR #19, run 40972817496) : premier passage refusé par la facturation du compte (dépôt
   privé) ; relancé après passage du dépôt en public : 12/12 verts, gates émises = toutes les six
   (diff sur `.github/**`). #17 affichait 20 checks : les 8 doublons de `quality-gate.yml` ont disparu.

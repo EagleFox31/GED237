@@ -14,11 +14,13 @@
 
 ### Regles de merge
 
-1. **PR obligatoire** pour `main` et `develop` (pas de push direct)
-2. **1 review approuvee** minimum requise
-3. **CI verte** : le status check `CI / CI Gate` doit passer
-4. **Conversations resolues** avant merge
-5. **Force-push interdit** sur `main`
+Appliquees sur `main` par un ruleset GitHub (voir [Branch Protection](#branch-protection)) :
+
+1. **PR obligatoire** (pas de push direct)
+2. **CI verte** : le status check `CI Gate` doit passer, branche a jour avec `main`
+3. **Conversations resolues** avant merge
+4. **Force-push et suppression interdits**
+5. Aucune approbation requise (mainteneur unique)
 
 ### Processus de contribution
 
@@ -94,23 +96,19 @@ ci.yml
   `if: ${{ contains(fromJSON(needs.impact.outputs.gates), '<gate>') }}` sur le job. Le hook
   `impact-gates` et le job actionlint refusent un gate present d'un seul cote.
 
-## Branch Protection Setup
+## Branch Protection
 
-Pour un admin du repo, executer le script suivant :
+La politique est declaree dans `.github/project-config.json` (`repository.governance`, preset `solo` +
+`requiredStatusChecks`) et appliquee par la Repository Governance de
+`EagleFox31/appfactory-project-automation` sous forme d'un ruleset unique, « AppFactory default branch
+governance », sur la branche par defaut.
 
-```bash
-./scripts/setup-branch-protection.sh
-```
+Modifier la politique : PR sur `.github/project-config.json`, puis un admin lance `plan` (lecture seule),
+relit, lance `apply`, et relance `plan`, qui doit repondre `NO-OP`. Le depot n'a pas de secret de
+gouvernance : l'admin execute le moteur localement avec son jeton `gh`, dans Docker
+(`INPUT_GOVERNANCE_MODE=plan|apply`, `INPUT_GOVERNANCE_TOKEN`, `INPUT_CONFIG_PATH`, `GITHUB_REPOSITORY`).
+Reference : `docs/repository-governance-quick-start.md` du depot appfactory.
 
-Ou manuellement via `gh` CLI :
-
-```bash
-gh api repos/{owner}/{repo}/branches/main/protection \
-  --method PUT \
-  --field required_status_checks='{"strict":true,"contexts":["CI / CI Gate"]}' \
-  --field enforce_admins=true \
-  --field required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true}' \
-  --field restrictions=null \
-  --field allow_force_pushes=false \
-  --field allow_deletions=false
-```
+Un nom de check absent de `requiredStatusChecks` ne bloque rien ; un nom qu'aucun workflow ne produit
+bloque toutes les PR. `CI Gate` tourne sur chaque PR (`if: always()`), meme quand l'analyse d'impact
+saute les autres jobs.

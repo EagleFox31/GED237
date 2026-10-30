@@ -1,8 +1,9 @@
 # PASSATION — GED237
 
 ## Objectif en cours
-Impact-Aware CI (brique `EagleFox31/appfactory-project-automation` v1.4.0) adoptée sur
-`ci/impact-aware-ci` : la CI ne lance que les gates des surfaces touchées. PR vers `main` à fusionner.
+Impact-Aware CI (brique `EagleFox31/appfactory-project-automation` v1.4.0) fusionnée (PR #19) : la CI
+ne lance que les gates des surfaces touchées. Protection de `main` appliquée (Repository Governance
+appfactory) ; sa config versionnée est dans la PR `chore/repository-governance`.
 Lot B de `AUDIT.md` : items 6, 7, 8 et `.gitattributes` fusionnés (PR #4, #5, #16, #17).
 
 ## Fait (2026-10-29) — branche `ci/impact-aware-ci`
@@ -23,10 +24,9 @@ Lot B de `AUDIT.md` : items 6, 7, 8 et `.gitattributes` fusionnés (PR #4, #5, #
 - Pas de `--unsafe-fixes` ruff ; Bandit CI = hook (`.bandit.yml`) ; un seul script pour hook et CI.
 
 ## Reste à faire
-1. PO : fusionner #19 (CI 12/12 verte) ; passer son walkthrough en DONE.
-   Dépôt passé en **public** le 2026-10-30 (Actions refusées sur le privé faute de facturation).
-2. Proposer en amont (appfactory) : `git -c core.quotePath=false diff -z --name-only` dans
-   `analyze.mjs` — un chemin non ASCII déclenche aujourd'hui le fallback `all`.
+1. Fusionner la PR `chore/repository-governance` (config de protection versionnée, LESSON-2026-017).
+2. Suivre l'issue appfactory #140 (chemins non ASCII → fallback `all`) ; mettre à jour le SHA épinglé
+   dans `ci.yml` quand elle est corrigée.
 3. PO : trancher les constats du walkthrough Lot B6 (`assignable-roles` sans RBAC, `standard` sans
    `users:update_own`, upsert du snapshot par `user_id` seul). Relever le gate de 70 % : décision à part.
 4. Retirer le `define` GEMINI_API_KEY inutilisé de `frontend/vite.config.ts` (clé injectée dans le bundle si renseignée).
@@ -40,8 +40,10 @@ Lot B de `AUDIT.md` : items 6, 7, 8 et `.gitattributes` fusionnés (PR #4, #5, #
 - `docker prune` : le PO a dit non, ne pas le proposer.
 - Rejouer le moteur d'impact : tarball appfactory v1.4.0 extrait **dans** un conteneur Node
   (`tar` Git Bash échoue sur `C:/…`), `MSYS_NO_PATHCONV=1`.
-- `main` non protégée. Possible depuis le passage en public (l'API répondait 403 en privé) :
-  exiger `CI Gate` via `scripts/setup-branch-protection.sh` ou la Repository Governance d'appfactory.
+- Dépôt **public** depuis le 2026-10-30 (Actions refusées en privé faute de facturation).
+- `main` protégée par le ruleset « AppFactory default branch governance » (ruleset 26190959) : PR +
+  `CI Gate` + branche à jour, zéro approbation. Plus de push direct sur `main`. Politique dans
+  `.github/project-config.json` ; `plan`/`apply` en local (voir `CONTRIBUTING.md` § Branch Protection).
 - `gh` : préfixer `export GODEBUG=;`. pre-commit : `export PATH="$HOME/.local/bin:$PATH"`.
 - pre-commit refuse de tourner si `.pre-commit-config.yaml` a des modifs non indexées : `git stash push --keep-index -- <fichiers>`.
 - Sous Windows, relire `git status` après un `git add` global : collision de casse possible (LESSON-2026-014).
