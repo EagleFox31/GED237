@@ -57,6 +57,30 @@ classés, recherche < 2 s, 100 k fichiers < 20 min, responsive, disponibilité 9
 Dependabot : tranché dans `../decisions/DEC-2026-001` (#26/#28/#32/#33 fusion, #27/#31 fermées,
 #29/#30 reportées, PR sécurité ciblée python-multipart/starlette).
 
+## Avis pip-audit restants sur starlette 0.48.0 (PR #37) — note du 2026-11-09, `Vérifié`
+
+12 avis = **6 vulnérabilités** (chaque GHSA est doublée d'un PYSEC ; OSV interrogé ce jour). Exposition
+réelle de GED237 (API JWT + OTP, Linux/Docker, aucun `StaticFiles` ni `HTTPEndpoint` dans `backend/app`) :
+
+| CVE | Gravité | Surface GED237 | Exploitable ? |
+|---|---|---|---|
+| 2025-62727 Range O(n²) `FileResponse` (corrigé 0.49.1) | Haute | `documents.py` téléchargement (4 usages), **après authentification** | DoS post-auth seulement |
+| 2026-54283 limites `request.form()` ignorées (1.3.1) | Haute | `Form(` dans `documents.py`, `imports.py`, post-auth | DoS post-auth seulement |
+| 2026-48710 Host → `request.url.path` (1.0.1) | Moyenne | `url.path` utilisé uniquement pour les logs d'erreur ; authz Casbin sur `scope`, pas sur le chemin poisonné (`Déduit`) | Non (journal faussé au pire) |
+| 2026-54282 autorité poisonnée (1.3.0) | Basse | idem | Non |
+| 2026-48818 UNC `StaticFiles` Windows (1.1.0) | Haute | aucun `StaticFiles`, Linux | Non applicable |
+| 2026-48817 `HTTPEndpoint` getattr (1.1.0) | Moyenne | aucun `HTTPEndpoint` | Non applicable |
+
+Coût : `fastapi` 0.117.1 épingle `starlette<0.49` ; dès **0.133** la borne haute disparaît et `pydantic ≥ 2.7`
+suffit (≥ 2.9 à partir de 0.162). Montée 2.6.1 → 2.9 = mineure Pydantic v2, pas majeure ; risque réel =
+changements de validation FastAPI 0.118–0.133 (modèles de réponse, `Form`/`File`), à requalifier sur la
+suite complète (13 min) : **1 à 1,5 j-p** backend avec correctifs. Slowapi 5/min par IP atténue déjà les deux DoS.
+
+**Recommandation : V1.1** (début décembre, juste après la démo). Aucun des six avis n'est exploitable sans
+compte ; le budget au 24/11 est à 9,75/10 j-p et l'ordre de sacrifice ne laisse pas 1,5 j. Pas de DEC.
+Garde-fou : ajouter `starlette` à la liste d'exceptions pip-audit datée (expire le 15/12) pour garder la CI verte
+sans masquer l'alerte ; si un avis **pré-auth** apparaît d'ici le 30/11, remonter en priorité 1.
+
 ## Risques (Déduit, sauf mention)
 
 - Recette : le vrai inconnu est le nombre de défauts révélés entre le 18 et le 20/11 ; marge de 1 j-p
