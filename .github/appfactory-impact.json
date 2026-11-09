@@ -9,6 +9,7 @@
     "Phase de Conception/**",
     "tasks/**",
     ".agents/**",
+    ".claude/**",
     "extract_docx.py",
     ".gitignore",
     ".git-blame-ignore-revs",
