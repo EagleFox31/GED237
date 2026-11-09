@@ -109,3 +109,4 @@ Lots A et B clos (hors décisions PO du B6). Prochain chantier : Lot C (`AUDIT.m
 - Équipe : dev-backend (PR deps → Lot C9 → recherche bornée + rôles → upload 413), dev-frontend (specs P1 fait, P2/P3/P6/P7 ; D2 regroupé avec garde de routes), ci-qa (PR e2e-smoke puis e2e-seed, passation prévue), innovateur (disponible).
 - Verrous : décisions PO (a) VPS/on-site, (b) B6 avant le 17/11, (c) écarts annoncés, (d) P8 → cycle de validation ; aucune fusion sans PO.
 - Prochaine étape : relancer le PO sur (a)-(d) ; à l accord, fusionner #36, passer DEC-2026-002 en ACCEPTÉ, puis `git pull` dans le checkout partagé après avoir supprimé les copies locales non suivies (sauf le fichier `[Gemini]`).
+- 18:02 — Défauts D3 (journal sans connexion/dépôt/import) et D4 (aucun export du journal) remontés par dev-frontend sur P7 ; en instruction chez l innovateur (corriger vs annoncer, ce qui saute). Question PO (e) à venir. P1 et P7 écrits, D2 regroupé avec la garde de routes.
