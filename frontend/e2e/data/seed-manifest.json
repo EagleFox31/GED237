@@ -36,7 +36,7 @@
       "name": "Circuit de validation E2E",
       "steps": [
         { "order": 1, "label": "Visa du chef de service", "action": "visa", "role": "manager", "scope": "same_org_unit" },
-        { "order": 2, "label": "Signature finale", "action": "final_signature", "role": "tenant_admin", "scope": "same_org_unit", "targetUnitType": "ministry" }
+        { "order": 2, "label": "Signature finale", "action": "final_signature", "role": "tenant_admin", "scope": "same_org_unit", "targetUnitType": "MINISTRY" }
       ],
       "routing": {
         "code": "E2E-ROUTE-VALID",

@@ -1,4 +1,5 @@
-import type { FilePayload } from '@playwright/test';
+/** What setInputFiles accepts as an in-memory file (not exported by @playwright/test). */
+export type FilePayload = { name: string; mimeType: string; buffer: Buffer };
 
 let counter = 0;
 

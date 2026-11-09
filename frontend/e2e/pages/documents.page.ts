@@ -1,4 +1,5 @@
-import { type Page, type Locator, type FilePayload, expect } from '@playwright/test';
+import { type Page, type Locator, expect } from '@playwright/test';
+import type { FilePayload } from '../data/files';
 
 /**
  * Page Object Model for the Documents explorer (components/Documents.tsx)
