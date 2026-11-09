@@ -51,6 +51,32 @@ jobs:
     with:
       gates: ${{ needs.impact.outputs.gates }}
 
+  # Critical journeys in a real browser against the real API (docker-compose.e2e.yml, smoke project).
+  e2e:
+    name: E2E smoke (Playwright)
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'e2e') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run smoke suite
+        run: docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e
+      - name: API logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs --tail=200 api
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-smoke-report
+          path: frontend/e2e-out/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v --remove-orphans
+
   # An invalid workflow file fails on every push with zero jobs; catch it in review.
   workflows:
     name: Workflow lint (actionlint)
@@ -79,6 +105,8 @@ jobs:
   # ──────────────────────────────────────────────
   # Stage 2 — Gate (single required status check)
   # ──────────────────────────────────────────────
+  # e2e is deliberately absent from `needs`: non-blocking until 2026-11-21 (RAIDER-D waiver,
+  # DEC-2026-002), then add it here to make the smoke suite blocking.
   gate:
     name: CI Gate
     if: always()
