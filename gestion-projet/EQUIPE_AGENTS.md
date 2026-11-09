@@ -65,6 +65,10 @@ Décisions déjà en attente du PO : B6 (`assignable-roles`, `users:update_own`,
 - **Routine de démarrage de chaque session** (source : harness long-running) : `git status` + `git log
   -n 5` → lire la dernière entrée de `PASSATION.md` → relire son walkthrough en cours → smoke (tests
   ciblés ou `tsc`) → travailler. Fin : walkthrough à jour, entrée PASSATION, message à l'orchestrateur.
+- **Aucune écriture git dans le checkout partagé** (`GED237/`) : il reste sur `main`, lecture seule.
+  Toute branche de travail vit dans un worktree `../GED237-<sujet>` (`git worktree add ../GED237-<sujet> -b
+  <branche> origin/main`) ; commit, push et PR se font depuis ce worktree. Incident du 2026-11-09 :
+  un `git switch` dans le checkout partagé a déplacé la branche de toutes les sessions (LESSON-2026-019).
 - Le PO humain parle à l'orchestrateur ; il peut parler directement à l'innovateur pour une question
   de fond. Les devs ne sollicitent le PO que via l'orchestrateur.
 

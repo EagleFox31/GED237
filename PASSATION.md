@@ -71,3 +71,51 @@ Lots A et B clos (hors décisions PO du B6). Prochain chantier : Lot C (`AUDIT.m
 - État dépôt : branche `chore/node-24`, PR #26 verte en attente d'accord PO ; #27 (Node 26) à fermer
   après #26 ; majors Dependabot #29/#30/#32 à instruire par l'innovateur. Messagerie inter-sessions :
   vérifier `/list-agents` (Windows natif ≥ 2.1.234).
+
+## 2026-11-09 17:45 — Orchestrateur : lancement de l'équipe, tri Dependabot exécuté
+
+- Session `orchestrateur-ged` active ; sessions `innovateur`, `ged-dev-backend`, `ged-dev-frontend`,
+  `ged-ci-qa` (ex-`ged237-b7`, CI e2e, mission PO). Messagerie inter-sessions fonctionnelle.
+- PO a validé le modèle (`EQUIPE_AGENTS.md` → ACCEPTÉ) et DEC-2026-001 : #26 fusionnée (3e05d6c), #27 et
+  #31 fermées, #28/#32/#33 à fusionner à CI verte, #29/#30 reportés après le 30/11, PR sécurité ciblée
+  (python-multipart, fastapi/starlette, python-dotenv, pypdf) assignée à ged-dev-backend.
+- PR #34 (`docs/equipe-agents`) : + `.claude/**` ignoré dans `appfactory-impact.json` (motif `**/*.md` ne
+  traverse pas les dossiers à point → repli `all`), DEC-2026-001, walkthrough Node 24 DONE. À fusionner à CI verte.
+- Audit fonctionnel profond en cours (sous-agent) → `gestion-projet/walkthrough/[Audit] Audit fonctionnel profond - 2026-11-09.md`.
+- Règle apprise : aucune écriture git dans le checkout partagé, worktrees obligatoires (`../GED237-<sujet>`).
+  À ajouter dans `EQUIPE_AGENTS.md` §4 et comme LESSON-2026-019.
+- Point du jour : `gestion-projet/plans/point-2026-11-09.md`.
+- 18:05 — Audit fonctionnel livré (`gestion-projet/walkthrough/[Audit] Audit fonctionnel profond - 2026-11-09.md`,
+  non commité) : 17-19 j-p d'écarts pour ~10 j de capacité ; top 1 = recherche sans autorisation par service.
+  DEC-2026-002 (périmètre démo) demandée à l'innovateur. #28 fusionnée ; #32/#33/#34 en CI après rebranchage.
+
+## 2026-11-09 17:55 — Orchestrateur : #34 fusionnée, DEC-2026-002 et parcours de démo reçus
+
+- #34 fusionnée (a92e34d) : modèle d'équipe, base innovateur, agents, DEC-2026-001. Branche locale supprimée, checkout partagé sur `main`.
+- #33 (spacy) rebranchée, CI en cours ; fusion au vert (accord PO du 17:30). #29/#30 reportées après le 30/11.
+- DEC-2026-002 (PROPOSÉ, innovateur) soumise au PO : 6 écarts corrigés pour 9 j-p, 7 écarts annoncés, gel le 24/11.
+  Questions PO ouvertes : (a) démo VPS ou on-site, (b) B6 avant le 17/11, (c) liste des écarts annoncés,
+  (d) parcours P8 (corbeille/version sans UI) : recommandation = cycle de validation à la place, 0 j-p.
+- `gestion-projet/innovateur/parcours-demo.md` : 8 parcours de démo retenus sur 12 ; P4 attend Lot C9, P5 attend l'ordre 1.
+  Décisions orchestrateur : ordre d'exécution avec reset de base tenu par ci-qa ; doublon de routes `simulate` vérifié par dev-backend.
+- Règle worktrees écrite (`EQUIPE_AGENTS.md` §4, LESSON-2026-019). Ces docs partent en PR `docs/point-2026-11-09` depuis `../GED237-docs`.
+- Reprise : fusionner #33 au vert ; relancer le PO sur (a)-(d) ; dispatcher les ordres 1-2 de DEC-002 à dev-backend une fois acceptée.
+
+##  — Orchestrateur : #33 fusionnée, #36 (docs du jour) prête à fusionner
+
+- Dependabot clos pour le 30/11 : #26, #28, #32, #33 fusionnées ; #27, #31 fermées ; #29, #30 reportées. Checkout partagé sur `main` à jour.
+- #36 (`docs/point-2026-11-09`, worktree `../GED237-docs`) : CI verte en no-op (gates skippés = preuve impact-aware), contient PASSATION, point, audit, DEC-2026-002, parcours-demo, plan-presentation, EQUIPE_AGENTS §4, LESSON-2026-019. Fusion sur accord PO.
+- Amendement DEC-2026-002 confirmé par l innovateur : migration rôles minuscules obligatoire (dev-backend, mar 11, LESSON-2026-020) ; verrou OTP si marge le 21 ; budget 9,75/10 j-p.
+- Équipe : dev-backend (PR deps → Lot C9 → recherche bornée + rôles → upload 413), dev-frontend (specs P1 fait, P2/P3/P6/P7 ; D2 regroupé avec garde de routes), ci-qa (PR e2e-smoke puis e2e-seed, passation prévue), innovateur (disponible).
+- Verrous : décisions PO (a) VPS/on-site, (b) B6 avant le 17/11, (c) écarts annoncés, (d) P8 → cycle de validation ; aucune fusion sans PO.
+- Prochaine étape : relancer le PO sur (a)-(d) ; à l accord, fusionner #36, passer DEC-2026-002 en ACCEPTÉ, puis `git pull` dans le checkout partagé après avoir supprimé les copies locales non suivies (sauf le fichier `[Gemini]`).
+- 18:02 — Défauts D3 (journal sans connexion/dépôt/import) et D4 (aucun export du journal) remontés par dev-frontend sur P7 ; en instruction chez l innovateur (corriger vs annoncer, ce qui saute). Question PO (e) à venir. P1 et P7 écrits, D2 regroupé avec la garde de routes.
+- 18:03 — Arbitrage innovateur D3/D4 : D3 corrigé (dev-backend, mer 12, avec upload 413, 0,5 j), D4 annoncé V1.1 (écart 8), verrou OTP abandonné et annoncé ; budget 9,75/10 ; sacrifice 6 → 5 (pg_dump manuel) → pagination 4. plan-presentation ajusté. Question PO (e) = valider cet arbitrage.
+
+## 2026-11-09 18:07 — PO : « go ». DEC-2026-002 ACCEPTÉ, #36 en fusion
+
+- Le PO a validé d'un mot l'ensemble soumis : fusion de #36, questions (c) écarts annoncés, (d) P8 → cycle de validation, (e) arbitrage D3/D4/OTP.
+- (a) démo VPS ou on-site et (b) B6 restent ouvertes, échéance 17/11 ; hypothèse de travail = démo on-site Docker, à confirmer par le PO.
+- Statut et amendements écrits dans le fichier DEC-2026-002 (section « Amendements acceptés »). Équipe informée.
+- Après fusion : nettoyer le checkout partagé (copies locales identiques aux fichiers fusionnés, sauf `[Gemini]`), `git pull`, supprimer le worktree `../GED237-docs`.
+- Reprise : suivre les PR de dev-backend (deps, Lot C9), ci-qa (e2e-smoke), dev-frontend (specs) ; point S1 le 14/11 ; relancer le PO sur (a) et (b) le 14 au plus tard.

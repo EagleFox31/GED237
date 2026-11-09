@@ -306,3 +306,18 @@ première requête utilisateur.
 **Résolution** — `eslint --fix` (605 → 488), 7 règles à zéro rendues à `error`, plafond `--max-warnings 488` dans le script `lint`.
 **Prévention** — `npm run lint` échoue au-delà du plafond, en local comme en CI ; `CONTRIBUTING.md` impose de baisser le plafond après chaque nettoyage et interdit de le relever.
 **Leçon généralisée** — Rétrograder des erreurs en avertissements ne vaut baseline que si le volume est plafonné : toute dette tolérée par un gate doit avoir un cliquet chiffré qui ne peut que baisser.
+
+### LESSON-2026-019 — Checkout git partagé entre sessions d'agents
+
+- **Date :** 2026-11-09
+- **Catégorie :** process / multi-agent
+- **Statut :** prevention-added
+- **Liens :** `gestion-projet/EQUIPE_AGENTS.md` §4, `PASSATION.md` (entrée du 2026-11-09 17:45)
+
+**Contexte** — Passage à quatre sessions Claude Code simultanées sur le même dépôt (orchestrateur, innovateur, dev-backend, dev-frontend) plus une session CI/QA.
+**Échec / near miss** — Une session a exécuté `git switch` dans le checkout partagé `GED237/` pour démarrer sa tâche ; toutes les autres sessions se sont retrouvées sur sa branche, avec des fichiers non commités d'autres rôles dans l'index. Aucune perte, mais travail interrompu le temps de comprendre.
+**Cause racine** — Un seul répertoire de travail pour N agents : l'état `HEAD` est global, alors que chaque session suppose le sien.
+**Résolution** — Les sessions de développement travaillent chacune dans un worktree `../GED237-<sujet>` ; le checkout partagé reste sur `main` en lecture seule.
+**Prévention** — Règle écrite dans `EQUIPE_AGENTS.md` §4 et dans les fiches de rôle ; routine de démarrage : `git worktree list` avant toute commande git d'écriture.
+**Leçon généralisée** — Tout état global partagé (branche courante, index, fichiers non commités) doit être isolé par agent avant de paralléliser ; sinon la coordination coûte plus que le parallélisme ne rapporte.
+---
