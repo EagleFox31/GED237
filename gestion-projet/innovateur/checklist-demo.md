@@ -1,0 +1,79 @@
+# Checklist de démo — J-1 (samedi 29/11) et J0 (dimanche 30/11)
+
+- Consolide les décisions du 2026-11-09 : DEC-2026-002 (amendée), DEC-2026-003, `decision-po-vps-b6.md` (**décision PO du 2026-11-09 : démo sur place en Docker, poste de secours, VPS écarté**), § 0 de `parcours-demo.md` (limites auth), `jeu-donnees-demo.md`, `sauvegarde-restauration.md`, `plan-presentation.md`.
+- Rôles : **O** orchestrateur, **B** dev-backend, **F** dev-frontend, **Q** ci-qa, **P** présentateur (PO ou personne désignée). Une case = un item, une personne, un moment. Preuve attendue entre parenthèses quand elle n'est pas évidente.
+- Instruction de l'innovateur, 2026-11-09 20:50 ; à transformer en issue GitHub épinglée par O.
+
+## A. Avant J-1 (à vérifier le vendredi 28/11, O)
+
+- [x] **O** — Décisions PO (a) démo sur place et (b) B6 garde minimale consignées en fin de DEC-2026-002 (2026-11-09) ; section F sans objet.
+- [ ] **B** — `DEBUG=false` dans le compose de démo (PR séparée fusionnée) ; `ENVIRONMENT=development` conservé **uniquement** si l'on veut le code OTP dans la réponse de login ; sinon procédure de lecture du code dans Redis (`redis-cli get otp:<…>`) répétée par P.
+- [ ] **B** — Limites auth exposées par variables (`AUTH_LOGIN_RATE_LIMIT`, `AUTH_OTP_RATE_LIMIT`), défaut `5/minute` inchangé, compose de démo à `30/minute` ; clé de limitation vérifiée derrière nginx (pas l'IP du proxy).
+- [ ] **B** — Migration des codes de rôle en minuscules appliquée (`alembic upgrade head` sur base vierge puis login du compte seed : preuve dans le walkthrough).
+- [ ] **B** — D3 : connexion, dépôt et import tracés dans le journal d'audit ; sinon formulation de repli de `plan-presentation.md` (séquence 13–15) validée par P.
+- [ ] **Q** — Jeu de démo `demo-manifest.json` + `scripts/e2e-reset.sh --profile demo` rejoués deux fois avec compteurs identiques à `expected` (preuve : walkthrough du 20/11).
+- [ ] **Q** — 8 parcours Playwright verts sur la pile Docker (run du 21/11) ; rapport HTML + traces archivés comme **plan B** (`frontend/e2e-out` copié hors du dépôt, sur le poste de démo et le poste de secours).
+- [ ] **Q** — OCR-0 exécuté (14/11) ; décision OCR-1 actée (V1.1 par défaut) ; moteur de démo = pile actuelle Tesseract-first.
+- [ ] **F** — Garde de routes admin/non-admin livrée (18/11) ; `SpacesPage` branchée sur les filtres serveur (17/11).
+- [ ] **B + Q** — Sauvegarde/restauration : `restore.sh` prouvé sur base vierge (tableau de `sauvegarde-restauration.md` § 3.3) ; durée mesurée < 10 min.
+- [ ] **O** — Release taguée (`v1.0.0-demo` ou équivalent) : images Docker construites depuis ce tag, `docker save` des 7 images sur une clé USB (fichier `ged237-demo-images.tar` + `sha256`).
+- [ ] **P** — Répétition générale du 27/11 chronométrée (13 min de direct ± 1) ; écarts et réponses jury relus.
+
+## B. J-1 — samedi 29/11
+
+### Postes
+
+- [ ] **O** — Poste principal : Docker Desktop (ou Engine) démarré, ≥ 16 Go RAM, ≥ 20 Go libres, mode avion testé (la démo ne dépend d'aucun accès réseau : vérifier qu'aucune image ne se re-télécharge, `docker compose up` avec `--pull never`).
+- [ ] **O** — Poste de secours préparé **à l'identique** depuis la clé USB (`docker load`, même `.env`, même jeu de données), démarré une fois, parcours P1 joué, puis éteint ; câble HDMI/USB-C et adaptateur dans le sac.
+- [ ] **O** — Navigateur : profil dédié, zoom 110–125 %, favoris des 7 routes (`/login`, `/ingestion`, `/rules`, `/needs-review`, `/spaces`, `/documents`, `/audit`), notifications et mises à jour désactivées, onglets fermés.
+- [ ] **O** — Alimentation secteur + batterie chargée sur les deux postes ; veille et économiseur d'écran désactivés.
+
+### Données
+
+- [ ] **Q** — `scripts/e2e-reset.sh --profile demo` exécuté sur le poste principal ; compteurs affichés = `expected` (classés ≈ 330, à revoir 35–45, corbeille 8, verrous 3, versions 5).
+- [ ] **Q** — Dossier `demo-import/live/` (30 fichiers, dont 2 doublons volontaires) monté dans le conteneur backend au chemin attendu par `/ingest-directory` ; **non importé**.
+- [ ] **Q** — Pré-OCRisation complète du corpus (worker actif jusqu'à file vide : `celery inspect active` vide, `ocr_content` non nul sur les PDF image) ; recherche P5 testée sur le mot-clé prévu (résultat attendu noté).
+- [ ] **Q** — Règle 10 « Rapports financiers » **créée inactive** ; les ~15 documents cibles sont bien « à revoir ».
+- [ ] **B** — **Sauvegarde fraîche** après le reset et la pré-OCRisation : `docker compose --profile ops exec backup backup` ; archive + SHA-256 copiées sur la clé USB et sur le poste de secours ; `restore.sh` rejoué sur le poste de secours (c'est ainsi qu'on le synchronise).
+- [ ] **O** — Journal d'audit vidé des traces de préparation ou date de filtre convenue pour P7 (sinon le journal montre les actions de Q).
+
+### Comptes et accès
+
+- [ ] **P** — Mots de passe des 5 comptes de démo (`admin`, `manager`, `collab`, `reader`, `auditor` @minfi) connus de P, **jamais dans un fichier du dépôt** ; gestionnaire de mots de passe ou fiche papier dans la pochette.
+- [ ] **P** — Procédure OTP répétée : lecture du code dans la réponse (`development`) ou dans Redis ; un **OTP faux volontaire** prévu en P1 et compté dans la limite (3 connexions + 4 OTP max par minute dans le déroulé).
+- [ ] **P** — Ordre des changements de compte affiché sur une fiche : collab → admin → collab → admin → manager → collab → reader → collab → auditor.
+
+### Arrêt de la veille
+
+- [ ] **Q** — **Worker OCR arrêté** (`docker compose stop worker`) après la pré-OCRisation ; l'import en direct P2 n'a donc pas d'OCR : vérifier que les compteurs d'import et le classement ne dépendent pas du worker (sinon laisser le worker actif avec `--concurrency=1` et le noter).
+- [ ] **O** — Pile laissée **éteinte** la nuit (`docker compose stop`, pas `down -v`) ; redémarrage chronométré le matin (< 3 min attendu).
+
+## C. J0 — dimanche 30/11
+
+### H-90 min (sur place)
+
+- [ ] **O** — Branchement écran/projecteur, résolution 1920×1080, test de lisibilité du dernier rang.
+- [ ] **O** — `docker compose up -d --pull never` ; `GET /health` OK ; login `collab@minfi` + OTP + déconnexion joués une fois (chauffe des caches, vérification de la limite auth : pas de 429).
+- [ ] **O** — Poste de secours allumé, pile démarrée, login joué, puis laissé en veille écran seulement.
+- [ ] **P** — Fiche de déroulé (minute par minute, `plan-presentation.md` § 1) et fiche des comptes à portée de main ; chronomètre.
+
+### H-30 min
+
+- [ ] **O** — Vérification des 4 écrans « sensibles » : `/rules` (règle 10 inactive visible), `/needs-review` (compteur), `/spaces` DAF (pagination), `/audit` (filtre date prêt).
+- [ ] **Q** — Rapport Playwright du plan B ouvert dans un second onglet (local, `file://`), captures des 8 parcours vérifiées.
+- [ ] **O** — Téléphones en silencieux, notifications système coupées, Docker Desktop réduit (pas de fenêtre « mise à jour disponible »).
+
+### Pendant (P présente, O au clavier de secours)
+
+- [ ] **O** — Si un écran casse : **une** tentative (F5), sinon bascule sur le poste de secours (< 60 s), puis plan B captures si la bascule échoue ; **jamais** de redémarrage de conteneur en séance.
+- [ ] **P** — Pas plus de 4 connexions par minute ; si 429 : attendre 60 s en commentant l'écran courant.
+- [ ] **O** — Aucune purge définitive (`DELETE /purge`) pendant la séance.
+
+### Après
+
+- [ ] **B** — Sauvegarde post-démo (`backup`) pour conserver l'état montré ; journal d'audit exporté en SQL pour le compte rendu.
+- [ ] **O** — Compte rendu : questions du jury non prévues ajoutées à `plan-presentation.md` § 4 ; incidents → `DOCS/engineering/lessons-learned.md`.
+
+## F. Variante VPS — **sans objet** (VPS écarté par le PO le 2026-11-09)
+
+Conservée pour mémoire : si la décision était rouverte, il faudrait OCR-1 avant le gel, limites mémoire réduites, Caddy + certificat 48 h avant, test de charge 2 utilisateurs, réseau de la salle vérifié J-1, repli = poste principal en local. Aucune case à cocher.

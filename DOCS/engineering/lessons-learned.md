@@ -320,6 +320,7 @@ première requête utilisateur.
 **Résolution** — Les sessions de développement travaillent chacune dans un worktree `../GED237-<sujet>` ; le checkout partagé reste sur `main` en lecture seule.
 **Prévention** — Règle écrite dans `EQUIPE_AGENTS.md` §4 et dans les fiches de rôle ; routine de démarrage : `git worktree list` avant toute commande git d'écriture.
 **Leçon généralisée** — Tout état global partagé (branche courante, index, fichiers non commités) doit être isolé par agent avant de paralléliser ; sinon la coordination coûte plus que le parallélisme ne rapporte.
+---
 
 ### LESSON-2026-020 — Conteneurs compose orphelins après l'arrêt d'une tâche de fond
 
@@ -334,3 +335,20 @@ première requête utilisateur.
 **Résolution** — `docker compose -f <fichier> down -v --remove-orphans` sur chaque pile concernée, puis vérification par `docker ps`.
 **Prévention** — Toute interruption d'un `compose up` lancé en arrière-plan est suivie de `down -v --remove-orphans` ; en CI, le job e2e démonte en `if: always()`. Avant un run lourd, `docker ps` confirme que la VM est libre ; le signal de fin n'est envoyé à la session suivante qu'après le `down`.
 **Leçon généralisée** — Arrêter un processus client ne libère pas les ressources qu'il a fait créer côté serveur : chaque lancement en arrière-plan doit avoir un démontage explicite et vérifié.
+
+---
+
+### LESSON-2026-022 — Tests de recherche sans aucun résultat : vert trompeur
+
+- **Date :** 2026-11-09
+- **Catégorie :** tests / qualité
+- **Statut :** prevention-added
+- **Liens :** `backend/app/core/search/postgres_engine.py`, `backend/tests/api/test_search_scope.py`, walkthrough `[Claude] Recherche bornee tenant service corbeille - 2026-11-09.md`
+
+**Contexte** — Mise en place du périmètre de visibilité sur `GET /api/v1/search/` (DEC-2026-002, ordre 2).
+**Échec / near miss** — Le premier test qui obtenait un résultat réel a fait échouer la recherche en 500 : la construction d'un résultat lisait `Document.category`, attribut inexistant (la catégorie est une relation `document_category`). Les deux tests historiques de `test_search.py` étaient verts depuis des mois parce qu'ils interrogeaient une base sans aucun document correspondant : ils ne validaient que la forme d'une réponse vide. En production, toute recherche fructueuse aurait échoué.
+**Cause racine** — Des tests qui n'exercent que le chemin « zéro résultat » couvrent le code de requête mais jamais le code de sérialisation des résultats ; la couverture ligne ne le signale pas si la boucle n'est simplement pas entrée.
+**Résolution** — Code catégorie sélectionné par jointure et filtre `category` corrigé ; `test_search_scope.py` crée des documents qui correspondent et vérifie leurs identifiants, le code catégorie et le total.
+**Prévention** — Pour chaque moteur de recherche ou liste filtrée : au moins un test avec des données qui **doivent** remonter et une assertion sur leur contenu, pas seulement sur le code HTTP ou la forme de la réponse. À reprendre dans la revue : « quel test échouerait si la sérialisation d'un résultat était cassée ? »
+**Leçon généralisée** — Un test vert sur un ensemble vide ne prouve rien sur le traitement des éléments ; le cas nominal doit produire des données.
+---

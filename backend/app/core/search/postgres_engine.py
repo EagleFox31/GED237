@@ -18,6 +18,7 @@ from app.core.search.interfaces import (
     SortOrder,
 )
 from app.models.document import Document
+from app.models.document_category import DocumentCategory
 
 
 class PostgresSearchEngine(ISearchEngine):
@@ -76,19 +77,37 @@ class PostgresSearchEngine(ISearchEngine):
         )
         content_match = Document.ocr_content_vector.op("@@")(ts_query)
 
+        # The category code is selected alongside the document: the ORM
+        # relationship cannot be lazy-loaded from an AsyncSession.
         stmt = (
-            select(Document, rank.label("relevance"), headline.label("headline"))
-            .filter(
-                Document.tenant_id == query.tenant_id,
+            select(
+                Document,
+                rank.label("relevance"),
+                headline.label("headline"),
+                DocumentCategory.code.label("category_code"),
             )
+            .outerjoin(
+                DocumentCategory, Document.document_category_id == DocumentCategory.id
+            )
+            .filter(Document.tenant_id == query.tenant_id)
             .filter(
                 or_(content_match, title_match, Document.title.ilike(f"%{query.text}%"))
             )
         )
 
+        # Visibility: trash is never searchable unless explicitly requested,
+        # and the caller's role scope (org unit / owner) is enforced here so
+        # that user-supplied filters can only narrow it, never widen it.
+        if not query.include_deleted:
+            stmt = stmt.filter(Document.deleted_at.is_(None))
+        if query.scope_org_unit_id is not None:
+            stmt = stmt.filter(Document.org_unit_id == query.scope_org_unit_id)
+        if query.scope_owner_id is not None:
+            stmt = stmt.filter(Document.owner_id == query.scope_owner_id)
+
         # Apply filters
         if query.category:
-            stmt = stmt.filter(Document.category == query.category)
+            stmt = stmt.filter(DocumentCategory.code == query.category)
         if query.status:
             stmt = stmt.filter(Document.status == query.status)
         if query.owner_id:
@@ -127,6 +146,7 @@ class PostgresSearchEngine(ISearchEngine):
             doc = row[0]
             relevance = float(row[1]) if row[1] else 0.0
             snippet = row[2] if row[2] else None
+            category_code = row[3]
 
             normalized_score = min(relevance / 1.0, 1.0) if relevance > 0 else 0.1
 
@@ -136,7 +156,7 @@ class PostgresSearchEngine(ISearchEngine):
                     title=doc.title,
                     score=round(normalized_score, 4),
                     highlight=snippet,
-                    category=doc.category,
+                    category=category_code,
                     status=doc.status,
                     file_type=doc.file_type,
                     tags=doc.tags,
