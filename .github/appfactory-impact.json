@@ -22,12 +22,17 @@
     },
     "backend": {
       "paths": ["backend/**", "backend/**/.*"],
-      "gates": ["backend", "sast"],
+      "gates": ["backend", "sast", "e2e"],
       "dependsOn": ["ci-platform"]
     },
     "frontend": {
       "paths": ["frontend/**", "frontend/**/.*", "frontend/.husky/**"],
-      "gates": ["frontend"],
+      "gates": ["frontend", "e2e"],
+      "dependsOn": ["ci-platform"]
+    },
+    "e2e-stack": {
+      "paths": ["docker-compose.e2e.yml"],
+      "gates": ["e2e"],
       "dependsOn": ["ci-platform"]
     },
     "dependencies": {

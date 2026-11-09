@@ -40,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
   const renderProfileMenu = (menu: typeof TENANT_ADMIN_MENU) => {
     return menu.map((section, sIdx) => (
       <div key={sIdx} className="space-y-2">
-        <h3 className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 opacity-60">
+        <h3 className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">
           {section.section}
         </h3>
         <div className="space-y-1">
@@ -54,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <span className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-400'}`}>
+              <span className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-500'}`}>
                 {item.icon}
               </span>
               <span className={`text-[11px] font-bold uppercase tracking-tight ${activeTab === item.id ? 'font-black' : ''}`}>
@@ -79,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
     // Menu par défaut pour les autres
     return (
       <div className="space-y-1">
-        <h3 className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 opacity-60 mb-2">Navigation</h3>
+        <h3 className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Navigation</h3>
         {[
           { id: 'dashboard', label: 'Tableau de Bord', icon: 'dashboard' },
           { id: 'documents', label: 'Mes Documents', icon: 'description' },
@@ -119,7 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
             </p>
             <div className="flex items-center gap-2">
                <div className={`w-1.5 h-1.5 rounded-full ${isHealthy === null ? 'bg-slate-400' : isHealthy ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-               <span className="text-[8px] font-bold uppercase tracking-widest text-white/40">
+               <span className="text-[8px] font-bold uppercase tracking-widest text-white/70">
                  {isHealthy === null ? 'Vérification...' : isHealthy ? 'Système Opérationnel' : 'Système Indisponible'}
                </span>
             </div>

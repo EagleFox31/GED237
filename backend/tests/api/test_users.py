@@ -77,7 +77,7 @@ async def test_users_routes_require_authentication(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role_code", ["manager", "reader", "standard"])
+@pytest.mark.parametrize("role_code", ["manager", "reader", "collaborator"])
 async def test_roles_without_users_permission_are_denied(client_as, db_seed, role_code):
     target = f"{USERS}/{db_seed['user_id']}"
     async with client_as(
@@ -190,7 +190,7 @@ async def test_create_user_resolves_role_code_and_generates_password(
         created = await client.post(
             f"{USERS}/",
             json=_user_payload(
-                db_seed, role_id=None, role_code="standard", password=None
+                db_seed, role_id=None, role_code="collaborator", password=None
             ),
         )
         unknown_role = await client.post(
@@ -212,7 +212,7 @@ async def test_create_user_resolves_role_code_and_generates_password(
     assert created.status_code == 201
     body = created.json()
     assert len(body["generated_password"]) >= 16
-    assert body["user"]["role"] == "standard"
+    assert body["user"]["role"] == "collaborator"
     assert body["user"]["must_change_password"] is True
     assert unknown_role.status_code == 422
     assert no_role.status_code == 422
@@ -298,4 +298,4 @@ async def test_assignable_roles_exclude_super_admin(client_as, db_session, db_se
         response = await client.get(f"{USERS}/assignable-roles")
 
     assert response.status_code == 200
-    assert [row["code"] for row in response.json()] == ["tenant_admin", "standard"]
+    assert [row["code"] for row in response.json()] == ["tenant_admin", "collaborator"]
