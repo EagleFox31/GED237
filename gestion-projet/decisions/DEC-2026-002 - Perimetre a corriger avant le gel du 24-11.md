@@ -80,3 +80,14 @@ Corriger 6 écarts pour 9 j-p (sécurité recherche + upload d'abord, 8 parcours
 - Verrou par compte après 3 OTP erronés : abandonné et annoncé (écart 9 : « 5 tentatives/min par IP ; verrou par compte en V1.1 ») ; `DEBUG` vérifié faux sur l'environnement de démo.
 - P8 (corbeille / version sans UI) : remplacé par le cycle de validation, 0 j.
 - Budget : 9,75 / 10 j-p, marge 0,25 j. Ordre de sacrifice : 6 (garde de routes) → 5 (sauvegarde automatisée remplacée par pg_dump manuel documenté, 0,25 j) → pagination de 4.
+
+## Décisions (a) et (b) tranchées par le PO (2026-11-09 19:02)
+
+Sur la base du dossier `../innovateur/decision-po-vps-b6.md` (mesures VPS du 2026-11-09 19:05), le PO a accepté les deux recommandations :
+
+- **(a) Démo sur place en Docker**, avec un second poste de secours (0,5 j). Le VPS OVH (198 Mo libres, disque à 77 %) n'est pas retenu ; l'option « URL vitrine » n'est pas demandée. Conséquences : OCR-1 reste en V1.1 ; l'ordre 6 (garde de routes) est maintenu ; aucune tâche VPS/Caddy avant le gel.
+- **(b) B6 : garde de routes admin / non-admin seule** côté frontend (ordre 6, 0,5 j, mardi 18). Les trois constats backend (assignable-roles sans RBAC, `users:update_own`, clé snapshot) passent en **V1.1** et rejoignent les écarts annoncés.
+
+Hypothèse de travail du 2026-11-09 18:07 confirmée ; plus aucune question ouverte sur cette décision.
+
+Numérotation des écarts : la liste consolidée de `../innovateur/plan-presentation.md` § 3 (15 écarts) fait foi pour la présentation ; le « verrou OTP abandonné » appelé écart 9 dans les amendements ci-dessus y porte le numéro 12.

@@ -19,6 +19,13 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 TEST_REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/0")
 os.environ["REDIS_URL"] = TEST_REDIS_URL
 
+# Tests chain many logins/OTP from one client IP: raise the auth limits
+# explicitly (DEBUG no longer relaxes them). test_auth_rate_limit.py lowers
+# them per test to prove the limits themselves.
+os.environ.setdefault("AUTH_LOGIN_RATE_LIMIT", "1000/minute")
+os.environ.setdefault("AUTH_OTP_RATE_LIMIT", "1000/minute")
+os.environ.setdefault("AUTH_REFRESH_RATE_LIMIT", "1000/minute")
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport

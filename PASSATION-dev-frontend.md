@@ -125,3 +125,44 @@ Rien n'est commité pour l'instant.
 - D5 (non corrigé) : les boutons démo MINFI de `LoginPage.tsx` ont un libellé en dur absent des options et ne présélectionnent rien. Ajouté au walkthrough et transmis à l'orchestrateur.
 - La LESSON-2026-020 de ci-qa (commit 08fb8da) couvre le même incident que la mienne : j'ai retiré mon doublon du worktree.
 - File VM : pytest dev-backend (15 à 19 min), puis second smoke ci-qa (~10 min), puis moi, sur signal de ci-qa.
+
+## 2026-11-09 19:00 — Branche rebasée ; D5 corrigé (PR #41)
+
+- `test/uat-playwright` : commits d2effd7 (specs UAT, suppression d'audit et d'auditor-export) et 093911b (walkthrough D5), rebasés sur `origin/ci/e2e-smoke` 789ede6 (correctif selectInstitution de ci-qa). Conflit `playwright.config.ts` résolu : les projets `smoke` et `uat` coexistent. **Pas encore poussée.**
+- `docker-compose.e2e.yml` est désormais suivi (venu de ci-qa) : ma modification locale `image: edossier-e2e-api:latest` reste **non commitée**. Ne jamais faire `git add -A`. Copie de secours : scratchpad `compose.local.yml`.
+- D5 : sur décision de l'orchestrateur, je l'ai corrigé moi-même → **PR #41** (`fix/login-demo-institution`, worktree `../GED237-login-d5`, LoginPage choisit l'option par code de tenant). tsc OK ; ESLint 3 avertissements avant, 3 après. Non fusionnée (accord du PO requis). Walkthrough : « corrigé par PR #41 ».
+- À coordonner : `full-cycle.spec.ts` (à supprimer pour P8) est dans le testMatch `smoke` de ci-qa. Je ne la supprime qu'avec son accord.
+- Suite : signal VM de ci-qa → premier run uat (commande sans `--build`, voir l'entrée 18:34) → `down -v` + `docker compose ls` → compte rendu à l'orchestrateur (nombre de parcours verts) → je préviens ci-qa (il reconstruit l'image sur main).
+
+## 2026-11-09 19:00 — Conditions de ci-qa pour supprimer full-cycle (P8)
+
+- ci-qa accepte la suppression de `full-cycle.spec.ts`, **à condition que** la même PR remplace `full-cycle` par `validation-cycle` dans le testMatch du projet `smoke` (`frontend/playwright.config.ts`). Sinon, la couverture P8 du smoke disparaît sans qu'aucun test échoue.
+- Si `uat/validation-cycle.spec.ts` dépend du circuit `E2E-WF-VALID` (PR 2 seed de ci-qa), la suppression **attend la fusion de la PR 2**.
+- Mettre ged-ci-qa en relecture de cette PR.
+- VM : toujours en attente (pytest dev-backend, puis ~10 min de smoke ci-qa, puis signal pour moi).
+
+## 2026-11-09 19:03 — Décisions PO : B6, démo Docker, #41 approuvée
+
+- B6 : seule la garde de routes admin / non-admin côté frontend est retenue, planifiée le **mardi 18/11** (0,5 j). Les trois constats backend passent en V1.1. D2 (destination perdue après expiration du refresh) était regroupé avec cette garde : vérifier avec l'orchestrateur s'il entre dans le lot du 18/11, et mettre à jour le routage de D2 dans le walkthrough.
+- Démo du 30/11 : sur place, en Docker, pas de VPS.
+- #41 (D5) est approuvée et se fusionnera automatiquement quand sa CI relancée sera verte. #40 (docs) est fusionnée (36ea190).
+- **Quand #41 et #39 seront fusionnées, rebaser `test/uat-playwright` sur origin/main** (et supprimer le worktree `../GED237-login-d5` une fois #41 fusionnée).
+- Priorité inchangée : premier run P1/P2/P3/P6/P7 au signal VM de ci-qa.
+
+## 2026-11-09 19:06 — #41 fusionnée (a4b8dbe)
+
+- D5 : PR #41 fusionnée dans main (a4b8dbe). Le walkthrough indique « corrigé par PR #41, fusionnée a4b8dbe » (commit fixup 3bffb4b, à squasher avec `git rebase --autosquash` au prochain rebase). Worktree `../GED237-login-d5` et branche locale supprimés.
+- Suite : ci-qa réintègre main dans `ci/e2e-smoke`. **À son signal, rebaser `test/uat-playwright` sur `origin/ci/e2e-smoke` (avec autosquash), avant le premier run.** Mettre `docker-compose.e2e.yml` de côté (modification locale de l'image) pendant le rebase, puis le restaurer.
+
+## 2026-11-09 19:06 — Rebasée sur ci/e2e-smoke 2145758 (main avec #41)
+
+- `test/uat-playwright` = dce594d (specs UAT) + 6b96457 (walkthrough D5, fixup squashé), sur `origin/ci/e2e-smoke` 2145758 (main a4b8dbe incluse). Pas encore poussée.
+- Modification locale `image: edossier-e2e-api:latest` réappliquée sur `docker-compose.e2e.yml` (non commitée ; patch : scratchpad `compose-local.patch`).
+- Attente VM : dev-backend (gedtest-*), puis smoke ci-qa, puis moi au signal.
+
+## 2026-11-09 19:08 — Image reconstruite sur main par ci-qa ; filtres P4 réactivés
+
+- ci-qa lance son second smoke avec `--build` : `edossier-e2e-api:latest` est reconstruite sur main (#38 compris). C'est **la seule reconstruction** (~15 min de pip + ~10 min de tests). Signal pour moi après son `down -v`.
+- Commit 34b4db2 : `fixme` retiré des tests de filtres P4 (contrat #38 vérifié dans `WorkspaceDocumentFilters`). Le test de pagination est borné aux documents du test (`q`=runId, 2 docs, limit/offset, X-Total-Count=2, q>120 → 422) pour rester stable en parallèle. Walkthrough P4 mis à jour.
+- Branche : dce594d, 6b96457, 34b4db2 sur 2145758. Non poussée. `docker-compose.e2e.yml` : modification locale de l'image, non commitée.
+- Premier run (au signal) : P1, P2, P3, **P4 complet**, P6, P7. Sans `--build`. Commande dans l'entrée 18:34.
