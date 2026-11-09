@@ -19,6 +19,8 @@ test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
 
   test('Given rédacteur → valideur → auditeur, When cycle, Then traçabilité complète', async ({ page }) => {
     test.fixme(true, 'SMK-04: collaborator upload refused (403); lifted by #47');
+    // Three logins, an upload and a submission: well beyond the default 30 s budget on a loaded runner.
+    test.slow();
     const lp = new LoginPage(page);
     const docTitle = `Cycle E2E ${Date.now()}`;
 
@@ -75,7 +77,8 @@ test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
     // ─── 2. Valideur retrouve le document et peut agir ─────────────
     await switchUser('manager');
     await page.goto('tasks');
-    await page.waitForLoadState('networkidle');
+    // No networkidle wait: on this page it never resolved in the E2E stack (2 of 3 runs hit the test timeout).
+    // Playwright discourages it anyway; the visibility assertion below waits for the page.
 
     // Le document soumis doit apparaître dans la pile (si workflow auto-assigné)
     // On tolère l'absence si la règle n'existe pas ; on asserte seulement que la page charge
