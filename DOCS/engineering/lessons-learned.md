@@ -322,6 +322,20 @@ première requête utilisateur.
 **Leçon généralisée** — Tout état global partagé (branche courante, index, fichiers non commités) doit être isolé par agent avant de paralléliser ; sinon la coordination coûte plus que le parallélisme ne rapporte.
 ---
 
+### LESSON-2026-022 — Tests de recherche sans aucun résultat : vert trompeur
+
+- **Date :** 2026-11-09
+- **Catégorie :** tests / qualité
+- **Statut :** prevention-added
+- **Liens :** `backend/app/core/search/postgres_engine.py`, `backend/tests/api/test_search_scope.py`, walkthrough `[Claude] Recherche bornee tenant service corbeille - 2026-11-09.md`
+
+**Contexte** — Mise en place du périmètre de visibilité sur `GET /api/v1/search/` (DEC-2026-002, ordre 2).
+**Échec / near miss** — Le premier test qui obtenait un résultat réel a fait échouer la recherche en 500 : la construction d'un résultat lisait `Document.category`, attribut inexistant (la catégorie est une relation `document_category`). Les deux tests historiques de `test_search.py` étaient verts depuis des mois parce qu'ils interrogeaient une base sans aucun document correspondant : ils ne validaient que la forme d'une réponse vide. En production, toute recherche fructueuse aurait échoué.
+**Cause racine** — Des tests qui n'exercent que le chemin « zéro résultat » couvrent le code de requête mais jamais le code de sérialisation des résultats ; la couverture ligne ne le signale pas si la boucle n'est simplement pas entrée.
+**Résolution** — Code catégorie sélectionné par jointure et filtre `category` corrigé ; `test_search_scope.py` crée des documents qui correspondent et vérifie leurs identifiants, le code catégorie et le total.
+**Prévention** — Pour chaque moteur de recherche ou liste filtrée : au moins un test avec des données qui **doivent** remonter et une assertion sur leur contenu, pas seulement sur le code HTTP ou la forme de la réponse. À reprendre dans la revue : « quel test échouerait si la sérialisation d'un résultat était cassée ? »
+**Leçon généralisée** — Un test vert sur un ensemble vide ne prouve rien sur le traitement des éléments ; le cas nominal doit produire des données.
+
 ### LESSON-2026-023 — Un rôle, trois orthographes : les règles RBAC ne matchaient personne
 
 - **Date :** 2026-11-09

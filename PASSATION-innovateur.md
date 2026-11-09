@@ -60,3 +60,21 @@ Adopt offen/docker-volume-backup v2.50.1 (labels archive-pre pg_dump -Fc + stop-
 ## 2026-11-09 20:20 — nouvelle file orchestrateur (3 tâches)
 
 1. `innovateur/protocole-ocr-0.md` (benchmark OCR-0 pour ci-qa, exécution 14/11) ; 2. `innovateur/branches-distantes.md` (inventaire lecture seule, aucune suppression) ; 3. `innovateur/checklist-demo.md` (J-1/J0, cases à cocher, qui/quand). Message orchestrateur après chaque fichier. Les 7 fichiers précédents partent dans la PR docs de l orchestrateur.
+
+## 2026-11-09 20:45 — tâches 1 et 2 de la nouvelle file livrées
+
+`protocole-ocr-0.md` (corpus A synthétique dégradé + B réel, 4 configs, jiwer, memory.peak, seuils DEC-003, tableau) et `branches-distantes.md` (19 branches : 12 fusionnées + 1 fermée à supprimer sur accord PO, 6 gardées ; reco « auto delete head branches »). Reste : `checklist-demo.md`, puis README innovateur à compléter (3 fiches).
+
+## 2026-11-09 20:55 — tâche 3 livrée : `innovateur/checklist-demo.md` ; file close
+
+Checklist J-1/J0 par rôle (O/B/F/Q/P), hypothèse démo sur place, variante VPS en section F. README innovateur à 9 fiches. Orchestrateur informé (3 messages). Aucune écriture git ; rien dans backend/, frontend/, .github/. État : disponible, en attente de la prochaine file.
+
+## 2026-11-09 21:00 — file 3 : propagation décisions PO (go tout : sur place + garde minimale) et point S1
+
+1. Mettre à jour decision-po-vps-b6.md (TRANCHÉ 09/11), checklist-demo.md (hypothèse retirée, F sans objet), contexte-application.md (point 5, risque VPS), plan-presentation.md § 3 (écarts consolidés : B6 backend, D4, OTP lockout, starlette, OCR-1, identifiants démo dans LoginPage.tsx). 2. gestion-projet/plans/point-2026-11-14.md (attendus par rôle, preuve, décisions, colonne constaté vide). Message orchestrateur après chaque fichier ; file close ensuite.
+
+## 2026-11-09 19:09 — file 3 livrée, file close
+
+- Décisions PO (A sur place + B1 garde minimale) propagées : decision-po-vps-b6.md (TRANCHÉ 09/11), checklist-demo.md (A.1 coché, F sans objet), contexte-application.md (point 5, risque VPS levé), plan-presentation.md § 3 = 15 écarts consolidés (10 B6 backend, 12 verrou OTP, 13 starlette exp. 15/12, 14 OCR-1, 15 identifiants démo dans frontend/components/LoginPage.tsx) + § 4 ; README mis à jour. Aucun mot de passe recopié.
+- Créé gestion-projet/plans/point-2026-11-14.md : attendus par rôle avec preuve, colonne Constaté vide, décisions D1–D5, glissements, budget.
+- Signalé à O : numérotation écart OTP (DEC-002 dit 9, plan dit 12) à harmoniser. Deux messages envoyés à l orchestrateur. Rien en attente.

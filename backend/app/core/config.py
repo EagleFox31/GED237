@@ -12,7 +12,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "E-Dossier Cameroun"
     VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    # DEBUG only drives SQLAlchemy echo (database.py). It never relaxes security
+    # controls such as rate limits: those have their own settings below.
+    DEBUG: bool = False
 
     @field_validator("DEBUG", mode="before")
     @classmethod
@@ -39,6 +41,16 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Auth rate limits (slowapi syntax: "<count>/<minute|hour|day>"), keyed by
+    # client IP. Demo stacks raise them (docker-compose.yml); tests set them high.
+    AUTH_LOGIN_RATE_LIMIT: str = "5/minute"
+    AUTH_OTP_RATE_LIMIT: str = "5/minute"
+    AUTH_REFRESH_RATE_LIMIT: str = "10/minute"
+    # True only when the API is reachable exclusively through a reverse proxy
+    # that sets X-Forwarded-For (nginx/nginx.conf). Otherwise the header is
+    # client-controlled and ignored.
+    TRUSTED_PROXY: bool = False
 
     # Storage
     STORAGE_TYPE: str = "local"  # local | s3
