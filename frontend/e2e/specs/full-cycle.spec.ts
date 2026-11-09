@@ -1,12 +1,7 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { test, expect, TEST_USERS } from '../fixtures/auth.fixture';
 import { LoginPage } from '../pages/login.page';
 import { DraftWorkspacePage } from '../pages/documents.page';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const TEST_FILE = path.resolve(__dirname, '../fixtures/files/test-document.txt');
+import { uniqueTextFile } from '../data/files';
 
 /**
  * SC-E2E-01 — Cycle complet d'un dossier officiel
@@ -50,7 +45,7 @@ test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
     const workspace = new DraftWorkspacePage(page);
     await workspace.expectPageVisible();
     await workspace.openUploadModal();
-    await workspace.fillUploadForm(docTitle, 'Note', 'cycle, e2e', TEST_FILE);
+    await workspace.fillUploadForm(docTitle, 'Note', 'cycle, e2e', uniqueTextFile());
     await workspace.submitUpload();
     await workspace.expectUploadModalClosed();
     await workspace.expectDocumentsLoaded();
