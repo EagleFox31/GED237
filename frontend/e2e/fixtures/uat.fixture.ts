@@ -21,6 +21,7 @@ export type UploadedDocument = {
   classification_status: string;
   classification_domain_id: string | null;
   classification_activity_id: string | null;
+  org_unit_id: string | null;
 };
 export type ReviewItem = { id: string; document_id: string; status?: string };
 export type AuditEntry = {
@@ -145,7 +146,7 @@ export class UatApi {
 
   async resolveReview(
     reviewId: string,
-    input: { domainId: string; activityId: string; year: number; comment: string },
+    input: { domainId: string; activityId: string; year: number; targetOrgUnitId: string; comment: string },
   ): Promise<{ success: boolean; document_classification_status: string }> {
     return ok(
       await this.request.post(`${API_URL}/classification-reviews/${reviewId}/resolve`, {
@@ -155,6 +156,7 @@ export class UatApi {
           classification_activity_id: input.activityId,
           classification_year: input.year,
           classification_scope: 'service',
+          classification_target_org_unit_id: input.targetOrgUnitId,
           comment: input.comment,
           relaunch_workflow: false,
         },

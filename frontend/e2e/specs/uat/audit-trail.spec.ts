@@ -31,10 +31,12 @@ test.describe('P7 — Journal d’audit (SC-AUD-01, SC-ADM-09)', () => {
     const doc = await adminApi.uploadDocument(`zz-audit-${runId}.txt`, title, `Audit ${runId}`);
     const review = (await adminApi.listReviews()).find((r) => r.document_id === doc.id);
     expect(review, 'une revue est ouverte pour le document non classé').toBeTruthy();
+    expect(doc.org_unit_id, 'le document déposé est rattaché au service du déposant').toBeTruthy();
     await adminApi.resolveReview(review!.id, {
       domainId: domain.id,
       activityId: activity.id,
       year: 2026,
+      targetOrgUnitId: doc.org_unit_id!,
       comment: `Recette P7 ${runId}`,
     });
 

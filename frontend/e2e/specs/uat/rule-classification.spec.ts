@@ -24,7 +24,8 @@ test.describe('SC-ADM-05 — Règle de classement automatique', () => {
 
     await loginAs('tenant_admin');
     await page.goto('classement');
-    await page.getByRole('tab', { name: /Règles de classement/i }).click();
+    // Les étapes du plan de classement sont des boutons (pas des onglets ARIA).
+    await page.getByRole('button', { name: /Règles de classement$/ }).click();
 
     // Étapes 2 à 7 : nouvelle règle, nom, condition, action, activation, sauvegarde.
     await page.getByRole('button', { name: /Nouvelle Règle/i }).click();
@@ -41,7 +42,7 @@ test.describe('SC-ADM-05 — Règle de classement automatique', () => {
     expect(created!.is_active).toBe(true);
 
     // A1 : simuler sans impact réel.
-    await page.getByRole('tab', { name: /Simulateur/i }).click();
+    await page.getByRole('button', { name: /Simulateur$/ }).click();
     await page.getByLabel('Nom du fichier').fill(`${keyword}-2026.pdf`);
     await page.getByRole('button', { name: /Lancer la simulation/i }).click();
     await expect(page.getByText('Résultat du test')).toBeVisible();

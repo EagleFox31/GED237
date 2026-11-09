@@ -32,7 +32,7 @@ test.describe('SC-ESP-01 — Navigation dans les espaces', () => {
 
     await loginAs('tenant_admin');
     await page.goto('spaces');
-    await expect(page.getByText(/\d+ document\(s\)/)).toBeVisible();
+    await expect(page.getByText(/^\d+ documents?$/)).toBeVisible();
 
     // Descendre dans un sous-service, puis remonter.
     const daf = page.getByRole('button', { name: /Direction des Affaires Financieres/ }).first();
@@ -49,7 +49,7 @@ test.describe('SC-ESP-01 — Navigation dans les espaces', () => {
     // Recherche (paramètre q de l'URL) : seul le document cherché reste affiché.
     await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
     await expect(page.getByLabel(new RegExp(`^${title} — `))).toBeVisible();
-    await expect(page.getByText('1 document(s)', { exact: false })).toBeVisible();
+    await expect(page.getByText('1 document', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Effacer' }).click();
     await expect(page).not.toHaveURL(/[?&]q=/);
   });
@@ -90,8 +90,8 @@ test.describe('SC-ESP-01 — Filtres serveur sur GET /spaces/documents', () => {
     runId,
   }) => {
     // Assertions bornées aux documents de ce test (q = runId) : les autres tests déposent en parallèle.
-    const first = await adminApi.uploadDocument(`recherche-a-${runId}.txt`, `Recherche A ${runId}`, `Q ${runId}`);
-    const second = await adminApi.uploadDocument(`recherche-b-${runId}.txt`, `Recherche B ${runId}`, `Q ${runId}`);
+    const first = await adminApi.uploadDocument(`recherche-a-${runId}.txt`, `Recherche A ${runId}`, `Q-A ${runId}`);
+    const second = await adminApi.uploadDocument(`recherche-b-${runId}.txt`, `Recherche B ${runId}`, `Q-B ${runId}`);
     const mine = [first.id, second.id].sort();
 
     // Sans `limit` : comportement historique, liste complète non paginée.

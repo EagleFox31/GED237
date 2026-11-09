@@ -60,7 +60,7 @@ test.describe('SC-ADM-08 — Import d’un dossier', () => {
     await page.getByRole('button', { name: 'Continuer vers la vérification' }).click();
 
     // Étape 4 : le système scanne et applique les règles (aperçu avant import).
-    await page.getByRole('button', { name: 'Vérifier le classement' }).click();
+    await page.getByRole('button', { name: 'Vérifier le classement', exact: true }).click();
     await expect(page.getByText(/1 prêt\(s\) • 1 à revoir • 1 ignoré\(s\) ou déjà présent\(s\)/)).toBeVisible({
       timeout: 30_000,
     });
