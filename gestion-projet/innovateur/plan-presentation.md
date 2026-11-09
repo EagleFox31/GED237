@@ -13,7 +13,7 @@
 | 4–8 | Capturer et classer | Import d'un dossier de ~30 fichiers, règle active, doublons refusés, reste à classer visible. Message : *capture systématique, classement par plan (service > domaine > activité > année), doublons bloqués*. | P2 |
 | 8–10 | Gouverner le classement | Création d'une règle, simulation avant activation, puis revue manuelle d'un document sans règle. Message : *le plan de classement est piloté par l'administration, pas par l'outil ; rien ne bouge sans simulation*. | P3, P6 |
 | 10–13 | Retrouver | Espaces avec filtres et pagination sur 500 documents ; recherche plein texte avec temps de réponse affiché ; même requête en lecteur d'un autre service : résultats différents ; corbeille exclue. Message : *on retrouve vite, et seulement ce qu'on a le droit de voir*. | P4, P5 |
-| 13–15 | Conserver et contrôler | Cycle de vie (corbeille/restauration ou cycle de validation selon décision PO) ; journal d'audit en auditeur : toute la démo y figure. Message : *chaque action est tracée, la suppression est réversible*. | P8, P7 |
+| 13–15 | Conserver et contrôler | Cycle de vie (corbeille/restauration ou cycle de validation selon décision PO) ; journal d'audit en auditeur : connexions, dépôts, imports, revues et corbeille de la démo y figurent (dépend du correctif D3, amendement DEC-002 ; sans lui, montrer seulement revues, doublons, corbeille, versions et le dire). Message : *chaque action sur un document est tracée, la suppression est réversible*. | P8, P7 |
 | 15–17 | Ce qui reste | Les 7 écarts annoncés (§ 3), avec date ou appui. | — |
 | 17–20 | Questions | § 4. | — |
 
@@ -40,6 +40,8 @@ Répartition : 13 min de démo en direct, 2 min d'ouverture, 2 min d'écarts, 3 
 5. **HTTPS / hébergement** : selon la réponse PO : « URL HTTPS de démonstration » ou « démo Docker on-site, HTTPS porté par votre reverse-proxy ».
 6. **Disponibilité 99 % et exploitation** : « Sonde de santé disponible ; supervision et manuel d'exploitation livrés avec le pilote. »
 7. **Responsive** : « Interface poste de travail ; écrans lecteur vérifiés sur mobile. »
+
+8. **Export du journal d'audit** (D4, amendement DEC-002) : « Le journal se consulte et se filtre à l'écran ; l'export CSV/PDF pour l'inspection arrive en V1.1. » Retirer SC-AUD-02 de P7.
 
 Ajout recommandé, pour cohérence avec § 2 : **durées de conservation et sort final automatisés** : « Le cycle de vie est manuel en V1 (corbeille, restauration, purge) ; les règles de conservation par type arrivent en V1.1. »
 
