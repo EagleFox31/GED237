@@ -54,6 +54,7 @@ class AppError(Exception):
         severity: Optional[Severity] = None,
         retryable: Optional[bool] = None,
         extras: Optional[Mapping[str, Any]] = None,
+        extras_public: Optional[Mapping[str, Any]] = None,
     ) -> None:
         self.user_message: str = user_message or self.default_user_message
         # Fallback explicite : signal qu'aucun détail technique n'a été fourni.
@@ -67,6 +68,9 @@ class AppError(Exception):
         # extras : usage interne logs uniquement.
         # NE JAMAIS y mettre password, token, payload complet, stack, requête SQL.
         self.extras: dict[str, Any] = dict(extras or {})
+        # extras_public : champs additionnels SÛRS, aplatis dans le Problem Details
+        # (ex. plafond applicable). Jamais de donnée sensible.
+        self.extras_public: dict[str, Any] = dict(extras_public or {})
 
         super().__init__(self.technical_detail)
 
@@ -196,3 +200,34 @@ class ExternalServiceError(AppError):
         "Un service externe est temporairement indisponible. "
         "Réessayez dans un instant."
     )
+
+
+class FileTooLargeError(AppError):
+    """Fichier téléversé au-delà de MAX_UPLOAD_SIZE (RFC 9110 §15.5.14 : 413).
+
+    Levée par la couche stockage dès le premier bloc qui dépasse, quel que soit le
+    backend (local, S3) ; traduite une seule fois en Problem Details par le handler.
+    """
+
+    status_code = 413
+    default_error_code = "FILE_TOO_LARGE"
+    default_severity = Severity.warning
+    default_retryable = False
+
+    def __init__(
+        self, filename: str, *, max_bytes: int, received_at_least: int
+    ) -> None:
+        self.filename = filename
+        self.max_bytes = max_bytes
+        self.received_at_least = received_at_least
+        max_mb = max_bytes / (1024 * 1024)
+        shown = f"{max_mb:g}" if max_mb >= 1 else f"{max_mb:.3g}"
+        super().__init__(
+            f"Le fichier « {filename} » dépasse la taille maximale autorisée "
+            f"({shown} Mo).",
+            technical_detail=(
+                f"upload of {filename!r} exceeded max_bytes={max_bytes} "
+                f"(received at least {received_at_least})"
+            ),
+            extras_public={"max_upload_size_bytes": max_bytes, "filename": filename},
+        )
