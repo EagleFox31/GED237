@@ -7,10 +7,23 @@ interface LoginPageProps {
   onLogin: (session: AuthSession) => void;
 }
 
-const DEMO_CREDENTIALS: Record<string, { institution: string; matricule: string; password: string }> = {
-  super: { institution: 'Plateforme E-Dossier (PLATFORM)', matricule: 'SUPER001', password: 'Admin@2025' },
-  tenant: { institution: 'Ministère des Finances (MINFI)', matricule: 'MINFI001', password: 'Minfi@2025' },
-  collab: { institution: 'Ministère des Finances (MINFI)', matricule: 'MINFI002', password: 'User@2025' },
+// Demo accounts name their institution by tenant code: the displayed name comes from /tenants/public
+// and may differ (accents, wording) from one dataset to another.
+const DEMO_CREDENTIALS: Record<string, { tenantCode: string; matricule: string; password: string }> = {
+  super: { tenantCode: 'PLATFORM', matricule: 'SUPER001', password: 'Admin@2025' },
+  tenant: { tenantCode: 'MINFI', matricule: 'MINFI001', password: 'Minfi@2025' },
+  collab: { tenantCode: 'MINFI', matricule: 'MINFI002', password: 'User@2025' },
+};
+
+type PublicTenant = { name: string; short_name: string | null };
+
+const tenantLabel = (t: PublicTenant) => (t.short_name ? `${t.name} (${t.short_name})` : t.name);
+
+/** Option label of the tenant whose code matches, as the backend resolves it (case-insensitive). */
+const tenantLabelForCode = (tenants: PublicTenant[], code: string): string | null => {
+  const wanted = code.trim().toLowerCase();
+  const match = tenants.find((t) => t.short_name?.trim().toLowerCase() === wanted);
+  return match ? tenantLabel(match) : null;
 };
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
@@ -23,7 +36,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   // Form controlled inputs
   const [institution, setInstitution] = useState('');
-  const [tenantOptions, setTenantOptions] = useState<Array<{ name: string; short_name: string | null }> | null>(null);
+  const [tenantOptions, setTenantOptions] = useState<PublicTenant[] | null>(null);
   const [tenantsLoadError, setTenantsLoadError] = useState(false);
 
   useEffect(() => {
@@ -33,13 +46,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       .catch(() => { if (!cancelled) setTenantsLoadError(true); });
     return () => { cancelled = true; };
   }, []);
+
+  // A demo profile picked before the list loaded holds a bare tenant code: map it to its option.
+  useEffect(() => {
+    if (!tenantOptions || !institution) return;
+    if (tenantOptions.some((t) => tenantLabel(t) === institution)) return;
+    const label = tenantLabelForCode(tenantOptions, institution);
+    if (label) setInstitution(label);
+  }, [tenantOptions, institution]);
   const [matricule, setMatricule] = useState('');
   const [password, setPassword] = useState('');
 
   const handleDemoSelect = (profile: any) => {
     const creds = DEMO_CREDENTIALS[profile.id];
-    if (creds) {
-      setInstitution(creds.institution);
+    // Free-text fallback (list unavailable) or list still loading: the code alone is enough for the backend.
+    const label = tenantOptions ? tenantLabelForCode(tenantOptions, creds?.tenantCode ?? '') : creds?.tenantCode;
+    if (creds && label) {
+      setInstitution(label);
       setMatricule(creds.matricule);
       setPassword(creds.password);
       setError(null);
@@ -197,7 +220,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                                 {tenantOptions === null ? 'Chargement des institutions...' : 'Sélectionnez votre institution...'}
                               </option>
                               {tenantOptions?.map((t) => {
-                                const label = t.short_name ? `${t.name} (${t.short_name})` : t.name;
+                                const label = tenantLabel(t);
                                 return <option key={label} value={label}>{label}</option>;
                               })}
                             </select>
