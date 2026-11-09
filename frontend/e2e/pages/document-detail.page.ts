@@ -105,7 +105,10 @@ export class DocumentDetailModal {
 
   async switchToHistoryTab() {
     await this.historyTab.click();
-    await expect(this.page.getByText(/fonctionnalité à venir/i)).toBeVisible();
+    // The tab lists the document versions, or an empty-state line when there are none.
+    await expect(
+      this.page.getByText(/aucun historique disponible/i).or(this.page.getByRole('heading', { name: /^Version \d+$/ })).first(),
+    ).toBeVisible({ timeout: 10_000 });
   }
 
   // --- Info tab assertions ---
