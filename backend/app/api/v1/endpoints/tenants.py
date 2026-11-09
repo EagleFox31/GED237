@@ -97,13 +97,20 @@ async def read_tenant(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Super Admin lit tous les tenants ; les autres seulement le leur."""
-    await authorize_or_403(
-        current_user,
-        "tenants",
-        "read",
-        AuthzContext(tenant_id=tenant_id),
-    )
+    """Super Admin lit tous les tenants ; les autres seulement le leur.
+
+    Lire son propre tenant (nom de l'institution affiché dans le shell) est
+    ouvert à tout utilisateur authentifié sans règle Casbin : l'action
+    ``tenants read`` couvre aussi la liste, qui doit rester fermée aux rôles
+    de lecture (SMK-05). Un tenant étranger passe par Casbin + isolation.
+    """
+    if str(tenant_id) != str(current_user.tenant_id):
+        await authorize_or_403(
+            current_user,
+            "tenants",
+            "read",
+            AuthzContext(tenant_id=tenant_id),
+        )
     query = select(Tenant).filter(Tenant.id == tenant_id)
     tenant = (await db.execute(query)).scalar_one_or_none()
     if not tenant:

@@ -682,7 +682,7 @@ async def test_auth_service_patterns(monkeypatch):
             QueueDB(results=[FakeResult(scalar=user)]), "MINFI", "A001", "wrong"
         )
 
-    role = SimpleNamespace(code="standard", label="Standard")
+    role = SimpleNamespace(code="collaborator", label="Standard")
     verify_redis = FakeRedis(
         {
             "otp:session-token": "123456",
@@ -699,7 +699,7 @@ async def test_auth_service_patterns(monkeypatch):
     verify_db = QueueDB(results=[FakeResult(scalar=user), FakeResult(scalar=role)])
     verified = await service.verify_otp(verify_db, "session-token", "123456")
     assert verified["access_token"].startswith("access-")
-    assert verified["user"]["role"] == "standard"
+    assert verified["user"]["role"] == "collaborator"
     assert set(verify_redis.deleted) == {"otp:session-token", "session:session-token"}
 
     monkeypatch.setattr(module, "get_redis", AsyncMock(return_value=FakeRedis()))
@@ -741,7 +741,7 @@ async def test_auth_service_patterns(monkeypatch):
             "type": "refresh",
             "sub": str(user.id),
             "tenant_id": str(tenant.id),
-            "role": "standard",
+            "role": "collaborator",
             "matricule": "A001",
         },
     )

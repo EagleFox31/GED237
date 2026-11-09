@@ -174,7 +174,7 @@ const OrgDashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-base font-black text-slate-800 tracking-tighter italic uppercase">Résumé Des Workflows</h3>
-              <p className="text-xs text-slate-400 font-medium mt-1">Répartition des étapes de validation.</p>
+              <p className="text-xs text-slate-500 font-medium mt-1">Répartition des étapes de validation.</p>
             </div>
           </div>
           {metrics ? (
@@ -203,7 +203,7 @@ const OrgDashboard: React.FC = () => {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
-              <span className="material-symbols-outlined text-slate-400">cloud_queue</span>
+              <span className="material-symbols-outlined text-slate-500">cloud_queue</span>
               <h3 className="text-sm font-black text-slate-800 tracking-tighter italic uppercase">Stockage Tenant</h3>
             </div>
             {(() => {
@@ -217,13 +217,13 @@ const OrgDashboard: React.FC = () => {
                     <span className="text-xs font-bold text-slate-500">Utilisé</span>
                     <div className="text-right">
                       <span className="text-lg font-black text-slate-800">{used} MB</span>
-                      <span className="text-xs font-medium text-slate-400"> / {quota >= 1024 ? `${(quota / 1024).toFixed(0)} GB` : `${quota} MB`}</span>
+                      <span className="text-xs font-medium text-slate-500"> / {quota >= 1024 ? `${(quota / 1024).toFixed(0)} GB` : `${quota} MB`}</span>
                     </div>
                   </div>
                   <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-3">
                     <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }}></div>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                  <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
                     {pct.toFixed(1)}% du quota utilisé.
                   </p>
                 </>
@@ -265,7 +265,7 @@ const KPICard = ({ icon, iconColor, iconBg, label, value, subtext }: any) => (
     </div>
     <p className="text-[11px] font-bold text-slate-500">{label}</p>
     <h4 className="text-2xl font-black text-slate-900 mt-1 mb-1 tracking-tight">{value}</h4>
-    <p className="text-[10px] font-medium text-slate-400">{subtext}</p>
+    <p className="text-[10px] font-medium text-slate-500">{subtext}</p>
   </div>
 );
 

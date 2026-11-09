@@ -64,7 +64,14 @@ export class LoginPage {
     await this.institutionSelect.waitFor({ state: 'visible' });
     const tagName = await this.institutionSelect.evaluate((element) => element.tagName.toLowerCase());
     if (tagName === 'select') {
-      await this.institutionSelect.selectOption({ label: institution });
+      // Options come from /tenants/public as "<name> (<short_name>)". Match on the short code:
+      // display names vary by dataset (accents, wording), the code does not.
+      const code = /\(([^)]+)\)\s*$/.exec(institution)?.[1];
+      const option = code
+        ? this.institutionSelect.locator('option', { hasText: `(${code})` }).first()
+        : this.institutionSelect.locator('option', { hasText: institution }).first();
+      await option.waitFor({ state: 'attached' });
+      await this.institutionSelect.selectOption({ label: (await option.textContent())!.trim() });
       return;
     }
     await this.institutionSelect.fill(institution);
