@@ -30,3 +30,17 @@ Fichier en ajout seulement : chaque session ajoute une entrée datée à la fin,
 5. OCR-0 (échéance 14/11) : benchmark Tesseract / RapidOCR / EasyOCR, voir `gestion-projet/innovateur/sources/ocr-leger.md`.
 
 Pièges : hook pre-commit cassé sur l'hôte (venv `E:\GED237` absent). Les contrôles se rejouent dans Docker, puis `--no-verify`. Ne jamais lancer `python` sur l'hôte (il bloque sur stdin). Sous Git Bash : `MSYS_NO_PATHCONV=1`.
+
+## 2026-11-09 19:00 — #39 : correctifs poussés, séquence de fusion
+
+- #39 en est à `819abd7`.
+  - `789ede6` : connexion choisie par le code tenant, libellé démo « Admin Institution ».
+  - `819abd7` : contrôle CI image Playwright = lock, `AUTH_LOGIN_RATE_LIMIT` et `AUTH_OTP_RATE_LIMIT` à 30/minute dans l'api e2e.
+- CI GitHub de #39 en cours (jobs lint et sécurité verts, E2E en attente).
+- Séquence validée par l'orchestrateur :
+  1. Second smoke local.
+  2. #39 en ready for review, message à l'orchestrateur, accord PO.
+  3. Ensuite #35 (Dependabot, Playwright 1.65) : je pousse moi-même `docker-compose.e2e.yml` → `v1.65.0-noble` sur la branche Dependabot quand l'orchestrateur fait signe.
+- Cette passation est incluse dans la PR docs #40 de l'orchestrateur. Les entrées suivantes se font toujours en ajout.
+- dev-frontend rebase `test/uat-playwright` sur `ci/e2e-smoke` et attend mon signal de fin de smoke pour son run.
+- Après l'UAT de dev-frontend : reconstruire `edossier-e2e-api:latest` sur main, puis prévenir dev-frontend.
