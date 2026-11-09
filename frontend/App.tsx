@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { pushClientOperationError } from './lib/errors';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import ErrorOverlay from './components/ErrorOverlay';
@@ -97,6 +98,49 @@ const DEFAULT_ROUTE_BY_PROFILE: Record<string, string> = {
 export const defaultRouteForProfile = (profileId?: string): string =>
   (profileId && DEFAULT_ROUTE_BY_PROFILE[profileId]) || '/dashboard';
 
+type ProfileId = keyof typeof DEFAULT_ROUTE_BY_PROFILE;
+
+// Routes réservées aux administrateurs (liste blanche par profil). Confort d'interface :
+// le contrôle d'accès fait foi côté API ; cette table ne doit jamais être plus permissive qu'elle.
+export const ADMIN_ROUTES = {
+  '/tenants': ['super'],
+  '/tenants/:tenantId': ['super'],
+  '/platform-users': ['super'],
+  '/authz': ['super'],
+  '/org': ['super', 'tenant'],
+  '/rules': ['super', 'tenant'],
+  '/classement': ['super', 'tenant'],
+  '/users': ['super', 'tenant'],
+} as const satisfies Record<string, ReadonlyArray<ProfileId>>;
+
+export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
+
+// Rend la page seulement si le profil est autorisé ; sinon renvoie vers la page d'accueil du
+// profil (replace : Précédent ne ramène pas sur la route interdite) sans monter la page.
+const RequireProfile: React.FC<{ allow: ReadonlyArray<string>; children: React.ReactElement }> = ({ allow, children }) => {
+  const navigate = useNavigate();
+  const profileId = useAuthStore((s) => s.userProfile?.id);
+  const allowed = !!profileId && allow.includes(profileId);
+  const notified = React.useRef(false);
+
+  React.useEffect(() => {
+    if (allowed || notified.current) return;
+    notified.current = true;
+    pushClientOperationError(null, {
+      fallbackDetail: ACCESS_DENIED_MESSAGE,
+      errorCode: 'ROUTE_FORBIDDEN',
+      severity: 'warning',
+    });
+    navigate(defaultRouteForProfile(profileId), { replace: true });
+  }, [allowed, profileId, navigate]);
+
+  return allowed ? children : null;
+};
+
+const guarded = (path: keyof typeof ADMIN_ROUTES, element: React.ReactElement) => (
+  <RequireProfile allow={ADMIN_ROUTES[path]}>{element}</RequireProfile>
+);
+
 const ProfileDashboard: React.FC<{ profileId?: string }> = ({ profileId }) => {
   switch (profileId) {
     case 'super': return <PlatformDashboard />;
@@ -191,17 +235,17 @@ const AppLayout: React.FC = () => {
             <Route path="/dashboard" element={<ProfileDashboard profileId={userProfile?.id} />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/tasks" element={<WorkflowTasks />} />
-            <Route path="/authz" element={<AuthzAdmin />} />
-            <Route path="/tenants" element={<TenantsAdmin />} />
-            <Route path="/tenants/:tenantId" element={<TenantDetail />} />
-            <Route path="/platform-users" element={<PlatformUsers />} />
+            <Route path="/authz" element={guarded('/authz', <AuthzAdmin />)} />
+            <Route path="/tenants" element={guarded('/tenants', <TenantsAdmin />)} />
+            <Route path="/tenants/:tenantId" element={guarded('/tenants/:tenantId', <TenantDetail />)} />
+            <Route path="/platform-users" element={guarded('/platform-users', <PlatformUsers />)} />
             <Route path="/settings" element={<DisplaySettings layoutMode={layoutMode} setLayoutMode={setLayoutMode} />} />
             <Route path="/settings/display" element={<DisplaySettings layoutMode={layoutMode} setLayoutMode={setLayoutMode} />} />
-            <Route path="/org" element={<OrganizationPage />} />
+            <Route path="/org" element={guarded('/org', <OrganizationPage />)} />
             <Route path="/spaces" element={<SpacesPage />} />
-            <Route path="/rules" element={<GEDRulesPage />} />
-            <Route path="/classement" element={<ClassementPage />} />
-            <Route path="/users" element={<UsersPage />} />
+            <Route path="/rules" element={guarded('/rules', <GEDRulesPage />)} />
+            <Route path="/classement" element={guarded('/classement', <ClassementPage />)} />
+            <Route path="/users" element={guarded('/users', <UsersPage />)} />
             <Route path="/classification-reviews" element={<ClassificationReviewPage />} />
             <Route path="/needs-review" element={<Navigate to="/classification-reviews" replace />} />
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />

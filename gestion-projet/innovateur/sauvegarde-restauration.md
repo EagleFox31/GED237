@@ -72,6 +72,45 @@ Hors périmètre V1, à annoncer : chiffrement GPG activé par défaut, copie ho
 - Taille : les PDF image du corpus pèsent le plus ; l'archive tar.gz des 420 documents devrait rester < 1 Go ; vérifier l'espace disque du poste de démo (sur le VPS, 8,9 Go libres seulement : argument supplémentaire pour la démo sur place).
 - Secrets : `DB_PASSWORD` passe par l'environnement du conteneur postgres (`pg_dump` l'y lit), jamais en argument de commande ni dans le compose versionné.
 
+## 6. Révision 2026-11-09 soir (file 9 de O) — voie principale ramenée à ≤ 0,25 j, restauration répétée, intégration démo
+
+Ce qui change par rapport aux § 3-4 (non réécrits) : O fixe le portage à **≤ 0,25 j** et exige une restauration **répétée au moins une fois avant le 27** avec preuve. Le service compose `offen/docker-volume-backup` (§ 3.1, 0,75 j) devient donc la **V1.1** (planification, rotation, chiffrement) ; la voie V1 est le **repli du § 4 promu en voie principale** : deux scripts maison, même format d'artefact, pas de conteneur supplémentaire. Rien n'est perdu : `restore.sh` est identique dans les deux voies.
+
+### 6.1 Contrat des scripts (`backend/scripts/backup.sh`, `backend/scripts/restore.sh`, POSIX sh, Docker uniquement)
+
+| Point | Décision |
+|---|---|
+| Périmètre | `pg_dump -Fc edossier` (dans `edossier_postgres`, mot de passe lu de l'environnement du conteneur) + `tar` du volume `storage_data` via un conteneur temporaire `alpine` ; **Redis ignoré** (OTP et blacklist éphémères : après restauration, tout le monde se reconnecte, c'est voulu). |
+| Destination | **hôte, hors conteneur** : `./backups/ged237-AAAAMMJJ-HHMMSS/` (répertoire **ignoré par git**, `.gitkeep` seul suivi) contenant `edossier.dump`, `storage.tar.gz`, `MANIFEST.txt` (date UTC, `alembic_version`, `count(*)` documents, nb de fichiers, taille) et `SHA256SUMS`. Un répertoire par sauvegarde, jamais écrasé. Copie sur clé USB et poste de secours = `cp -r` du répertoire, rien d'autre. |
+| Cohérence | `backup.sh` fait `docker compose stop worker api` le temps du dump + tar (1-2 min), puis `up -d` ; pas d'option « sans arrêt » en V1 (un document importé entre les deux = ligne sans fichier). |
+| Idempotence (RAIDER-I) | `backup.sh` relancé sur un état inchangé : `MANIFEST.txt` et le `tar` (`--sort=name`, `--mtime` figé) identiques, seul `edossier.dump` diffère (horodatage interne de `pg_dump`) ; c'est ce que Q compare. `restore.sh <répertoire>` : vérifie `SHA256SUMS`, exige `--wipe` pour `DROP/CREATE DATABASE` (sinon refuse si la base n'est pas vide), `pg_restore --clean --if-exists --no-owner`, vide puis remplit le volume, compare `count(*)` et nb de fichiers au `MANIFEST.txt`, code retour non nul si écart ; **second passage sur le même répertoire = même sortie, zéro écart**. |
+| Hors périmètre V1 (annoncé) | planification cron, rotation, chiffrement, copie hors site, mode S3 : § 3.1 en V1.1. |
+
+### 6.2 Qui porte
+
+**B écrit les deux scripts (0,25 j, lun 17 matin, PR `ops/backup-restore`, avec `DOCS/exploitation/sauvegarde.md` de 5 commandes)** ; **Q rejoue** (dans son enveloppe « recette élargie », 0,25 j au total pour les deux rejeux) ; aucun travail F. Si B glisse, Q écrit les scripts : ils ne touchent pas au code applicatif, seulement au compose et au dossier `scripts/`.
+
+### 6.3 Preuves attendues (deux restaurations, pas une)
+
+| Quand | Quoi | Preuve consignée (`gestion-projet/recette/`) |
+|---|---|---|
+| **mar 18** | rejeu n° 1 sur la pile e2e : `backup.sh` → `docker compose down -v` → `restore.sh --wipe` → parcours P1 et P5 verts ; puis `restore.sh` une seconde fois sur le même répertoire | `restauration-2026-11-18.txt` : durées, `MANIFEST.txt` avant/après, `SHA256SUMS`, sortie du second passage (zéro écart) |
+| **jeu 20 soir** (après C2/C3 et pré-OCRisation) | rejeu n° 2 sur le **jeu de démo** : sauvegarde complète, restauration sur le **poste de secours** (c'est ainsi qu'il est synchronisé), 8 parcours Playwright verts dessus | `restauration-2026-11-20.txt` + run Playwright ; cette archive devient le **point de reprise de référence** jusqu'à J-1 |
+| **J-1 (sam 29)** | sauvegarde complète après le reset final et la pré-OCRisation ; restaurée sur le poste de secours | ligne de `checklist-demo.md` § B cochée, répertoire copié sur la clé USB |
+
+### 6.4 Critères observables (C7 de `criteres-acceptation.md`)
+
+1. `backup.sh` termine en **< 5 min** sur le jeu de démo ; répertoire horodaté présent sur l'hôte, `sha256sum -c SHA256SUMS` sans erreur.
+2. `restore.sh --wipe` termine en **< 10 min** sur une base vierge ; `count(*)` et nb de fichiers = `MANIFEST.txt` ; `/health` = 200 ; connexion d'un compte seed (identifiant seulement dans la preuve), ouverture d'un PDF, recherche d'un mot connu → résultats attendus.
+3. Second `restore.sh` sur le même répertoire : zéro écart, code retour 0.
+4. Deux preuves datées (18 et 20/11) avant le 27 ; sans la seconde, C7 reste **non validé** le 21 (règle de lecture § 4 des critères).
+
+### 6.5 Intégration à `checklist-demo.md` (lignes ajoutées ce soir)
+
+- **J-1** : sauvegarde complète = ligne existante (§ B Données), commande remplacée par `scripts/backup.sh`.
+- **Point de reprise avant la séance** : le poste de secours **est** la restauration de la sauvegarde J-1 ; vérification H-30 : `/health` 200 sur les deux postes, même nombre de documents.
+- **Si une purge part en démo** (`DELETE /purge` ou suppression définitive) : **aucune restauration en séance** (règle « jamais de redémarrage de conteneur en séance ») ; O bascule sur le **poste de secours** (< 60 s), qui montre l'état J-1 ; la restauration du poste principal se fait **après** la séance depuis le répertoire J-1. P commente « le document est en corbeille, l'administrateur peut le restaurer » et ne tente pas de le faire en direct.
+
 ## Sources
 
 - https://github.com/offen/docker-volume-backup (README, `docs/how-tos/run-custom-commands.md`, `stop-containers-during-backup.md`, `restore-volumes-from-backup.md`, release v2.50.1)

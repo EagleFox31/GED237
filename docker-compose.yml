@@ -133,7 +133,12 @@ services:
       STORAGE_PATH: /var/storage_data
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
-      DEBUG: "true"
+      DEBUG: "false"
+      # Demo room: ~10 logins/OTP in 13 min from one NAT address (parcours-demo.md §0).
+      AUTH_LOGIN_RATE_LIMIT: "30/minute"
+      AUTH_OTP_RATE_LIMIT: "30/minute"
+      # nginx is the only published entry point and sets X-Forwarded-For.
+      TRUSTED_PROXY: "true"
     depends_on:
       postgres:
         condition: service_healthy
