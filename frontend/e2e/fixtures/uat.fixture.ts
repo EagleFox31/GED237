@@ -215,4 +215,4 @@ export const test = authTest.extend<UatTestFixtures, UatWorkerFixtures>({
   },
 });
 
-export { expect };
+export { expect, TEST_USERS };
