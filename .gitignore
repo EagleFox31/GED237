@@ -4,7 +4,8 @@ Thumbs.db
 Desktop.ini
 .idea/
 .vscode/
-.claude/
+.claude/*
+!.claude/agents/
 .qodo/
 .codex
 *.swp
