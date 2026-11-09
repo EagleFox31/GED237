@@ -100,3 +100,12 @@ Lots A et B clos (hors décisions PO du B6). Prochain chantier : Lot C (`AUDIT.m
   Décisions orchestrateur : ordre d'exécution avec reset de base tenu par ci-qa ; doublon de routes `simulate` vérifié par dev-backend.
 - Règle worktrees écrite (`EQUIPE_AGENTS.md` §4, LESSON-2026-019). Ces docs partent en PR `docs/point-2026-11-09` depuis `../GED237-docs`.
 - Reprise : fusionner #33 au vert ; relancer le PO sur (a)-(d) ; dispatcher les ordres 1-2 de DEC-002 à dev-backend une fois acceptée.
+
+##  — Orchestrateur : #33 fusionnée, #36 (docs du jour) prête à fusionner
+
+- Dependabot clos pour le 30/11 : #26, #28, #32, #33 fusionnées ; #27, #31 fermées ; #29, #30 reportées. Checkout partagé sur `main` à jour.
+- #36 (`docs/point-2026-11-09`, worktree `../GED237-docs`) : CI verte en no-op (gates skippés = preuve impact-aware), contient PASSATION, point, audit, DEC-2026-002, parcours-demo, plan-presentation, EQUIPE_AGENTS §4, LESSON-2026-019. Fusion sur accord PO.
+- Amendement DEC-2026-002 confirmé par l innovateur : migration rôles minuscules obligatoire (dev-backend, mar 11, LESSON-2026-020) ; verrou OTP si marge le 21 ; budget 9,75/10 j-p.
+- Équipe : dev-backend (PR deps → Lot C9 → recherche bornée + rôles → upload 413), dev-frontend (specs P1 fait, P2/P3/P6/P7 ; D2 regroupé avec garde de routes), ci-qa (PR e2e-smoke puis e2e-seed, passation prévue), innovateur (disponible).
+- Verrous : décisions PO (a) VPS/on-site, (b) B6 avant le 17/11, (c) écarts annoncés, (d) P8 → cycle de validation ; aucune fusion sans PO.
+- Prochaine étape : relancer le PO sur (a)-(d) ; à l accord, fusionner #36, passer DEC-2026-002 en ACCEPTÉ, puis `git pull` dans le checkout partagé après avoir supprimé les copies locales non suivies (sauf le fichier `[Gemini]`).
