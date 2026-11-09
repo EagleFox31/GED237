@@ -47,7 +47,7 @@ export default defineConfig({
     },
     {
       name: 'authed-chromium',
-      testMatch: /(rules-setup|bulk-upload|needs-review)\.spec\.ts/,
+      testMatch: /(rules-setup|needs-review)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
@@ -79,13 +79,6 @@ export default defineConfig({
       name: 'uat',
       testMatch: /specs[\\/]uat[\\/].*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'mocked-chromium',
-      testMatch: /(classification-admin|classification-reviews|ingestion|spaces)\.spec\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
     },
   ],
   webServer: {
