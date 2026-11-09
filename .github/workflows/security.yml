@@ -98,6 +98,11 @@ jobs:
       # including advisories without an upstream fixed version. Keep generating
       # the complete report on every run, but do not let pre-existing debt block
       # unrelated pull requests. Remediation belongs in dedicated upgrade PRs.
+      # Blocking: an ignored advisory whose "Expires:" date has passed fails
+      # the job, so a dated exception cannot silently outlive its reason.
+      - name: "Backend: pip-audit exceptions still valid"
+        run: bash backend/scripts/check-audit-exceptions.sh backend/pip-audit-ignore.txt
+
       - name: "Backend: pip-audit (legacy baseline report)"
         continue-on-error: true
         run: |
