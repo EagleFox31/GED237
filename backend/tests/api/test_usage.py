@@ -95,7 +95,7 @@ async def test_local_arrangement_snapshot_is_private_to_each_user(
 
     def as_user(user_id):
         return client_as(
-            "standard",
+            "collaborator",
             id=user_id,
             tenant_id=db_seed["tenant_id"],
             org_unit_id=db_seed["org_unit_id"],
