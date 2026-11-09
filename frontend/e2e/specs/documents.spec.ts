@@ -123,7 +123,7 @@ test.describe('Feature: Explorateur de documents', () => {
    *   WHEN   l'utilisateur clique sur "Circuit de Validation"
    *   THEN   le contenu workflow s'affiche
    *   WHEN   il clique sur "Historique des Versions"
-   *   THEN   le message "fonctionnalité à venir" s'affiche
+   *   THEN   les versions (ou l'état vide) s'affichent
    */
   test('Given modal info, When switch onglets, Then contenu change', async ({ page }) => {
     const docsPage = new DocumentsPage(page);
@@ -147,8 +147,7 @@ test.describe('Feature: Explorateur de documents', () => {
     // WHEN — switch to history
     await detailModal.switchToHistoryTab();
 
-    // THEN
-    await expect(page.getByText(/fonctionnalité à venir/i)).toBeVisible();
+    // THEN — asserted by switchToHistoryTab (versions or empty state)
   });
 
   /**
