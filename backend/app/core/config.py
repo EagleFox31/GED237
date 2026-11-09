@@ -10,7 +10,9 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "E-Dossier Cameroun"
-    VERSION: str = "1.0.0"
+    # Version shown by FastAPI and /health. Never hard-coded: a release sets it
+    # from the git tag (APP_VERSION env), anything else is a dev build.
+    APP_VERSION: str = "0.0.0-dev"
     ENVIRONMENT: str = "development"
     # DEBUG only drives SQLAlchemy echo (database.py). It never relaxes security
     # controls such as rate limits: those have their own settings below.

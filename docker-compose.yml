@@ -133,6 +133,7 @@ services:
       STORAGE_PATH: /var/storage_data
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
+      APP_VERSION: ${APP_VERSION:-0.0.0-dev}
       DEBUG: "false"
       # Demo room: ~10 logins/OTP in 13 min from one NAT address (parcours-demo.md §0).
       AUTH_LOGIN_RATE_LIMIT: "30/minute"

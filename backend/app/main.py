@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="E-Dossier Cameroun API",
     description="GED Multi-tenant pour l'Administration Publique Camerounaise",
-    version="1.0.0",
+    version=settings.APP_VERSION,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -90,7 +90,7 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "version": "1.0.0",
+        "version": settings.APP_VERSION,
         "service": "E-Dossier Cameroun API",
     }
 
@@ -101,7 +101,7 @@ async def root():
     return {
         "message": "E-Dossier Cameroun API",
         "docs": "/api/docs",
-        "version": "1.0.0",
+        "version": settings.APP_VERSION,
     }
 
 
