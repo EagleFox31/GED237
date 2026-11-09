@@ -1,6 +1,6 @@
 # Sauvegarde / restauration (ordre 5 de DEC-2026-002) — étude Reuse-first et plan d'exécution
 
-- **Pour** : dev-backend (lundi 17/11, 0,75 j script + compose), ci-qa (rejeu sur base vierge, 0,5 j, dans l'enveloppe 1,5 j de DEC-002). Instruit par l'innovateur le 2026-11-09 20:05.
+- **Pour** : dev-backend (mardi 17/11, 0,75 j script + compose), ci-qa (rejeu sur base vierge, 0,5 j, dans l'enveloppe 1,5 j de DEC-002). Instruit par l'innovateur le 2026-11-09 20:05.
 - **Niveaux** : `Vérifié` = dépôt GED237 et dépôts GitHub lus ce jour ; `Documenté` = doc éditeur ; `Proposé` = plan.
 - **Exigence DEC-002** : `pg_dump` + archive du stockage, restauration rejouée sur base vierge, preuve datée avec checksum avant/après. Cible : **sauvegarde complète < 5 min, restauration < 10 min** sur le jeu de démo (≤ 500 documents, base < 1 Go).
 
@@ -59,8 +59,8 @@ Choix : **Adopt offen/docker-volume-backup pour produire l'artefact ; Build un s
 
 | Qui | Quoi | Effort |
 |---|---|---|
-| B (lundi 17) | `docker-compose.backup.yml`, labels, `restore.sh`, `DOCS/exploitation/sauvegarde.md` (5 commandes), variables dans `.env.example` | 0,75 j |
-| Q (mardi 18 ou mercredi 19) | rejeu complet sur base vierge en Docker plafonné, tableau § 3.3, LESSON si écart | 0,5 j |
+| B (mardi 17) | `docker-compose.backup.yml`, labels, `restore.sh`, `DOCS/exploitation/sauvegarde.md` (5 commandes), variables dans `.env.example` | 0,75 j |
+| Q (mercredi 18 ou jeudi 19) | rejeu complet sur base vierge en Docker plafonné, tableau § 3.3, LESSON si écart | 0,5 j |
 | Repli si l'ordre 5 est sacrifié | garder **uniquement** `backup.sh` manuel (`pg_dump -Fc` + `tar` du volume, même format d'artefact) + `restore.sh` : la restauration reste prouvée | 0,25–0,5 j |
 
 Hors périmètre V1, à annoncer : chiffrement GPG activé par défaut, copie hors site (S3/MinIO), test de restauration périodique automatisé, sauvegarde du bucket en mode S3.
@@ -88,15 +88,15 @@ Ce qui change par rapport aux § 3-4 (non réécrits) : O fixe le portage à **�
 
 ### 6.2 Qui porte
 
-**B écrit les deux scripts (0,25 j, lun 17 matin, PR `ops/backup-restore`, avec `DOCS/exploitation/sauvegarde.md` de 5 commandes)** ; **Q rejoue** (dans son enveloppe « recette élargie », 0,25 j au total pour les deux rejeux) ; aucun travail F. Si B glisse, Q écrit les scripts : ils ne touchent pas au code applicatif, seulement au compose et au dossier `scripts/`.
+**B écrit les deux scripts (0,25 j, mar 17 matin, PR `ops/backup-restore`, avec `DOCS/exploitation/sauvegarde.md` de 5 commandes)** ; **Q rejoue** (dans son enveloppe « recette élargie », 0,25 j au total pour les deux rejeux) ; aucun travail F. Si B glisse, Q écrit les scripts : ils ne touchent pas au code applicatif, seulement au compose et au dossier `scripts/`.
 
 ### 6.3 Preuves attendues (deux restaurations, pas une)
 
 | Quand | Quoi | Preuve consignée (`gestion-projet/recette/`) |
 |---|---|---|
-| **mar 18** | rejeu n° 1 sur la pile e2e : `backup.sh` → `docker compose down -v` → `restore.sh --wipe` → parcours P1 et P5 verts ; puis `restore.sh` une seconde fois sur le même répertoire | `restauration-2026-11-18.txt` : durées, `MANIFEST.txt` avant/après, `SHA256SUMS`, sortie du second passage (zéro écart) |
-| **jeu 20 soir** (après C2/C3 et pré-OCRisation) | rejeu n° 2 sur le **jeu de démo** : sauvegarde complète, restauration sur le **poste de secours** (c'est ainsi qu'il est synchronisé), 8 parcours Playwright verts dessus | `restauration-2026-11-20.txt` + run Playwright ; cette archive devient le **point de reprise de référence** jusqu'à J-1 |
-| **J-1 (sam 29)** | sauvegarde complète après le reset final et la pré-OCRisation ; restaurée sur le poste de secours | ligne de `checklist-demo.md` § B cochée, répertoire copié sur la clé USB |
+| **mer 18** | rejeu n° 1 sur la pile e2e : `backup.sh` → `docker compose down -v` → `restore.sh --wipe` → parcours P1 et P5 verts ; puis `restore.sh` une seconde fois sur le même répertoire | `restauration-2026-11-18.txt` : durées, `MANIFEST.txt` avant/après, `SHA256SUMS`, sortie du second passage (zéro écart) |
+| **ven 20 soir** (après C2/C3 et pré-OCRisation) | rejeu n° 2 sur le **jeu de démo** : sauvegarde complète, restauration sur le **poste de secours** (c'est ainsi qu'il est synchronisé), 8 parcours Playwright verts dessus | `restauration-2026-11-20.txt` + run Playwright ; cette archive devient le **point de reprise de référence** jusqu'à J-1 |
+| **J-1 (dim 29)** | sauvegarde complète après le reset final et la pré-OCRisation ; restaurée sur le poste de secours | ligne de `checklist-demo.md` § B cochée, répertoire copié sur la clé USB |
 
 ### 6.4 Critères observables (C7 de `criteres-acceptation.md`)
 

@@ -1,10 +1,10 @@
-# Checklist de démo — J-1 (samedi 29/11) et J0 (dimanche 30/11)
+# Checklist de démo — J-1 (dimanche 29/11) et J0 (lundi 30/11)
 
 - Consolide les décisions du 2026-11-09 : DEC-2026-002 (amendée), DEC-2026-003, `decision-po-vps-b6.md` (**décision PO du 2026-11-09 : démo sur place en Docker, poste de secours, VPS écarté**), § 0 de `parcours-demo.md` (limites auth), `jeu-donnees-demo.md`, `sauvegarde-restauration.md`, `plan-presentation.md`.
 - Rôles : **O** orchestrateur, **B** dev-backend, **F** dev-frontend, **Q** ci-qa, **P** présentateur (PO ou personne désignée). Une case = un item, une personne, un moment. Preuve attendue entre parenthèses quand elle n'est pas évidente.
 - Instruction de l'innovateur, 2026-11-09 20:50 ; à transformer en issue GitHub épinglée par O.
 
-## A. Avant J-1 (à vérifier le vendredi 28/11, O)
+## A. Avant J-1 (à vérifier le samedi 28/11, O)
 
 - [x] **O** — Décisions PO (a) démo sur place et (b) B6 garde minimale consignées en fin de DEC-2026-002 (2026-11-09) ; section F sans objet.
 - [ ] **B** — `DEBUG=false` dans le compose de démo (PR séparée fusionnée) ; `ENVIRONMENT=development` conservé **uniquement** si l'on veut le code OTP dans la réponse de login ; sinon procédure de lecture du code dans Redis (`redis-cli get otp:<…>`) répétée par P.
@@ -19,7 +19,7 @@
 - [ ] **O** — Release `v1.0.0-rc.N` publiée en pré-release GitHub (dernier rc avant le 27 matin, `release-demo.md` § 3), artefact `release-integrity` (SBOM + manifeste signé) joint ; **Q** : images Docker construites depuis ce tag, `docker save` des 7 images sur une clé USB (`ged237-v1.0.0-rc.N-images.tar` + `.sha256`) ; `/health` affiche la version du tag.
 - [ ] **P** — Répétition générale du 27/11 chronométrée (13 min de direct ± 1) ; écarts et réponses jury relus.
 
-## B. J-1 — samedi 29/11
+## B. J-1 — dimanche 29/11
 
 ### Postes
 
@@ -48,7 +48,7 @@
 - [ ] **Q** — **Worker OCR arrêté** (`docker compose stop worker`) après la pré-OCRisation ; l'import en direct P2 n'a donc pas d'OCR : vérifier que les compteurs d'import et le classement ne dépendent pas du worker (sinon laisser le worker actif avec `--concurrency=1` et le noter).
 - [ ] **O** — Pile laissée **éteinte** la nuit (`docker compose stop`, pas `down -v`) ; redémarrage chronométré le matin (< 3 min attendu).
 
-## C. J0 — dimanche 30/11
+## C. J0 — lundi 30/11
 
 ### H-90 min (sur place)
 

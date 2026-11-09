@@ -1,4 +1,4 @@
-# Jeu de données de démonstration — spécification (cible : jeudi 20/11)
+# Jeu de données de démonstration — spécification (cible : vendredi 20/11)
 
 - **Pour** : ci-qa (constitution), dev-backend (règles et import), orchestrateur (arbitrage). Niveau `Vérifié` pour l'état du dépôt (2026-11-09 19:40), `Proposé` pour la répartition.
 - **Contrainte** : 300–500 documents, 3 services, rejouable en < 10 min sur l'environnement de démo, zéro mot de passe dans les fichiers versionnés (comptes = ceux du seed existant).
@@ -77,3 +77,17 @@ Point d'attention : un `contrat_maintenance_climatiseurs_2025.pdf` déposé par 
 - Les branches ci-qa ne sont pas encore poussées : le format du manifeste n'est connu que par la passation frontend. Si le schéma diffère, le jeu de démo s'aligne sur celui de ci-qa, pas l'inverse.
 - Le script v2 écrit sur `E:/` : l'adaptation passe par une variable d'environnement, pas par une copie du script (RAIDER-R).
 - Volume OCR : ~125 PDF image à OCRiser la veille ≈ 30–60 min avec Tesseract sur 2 cœurs ; à lancer avant la répétition du 27/11.
+
+## 7. Chemin de seed de la pile démo (instruction innovateur 2026-11-09 soir, pour dev-backend ; corrige « lancé par le compose » du § 1)
+
+Constat (ci-qa, `Vérifié`) : `docker-compose.yml` n'a que le service `migrate` (`alembic upgrade head`, l.57-69) ; `api`/`worker` attendent `migrate` (`service_completed_successfully`), personne n'appelle `seed_db.py` → pile neuve sans aucun compte. Le script est déjà **idempotent à gros grain** (`seed_db.py:39-47` : `SKIP` si `roles` non vide, aucune suppression), mais il fait `Base.metadata.create_all` (l.35) **avant** la garde : à retirer, Alembic possède le schéma (sinon tables créées hors `alembic_version` sur une base vierge).
+
+| Option | Idempotence (rejeu sans doublon) | Risque d'écraser les données du 27 au 30 | Coût | Lisibilité poste de secours |
+|---|---|---|---|---|
+| **A — service compose one-shot `seed`** (`depends_on: migrate completed`, `api` et `worker` dépendent de `seed`) | oui par la garde `SKIP` ; relancer `up -d` = no-op | **nul** : le seed ne supprime jamais ; après `restore.sh --wipe`, `roles` est restauré → `SKIP` | 0,1 j (bloc compose + retrait de `create_all`) | **meilleure** : `docker compose up -d` suffit, même pile des deux côtés |
+| B — commande documentée (`docker compose run --rm api python -I scripts/seed_db.py`) dans `DOCS/exploitation` | oui (même garde) | nul, mais **oubli possible** = exactement le constat d'aujourd'hui | 0,05 j | dépend d'une personne qui lit la doc à H-90 |
+| C — seed enchaîné dans `migrate` (`alembic upgrade head && python -I scripts/seed_db.py`) | oui | nul | 0,05 j | correcte, mais un échec de seed masque/retient la migration et mélange schéma et données |
+
+**Recommandation : A**, garde `SKIP` conservée, `create_all` retiré, même bloc dans `../GED237-e2e/docker-compose.yml` ; le reset complet reste `e2e_reset.sh demo` (§ 5), jamais le seed. Preuve attendue dans la PR rôles : `down -v` → `up -d` → connexion `MGR001` ; second `up -d` → log `[SKIP]` et même `count(*)` sur `users`. Budget : inclus dans les 0,5 j « migration rôles + seed » du point du 14 § 4.
+
+**État livré (dev-backend, PR #50, 09/11 soir, `Vérifié` en Docker : vierge → upgrade head → seed → seed = `[SKIP]` compteurs identiques → login MGR001 200)** : option A retenue avec deux écarts justifiés. (a) `api`/`worker` dépendent toujours de `migrate`, pas de `seed` : `--scale seed=0` doit laisser démarrer une plateforme vide (déploiement réel) → conséquence pour la démo : à H-30, attendre la fin du conteneur `seed` (`docker compose ps -a seed` : Exited 0) avant la connexion MGR001 de la checklist. (b) `create_all` reste dans `seed_db.py` tant que `e2e_reset.sh` (ci-qa) s'en sert pour le schéma ; retrait à la bascule « upgrade head puis seed » (PR 2a ci-qa, jeu 12 dans le plan semaine). Le bloc `seed` de `../GED237-e2e` et de `docker-compose.e2e.yml` revient à ci-qa. (c) Types d'unité (correctif 6698241 dans #50) : le seed ne crée plus 4 types en minuscules à côté des 7 codes majuscules des migrations ; il réconcilie les codes de la migration (`MINISTRY`, `DIRECTION`, `DEPARTMENT`, `SERVICE`…). Preuve : vierge → `upgrade head` → seed = roles 7, org_unit_types 7, tenants 3, users 8, documents 6, org_units 7 ; second seed `[SKIP]`, ids identiques. Conséquence D1 (18–19/11) : le jeu de données se construit sur ces 7 types, codes majuscules, aucun nouveau type.

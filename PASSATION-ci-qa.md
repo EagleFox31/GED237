@@ -167,3 +167,31 @@ Pièges : hook pre-commit cassé sur l'hôte (venv `E:\GED237` absent). Les cont
 
 - PR 2a garde « seed puis stamp ». La bascule vers « upgrade head puis seed » se fait **juste après la fusion de la PR de migration des rôles** (dev-backend, seed_db convergent) : une ligne à changer dans `e2e_reset.sh`. L'orchestrateur transmet lui-même à dev-backend.
 - Ordre de fusion : #39 → #42 → #47 → #48. Aucun fixme supplémentaire dans #48. dev-frontend supprime full-cycle au rebase, innovateur aligne la §4.
+
+## 2026-11-09 22:59 — #39 à jour avec main, correctifs PR 2a, INGEST_ALLOWED_ROOTS
+
+- **#39** : fusion origin/main poussée (09c2587, conflit lessons-learned résolu 019→020→022), CI 13/13 verte, CLEAN, brouillon. `gh pr edit 39 --body-file scratchpad/pr1-v2.md` et `gh pr ready 39` attendent l'accord de l'utilisateur ou du PO dans cette session, jamais via un pair. Fusion prévue après #47.
+- **ci/e2e-seed (PR 2a, non poussée)** : adf9a6d (fichier unique par upload via e2e/data/files.ts, attente stable de l'onglet circuit) ; 2044f39 (INGEST_ALLOWED_ROOTS=/data/ingest dans le compose e2e, exigé par #53 : PR 2a doit fusionner avant #53).
+- **Worktrees** : GED237-e2e sur tmp/smoke-combined (seed + #45 + #47, fixme SMK-04 à 08 retirés hors commit), branche jetable. GED237-merge39 sur ci/e2e-seed.
+- **Runs** : documents+full-cycle avec fixme → 13 réussis, 6 sautés. Sans fixme → full-cycle 3/3 en échec et SMK-08 instable, tous au page.goto (Vite > 10 s) pendant la suite backend de #53 (npm ci 13 min). Rerun en cours (log scratchpad/e2e-run4.log). Si vert → défaillance d'environnement. Si rouge → mesurer free -m / docker stats et prévenir l'orchestrateur avant toute action.
+- **Règle** : une seule charge Docker lourde à la fois ; dev-backend et moi nous prévenons mutuellement.
+- **Rapport HTML** à garder pour dev-frontend : GED237-e2e/frontend/e2e-out/playwright-report ; mes runs écrivent dans playwright-report-run2 (override scratchpad/e2e-run2.override.yml).
+- **#35** : fusion après le 30/11, pas d'image v1.65 sans signal.
+- **File** : PR 2a mer 11 → e2e P8 jeu 12 → OCR-0 ven 13 matin → après #50 : service seed + bascule e2e_reset.sh « upgrade head puis seed » (une PR, reset chronométré).
+
+## 2026-11-09 23:15 — documents + full-cycle verts, PR 2a complète en local
+
+- **Preuve** : branche combinée seed + #45 + #47, fixme retirés, VM calme, `--repeat-each=3 --retries=0` → 9/9 (full-cycle 11 à 14 s, SMK-08 9 à 12 s). Log : scratchpad/e2e-run6.log.
+- **Causes** : SMK-08 = charge VM (suite #53 concurrente). full-cycle = budget 30 s trop court (`test.slow()`) + `networkidle` sur la page tasks qui n'aboutissait jamais (retiré ; cause non tracée, WebSocket notifications suspect non prouvé).
+- **ci/e2e-seed (local, non poussé, worktree GED237-merge39)** : adf9a6d, 2044f39, 9ba9cc2. Les fixme SMK-04 à 07 restent jusqu'à la fusion de #45/#47.
+- **GED237-e2e** : tmp/smoke-combined avec des modifications non commitées (jetable).
+- **Verrou Docker** : feu vert donné à dev-backend pour la suite #53 ; aucune campagne e2e avant qu'il signale la fin.
+- **En attente** : accord utilisateur/PO pour `gh pr edit 39 --body-file` et `gh pr ready 39`.
+
+## 2026-11-09 23:18 — PR 2a ouverte : #55
+
+- **#55** (brouillon) : base ci/e2e-smoke (empilée sur #39, reciblée sur main à sa fusion), head ci/e2e-seed. Contenu : seed déclaratif + adf9a6d + 2044f39 + 9ba9cc2 + 0e9ca16 (conventions en en-tête de playwright.config.ts, LESSON-2026-025). Corps de PR : scratchpad/pr2a.md.
+- **Contraintes** : #55 doit fusionner avant #53 (INGEST_ALLOWED_ROOTS). Retirer les fixme SMK-04 à 07 dans #55 à la fusion de #45/#47.
+- **Verrou Docker** : suite complète #53 de dev-backend en cours ; pas de campagne e2e avant son signal.
+- **En attente** : accord utilisateur/PO pour `gh pr edit 39 --body-file` et `gh pr ready 39`.
+- **Ensuite** : e2e P8 jeu 12 → OCR-0 ven 13 matin → après #50 : service seed + bascule « upgrade head puis seed ».

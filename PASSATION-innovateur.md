@@ -139,3 +139,56 @@ Checklist J-1/J0 par rôle (O/B/F/Q/P), hypothèse démo sur place, variante VPS
 - File 12 : innovateur/deroule-demo.md : 20 min (2 + 13 + 2 + 3), ordre P1→P2→P3→P6→P4→P5→P8→P7 avec durées, fenêtre A (MINFI002) / fenêtre B (admin→MGR001→READ001→AUDIT001), données seed, transitions, repli manuel/API/capture par parcours, 2 moments d'écarts (fin P3 : 2/4/16 ; fin P8 : 17/9), 8 questions en une phrase + écart, points à confirmer le 27. README : 1 ligne.
 - Corrections O/ci-qa : matrice § 4 → lignes SC-SEC-03a/03b/04a/04b (#48) et SC-E2E-01 couvert par SC-VAL-01 ; jeu-donnees-demo.md ligne seed → « à lancer explicitement, chemin tranché par dev-backend dans la PR rôles » ; checklist H-30 → login MGR001 vérifié après seed.
 - Prochaine étape : attendre la suite de O.
+
+## 2026-11-09 20:20 — D2 variante PO, instruction seed (§ 7 jeu-donnees-demo), relecture LESSON-024
+- point-2026-11-14.md bloc D2 : variante O/PO « (b) conditionnel, seuil ≥ 0,25 j sur une ligne S1 le 14 » ajoutée en une ligne.
+- jeu-donnees-demo.md § 7 : chemin de seed pile démo (compose = migrate seul ; seed_db.py garde SKIP sur roles, create_all l.35 à retirer) ; options A one-shot seed / B commande documentée / C seed dans migrate ; reco A, preuve down -v → up -d → login MGR001, second up -d = [SKIP]. Envoyé à ged-dev-backend et O. README ligne mise à jour.
+- LESSON-024 (brouillon O, fichier non modifié) : remarques envoyées à O (hypothèse SHA appfactory inaccessible, preuve datée, dommage réel, prévention vérifiable = runbook + règle revue .github + script ci-status, reformulation agnostique du titre).
+- O ouvre la PR docs sur l'état actuel du checkout ; mes modifs suivantes → PR suivante. Prochaine étape : attendre O (réponse PO sur D2, choix B sur le seed).
+
+## 2026-11-09 20:23 — runbook CI rouge livré
+- DOCS/engineering/runbook-ci-rouge.md (31 lignes) : étape 0 arbre plateforme/nous (components.json, PR témoin, annotations, SHA appfactory joignable, modification seulement avec annotation citée), étape 1 gates impact-aware (6 gates de appfactory-impact.json, gh run view --log-failed), étape 2 rejeu Docker avant PR, règle de revue .github, mémoire lessons-learned ; lien ajouté dans DOCS/engineering/README.md. Pour la PR docs suivante (avec LESSON-024, après #47).
+- O a intégré mes remarques LESSON-024 (incident GitHub tp8cghg7tlc4) ; reco A seed retenue, dev-backend l'applique dans la PR rôles.
+- Prochaine étape : attendre O.
+
+## 2026-11-09 20:26 — runbook 0.1 corrigé, contexte actualisé, brouillon semaine 10–14
+- runbook-ci-rouge.md 0.1 : composants Actions + API Requests (O : Checks API n'existe pas).
+- contexte-application.md : items 2, 3, 4, 6 et 3 risques actualisés au 09/11 soir (P8 VAL-D1..D3, C9 API livrée, sauvegarde lun 17 + 18/20, #46, seed one-shot, ordre #39→#42→#47→#48→rôles, marge 0,05, VM 12 Go, D2 seuil 0,25).
+- plans/semaine-2026-11-10.md (brouillon, à valider par O) : un tableau par jour 10→14 par session (livrable, dépendance, preuve), Déduit marqué ; signale que le 10/11 est un lundi (libellés mar 10/mer 11/jeu 12 des passations décalés d'un jour, dates font foi).
+- Prochaine étape : retour de O sur le brouillon semaine.
+- Correctif : 10/11 = mardi (les passations avaient raison) ; en revanche 14/11 = samedi, 17/11 = mardi, 30/11 = lundi → libellés lun 17 / sam 29 / dim 30 de DEC-002 et checklist faux ; signalé à O pour trancher dates vs jours ; en-têtes du plan semaine corrigés.
+
+## 2026-11-09 20:31 — seed : état livré PR #50 reporté
+- dev-backend : option A livrée (PR #50) ; écarts justifiés : api/worker dépendent de migrate (scale seed=0 possible), create_all gardé jusqu'à la bascule ci-qa « upgrade head puis seed » ; bloc e2e → ci-qa.
+- jeu-donnees-demo.md § 7 : paragraphe « État livré » ajouté (+ consigne H-30 : attendre Exited 0 du conteneur seed avant login MGR001) ; README mis à jour. Message à O.
+
+## 2026-11-09 22:15 — calendrier tranché par O, plan semaine validé et corrigé
+- O : dates font foi partout ; point S1 ven 13 soir (sam 14 en réserve PO). Script f15.py : libellés de jours recalés sur les dates (regex jour+date, 9→30/11) dans innovateur/*.md, DEC-002 et les blocs innovateur de point-2026-11-14.md : 71 lignes (bien > 10 : le décalage était systémique, toutes les fiches supposaient 10/11 = lundi) ; matrice : ven 14 → ven 13.
+- Lignes 13-59 de point-2026-11-14.md (texte d'O) portent le même décalage : non touchées, signalé à O.
+- semaine-2026-11-10.md : 6 corrections d'O appliquées (#42/#44/#46 retirées, O mar #45→#47→#39, jeu #48→#50, B mer = #50 relue, Q bascule préparée mer, I mar PR #49, F mer SMK-10+a11y, samedi fondu dans vendredi soir + ligne réserve sam 14, mar 17) ; 48 lignes.
+- Consigne O : rien de nouveau sans demande → attente.
+
+## 2026-11-09 22:19 — contrôle liens/tableaux (lecture seule) pour O
+- Script scratchpad lint_md.py (python -I -X utf8) sur 36 fichiers (innovateur/, plans/, DOCS/engineering/) : 0 lien relatif cassé ; 1 tableau irrégulier : goulot-vm-docker.md:37 (ligne E, 5 cellules au lieu de 6, « 0 j, accord PO » fusionne prérequis et coût). Non corrigé (consigne lecture seule), signalé à O.
+- Attente : PR docs suivante après #47.
+- 22:21 : goulot-vm-docker.md:37 scindée (prérequis | coût), lint rejoué = aucun ; note « contrôle liens/tableaux markdown : candidat check CI docs V1.1 » ajoutée dans DOCS/engineering/README.md (Pattern catalog) ; lint_md.py gardé en scratchpad. Attente : compte rendu point S1 ven 13 ou imprévu.
+
+## 2026-11-09 22:27 — spec-a11y-contrast.md pour dev-frontend
+- Détail axe absent des .md du rapport (compte seul) mais présent dans les traces (trace.zip → attachments axe-login.json / axe-dashboard.json), extraites en scratchpad (traces/, axe.py). 5 nœuds color-contrast : login slate-400 « Espace Démo Interactif » 2,56 ; dashboard admin Logo slate-400 2,53, OrgDashboard green/blue/red-500 2,17 / 3,37 / 3,44 (requis 4,5). Un run comptait 5 sur dashboard : 5e non tracée, candidat Header.tsx:191 (Déduit).
+- Fiche : tableau par nœud (page, sélecteur, couleurs, ratio, composant grep, token cible, ratio recalculé WCAG), jeu unique slate-400→500, *-500→*-700 (-600 insuffisant vert/rouge), preuve attendue. README à jour, lint = aucun. Message à O. Attente.
+
+## 2026-11-09 22:35 — spec-ingest-racines-autorisees.md pour dev-backend
+- Fiche complète (développe spec-limite-upload § 5) : risque CWE-22, état actuel Vérifié (documents.py:1440-1459, ingestion.py:113/151-169, config.py:45-46 sans racine, aucun montage /data/ingest dans les deux compose), contrat INGEST_ALLOWED_ROOTS (défaut vide = tout refusé, os.pathsep, realpath+commonpath, relatif vers la première racine, symlinks fichiers ignorés + errors, 403 INGEST_PATH_FORBIDDEN justifié vs 400), impact démo (montage :ro, reset demo dépend de la PR B), 9 tests, SC-ADM-08 + SC-SEC-05 à ajouter à la matrice à la fusion, 0,25 j.
+- README à jour, lint = aucun. Message à O. État : toutes les demandes d'O traitées, aucun verrou ; prochaine étape : attendre (point S1 ven 13 ou imprévu), puis ajouter SC-SEC-05 dans matrice-recette.md quand la PR B est fusionnée.
+
+## 2026-11-09 22:36 — en cours : spec-validation-cycle-ui.md (P8, dev-frontend)
+- Demande O : fiche 6 sections (parcours écran par écran, écarts Vérifié fichier:ligne, sélecteurs des specs, états, acceptation/budget +0,7 j, ordre pour e2e jeu 12). Sources : PASSATION-dev-backend 20:16, gh pr diff 51 et 48, frontend/e2e/validation-cycle.spec.ts, écrans frontend. Verrous : aucun. Si reprise : vérifier si la fiche existe déjà avant de la réécrire.
+
+## 2026-11-09 22:43 — livré : spec-validation-cycle-ui.md (P8, dev-frontend)
+- Fiche 6 sections (parcours, écarts Vérifié fichier:ligne, sélecteurs spec, états, acceptation/budget 0,45 j F, ordre mar 10 → jeu 12). Point clé : la spec SC-VAL-01 écran cherche l option `MGR001` alors que `/validators` ne renvoie que `full_name` → spec à faire évoluer (sélection par `value`), contrat gelé respecté. `ValidationHub.tsx:36` lit des champs inexistants → `item.document?.current_version_id`. Ligne README ajoutée, lint relancé. Message O envoyé. Verrous : aucun. À suivre : attente O (point S1 ven 13) ; SC-SEC-05 dans la matrice à la fusion de la PR ingest.
+
+## 2026-11-09 22:54 — livré : lignes matrice SC-SEC-05 / SC-A11Y-01-02 + dependabot-35.md
+- matrice-recette.md : SC-A11Y-01/02 (l.27, PR F fix/recette-smoke-2, mer 11) et SC-SEC-05 (l.38, PR B fix/ingest-allowed-roots, jeu 12) marquées « À livrer ». dependabot-35.md : aucun GHSA ; zustand mineure sans impact (create seul) ; @playwright/test 1.65 casse l image `mcr.microsoft.com/playwright:v1.64.1-noble` épinglée dans ../GED237-e2e/docker-compose.e2e.yml:100 → reco reporter après le 30/11, PR laissée ouverte. README mis à jour, lint vert, message O. Verrous : aucun. Prochaine étape : attente réelle jusqu au point S1 ven 13.
+
+## 2026-11-09 23:19 — jeu-donnees-demo.md § 7 : écart (c) types d unité (#50, 6698241)
+- Une phrase ajoutée au paragraphe « État livré » : seed réconcilie les 7 codes majuscules des migrations, compteurs de preuve, conséquence D1 = aucun nouveau type. Lint vert. Verrous : aucun. Prochaine étape : attente réelle jusqu au point S1 ven 13.
