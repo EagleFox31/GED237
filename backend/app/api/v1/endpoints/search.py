@@ -7,6 +7,11 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.core.search.factory import get_search_engine
+from app.api.v1.endpoints.documents import (
+    ORG_UNIT_READ_ROLES,
+    TENANT_WIDE_READ_ROLES,
+    _role_code,
+)
 from app.core.search.interfaces import SearchQuery, SortOrder
 from app.schemas.search import SearchResponse, SearchHitResponse, SortOrderEnum
 
@@ -31,9 +36,23 @@ async def perform_search(
 ) -> SearchResponse:
     """
     Full-text search across documents (OCR content + title).
+    Results are bounded to the caller's tenant and read scope; trashed
+    documents are excluded.
     Uses PostgreSQL TSVECTOR with GIN index.
     """
     search_engine = get_search_engine(db, engine_type="postgres")
+
+    # Same read scope as GET /documents: tenant-wide roles see the tenant,
+    # org-unit roles see their own unit, everyone else only their documents.
+    role_code = _role_code(current_user)
+    scope_org_unit_id = None
+    scope_owner_id = None
+    if role_code in TENANT_WIDE_READ_ROLES:
+        pass
+    elif role_code in ORG_UNIT_READ_ROLES and current_user.org_unit_id:
+        scope_org_unit_id = current_user.org_unit_id
+    else:
+        scope_owner_id = current_user.id
 
     # Map API sort enum to internal enum
     sort_mapping = {
@@ -49,6 +68,8 @@ async def perform_search(
         category=category,
         status=status,
         org_unit_id=org_unit_id,
+        scope_org_unit_id=scope_org_unit_id,
+        scope_owner_id=scope_owner_id,
         file_type=file_type,
         tags=tags or [],
         offset=offset,
