@@ -29,6 +29,11 @@ class SearchQuery:
     org_unit_id: Optional[UUID] = None
     file_type: Optional[str] = None
     tags: list[str] = field(default_factory=list)
+    # Visibility scope decided by the caller from the user's role. ``None``
+    # means "no restriction on that axis"; the tenant filter always applies.
+    scope_org_unit_id: Optional[UUID] = None
+    scope_owner_id: Optional[UUID] = None
+    include_deleted: bool = False
     # Pagination
     offset: int = 0
     limit: int = 20

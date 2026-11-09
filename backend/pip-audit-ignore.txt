@@ -1,0 +1,14 @@
+# Advisories deliberately ignored by pip-audit, each with an expiry date.
+# Review before the expiry; past it the exception is void and the advisory
+# must be fixed or re-justified in writing.
+#
+# starlette 0.48.0 — fixed only in starlette >= 0.49.1 / 1.x, which the pinned
+# fastapi 0.117.1 and pydantic 2.6.1 do not admit. Upgrade planned in V1.1.
+# Context: gestion-projet/innovateur/contexte-application.md ("Avis pip-audit
+# restants"). Expires: 2026-12-15.
+PYSEC-2026-1942
+PYSEC-2026-161
+PYSEC-2026-2281
+PYSEC-2026-2280
+PYSEC-2026-249
+PYSEC-2026-248
