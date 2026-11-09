@@ -24,6 +24,12 @@ Maison (déjà adopté) : `EagleFox31/appfactory-project-automation` (CI impact-
 releases), `EagleFox31/project-registry` (RAIDER, leçons). Skills locales : `mission`, `passation`,
 `raider-governance`, `product-ownership`, `quality-engineering`, `multi-agent-handoff`, etc.
 
+## Briques produit (hors agents) — veille du 2026-11-09
+
+| Dépôt | ★ | Push | Nature | Décision | Pourquoi |
+|---|---|---|---|---|---|
+| baidu/Unlimited-OCR | > 10 k (5 j après sortie, presse) | v2 : 2026-11-02 | Modèle VLM de parsing de documents longs (≈ 3 Md params, 500 M actifs ; 40+ pages en une passe, sortie Markdown, tableaux) ; MIT ; Transformers / SGLang / vLLM | **Learn** | Hors démo du 30/11 : testé sur GPU A800 80 Go, aucune indication CPU ; le VPS n'a ni GPU ni marge RAM. Piste V1.1 on-site pour le critère « contenu OCR » des règles et une meilleure indexation plein texte. Français non documenté : à tester sur du scan administratif avant toute promesse. Sources : https://github.com/baidu/Unlimited-OCR , https://www.labellerr.com/blog/baidu-unlimited-ocr/ |
+
 ## Conclusion (DEC à ouvrir si contestée)
 
 Aucun framework d'orchestration externe n'est adopté : le flux repose sur les sessions Claude Code,
