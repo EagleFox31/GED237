@@ -54,6 +54,13 @@ export default defineConfig({
       name: 'smoke',
       testMatch: /(auth|security-isolation|documents|full-cycle|a11y)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
+      // The seed check runs first: missing reference data fails there, listing what is absent.
+      dependencies: ['seed'],
+    },
+    {
+      // API-only check of e2e/data/seed-manifest.json against the running stack (e2e_reset.sh).
+      name: 'seed',
+      testMatch: /seed\.spec\.ts/,
     },
     {
       name: 'mocked-chromium',

@@ -143,8 +143,8 @@ export class UploadDocumentModalPage {
     await this.titleInput.fill(title);
   }
 
-  async selectCategory(value: string) {
-    await this.categorySelect.selectOption(value);
+  async selectCategory(option: string | { label: string }) {
+    await this.categorySelect.selectOption(option);
   }
 
   async fillTags(tags: string) {

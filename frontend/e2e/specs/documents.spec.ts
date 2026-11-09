@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { test, expect } from '../fixtures/auth.fixture';
 import { DocumentsPage, DraftWorkspacePage, UploadDocumentModalPage } from '../pages/documents.page';
 import { DocumentDetailModal } from '../pages/document-detail.page';
+import { seedCategory } from '../data/seed';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -459,7 +460,7 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     // WHEN
     await modal.setFile(TEST_FILE);
     await modal.fillTitle(docTitle);
-    await modal.selectCategory('finance');
+    await modal.selectCategory({ label: seedCategory('E2E-CAT-GEN').name });
     await modal.fillTags('test, e2e, playwright');
     await modal.fillDescription('Document de test créé par Playwright.');
     await modal.submit();
