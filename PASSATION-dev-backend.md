@@ -131,3 +131,65 @@
 **Fait** — suite 248 passed / 85,30 % ; commit `9a34f99` rebasé sur a4b8dbe (#41) ; PR #42 ouverte (non fusionnée) ; numéro envoyé à orchestrateur-ged ; « suite terminée » à ged-ci-qa. Worktree `../GED237-search` à supprimer après fusion.
 **Reste à faire** — 1. PR DEBUG (spéc dans les entrées précédentes) : nouveau worktree `../GED237-debug` depuis origin/main. 2. Mardi migration rôles + LESSON-021. 3. Mercredi upload 413 + D3. 4. Lundi 17 sauvegarde.
 **Pièges** — actionlint (pre-commit) refuse `$VAR` non quoté dans les workflows : utiliser un tableau bash (`mapfile` + `"${A[@]}"`).
+
+## 2026-11-09 19:28 — PR DEBUG / limites auth en cours (worktree ../GED237-debug)
+
+**Objectif en cours** — Livrer la PR `fix/debug-off-rate-limits` : DEBUG ne pilote plus la sécurité, limites auth configurables, clé IP fiable.
+**Fait** —
+- `core/config.py` : DEBUG=False par défaut ; AUTH_LOGIN/OTP_RATE_LIMIT (5/minute), AUTH_REFRESH_RATE_LIMIT (10/minute), TRUSTED_PROXY=False.
+- `core/rate_limit.py` : `client_ip()` (X-Forwarded-For seulement si TRUSTED_PROXY), limiteur partagé ; `auth.py` utilise ce limiteur avec `@limiter.limit(lambda: settings.AUTH_*)`, branche 1000/min supprimée.
+- `docker-compose.yml` : DEBUG false, 30/minute login/OTP, TRUSTED_PROXY true (nginx seul port publié) ; `.env.example` documenté ; conftest fixe 1000/minute explicitement.
+- Tests `tests/api/test_auth_rate_limit.py` (8) ; ciblés en Docker : 76 passed. Walkthrough « [Claude] DEBUG off et rate-limit auth configurable - 2026-11-09.md » ; GUIDE §7.5.
+- #42 : contrôle d'expiration pip-audit livré (37b5914) ; CI rouge = panne GitHub Actions (orchestrateur relance), ne rien ajouter pour les alias GHSA sans son signal.
+**Reste à faire** —
+1. Lire le résultat de la suite complète (log `%TEMP%/claude/full_debug_suite.log`), reporter dans le walkthrough, commit (AKAA Jennifer, pre-commit), push, PR, numéro à l'orchestrateur.
+2. Mardi 11 : migration codes rôles minuscules + LESSON-2026-021. Mercredi 12 : upload 413 — lire d'abord `gestion-projet/innovateur/spec-limite-upload.md` (checkout partagé, non commitée) : plafond dans `save_file_with_checksum`, pré-contrôle Content-Length, 413 FILE_TOO_LARGE, .part + os.replace, test 1 Kio ; middleware ASGI → V1.1 ; nginx body → ci-qa.
+**Pièges / contexte** — ne pas dupliquer le mécanisme 30/min de la pile e2e de ci-qa (déjà en place) ; slowapi 0.1.9 accepte un callable sans argument comme limite.
+
+## 2026-11-09 19:36 — Spec PR fix/authz-collaborator (SMK-04/05/10) ; PR DEBUG en attente de suite
+
+**Objectif en cours** — Finir la PR DEBUG (suite Docker complète en cours, log `%TEMP%/claude/full_debug_suite.log`), puis PR `fix/authz-collaborator` (worktree dédié, depuis origin/main).
+**Fait** — Diagnostics envoyés à orchestrateur et ci-qa ; arbitrages reçus.
+**Spec fix/authz-collaborator (≈0,25 j, référencer SMK-04, SMK-05, SMK-10 de ci-qa)** —
+1. SMK-04 : `policy.csv` rôle `standard` → `collaborator` (seed = collaborator, migration 001 = COLLABORATOR à passer en minuscules mardi, dans cet ordre) ; 12 occurrences « standard » dans `tests/api/test_authz.py` ; test upload collaborateur → 201 ; pas d'alias `g`. PR : commande de redémarrage du conteneur backend (policy chargée au démarrage, pas de script de rechargement).
+2. SMK-05 : `GET /tenants/{id}` 403 pour reader/manager/unit_admin/auditor (Sidebar.tsx:20 l'appelle pour tous). L'action `tenants read` couvre aussi la liste (`tenants.py:82`) → option code : propre tenant autorisé pour tout utilisateur authentifié, Casbin conservé pour tenant étranger ; dérogation justifiée dans la PR ; tests reader 200 son tenant / 403 autre / liste 403.
+3. SMK-10 : `categories read` à collaborator, reader, manager, unit_admin (auditor l'a déjà) ; écritures inchangées ; tests reader 200 GET /categories/, 403 POST.
+- `GET /users/` 403 : pages collaborateur/tenant-admin, backend conforme, point dev-frontend.
+**Reste à faire** — 1. Résultat suite → walkthrough, commit, push, PR DEBUG, numéro à l'orchestrateur. 2. fix/authz-collaborator ci-dessus. 3. Mardi migration rôles minuscules + LESSON-021 ; mercredi upload 413 (lire spec-limite-upload.md).
+
+## 2026-11-09 19:51 — PR #44 corrigée, PR #47 authz ouverte, VM Docker gelée
+
+**Objectif en cours** — Attendre « VM prête » (ci-qa, passage VM 4→12 Go), relancer gedtest-pg/gedtest-redis, rejouer la suite complète sur `../GED237-authz` (#47) et reporter la preuve dans la PR ; #44 a déjà sa suite complète (251 passed) mais a reçu un commit depuis (06a79cd) : rejouer aussi si l'orchestrateur le demande.
+**Fait** —
+- #44 (fix/debug-off-rate-limits) : revue orchestrateur → `client_ip()` prend le DERNIER élément de X-Forwarded-For (nginx ajoute, n'écrase pas) ; 2 tests ajoutés (10 au total) ; 06a79cd poussé.
+- #47 (fix/authz-collaborator, e693808, worktree `../GED237-authz`) : policy.csv `standard`→`collaborator` + `categories read` rôles de lecture ; `tenants.py` lecture de son propre tenant sans Casbin (dérogation justifiée) ; tests renommés (conftest sème `collaborator`) ; `test_authz_smoke_fixes.py` ; LESSON-2026-023 ; walkthrough EN REVUE. Modules touchés : 126 passed.
+**Décisions** — Règle de file VM (orchestrateur) : e2e ci-qa exclusif ; pytest jamais pendant un e2e ; `--cov` seulement en CI. Perf pytest planifiée marge S2 : `--durations=20`, puis create_all par session + TRUNCATE, puis xdist 2 workers.
+**Reste à faire** — 1. Suite complète #47 après « VM prête », reporter dans PR + walkthrough. 2. Ordre à confirmer par l'orchestrateur : P1 ingest-directory (`INGEST_ALLOWED_ROOTS`, realpath, 403, tests ../ + symlink ; ci-qa mettra /srv/e2e-import) vs migration rôles mardi (LESSON-021, minuscules, après #47) vs upload 413 mercredi (lire `gestion-projet/innovateur/spec-limite-upload.md`). 3. Après fusions : supprimer worktrees `../GED237-search`, `../GED237-debug`, `../GED237-authz`.
+**Pièges** — gedtest-pg/gedtest-redis à relancer après le shutdown WSL (le script test-in-docker.sh les recrée s'ils manquent ? vérifier `docker ps -a`).
+
+## 2026-11-09 20:09 — Trois chantiers en parallèle, base de test occupée
+
+**Objectif en cours** — Faire valider #47 (suite complète en cours), puis livrer PR rôles et PR workflow.
+**Fait**
+- `../GED237-authz` (#47, e693808) : suite complète Docker lancée en arrière-plan (log `$TEMP/claude/full_authz_suite.log`) ; constante `POLICY` inutilisée retirée de `tests/api/test_authz_smoke_fixes.py` (non commité, à commiter avec le résultat de la suite).
+- `../GED237-roles` (branche `fix/role-codes-lowercase`, non poussée) : migration `f0a1b2c3d4e5_lowercase_role_codes.py` (repointage users/workflow_template_steps, suppression doublons, renommage, CHECK `code = lower(code)`), 001 en minuscules, `app/core/authz/roles.py` (`ROLE_CODES`), `seed_db.py` assert, `init_db.py` codes minuscules, LESSON-2026-021, walkthrough « Codes de rôle en minuscules - 2026-11-11 ». Script de scénario : `scratchpad/mig_check.sh` (base vierge, no-op, doublons + utilisateur, CHECK).
+- `../GED237-workflow` (branche `fix/workflow-pending-validators`, non poussée) : `DocumentSummary.current_version_id` (schemas/workflow.py) renseigné dans `GET /workflows/pending` ; `GET /workflows/validators` (manager + tenant_admin actifs du tenant, id + full_name, authz `documents create`) ; `tests/api/test_workflow_validators.py` (4 tests). Pre-commit passé, pas encore exécuté en Docker.
+**Décisions** — Orchestrateur : ordre de fusion #43 (faite) → #44, #42, #46 → #47 (après suite + CI, puis `gh pr update-branch 47` et conflit lessons-learned) ; PR rôles avant PR workflow ; mercredi upload 413 puis ingest-directory (`INGEST_ALLOWED_ROOTS=/data/ingest`, branche `fix/ingest-allowed-roots`, spec §5). Numéros de leçons : 020 #39, 021 rôles, 022 #42, 023 authz, 024 orchestrateur. Le test `SEEDED_ROLE_CODES` sera branché sur `ROLE_CODES` après fusion des deux branches. ci-qa fera `alembic upgrade head` avant le seed (CHECK posé partout).
+**Reste à faire**
+1. Fin de la suite #47 : résultat dans walkthrough « Preuves » + commit (AKAA Jennifer) + push + commentaire PR 47 + message orchestrateur.
+2. `bash scratchpad/mig_check.sh` dans GED237-roles, consigner dans le walkthrough, tests `tests/api/test_authz*.py`, commit, push, PR, numéro à l'orchestrateur.
+3. Tests Docker `tests/api/test_workflow_validators.py tests/api/test_workflows.py` dans GED237-workflow, walkthrough, commit, PR.
+4. Après fusions : supprimer worktrees `../GED237-search`, `-debug`, `-authz` et branches locales.
+**Pièges / contexte** — Une seule base `test_ged` partagée par `test-in-docker.sh` : pas deux pytest en même temps. `client_as("collaborator")` n'existe que sur #47 ; sur main le rôle par défaut s'appelle encore `standard`, d'où `auth_client` dans les tests workflow. `export MSYS_NO_PATHCONV=1` avant tout docker ; `export GODEBUG=;` avant `gh`.
+
+## 2026-11-09 20:12 — File planifiée après le 413 et ingest (orchestrateur)
+
+**Lundi 17/11 matin, PR `ops/backup-restore` (≈0,25 j)** selon `gestion-projet/innovateur/sauvegarde-restauration.md` § 6 :
+- `backend/scripts/backup.sh` : `pg_dump -Fc` dans le conteneur postgres + tar du volume `storage_data` via conteneur alpine temporaire ; worker et api arrêtés 1 à 2 min ; Redis ignoré volontairement.
+- `backend/scripts/restore.sh` : vérifie `SHA256SUMS`, exige `--wipe`, `pg_restore --clean --if-exists --no-owner`, compare au `MANIFEST.txt`, code retour ≠ 0 si écart, second passage = zéro écart.
+- Destination hôte `backups/ged237-AAAAMMJJ-HHMMSS/` (gitignore) : `edossier.dump`, `storage.tar.gz`, `MANIFEST.txt` (alembic_version, nombre de documents, nombre de fichiers), `SHA256SUMS`. Doc `DOCS/exploitation/sauvegarde.md`.
+- ci-qa rejoue la restauration le 18 (pile e2e) et le 20 (poste de secours). Glissement : prévenir l'orchestrateur le 14 au plus tard, sinon ci-qa écrit les scripts.
+
+## 2026-11-09 20:16 — Contrat P8 transmis au frontend
+
+Contrat de `GET /workflows/validators` (ValidatorRead : `id`, `full_name`) et de `current_version_id` (nullable, dans `task.document` de `GET /workflows/pending`) envoyé à ged-dev-frontend, qui code `fix/validation-cycle-ui` dessus : ne plus changer ces noms sans le prévenir. Suite #47 toujours en cours.
