@@ -352,3 +352,19 @@ première requête utilisateur.
 **Prévention** — Pour chaque moteur de recherche ou liste filtrée : au moins un test avec des données qui **doivent** remonter et une assertion sur leur contenu, pas seulement sur le code HTTP ou la forme de la réponse. À reprendre dans la revue : « quel test échouerait si la sérialisation d'un résultat était cassée ? »
 **Leçon généralisée** — Un test vert sur un ensemble vide ne prouve rien sur le traitement des éléments ; le cas nominal doit produire des données.
 ---
+
+### LESSON-2026-025 — Attente `networkidle` sans fin et budget des parcours multi-connexions
+
+- **Date :** 2026-11-09
+- **Catégorie :** tests / e2e
+- **Statut :** prevention-added
+- **Liens :** `frontend/e2e/specs/full-cycle.spec.ts`, en-tête de `frontend/playwright.config.ts`, LESSON-2026-020
+
+**Contexte** — Levée des fixme du smoke e2e (SMK-04 à 08, SC-E2E-01) sur la pile `docker-compose.e2e.yml`, une fois les correctifs #45 et #47 disponibles.
+**Échec / near miss** — `full-cycle` échouait 2 fois sur 3 sans retry, alors que les correctifs métier étaient en place. Deux causes cumulées : le budget par défaut de 30 s ne couvre pas trois connexions, un upload et une soumission ; `waitForLoadState('networkidle')` sur la page des tâches n'aboutissait jamais, même avec un budget de 90 s. Sur une VM saturée par une suite backend concurrente, l'échec a d'abord été pris pour un problème d'environnement.
+**Cause racine** — `networkidle` exige 500 ms sans aucune requête : la page n'atteint jamais cet état dans la pile e2e. Cause exacte **non prouvée** : le WebSocket de notifications (`hooks/useNotifications.ts`) est le suspect principal ; le health check de la barre latérale (toutes les 30 s) ne suffit pas à l'expliquer. Le budget de test, lui, est mesuré : le parcours prenait 40 s.
+**Résolution** — `networkidle` retiré (l'assertion de visibilité suivante attend la page) et `test.slow()` sur le parcours : 9/9 en `--repeat-each=3 --retries=0`, `full-cycle` en 11 à 14 s.
+**Prévention** — Règle en en-tête de `playwright.config.ts` : aucun nouveau `networkidle` (les 20 existants dans 11 specs sont remplacés quand on les touche ; `security-isolation` en garde un qui aboutit), `test.slow()` pour tout parcours multi-connexions, contenu unique par upload. Les fixme sont levés sur preuve `--retries=0` répétée, pas sur un vert obtenu au retry.
+**Leçon généralisée** — Un vert obtenu au retry cache un défaut ; prouver la stabilité sans retry et sur une machine calme avant d'attribuer un échec à l'environnement. Attendre un état observable par l'utilisateur, jamais un état global du réseau.
+
+---

@@ -1,3 +1,9 @@
+// Spec conventions for the stack-backed projects (seed, smoke):
+// - No new 'networkidle' wait: on some pages it never resolves (LESSON-2026-025); replace existing ones when touched.
+//   Assert on what the user sees (toBeVisible, toHaveURL) or wait for the specific API response.
+// - A journey that logs in several users calls test.slow(): the default 30 s budget is per test.
+// - Each upload sends unique content (e2e/data/files.ts): the API refuses a file already stored.
+
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
