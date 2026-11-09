@@ -22,7 +22,10 @@ export type UploadedDocument = {
   classification_domain_id: string | null;
   classification_activity_id: string | null;
   org_unit_id: string | null;
+  status?: string;
+  current_version_id?: string | null;
 };
+export type WorkflowStep = { id: string; document_id: string; status: string; assigned_to: string | null };
 export type ReviewItem = { id: string; document_id: string; status?: string };
 export type AuditEntry = {
   id: string;
@@ -173,6 +176,29 @@ export class UatApi {
     return ok(
       await this.request.get(`${API_URL}/documents/${documentId}/audit-logs`, { headers: this.headers }),
       `document audit logs ${documentId}`,
+    );
+  }
+
+  /** Profile of the authenticated user (used to address a workflow step to a seeded manager). */
+  async me(): Promise<{ id: string; matricule: string }> {
+    return ok(await this.request.get(`${API_URL}/users/me`, { headers: this.headers }), 'users/me');
+  }
+
+  /** Starts a one-step visa circuit on a draft document, as its owner. */
+  async submitForVisa(documentId: string, assigneeId: string, label: string): Promise<WorkflowStep[]> {
+    return ok(
+      await this.request.post(`${API_URL}/workflows/document/${documentId}/steps`, {
+        headers: this.headers,
+        data: [{ document_id: documentId, step_order: 1, label, expected_action_type: 'visa', assigned_to: assigneeId }],
+      }),
+      `submit ${documentId} for visa`,
+    );
+  }
+
+  async workflowSteps(documentId: string): Promise<WorkflowStep[]> {
+    return ok(
+      await this.request.get(`${API_URL}/workflows/document/${documentId}/steps`, { headers: this.headers }),
+      `workflow steps ${documentId}`,
     );
   }
 
