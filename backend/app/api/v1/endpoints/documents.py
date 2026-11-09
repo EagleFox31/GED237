@@ -12,6 +12,7 @@ from fastapi import (
     HTTPException,
     Query,
     Request,
+    Response,
     UploadFile,
     status,
 )
@@ -33,10 +34,12 @@ from app.models.document_version import DocumentVersion
 from app.models.org_unit import OrgUnit
 from app.models.user import User
 from app.schemas.document import (
+    ClassificationStatus,
     DirectoryIngestRequest,
     DirectoryIngestResponse,
     DocumentOCRContent,
     DocumentRead,
+    DocumentStatus,
     DocumentUpdate,
     NeedsReviewDocument,
     ResolveReviewPayload,
@@ -67,6 +70,98 @@ def _document_load_options():
         selectinload(Document.classification_activity),
         selectinload(Document.owner),
     )
+
+
+TOTAL_COUNT_HEADER = "X-Total-Count"
+WORKSPACE_PAGE_MAX = 200
+_LIKE_ESCAPE = "\\"
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE/ILIKE metacharacters so user input is matched literally."""
+    return (
+        value.replace(_LIKE_ESCAPE, _LIKE_ESCAPE * 2)
+        .replace("%", _LIKE_ESCAPE + "%")
+        .replace("_", _LIKE_ESCAPE + "_")
+    )
+
+
+class WorkspaceDocumentFilters:
+    """Server-side filters for workspace/space document listings.
+
+    Declared as a dependency so every list endpoint shares one contract and
+    FastAPI validates values (422) before any query runs. ``limit`` is optional
+    on purpose: without it the historical, unpaginated behaviour is preserved.
+    """
+
+    def __init__(
+        self,
+        domain_id: Optional[UUID] = Query(default=None),
+        activity_id: Optional[UUID] = Query(default=None),
+        year: Optional[int] = Query(default=None, ge=1900, le=2100),
+        document_status: Optional[DocumentStatus] = Query(default=None, alias="status"),
+        classification_status: Optional[ClassificationStatus] = Query(default=None),
+        q: Optional[str] = Query(default=None, max_length=120),
+        limit: Optional[int] = Query(default=None, ge=1, le=WORKSPACE_PAGE_MAX),
+        offset: int = Query(default=0, ge=0),
+    ):
+        self.domain_id = domain_id
+        self.activity_id = activity_id
+        self.year = year
+        self.status = document_status
+        self.classification_status = classification_status
+        self.q = q.strip() if q and q.strip() else None
+        self.limit = limit
+        self.offset = offset
+
+    def apply(self, query):
+        if self.domain_id is not None:
+            query = query.where(Document.classification_domain_id == self.domain_id)
+        if self.activity_id is not None:
+            query = query.where(Document.classification_activity_id == self.activity_id)
+        if self.year is not None:
+            query = query.where(Document.classification_year == self.year)
+        if self.status is not None:
+            query = query.where(Document.status == self.status)
+        if self.classification_status is not None:
+            query = query.where(
+                Document.classification_status == self.classification_status
+            )
+        if self.q:
+            pattern = f"%{_escape_like(self.q)}%"
+
+            def _match(column):
+                return column.ilike(pattern, escape=_LIKE_ESCAPE)
+
+            query = (
+                query.outerjoin(
+                    ClassificationDomain,
+                    Document.classification_domain_id == ClassificationDomain.id,
+                )
+                .outerjoin(
+                    ClassificationActivity,
+                    Document.classification_activity_id == ClassificationActivity.id,
+                )
+                .outerjoin(
+                    DocumentCategory,
+                    Document.document_category_id == DocumentCategory.id,
+                )
+                .where(
+                    or_(
+                        _match(Document.title),
+                        _match(func.array_to_string(Document.tags, " ")),
+                        _match(ClassificationDomain.name),
+                        _match(ClassificationActivity.name),
+                        _match(DocumentCategory.name),
+                    )
+                )
+            )
+        return query
+
+    def paginate(self, query):
+        if self.limit is None:
+            return query
+        return query.offset(self.offset).limit(self.limit)
 
 
 def _role_code(user: User) -> str:
@@ -800,14 +895,19 @@ async def resolve_manual_review(
 
 @router.get("/workspace", response_model=List[DocumentRead])
 async def list_workspace_documents(
+    response: Response,
     org_unit_id: Optional[UUID] = None,
     recursive: bool = False,
+    filters: WorkspaceDocumentFilters = Depends(),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     List documents for a specific workspace (org unit).
     If recursive=True, includes documents from sub-units.
+
+    Optional server-side filters (``WorkspaceDocumentFilters``) narrow the
+    result; ``X-Total-Count`` carries the filtered total before pagination.
     """
     target_unit_id = org_unit_id or current_user.org_unit_id
     if not target_unit_id:
@@ -853,11 +953,17 @@ async def list_workspace_documents(
         else:
             query = query.where(Document.owner_id == current_user.id)
 
-    result = await db.execute(
-        query.options(
-            *_document_load_options(),
-        )
+    query = filters.apply(query)
+
+    total = await db.scalar(
+        select(func.count()).select_from(query.order_by(None).subquery())
     )
+    response.headers[TOTAL_COUNT_HEADER] = str(total or 0)
+
+    query = query.order_by(Document.created_at.desc(), Document.id).options(
+        *_document_load_options()
+    )
+    result = await db.execute(filters.paginate(query))
     return result.scalars().all()
 
 

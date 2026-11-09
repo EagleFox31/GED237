@@ -77,6 +77,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Filtered total of list endpoints, read cross-origin by the frontend.
+    expose_headers=["X-Total-Count"],
 )
 
 # Include API Router
