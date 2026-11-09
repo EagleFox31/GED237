@@ -32,18 +32,18 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
       },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
     },
     {
       name: 'authed-chromium',
@@ -72,6 +72,13 @@ export default defineConfig({
       // API-only comparison of the demo dataset with demo-manifest (expected); run on a stack reset with the demo profile.
       name: 'demo',
       testMatch: /demo-counters\.spec\.ts/,
+    },
+    {
+      // UAT campaign (gestion-projet/MATRICE_UAT_E2E): one spec per journey, real API, no mocks.
+      // Each spec seeds its own data through the API, so specs are order-independent and replayable.
+      name: 'uat',
+      testMatch: /specs[\\/]uat[\\/].*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'mocked-chromium',
