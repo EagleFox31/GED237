@@ -60,6 +60,7 @@ backend/alembic_output2.txt
 # Test artifacts
 frontend/playwright-report/
 frontend/test-results/
+frontend/e2e-out/
 frontend/.auth/
 
 # Runtime data / backups

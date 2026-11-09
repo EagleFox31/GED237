@@ -7,6 +7,7 @@ from fastapi import UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors.domain import FileTooLargeError
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
 from app.models.import_job import ImportJob
@@ -47,6 +48,7 @@ class ImportAnalysisService:
         job.ignored_files = 0
         job.duplicate_files = 0
         job.error_files = 0
+        staged_paths: list[str] = []
 
         for index, file in enumerate(files):
             source_relative_path = (
@@ -100,6 +102,7 @@ class ImportAnalysisService:
                     )
                     item.staging_file_path = staging_path
                     item.checksum_sha256 = checksum
+                    staged_paths.append(staging_path)
                 finally:
                     file.filename = original_upload_name
                     await file.seek(0)
@@ -144,6 +147,17 @@ class ImportAnalysisService:
                     forced_year=job.forced_year,
                 )
                 self._apply_resolution_to_item(item, resolution)
+            except FileTooLargeError as exc:
+                # One oversized file fails the whole batch (atomic preview):
+                # drop what was staged for this job and let the API answer 413,
+                # naming the file as the user sent it (not the staging name).
+                for path in staged_paths:
+                    self.storage_service.delete_file(path)
+                raise FileTooLargeError(
+                    original_filename,
+                    max_bytes=exc.max_bytes,
+                    received_at_least=exc.received_at_least,
+                ) from exc
             except Exception as exc:
                 item.status = "failed"
                 item.error_message = str(exc)

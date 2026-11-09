@@ -50,7 +50,7 @@ async def test_org_unit_routes_require_authentication(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role_code", ["manager", "reader", "standard"])
+@pytest.mark.parametrize("role_code", ["manager", "reader", "collaborator"])
 async def test_roles_without_org_units_permission_are_denied(
     client_as, db_seed, role_code
 ):
