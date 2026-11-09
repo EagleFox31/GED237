@@ -6,7 +6,8 @@ consultation et un niveau de preuve (`Vérifié` / `Documenté` / `Déduit` / `P
 
 | Fiche | Contenu |
 |---|---|
-| `contexte-application.md` | Ce qu'est GED237, état réel au 2026-11-09, risques, ce qui reste pour le 30/11 |
+| `parcours-demo.md` | 8 parcours de démo cibles (rôle, étapes, UAT, spec Playwright, données), 12 candidats classés, 3 décisions demandées |
+| `contexte-application.md` | Ce qu'est GED237, état réel au 2026-11-09 (audit fonctionnel intégré), risques, ce qui reste pour le 30/11 |
 | `sources/anthropic-agents.md` | Sources primaires sur les équipes d'agents, harness, contexte |
 | `sources/github-agents-skills.md` | Dépôts GitHub d'agents, skills, outils : évaluation Adopt/Adapt/Learn/Build |
 | `sources/ged-normes.md` | Normes GED/archivage (ISO 15489, MoReq2010) et contexte Cameroun |
