@@ -30,6 +30,16 @@ import uuid
 
 REFERENCE_ATTRS = ("label", "hierarchy_level", "description", "level")
 
+# Same codes and labels as alembic 001_initial_schema: the seed reconciles the
+# reference rows the migrations already inserted instead of adding look-alikes
+# (LESSON-2026-021). tests/test_seed_db.py checks this against the migration.
+ORG_UNIT_TYPES = (
+    {"code": "MINISTRY", "label": "Ministère", "level": 1},
+    {"code": "DIRECTION", "label": "Direction", "level": 2},
+    {"code": "DEPARTMENT", "label": "Département", "level": 3},
+    {"code": "SERVICE", "label": "Service", "level": 4},
+)
+
 
 async def upsert_by_code(db, model, rows):
     """Reconcile reference rows (roles, org unit types) by ``code``.
@@ -117,14 +127,7 @@ async def seed():
         print(f"[OK] {len(role_ids)} roles reconciled")
 
         # ─── ORG UNIT TYPES ──────────────────────────────
-        # Same codes and labels as alembic 001_initial_schema: the seed reconciles the
-        # reference rows the migrations already inserted instead of adding look-alikes.
-        org_types = [
-            OrgUnitType(code="MINISTRY", label="Ministère", level=1),
-            OrgUnitType(code="DIRECTION", label="Direction", level=2),
-            OrgUnitType(code="DEPARTMENT", label="Département", level=3),
-            OrgUnitType(code="SERVICE", label="Service", level=4),
-        ]
+        org_types = [OrgUnitType(**row) for row in ORG_UNIT_TYPES]
         type_ids = await upsert_by_code(db, OrgUnitType, org_types)
 
         # Idempotence guard on the demo data itself, not on the reference

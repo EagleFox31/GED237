@@ -67,3 +67,5 @@ Constat : sur `main`, `seed_db.py` échoue sur une base migrée (`UniqueViolatio
 Correction : le seed déclare désormais les codes et libellés de la migration (`MINISTRY`, `DIRECTION`, `DEPARTMENT`, `SERVICE`) et `upsert_by_code` les réconcilie en place ; sur un schéma vide (`create_all`) il les crée. Aucune autre table de référence insérée par les migrations n'est touchée par le seed.
 
 Preuve (2026-11-09, `postgres:15-alpine` 512 Mo, Docker) : base vierge → `alembic upgrade head` (tête `f0a1b2c3d4e5`) → `seed_db.py` : code 0, `roles=7 org_unit_types=7 tenants=3 users=8 documents=6 org_units=7`, types `MINISTRY:1 … CELLULE:7` inchangés → second `seed_db.py` : `[SKIP] Demo tenant MINFI already present; reference data reconciled only.`, comptages et identifiants strictement identiques.
+
+Garde-fou automatisé : `backend/tests/test_seed_db.py` (codes de types d'unité du seed ⊆ codes de la migration 001 ; deux passes d'`upsert_by_code` donnent les mêmes identifiants et le même nombre de lignes). `ORG_UNIT_TYPES` devient une constante de module de `seed_db.py` pour être testable. Second near miss consigné dans LESSON-2026-021.
