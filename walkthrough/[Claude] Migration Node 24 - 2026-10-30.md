@@ -1,6 +1,6 @@
 # [Claude] Migration Node 20 → Node 24 — 2026-10-30
 
-> Statut : EN REVUE (2026-10-30) — branche `chore/node-24`. Fusion soumise à l'accord du PO.
+> Statut : DONE (2026-11-09) — PR #26 fusionnée (3e05d6c) avec l'accord du PO ; #27 (Node 26) fermée.
 
 ## Ce qui va être fait
 

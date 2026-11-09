@@ -56,3 +56,18 @@ Lots A et B clos (hors décisions PO du B6). Prochain chantier : Lot C (`AUDIT.m
 - Fusions et changements de réglages GitHub : autorisation explicite du PO à chaque fois.
 - Identité git : AKAA Jennifer. Aucune mention d'IA dans commits/PR.
 - Fichier non suivi `gestion-projet/walkthrough/[Gemini] Etat de sante du projet - 2026-10-29.md` : pas à nous, ne pas commiter.
+
+## 2026-11-09 17:10 — Modèle d'équipe d'agents (4 sessions) et base Innovateur
+
+- Créé `gestion-projet/EQUIPE_AGENTS.md` (statut PROPOSÉ) : 4 sessions max (`orchestrateur`,
+  `innovateur`, `dev-backend`, `dev-frontend`), PO humain décideur + sous-agent `product-owner`,
+  protocole de décision (Innovateur d'abord → DEC → PO si impact produit), communication (messagerie
+  inter-sessions, repli fichiers), plan hebdo jusqu'au 30/11 (gel le 24/11).
+- Créé `gestion-projet/innovateur/` : README, `contexte-application.md`, `sources/anthropic-agents.md`,
+  `sources/github-agents-skills.md` (13 dépôts évalués Adopt/Adapt/Learn/Écarté), `sources/ged-normes.md`.
+- Créé `.claude/agents/orchestrateur.md`, `innovateur.md` (mémoire projet, `claude --agent <nom>`),
+  `product-owner.md` (sous-agent Sonnet).
+- Rien de commité : attendre validation du PO, puis PR `docs/equipe-agents`.
+- État dépôt : branche `chore/node-24`, PR #26 verte en attente d'accord PO ; #27 (Node 26) à fermer
+  après #26 ; majors Dependabot #29/#30/#32 à instruire par l'innovateur. Messagerie inter-sessions :
+  vérifier `/list-agents` (Windows natif ≥ 2.1.234).
