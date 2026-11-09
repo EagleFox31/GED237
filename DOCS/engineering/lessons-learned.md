@@ -322,6 +322,22 @@ première requête utilisateur.
 **Leçon généralisée** — Tout état global partagé (branche courante, index, fichiers non commités) doit être isolé par agent avant de paralléliser ; sinon la coordination coûte plus que le parallélisme ne rapporte.
 ---
 
+### LESSON-2026-020 — Conteneurs compose orphelins après l'arrêt d'une tâche de fond
+
+- **Date :** 2026-11-09
+- **Catégorie :** process / multi-agent
+- **Statut :** prevention-added
+- **Liens :** `docker-compose.e2e.yml`, `.github/workflows/ci.yml` (job `e2e`), LESSON-2026-019
+
+**Contexte** — Plusieurs sessions partagent une VM Docker de 4 Go ; les runs lourds (pytest, smoke e2e, recette UAT) sont sérialisés entre elles.
+**Échec / near miss** — Deux sessions ont laissé tourner des piles compose qu'elles croyaient arrêtées : arrêter la tâche de fond tue le client `docker compose up`, pas les conteneurs. Une pile UAT a démarré pendant le créneau d'une autre session, et des conteneurs postgres/redis e2e sont restés actifs après un build interrompu. Aucune perte, mais RAM consommée et ordre de passage brouillé.
+**Cause racine** — Le cycle de vie des conteneurs est porté par le démon Docker, pas par le processus qui les a lancés ; arrêter le client ne démonte rien.
+**Résolution** — `docker compose -f <fichier> down -v --remove-orphans` sur chaque pile concernée, puis vérification par `docker ps`.
+**Prévention** — Toute interruption d'un `compose up` lancé en arrière-plan est suivie de `down -v --remove-orphans` ; en CI, le job e2e démonte en `if: always()`. Avant un run lourd, `docker ps` confirme que la VM est libre ; le signal de fin n'est envoyé à la session suivante qu'après le `down`.
+**Leçon généralisée** — Arrêter un processus client ne libère pas les ressources qu'il a fait créer côté serveur : chaque lancement en arrière-plan doit avoir un démontage explicite et vérifié.
+
+---
+
 ### LESSON-2026-022 — Tests de recherche sans aucun résultat : vert trompeur
 
 - **Date :** 2026-11-09
