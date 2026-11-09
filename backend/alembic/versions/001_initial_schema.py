@@ -60,16 +60,18 @@ def upgrade() -> None:
         "idx_roles_hierarchy_level", "roles", ["hierarchy_level"], unique=False
     )
 
-    # Insert default roles
+    # Insert default roles. Codes are lower case: the application, the Casbin
+    # policy (app/core/authz/policy.csv) and scripts/seed_db.py all compare
+    # role codes literally (LESSON-2026-021).
     op.execute("""
         INSERT INTO roles (code, label, hierarchy_level, permissions) VALUES
-        ('SUPER_ADMIN', 'Super Administrateur', 1, '["*"]'),
-        ('TENANT_ADMIN', 'Administrateur Ministère', 2, '["tenant.*", "org.*", "users.*"]'),
-        ('UNIT_ADMIN', 'Chef de Service', 3, '["unit.*", "documents.*", "users.read"]'),
-        ('MANAGER', 'Manager / Valideur', 4, '["documents.validate", "documents.read", "workflows.*"]'),
-        ('COLLABORATOR', 'Collaborateur', 5, '["documents.create", "documents.read", "documents.update"]'),
-        ('READER', 'Lecteur', 6, '["documents.read"]'),
-        ('AUDITOR', 'Auditeur', 3, '["audit.*", "documents.read", "logs.read"]')
+        ('super_admin', 'Super Administrateur', 1, '["*"]'),
+        ('tenant_admin', 'Administrateur Ministère', 2, '["tenant.*", "org.*", "users.*"]'),
+        ('unit_admin', 'Chef de Service', 3, '["unit.*", "documents.*", "users.read"]'),
+        ('manager', 'Manager / Valideur', 4, '["documents.validate", "documents.read", "workflows.*"]'),
+        ('collaborator', 'Collaborateur', 5, '["documents.create", "documents.read", "documents.update"]'),
+        ('reader', 'Lecteur', 6, '["documents.read"]'),
+        ('auditor', 'Auditeur', 3, '["audit.*", "documents.read", "logs.read"]')
     """)
 
     # Create org_unit_types table
