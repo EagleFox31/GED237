@@ -12,8 +12,8 @@ règles, RBAC Casbin, authentification JWT + OTP.
 ## Stack
 
 FastAPI + SQLAlchemy 2.0 async + asyncpg + PostgreSQL ; React + Vite + TypeScript + Tailwind + Zustand ;
-Redis (OTP, blacklist) ; stockage local ou S3/MinIO ; Tesseract/EasyOCR. Node 24 (PR #26, en attente
-de fusion). Tout s'exécute dans Docker, plafonné en ressources.
+Redis (OTP, blacklist) ; stockage local ou S3/MinIO ; Tesseract/EasyOCR. Node 24 (PR #26 fusionnée le 09/11).
+Tout s'exécute dans Docker, plafonné en ressources.
 
 ## État V1 (AUDIT.md §Etat)
 
@@ -30,7 +30,7 @@ Hors V1 mais présent localement : rapports, usage, bibliothèque et rangement l
 
 Protection de `main` versionnée, CI impact-aware (gates frontend/backend/security), gitleaks, Trivy,
 Bandit, plafond ESLint 488 (cliquet), couverture backend ≥ 70 %, Dependabot, release-integrity.
-18 leçons dans `DOCS/engineering/lessons-learned.md`.
+22 leçons dans `DOCS/engineering/lessons-learned.md` au 09/11 soir (021, 024, 025 en PR).
 
 ## Ce qui reste pour le 30/11 (révisé après l'audit fonctionnel du 2026-11-09)
 
@@ -88,5 +88,5 @@ sans masquer l'alerte ; si un avis **pré-auth** apparaît d'ici le 30/11, remon
   (P8 +0,7, ingest +0,25, seed +0,25, sauvegarde −1,0) ; D2 révisée, déclenchée dès 0,25 j de glissement (variante PO, `point-2026-11-14.md`).
 - ~~VPS 3,7 Go partagé : risque mémoire du worker OCR~~ — **levé le 2026-11-09** : démo sur place (poste ≥ 16 Go). Reste : worker OCR arrêté pendant la séance, corpus pré-OCRisé la veille (DEC-2026-003, `checklist-demo.md`).
 - Données : aucune sauvegarde avant mar 17 ; d'ici là aucune purge sur la pile de démo, reset par `e2e_reset.sh` seulement.
-- Ressources Docker : VM WSL2 portée à 12 Go le 09/11 (`goulot-vm-docker.md`) ; règle de file relâchée : seules les suites e2e s'annoncent chez ci-qa ; tests backend ≈ 13 min.
+- Ressources Docker : VM WSL2 portée à 12 Go le 09/11 (`goulot-vm-docker.md`) ; règle de file re-serrée le 09/11 soir après saturation : une seule charge lourde à la fois (suite complète backend ≈ 13 min, campagne e2e, npm ci), annoncée entre dev-backend et ci-qa ; tests ciblés libres.
 - Frontend : bundle 1,56 Mo, 488 avertissements lint plafonnés, 0 test unitaire (Documenté).
