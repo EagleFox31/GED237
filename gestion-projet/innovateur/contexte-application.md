@@ -45,7 +45,7 @@ Source : `../walkthrough/[Audit] Audit fonctionnel profond - 2026-11-09.md` (32 
 3. **Lot C9** : filtres + pagination serveur des Espaces (en cours, dev-backend).
 4. **Sauvegarde / restauration** : absentes (seules les politiques authz ont un script) ; `purge`
    définitive disponible → une erreur en démo est irréversible.
-5. **Démo VPS + HTTPS** : non prouvés ; dossier `deployment/` cité par le RACI absent ; accord PO requis.
+5. **Lieu de démo** : **tranché par le PO le 2026-11-09** — démo sur place en Docker avec poste de secours, VPS écarté, pas d'URL vitrine (`decision-po-vps-b6.md`, `checklist-demo.md`). HTTPS porté par le reverse-proxy de l'administration hôte ; dossier `deployment/` cité par le RACI toujours absent (écart annoncé 5).
 6. Décisions PO B6 ; garde de routes frontend ; jeu de données de démo ; release taguée.
 
 Faits acquis (audit, niveau Constaté) : moteur de règles avec priorité + simulation, arborescence
@@ -85,7 +85,7 @@ sans masquer l'alerte ; si un avis **pré-auth** apparaît d'ici le 30/11, remon
 
 - Recette : le vrai inconnu est le nombre de défauts révélés entre le 18 et le 20/11 ; marge de 1 j-p
   et ordre de sacrifice définis dans DEC-2026-002.
-- VPS 3,7 Go partagé : worker OCR torch/EasyOCR → risque mémoire ; désactiver l'OCR lourd en démo.
+- ~~VPS 3,7 Go partagé : risque mémoire du worker OCR~~ — **levé le 2026-11-09** : démo sur place (poste ≥ 16 Go). Reste : worker OCR arrêté pendant la séance, corpus pré-OCRisé la veille (DEC-2026-003, `checklist-demo.md`).
 - Données : aucune sauvegarde tant que l'ordre 5 de DEC-2026-002 n'est pas livré.
 - Ressources Docker limitées : tests backend ≈ 13 min ; ne pas paralléliser deux suites.
 - Frontend : bundle 1,56 Mo, 488 avertissements lint plafonnés, 0 test unitaire (Documenté).
