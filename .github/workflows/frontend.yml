@@ -4,8 +4,7 @@ on:
   workflow_call: {}
   workflow_dispatch: {}
 
-env:
-  NODE_VERSION: '20'
+# Node version: single source of truth in frontend/.nvmrc.
 
 jobs:
   lint-and-typecheck:
@@ -17,10 +16,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Set up Node.js ${{ env.NODE_VERSION }}
+      - name: Check Dockerfile Node version matches .nvmrc
+        run: |
+          expected="ARG NODE_VERSION=$(tr -d '[:space:]' < frontend/.nvmrc)"
+          tr -d '\r' < frontend/Dockerfile | grep -qx "$expected" || {
+            echo "::error file=frontend/Dockerfile::Expected '$expected' (from frontend/.nvmrc)"
+            exit 1
+          }
+
+      - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: frontend/.nvmrc
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -49,10 +56,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Set up Node.js ${{ env.NODE_VERSION }}
+      - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: frontend/.nvmrc
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
