@@ -87,7 +87,7 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
         if file_type == "application/pdf":
             # PDF: Try native extraction first
             extracted_text, confidence = strategy.process_pdf(full_path)
-            engine_used = "PyPDF2 (native)"
+            engine_used = "pypdf (native)"
 
         elif file_type and file_type.startswith("image/"):
             # Image: Use intelligent strategy

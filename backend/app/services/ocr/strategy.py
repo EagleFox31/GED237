@@ -5,7 +5,7 @@ OCR Strategy - Intelligent engine selection (SRP: Choose the right engine)
 from enum import Enum
 from typing import Optional
 
-import PyPDF2
+from pypdf import PdfReader
 from pdf2image import convert_from_path
 
 from .base import OCREngine, OCRResult
@@ -113,7 +113,7 @@ class OCRStrategy:
             # Try native text extraction first (fast).
             text = ""
             with open(pdf_path, "rb") as file:
-                reader = PyPDF2.PdfReader(file)
+                reader = PdfReader(file)
                 for page in reader.pages:
                     extracted = page.extract_text()
                     if extracted:
