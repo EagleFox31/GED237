@@ -81,6 +81,7 @@ services:
       E2E_MANIFEST: /e2e-data/seed-manifest.json
       # Directory imports are refused outside these roots (403 INGEST_PATH_FORBIDDEN when empty).
       INGEST_ALLOWED_ROOTS: /data/ingest
+      APP_VERSION: ${APP_VERSION:-0.0.0-dev}
       # The suite logs in once per test and retries on CI: keep auth rate limits above that pace.
       AUTH_LOGIN_RATE_LIMIT: 30/minute
       AUTH_OTP_RATE_LIMIT: 30/minute

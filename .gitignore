@@ -69,6 +69,8 @@ frontend/e2e/data/demo-import/*
 # Runtime data / backups
 storage/files/
 backend/backups/
+backups/*
+!backups/.gitkeep
 
 # Local scratch / extracted artifacts
 backend/scripts/E*/
