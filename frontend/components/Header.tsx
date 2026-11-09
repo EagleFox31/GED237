@@ -320,7 +320,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
             >
               <div className="text-right hidden lg:block">
                 <p className="text-xs font-black text-slate-800 leading-none group-hover:text-rdpc-blue transition-colors italic uppercase">{userProfile?.name || 'Agent'}</p>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{userProfile?.label || 'Agent'}</p>
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-1">{userProfile?.label || 'Agent'}</p>
               </div>
               <img
                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile?.id || 'admin'}`}
