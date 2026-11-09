@@ -1,4 +1,5 @@
-fastapi==0.110.0
+fastapi==0.117.1
+starlette==0.48.0
 uvicorn[standard]==0.27.1
 pydantic==2.6.1
 pydantic-settings==2.1.0
@@ -16,7 +17,7 @@ redis==5.0.1
 # Security
 python-jose[cryptography]==3.4.0
 passlib[argon2]==1.7.4
-python-multipart==0.0.9
+python-multipart==0.0.33
 slowapi==0.1.9
 casbin==1.43.0
 casbin-sqlalchemy-adapter==1.4.0
@@ -33,11 +34,11 @@ torch==2.6.0
 torchvision==0.21.0
 torchaudio==2.6.0
 Pillow==13.0.0
-PyPDF2==3.0.1
+pypdf==7.0.0
 pdf2image==1.17.0
 
 # Utilities
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 httpx==0.26.0
 
 # Cloud Storage
