@@ -17,7 +17,7 @@ du 2026-11-09) :
 | P1 Connexion, OTP, refresh, déconnexion | SC-AUTH-01/02/03 | `uat/auth-2fa.spec.ts` | écrite |
 | P2 Import d'un dossier, classement automatique | SC-ADM-08 | `uat/directory-import.spec.ts` | écrite |
 | P3 Règle simulée puis activée | SC-ADM-05 | `uat/rule-classification.spec.ts` | écrite |
-| P4 Espaces : filtres et pagination | SC-ESP-01 | `uat/spaces-filters.spec.ts` | navigation écrite ; filtres en `fixme` (attend C9) |
+| P4 Espaces : filtres et pagination | SC-ESP-01 | `uat/spaces-filters.spec.ts` | écrite : navigation + contrat des filtres serveur (C9, PR #38 fusionnée) |
 | P5 Recherche plein texte restreinte | SC-LEC-01 | — | attend le correctif de recherche restreinte |
 | P6 Revue manuelle | SC-ADM-07 | `uat/manual-review.spec.ts` | écrite |
 | P7 Journal d'audit | SC-AUD-01 / ADM-09 | `uat/audit-trail.spec.ts` | écrite (produit sa propre trace : pas de dépendance d'ordre) ; D3, D4 en `fixme` |
@@ -99,17 +99,17 @@ Hors référentiel des 37 (à rattacher par le PO) :
 
 ## Contrat figé : filtres serveur des espaces (avec ged-dev-backend, 2026-11-09)
 
-`GET /api/v1/spaces/documents`, branche backend `feat/spaces-server-filters` :
+`GET /api/v1/spaces/documents` (et `/spaces/{id}/documents`), livré par la PR #38 (fusionnée dans main, c7fc5bd) :
 
 - paramètres optionnels, en plus de `org_unit_id` et `recursive` : `domain_id`, `activity_id`,
   `year` (1900..2100), `status` (cycle de vie), `classification_status` (pending|classified|needs_review|rejected),
-  `q` (ILIKE échappé sur titre, tags, noms de domaine, d'activité et de catégorie) ;
+  `q` (120 caractères au plus ; ILIKE échappé sur titre, tags, noms de domaine, d'activité et de catégorie) ;
 - `limit` (1..200) et `offset` (≥ 0) optionnels : **sans `limit`, liste complète** (comportement historique,
   SpacesPage compte sur la longueur du tableau) ;
 - corps inchangé (tableau de documents) ; `X-Total-Count` toujours renvoyé et exposé par CORS ;
 - tri `created_at desc, id` ; valeur invalide → 422 ; pas de `sort` dans ce lot.
 
-Les tests de contrat de `uat/spaces-filters.spec.ts` sont en `fixme` jusqu'à la livraison backend.
+Les tests de contrat de `uat/spaces-filters.spec.ts` sont actifs ; la pagination est vérifiée sur les seuls documents du test (`q` = identifiant du test), pour rester stable avec des workers parallèles.
 
 ## Défauts applicatifs trouvés
 

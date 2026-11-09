@@ -5,11 +5,9 @@ import { test, expect } from '../../fixtures/uat.fixture';
  * Naviguer dans les espaces documentaires (/spaces) et filtrer côté serveur.
  *
  * Seed : MINFI001 (tenant_admin) est rattaché au Cabinet du Ministre, parent de SG, DRH, DAF, DSI.
- * La navigation est testable aujourd'hui. Les filtres serveur (domain_id, activity_id, year, status, q)
- * ne sont pas encore livrés : ces tests sont en `fixme` jusqu'au contrat de ged-dev-backend.
+ * Filtres serveur (domain_id, activity_id, year, status, classification_status, q, limit/offset) :
+ * contrat de la PR #38 (C9), vérifié directement sur l'API.
  */
-
-const SPACES_FILTERS_PENDING = 'Filtres serveur GET /spaces/documents non livrés (contrat en cours avec ged-dev-backend).';
 
 test.describe('SC-ESP-01 — Navigation dans les espaces', () => {
   test('arborescence, sous-services, retour, inclusion des sous-services et recherche', async ({
@@ -58,8 +56,6 @@ test.describe('SC-ESP-01 — Navigation dans les espaces', () => {
 });
 
 test.describe('SC-ESP-01 — Filtres serveur sur GET /spaces/documents', () => {
-  test.fixme(true, SPACES_FILTERS_PENDING);
-
   test('domain_id + activity_id + year + status ne renvoient que les documents correspondants', async ({
     adminApi,
     runId,
@@ -89,25 +85,37 @@ test.describe('SC-ESP-01 — Filtres serveur sur GET /spaces/documents', () => {
     expect(ids).not.toContain(other.id);
   });
 
-  test('q filtre côté serveur, et l’absence de filtre garde le comportement historique', async ({ adminApi, runId }) => {
-    const doc = await adminApi.uploadDocument(`recherche-${runId}.txt`, `Recherche ${runId}`, `Q ${runId}`);
-
-    const filtered = await adminApi.getSpaceDocuments({ recursive: 'true', q: runId });
-    expect(filtered.status()).toBe(200);
-    const filteredIds = ((await filtered.json()) as Array<{ id: string }>).map((d) => d.id);
-    expect(filteredIds).toEqual([doc.id]);
+  test('q filtre côté serveur ; sans limit liste complète, avec limit page tronquée et X-Total-Count', async ({
+    adminApi,
+    runId,
+  }) => {
+    // Assertions bornées aux documents de ce test (q = runId) : les autres tests déposent en parallèle.
+    const first = await adminApi.uploadDocument(`recherche-a-${runId}.txt`, `Recherche A ${runId}`, `Q ${runId}`);
+    const second = await adminApi.uploadDocument(`recherche-b-${runId}.txt`, `Recherche B ${runId}`, `Q ${runId}`);
+    const mine = [first.id, second.id].sort();
 
     // Sans `limit` : comportement historique, liste complète non paginée.
-    const legacy = await adminApi.getSpaceDocuments({ recursive: 'true' });
-    expect(legacy.status()).toBe(200);
-    const legacyCount = ((await legacy.json()) as unknown[]).length;
-    expect(legacyCount).toBeGreaterThan(filteredIds.length);
+    const filtered = await adminApi.getSpaceDocuments({ recursive: 'true', q: runId });
+    expect(filtered.status()).toBe(200);
+    const filteredIds = ((await filtered.json()) as Array<{ id: string }>).map((d) => d.id).sort();
+    expect(filteredIds).toEqual(mine);
+    expect(Number(filtered.headers()['x-total-count'])).toBe(2);
 
-    // Avec `limit` : page tronquée, total avant pagination dans X-Total-Count, exposé au navigateur (CORS).
-    const paged = await adminApi.getSpaceDocuments({ recursive: 'true', limit: '1' });
-    expect(paged.status()).toBe(200);
-    expect(((await paged.json()) as unknown[]).length).toBe(1);
-    expect(Number(paged.headers()['x-total-count'])).toBe(legacyCount);
+    // Avec `limit` : page tronquée ; le total avant pagination reste dans X-Total-Count.
+    const page1 = await adminApi.getSpaceDocuments({ recursive: 'true', q: runId, limit: '1' });
+    const page2 = await adminApi.getSpaceDocuments({ recursive: 'true', q: runId, limit: '1', offset: '1' });
+    expect(page1.status()).toBe(200);
+    expect(page2.status()).toBe(200);
+    const ids1 = ((await page1.json()) as Array<{ id: string }>).map((d) => d.id);
+    const ids2 = ((await page2.json()) as Array<{ id: string }>).map((d) => d.id);
+    expect(ids1).toHaveLength(1);
+    expect(ids2).toHaveLength(1);
+    expect([...ids1, ...ids2].sort()).toEqual(mine);
+    expect(Number(page1.headers()['x-total-count'])).toBe(2);
+
+    // q au-delà de 120 caractères : refusé.
+    const tooLong = await adminApi.getSpaceDocuments({ recursive: 'true', q: 'x'.repeat(121) });
+    expect(tooLong.status()).toBe(422);
   });
 
   test('classification_status=needs_review isole les documents à revoir ; valeur invalide → 422', async ({
