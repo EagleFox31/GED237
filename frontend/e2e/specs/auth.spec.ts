@@ -147,7 +147,7 @@ test.describe('Feature: Profils démo', () => {
     await loginPage.goto();
 
     // WHEN
-    await loginPage.selectDemoProfile('Admin Tenant');
+    await loginPage.selectDemoProfile('Admin Institution');
 
     // THEN
     await loginPage.expectFieldsPreFilled();

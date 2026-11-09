@@ -6,7 +6,7 @@ import { LoginPage } from '../pages/login.page';
  */
 export const TEST_USERS = {
   super_admin:  { institution: 'Plateforme E-Dossier (PLATFORM)', matricule: 'SUPER001', password: 'Admin@2025', demoLabel: 'Super Admin' },
-  tenant_admin: { institution: 'Ministère des Finances (MINFI)', matricule: 'MINFI001', password: 'Minfi@2025', demoLabel: 'Admin Tenant' },
+  tenant_admin: { institution: 'Ministère des Finances (MINFI)', matricule: 'MINFI001', password: 'Minfi@2025', demoLabel: 'Admin Institution' },
   unit_admin:   { institution: 'Ministère des Finances (MINFI)', matricule: 'UNIT001',  password: 'Unit@2025',  demoLabel: 'Admin Unité' },
   manager:      { institution: 'Ministère des Finances (MINFI)', matricule: 'MGR001',   password: 'Mgr@2025',   demoLabel: 'Manager' },
   collaborator: { institution: 'Ministère des Finances (MINFI)', matricule: 'MINFI002', password: 'User@2025',  demoLabel: 'Collaborateur' },
