@@ -195,3 +195,23 @@ Pièges : hook pre-commit cassé sur l'hôte (venv `E:\GED237` absent). Les cont
 - **Verrou Docker** : suite complète #53 de dev-backend en cours ; pas de campagne e2e avant son signal.
 - **En attente** : accord utilisateur/PO pour `gh pr edit 39 --body-file` et `gh pr ready 39`.
 - **Ensuite** : e2e P8 jeu 12 → OCR-0 ven 13 matin → après #50 : service seed + bascule « upgrade head puis seed ».
+
+## 2026-11-09 23:51 — OCR-0 outillé, merge main → #55 en cours
+
+- **OCR-0** : worktree GED237-ocr0, branche ci/ocr-0-bench (depuis origin/main 4e0ddba, non poussée). Fichiers : backend/scripts/bench_ocr_0.py (prepare/run/table), backend/Dockerfile.bench (FROM api, rapidocr 3.10.0, onnxruntime 1.31.1, jiwer 4.0.0, tessdata_best dans /opt/tessdata_best), backend/scripts/bench_ocr_0.sh (1 conteneur plafonné 1g/2 CPU par moteur, --rm). Entrées de la répétition : scratchpad/ocr0/make_seed_pdfs.py (6 PDF du seed). Base : edossier-e2e-api:latest. Lint ruff/bandit relancé (PyPI très lent).
+- **Écarts protocole à remonter à l'innovateur** : (1) tessdata_best copié dans le tessdata par défaut transformerait T-fast en T-best → dossier séparé + --tessdata-dir ; (2) RapidOCR ≥ 3.9 : PP-OCRv6 small multilingue (fr inclus) par défaut, lang_type sans effet en v6 → pas de « latin » ; (3) RapidOCR attend du BGR ; (4) le texte du seed (Helvetica sans /Encoding) rend « à » selon StandardEncoding — sans incidence pour une répétition, vérité = pdftotext.
+- **Orchestrateur 23:4x** : #49, #45, #39 fusionnées ; #55 reciblée sur main. À faire : merge origin/main dans ci/e2e-seed (sans forcer), retirer fixme SMK-04..07, smoke local vert, pousser, SHA à l'orchestrateur ; lessons attendues 019, 020, 022, 023, 025. #55 après #52, avant #53.
+- **Docker** : dev-backend a libéré Docker (267 + 77 passed).
+
+## 2026-11-10 00:19 — #55 poussée, OCR-0 en répétition, prochaine tâche : e2e « upgrade head puis seed »
+
+- **#55** : be18a98 poussée (merge main 3059179 + retrait fixme SMK-04..08). Smoke local --retries=0 : 31 passed, 3 skipped (SMK-01/02/10), 0 échec. Dans la chaîne de fusion de l'orchestrateur (update-branch, CI, merge) puis #53, #54.
+- **OCR-0** : ci/ocr-0-bench local 8aea340 (+ correctif runner non commité : here=host_path). Répétition run2 en cours (scratchpad/ocr0/run2.log, work/results/). Livrable à l'orchestrateur : 3 lignes (durée, débit, écarts d'outillage) + tableau en passation + écarts à l'innovateur.
+- **Ensuite (orchestrateur)** : #50/#51/#52 sur main. Petite PR depuis worktree neuf sur main : pile e2e en « alembic upgrade head puis seed » (plus de create_all/stamp côté e2e). Preuve : reset e2e + smoke --retries=0 vert. Prévenir dev-backend avant la campagne Docker ; signaler le push à l'orchestrateur (dev-backend retirera create_all côté app).
+
+## 2026-11-10 00:40 — #55 rouge en CI : correctifs prêts, non poussés
+
+- CI #55 (run 42718458561) : (1) TS2614 `FilePayload` non exporté par @playwright/test → type local exporté par frontend/e2e/data/files.ts, importé dans pages/documents.page.ts ; (2) seed_e2e : `targetUnitType: "ministry"` → `MINISTRY` (codes migration 001 en majuscules depuis #50, LESSON-021).
+- Worktree GED237-merge39 : pull de 5f5c3ba (update-branch GitHub) fait, correctifs non commités. Reste : typecheck frontend + smoke --retries=0 en conteneur, commit, push, SHA à l'orchestrateur.
+- OCR-0 run2 en cours ; dev-backend lance la pile gedver quelques minutes (charge concurrente à noter sur les temps OCR).
+- Puis : PR e2e « upgrade head puis seed » (après fusion de #55, e2e_reset.sh n'existe sur main qu'avec elle).

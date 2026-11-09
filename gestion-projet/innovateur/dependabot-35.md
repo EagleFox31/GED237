@@ -40,7 +40,3 @@ Coût : 0,1 j Q (image + run) + 0 j F.
 - Si le PO tient à fusionner avant le gel : seulement après la campagne du 13 et avec le point 4.1 fait le même jour par ci-qa ; jamais entre #39 et jeu 12.
 
 Sources : `gh pr view 35`, `gh pr diff 35`, `gh pr checks 35`, `gh api /advisories` (09/11 soir) ; `frontend/package.json` ; `frontend/stores/authStore.ts` ; `frontend/lib/errors/errorBus.ts` ; `../GED237-e2e/docker-compose.e2e.yml` (lecture seule) ; `DEC-2026-001` ; `point-2026-11-14.md` § 4.
-
-## Mise à jour du 2026-11-09 (nuit)
-
-#35 fermée par Dependabot et remplacée par **#56** (groupe npm : zustand 5.0.16 → 5.1.0, @playwright/test 1.64.1 → 1.65.0, @axe-core/playwright 4.11.3 → 4.14.0 ; CI : 1 job rouge, 8 verts, 3 ignorés). Même décision : report après le 30/11, pour la même raison (image Playwright épinglée `v1.64.1-noble` dans le compose e2e, à monter en même temps que le paquet). Aucun avis GHSA sur les trois paquets.

@@ -250,3 +250,17 @@ Contrat de `GET /workflows/validators` (ValidatorRead : `id`, `full_name`) et de
 **Objectif en cours** — Attente des fusions PO ; l'orchestrateur fera update-branch sur #50 après #39 ; si conflit sur lessons-learned (020 inséré par #39) : ordre 019, 020, 022, 023, 021.
 **Fait** — `backend/scripts/seed_db.py` : `ORG_UNIT_TYPES` constante de module ; `backend/tests/test_seed_db.py` (codes seed ⊆ migration 001, `upsert_by_code` idempotent) ; LESSON-2026-021 : paragraphe « Second near miss » (types d'unité en doublon, preuve 6 compteurs, garde-fou) ; walkthrough #50 complété. Docker : 12 passed (seed + authz smoke + coverage config). Commit b5d0009 poussé.
 **Reste à faire** — 1) conflits éventuels sur #50–#54 lors des update-branch ; 2) nettoyage worktrees après fusions ; 3) rien d'autre ce soir (consigne orchestrateur).
+
+## 2026-11-10 00:40 — #53 : main fusionné (3a6bedb), tests ciblés verts
+
+**Objectif en cours** — #50, #51, #52 fusionnées. Orchestrateur fusionne #55 puis #53 puis #54 (update-branch suffit pour #54).
+**Fait** — `origin/main` fusionné dans `fix/ingest-allowed-roots` (commit 3a6bedb, poussé). Conflits additifs résolus en gardant les deux côtés : `backend/.env.example` (INGEST_ALLOWED_ROOTS + MAX_UPLOAD_SIZE_MB), `endpoints/documents.py` (import FileTooLargeError + IngestPathForbiddenError), `core/config.py` (`import os`, `model_validator`, MAX_UPLOAD_SIZE_MB + INGEST_ALLOWED_ROOTS_STR), `errors/__init__.py` (les deux erreurs). Docker : `test_ingest_allowed_roots.py` + `test_upload_limit.py` + `test_documents.py` = 20 passed.
+**Reste à faire** — 1) conflit éventuel sur #54 à l'update-branch ; 2) nettoyage des worktrees `../GED237-{search,debug,authz,upload,ingest,roles,workflow,backup-restore}` après fusions ; 3) rien d'autre cette nuit.
+
+## 2026-11-10 01:20 — PR #58 APP_VERSION ouverte ; #54 fusionnée (bbed941)
+
+**Objectif en cours** — Attente fusions : #55 (ci-qa, rouge en CI, correctifs de son côté) puis #53 (update-branch par l'orchestrateur). PR #58 `chore/app-version` (worktree `../GED237-version`, commit 921ec64) à faire fusionner par le PO.
+**Fait** — #58 : `APP_VERSION` (env, défaut `0.0.0-dev`) dans `core/config.py`, `main.py` (FastAPI, `/health`, `/`), `app/__init__.py` (`__version__` retiré), compose démo + e2e (`${APP_VERSION:-0.0.0-dev}`), `.env.example`, `tests/api/test_health.py`. Docker : 66 passed (health + authz). Preuve compose : `/health` → `version: test`, pile `gedver` supprimée (`down -v`).
+**Décisions** — `VERSION` de settings retirée (aucun consommateur) ; frontend et workflows non touchés ; `docker-compose.e2e.yml` modifié d'une ligne (demande orchestrateur) : conflit possible avec #55 qui touche ce fichier.
+**Reste à faire** — 1) envoyer #58 à l'orchestrateur ; 2) conflits éventuels #53/#58 ; 3) ensuite, au signal orchestrateur : retrait de `create_all` côté app quand la pile e2e sera sur « upgrade head puis seed » ; 4) nettoyage worktrees `../GED237-{search,debug,authz,upload,ingest,roles,workflow,backup-restore,version}` après fusions.
+**Pièges / contexte** — OpenAPI servi sous `/api/...` (pas `/openapi.json`). Compose démo : `container_name` fixes → un seul exemplaire à la fois, projet `-p gedver` pour des volumes séparés.

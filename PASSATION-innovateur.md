@@ -192,3 +192,9 @@ Checklist J-1/J0 par rôle (O/B/F/Q/P), hypothèse démo sur place, variante VPS
 
 ## 2026-11-09 23:19 — jeu-donnees-demo.md § 7 : écart (c) types d unité (#50, 6698241)
 - Une phrase ajoutée au paragraphe « État livré » : seed réconcilie les 7 codes majuscules des migrations, compteurs de preuve, conséquence D1 = aucun nouveau type. Lint vert. Verrous : aucun. Prochaine étape : attente réelle jusqu au point S1 ven 13.
+
+## 2026-11-10 00:45 — protocole-ocr-0.md : 5 écarts ci-qa (répétition à blanc) reportés
+- § 2 T-best dossier /opt/tessdata_best + --tessdata-dir ; § 2 R PP-OCRv6 small multilingue, pas de lang_type, BGR ; § 3 ligne Threads = quota cgroup ; § 4 ligne EasyOCR OOM à 1 Go ; § 6.1 GED_EXPORT_OUT à vérifier, seed e2e = outillage seul ; § 7 outillage ci/ocr-0-bench. Lint vert. Réponse à ged-ci-qa + copie O. Verrous : aucun. Prochaine étape : attente point S1 ven 13 (OCR-0 exécuté ven matin).
+
+## 2026-11-10 00:47 — DEC-2026-003 : ligne critère révisé « Proposé » (PO, point S1)
+- Ligne ajoutée au tableau des lots (E hors budget mémoire ; D3 = pic R < 1 Go ET CER R ≤ CER T-best, débit R noté) ; protocole-ocr-0.md § 4 aligné. Statut Proposé, le PO tranche au point S1 ; O l ajoute aux verrous PO. Lint vert. Verrous : aucun. Prochaine étape : attente réelle jusqu au point S1 ven 13.
