@@ -65,6 +65,8 @@ frontend/.auth/
 # Runtime data / backups
 storage/files/
 backend/backups/
+backups/*
+!backups/.gitkeep
 
 # Local scratch / extracted artifacts
 backend/scripts/E*/
