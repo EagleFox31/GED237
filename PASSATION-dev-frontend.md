@@ -166,3 +166,59 @@ Rien n'est commité pour l'instant.
 - Commit 34b4db2 : `fixme` retiré des tests de filtres P4 (contrat #38 vérifié dans `WorkspaceDocumentFilters`). Le test de pagination est borné aux documents du test (`q`=runId, 2 docs, limit/offset, X-Total-Count=2, q>120 → 422) pour rester stable en parallèle. Walkthrough P4 mis à jour.
 - Branche : dce594d, 6b96457, 34b4db2 sur 2145758. Non poussée. `docker-compose.e2e.yml` : modification locale de l'image, non commitée.
 - Premier run (au signal) : P1, P2, P3, **P4 complet**, P6, P7. Sans `--build`. Commande dans l'entrée 18:34.
+
+## 2026-11-09 19:29 — Premier run uat lancé (VM à moi)
+
+- Signal ci-qa reçu : son smoke a donné 21 réussis / 10 échecs (il analyse et me transmettra ce qui touche mes écrans). L'image `edossier-e2e-api:latest` est reconstruite sur main (#41 incluse).
+- Run lancé en tâche de fond : pile `edossier-e2e-uat`, sans `--build`, avec `down -v --remove-orphans` enchaîné. Journal : scratchpad `uat-run1.log`. **Si la session s'arrête : vérifier `docker compose ls` et démonter `edossier-e2e-uat`.**
+- Suite : analyser les échecs, corriger les specs (pas l'app), compte rendu à l'orchestrateur (nombre de parcours verts), puis prévenir ci-qa que la VM est libérée.
+
+## 2026-11-09 19:35 — Run UAT 2, garde de routes codée, fix/recette-smoke-1 démarrée
+
+- Run 1 : échec au chargement (TEST_USERS non réexporté) → corrigé, commit 24e8f64 sur test/uat-playwright (non poussée).
+- Run 2 : 10 verts / 5 rouges / 3 fixme. Rouges = specs : resolveReview sans classification_target_org_unit_id (scope service), « N document(s) » → « N document(s) » réel = « N document/documents », onglets du plan de classement = boutons (pas role=tab), « Vérifier le classement » exact, contenus identiques → 409 doublon. Corrigés (non commités) dans lotc. **Run 3 en cours** (journal scratchpad uat-run3.log), démontage enchaîné. Si la session s'arrête : `docker compose ls`, démonter edossier-e2e-uat, prévenir ci-qa « VM libérée ».
+- Garde de routes codée (non commitée, non vérifiée Docker) : ../GED237-route-guard, App.tsx (ADMIN_ROUTES, RequireProfile, guarded()) + frontend/e2e/specs/route-guard.spec.ts GUARD-01..06. Spec non incluse dans le testMatch smoke : à décider.
+- Nouvel ordre orchestrateur : 1) PR fix/recette-smoke-1 (worktree ../GED237-recette1 depuis a4b8dbe) : modale UploadDocumentModal max-h + défilement à 1280×720 ; masquer « Nouveau Document » (Documents.tsx:91) et actions d'écriture pour le lecteur ; a11y : label htmlFor=institution (LoginPage), contrastes si tokens existants. **Ne pas toucher Sidebar.tsx:20** (/tenants côté authz, dev-backend). 2) garde de routes. 3) SpacesPage le 17 (spec-espaces-filtres-ui.md ; sortir spaces.spec.ts de mocked-chromium).
+
+## 2026-11-09 19:50 — Run UAT 3 vert, PR #45 et #46 ouvertes
+
+- Run 3 UAT (test/uat-playwright, lotc) : 15 verts / 3 fixme / 0 rouge, 6 parcours sur 8 (P5 attend correctif recherche, P8 à écrire). Commits 24e8f64 + 2ebb084, branche **non poussée** ; walkthrough modifié non commité (reste : statut EN REVUE + checklist RAIDER).
+- **PR #45** fix/recette-smoke-1 (c89f74e) : bouton « Nouveau Document » masqué hors profils créateurs, modale upload défilante, a11y LoginPage/Sidebar/Header/OrgDashboard. tsc/lint/build verts. Smoke à rejouer par ci-qa (elle le lance après passage VM 4→12 Go).
+- **PR #46** feat/route-guard-admin (8a6c0f9) : ADMIN_ROUTES + RequireProfile dans App.tsx, spec e2e/specs/route-guard.spec.ts GUARD-01..06. tsc/lint/build verts ; e2e **pas joué** : créneau demandé à ci-qa. À ajouter au testMatch smoke après fusion #39.
+- Orchestrateur prévenu (#46, question D2 close ou non).
+- **VM** : ne rien lancer sans feu vert ci-qa.
+- Prochaine étape : P8 uat/validation-cycle.spec.ts dans lotc (code seul), vérifier dépendance E2E-WF-VALID (PR 2 seed ci-qa), puis suppression validation/workflow/full-cycle.spec.ts + testMatch smoke, collisions ID matrice, walkthrough EN REVUE, push + PR Lot C. SpacesPage le 17/11.
+
+## 2026-11-09 20:04 — #46 e2e vert, P8 écrite, défauts VAL-D1..D3 remontés
+
+- **#46** : GUARD-01..06 6/6 verts (run avec la config et les fixtures de #39 et l'App.tsx de #46, arbre temporaire dans le scratchpad), corps de PR coché. Relue OK par l'orchestrateur ; reste l'accord PO. #45 relue OK, attend le smoke de ci-qa (#45 + #47).
+- **P8** : commit 2919973 sur test/uat-playwright (lotc, **non poussée**). uat/validation-cycle.spec.ts : SC-VAL-01 (pile manager) actif ; SC-VAL-01 écran, -02, -03 et -04 en fixme. Helpers me, submitForVisa et workflowSteps ajoutés dans uat.fixture. validation, workflow et full-cycle.spec.ts ainsi que pages/workflow.page.ts sont supprimés ; dans le smoke, full-cycle est remplacé par validation-cycle. Pas de dépendance au seed E2E-WF-VALID.
+- **Défauts signalés à l'orchestrateur** (arbitrage attendu : qui corrige, pour quand) :
+  - VAL-D1 : collab sans users:read → liste des valideurs vide ;
+  - VAL-D2 : /workflows/pending sans current_version_id → Viser/Rejeter en 422 ; /tasks envoie action_type 'approve' ;
+  - VAL-D3 : pas de motif ni de retour à l'écran.
+- Run P8 lancé (journal scratchpad p8-run.log, démontage enchaîné). Si la session s'arrête : NAME                STATUS              CONFIG FILES
+cfao-projets        running(5)          C:\Users\lawry\Documents\Projets\cfao-projets\docker-compose.yml
+deploy              running(3)          C:\Users\lawry\Documents\Projets\FleetMaster2.0-main\fm-expiry\deploy\docker-compose.yml
+roadmapmentor       running(3)          C:\Users\lawry\Documents\Projets\roadmapmentor\docker-compose.yml,C:\Users\lawry\AppData\Local\Temp\claude\c--Users-lawry-Documents-Projets-roadmapmentor\333db2bb-a48f-4b48-8a15-58eb9355caf0\scratchpad\override.yml, démonter edossier-e2e-uat, prévenir ci-qa.
+- Reste Lot C :
+  - collisions d'ID de la matrice (§4) et renommage SC-ADM-REVIEW, RULES et E2E-BULK, avec une note dans MATRICE_UAT_E2E_2026-07-22.md ;
+  - suppression des 4 specs mockées ;
+  - walkthrough EN REVUE avec RAIDER, à commiter ;
+  - rebase sur main après #39, avec le patch du compose de côté ;
+  - push puis PR Lot C.
+- SpacesPage le 17/11.
+
+## 2026-11-09 20:09 — PR Lot C #48 ouverte ; prochaine étape fix/validation-cycle-ui
+
+- **#48** test/uat-playwright → base ci/e2e-smoke (#39). Commits 2919973 (P8), 0d3a5f3 (specs mockées supprimées + ID §4), fe5b20c (walkthrough EN REVUE + RAIDER). Corps : scratchpad pr-lotc.md.
+- Run P8 : SC-VAL-01 en échec à la préparation (403 upload pour le rôle collaborator, corrigé par #47) ; ci-qa le rejoue dans son run combiné #45+#47. Pile démontée.
+- Note de ci-qa : #39 porte des fixme « lifted by #45 » (SMK-06/07/08/10, a11y 01/02). Si #45 fusionne après #39, retirer ces lignes dans ma branche.
+- Arbitrage P8 (orchestrateur) : branche **fix/validation-cycle-ui** (depuis main), à coder maintenant contre le contrat :
+  - ValidationHub lit current_version_id de GET /workflows/pending (ajouté par la PR dev-backend fix/workflow-pending-validators, mardi) ;
+  - WorkflowTasks passe par submitWorkflowAction avec un ActionType valide ;
+  - l'Atelier remplit la liste des valideurs via GET /workflows/validators (id, full_name) ;
+  - motif saisissable au rejet ;
+  - retour pour correction en V1.1.
+
+  e2e SC-VAL-01..04 dès que la PR backend est fusionnée (jeudi 12 au plus tard). SpacesPage le 17.
