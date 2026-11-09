@@ -19,6 +19,13 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 TEST_REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/0")
 os.environ["REDIS_URL"] = TEST_REDIS_URL
 
+# Tests chain many logins/OTP from one client IP: raise the auth limits
+# explicitly (DEBUG no longer relaxes them). test_auth_rate_limit.py lowers
+# them per test to prove the limits themselves.
+os.environ.setdefault("AUTH_LOGIN_RATE_LIMIT", "1000/minute")
+os.environ.setdefault("AUTH_OTP_RATE_LIMIT", "1000/minute")
+os.environ.setdefault("AUTH_REFRESH_RATE_LIMIT", "1000/minute")
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -106,8 +113,8 @@ async def db_seed(test_engine):
         # 1. Role (integer PK, no UUID)
         role = Role(
             id=role_id,
-            code="standard",
-            label="Standard User",
+            code="collaborator",
+            label="Collaborateur",
             hierarchy_level=3,
         )
         session.add(role)
@@ -230,7 +237,7 @@ async def db_seed(test_engine):
 
 
 def _make_fake_user(
-    role_code: str = "standard",
+    role_code: str = "collaborator",
     role_id: int = 3,
     user_id: uuid.UUID | None = None,
     tenant_id: uuid.UUID | None = None,
@@ -278,11 +285,11 @@ async def async_client(test_engine) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def auth_client(test_engine, db_seed) -> AsyncGenerator[AsyncClient, None]:
-    """Async test client with a standard-role user (bypasses JWT).
+    """Async test client with a collaborator-role user (bypasses JWT).
     Uses real DB rows (Tenant, OrgUnit, User) so FK constraints are satisfied.
     """
     fake_user = _make_fake_user(
-        role_code="standard",
+        role_code="collaborator",
         role_id=db_seed["role_id"],
         user_id=db_seed["user_id"],
         tenant_id=db_seed["tenant_id"],

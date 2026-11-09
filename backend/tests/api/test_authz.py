@@ -106,7 +106,7 @@ def _worker_enforce_sql(sqlite_url: str, queue: mp.Queue) -> None:
         async def _run():
             await worker_authz.reload_enforcer()
             return await worker_authz.enforce_permission(
-                "standard", "categories", "create"
+                "collaborator", "categories", "create"
             )
 
         allowed = asyncio.run(_run())
@@ -128,15 +128,15 @@ async def test_casbin_tenant_admin_can_manage_categories():
 @pytest.mark.asyncio
 async def test_casbin_standard_cannot_manage_categories():
     enforcer = await get_enforcer()
-    assert enforcer.enforce("standard", "categories", "create") is False
-    assert enforcer.enforce("standard", "categories", "delete") is False
+    assert enforcer.enforce("collaborator", "categories", "create") is False
+    assert enforcer.enforce("collaborator", "categories", "delete") is False
 
 
 @pytest.mark.asyncio
 async def test_casbin_standard_can_read_own_documents():
     enforcer = await get_enforcer()
-    assert enforcer.enforce("standard", "documents", "read_own") is True
-    assert enforcer.enforce("standard", "documents", "read") is False
+    assert enforcer.enforce("collaborator", "documents", "read_own") is True
+    assert enforcer.enforce("collaborator", "documents", "read") is False
 
 
 @pytest.mark.asyncio
@@ -179,7 +179,7 @@ async def test_casbin_auditor_read_only():
 async def test_facade_ownership_check_passes_for_owner():
     uid = uuid.uuid4()
     tid = uuid.uuid4()
-    user = _fake_user("standard", tenant_id=tid, user_id=uid)
+    user = _fake_user("collaborator", tenant_id=tid, user_id=uid)
     ctx = AuthzContext(tenant_id=tid, owner_id=uid)
     # Doit passer sans exception
     await authorize_or_403(user, "documents", "read_own", ctx)
@@ -189,7 +189,7 @@ async def test_facade_ownership_check_passes_for_owner():
 async def test_facade_ownership_check_fails_for_non_owner():
     uid = uuid.uuid4()
     tid = uuid.uuid4()
-    user = _fake_user("standard", tenant_id=tid, user_id=uid)
+    user = _fake_user("collaborator", tenant_id=tid, user_id=uid)
     ctx = AuthzContext(tenant_id=tid, owner_id=uuid.uuid4())  # autre propriétaire
     from fastapi import HTTPException
 
@@ -223,7 +223,7 @@ async def test_facade_super_admin_exempt_from_cross_tenant():
 
 @pytest.mark.asyncio
 async def test_facade_rbac_denied_raises_403():
-    user = _fake_user("standard")
+    user = _fake_user("collaborator")
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as exc_info:
@@ -233,7 +233,7 @@ async def test_facade_rbac_denied_raises_403():
 
 @pytest.mark.asyncio
 async def test_authz_deny_log_contains_request_id(caplog):
-    user = _fake_user("standard")
+    user = _fake_user("collaborator")
     token = set_request_id("req-deny-1")
     try:
         from fastapi import HTTPException
@@ -280,7 +280,7 @@ async def test_authz_allow_non_sensitive_not_logged(caplog):
 async def test_authz_metrics_aggregate_allow_and_deny():
     reset_authz_metrics()
     allow_user = _fake_user("manager")
-    deny_user = _fake_user("standard")
+    deny_user = _fake_user("collaborator")
 
     await authorize_or_403(allow_user, "documents", "read")
     from fastapi import HTTPException
@@ -299,7 +299,7 @@ async def test_authz_metrics_aggregate_allow_and_deny():
     )
     assert any(
         item["decision"] == "deny"
-        and item["role"] == "standard"
+        and item["role"] == "collaborator"
         and item["resource"] == "categories"
         and item["action"] == "create"
         and item["count"] >= 1
@@ -310,7 +310,7 @@ async def test_authz_metrics_aggregate_allow_and_deny():
 @pytest.mark.asyncio
 async def test_can_perform_is_silent_no_logs_no_metrics(caplog):
     reset_authz_metrics()
-    user = _fake_user("standard")
+    user = _fake_user("collaborator")
 
     with caplog.at_level(logging.INFO):
         allowed = await can_perform(user, "categories", "create")
@@ -351,14 +351,19 @@ async def test_sql_backend_policy_decision_and_reload():
                 text(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (:ptype, :v0, :v1, :v2)"
                 ),
-                {"ptype": "p", "v0": "standard", "v1": "categories", "v2": "create"},
+                {
+                    "ptype": "p",
+                    "v0": "collaborator",
+                    "v1": "categories",
+                    "v2": "create",
+                },
             )
 
         settings.AUTHZ_BACKEND = "sql"
         settings.AUTHZ_POLICY_DATABASE_URL = sqlite_url
         await reload_enforcer()
 
-        user = _fake_user("standard")
+        user = _fake_user("collaborator")
 
         # Allowed by SQL policy
         await authorize_or_403(user, "categories", "create")
@@ -368,7 +373,7 @@ async def test_sql_backend_policy_decision_and_reload():
             conn.execute(
                 text(
                     "DELETE FROM casbin_rule "
-                    "WHERE ptype='p' AND v0='standard' AND v1='categories' AND v2='create'"
+                    "WHERE ptype='p' AND v0='collaborator' AND v1='categories' AND v2='create'"
                 )
             )
 
@@ -417,7 +422,7 @@ async def test_sql_bootstrap_from_csv_imports_policies():
         assert imported > 0
 
         await reload_enforcer()
-        user = _fake_user("standard")
+        user = _fake_user("collaborator")
         await authorize_or_403(user, "documents", "read_own")
     finally:
         settings.AUTHZ_BACKEND = old_backend
@@ -464,7 +469,7 @@ async def test_sql_policy_version_triggers_lazy_reload_without_manual_reload():
         settings.AUTHZ_BACKEND = "sql"
         settings.AUTHZ_POLICY_DATABASE_URL = sqlite_url
         await reload_enforcer()
-        user = _fake_user("standard")
+        user = _fake_user("collaborator")
 
         from fastapi import HTTPException
 
@@ -477,7 +482,12 @@ async def test_sql_policy_version_triggers_lazy_reload_without_manual_reload():
                 text(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (:ptype, :v0, :v1, :v2)"
                 ),
-                {"ptype": "p", "v0": "standard", "v1": "categories", "v2": "create"},
+                {
+                    "ptype": "p",
+                    "v0": "collaborator",
+                    "v1": "categories",
+                    "v2": "create",
+                },
             )
             conn.execute(
                 text(
@@ -493,7 +503,7 @@ async def test_sql_policy_version_triggers_lazy_reload_without_manual_reload():
             conn.execute(
                 text(
                     "DELETE FROM casbin_rule "
-                    "WHERE ptype='p' AND v0='standard' AND v1='categories' AND v2='create'"
+                    "WHERE ptype='p' AND v0='collaborator' AND v1='categories' AND v2='create'"
                 )
             )
             conn.execute(
@@ -563,7 +573,12 @@ async def test_sql_mutation_visible_across_two_simulated_workers():
                 text(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (:ptype, :v0, :v1, :v2)"
                 ),
-                {"ptype": "p", "v0": "standard", "v1": "categories", "v2": "create"},
+                {
+                    "ptype": "p",
+                    "v0": "collaborator",
+                    "v1": "categories",
+                    "v2": "create",
+                },
             )
             conn.execute(
                 text(
@@ -608,7 +623,7 @@ async def test_sql_bootstrap_force_replaces_old_policies():
                 ),
                 {
                     "ptype": "p",
-                    "v0": "standard",
+                    "v0": "collaborator",
                     "v1": "__old_resource__",
                     "v2": "legacy_action",
                 },
@@ -625,7 +640,7 @@ async def test_sql_bootstrap_force_replaces_old_policies():
             stale_count = conn.execute(
                 text(
                     "SELECT COUNT(*) FROM casbin_rule "
-                    "WHERE ptype='p' AND v0='standard' AND v1='__old_resource__' AND v2='legacy_action'"
+                    "WHERE ptype='p' AND v0='collaborator' AND v1='__old_resource__' AND v2='legacy_action'"
                 )
             ).scalar_one()
         assert stale_count == 0
@@ -671,7 +686,7 @@ async def test_shadow_mode_returns_csv_decision_and_logs_diff(caplog, monkeypatc
     monkeypatch.setattr(casbin_enforcer_module, "_get_sql_enforcer", _fake_get_sql)
 
     with caplog.at_level(logging.WARNING):
-        allowed = await enforce_permission("standard", "categories", "create")
+        allowed = await enforce_permission("collaborator", "categories", "create")
 
     settings.AUTHZ_BACKEND = old_backend
     settings.AUTHZ_POLICY_DATABASE_URL = old_policy_url
@@ -707,7 +722,7 @@ async def test_shadow_mode_sql_error_falls_back_to_csv(caplog, monkeypatch):
     monkeypatch.setattr(casbin_enforcer_module, "_get_sql_enforcer", _fake_get_sql)
 
     with caplog.at_level(logging.ERROR):
-        allowed = await enforce_permission("standard", "documents", "read")
+        allowed = await enforce_permission("collaborator", "documents", "read")
 
     settings.AUTHZ_BACKEND = old_backend
     settings.AUTHZ_POLICY_DATABASE_URL = old_policy_url
@@ -733,7 +748,7 @@ async def test_authz_policy_api_super_admin_idempotent_cycle(admin_client: Async
 
         payload = {
             "ptype": "p",
-            "v0": "standard",
+            "v0": "collaborator",
             "v1": "categories",
             "v2": "create",
         }
@@ -750,7 +765,7 @@ async def test_authz_policy_api_super_admin_idempotent_cycle(admin_client: Async
         assert list_resp.status_code == 200
         assert any(
             p["ptype"] == "p"
-            and p["v0"] == "standard"
+            and p["v0"] == "collaborator"
             and p["v1"] == "categories"
             and p["v2"] == "create"
             for p in list_resp.json()
@@ -786,7 +801,7 @@ async def test_authz_policy_api_super_admin_idempotent_cycle(admin_client: Async
 async def test_authz_policy_api_non_super_admin_forbidden(auth_client: AsyncClient):
     payload = {
         "ptype": "p",
-        "v0": "standard",
+        "v0": "collaborator",
         "v1": "categories",
         "v2": "create",
     }
@@ -813,7 +828,7 @@ async def test_authz_policy_api_mutation_persists_after_reload(
 
         payload = {
             "ptype": "p",
-            "v0": "standard",
+            "v0": "collaborator",
             "v1": "categories",
             "v2": "create",
         }
@@ -828,7 +843,7 @@ async def test_authz_policy_api_mutation_persists_after_reload(
         assert list_after_create.status_code == 200
         assert any(
             p["ptype"] == "p"
-            and p["v0"] == "standard"
+            and p["v0"] == "collaborator"
             and p["v1"] == "categories"
             and p["v2"] == "create"
             for p in list_after_create.json()
@@ -846,7 +861,7 @@ async def test_authz_policy_api_mutation_persists_after_reload(
         assert list_after_delete.status_code == 200
         assert not any(
             p["ptype"] == "p"
-            and p["v0"] == "standard"
+            and p["v0"] == "collaborator"
             and p["v1"] == "categories"
             and p["v2"] == "create"
             for p in list_after_delete.json()
@@ -885,7 +900,7 @@ async def test_authz_policy_api_rejects_invalid_resource_or_action(
 
         invalid_resource = {
             "ptype": "p",
-            "v0": "standard",
+            "v0": "collaborator",
             "v1": "resource.inconnue",
             "v2": "create",
         }
@@ -894,7 +909,7 @@ async def test_authz_policy_api_rejects_invalid_resource_or_action(
 
         invalid_action = {
             "ptype": "p",
-            "v0": "standard",
+            "v0": "collaborator",
             "v1": "categories",
             "v2": "approve_everything",
         }
@@ -952,7 +967,7 @@ async def test_authz_policy_api_rejects_internal_holes(admin_client: AsyncClient
 
         payload = {
             "ptype": "p",
-            "v0": "standard",
+            "v0": "collaborator",
             "v1": "categories",
             "v2": "create",
             "v3": None,
@@ -1004,7 +1019,7 @@ async def test_authz_policy_api_blocks_bulk_payload_over_5(admin_client: AsyncCl
         await reload_enforcer()
 
         payload = [
-            {"ptype": "p", "v0": "standard", "v1": "categories", "v2": "create"}
+            {"ptype": "p", "v0": "collaborator", "v1": "categories", "v2": "create"}
             for _ in range(6)
         ]
         # Use an isolated client IP to avoid cross-test interference with slowapi counters.
@@ -1091,7 +1106,7 @@ async def test_authz_policy_rate_limit_is_user_scoped_same_ip(test_engine, db_se
             statuses: list[int] = []
             payload = {
                 "ptype": "p",
-                "v0": "standard",
+                "v0": "collaborator",
                 "v1": "categories",
                 "v2": "create",
             }
@@ -1134,7 +1149,7 @@ async def test_authz_policy_rate_limit_is_user_scoped_same_ip(test_engine, db_se
 async def test_authz_metrics_api_super_admin_can_read(admin_client: AsyncClient):
     reset_authz_metrics()
     allow_user = _fake_user("manager")
-    deny_user = _fake_user("standard")
+    deny_user = _fake_user("collaborator")
 
     await authorize_or_403(allow_user, "documents", "read")
     from fastapi import HTTPException
@@ -1156,7 +1171,7 @@ async def test_authz_metrics_api_super_admin_can_read(admin_client: AsyncClient)
     )
     assert any(
         item["decision"] == "deny"
-        and item["role"] == "standard"
+        and item["role"] == "collaborator"
         and item["resource"] == "categories"
         and item["action"] == "create"
         and item["count"] >= 1
@@ -1174,8 +1189,8 @@ async def test_authz_metrics_api_non_super_admin_forbidden(auth_client: AsyncCli
 async def test_authz_metrics_api_filters_and_top_n(admin_client: AsyncClient):
     reset_authz_metrics()
     allow_user = _fake_user("manager")
-    deny_user_a = _fake_user("standard", tenant_id=uuid.uuid4())
-    deny_user_b = _fake_user("standard", tenant_id=uuid.uuid4())
+    deny_user_a = _fake_user("collaborator", tenant_id=uuid.uuid4())
+    deny_user_b = _fake_user("collaborator", tenant_id=uuid.uuid4())
 
     await authorize_or_403(allow_user, "documents", "read")
     from fastapi import HTTPException
@@ -1205,7 +1220,7 @@ async def test_authz_metrics_api_filters_and_top_n(admin_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_authz_metrics_top_denies_endpoint(admin_client: AsyncClient):
     reset_authz_metrics()
-    deny_user = _fake_user("standard")
+    deny_user = _fake_user("collaborator")
     from fastapi import HTTPException
 
     for _ in range(3):
@@ -1276,7 +1291,7 @@ async def test_authz_metrics_redis_backend_snapshot_and_reset(monkeypatch):
 
         authz_metrics_module.record_authz_decision(
             allowed=False,
-            role="standard",
+            role="collaborator",
             resource="categories",
             action="create",
             tenant_id="tenant-a",
@@ -1284,7 +1299,7 @@ async def test_authz_metrics_redis_backend_snapshot_and_reset(monkeypatch):
         )
         authz_metrics_module.record_authz_decision(
             allowed=False,
-            role="standard",
+            role="collaborator",
             resource="categories",
             action="create",
             tenant_id="tenant-a",
@@ -1367,7 +1382,7 @@ async def test_authz_metrics_redis_client_uses_dedicated_url_then_falls_back(
         settings.AUTHZ_METRICS_REDIS_URL = ""
         authz_metrics_module.record_authz_decision(
             allowed=False,
-            role="standard",
+            role="collaborator",
             resource="categories",
             action="create",
             tenant_id="tenant-a",
@@ -1407,7 +1422,7 @@ async def test_authz_metrics_redis_unavailable_drops_instead_of_memory_fallback(
 
         authz_metrics_module.record_authz_decision(
             allowed=False,
-            role="standard",
+            role="collaborator",
             resource="categories",
             action="create",
             tenant_id="tenant-a",
@@ -1477,7 +1492,7 @@ async def test_authz_metrics_redis_recovers_then_relogs_on_new_outage(
         with caplog.at_level(logging.WARNING):
             authz_metrics_module.record_authz_decision(
                 allowed=False,
-                role="standard",
+                role="collaborator",
                 resource="categories",
                 action="create",
                 tenant_id="tenant-a",
@@ -1499,7 +1514,7 @@ async def test_authz_metrics_redis_recovers_then_relogs_on_new_outage(
             flaky.fail = True
             authz_metrics_module.record_authz_decision(
                 allowed=False,
-                role="standard",
+                role="collaborator",
                 resource="users",
                 action="delete",
                 tenant_id="tenant-a",
@@ -1556,7 +1571,7 @@ async def test_authz_metrics_redis_recovery_keeps_single_source_of_truth(monkeyp
         # Outage: writes are dropped (never stored in memory fallback).
         authz_metrics_module.record_authz_decision(
             allowed=False,
-            role="standard",
+            role="collaborator",
             resource="categories",
             action="create",
             tenant_id="tenant-a",
@@ -1595,7 +1610,7 @@ async def test_authz_metrics_redis_recovery_keeps_single_source_of_truth(monkeyp
 @pytest.mark.asyncio
 async def test_authz_metrics_reset_endpoint(admin_client: AsyncClient):
     reset_authz_metrics()
-    deny_user = _fake_user("standard")
+    deny_user = _fake_user("collaborator")
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException):
@@ -1663,7 +1678,7 @@ async def test_authz_metrics_health_reports_dropped_and_degraded_in_redis_outage
         monkeypatch.setattr(authz_metrics_module, "_redis_error_logged", False)
         reset_authz_metrics()
 
-        deny_user = _fake_user("standard")
+        deny_user = _fake_user("collaborator")
         from fastapi import HTTPException
 
         with pytest.raises(HTTPException):
@@ -1710,7 +1725,7 @@ async def test_backup_restore_scripts_restore_sql_policies_under_one_minute():
             conn.execute(text("DELETE FROM casbin_rule"))
             conn.execute(
                 text(
-                    "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES ('p', 'standard', 'categories', 'create')"
+                    "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES ('p', 'collaborator', 'categories', 'create')"
                 )
             )
 
@@ -1743,7 +1758,7 @@ async def test_backup_restore_scripts_restore_sql_policies_under_one_minute():
                 conn.execute(text("DELETE FROM casbin_rule"))
                 conn.execute(
                     text(
-                        "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES ('p', 'standard', 'users', 'delete')"
+                        "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES ('p', 'collaborator', 'users', 'delete')"
                     )
                 )
                 conn.execute(
@@ -1775,8 +1790,8 @@ async def test_backup_restore_scripts_restore_sql_policies_under_one_minute():
                 restored_rows = conn.execute(
                     text("SELECT ptype, v0, v1, v2 FROM casbin_rule ORDER BY v1, v2")
                 ).all()
-            assert ("p", "standard", "categories", "create") in restored_rows
-            assert ("p", "standard", "users", "delete") not in restored_rows
+            assert ("p", "collaborator", "categories", "create") in restored_rows
+            assert ("p", "collaborator", "users", "delete") not in restored_rows
     finally:
         engine.dispose()
         try:
@@ -1793,7 +1808,7 @@ async def test_standard_cannot_create_category(test_engine, db_seed):
     """Un user standard ne peut pas créer de catégorie (tenant_admin minimum)."""
     _, transport = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=db_seed["tenant_id"],
         user_id=db_seed["user_id"],
     )
@@ -1831,7 +1846,7 @@ async def test_standard_cannot_read_gedrules(test_engine, db_seed):
     """Un user standard ne peut pas lire les templates GEDRules."""
     _, transport = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=db_seed["tenant_id"],
         user_id=db_seed["user_id"],
     )
@@ -1845,7 +1860,9 @@ async def test_standard_cannot_read_gedrules(test_engine, db_seed):
 @pytest.mark.asyncio
 async def test_standard_cannot_access_platform_analytics(test_engine, db_seed):
     """Un user standard ne peut pas accéder aux analytics plateforme."""
-    _, transport = _make_client(test_engine, "standard", tenant_id=db_seed["tenant_id"])
+    _, transport = _make_client(
+        test_engine, "collaborator", tenant_id=db_seed["tenant_id"]
+    )
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.get("/api/v1/analytics/platform")
     app.dependency_overrides.pop(get_db, None)
@@ -1857,7 +1874,7 @@ async def test_standard_cannot_access_platform_analytics(test_engine, db_seed):
 async def test_standard_cannot_list_users(test_engine, db_seed):
     _, transport = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=db_seed["tenant_id"],
         user_id=db_seed["user_id"],
         org_unit_id=db_seed["org_unit_id"],
@@ -1890,7 +1907,7 @@ async def test_unit_admin_can_list_users(test_engine, db_seed):
 async def test_standard_cannot_list_org_units(test_engine, db_seed):
     _, transport = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=db_seed["tenant_id"],
         user_id=db_seed["user_id"],
         org_unit_id=db_seed["org_unit_id"],
@@ -1951,7 +1968,7 @@ async def test_standard_can_read_own_document_after_upload(test_engine, db_seed)
 
     # 1. Upload en tant que propriétaire
     _, transport_owner = _make_client(
-        test_engine, "standard", tenant_id=tid, user_id=uid, org_unit_id=oid
+        test_engine, "collaborator", tenant_id=tid, user_id=uid, org_unit_id=oid
     )
     async with AsyncClient(transport=transport_owner, base_url="http://test") as client:
         up = await client.post(
@@ -1968,7 +1985,7 @@ async def test_standard_can_read_own_document_after_upload(test_engine, db_seed)
 
     # 2. Le propriétaire peut lire son document
     _, transport_same = _make_client(
-        test_engine, "standard", tenant_id=tid, user_id=uid, org_unit_id=oid
+        test_engine, "collaborator", tenant_id=tid, user_id=uid, org_unit_id=oid
     )
     async with AsyncClient(transport=transport_same, base_url="http://test") as client:
         r = await client.get(f"/api/v1/documents/{doc_id}")
@@ -1978,7 +1995,11 @@ async def test_standard_can_read_own_document_after_upload(test_engine, db_seed)
 
     # 3. Un autre user standard du même tenant ne peut pas lire ce document
     _, transport_other = _make_client(
-        test_engine, "standard", tenant_id=tid, user_id=uuid.uuid4(), org_unit_id=oid
+        test_engine,
+        "collaborator",
+        tenant_id=tid,
+        user_id=uuid.uuid4(),
+        org_unit_id=oid,
     )
     async with AsyncClient(transport=transport_other, base_url="http://test") as client:
         r2 = await client.get(f"/api/v1/documents/{doc_id}")
@@ -2025,7 +2046,7 @@ async def test_standard_cannot_read_other_user_workflow_steps(test_engine, db_se
     # 1. Owner uploads document and creates workflow steps.
     _, transport_owner = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=tenant_id,
         user_id=owner_id,
         org_unit_id=org_unit_id,
@@ -2058,7 +2079,7 @@ async def test_standard_cannot_read_other_user_workflow_steps(test_engine, db_se
     # 2. Another standard user from same tenant must be denied.
     _, transport_other = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=tenant_id,
         user_id=uuid.uuid4(),
         org_unit_id=org_unit_id,
@@ -2102,7 +2123,7 @@ async def test_manager_cannot_read_workflow_steps_outside_org_unit(
     # Owner uploads and creates workflow in other org unit.
     _, transport_owner = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=tenant_id,
         user_id=owner_id,
         org_unit_id=other_org_unit_id,
@@ -2181,7 +2202,7 @@ async def test_manager_cannot_read_workflow_actions_outside_org_unit(
     # Owner uploads, creates workflow, performs one action.
     _, transport_owner = _make_client(
         test_engine,
-        "standard",
+        "collaborator",
         tenant_id=tenant_id,
         user_id=owner_id,
         org_unit_id=other_org_unit_id,
@@ -2255,7 +2276,7 @@ async def test_rbac_vs_business_rule_separation(test_engine, db_seed):
 
     # 1. Upload (crée en draft)
     _, transport = _make_client(
-        test_engine, "standard", tenant_id=tid, user_id=uid, org_unit_id=oid
+        test_engine, "collaborator", tenant_id=tid, user_id=uid, org_unit_id=oid
     )
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         up = await client.post(
@@ -2270,7 +2291,7 @@ async def test_rbac_vs_business_rule_separation(test_engine, db_seed):
 
     # 2. PATCH en draft : doit passer (RBAC ok + statut ok)
     _, transport2 = _make_client(
-        test_engine, "standard", tenant_id=tid, user_id=uid, org_unit_id=oid
+        test_engine, "collaborator", tenant_id=tid, user_id=uid, org_unit_id=oid
     )
     async with AsyncClient(transport=transport2, base_url="http://test") as client:
         patch1 = await client.patch(
@@ -2298,7 +2319,7 @@ async def test_rbac_vs_business_rule_separation(test_engine, db_seed):
 
     # 4. PATCH en validated : RBAC ok (standard a update_own) MAIS statut invalide → 403 métier
     _, transport3 = _make_client(
-        test_engine, "standard", tenant_id=tid, user_id=uid, org_unit_id=oid
+        test_engine, "collaborator", tenant_id=tid, user_id=uid, org_unit_id=oid
     )
     async with AsyncClient(transport=transport3, base_url="http://test") as client:
         patch2 = await client.patch(
