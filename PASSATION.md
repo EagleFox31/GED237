@@ -111,3 +111,11 @@ Lots A et B clos (hors décisions PO du B6). Prochain chantier : Lot C (`AUDIT.m
 - Prochaine étape : relancer le PO sur (a)-(d) ; à l accord, fusionner #36, passer DEC-2026-002 en ACCEPTÉ, puis `git pull` dans le checkout partagé après avoir supprimé les copies locales non suivies (sauf le fichier `[Gemini]`).
 - 18:02 — Défauts D3 (journal sans connexion/dépôt/import) et D4 (aucun export du journal) remontés par dev-frontend sur P7 ; en instruction chez l innovateur (corriger vs annoncer, ce qui saute). Question PO (e) à venir. P1 et P7 écrits, D2 regroupé avec la garde de routes.
 - 18:03 — Arbitrage innovateur D3/D4 : D3 corrigé (dev-backend, mer 12, avec upload 413, 0,5 j), D4 annoncé V1.1 (écart 8), verrou OTP abandonné et annoncé ; budget 9,75/10 ; sacrifice 6 → 5 (pg_dump manuel) → pagination 4. plan-presentation ajusté. Question PO (e) = valider cet arbitrage.
+
+## 2026-11-09 18:07 — PO : « go ». DEC-2026-002 ACCEPTÉ, #36 en fusion
+
+- Le PO a validé d'un mot l'ensemble soumis : fusion de #36, questions (c) écarts annoncés, (d) P8 → cycle de validation, (e) arbitrage D3/D4/OTP.
+- (a) démo VPS ou on-site et (b) B6 restent ouvertes, échéance 17/11 ; hypothèse de travail = démo on-site Docker, à confirmer par le PO.
+- Statut et amendements écrits dans le fichier DEC-2026-002 (section « Amendements acceptés »). Équipe informée.
+- Après fusion : nettoyer le checkout partagé (copies locales identiques aux fichiers fusionnés, sauf `[Gemini]`), `git pull`, supprimer le worktree `../GED237-docs`.
+- Reprise : suivre les PR de dev-backend (deps, Lot C9), ci-qa (e2e-smoke), dev-frontend (specs) ; point S1 le 14/11 ; relancer le PO sur (a) et (b) le 14 au plus tard.

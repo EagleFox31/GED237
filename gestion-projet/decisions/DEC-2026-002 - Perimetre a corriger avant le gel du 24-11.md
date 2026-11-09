@@ -1,6 +1,6 @@
 # DEC-2026-002 — Périmètre à corriger avant le gel du 24/11 vs écarts à annoncer en démo
 
-- **Statut** : PROPOSÉ (innovateur, 2026-11-09 18:00) → arbitrage orchestrateur ; PO pour les 3 questions du § 5.
+- **Statut** : ACCEPTÉ (PO, 2026-11-09 18:07) — périmètre des 6 écarts + amendements ci-dessous ; questions (c), (d), (e) acceptées ; (a) démo VPS/on-site et (b) B6 ouvertes jusqu'au 17/11 (hypothèse de travail : démo on-site Docker, VPS seulement si confirmé).
 - **Source** : `walkthrough/[Audit] Audit fonctionnel profond - 2026-11-09.md` (17–19 j-p d'écarts, top 10 § 2).
 - **Capacité** (hypothèse orchestrateur, `Documenté`) : ~10 j-p de dev du 10 au 23/11 = `ged-dev-backend` (B) et `ged-dev-frontend` (F), 2 sessions × 10 jours ouvrés à rendement réel ≈ 0,5 j-p/jour/session (CI 13 min en Docker, une suite à la fois, revues, PR) ; `ged-ci-qa` (Q) en support e2e, hors compte.
 - **Contrainte** : sécurité d'abord (rang 1 non négociable) ; gel fonctionnel le 24/11 ; après le gel, seules corrections de recette.
@@ -71,3 +71,12 @@ Ne **pas** annoncer : le détail des constats B6, les 488 avertissements lint, l
 ## Résumé pour l'orchestrateur
 
 Corriger 6 écarts pour 9 j-p (sécurité recherche + upload d'abord, 8 parcours e2e verts, Espaces serveur, sauvegarde testée, garde de routes) ; annoncer 7 écarts avec formulation et appui ; 3 questions PO (VPS/OCR, B6, liste annoncée). Gel le 24/11, 1 j-p de marge, ordre de sacrifice défini.
+
+## Amendements acceptés avec la décision (2026-11-09)
+
+- Migration de normalisation des rôles en minuscules (`001_initial_schema.py:67-72`) : obligatoire, 0,25 j B, mardi 11, test « `alembic upgrade head` seul puis login du compte seed », LESSON-2026-020.
+- D3 journal d'audit sans connexion / dépôt / import : corrigé, 0,5 j B, mercredi 12 avec le plafond upload ; test « login + upload + ingest = 3 lignes visibles par l'auditeur ».
+- D4 export du journal : annoncé en V1.1 (écart 8) ; SC-AUD-02 retiré de P7.
+- Verrou par compte après 3 OTP erronés : abandonné et annoncé (écart 9 : « 5 tentatives/min par IP ; verrou par compte en V1.1 ») ; `DEBUG` vérifié faux sur l'environnement de démo.
+- P8 (corbeille / version sans UI) : remplacé par le cycle de validation, 0 j.
+- Budget : 9,75 / 10 j-p, marge 0,25 j. Ordre de sacrifice : 6 (garde de routes) → 5 (sauvegarde automatisée remplacée par pg_dump manuel documenté, 0,25 j) → pagination de 4.
