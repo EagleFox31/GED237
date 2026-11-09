@@ -9,15 +9,18 @@ def client_ip(request: Request) -> str:
     """Rate-limit key: the client IP.
 
     X-Forwarded-For is honoured only when ``TRUSTED_PROXY`` is set, i.e. the
-    API sits behind a reverse proxy that overwrites the header. Without the
-    flag a client could forge the header and rotate its own counter.
+    API sits behind one trusted reverse proxy. nginx's
+    ``$proxy_add_x_forwarded_for`` *appends* the real peer address to any
+    header the client sent, so only the LAST element is trustworthy; the
+    earlier ones are client-controlled. Without the flag the header is
+    ignored entirely, so a client cannot rotate its own counter.
     """
     if settings.TRUSTED_PROXY:
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
-            first = forwarded.split(",")[0].strip()
-            if first:
-                return first
+            last = forwarded.rsplit(",", 1)[-1].strip()
+            if last:
+                return last
     return request.client.host if request.client else "127.0.0.1"
 
 

@@ -77,11 +77,48 @@ async def test_trusted_proxy_keys_on_forwarded_client(
         async_client, 3, headers={"X-Forwarded-For": "198.51.100.1"}
     )
     assert first == [401, 401, 429]
-    # The proxy chain appends its own address: only the first entry counts.
+    # Another forwarded client gets its own counter.
     other = await _attempts(
-        async_client, 1, headers={"X-Forwarded-For": "198.51.100.2, 10.0.0.1"}
+        async_client, 1, headers={"X-Forwarded-For": "198.51.100.2"}
     )
     assert other == [401]
+
+
+@pytest.mark.asyncio
+async def test_trusted_proxy_uses_last_forwarded_hop_not_client_supplied_one(
+    async_client, tight_login_limit, monkeypatch
+):
+    """nginx appends the real peer: "forged, real". The key must be the last
+    element, otherwise a client rotating the forged part escapes the limit."""
+    monkeypatch.setattr(settings, "TRUSTED_PROXY", True)
+    codes = []
+    for i in range(3):
+        codes += await _attempts(
+            async_client, 1, headers={"X-Forwarded-For": f"1.2.3.{i}, 10.0.0.9"}
+        )
+    assert codes == [401, 401, 429]
+    # Same real peer without a forged prefix: still the exhausted counter.
+    again = await _attempts(async_client, 1, headers={"X-Forwarded-For": "10.0.0.9"})
+    assert again == [429]
+
+
+def test_client_ip_key_function_directly():
+    from unittest.mock import patch
+
+    from fastapi import Request
+
+    from app.core.rate_limit import client_ip
+
+    scope = {
+        "type": "http",
+        "client": ("127.0.0.1", 5000),
+        "headers": [(b"x-forwarded-for", b"1.2.3.4, 10.0.0.9")],
+    }
+    request = Request(scope)
+    with patch.object(settings, "TRUSTED_PROXY", True):
+        assert client_ip(request) == "10.0.0.9"
+    with patch.object(settings, "TRUSTED_PROXY", False):
+        assert client_ip(request) == "127.0.0.1"
 
 
 @pytest.mark.asyncio

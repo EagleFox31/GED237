@@ -288,7 +288,7 @@ propres, lus à chaque requête (`@limiter.limit(lambda: settings.X)`), un seul 
 | `AUTH_LOGIN_RATE_LIMIT` | `5/minute` | tentatives `POST /auth/login` par IP cliente (429 compte comme tentative) |
 | `AUTH_OTP_RATE_LIMIT` | `5/minute` | `POST /auth/verify-otp` par IP |
 | `AUTH_REFRESH_RATE_LIMIT` | `10/minute` | `POST /auth/refresh` par IP |
-| `TRUSTED_PROXY` | `false` | `true` seulement si l'API n'est joignable qu'à travers un proxy qui écrase `X-Forwarded-For` (nginx du compose) ; sinon l'en-tête est ignoré, clé = `request.client.host` |
+| `TRUSTED_PROXY` | `false` | `true` seulement si l'API n'est joignable qu'à travers un proxy qui écrase `X-Forwarded-For` (nginx du compose) ; sinon l'en-tête est ignoré, clé = `request.client.host`. Clé = **dernier** élément de l'en-tête : `$proxy_add_x_forwarded_for` ajoute l'IP réelle après ce que le client a envoyé |
 
 Pile de démo (`docker-compose.yml`) : `30/minute` login/OTP + `TRUSTED_PROXY=true` (une salle derrière un
 NAT, cf. `parcours-demo.md` §0). Tests : `conftest.py` fixe explicitement `1000/minute` ; un test dédié
