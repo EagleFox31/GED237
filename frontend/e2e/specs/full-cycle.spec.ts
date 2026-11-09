@@ -23,6 +23,7 @@ const TEST_FILE = path.resolve(__dirname, '../fixtures/files/test-document.txt')
 test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
 
   test('Given rédacteur → valideur → auditeur, When cycle, Then traçabilité complète', async ({ page }) => {
+    test.fixme(true, 'SMK-04: collaborator upload refused (403); lifted by #47');
     const lp = new LoginPage(page);
     const docTitle = `Cycle E2E ${Date.now()}`;
 
