@@ -134,6 +134,30 @@ class AuthorizationError(AppError):
     default_user_message = "Vous n'avez pas les droits nécessaires pour cette action."
 
 
+class IngestPathForbiddenError(AppError):
+    """Import de répertoire visant un chemin hors de INGEST_ALLOWED_ROOTS.
+
+    Décision d'autorisation sur la ressource visée (403, pas 400) : la requête
+    est bien formée. Le message public ne révèle ni l'existence du chemin ni
+    la liste des racines ; le chemin demandé reste dans le détail technique.
+    """
+
+    status_code = 403
+    default_error_code = "INGEST_PATH_FORBIDDEN"
+    default_severity = Severity.warning
+    default_retryable = False
+    default_user_message = "Dossier hors des emplacements autorisés"
+
+    def __init__(self, requested_path: str) -> None:
+        self.requested_path = requested_path
+        super().__init__(
+            technical_detail=(
+                f"ingest-directory refused: {requested_path!r} is outside "
+                "INGEST_ALLOWED_ROOTS"
+            ),
+        )
+
+
 class NotFoundError(AppError):
     """
     Ressource inexistante OU inaccessible dans le périmètre courant (multi-tenant).

@@ -98,6 +98,8 @@ services:
     volumes:
       - ./backend/app:/app/app
       - storage_data:/var/storage_data
+      # Directory import source, read-only: the only tree the API may ingest from.
+      - ${INGEST_SOURCE_DIR:-./data/ingest}:/data/ingest:ro
     environment:
       DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:-changeme}@postgres/edossier
       REDIS_URL: redis://redis:6379/0
@@ -105,6 +107,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       STORAGE_PATH: /var/storage_data
+      INGEST_ALLOWED_ROOTS: /data/ingest
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       DEBUG: "false"

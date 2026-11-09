@@ -1,4 +1,6 @@
 # backend/app/core/config.py
+import os
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 from typing import List, Any
@@ -56,6 +58,10 @@ class Settings(BaseSettings):
     STORAGE_TYPE: str = "local"  # local | s3
     STORAGE_PATH: str = "./storage/files"
     MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100MB
+    # Directory import (POST /documents/ingest-directory): absolute container
+    # paths the API may read from, separated by os.pathsep (':' on Linux).
+    # Empty (default) refuses every import: least privilege, opt-in per stack.
+    INGEST_ALLOWED_ROOTS_STR: str = Field(default="", alias="INGEST_ALLOWED_ROOTS")
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
     # Celery
@@ -136,6 +142,15 @@ class Settings(BaseSettings):
     def ALLOWED_ORIGINS(self) -> List[str]:
         """Parse ALLOWED_ORIGINS from comma-separated string"""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS_STR.split(",")]
+
+    @property
+    def INGEST_ALLOWED_ROOTS(self) -> List[str]:
+        """Parse INGEST_ALLOWED_ROOTS (os.pathsep-separated, blanks ignored)."""
+        return [
+            p.strip()
+            for p in self.INGEST_ALLOWED_ROOTS_STR.split(os.pathsep)
+            if p.strip()
+        ]
 
     @property
     def AUTHZ_EFFECTIVE_POLICY_DATABASE_URL(self) -> str:
