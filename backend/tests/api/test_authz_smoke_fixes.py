@@ -15,7 +15,9 @@ import pytest
 
 from app.core.authz.casbin_enforcer import enforce_permission
 
-POLICY = "backend/app/core/authz/policy.csv"
+# Role codes as seeded today (conftest + scripts/seed_db.py). Kept literal on
+# purpose until the role-code migration lands; that work will import the set
+# from the seed source so the policy is checked against what is really seeded.
 SEEDED_ROLE_CODES = {
     "super_admin",
     "tenant_admin",

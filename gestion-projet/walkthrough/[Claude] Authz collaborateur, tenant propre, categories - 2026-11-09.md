@@ -45,4 +45,4 @@ passera les codes insérés par 001 (`COLLABORATOR`, …) en minuscules : cohér
 ## Preuves
 
 - Docker, modules touchés (`test_authz_smoke_fixes.py`, `test_authz.py`, `test_users.py`, `test_org_units.py`, `test_usage.py`, `test_backend_engineering_patterns.py`) : **126 passed**.
-- Suite complète : à rejouer après le redimensionnement de la VM Docker (gel demandé par ci-qa) ; reportée ici avant fusion.
+- Suite complète en Docker (`test-in-docker.sh` sans argument, VM partagée) : 252 passed, 9 warnings, 2 h 09 ; couverture 85,21 % (seuil 70 %). Rejouée le 2026-11-09 au soir sur e693808 + retrait de la constante `POLICY` inutilisée.
