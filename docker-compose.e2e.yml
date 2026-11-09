@@ -65,7 +65,7 @@ services:
     volumes:
       - ./frontend/e2e/data:/e2e-data:ro
       # Server-side folder for POST /documents/ingest-directory (SC-ADM-08). Same container path as
-      # docker-compose.yml (only the host corpus differs); INGEST_ALLOWED_ROOTS will point to it.
+      # docker-compose.yml (only the host corpus differs); INGEST_ALLOWED_ROOTS points to it.
       - ./frontend/e2e/data/demo-import:/data/ingest:ro
     environment:
       DATABASE_URL: postgresql+asyncpg://e2e:e2e@postgres:5432/edossier_e2e
@@ -79,6 +79,8 @@ services:
       # development echoes the OTP in the login response; the specs rely on it.
       ENVIRONMENT: development
       E2E_MANIFEST: /e2e-data/seed-manifest.json
+      # Directory imports are refused outside these roots (403 INGEST_PATH_FORBIDDEN when empty).
+      INGEST_ALLOWED_ROOTS: /data/ingest
       # The suite logs in once per test and retries on CI: keep auth rate limits above that pace.
       AUTH_LOGIN_RATE_LIMIT: 30/minute
       AUTH_OTP_RATE_LIMIT: 30/minute
