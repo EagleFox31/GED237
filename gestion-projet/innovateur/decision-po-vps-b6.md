@@ -1,6 +1,7 @@
 # Dossier de décision PO — (a) démo VPS ou sur place, (b) B6 garde de routes
 
-- **Pour** : PO, via l'orchestrateur. À trancher avant le 17/11 (idéalement le 10/11 midi).
+- **Statut** : **TRANCHÉ par le PO le 2026-11-09 (19:02, « go tout »)** : (a) **option A** — démo sur place en Docker avec poste de secours, VPS écarté, pas d'URL vitrine ; (b) **option B1** — garde admin / non-admin seule, les trois constats backend B6 passent en V1.1 et rejoignent les écarts annoncés. Consigné en fin de DEC-2026-002 ; propagé dans `checklist-demo.md`, `contexte-application.md`, `plan-presentation.md` § 3. Le dossier ci-dessous est conservé tel qu'instruit (traçabilité).
+- **Pour** : PO, via l'orchestrateur. Était à trancher avant le 17/11.
 - **Instruit par** : innovateur, 2026-11-09 19:10. Niveaux : `Vérifié` = mesuré ou lu ce jour ; `Déduit` = raisonnement sur ces faits.
 - **Plan de référence** : DEC-2026-002 (9,75/10 j-p consommés, gel le 24/11) ; DEC-2026-003 (OCR léger, OCR-1 en V1.1 par défaut).
 
@@ -58,3 +59,5 @@ Ce que B1 débloque : la journée du mardi 18 côté frontend est fixée (garde 
 |---|---|---|---|
 | (a) Lieu de la démo | **Sur place, Docker, poste de secours** | 0,5 j | VPS : + 2 à 2,5 j, OCR-1 avant le gel, sauvegarde automatisée abandonnée, risque de panne mémoire en séance |
 | (b) B6 | **Garde admin / non-admin seulement ; reste en V1.1** | 0,5 j déjà prévu | Garde fine : + 0,5 j pris sur la sauvegarde ; backend B6 : + 0,75 j que le plan n'a pas |
+
+**Décision du PO (2026-11-09)** : les deux recommandations sont retenues telles quelles. Conséquences actées : OCR-1 reste en V1.1, ordre 6 maintenu (mardi 18), aucune tâche VPS/Caddy avant le gel, constats backend B6 annoncés au jury (écart 10 de `plan-presentation.md`).

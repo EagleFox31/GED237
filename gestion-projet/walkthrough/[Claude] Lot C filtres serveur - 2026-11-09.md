@@ -1,6 +1,6 @@
 # [Claude] Lot C — filtres serveur GET /spaces/documents — 2026-11-09
 
-> Statut : EN REVUE
+> Statut : DONE — fusionnée dans main (#38, c7fc5bd)
 > Session : ged-dev-backend
 > Référence : `AUDIT.md` Lot C items 9-10 ; `gestion-projet/EQUIPE_AGENTS.md` S1
 > Branche : `feat/spaces-server-filters` (worktree `../GED237-lotc-backend`)
