@@ -102,7 +102,9 @@ jobs:
         continue-on-error: true
         run: |
           cd backend
-          pip-audit -r requirements.txt \
+          # Dated exceptions live in pip-audit-ignore.txt (one id per line).
+          mapfile -t IGNORES < <(grep -vE '^\s*(#|$)' pip-audit-ignore.txt | sed 's/^/--ignore-vuln=/')
+          pip-audit -r requirements.txt "${IGNORES[@]}" \
             --desc \
             --fix --dry-run \
             --output pip-audit-report.json \
