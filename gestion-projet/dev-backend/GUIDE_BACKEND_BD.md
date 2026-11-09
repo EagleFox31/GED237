@@ -278,6 +278,24 @@ https://pypi.org/project/pip-audit/ (2026-11-09)
 **7.4 Secrets et journaux.** Jamais de JWT/OTP/`DATABASE_URL` dans les logs ni les messages
 d'erreur ; `echo=False` en prod ; erreurs 500 génériques côté client, détail dans le log serveur.
 
+**7.5 Rate-limit et drapeaux d'environnement.** `DEBUG` ne pilote que l'`echo` SQL
+(`database.py`) ; jamais un contrôle de sécurité. Les limites d'authentification sont des réglages
+propres, lus à chaque requête (`@limiter.limit(lambda: settings.X)`), un seul `Limiter` partagé
+(`core/rate_limit.py`, installé sur `app.state.limiter`) :
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `AUTH_LOGIN_RATE_LIMIT` | `5/minute` | tentatives `POST /auth/login` par IP cliente (429 compte comme tentative) |
+| `AUTH_OTP_RATE_LIMIT` | `5/minute` | `POST /auth/verify-otp` par IP |
+| `AUTH_REFRESH_RATE_LIMIT` | `10/minute` | `POST /auth/refresh` par IP |
+| `TRUSTED_PROXY` | `false` | `true` seulement si l'API n'est joignable qu'à travers un proxy qui écrase `X-Forwarded-For` (nginx du compose) ; sinon l'en-tête est ignoré, clé = `request.client.host`. Clé = **dernier** élément de l'en-tête : `$proxy_add_x_forwarded_for` ajoute l'IP réelle après ce que le client a envoyé |
+
+Pile de démo (`docker-compose.yml`) : `30/minute` login/OTP + `TRUSTED_PROXY=true` (une salle derrière un
+NAT, cf. `parcours-demo.md` §0). Tests : `conftest.py` fixe explicitement `1000/minute` ; un test dédié
+abaisse la limite via `monkeypatch.setattr(settings, ...)` + `limiter.reset()` et prouve que `DEBUG=True`
+ne la relâche pas. Règle : un drapeau « confort dev » ne doit jamais être lu par du code de sécurité.
+https://slowapi.readthedocs.io/en/latest/ (2026-11-09)
+
 ## Sources
 
 - FastAPI — Query Parameters and String Validations : https://fastapi.tiangolo.com/tutorial/query-params-str-validations/

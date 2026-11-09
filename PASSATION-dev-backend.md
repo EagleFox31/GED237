@@ -110,3 +110,24 @@
 - Clé slowapi derrière nginx : `get_remote_address` = IP de nginx → compteur partagé par toute la salle. Drapeau `TRUSTED_PROXY` (défaut false) : si vrai, clé = premier `X-Forwarded-For` ; sinon `request.client.host` et l'en-tête est ignoré. Tests : sans proxy, proxy de confiance, en-tête forgé sans drapeau (3 tests).
 - Conftest : fixer explicitement des limites hautes (tests enchaînant des logins).
 - Documenter les 3 variables dans le walkthrough et `gestion-projet/dev-backend/GUIDE_BACKEND_BD.md`.
+
+## 2026-11-09 19:03 — Décisions PO du soir (via orchestrateur)
+
+- Démo sur place en Docker, pas de VPS : OCR-1 en V1.1, aucune tâche Caddy/VPS avant le gel.
+- B6 (assignable-roles sans RBAC, users:update_own, clé snapshot) → V1.1 : ne pas y toucher avant le 30/11.
+- Fusionnées : #40 docs (36ea190), #41 D5. Toute nouvelle branche part d'origin/main à jour (fetch avant worktree).
+- File inchangée : recherche bornée (suite en cours) → DEBUG=false + AUTH_*_RATE_LIMIT + clé proxy → mardi migration rôles + LESSON-021 → mercredi upload 413 + D3 → **lundi 17/11 : sauvegarde** selon `gestion-projet/innovateur/sauvegarde-restauration.md` (Adopt offen/docker-volume-backup v2.50.1 + restore.sh, doc sur main).
+
+## 2026-11-09 19:04 — Précision PR DEBUG : DEBUG ne pilote plus le rate-limit
+
+- Supprimer la branche `"1000/minute" if settings.DEBUG else ...` dans `auth.py:35/71/98` : `AUTH_LOGIN_RATE_LIMIT` / `AUTH_OTP_RATE_LIMIT` (défaut `5/minute`) deviennent la seule source ; ligne 98 (refresh/autre, 10/minute) → même mécanisme avec sa propre variable ou valeur fixe, à trancher dans la PR.
+- DEBUG défaut False ; DEBUG ne touche plus qu'à `echo` SQL (`database.py:9`).
+- Test obligatoire : avec DEBUG=True, la limite configurée s'applique quand même (ex. limite 2/minute → 3e appel = 429).
+- Pile e2e de ci-qa : déjà à 30/minute via ces variables (il ajoute la variable dans son compose, moi je ne touche pas son fichier).
+- Rappel : la suite backend enchaîne des logins → conftest doit fixer des limites hautes explicitement (env ou override settings).
+
+## 2026-11-09 19:08 — PR #42 recherche bornée ouverte
+
+**Fait** — suite 248 passed / 85,30 % ; commit `9a34f99` rebasé sur a4b8dbe (#41) ; PR #42 ouverte (non fusionnée) ; numéro envoyé à orchestrateur-ged ; « suite terminée » à ged-ci-qa. Worktree `../GED237-search` à supprimer après fusion.
+**Reste à faire** — 1. PR DEBUG (spéc dans les entrées précédentes) : nouveau worktree `../GED237-debug` depuis origin/main. 2. Mardi migration rôles + LESSON-021. 3. Mercredi upload 413 + D3. 4. Lundi 17 sauvegarde.
+**Pièges** — actionlint (pre-commit) refuse `$VAR` non quoté dans les workflows : utiliser un tableau bash (`mapfile` + `"${A[@]}"`).
