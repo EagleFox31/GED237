@@ -18,7 +18,6 @@ import { uniqueTextFile } from '../data/files';
 test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
 
   test('Given rédacteur → valideur → auditeur, When cycle, Then traçabilité complète', async ({ page }) => {
-    test.fixme(true, 'SMK-04: collaborator upload refused (403); lifted by #47');
     // Three logins, an upload and a submission: well beyond the default 30 s budget on a loaded runner.
     test.slow();
     const lp = new LoginPage(page);
