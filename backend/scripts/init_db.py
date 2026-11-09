@@ -102,17 +102,17 @@ async def create_seed_data():
 
             # Get roles
             result = await session.execute(
-                select(Role).where(Role.code == "SUPER_ADMIN")
+                select(Role).where(Role.code == "super_admin")
             )
             super_admin_role = result.scalar_one()
 
             result = await session.execute(
-                select(Role).where(Role.code == "TENANT_ADMIN")
+                select(Role).where(Role.code == "tenant_admin")
             )
             tenant_admin_role = result.scalar_one()
 
             result = await session.execute(
-                select(Role).where(Role.code == "COLLABORATOR")
+                select(Role).where(Role.code == "collaborator")
             )
             collaborator_role = result.scalar_one()
 

@@ -321,3 +321,18 @@ première requête utilisateur.
 **Prévention** — Règle écrite dans `EQUIPE_AGENTS.md` §4 et dans les fiches de rôle ; routine de démarrage : `git worktree list` avant toute commande git d'écriture.
 **Leçon généralisée** — Tout état global partagé (branche courante, index, fichiers non commités) doit être isolé par agent avant de paralléliser ; sinon la coordination coûte plus que le parallélisme ne rapporte.
 ---
+
+### LESSON-2026-021 — Rôles semés en majuscules par la migration, en minuscules partout ailleurs
+
+- **Date :** 2026-11-11
+- **Catégorie :** données / migrations / autorisation
+- **Statut :** prevention-added
+- **Liens :** `backend/alembic/versions/001_initial_schema.py`, `backend/alembic/versions/f0a1b2c3d4e5_lowercase_role_codes.py`, `backend/app/core/authz/roles.py`, LESSON-2026-023 (même famille : `standard` / `collaborator`)
+
+**Contexte** — La migration initiale insérait les rôles en majuscules (`COLLABORATOR`), alors que la politique Casbin, `seed_db.py`, les tests et le code applicatif (`role != "super_admin"`) comparent des codes en minuscules. `init_db.py` cherchait les rôles en majuscules. Une base jouée par `alembic upgrade head` puis peuplée par l'API ou `init_db.py` rattachait ses utilisateurs à des rôles qu'aucune ligne de politique ne connaissait.
+**Échec / near miss** — Comptes de démonstration sans aucun droit effectif (403 systématiques) selon la façon dont la base avait été initialisée ; la cause n'apparaissait ni dans les tests (le `conftest` sème ses propres rôles en minuscules) ni dans les logs (un 403 Casbin est un comportement normal).
+**Cause racine** — Trois sources indépendantes pour une même donnée de référence (migration, seed, politique), sans constante partagée ni contrainte en base ; aucun test ne confrontait la politique aux codes réellement semés.
+**Résolution** — Migration `f0a1b2c3d4e5` idempotente : repointe `users.role_id` et `workflow_template_steps.role_id` vers le jumeau minuscule quand il existe, supprime le doublon, renomme le reste en minuscules, puis pose `CHECK (code = lower(code))`. La migration 001 insère désormais en minuscules (une base vierge n'a rien à réconcilier). `init_db.py` lit les codes en minuscules. `app/core/authz/roles.py` devient la source unique ; `seed_db.py` s'y compare.
+**Prévention** — Contrainte CHECK en base (toute insertion en majuscules échoue) ; test `test_every_seeded_role_has_policy_lines_and_no_orphan_role` à brancher sur `ROLE_CODES` ; essai Docker de la migration sur base vierge et sur base portant des doublons avant fusion.
+**Leçon généralisée** — Une donnée de référence écrite à plusieurs endroits finit par diverger : une seule source, une contrainte qui refuse la divergence, et un test qui confronte les consommateurs à cette source.
+---

@@ -76,6 +76,32 @@ services:
       - edossier_network
     restart: "no"
 
+  # Demo data, once the schema is at head. The seed converges: reference rows
+  # (roles, org unit types) are reconciled by code and the demo tenant is
+  # created only when absent, so running it on every `up` is safe.
+  # Disable with `docker compose up --scale seed=0` for an empty platform.
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edossier_seed
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    logging: *default-logging
+    command: python scripts/seed_db.py
+    environment:
+      DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:-changeme}@postgres/edossier
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      ENVIRONMENT: development
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - edossier_network
+    restart: "no"
+
   # FastAPI Backend (internal only)
   api:
     build:
