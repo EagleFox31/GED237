@@ -19,6 +19,7 @@ from app.core.authz import authorize_or_403, can_perform
 from app.core.authz.context import AuthzContext
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.errors.domain import FileTooLargeError
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.document_category import DocumentCategory
 from app.models.import_job import ImportJob
@@ -241,6 +242,9 @@ async def analyze_import_job(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileTooLargeError:
+        await db.rollback()  # no job, no items: nothing to show for a refused batch
+        raise
     await db.commit()
     await db.refresh(job)
     job = await _get_job_or_404(db, job.id)
