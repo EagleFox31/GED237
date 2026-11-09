@@ -13,12 +13,14 @@ from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
 from app.models.document import Document
 from app.models.workflow import WorkflowStep, WorkflowAction
+from app.models.role import Role
 from app.models.user import User
 from app.schemas.workflow import (
     WorkflowStepCreate,
     WorkflowStepRead,
     WorkflowStepWithDocument,
     DocumentSummary,
+    ValidatorRead,
     WorkflowActionCreate,
     WorkflowActionRead,
     AssignStepAdminRequest,
@@ -32,6 +34,10 @@ from app.services.workflow_service import (
 router = APIRouter()
 
 WORKFLOW_SOURCE_STATUSES = {"draft", "rejected"}
+
+# Roles whose holders can be designated as validators of a workflow step
+# (policy: ``workflows resolve_review`` plus tenant-wide ``manage``).
+VALIDATOR_ROLE_CODES = ("manager", "tenant_admin")
 
 # Alias pour distinguer l'owner du document du current_user dans les jointures
 OwnerUser = aliased(User, name="owner_user")
@@ -285,6 +291,7 @@ async def get_pending_tasks(
             document_category_id=doc.document_category_id,
             file_type=doc.file_type,
             owner_name=owner_name,
+            current_version_id=doc.current_version_id,
             created_at=doc.created_at,
         )
         step_data = WorkflowStepWithDocument.model_validate(step)
@@ -292,6 +299,35 @@ async def get_pending_tasks(
         enriched.append(step_data)
 
     return enriched
+
+
+@router.get("/validators", response_model=List[ValidatorRead])
+async def list_validators(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Users of the caller's tenant who can validate a workflow step.
+
+    Open to every role allowed to create documents (an author must be able
+    to choose a validator) without granting ``users read``: the result is
+    bounded to the caller's tenant and carries only id and display name.
+    """
+    await authorize_or_403(current_user, "documents", "create")
+
+    result = await db.execute(
+        select(User)
+        .join(Role, Role.id == User.role_id)
+        .where(
+            User.tenant_id == current_user.tenant_id,
+            User.is_active.is_(True),
+            Role.code.in_(VALIDATOR_ROLE_CODES),
+        )
+        .order_by(User.last_name, User.first_name, User.matricule)
+    )
+    return [
+        ValidatorRead(id=user.id, full_name=user.full_name)
+        for user in result.scalars().all()
+    ]
 
 
 @router.post("/step/{step_id}/actions", response_model=WorkflowActionRead)

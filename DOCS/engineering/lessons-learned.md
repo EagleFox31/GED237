@@ -322,6 +322,22 @@ première requête utilisateur.
 **Leçon généralisée** — Tout état global partagé (branche courante, index, fichiers non commités) doit être isolé par agent avant de paralléliser ; sinon la coordination coûte plus que le parallélisme ne rapporte.
 ---
 
+### LESSON-2026-020 — Conteneurs compose orphelins après l'arrêt d'une tâche de fond
+
+- **Date :** 2026-11-09
+- **Catégorie :** process / multi-agent
+- **Statut :** prevention-added
+- **Liens :** `docker-compose.e2e.yml`, `.github/workflows/ci.yml` (job `e2e`), LESSON-2026-019
+
+**Contexte** — Plusieurs sessions partagent une VM Docker de 4 Go ; les runs lourds (pytest, smoke e2e, recette UAT) sont sérialisés entre elles.
+**Échec / near miss** — Deux sessions ont laissé tourner des piles compose qu'elles croyaient arrêtées : arrêter la tâche de fond tue le client `docker compose up`, pas les conteneurs. Une pile UAT a démarré pendant le créneau d'une autre session, et des conteneurs postgres/redis e2e sont restés actifs après un build interrompu. Aucune perte, mais RAM consommée et ordre de passage brouillé.
+**Cause racine** — Le cycle de vie des conteneurs est porté par le démon Docker, pas par le processus qui les a lancés ; arrêter le client ne démonte rien.
+**Résolution** — `docker compose -f <fichier> down -v --remove-orphans` sur chaque pile concernée, puis vérification par `docker ps`.
+**Prévention** — Toute interruption d'un `compose up` lancé en arrière-plan est suivie de `down -v --remove-orphans` ; en CI, le job e2e démonte en `if: always()`. Avant un run lourd, `docker ps` confirme que la VM est libre ; le signal de fin n'est envoyé à la session suivante qu'après le `down`.
+**Leçon généralisée** — Arrêter un processus client ne libère pas les ressources qu'il a fait créer côté serveur : chaque lancement en arrière-plan doit avoir un démontage explicite et vérifié.
+
+---
+
 ### LESSON-2026-022 — Tests de recherche sans aucun résultat : vert trompeur
 
 - **Date :** 2026-11-09
@@ -335,4 +351,33 @@ première requête utilisateur.
 **Résolution** — Code catégorie sélectionné par jointure et filtre `category` corrigé ; `test_search_scope.py` crée des documents qui correspondent et vérifie leurs identifiants, le code catégorie et le total.
 **Prévention** — Pour chaque moteur de recherche ou liste filtrée : au moins un test avec des données qui **doivent** remonter et une assertion sur leur contenu, pas seulement sur le code HTTP ou la forme de la réponse. À reprendre dans la revue : « quel test échouerait si la sérialisation d'un résultat était cassée ? »
 **Leçon généralisée** — Un test vert sur un ensemble vide ne prouve rien sur le traitement des éléments ; le cas nominal doit produire des données.
+
+### LESSON-2026-023 — Un rôle, trois orthographes : les règles RBAC ne matchaient personne
+
+- **Date :** 2026-11-09
+- **Catégorie :** authz / données de référence
+- **Statut :** prevention-added
+- **Liens :** smoke e2e PR #39 (SMK-04, SMK-05, SMK-10), PR `fix/authz-collaborator`, walkthrough `[Claude] Authz collaborateur, tenant propre, catégories - 2026-11-09.md`
+
+**Contexte** — Le smoke e2e joue les parcours de chaque profil contre la pile Docker. Le collaborateur obtenait 403 à l'upload ; le lecteur voyait « Impossible de charger les données ».
+**Échec / near miss** — `policy.csv` déclarait le collaborateur sous le code `standard`, le seed créait `collaborator`, la migration initiale insérait `COLLABORATOR`. Aucune règle Casbin ne matchait le rôle réel : la suite pytest restait verte parce qu'elle utilisait elle aussi `standard`. Les rôles de lecture n'avaient pas `categories read`, pourtant indispensable à l'écran documents.
+**Cause racine** — Les codes de rôle vivent dans trois sources (seed, migration, politique) sans test qui les confronte ; les tests d'autorisation testaient la politique contre elle-même, pas contre les données réellement semées.
+**Résolution** — Renommage `standard` → `collaborator` dans la politique et les tests ; `categories read` pour les rôles de lecture ; lecture de son propre tenant sans règle Casbin (l'action `tenants read` couvre la liste).
+**Prévention** — `test_authz_smoke_fixes.py` : l'ensemble des sujets `p,` de `policy.csv` doit être exactement l'ensemble des codes semés (toute dérive dans un sens ou l'autre échoue) ; tests API par rôle réel (collaborateur 201 à l'upload, lecteur 200 catégories / 403 création / 200 tenant propre / 403 liste).
+**Leçon généralisée** — Une donnée de référence dupliquée (codes, enums, identifiants) exige un test de cohérence croisée entre ses sources ; un test qui n'utilise que les valeurs d'une seule source ne prouve rien sur les autres.
+
+### LESSON-2026-021 — Rôles semés en majuscules par la migration, en minuscules partout ailleurs
+
+- **Date :** 2026-11-11
+- **Catégorie :** données / migrations / autorisation
+- **Statut :** prevention-added
+- **Liens :** `backend/alembic/versions/001_initial_schema.py`, `backend/alembic/versions/f0a1b2c3d4e5_lowercase_role_codes.py`, `backend/app/core/authz/roles.py`, LESSON-2026-023 (même famille : `standard` / `collaborator`)
+
+**Contexte** — La migration initiale insérait les rôles en majuscules (`COLLABORATOR`), alors que la politique Casbin, `seed_db.py`, les tests et le code applicatif (`role != "super_admin"`) comparent des codes en minuscules. `init_db.py` cherchait les rôles en majuscules. Une base jouée par `alembic upgrade head` puis peuplée par l'API ou `init_db.py` rattachait ses utilisateurs à des rôles qu'aucune ligne de politique ne connaissait.
+**Échec / near miss** — Comptes de démonstration sans aucun droit effectif (403 systématiques) selon la façon dont la base avait été initialisée ; la cause n'apparaissait ni dans les tests (le `conftest` sème ses propres rôles en minuscules) ni dans les logs (un 403 Casbin est un comportement normal).
+**Cause racine** — Trois sources indépendantes pour une même donnée de référence (migration, seed, politique), sans constante partagée ni contrainte en base ; aucun test ne confrontait la politique aux codes réellement semés.
+**Résolution** — Migration `f0a1b2c3d4e5` idempotente : repointe `users.role_id` et `workflow_template_steps.role_id` vers le jumeau minuscule quand il existe, supprime le doublon, renomme le reste en minuscules, puis pose `CHECK (code = lower(code))`. La migration 001 insère désormais en minuscules (une base vierge n'a rien à réconcilier). `init_db.py` lit les codes en minuscules. `app/core/authz/roles.py` devient la source unique ; `seed_db.py` s'y compare.
+**Prévention** — Contrainte CHECK en base (toute insertion en majuscules échoue) ; test `test_every_seeded_role_has_policy_lines_and_no_orphan_role` à brancher sur `ROLE_CODES` ; essai Docker de la migration sur base vierge et sur base portant des doublons avant fusion.
+**Second near miss (2026-11-09, détecté par l'exercice de sauvegarde)** — `seed_db.py` ajoutait quatre types d'unité en minuscules (`ministry`, `direction`…) à côté des sept codes en majuscules insérés par la migration 001 : doublons de sens, et `UniqueViolation` dès que le seed tournait sur une base migrée. Même cause racine que les rôles, autre table. Généralisation : un seed convergent **réconcilie par code** toutes les données de référence que les migrations ont déjà insérées (`upsert_by_code`, codes alignés sur la migration) au lieu d'en ajouter. Preuve standard : base vierge → `alembic upgrade head` → seed → comptages par table (`roles`, `org_unit_types`, `tenants`, `org_units`, `users`, `documents`) → second seed = `[SKIP]`, mêmes comptages, ids identiques (walkthrough « Codes de rôle en minuscules », complément 2). Prévention vérifiable : `tests/test_seed_db.py` (codes du seed ⊆ codes de la migration 001 ; deux passes d'`upsert_by_code` = mêmes ids, même nombre de lignes).
+**Leçon généralisée** — Une donnée de référence écrite à plusieurs endroits finit par diverger : une seule source, une contrainte qui refuse la divergence, et un test qui confronte les consommateurs à cette source. Un seed ne crée pas les données de référence, il les réconcilie avec celles des migrations.
 ---

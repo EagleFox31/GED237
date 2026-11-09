@@ -1,7 +1,7 @@
 # backend/app/core/config.py
 import os
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 from typing import List, Any
 from functools import lru_cache
@@ -57,7 +57,11 @@ class Settings(BaseSettings):
     # Storage
     STORAGE_TYPE: str = "local"  # local | s3
     STORAGE_PATH: str = "./storage/files"
-    MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100MB
+    # Per-file upload cap, enforced by the storage layer on every upload path
+    # (documents, versions, bulk imports). Operators set MAX_UPLOAD_SIZE_MB; the
+    # byte value is derived from it and is what the code reads.
+    MAX_UPLOAD_SIZE_MB: int | None = None
+    MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100 MiB
     # Directory import (POST /documents/ingest-directory): absolute container
     # paths the API may read from, separated by os.pathsep (':' on Linux).
     # Empty (default) refuses every import: least privilege, opt-in per stack.
@@ -85,6 +89,14 @@ class Settings(BaseSettings):
     AUTHZ_METRICS_BACKEND: str = "memory"  # memory | redis
     AUTHZ_METRICS_REDIS_URL: str = ""
     AUTHZ_METRICS_REDIS_PREFIX: str = "authz:metrics"
+
+    @model_validator(mode="after")
+    def _derive_max_upload_size(self):
+        if self.MAX_UPLOAD_SIZE_MB is not None:
+            if self.MAX_UPLOAD_SIZE_MB <= 0:
+                raise ValueError("MAX_UPLOAD_SIZE_MB must be a positive integer")
+            self.MAX_UPLOAD_SIZE = self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+        return self
 
     @field_validator("AUTHZ_BACKEND", mode="before")
     @classmethod

@@ -22,9 +22,10 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.errors.domain import IngestPathForbiddenError
+from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
@@ -55,6 +56,31 @@ from app.workers.tasks import process_document_ocr
 
 router = APIRouter()
 storage_service = get_storage_service()
+
+# Multipart envelope (boundaries, part headers, form fields) allowed on top of
+# the file cap before a request is refused on its announced size alone.
+MULTIPART_OVERHEAD_BYTES = 1024 * 1024
+
+
+def _reject_oversized_announced_body(request: Request, filename: str | None) -> None:
+    """Refuse early when the client announces a body that cannot fit the cap.
+
+    Spares writing up to MAX_UPLOAD_SIZE bytes for nothing. Absent or wrong
+    Content-Length (chunked bodies) falls through to the streaming counter in
+    the storage layer, which remains the source of truth.
+    """
+    raw = request.headers.get("content-length")
+    if raw is None or not raw.isdigit():
+        return
+    max_bytes = settings.MAX_UPLOAD_SIZE
+    announced = int(raw)
+    if announced > max_bytes + MULTIPART_OVERHEAD_BYTES:
+        raise FileTooLargeError(
+            filename or "upload",
+            max_bytes=max_bytes,
+            received_at_least=announced - MULTIPART_OVERHEAD_BYTES,
+        )
+
 
 ADMIN_ROLES = {"super_admin", "tenant_admin", "unit_admin"}
 TENANT_WIDE_READ_ROLES = ADMIN_ROLES | {"auditor"}
@@ -518,6 +544,7 @@ async def get_document_stats(
     "/upload", response_model=DocumentRead, status_code=status.HTTP_201_CREATED
 )
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     title: str = Form(...),
     document_category_id: Optional[UUID] = Form(None),
@@ -538,6 +565,7 @@ async def upload_document(
     if processing_mode not in ("archive", "process"):
         raise HTTPException(status_code=400, detail="processing_mode invalide.")
     await authorize_or_403(current_user, "documents", "create")
+    _reject_oversized_announced_body(request, file.filename)
     if document_category_id:
         await _validate_category_for_tenant(
             db, document_category_id, current_user.tenant_id
@@ -1609,6 +1637,7 @@ async def purge_document(
 
 @router.post("/{document_id}/versions", status_code=status.HTTP_201_CREATED)
 async def upload_new_version(
+    request: Request,
     document_id: UUID,
     file: UploadFile = File(...),
     change_note: Optional[str] = Form(None),
@@ -1631,6 +1660,7 @@ async def upload_new_version(
             detail="Impossible de modifier un document dans la corbeille.",
         )
     await _ensure_not_locked_for_write(document, current_user)
+    _reject_oversized_announced_body(request, file.filename)
 
     org_unit_id = current_user.org_unit_id or document.org_unit_id
     if not org_unit_id:
