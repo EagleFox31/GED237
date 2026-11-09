@@ -321,3 +321,18 @@ première requête utilisateur.
 **Prévention** — Règle écrite dans `EQUIPE_AGENTS.md` §4 et dans les fiches de rôle ; routine de démarrage : `git worktree list` avant toute commande git d'écriture.
 **Leçon généralisée** — Tout état global partagé (branche courante, index, fichiers non commités) doit être isolé par agent avant de paralléliser ; sinon la coordination coûte plus que le parallélisme ne rapporte.
 ---
+
+### LESSON-2026-023 — Un rôle, trois orthographes : les règles RBAC ne matchaient personne
+
+- **Date :** 2026-11-09
+- **Catégorie :** authz / données de référence
+- **Statut :** prevention-added
+- **Liens :** smoke e2e PR #39 (SMK-04, SMK-05, SMK-10), PR `fix/authz-collaborator`, walkthrough `[Claude] Authz collaborateur, tenant propre, catégories - 2026-11-09.md`
+
+**Contexte** — Le smoke e2e joue les parcours de chaque profil contre la pile Docker. Le collaborateur obtenait 403 à l'upload ; le lecteur voyait « Impossible de charger les données ».
+**Échec / near miss** — `policy.csv` déclarait le collaborateur sous le code `standard`, le seed créait `collaborator`, la migration initiale insérait `COLLABORATOR`. Aucune règle Casbin ne matchait le rôle réel : la suite pytest restait verte parce qu'elle utilisait elle aussi `standard`. Les rôles de lecture n'avaient pas `categories read`, pourtant indispensable à l'écran documents.
+**Cause racine** — Les codes de rôle vivent dans trois sources (seed, migration, politique) sans test qui les confronte ; les tests d'autorisation testaient la politique contre elle-même, pas contre les données réellement semées.
+**Résolution** — Renommage `standard` → `collaborator` dans la politique et les tests ; `categories read` pour les rôles de lecture ; lecture de son propre tenant sans règle Casbin (l'action `tenants read` couvre la liste).
+**Prévention** — `test_authz_smoke_fixes.py` : l'ensemble des sujets `p,` de `policy.csv` doit être exactement l'ensemble des codes semés (toute dérive dans un sens ou l'autre échoue) ; tests API par rôle réel (collaborateur 201 à l'upload, lecteur 200 catégories / 403 création / 200 tenant propre / 403 liste).
+**Leçon généralisée** — Une donnée de référence dupliquée (codes, enums, identifiants) exige un test de cohérence croisée entre ses sources ; un test qui n'utilise que les valeurs d'une seule source ne prouve rien sur les autres.
+---

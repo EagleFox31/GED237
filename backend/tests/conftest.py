@@ -106,8 +106,8 @@ async def db_seed(test_engine):
         # 1. Role (integer PK, no UUID)
         role = Role(
             id=role_id,
-            code="standard",
-            label="Standard User",
+            code="collaborator",
+            label="Collaborateur",
             hierarchy_level=3,
         )
         session.add(role)
@@ -230,7 +230,7 @@ async def db_seed(test_engine):
 
 
 def _make_fake_user(
-    role_code: str = "standard",
+    role_code: str = "collaborator",
     role_id: int = 3,
     user_id: uuid.UUID | None = None,
     tenant_id: uuid.UUID | None = None,
@@ -278,11 +278,11 @@ async def async_client(test_engine) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def auth_client(test_engine, db_seed) -> AsyncGenerator[AsyncClient, None]:
-    """Async test client with a standard-role user (bypasses JWT).
+    """Async test client with a collaborator-role user (bypasses JWT).
     Uses real DB rows (Tenant, OrgUnit, User) so FK constraints are satisfied.
     """
     fake_user = _make_fake_user(
-        role_code="standard",
+        role_code="collaborator",
         role_id=db_seed["role_id"],
         user_id=db_seed["user_id"],
         tenant_id=db_seed["tenant_id"],

@@ -72,6 +72,7 @@ p, unit_admin, spaces, read
 p, unit_admin, classification_rules, manage
 p, unit_admin, classification_reviews, manage
 p, unit_admin, users, read
+p, unit_admin, categories, read
 p, unit_admin, org_units, read
 p, unit_admin, workflows, manage
 p, unit_admin, analytics.tenant, read
@@ -100,28 +101,33 @@ p, manager, workflows, read
 p, manager, workflows, assign
 p, manager, workflows, resolve_review
 p, manager, analytics.tenant, read
+p, manager, categories, read
 
 # ─────────────────────────────────────────────────────────────────────────────
 # READER — consultation unité
 # ─────────────────────────────────────────────────────────────────────────────
 p, reader, documents, read
+p, reader, categories, read
 p, reader, spaces, read
 p, reader, workflows, read
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STANDARD (collaborateur) — ses propres documents + stats tenant
+# COLLABORATOR (collaborateur, code du seed) — ses propres documents + stats tenant
+# Les catégories sont un référentiel nécessaire à l'affichage des documents : lecture
+# pour tous les rôles de lecture (SMK-10), écriture réservée aux admins.
 # ─────────────────────────────────────────────────────────────────────────────
-p, standard, analytics.tenant, read
-p, standard, tenants, read
-p, standard, documents, create
-p, standard, spaces, read
-p, standard, workflows, update_own
-p, standard, documents, read_own
-p, standard, documents, update_own
-p, standard, documents, delete_own
-p, standard, documents, trash_own
-p, standard, workflows, read_own
-p, standard, workflows, resolve_review
+p, collaborator, analytics.tenant, read
+p, collaborator, tenants, read
+p, collaborator, documents, create
+p, collaborator, categories, read
+p, collaborator, spaces, read
+p, collaborator, workflows, update_own
+p, collaborator, documents, read_own
+p, collaborator, documents, update_own
+p, collaborator, documents, delete_own
+p, collaborator, documents, trash_own
+p, collaborator, workflows, read_own
+p, collaborator, workflows, resolve_review
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TENANTS — gestion plateforme (super_admin + tenant_admin lecture seule)
