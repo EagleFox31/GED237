@@ -117,11 +117,13 @@ async def seed():
         print(f"[OK] {len(role_ids)} roles reconciled")
 
         # ─── ORG UNIT TYPES ──────────────────────────────
+        # Same codes and labels as alembic 001_initial_schema: the seed reconciles the
+        # reference rows the migrations already inserted instead of adding look-alikes.
         org_types = [
-            OrgUnitType(code="ministry", label="Ministere", level=1),
-            OrgUnitType(code="direction", label="Direction", level=2),
-            OrgUnitType(code="sub_direction", label="Sous-Direction", level=3),
-            OrgUnitType(code="service", label="Service", level=4),
+            OrgUnitType(code="MINISTRY", label="Ministère", level=1),
+            OrgUnitType(code="DIRECTION", label="Direction", level=2),
+            OrgUnitType(code="DEPARTMENT", label="Département", level=3),
+            OrgUnitType(code="SERVICE", label="Service", level=4),
         ]
         type_ids = await upsert_by_code(db, OrgUnitType, org_types)
 
@@ -186,7 +188,7 @@ async def seed():
                 code="MINFI-CAB",
                 name="Cabinet du Ministre",
                 short_name="CAB",
-                type_id=type_ids["ministry"],
+                type_id=type_ids["MINISTRY"],
                 level=1,
                 path="/MINFI-CAB",
             ),
@@ -197,7 +199,7 @@ async def seed():
                 code="MINFI-SG",
                 name="Secretariat General",
                 short_name="SG",
-                type_id=type_ids["direction"],
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-SG",
             ),
@@ -208,7 +210,7 @@ async def seed():
                 code="MINFI-DRH",
                 name="Direction des Ressources Humaines",
                 short_name="DRH",
-                type_id=type_ids["direction"],
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-DRH",
             ),
@@ -219,7 +221,7 @@ async def seed():
                 code="MINFI-DAF",
                 name="Direction des Affaires Financieres",
                 short_name="DAF",
-                type_id=type_ids["direction"],
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-DAF",
             ),
@@ -230,7 +232,7 @@ async def seed():
                 code="MINFI-DSI",
                 name="Direction des Systemes d'Information",
                 short_name="DSI",
-                type_id=type_ids["direction"],
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-DSI",
             ),
@@ -241,7 +243,7 @@ async def seed():
                 code="MINESUP-CAB",
                 name="Cabinet du Ministre",
                 short_name="CAB",
-                type_id=type_ids["ministry"],
+                type_id=type_ids["MINISTRY"],
                 level=1,
                 path="/MINESUP-CAB",
             ),
@@ -252,7 +254,7 @@ async def seed():
                 code="MINESUP-DAAJ",
                 name="Direction des Affaires Academiques",
                 short_name="DAAJ",
-                type_id=type_ids["direction"],
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINESUP-CAB/MINESUP-DAAJ",
             ),

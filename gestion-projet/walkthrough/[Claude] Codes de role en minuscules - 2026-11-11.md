@@ -59,3 +59,11 @@ Scénario joué avec `backend/scripts/test-in-docker.sh` (`MIGRATION_DB=mig_role
 - `seed_db.py` convergent : rôles et types d'unité réconciliés par `code` (`upsert_by_code`, pas d'identifiant forcé), garde d'idempotence sur le tenant `MINFI`, utilisateurs et unités rattachés par code (`role_ids["manager"]`, `type_ids["direction"]`).
 - Chemin de seed de la pile démo : service `seed` one-shot dans `docker-compose.yml`, derrière `migrate` (`service_completed_successfully`) ; désactivable par `--scale seed=0`. Documenté dans `DOCS/exploitation/donnees-demo.md`. Choix du service plutôt que d'une commande manuelle : la démo se lance par `docker compose up -d` sans étape à retenir.
 - Scénario Docker supplémentaire : base vierge → `upgrade head` → seed → seed à nouveau → login `MGR001` 200.
+
+## Complément 2 (demande orchestrateur, constat #54) — types d'unité en doublon
+
+Constat : sur `main`, `seed_db.py` échoue sur une base migrée (`UniqueViolation org_unit_types_pkey`). Sur cette branche, `upsert_by_code` le faisait passer, mais le seed ajoutait quatre types en minuscules (`ministry`, `direction`, `sub_direction`, `service`) à côté des sept codes majuscules insérés par `001_initial_schema` (`MINISTRY` … `CELLULE`, seuls codes utilisés par `init_db.py`) : 11 lignes, doublons de sens.
+
+Correction : le seed déclare désormais les codes et libellés de la migration (`MINISTRY`, `DIRECTION`, `DEPARTMENT`, `SERVICE`) et `upsert_by_code` les réconcilie en place ; sur un schéma vide (`create_all`) il les crée. Aucune autre table de référence insérée par les migrations n'est touchée par le seed.
+
+Preuve (2026-11-09, `postgres:15-alpine` 512 Mo, Docker) : base vierge → `alembic upgrade head` (tête `f0a1b2c3d4e5`) → `seed_db.py` : code 0, `roles=7 org_unit_types=7 tenants=3 users=8 documents=6 org_units=7`, types `MINISTRY:1 … CELLULE:7` inchangés → second `seed_db.py` : `[SKIP] Demo tenant MINFI already present; reference data reconciled only.`, comptages et identifiants strictement identiques.
