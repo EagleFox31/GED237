@@ -46,10 +46,25 @@ class DocumentSummary(BaseModel):
     document_category_id: Optional[UUID] = None
     file_type: Optional[str] = None
     owner_name: Optional[str] = None
+    # Version that a workflow action must target (``WorkflowActionCreate``):
+    # the validator's screen needs it without a second call per task.
+    current_version_id: Optional[UUID] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class ValidatorRead(BaseModel):
+    """A user who can be designated as a workflow validator.
+
+    Deliberately minimal (least privilege): authors who may not list users
+    still need to pick a validator, so only the identifier and display name
+    are exposed.
+    """
+
+    id: UUID
+    full_name: str
 
 
 class WorkflowStepRead(WorkflowStepBase):
