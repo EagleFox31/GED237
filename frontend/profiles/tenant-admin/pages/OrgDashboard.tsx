@@ -114,6 +114,8 @@ const OrgDashboard: React.FC = () => {
               : `${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`
           }
           help={<DuplicatesHelp />}
+          onClick={() => navigate('/audit?action=dup_detected')}
+          actionLabel="Voir les doublons refusés dans le journal"
         />
       </div>
 
@@ -275,11 +277,11 @@ const DuplicatesHelp = () => (
     label="Aide sur les doublons refusés"
     tip="Fichiers refusés à l'import parce qu'un document identique existait déjà."
   >
-    Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refusé ».
+    Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refuse ».
   </HelpHint>
 );
 
-const KPICard = ({ icon, iconColor, iconBg, label, value, subtext, help }: any) => (
+const KPICard = ({ icon, iconColor, iconBg, label, value, subtext, help, onClick, actionLabel }: any) => (
   <div className="relative bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
     <div className="flex justify-between items-start mb-4">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg} ${iconColor}`}>
@@ -289,7 +291,19 @@ const KPICard = ({ icon, iconColor, iconBg, label, value, subtext, help }: any) 
     </div>
     <p className="text-[11px] font-bold text-slate-500">{label}</p>
     <h4 className="text-2xl font-black text-slate-900 mt-1 mb-1 tracking-tight">{value}</h4>
-    <p className="text-[10px] font-medium text-slate-500">{subtext}</p>
+    {onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={actionLabel}
+        title={actionLabel}
+        className="text-left text-[10px] font-medium text-slate-500 underline decoration-dotted underline-offset-2 hover:text-violet-700"
+      >
+        {subtext}
+      </button>
+    ) : (
+      <p className="text-[10px] font-medium text-slate-500">{subtext}</p>
+    )}
   </div>
 );
 
