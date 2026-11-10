@@ -51,12 +51,13 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Cards - From API */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {[
           { label: 'Utilisateurs', value: isLoading ? '...' : metrics?.users?.total ?? 0, trend: 'Actifs', color: 'blue', icon: 'group' },
           { label: 'Documents', value: isLoading ? '...' : metrics?.documents?.total ?? 0, trend: 'Enregistrés', color: 'slate', icon: 'description' },
           { label: 'Stockage Utilisé', value: isLoading ? '...' : `${metrics?.documents?.storage_used_mb ?? 0} MB`, trend: 'Sur Quota', color: 'green', icon: 'cloud' },
           { label: 'Visa en Attente', value: isLoading ? '...' : metrics?.workflows?.pending ?? 0, trend: (metrics?.workflows?.rejected ?? 0) > 0 ? `${metrics!.workflows.rejected} rejetés` : 'À Jour', color: (metrics?.workflows?.rejected ?? 0) > 0 ? 'red' : 'green', icon: 'draw' },
+          { label: 'Doublons refusés', value: isLoading ? '...' : metrics?.duplicates?.refused ?? 0, trend: `${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`, color: 'slate', icon: 'content_copy' },
         ].map((stat, i) => (
           <div key={i} className="glass p-6 rounded-[2.5rem] hover:shadow-2xl transition-all border border-white group cursor-pointer overflow-hidden relative bg-white/40">
             <div className="flex justify-between items-start">
@@ -87,15 +88,15 @@ const Dashboard: React.FC = () => {
               <div className="grid grid-cols-3 gap-6 h-full items-center">
                 <div className="text-center p-6 bg-green-50 rounded-3xl">
                   <p className="text-5xl font-black text-green-600">{metrics.workflows.completed}</p>
-                  <p className="text-xs font-bold text-green-500 mt-2 uppercase tracking-widest">Validés</p>
+                  <p className="text-xs font-bold text-green-700 mt-2 uppercase tracking-widest">Validés</p>
                 </div>
                 <div className="text-center p-6 bg-blue-50 rounded-3xl">
                   <p className="text-5xl font-black text-blue-600">{metrics.workflows.pending}</p>
-                  <p className="text-xs font-bold text-blue-500 mt-2 uppercase tracking-widest">En Attente</p>
+                  <p className="text-xs font-bold text-blue-700 mt-2 uppercase tracking-widest">En Attente</p>
                 </div>
                 <div className="text-center p-6 bg-red-50 rounded-3xl">
                   <p className="text-5xl font-black text-red-600">{metrics.workflows.rejected}</p>
-                  <p className="text-xs font-bold text-red-500 mt-2 uppercase tracking-widest">Rejetés</p>
+                  <p className="text-xs font-bold text-red-700 mt-2 uppercase tracking-widest">Rejetés</p>
                 </div>
               </div>
             ) : (

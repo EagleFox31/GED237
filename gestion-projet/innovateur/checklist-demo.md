@@ -42,6 +42,7 @@
 
 - [ ] **P** — Mots de passe des 5 comptes de démo (`admin`, `manager`, `collab`, `reader`, `auditor` @minfi) connus de P, **jamais dans un fichier du dépôt** ; gestionnaire de mots de passe ou fiche papier dans la pochette.
 - [ ] **P** — Procédure OTP répétée : lecture du code dans la réponse (`development`) ou dans Redis ; un **OTP faux volontaire** prévu en P1 et compté dans la limite (3 connexions + 4 OTP max par minute dans le déroulé).
+- [ ] **P** — Si un compte est verrouillé pendant la démo (3 codes OTP erronés → 423 pendant 15 min, lot 3b) : suivre `DOCS/exploitation/deverrouiller-compte.md` (arrive avec #83) ; en répétition, ne jamais dépasser 2 OTP faux sur le compte de démo.
 - [ ] **P** — Ordre des changements de compte affiché sur une fiche : collab → admin → collab → admin → manager → collab → reader → collab → auditor.
 
 ### Arrêt de la veille

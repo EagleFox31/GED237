@@ -178,7 +178,7 @@ const CategoriesTab: React.FC = () => {
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-sm tracking-tight uppercase italic font-black text-slate-800">{c.name}</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Code: {c.code}</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Code: {c.code}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div

@@ -2,6 +2,8 @@
 
 Pour : dev-backend (API), dev-frontend (bouton, message de verrou), ci-qa (preuve), orchestrateur. Fiche courte de l'innovateur, 2026-11-10, lue sur `main` 950e66b. Règle : **livré si fusionné le mer 19/11 18:00, sinon V1.1** (SC-AUD-02 « Non livré, V1.1 » et « 5 tentatives/min par IP ; verrou par compte en V1.1 » restent les phrases de repli). Deux sous-lots indépendants, **deux PR B** possibles ; 3a d'abord (visible en P7). Niveaux : `Vérifié` = lu dans le dépôt ; `Proposé` = à trancher dans la PR. Pas de code ici.
 
+**État au 10/11 11:10** : 3a PR B **#80** (`feat/audit-export`, CI verte) ouverte ; 3b PR B **#83** (`feat/otp-lockout`, CI verte, apporte `DOCS/exploitation/deverrouiller-compte.md`) ouverte ; PR F non ouvertes ; non fusionné.
+
 ## 3a. Export du journal d'audit
 
 ### Existant (`Vérifié`)

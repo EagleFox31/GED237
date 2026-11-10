@@ -68,7 +68,7 @@ const OrgDashboard: React.FC = () => {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         <KPICard
           icon="description"
           iconColor="text-green-600"
@@ -100,6 +100,14 @@ const OrgDashboard: React.FC = () => {
           label="Utilisateurs"
           value={isLoading ? '...' : String(metrics?.users?.total ?? 0)}
           subtext="Comptes actifs"
+        />
+        <KPICard
+          icon="content_copy"
+          iconColor="text-slate-600"
+          iconBg="bg-slate-100"
+          label="Doublons refusés"
+          value={isLoading ? '...' : String(metrics?.duplicates?.refused ?? 0)}
+          subtext={`${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`}
         />
       </div>
 
@@ -181,15 +189,15 @@ const OrgDashboard: React.FC = () => {
             <div className="grid grid-cols-3 gap-6">
               <div className="text-center p-8 bg-green-50 rounded-3xl">
                 <p className="text-5xl font-black text-green-600">{metrics.workflows.completed}</p>
-                <p className="text-xs font-bold text-green-500 mt-2 uppercase tracking-widest">Complétés</p>
+                <p className="text-xs font-bold text-green-700 mt-2 uppercase tracking-widest">Complétés</p>
               </div>
               <div className="text-center p-8 bg-blue-50 rounded-3xl">
                 <p className="text-5xl font-black text-blue-600">{metrics.workflows.pending}</p>
-                <p className="text-xs font-bold text-blue-500 mt-2 uppercase tracking-widest">En Attente</p>
+                <p className="text-xs font-bold text-blue-700 mt-2 uppercase tracking-widest">En Attente</p>
               </div>
               <div className="text-center p-8 bg-red-50 rounded-3xl">
                 <p className="text-5xl font-black text-red-600">{metrics.workflows.rejected}</p>
-                <p className="text-xs font-bold text-red-500 mt-2 uppercase tracking-widest">Rejetés</p>
+                <p className="text-xs font-bold text-red-700 mt-2 uppercase tracking-widest">Rejetés</p>
               </div>
             </div>
           ) : (

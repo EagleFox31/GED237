@@ -79,7 +79,7 @@ const PlatformDashboard: React.FC = () => {
             ) : (
               <div className="text-center p-8 bg-blue-50 rounded-3xl">
                 <p className="text-6xl font-black text-blue-600">{metrics?.tenants?.total}</p>
-                <p className="text-sm font-bold text-blue-500 mt-2 uppercase tracking-widest">Institutions Actives</p>
+                <p className="text-sm font-bold text-blue-700 mt-2 uppercase tracking-widest">Institutions Actives</p>
                 <div className="flex items-center justify-center gap-3 mt-6">
                   <button
                     type="button"

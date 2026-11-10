@@ -188,7 +188,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               </div>
               <div className="hidden lg:block">
                 <h1 className="text-base font-black text-slate-800 tracking-tighter leading-none italic uppercase">E-Dossier</h1>
-                <p className="text-[8px] uppercase font-bold text-red-500 tracking-widest mt-0.5">Gestion Documentaire</p>
+                <p className="text-[8px] uppercase font-bold text-red-700 tracking-widest mt-0.5">Gestion Documentaire</p>
               </div>
             </div>
           )}
