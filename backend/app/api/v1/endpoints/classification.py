@@ -1,7 +1,12 @@
 import re
+from datetime import datetime, timezone
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -15,6 +20,7 @@ from app.models.classification_rule import ClassificationRule
 from app.models.document_category import DocumentCategory
 from app.models.gedrules import WorkflowTemplate
 from app.models.org_unit import OrgUnit
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.classification_admin import (
     ClassificationActivityCreate,
@@ -24,13 +30,17 @@ from app.schemas.classification_admin import (
     ClassificationDomainRead,
     ClassificationDomainUpdate,
     ClassificationRuleCreate,
+    ClassificationRuleImportItem,
+    ClassificationRuleImportReport,
     ClassificationRuleRead,
+    ClassificationRulesExchange,
     ClassificationRuleUpdate,
 )
 from app.schemas.classification import (
     ClassificationSimulationRequest,
     ClassificationSimulationResponse,
 )
+from app.services import classification_rule_transfer as rule_transfer
 from app.services.classification_rule_engine import ClassificationRuleEngine
 
 router = APIRouter()
@@ -625,6 +635,158 @@ async def list_classification_rules(
         )
     )
     return result.scalars().all()
+
+
+@router.get("/rules/export")
+async def export_classification_rules(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """All rules of the tenant, active or not, with references written as codes (portable file)."""
+    await authorize_or_403(current_user, "classification_rules", "read")
+    tenant_id = current_user.tenant_id
+    rules = (
+        (
+            await db.execute(
+                select(ClassificationRule)
+                .where(ClassificationRule.tenant_id == tenant_id)
+                .order_by(
+                    ClassificationRule.priority.asc(), ClassificationRule.code.asc()
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    directory = await rule_transfer.load_directory(db, tenant_id)
+    tenant = await db.get(Tenant, tenant_id)
+    label = (tenant.short_name or tenant.name) if tenant else ""
+    now = datetime.now(timezone.utc)
+    body = {
+        "format": rule_transfer.FORMAT,
+        "version": rule_transfer.VERSION,
+        "exported_at": now.isoformat(),
+        "tenant_code": label,
+        "rules": [rule_transfer.export_rule(rule, directory) for rule in rules],
+    }
+    slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-") or "organisation"
+    filename = f"regles-classement-{slug}-{now:%Y%m%d}.json"
+    return JSONResponse(
+        content=jsonable_encoder(body),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _validation_reason(error: ValidationError) -> str:
+    first = error.errors()[0]
+    location = ".".join(str(part) for part in first.get("loc", ()))
+    message = first.get("msg", "valeur invalide")
+    return f"{location} : {message}" if location else message
+
+
+_REPORT_COUNTERS = {
+    "create": "created",
+    "update": "updated",
+    "skip": "skipped",
+    "reject": "rejected",
+}
+
+
+@router.post("/rules/import", response_model=ClassificationRuleImportReport)
+async def import_classification_rules(
+    payload: ClassificationRulesExchange,
+    dry_run: bool = Query(True),
+    mode: Literal["upsert", "create_only"] = Query("upsert"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Import an exported file. All or nothing: one rejected rule and nothing is written.
+
+    An existing rule whose content is already identical is skipped, so importing the same file
+    twice writes nothing the second time.
+    """
+    await authorize_or_403(current_user, "classification_rules", "create")
+    if mode == "upsert":
+        await authorize_or_403(current_user, "classification_rules", "update")
+    if (
+        payload.format != rule_transfer.FORMAT
+        or payload.version != rule_transfer.VERSION
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Fichier non reconnu : format {rule_transfer.FORMAT} "
+                f"version {rule_transfer.VERSION} attendu."
+            ),
+        )
+    tenant_id = current_user.tenant_id
+    directory = await rule_transfer.load_directory(db, tenant_id)
+    existing = {
+        rule.code: rule
+        for rule in (
+            await db.execute(
+                select(ClassificationRule).where(
+                    ClassificationRule.tenant_id == tenant_id
+                )
+            )
+        ).scalars()
+    }
+    report = ClassificationRuleImportReport(dry_run=dry_run)
+    planned: list[tuple[str, str, dict]] = []
+    seen: set[str] = set()
+
+    def record(code: str, action: str, reason: str | None = None) -> None:
+        report.items.append(
+            ClassificationRuleImportItem(code=code, action=action, reason=reason)
+        )
+        counter = _REPORT_COUNTERS[action]
+        setattr(report, counter, getattr(report, counter) + 1)
+
+    for raw in payload.rules:
+        code = _normalize_code(str(raw.get("code") or ""))
+        if code in seen:
+            record(code, "reject", "code present plusieurs fois dans le fichier")
+            continue
+        seen.add(code)
+        try:
+            rule_payload = ClassificationRuleCreate(
+                **rule_transfer.resolve_rule(raw, directory)
+            )
+        except rule_transfer.UnknownReference as error:
+            record(code, "reject", str(error))
+            continue
+        except ValidationError as error:
+            record(code, "reject", _validation_reason(error))
+            continue
+        try:
+            await _validate_rule_payload(db, tenant_id=tenant_id, payload=rule_payload)
+        except HTTPException as error:
+            record(code, "reject", str(error.detail))
+            continue
+        values = _rule_column_values(rule_payload, exclude={"code"})
+        current = existing.get(code)
+        if current is None:
+            record(code, "create")
+            planned.append(("create", code, values))
+        elif all(getattr(current, field) == value for field, value in values.items()):
+            record(code, "skip", "identique")
+        elif mode == "create_only":
+            record(code, "skip", "existe deja")
+        else:
+            record(code, "update")
+            planned.append(("update", code, values))
+
+    if dry_run or report.rejected:
+        return report
+    for action, code, values in planned:
+        if action == "create":
+            db.add(ClassificationRule(tenant_id=tenant_id, code=code, **values))
+        else:
+            for field, value in values.items():
+                setattr(existing[code], field, value)
+    await db.commit()
+    report.applied = True
+    return report
 
 
 @router.get("/rules/{rule_id}", response_model=ClassificationRuleRead)

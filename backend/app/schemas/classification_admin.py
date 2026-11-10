@@ -145,3 +145,30 @@ class ClassificationRuleRead(ClassificationRuleBase):
 
     class Config:
         from_attributes = True
+
+
+class ClassificationRulesExchange(BaseModel):
+    """Exchange file of GET /classification-rules/rules/export and POST .../rules/import."""
+
+    format: str
+    version: int
+    exported_at: Optional[str] = None
+    tenant_code: Optional[str] = None
+    rules: List[dict] = Field(max_length=500)
+
+
+class ClassificationRuleImportItem(BaseModel):
+    code: str
+    action: Literal["create", "update", "skip", "reject"]
+    reason: Optional[str] = None
+
+
+class ClassificationRuleImportReport(BaseModel):
+    dry_run: bool
+    # True only when the rules were written: never in dry run, never when one rule is rejected.
+    applied: bool = False
+    created: int = 0
+    updated: int = 0
+    skipped: int = 0
+    rejected: int = 0
+    items: List[ClassificationRuleImportItem] = []
