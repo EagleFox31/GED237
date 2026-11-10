@@ -729,18 +729,18 @@ async def import_classification_rules(
         )
     tenant_id = current_user.tenant_id
     directory = await rule_transfer.load_directory(db, tenant_id)
-    existing = {
-        rule.code: rule
-        for rule in (
-            await db.execute(
-                select(ClassificationRule).where(
-                    ClassificationRule.tenant_id == tenant_id
-                )
-            )
-        ).scalars()
-    }
+    # Matched on the normalized code on both sides: rules created before codes were normalized
+    # (e.g. seed codes such as ``E2E-RULE-DEMO``) must be found again, not duplicated.
+    existing_by_code: dict[str, list[ClassificationRule]] = {}
+    for rule in (
+        await db.execute(
+            select(ClassificationRule).where(ClassificationRule.tenant_id == tenant_id)
+        )
+    ).scalars():
+        existing_by_code.setdefault(_normalize_code(rule.code), []).append(rule)
     report = ClassificationRuleImportReport(dry_run=dry_run)
-    planned: list[tuple[str, str, dict]] = []
+    # ("create", normalized code, values) or ("update", existing rule, values)
+    planned: list[tuple[str, str | ClassificationRule, dict]] = []
     seen: set[str] = set()
 
     def record(code: str, action: str, reason: str | None = None) -> None:
@@ -772,26 +772,38 @@ async def import_classification_rules(
             record(code, "reject", str(error.detail))
             continue
         values = _rule_column_values(rule_payload, exclude={"code"})
-        current = existing.get(code)
+        matches = existing_by_code.get(code, [])
+        if len(matches) > 1:
+            codes = ", ".join(sorted(rule.code for rule in matches))
+            record(
+                code,
+                "reject",
+                f"plusieurs regles existantes correspondent a ce code ({codes}) : "
+                "renommez-en une avant d'importer",
+            )
+            continue
+        current = matches[0] if matches else None
         if current is None:
             record(code, "create")
             planned.append(("create", code, values))
-        elif all(getattr(current, field) == value for field, value in values.items()):
-            record(code, "skip", "identique")
+            continue
+        # A matched rule keeps its own code: the import never renames it.
+        if all(getattr(current, field) == value for field, value in values.items()):
+            record(current.code, "skip", "identique")
         elif mode == "create_only":
-            record(code, "skip", "existe deja")
+            record(current.code, "skip", "existe deja")
         else:
-            record(code, "update")
-            planned.append(("update", code, values))
+            record(current.code, "update")
+            planned.append(("update", current, values))
 
     if dry_run or report.rejected:
         return report
-    for action, code, values in planned:
+    for action, target, values in planned:
         if action == "create":
-            db.add(ClassificationRule(tenant_id=tenant_id, code=code, **values))
+            db.add(ClassificationRule(tenant_id=tenant_id, code=target, **values))
         else:
             for field, value in values.items():
-                setattr(existing[code], field, value)
+                setattr(target, field, value)
     await db.commit()
     report.applied = True
     return report

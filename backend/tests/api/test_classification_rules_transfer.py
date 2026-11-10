@@ -353,3 +353,90 @@ async def test_reader_cannot_import(client_as, db_seed):
     async with client_as("reader", tenant_id=db_seed["tenant_id"]) as client:
         response = await client.post(f"{BASE}/import", json=file)
     assert response.status_code == 403
+
+
+async def _add_raw_code_rule(test_engine, db_seed, code: str) -> None:
+    """A rule written straight to the database, as the seed does, with a non-normalized code."""
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with session_factory() as session:
+        session.add(
+            ClassificationRule(
+                tenant_id=db_seed["tenant_id"],
+                code=code,
+                name=f"Regle {code}",
+                priority=10,
+                is_active=True,
+                source_scope="service",
+                source_org_unit_id=db_seed["org_unit_id"],
+                target_scope="service",
+                target_org_unit_id=db_seed["org_unit_id"],
+                year_strategy="current",
+            )
+        )
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_rule_with_a_raw_code_is_matched_and_keeps_its_code(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _add_raw_code_rule(test_engine, db_seed, "E2E-RULE-DEMO")
+    exported = await _export(admin_client)
+
+    dry_run = (await admin_client.post(f"{BASE}/import", json=exported)).json()
+    applied = (
+        await admin_client.post(f"{BASE}/import?dry_run=false", json=exported)
+    ).json()
+    reexported = await _export(admin_client)
+    again = await admin_client.post(f"{BASE}/import?dry_run=false", json=reexported)
+
+    for report in (dry_run, applied):
+        assert (report["created"], report["updated"], report["skipped"]) == (0, 0, 1)
+        assert report["items"][0] == {
+            "code": "E2E-RULE-DEMO",
+            "action": "skip",
+            "reason": "identique",
+        }
+    assert await _rule_count(test_engine, db_seed["tenant_id"]) == 1
+    assert [rule["code"] for rule in reexported["rules"]] == ["E2E-RULE-DEMO"]
+    assert again.status_code == 200 and again.json()["rejected"] == 0
+
+
+@pytest.mark.asyncio
+async def test_changed_raw_code_rule_is_updated_without_renaming(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _add_raw_code_rule(test_engine, db_seed, "E2E-RULE-DEMO")
+    exported = await _export(admin_client)
+    exported["rules"][0]["priority"] = 3
+
+    report = (
+        await admin_client.post(f"{BASE}/import?dry_run=false", json=exported)
+    ).json()
+
+    assert (report["created"], report["updated"]) == (0, 1)
+    rules = (await _export(admin_client))["rules"]
+    assert [(rule["code"], rule["priority"]) for rule in rules] == [
+        ("E2E-RULE-DEMO", 3)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_two_existing_rules_with_the_same_normalized_code_refuse_the_import(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _add_raw_code_rule(test_engine, db_seed, "E2E-RULE-DEMO")
+    await _add_raw_code_rule(test_engine, db_seed, "e2e_rule_demo")
+    exported = await _export(admin_client)
+    exported["rules"] = exported["rules"][:1]
+
+    report = (
+        await admin_client.post(f"{BASE}/import?dry_run=false", json=exported)
+    ).json()
+
+    assert report["rejected"] == 1 and report["applied"] is False
+    reason = report["items"][0]["reason"]
+    assert "E2E-RULE-DEMO, e2e_rule_demo" in reason and "renommez" in reason
+    assert await _rule_count(test_engine, db_seed["tenant_id"]) == 2
