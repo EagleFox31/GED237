@@ -14,7 +14,6 @@ const formatTime = (iso: string) => {
 };
 
 export const describeWatchStatus = (status: IngestWatchStatus): string => {
-  if (!status.enabled) return 'Surveillance désactivée';
   if (!status.last_run) return 'Surveillance active : aucun passage pour l\'instant';
   const { at, folders } = status.last_run;
   const imported = folders.reduce((sum, f) => sum + f.imported, 0);
@@ -47,7 +46,8 @@ export const IngestWatchNotice: React.FC = () => {
         const next = await api.getIngestWatchStatus();
         if (cancelled) return;
         setStatus(next);
-        timer = setTimeout(load, REFRESH_MS);
+        // Surveillance inactive : la configuration ne change pas à chaud, inutile de relire.
+        if (next.enabled) timer = setTimeout(load, REFRESH_MS);
       } catch {
         // L'erreur HTTP est déjà signalée par le bus global ; on n'insiste pas.
         if (!cancelled) setFailed(true);
@@ -61,7 +61,8 @@ export const IngestWatchNotice: React.FC = () => {
     };
   }, []);
 
-  if (failed || !status) return null;
+  // Rien à montrer tant que la surveillance n'est pas active.
+  if (failed || !status || !status.enabled) return null;
 
   return (
     <div
@@ -70,7 +71,7 @@ export const IngestWatchNotice: React.FC = () => {
       className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600"
     >
       <span className="material-symbols-outlined text-base text-slate-400" aria-hidden="true">
-        {status.enabled ? 'visibility' : 'visibility_off'}
+        visibility
       </span>
       <span className="flex-1">{describeWatchStatus(status)}</span>
       <HelpHint

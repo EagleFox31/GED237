@@ -30,12 +30,13 @@ test.describe('Feature: encart Surveillance', () => {
     await expect(notice).toContainText('1 ignoré');
   });
 
-  test('Given surveillance désactivée, When écran Ingestion, Then message de désactivation', async ({ loginAs, page }) => {
+  test('Given surveillance désactivée, When écran Ingestion, Then aucun encart', async ({ loginAs, page }) => {
     await page.route(statusRoute, (route) =>
       route.fulfill({ json: { enabled: false, interval_seconds: 0, last_run: null } }),
     );
     await loginAs('tenant_admin');
     await page.goto('ingestion');
-    await expect(page.getByTestId('ingest-watch-notice')).toContainText('Surveillance désactivée', { timeout: 10_000 });
+    await expect(page.getByText(/assistant d.import documentaire/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('ingest-watch-notice')).toHaveCount(0);
   });
 });
