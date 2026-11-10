@@ -435,7 +435,7 @@ première requête utilisateur.
 
 - **Date :** 2026-11-10
 - **Catégorie :** process / ci-cd / tooling
-- **Statut :** prevention-added
+- **Statut :** prevention-verified (10/11 13:40 : `queue.sh` teste les états en positif, MERGED / CLOSED / OPEN, sortie vide = rien conclu ; `grep '!= *"OPEN"'` = 0 ligne ; file relancée)
 - **Liens :** chaînes de fusion de l'orchestrateur (file de 15 PR V1.1 du 10/11), ruleset `main` (branche à jour obligatoire → `update-branch` par PR), LESSON-2026-029 (contrôle de chaîne avant fusion), LESSON-2026-031 (règle de mise en file)
 
 **Contexte** — File de fusion en série gérée hors GitHub : une boucle par chaîne attend que la PR précédente soit fusionnée (`gh pr view --json state`) avant de mettre à jour la suivante et de la fusionner. Quinze chaînes attendaient en parallèle sur un poste déjà chargé (pile Docker, suite pytest, campagne Playwright, plusieurs sessions).
