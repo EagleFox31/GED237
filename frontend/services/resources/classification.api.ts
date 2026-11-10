@@ -44,6 +44,9 @@ export interface ClassificationRulePayload {
     source_user_ids?: string[] | null;
     filename_pattern?: string | null;
     mime_type_pattern?: string | null;
+    content_pattern?: string | null;
+    year_min?: number | null;
+    year_max?: number | null;
     target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
     target_org_unit_id?: string | null;
     target_user_id?: string | null;
@@ -187,6 +190,7 @@ export const classificationApi = {
         source_user_id?: string | null;
         filename: string;
         mime_type?: string | null;
+        content_sample?: string | null;
     }): Promise<ClassificationSimulationResponse> =>
         apiCall<ClassificationSimulationResponse>(
             '/classification-rules/simulate',

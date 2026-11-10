@@ -48,6 +48,9 @@ type RuleFormState = {
   source_user_ids: string[];
   filename_pattern: string;
   mime_type_pattern: string;
+  content_pattern: string;
+  year_min: string;
+  year_max: string;
   target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
   target_org_unit_id: string;
   target_user_id: string;
@@ -66,6 +69,7 @@ type SimulatorFormState = {
   source_user_id: string;
   filename: string;
   mime_type: string;
+  content_sample: string;
 };
 
 const EMPTY_DOMAIN: DomainFormState = { code: '', name: '', description: '' };
@@ -90,6 +94,9 @@ const EMPTY_RULE: RuleFormState = {
   source_user_ids: [],
   filename_pattern: '',
   mime_type_pattern: '',
+  content_pattern: '',
+  year_min: '',
+  year_max: '',
   target_scope: 'service',
   target_org_unit_id: '',
   target_user_id: '',
@@ -107,6 +114,7 @@ const EMPTY_SIMULATION: SimulatorFormState = {
   source_user_id: '',
   filename: 'note_marche_2026.pdf',
   mime_type: 'application/pdf',
+  content_sample: '',
 };
 
 const TAB_META: Record<AdminTab, { label: string; icon: string; accent: string; step: number }> = {
@@ -561,6 +569,7 @@ const ClassificationSettingsTab: React.FC = () => {
   const [domainForm, setDomainForm] = useState<DomainFormState>(EMPTY_DOMAIN);
   const [activityForm, setActivityForm] = useState<ActivityFormState>(EMPTY_ACTIVITY);
   const [ruleForm, setRuleForm] = useState<RuleFormState>(EMPTY_RULE);
+  const [showContentHelp, setShowContentHelp] = useState(false);
   const [simulationForm, setSimulationForm] = useState<SimulatorFormState>(EMPTY_SIMULATION);
   const [simulationResult, setSimulationResult] = useState<ClassificationSimulationResponse | null>(null);
   const [working, setWorking] = useState<string | null>(null);
@@ -813,6 +822,9 @@ const ClassificationSettingsTab: React.FC = () => {
         source_user_ids: selectedRule.source_user_ids || [],
         filename_pattern: selectedRule.filename_pattern || '',
         mime_type_pattern: selectedRule.mime_type_pattern || '',
+        content_pattern: selectedRule.content_pattern || '',
+        year_min: selectedRule.year_min != null ? String(selectedRule.year_min) : '',
+        year_max: selectedRule.year_max != null ? String(selectedRule.year_max) : '',
         target_scope: selectedRule.target_scope,
         target_org_unit_id: selectedRule.target_org_unit_id || '',
         target_user_id: selectedRule.target_user_id || '',
@@ -908,6 +920,9 @@ const ClassificationSettingsTab: React.FC = () => {
       source_user_ids: rule.source_user_ids || [],
       filename_pattern: rule.filename_pattern || '',
       mime_type_pattern: rule.mime_type_pattern || '',
+      content_pattern: rule.content_pattern || '',
+      year_min: rule.year_min != null ? String(rule.year_min) : '',
+      year_max: rule.year_max != null ? String(rule.year_max) : '',
       target_scope: (rule.target_scope as RuleFormState['target_scope']) || 'service',
       target_org_unit_id: rule.target_org_unit_id || '',
       target_user_id: rule.target_user_id || '',
@@ -1138,6 +1153,9 @@ const ClassificationSettingsTab: React.FC = () => {
       source_user_ids: ruleForm.source_user_ids.length > 0 ? ruleForm.source_user_ids : null,
       filename_pattern: ruleForm.filename_pattern.trim() || null,
       mime_type_pattern: ruleForm.mime_type_pattern.trim() || null,
+      content_pattern: ruleForm.content_pattern.trim() || null,
+      year_min: Number.parseInt(ruleForm.year_min, 10) || null,
+      year_max: Number.parseInt(ruleForm.year_max, 10) || null,
       target_scope: ruleForm.target_scope,
       target_org_unit_id: ruleForm.target_scope === 'person' ? null : ruleForm.target_org_unit_id || null,
       target_user_id: ruleForm.target_scope === 'person' ? ruleForm.target_user_id || null : null,
@@ -1218,6 +1236,7 @@ const ClassificationSettingsTab: React.FC = () => {
         source_user_id: simulationForm.source_user_id || null,
         filename: simulationForm.filename.trim(),
         mime_type: simulationForm.mime_type.trim() || null,
+        content_sample: simulationForm.content_sample.trim() || null,
       });
       setSimulationResult(result);
     } catch {
@@ -1835,6 +1854,36 @@ const ClassificationSettingsTab: React.FC = () => {
               <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Plusieurs mots séparés par <span className="font-mono">;</span> — la règle s&apos;applique si <span className="font-bold not-italic">au moins un</span> mot est trouvé. Accents et majuscules ignorés (« marche » attrape aussi « Marché », « MARCHÉS »). Laisser vide pour ignorer ce critère.</p>
             </div>
 
+            <div className="relative">
+              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">manage_search</span>Mots-clés du contenu</label>
+              <button
+                type="button"
+                onClick={() => setShowContentHelp((v) => !v)}
+                aria-label="Aide sur les règles de contenu"
+                aria-expanded={showContentHelp}
+                className="absolute right-0 top-0 text-slate-400 hover:text-rdpc-blue"
+              >
+                <span className="material-symbols-outlined text-base">help</span>
+              </button>
+              {showContentHelp && (
+                <p role="note" className="absolute right-0 top-6 z-10 w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-600 shadow-lg">
+                  Les règles de contenu s&apos;appliquent après la lecture du texte, seulement aux documents encore en attente. Un document déjà classé n&apos;est pas déplacé.
+                </p>
+              )}
+              <input aria-label="Mots-clés du contenu" maxLength={255} value={ruleForm.content_pattern} onChange={(event) => setRuleForm((prev) => ({ ...prev, content_pattern: event.target.value }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-rdpc-blue" placeholder="facture;bon de commande" />
+              <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Mots séparés par <span className="font-mono">;</span> — au moins un mot dans le texte du document.</p>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">event</span>Année du document</label>
+              <div className="mt-1 flex items-center gap-2">
+                <input type="number" min={1900} max={2100} aria-label="Année min" placeholder="Année min" value={ruleForm.year_min} onChange={(event) => setRuleForm((prev) => ({ ...prev, year_min: event.target.value }))} className="w-full bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-rdpc-blue" />
+                <span className="text-slate-400">–</span>
+                <input type="number" min={1900} max={2100} aria-label="Année max" placeholder="Année max" value={ruleForm.year_max} onChange={(event) => setRuleForm((prev) => ({ ...prev, year_max: event.target.value }))} className="w-full bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-rdpc-blue" />
+              </div>
+              <p className="text-[10px] text-slate-400 italic mt-1 ml-1">Année lue dans le nom du fichier. Vide = toutes.</p>
+            </div>
+
             <div className="md:col-span-2">
               <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"><span className="material-symbols-outlined text-base text-rdpc-blue">draft</span>Formats acceptés</label>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -2377,6 +2426,22 @@ const ClassificationSettingsTab: React.FC = () => {
               }}
               placeholder="ex : devis_marche_2026.pdf"
               className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              <span className="material-symbols-outlined text-base text-amber-600">notes</span>
+              Extrait du contenu
+            </label>
+            <textarea
+              aria-label="Extrait du contenu"
+              rows={3}
+              maxLength={20000}
+              value={simulationForm.content_sample}
+              onChange={(event) => setSimulationForm((prev) => ({ ...prev, content_sample: event.target.value }))}
+              placeholder="Collez ici un extrait du texte du document (20 000 caractères max)"
+              className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-amber-500"
             />
           </div>
 
