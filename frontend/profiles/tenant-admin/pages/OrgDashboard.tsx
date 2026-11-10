@@ -68,7 +68,7 @@ const OrgDashboard: React.FC = () => {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <KPICard
           icon="description"
           iconColor="text-green-600"
@@ -100,6 +100,14 @@ const OrgDashboard: React.FC = () => {
           label="Utilisateurs"
           value={isLoading ? '...' : String(metrics?.users?.total ?? 0)}
           subtext="Comptes actifs"
+        />
+        <KPICard
+          icon="content_copy"
+          iconColor="text-slate-600"
+          iconBg="bg-slate-100"
+          label="Doublons refusés"
+          value={isLoading ? '...' : String(metrics?.duplicates?.refused ?? 0)}
+          subtext={`${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`}
         />
       </div>
 
