@@ -169,6 +169,8 @@ const AuditLogs: React.FC = () => {
     });
   }, [columnFilters, logs]);
 
+  const nothingToExport = !isLoading && filteredLogs.length === 0;
+
   const sortedLogs = useMemo(() => {
     if (!sort) return filteredLogs;
     const dir = sort.dir === 'asc' ? 1 : -1;
@@ -308,11 +310,13 @@ const AuditLogs: React.FC = () => {
           <button
             type="button"
             onClick={exportCsv}
-            disabled={exporting || exportBlocked}
+            disabled={exporting || exportBlocked || nothingToExport}
             title={
-              exportBlocked
-                ? 'Choisissez un seul utilisateur pour exporter.'
-                : 'Télécharger le journal (fichier Excel)'
+              nothingToExport
+                ? 'Rien à exporter'
+                : exportBlocked
+                  ? 'Choisissez un seul utilisateur pour exporter.'
+                  : 'Télécharger le journal (fichier Excel)'
             }
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-700 hover:text-rdpc-blue disabled:opacity-50"
           >
