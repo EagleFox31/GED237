@@ -1,17 +1,17 @@
 import { test, expect } from '../fixtures/auth.fixture';
 
 /**
- * SC-SEC-01..03 — Isolation multi-tenant et séparation des pouvoirs
+ * SC-SEC-03/04 — Séparation des pouvoirs (SC-SEC-01/02 = cloisonnement service / tenant, P5)
  *
- *   - SC-SEC-01 : un rédacteur ne peut pas accéder aux endpoints admin (authz)
- *   - SC-SEC-02 : un lecteur ne voit ni upload ni suppression
- *   - SC-SEC-03 : un collaborateur d'un tenant ne peut pas lire les policies
- *                 globales (403 backend même en contournant l'UI)
+ *   - SC-SEC-03a : un rédacteur ne peut pas lire les policies (GET /authz/policies → 403)
+ *   - SC-SEC-03b : un collaborateur ne peut pas écrire les policies (403 backend même en contournant l'UI)
+ *   - SC-SEC-04a : un lecteur ne voit ni upload ni suppression
+ *   - SC-SEC-04b : un auditeur ne peut pas déposer de document (403)
  *
  * On teste via appels HTTP authentifiés en récupérant le token depuis
  * sessionStorage après login, puis en appelant directement l'API.
  */
-test.describe('Feature: Isolation & Séparation des pouvoirs (SC-SEC-01..03)', () => {
+test.describe('Feature: Isolation & Séparation des pouvoirs (SC-SEC-03/04)', () => {
 
   const API = process.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -19,7 +19,7 @@ test.describe('Feature: Isolation & Séparation des pouvoirs (SC-SEC-01..03)', (
     return page.evaluate(() => sessionStorage.getItem('access_token'));
   };
 
-  test('SC-SEC-01 — Given rédacteur, When GET /authz/policies, Then 403', async ({ loginAs, page, request }) => {
+  test('SC-SEC-03a — Given rédacteur, When GET /authz/policies, Then 403', async ({ loginAs, page, request }) => {
     await loginAs('collaborator');
     const token = await getToken(page);
     expect(token, 'Le token doit être présent après login').toBeTruthy();
@@ -30,14 +30,14 @@ test.describe('Feature: Isolation & Séparation des pouvoirs (SC-SEC-01..03)', (
     expect([401, 403]).toContain(res.status());
   });
 
-  test('SC-SEC-02 — Given lecteur, When /documents, Then aucun bouton d\'upload/suppression', async ({ loginAs, page }) => {
-    test.fixme(true, 'SMK-10: the reader still sees the upload button; lifted by #45');
+  test('SC-SEC-04a — Given lecteur, When /documents, Then aucun bouton d\'upload/suppression', async ({ loginAs, page }) => {
     await loginAs('reader');
     await page.goto('documents');
     await page.waitForLoadState('networkidle');
 
-    // Pas de bouton d'import/upload visible
-    const uploadVisible = await page.getByRole('button', { name: /importer|ajouter|téléverser|upload/i }).first().isVisible().catch(() => false);
+    // Pas de bouton de dépôt visible. Le menu « Ranger / Importer » (rangement local, aucun envoi
+    // au serveur) est de la navigation, pas un dépôt : le sélecteur vise donc le bouton de dépôt.
+    const uploadVisible = await page.getByRole('button', { name: /nouveau document|téléverser|upload/i }).first().isVisible().catch(() => false);
     expect(uploadVisible).toBeFalsy();
 
     // Pas de bouton de suppression visible
@@ -45,7 +45,7 @@ test.describe('Feature: Isolation & Séparation des pouvoirs (SC-SEC-01..03)', (
     expect(deleteVisible).toBeFalsy();
   });
 
-  test('SC-SEC-03 — Given collaborateur, When POST /authz/policies, Then 403', async ({ loginAs, page, request }) => {
+  test('SC-SEC-03b — Given collaborateur, When POST /authz/policies, Then 403', async ({ loginAs, page, request }) => {
     await loginAs('collaborator');
     const token = await getToken(page);
     expect(token).toBeTruthy();
@@ -62,7 +62,7 @@ test.describe('Feature: Isolation & Séparation des pouvoirs (SC-SEC-01..03)', (
     expect([401, 403]).toContain(res.status());
   });
 
-  test('SC-SEC-04 — Given auditor, When POST /documents (upload), Then 403', async ({ loginAs, page, request }) => {
+  test('SC-SEC-04b — Given auditor, When POST /documents (upload), Then 403', async ({ loginAs, page, request }) => {
     await loginAs('auditor');
     const token = await getToken(page);
     expect(token).toBeTruthy();
