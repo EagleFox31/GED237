@@ -191,6 +191,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
+      args:
+        VITE_APP_VERSION: ${APP_VERSION:-dev}
     container_name: edossier_frontend
     mem_limit: 768m
     memswap_limit: 768m
@@ -201,6 +203,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_URL=/api/v1
+      - VITE_APP_VERSION=${APP_VERSION:-dev}
     networks:
       - edossier_network
 
