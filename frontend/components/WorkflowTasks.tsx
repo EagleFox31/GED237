@@ -1,13 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icons } from '../constants';
-import { WorkflowStep } from '../types';
+import type { PendingWorkflowTask } from '../types';
 import { api } from '../services/api';
+import type { WorkflowDecision } from '../services/resources/workflows.api';
+import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { ApiError } from '../lib/errors';
+import { pushClientOperationError } from '../lib/errors/clientOperationError';
 
 const WorkflowTasks: React.FC = () => {
-  const [tasks, setTasks] = useState<WorkflowStep[]>([]);
+  const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<PendingWorkflowTask | null>(null);
 
   const fetchTasks = async () => {
     try {
@@ -25,13 +31,19 @@ const WorkflowTasks: React.FC = () => {
     fetchTasks();
   }, []);
 
-  const handleValidate = async (stepId: string, action: 'approve' | 'reject') => {
-    const comment = action === 'reject' ? prompt('Motif du rejet :') : null;
+  const decide = async (task: PendingWorkflowTask, decision: WorkflowDecision, comment?: string) => {
+    setProcessingId(task.id);
     try {
-      await api.validateWorkflowStep(stepId, action, comment || undefined);
+      await api.decideWorkflowStep(task, decision, comment);
+      setRejecting(null);
       await fetchTasks();
     } catch (err) {
-      console.error('Validation failed:', err);
+      // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (version absente).
+      if (!(err instanceof ApiError)) {
+        pushClientOperationError(err, { fallbackDetail: 'Décision impossible sur ce document.' });
+      }
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -75,19 +87,21 @@ const WorkflowTasks: React.FC = () => {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{task.status}</span>
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
-              <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document_id}</span></p>
+              <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || task.document_id}</span></p>
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={() => handleValidate(task.id, 'approve')}
-                className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-green-100"
+                onClick={() => decide(task, 'accept')}
+                disabled={processingId === task.id}
+                className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-green-100 disabled:opacity-50"
               >
                 Valider
               </button>
               <button
-                onClick={() => handleValidate(task.id, 'reject')}
-                className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-red-100"
+                onClick={() => setRejecting(task)}
+                disabled={processingId === task.id}
+                className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-red-100 disabled:opacity-50"
               >
                 Rejeter
               </button>
@@ -95,6 +109,13 @@ const WorkflowTasks: React.FC = () => {
           </div>
         ))}
       </div>
+
+      <RejectReasonDialog
+        documentTitle={rejecting ? rejecting.document?.title || rejecting.label : null}
+        submitting={rejecting !== null && processingId === rejecting.id}
+        onConfirm={(reason) => rejecting && void decide(rejecting, 'reject', reason)}
+        onCancel={() => setRejecting(null)}
+      />
 
       {/* Visual Workflow Chart */}
       <div className="glass p-8 rounded-[2rem] border-white">

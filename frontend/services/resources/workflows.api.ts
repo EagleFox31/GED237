@@ -4,6 +4,7 @@
 // SRP : change uniquement si le contrat /workflows/* évolue.
 
 import { apiCall } from '../http/client';
+import type { PendingWorkflowTask, WorkflowValidator } from '../../types';
 
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
 
@@ -12,6 +13,36 @@ export interface WorkflowActionPayload {
     outcome: string;
     document_version_id: string;
     comment?: string;
+}
+
+/** Décision d'un valideur sur sa tâche : accepter (viser, approuver, signer, prendre connaissance) ou rejeter. */
+export type WorkflowDecision = 'accept' | 'reject';
+
+/**
+ * Construit le corps de POST /workflows/step/{id}/actions à partir d'une tâche de /pending.
+ * action_type reprend l'action attendue par l'étape ; la version citée est la version courante
+ * du document (le backend refuse toute autre version). Lève une erreur si la tâche n'en porte pas.
+ */
+export function buildWorkflowDecision(
+    task: Pick<PendingWorkflowTask, 'expected_action_type' | 'document'>,
+    decision: WorkflowDecision,
+    comment?: string,
+): WorkflowActionPayload {
+    const versionId = task.document?.current_version_id;
+    if (!versionId) {
+        throw new Error("Ce document n'a pas de version à valider. Rechargez la page.");
+    }
+    const actionType = task.expected_action_type || 'visa';
+    const outcome = decision === 'reject'
+        ? 'rejected'
+        : actionType === 'read_ack' ? 'acknowledged' : 'accepted';
+    const trimmed = comment?.trim();
+    return {
+        action_type: actionType,
+        outcome,
+        document_version_id: versionId,
+        ...(trimmed ? { comment: trimmed } : {}),
+    };
 }
 
 // ── API ─────────────────────────────────────────────────────────────────────
@@ -38,25 +69,21 @@ export const workflowsApi = {
             'Récupération de l\'historique des actions impossible',
         ),
 
-    getPendingWorkflows: (): Promise<any[]> =>
-        apiCall<any[]>('/workflows/pending', {}, 'Récupération des workflows en attente impossible'),
+    getPendingWorkflows: (): Promise<PendingWorkflowTask[]> =>
+        apiCall<PendingWorkflowTask[]>('/workflows/pending', {}, 'Récupération des workflows en attente impossible'),
+
+    getWorkflowValidators: (): Promise<WorkflowValidator[]> =>
+        apiCall<WorkflowValidator[]>('/workflows/validators', {}, 'Récupération des valideurs impossible'),
 
     getPendingAssignments: (): Promise<any[]> =>
         apiCall<any[]>('/workflows/pending-assignments', {}, 'Récupération des assignations impossible'),
 
-    validateWorkflowStep: (stepId: string, action: string, comment?: string): Promise<any> =>
-        apiCall<any>(
-            `/workflows/step/${stepId}/actions`,
-            {
-                method: 'POST',
-                body: JSON.stringify({
-                    action_type: action,
-                    outcome: action === 'approve' ? 'accepted' : 'rejected',
-                    comment,
-                }),
-            },
-            'Validation de l\'étape impossible',
-        ),
+    decideWorkflowStep: (
+        task: PendingWorkflowTask,
+        decision: WorkflowDecision,
+        comment?: string,
+    ): Promise<any> =>
+        workflowsApi.submitWorkflowAction(task.id, buildWorkflowDecision(task, decision, comment)),
 
     submitWorkflowAction: (stepId: string, payload: WorkflowActionPayload): Promise<any> =>
         apiCall<any>(
