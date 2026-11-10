@@ -8,7 +8,7 @@ import { DEMO, DEMO_MANIFEST_FILE, type Counters } from '../data/demo';
  *
  * Wiring when D1 lands: set DEMO_MANIFEST_FILE (e2e/data/demo.ts) to 'demo-manifest.json' and AWAITING_D1 to false.
  */
-const AWAITING_D1 = true;
+const AWAITING_D1 = false;
 const C2_THRESHOLD = 0.95;
 
 const API_URL = process.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -56,11 +56,6 @@ async function getAll(request: APIRequestContext, headers: Headers, route: strin
   }
 }
 
-const countersOf = (docs: Doc[]): Counters => ({
-  total: docs.length,
-  classified: docs.filter((d) => d.classification_status === 'classified').length,
-  toReview: docs.filter((d) => ['pending', 'needs_review'].includes(d.classification_status)).length,
-});
 
 const sum = (rows: Counters[], key: keyof Counters) => rows.reduce((n, r) => n + r[key], 0);
 
@@ -113,26 +108,41 @@ test.describe('Demo dataset vs expected (step 4)', () => {
     expect(rules.filter((r) => !r.is_active).map((r) => r.code).sort()).toEqual([...inactiveRules].sort());
   });
 
-  test('document counters, global and per org unit (trash included in total)', () => {
+  // D1 contract: classified = documents created (live + trash), toReview = open classification reviews
+  // (no document). Units of another tenant (MINESUP-DAAJ) are invisible to this admin: isolation proof.
+  test('document counters: classified per target unit, open reviews, isolation', async ({ request }) => {
     const all = [...live, ...trash];
-    expect(countersOf(all)).toEqual(DEMO.expected.documents);
+    const { classified, toReview } = DEMO.expected.documents;
+    expect(all.filter((d) => d.classification_status === 'classified')).toHaveLength(classified);
+    expect(all, 'every stored document is classified').toHaveLength(classified);
+
+    const visibleUnits = new Set(codes.org.values());
     for (const [unit, expected] of Object.entries(DEMO.expected.byOrgUnit)) {
-      const docs = all.filter((d) => codes.org.get(d.org_unit_id ?? '') === unit);
-      expect(countersOf(docs), `org unit ${unit}`).toEqual(expected);
+      if (!visibleUnits.has(unit)) continue;
+      const docs = all.filter((d) => codes.org.get(d.classification_target_org_unit_id ?? '') === unit);
+      expect(docs, `classified in ${unit}`).toHaveLength(expected.classified);
     }
+
+    const foreignReviews = Object.entries(DEMO.expected.byOrgUnit)
+      .filter(([unit]) => !visibleUnits.has(unit))
+      .reduce((n, [, c]) => n + c.toReview, 0);
+    const reviews = await getJson<{ review_status: string }[]>(request, headers, '/classification-reviews');
+    expect(reviews.filter((r) => r.review_status === 'open'), 'open reviews visible to the admin').toHaveLength(
+      toReview - foreignReviews,
+    );
   });
 
   test('trash and versions', async ({ request }) => {
     expect(trash.map((d) => d.title).sort()).toEqual([...DEMO.expected.trash].sort());
     for (const [title, count] of Object.entries(DEMO.expected.versions)) {
-      const doc = live.find((d) => d.title === title);
+      const doc = [...live, ...trash].find((d) => d.title === title);
       expect(doc, `document "${title}"`).toBeTruthy();
       expect(await getJson<unknown[]>(request, headers, `/documents/${doc!.id}/versions`), title).toHaveLength(count);
     }
   });
 
   test(`C2: covered files are classified at their destination (>= ${C2_THRESHOLD * 100} %)`, () => {
-    const byPath = new Map(live.map((d) => [d.source_relative_path, d]));
+    const byPath = new Map([...live, ...trash].map((d) => [d.source_relative_path, d]));
     const covered = DEMO.expected.files.filter((f) => f.status === 'classified');
     const deviations: string[] = [];
     const failed = new Set<string>();
@@ -160,6 +170,13 @@ test.describe('Demo dataset vs expected (step 4)', () => {
     }
     const rate = (covered.length - failed.size) / covered.length;
     expect(rate, `C2 deviations:\n${deviations.join('\n')}`).toBeGreaterThanOrEqual(C2_THRESHOLD);
+  });
+
+  test('files left for review have no document', () => {
+    const known = new Set([...live, ...trash].map((d) => d.source_relative_path));
+    for (const f of DEMO.expected.files.filter((x) => x.status === 'needs_review')) {
+      expect(known.has(f.path), `review ${f.path}`).toBe(false);
+    }
   });
 
   test('refused duplicates are not stored', () => {

@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures/authenticated.fixture';
 
 /**
- * SC-ADM-REVIEW — Arbitrage humain des documents non classés
+ * SC-ADM-07 — Arbitrage humain des documents non classés
  *
  * Après l'upload massif, les documents que le moteur n'a pas su classer
  * remontent sur /classification-reviews (avec compat /needs-review). Le tenant_admin doit les reprendre un par un
@@ -18,7 +18,7 @@ import { test, expect } from '../fixtures/authenticated.fixture';
 
 const MAX_ARBITRATIONS = 5;
 
-test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-REVIEW)', () => {
+test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-07)', () => {
 
   test('Given tenant_admin, When /needs-review, Then la page charge', async ({ page }) => {
     await page.goto('needs-review');
@@ -28,7 +28,7 @@ test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-REVIEW)', (
     await expect(heading).toBeVisible({ timeout: 10_000 });
   });
 
-  test('SC-ADM-REVIEW — arbitrage séquentiel des documents en rebut', async ({ page }) => {
+  test('SC-ADM-07 — arbitrage séquentiel des documents en rebut', async ({ page }) => {
     await page.goto('needs-review');
     await page.waitForLoadState('networkidle');
 
