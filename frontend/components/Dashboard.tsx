@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 
 import { api } from '../services/api';
 import { TenantMetrics } from '../types';
+import { HelpHint } from './HelpHint';
 
 const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
@@ -57,12 +58,21 @@ const Dashboard: React.FC = () => {
           { label: 'Documents', value: isLoading ? '...' : metrics?.documents?.total ?? 0, trend: 'Enregistrés', color: 'slate', icon: 'description' },
           { label: 'Stockage Utilisé', value: isLoading ? '...' : `${metrics?.documents?.storage_used_mb ?? 0} MB`, trend: 'Sur Quota', color: 'green', icon: 'cloud' },
           { label: 'Visa en Attente', value: isLoading ? '...' : metrics?.workflows?.pending ?? 0, trend: (metrics?.workflows?.rejected ?? 0) > 0 ? `${metrics!.workflows.rejected} rejetés` : 'À Jour', color: (metrics?.workflows?.rejected ?? 0) > 0 ? 'red' : 'green', icon: 'draw' },
-          { label: 'Doublons refusés', value: isLoading ? '...' : metrics?.duplicates?.refused ?? 0, trend: `${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`, color: 'slate', icon: 'content_copy' },
+          { label: 'Doublons refusés', value: isLoading ? '...' : metrics?.duplicates?.refused ?? 0, trend: (metrics?.duplicates?.refused ?? 0) === 0 ? 'Aucun doublon refusé' : `${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`, color: 'slate', icon: 'content_copy', help: true },
         ].map((stat, i) => (
           <div key={i} className="glass p-6 rounded-[2.5rem] hover:shadow-2xl transition-all border border-white group cursor-pointer overflow-hidden relative bg-white/40">
             <div className="flex justify-between items-start">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
-              <span className={`material-symbols-outlined text-${stat.color === 'blue' ? 'rdpc-blue' : stat.color === 'red' ? 'red-500' : stat.color === 'green' ? 'green-600' : 'slate-500'} opacity-30`}>{stat.icon}</span>
+              {(stat as { help?: boolean }).help ? (
+                <HelpHint
+                  label="Aide sur les doublons refusés"
+                  tip="Fichiers refusés à l'import parce qu'un document identique existait déjà."
+                >
+                  Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refusé ».
+                </HelpHint>
+              ) : (
+                <span className={`material-symbols-outlined text-${stat.color === 'blue' ? 'rdpc-blue' : stat.color === 'red' ? 'red-500' : stat.color === 'green' ? 'green-600' : 'slate-500'} opacity-30`}>{stat.icon}</span>
+              )}
             </div>
             <div className="flex items-end justify-between mt-5">
               <h3 className="text-4xl font-black text-slate-900 tracking-tighter italic">{stat.value}</h3>
