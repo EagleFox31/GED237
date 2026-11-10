@@ -9,6 +9,7 @@ import re
 import pytest
 from sqlalchemy import func, select
 
+from app.core.schema_check import SchemaStatus
 from app.models.org_unit import OrgUnitType
 
 BACKEND = pathlib.Path(__file__).resolve().parents[1]
@@ -51,3 +52,17 @@ async def test_upsert_by_code_is_idempotent(db_session):
     assert first == second
     count = await db_session.scalar(select(func.count()).select_from(OrgUnitType))
     assert count == len(seed_db.ORG_UNIT_TYPES)
+
+
+@pytest.mark.asyncio
+async def test_seed_refuses_a_database_not_at_head(monkeypatch):
+    """The schema comes from the migrations: no create_all, an actionable exit."""
+    seed_db = _load_seed_module()
+
+    async def not_at_head(engine):
+        return SchemaStatus(current=frozenset(), expected=frozenset({"head"}))
+
+    monkeypatch.setattr(seed_db, "get_schema_status", not_at_head)
+    with pytest.raises(SystemExit) as exc:
+        await seed_db.seed()
+    assert exc.value.code == 2
