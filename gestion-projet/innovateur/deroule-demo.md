@@ -39,10 +39,10 @@ Un repli API ne se montre **qu'une fois** par séance : au second incident, capt
 
 ## 3. Les deux moments où l'on dit volontairement ce qui manque
 
-1. **Fin de P3 (≈ 7:15)**, écran de simulation encore affiché : « La V1 classe sur type, origine, nom et format ; les critères contenu et date, la surveillance continue d'un répertoire et les tags arrivent en V1.1. » (écarts 2, 4, 16 du plan § 3). Dit ici parce que le jury vient de voir une règle : la limite est concrète, pas défensive.
+1. **Fin de P3 (≈ 7:15)**, écran de simulation encore affiché : « La V1 classe sur type, origine, nom et format ; les critères contenu et date, la surveillance continue d'un répertoire et les tags arrivent en V1.1. » (écarts 2, 4, 16 du plan § 3). Dit ici parce que le jury vient de voir une règle : la limite est concrète, pas défensive. **Révision du 10/11** (DEC-002) : critères contenu/date, export/import des règles et surveillance continue sont réouverts, **livrés si fusionnés le 19/11 18:00, sinon V1.1** ; un élément livré se montre dans P3 et sort de la phrase, les autres y restent.
 2. **Fin de P8 (≈ 13:45)**, statut Rejeté + motif à l'écran : « Le manager vise ou rejette avec motif ; le renvoi pour correction avec nouvelle version arrive en V1.1, le modèle de données le permet déjà. Le cycle de vie reste manuel : corbeille, restauration, purge par l'administrateur ; les durées de conservation automatiques sont une suite. » (écarts 17 et 9). Dit ici parce que c'est la question que Maarch inspire au jury (`sources/concurrents-ged.md` § 3).
 
-Les autres écarts se disent au bloc 15:00–17:00, jamais pendant un parcours.
+Les autres écarts se disent au bloc 15:00–17:00, jamais pendant un parcours. **Révision du 10/11** (DEC-002) : le compteur KPI doublons, l'export du journal d'audit et le verrou après 3 OTP suivent la même règle, livré si fusionné le 19/11 18:00, sinon annoncé en V1.1 dans ce bloc.
 
 ## 4. Questions probables et réponse en une phrase (texte complet : plan § 4 ; comparatif : concurrents § 2-3)
 
