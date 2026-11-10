@@ -12,10 +12,9 @@ import { SEED } from '../../data/seed';
  * et fix/workflow-pending-validators (version courante dans /workflows/pending) fusionnées.
  *
  * SC-VAL-04 est réduit (écart 17, « Retourner pour correction » -> V1.1) : le rédacteur voit le statut Rejeté
- * de son document. L'affichage du motif côté rédacteur n'est pas confirmé : test à part, fixme.
+ * de son document ; SC-VAL-04b vérifie le motif dans le détail du document (/documents, onglet Circuit de Validation).
  */
 const AWAITING_VALIDATION_UI = true;
-const REASON_DISPLAYED_TO_AUTHOR = false;
 
 const task = (code: string) => {
   const doc = SEED.documents.find((d) => d.code === code);
@@ -66,9 +65,13 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
     await expect(page.locator('.grid > div').filter({ hasText: TO_REJECT }).getByText('Rejeté')).toBeVisible();
   });
 
-  test('SC-VAL-04b - Le rédacteur voit le motif du rejet', async ({ loginAs, page }) => {
-    test.fixme(!REASON_DISPLAYED_TO_AUTHOR, 'confirm with dev-frontend where the reason is shown to the author');
+  test('SC-VAL-04b - Given document rejeté, When le rédacteur ouvre son détail, Then le motif est visible dans le circuit', async ({ loginAs, page }) => {
+    // The reason is shown in the document detail (DocumentDetailModal, tab "Circuit de Validation"), not in the Atelier card.
     await loginAs('collaborator');
-    await expect(page.getByText(REASON)).toBeVisible();
+    await page.goto('documents');
+    await page.getByText(TO_REJECT).first().click();
+    await page.getByText('Circuit de Validation').click();
+    // The reason appears on the step and again in the action history: both are expected.
+    await expect(page.getByText(`"${REASON}"`).first()).toBeVisible();
   });
 });
