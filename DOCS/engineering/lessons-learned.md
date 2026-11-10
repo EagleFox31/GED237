@@ -397,3 +397,19 @@ première requête utilisateur.
 **Leçon généralisée** — Un vert obtenu au retry cache un défaut ; prouver la stabilité sans retry et sur une machine calme avant d'attribuer un échec à l'environnement. Attendre un état observable par l'utilisateur, jamais un état global du réseau.
 
 ---
+
+### LESSON-2026-026 — Validation d'import bloquée sans fin quand le stockage des résultats Celery est injoignable
+
+- **Date :** 2026-11-10
+- **Catégorie :** backend / exploitation
+- **Statut :** mitigated
+- **Liens :** `backend/app/api/v1/endpoints/imports.py` (envoi OCR après commit), `backend/app/workers/celery_app.py`, `backend/scripts/seed_demo.py`
+
+**Contexte** — Preuve du profil `demo` (jeu de données D1) dans le runner de tests, qui ne fournit que `REDIS_URL`.
+**Échec / near miss** — Le premier `POST /imports/{id}/commit` n'a jamais répondu : 13 minutes bloqué, sans erreur ni log. `CELERY_BROKER_URL` pointait bien vers Redis ; `CELERY_RESULT_BACKEND` gardait sa valeur par défaut `localhost`.
+**Cause racine** — `process_document_ocr.delay()` s'abonne au stockage des résultats avant l'envoi ; `retry_over_time` de kombu réessaie la connexion sans borne. Le `try/except` autour de l'envoi ne sert à rien : aucune exception ne remonte. Les documents sont déjà validés en base, mais la requête HTTP reste suspendue.
+**Résolution** — Les deux variables Celery sont posées dans toute exécution hors pile complète (runner, scripts) ; la pile e2e les définit déjà (`docker-compose.e2e.yml`). Diagnostic obtenu par `python -X faulthandler` et `timeout -s ABRT`.
+**Prévention** — Section « Jeu de démonstration » de `DOCS/exploitation/donnees-demo.md` ; trace à transmettre au backend pour borner l'envoi (`broker_connection_retry`, `result_backend_transport_options`, ou `ignore_result=True` sur la tâche OCR) dans un ticket séparé, hors gel.
+**Leçon généralisée** — Un `try/except` autour d'un appel réseau ne protège pas d'une boucle de reconnexion interne : toute dépendance réseau optionnelle doit avoir un délai borné. Face à un processus muet, prendre une pile (faulthandler) avant de supposer la cause.
+
+---
