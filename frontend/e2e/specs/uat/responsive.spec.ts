@@ -95,18 +95,42 @@ for (const width of WIDTHS) {
   });
 }
 
-// A fixed panel (sidebar) must not hide most of a narrow screen.
+// A fixed panel (sidebar) must not hide most of a narrow screen: only panels inside the viewport count
+// (a collapsed drawer translated off-screen covers nothing).
+async function visibleFixedPanels(page: Page) {
+  return page.evaluate(() => {
+    const w = document.documentElement.clientWidth;
+    return Array.from(document.body.querySelectorAll<HTMLElement>('*'))
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ el, r }) => getComputedStyle(el).position === 'fixed' && r.height > innerHeight * 0.8 && r.right > 1 && r.left < w - 1)
+      .map(({ el, r }) => ({
+        name: `${el.tagName.toLowerCase()}.${String(el.className).split(' ').slice(0, 3).join('.')}`,
+        pct: Math.round((100 * (Math.min(r.right, w) - Math.max(r.left, 0))) / w),
+      }));
+  });
+}
+
 for (const width of [375, 768] as const) {
   test(`barre laterale fixe @${width}px : ne recouvre pas plus de la moitie de l'ecran`, async ({ page, loginAs }) => {
     await page.setViewportSize({ width, height: 800 });
     await loginAs('tenant_admin');
     await page.goto('dashboard');
-    const covered = await page.evaluate(() => {
-      const w = document.documentElement.clientWidth;
-      return Array.from(document.body.querySelectorAll<HTMLElement>('*'))
-        .filter((el) => getComputedStyle(el).position === 'fixed' && el.getBoundingClientRect().height > innerHeight * 0.8)
-        .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).split(/\s+/).slice(0, 3).join('.')} = ${Math.round((100 * el.getBoundingClientRect().width) / w)} % de la largeur`);
-    });
-    expect.soft(covered.length ? Math.max(...covered.map((c) => Number(c.match(/= (\d+) %/)![1]))) : 0, `panneau fixe @${width}px : ${covered.join(' | ')}`).toBeLessThanOrEqual(50);
+    const panels = await visibleFixedPanels(page);
+    const worst = panels.length ? Math.max(...panels.map((p) => p.pct)) : 0;
+    expect.soft(worst, `panneau fixe @${width}px : ${panels.map((p) => `${p.name} = ${p.pct} %`).join(' | ')}`).toBeLessThanOrEqual(50);
   });
 }
+
+// Narrow screens: the menu opens from the header button and closes with Escape.
+test('menu mobile @375px : ouverture par le bouton, fermeture par Echap', async ({ page, loginAs }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await loginAs('tenant_admin');
+  await page.goto('dashboard');
+  const sidebar = page.locator('#app-sidebar');
+  const inViewport = () => sidebar.evaluate((el) => { const r = el.getBoundingClientRect(); return r.right > 1 && r.left < innerWidth - 1; });
+  expect(await inViewport(), 'menu ferme au chargement').toBe(false);
+  await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
+  await expect.poll(inViewport, { message: 'menu ouvert apres le clic' }).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect.poll(inViewport, { message: 'menu referme par Echap' }).toBe(false);
+});
