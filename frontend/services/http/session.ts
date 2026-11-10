@@ -7,6 +7,8 @@
 // SRP : ce module a UNE seule raison de changer — l'évolution du modèle
 // d'authentification côté client.
 
+import { isSafeInternalPath } from './safePath';
+
 const APP_BASE_PATH = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 
 export const AUTH_STORAGE_KEYS = ['access_token', 'refresh_token', 'token', 'user_profile'] as const;
@@ -35,7 +37,7 @@ const rememberDestination = (): void => {
     try {
         const { pathname, search, hash } = window.location;
         const inApp = APP_BASE_PATH && pathname.startsWith(APP_BASE_PATH) ? pathname.slice(APP_BASE_PATH.length) : pathname;
-        if (!inApp.startsWith('/') || inApp.startsWith('//') || inApp === '/login' || inApp === '/') return;
+        if (!isSafeInternalPath(inApp) || inApp === '/login' || inApp === '/') return;
         const profile = JSON.parse(sessionStorage.getItem('user_profile') || 'null');
         if (!profile?.id) return;
         sessionStorage.setItem(DESTINATION_KEY, JSON.stringify({ path: `${inApp}${search}${hash}`, userId: profile.id }));
@@ -51,7 +53,7 @@ export const takePostLoginDestination = (userId: string | undefined): string | n
         sessionStorage.removeItem(DESTINATION_KEY);
         if (!raw || !userId) return null;
         const saved = JSON.parse(raw) as { path?: string; userId?: string };
-        return saved.userId === userId && saved.path ? saved.path : null;
+        return saved.userId === userId && isSafeInternalPath(saved.path) ? saved.path : null;
     } catch {
         return null;
     }
