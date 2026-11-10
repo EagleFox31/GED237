@@ -32,7 +32,7 @@ Image de bench : `Dockerfile.bench` = `FROM` l'image `api` déjà construite + `
 | WER (indicatif) | `jiwer.wer` même normalisation | % |
 | **Temps par page** | `time.perf_counter()` autour de l'appel moteur seul (chargement des modèles mesuré une fois à part, en « temps de démarrage ») | s/page, moyenne et P95 |
 | **Pic mémoire** | le script est lancé **par moteur** dans un conteneur distinct `docker run --rm --memory=1g --memory-swap=1g --cpus=2` ; à la fin, lire `/sys/fs/cgroup/memory.peak` (cgroup v2, `Déduit` : si absent, utiliser `docker stats --no-stream` en boucle toutes les 0,5 s depuis l'hôte et garder le maximum) ; noter aussi un éventuel OOM (code de sortie 137) | Mo |
-| **Threads** | **ajouté 10/11 (ci-qa)** : sous `--cpus=2`, onnxruntime, torch et Tesseract dimensionnent leurs threads sur les cœurs visibles de l'hôte (16), ce qui gonfle le temps par page (R ≈ 10 s/page au lieu de ≈ 0,6 attendu) ; le script fixe `threads = quota cgroup` (`OMP_NUM_THREADS`, `intra_op_num_threads`, `omp_thread_limit` Tesseract) et la valeur figure dans le bloc meta du tableau | entier |
+| **Threads** | **ajouté 10/11 (ci-qa)** : sous `--cpus=2`, onnxruntime, torch et Tesseract dimensionnent leurs threads sur les cœurs visibles de l'hôte (16), ce qui gonfle le temps par page (R 9,7 s/page et 858 Mo de pic à blanc) ; **confirmé 10/11 à threads = 2** : R 3,2 s/page (lot propre), 2,5 s/page (dégradé), pic 721 Mo, démarrage 3,0 s ; le script fixe `threads = quota cgroup` (`OMP_NUM_THREADS`, `intra_op_num_threads`, `omp_thread_limit` Tesseract) et la valeur figure dans le bloc meta du tableau | entier |
 | Taille installée | `pip show` + `du -sh` de `site-packages/torch` vs `onnxruntime` + modèles | Mo |
 
 Un run complet = 4 configurations × 50 images (20 propres + 20 dégradées + 10 réelles) ; à 1–3 s/page, < 15 min de calcul.
@@ -43,7 +43,7 @@ Un run complet = 4 configurations × 50 images (20 propres + 20 dégradées + 10
 |---|---|---|
 | CER R ≤ CER E sur le **lot B** (réel) **et** sur le lot A dégradé — **critère révisé `Proposé` (DEC-003, à valider PO au point S1)** : E étant hors budget, comparer **CER R ≤ CER T-best** sur les deux lots, débit R en regard | go OCR-1 | si R est pire de ≤ 1 point de CER mais 2× plus rapide et sous 1 Go : go avec mention ; au-delà : no-go, rester Tesseract-first + EasyOCR en V1, revoir en V1.1 |
 | Pic mémoire conteneur R < **1 Go** (modèles chargés + 1 page A4 300 dpi) | go | no-go pour le VPS ; OCR-1 peut rester utile pour la taille d'image mais ne résout pas la RAM |
-| EasyOCR sous 1 Go | **constaté 10/11 (répétition à blanc, ci-qa)** : E est tué par l'OOM (`exit 137`) au chargement ou à sa 1re page A4 200 dpi → le seuil est déjà discriminant ; la ligne E du tableau porte `OOM = oui`, CER non mesuré | — |
+| EasyOCR sous 1 Go | **constaté 10/11 (répétition à blanc, ci-qa)** : E est tué par l'OOM (`exit 137`) à sa 1re page A4 200 dpi, après 19,3 s de chargement, **même à threads = 2** (re-mesure 10/11) : l'OOM vient de l'inférence, pas des threads → le seuil est déjà discriminant ; la ligne E du tableau porte `OOM = oui`, CER non mesuré | — |
 | Temps R par page ≤ temps E | attendu (`Documenté` : 0,6 s vs ~2 s) | information seulement |
 | T-best vs T-fast | si T-best réduit le CER de ≥ 2 points, l'adopter immédiatement (changement de fichier de données, 0 code) | — |
 

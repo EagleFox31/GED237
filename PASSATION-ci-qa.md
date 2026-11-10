@@ -215,3 +215,15 @@ Pièges : hook pre-commit cassé sur l'hôte (venv `E:\GED237` absent). Les cont
 - Worktree GED237-merge39 : pull de 5f5c3ba (update-branch GitHub) fait, correctifs non commités. Reste : typecheck frontend + smoke --retries=0 en conteneur, commit, push, SHA à l'orchestrateur.
 - OCR-0 run2 en cours ; dev-backend lance la pile gedver quelques minutes (charge concurrente à noter sur les temps OCR).
 - Puis : PR e2e « upgrade head puis seed » (après fusion de #55, e2e_reset.sh n'existe sur main qu'avec elle).
+
+## 2026-11-10 00:57 — #55 poussée (789068d), outillage OCR-0 corrigé (057802e local)
+
+- #55 : 49c5402 (type FilePayload local + MINISTRY) puis merge origin/main 2aeeec7 (#58). Conflit docker-compose.e2e.yml résolu en gardant les deux côtés (E2E_MANIFEST/INGEST_ALLOWED_ROOTS + APP_VERSION). Preuve locale : typecheck OK, smoke --retries=0 31 passed / 3 skipped. CI run 42724526471 en cours ; SHA envoyé à l'orchestrateur (chaîne #55 → #53).
+- OCR-0 (ci/ocr-0-bench, non poussée) : 057802e = threads alignés sur le quota cgroup, CSV écrit au fil de l'eau, ligne OOM dans le tableau, reset des résultats à chaque run ; ruff et bandit propres. Répétition à blanc : 29 min 49 s ; T-fast 0,8/1,8 s/p ; T-best 0,9/1,7 ; R 9,7/10,3 s/p, pic 858 Mo ; E OOM à 1 Go. Écarts reportés par l'innovateur dans protocole-ocr-0.md.
+- Walkthrough du 13 : si E est OOM, comparer R à T-fast/T-best et conclure « E hors budget mémoire » ; noter rapidocr 3.10.0.
+- Suite : re-mesurer R/E avec les threads limités (au prochain créneau Docker, prévenir dev-backend) ; après la fusion de #55, PR e2e « upgrade head puis seed ».
+
+## 2026-11-10 07:49 — CI #55 verte ; OCR-0 R/E re-mesurés (threads = 2)
+
+- #55 : CI verte sur 789068d (run 42724526471). Fusion faite par la chaîne de l'orchestrateur (go PO), puis #53. J'attends le SHA de merge pour lancer, depuis un worktree neuf sur main, la PR e2e « upgrade head puis seed » ; prévenir dev-backend avant la campagne Docker.
+- OCR-0 run3 (ENGINES="easyocr rapidocr") : R 3,15 s/p propre (P95 7,7, 1re page à froid) et 2,53 dégradé, pic 721 Mo, démarrage 3,0 s, CER 2,7 / 3,9 %. E se charge en 19,3 s puis OOM (137) dès la 1re page. Tableau dans scratchpad ocr0/work/results/table.md. Docker rendu à dev-backend.

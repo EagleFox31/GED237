@@ -264,3 +264,9 @@ Contrat de `GET /workflows/validators` (ValidatorRead : `id`, `full_name`) et de
 **Décisions** — `VERSION` de settings retirée (aucun consommateur) ; frontend et workflows non touchés ; `docker-compose.e2e.yml` modifié d'une ligne (demande orchestrateur) : conflit possible avec #55 qui touche ce fichier.
 **Reste à faire** — 1) envoyer #58 à l'orchestrateur ; 2) conflits éventuels #53/#58 ; 3) ensuite, au signal orchestrateur : retrait de `create_all` côté app quand la pile e2e sera sur « upgrade head puis seed » ; 4) nettoyage worktrees `../GED237-{search,debug,authz,upload,ingest,roles,workflow,backup-restore,version}` après fusions.
 **Pièges / contexte** — OpenAPI servi sous `/api/...` (pas `/openapi.json`). Compose démo : `container_name` fixes → un seul exemplaire à la fois, projet `-p gedver` pour des volumes séparés.
+
+## 2026-11-10 01:40 — #58 fusionnée (2aeeec7) ; worktrees fusionnés nettoyés
+
+**Objectif en cours** — Attente : #55 (ci-qa) puis #53 (update-branch orchestrateur) ; signal « retrait de create_all » à venir.
+**Fait** — Worktrees supprimés et branches locales effacées (toutes fusionnées dans main) : `../GED237-{search,debug,authz,upload,roles,workflow,backup-restore,version}`. Conservés : `../GED237-ingest` (#53 ouverte) et les worktrees des autres sessions (`docs*`, `e2e`, `ocr0`, `recette1`, `route-guard`, `valcycle`, `lotc-frontend`, `merge39`).
+**Reste à faire** — 1) conflit éventuel sur #53 ; 2) retrait de `create_all` au signal ; 3) supprimer `../GED237-ingest` après fusion de #53.

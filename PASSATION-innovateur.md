@@ -198,3 +198,15 @@ Checklist J-1/J0 par rôle (O/B/F/Q/P), hypothèse démo sur place, variante VPS
 
 ## 2026-11-10 00:47 — DEC-2026-003 : ligne critère révisé « Proposé » (PO, point S1)
 - Ligne ajoutée au tableau des lots (E hors budget mémoire ; D3 = pic R < 1 Go ET CER R ≤ CER T-best, débit R noté) ; protocole-ocr-0.md § 4 aligné. Statut Proposé, le PO tranche au point S1 ; O l ajoute aux verrous PO. Lint vert. Verrous : aucun. Prochaine étape : attente réelle jusqu au point S1 ven 13.
+
+## 2026-11-10 00:49 — accusé ci-qa OCR-0
+- ci-qa : points notés pour le walkthrough du 13 (R vs T-fast/T-best, verdict « E hors budget mémoire ») ; rapidocr==3.10.0 épinglé dans Dockerfile.bench, versions.txt ; outillage commité en local sur ci/ocr-0-bench (057802e). Rien à produire. Verrous : aucun. Prochaine étape : attente réelle jusqu au point S1 ven 13 (vérif des 6 conditions avant le point).
+
+## 2026-11-10 00:52 — fiche dependabot-35 : mise à jour externe constatée
+- `dependabot-35.md` : section « Mise à jour du 2026-11-09 (nuit) » ajoutée par une autre session (#35 fermée, remplacée par **#56** : + @axe-core/playwright 4.11.3 → 4.14.0 ; CI 1 rouge / 8 verts). Décision inchangée (report après le 30/11, image Playwright à monter en même temps). Lint vert, rien à produire. Prochaine étape : attente réelle jusqu au point S1 ven 13.
+
+## 2026-11-10 07:49 — OCR-0 : re-mesure ci-qa threads = 2 reportée
+- `protocole-ocr-0.md` § 3 Threads : R 3,2 s/page propre, 2,5 dégradé, pic 721 Mo, démarrage 3,0 s (avant 9,7 s/page, 858 Mo) ; § 4 EasyOCR : OOM à la 1re page A4 200 dpi après 19,3 s de chargement, même à 2 threads (inférence, pas threads). DEC-003 ligne Proposé inchangée (débit « ≈ 10 s/page » à corriger par O s il le souhaite : ≈ 3 s/page). Message O + ci-qa. Prochaine étape : attente réelle jusqu au point S1 ven 13.
+
+## 2026-11-10 07:49 — DEC-003 : débit R mis à jour (ligne Proposé)
+- Ligne « OCR-0, critère révisé » : débit R ≈ 3 s/page propre (P95 7,7), 2,5 dégradé, pic 721 Mo, threads alignés (re-mesure 10/11) ; statut Proposé inchangé. O recopie protocole + DEC dans la PR docs #57. Prochaine étape : attente réelle jusqu au point S1 ven 13.
