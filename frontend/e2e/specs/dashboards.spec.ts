@@ -28,6 +28,7 @@ test.describe('Feature: Dashboards par rôle', () => {
   test('Given tenant_admin, When dashboard, Then OrgDashboard', async ({ loginAs, page }) => {
     await loginAs('tenant_admin');
     await expect(page.getByText("Vue d'ensemble")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Doublons refusés')).toBeVisible();
   });
 
   /**
