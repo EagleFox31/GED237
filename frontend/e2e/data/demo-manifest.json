@@ -1,0 +1,3719 @@
+{
+  "$comment": "Demo dataset (gestion-projet/innovateur/jeu-donnees-demo.md). Same schema as seed-manifest.json, profile demo: seed_e2e.py creates categories/domains/activities; seed_demo.py posts `rules` to POST /api/v1/classification-rules/rules, imports demo-import/{DRH,DAF,DSI,MINESUP} through POST /api/v1/imports, then applies trash/locks/versions and compares the database with `expected`. `corpus` and `expected` are written by backend/scripts/demo_dataset.py (seed GED_EXPORT_SEED): edit the plan in the generator, not here. expected.files: one entry per imported file (duplicates included), path relative to demo-import, status classified|needs_review|duplicate (needs_review = no rule or a tie: commit opens a classification review shown in the review screen and creates no document until it is resolved), orgUnit = classification_target_org_unit code, nulls when not classified; trashed documents keep their entry in files. Titles = file name without extension. documents/byOrgUnit: total = classified documents + open reviews, both tenants counted (MINESUP-DAAJ proves isolation).",
+  "schemaVersion": 1,
+  "profile": "demo",
+  "tenant": "MINFI",
+  "categories": [
+    {
+      "code": "DEMO-CAT-GEN",
+      "name": "Document administratif"
+    }
+  ],
+  "classification": {
+    "domains": [
+      {
+        "code": "DEMO-DOM-RH",
+        "name": "Gestion du personnel",
+        "activities": [
+          {
+            "code": "DEMO-ACT-RH-CONTRATS",
+            "name": "Contrats et actes de carrière"
+          },
+          {
+            "code": "DEMO-ACT-RH-PAIE",
+            "name": "Paie et bulletins"
+          },
+          {
+            "code": "DEMO-ACT-RH-FORMATION",
+            "name": "Formation"
+          },
+          {
+            "code": "DEMO-ACT-RH-CONGES",
+            "name": "Congés et absences"
+          }
+        ]
+      },
+      {
+        "code": "DEMO-DOM-FIN",
+        "name": "Finances et comptabilité",
+        "activities": [
+          {
+            "code": "DEMO-ACT-FIN-FACTURES",
+            "name": "Factures fournisseurs"
+          },
+          {
+            "code": "DEMO-ACT-FIN-ENGAGEMENTS",
+            "name": "Engagements et mandats"
+          },
+          {
+            "code": "DEMO-ACT-FIN-MARCHES",
+            "name": "Marchés publics"
+          },
+          {
+            "code": "DEMO-ACT-FIN-RAPPORTS",
+            "name": "Rapports financiers"
+          }
+        ]
+      },
+      {
+        "code": "DEMO-DOM-SI",
+        "name": "Systèmes d'information",
+        "activities": [
+          {
+            "code": "DEMO-ACT-SI-MAINTENANCE",
+            "name": "Contrats de maintenance"
+          },
+          {
+            "code": "DEMO-ACT-SI-INCIDENTS",
+            "name": "Incidents et interventions"
+          },
+          {
+            "code": "DEMO-ACT-SI-LICENCES",
+            "name": "Licences et équipements"
+          },
+          {
+            "code": "DEMO-ACT-SI-PROCEDURES",
+            "name": "Procédures"
+          }
+        ]
+      },
+      {
+        "code": "DEMO-DOM-COURRIER",
+        "name": "Courrier et notes de service",
+        "activities": [
+          {
+            "code": "DEMO-ACT-COURRIER-ENTRANT",
+            "name": "Courrier entrant"
+          },
+          {
+            "code": "DEMO-ACT-COURRIER-NOTES",
+            "name": "Notes internes"
+          }
+        ]
+      }
+    ],
+    "rules": []
+  },
+  "workflows": [],
+  "documents": [],
+  "rules": [
+    {
+      "code": "demo_rule_01",
+      "name": "Bulletins de paie",
+      "priority": 1,
+      "isActive": true,
+      "filenamePattern": "bulletin;paie;salaire",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DRH",
+      "domain": "DEMO-DOM-RH",
+      "activity": "DEMO-ACT-RH-PAIE",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_02",
+      "name": "Maintenance DSI",
+      "priority": 2,
+      "isActive": true,
+      "filenamePattern": "maintenance;contrat",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [
+        "MINFI-DSI"
+      ],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DSI",
+      "domain": "DEMO-DOM-SI",
+      "activity": "DEMO-ACT-SI-MAINTENANCE",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_03",
+      "name": "Contrats et actes",
+      "priority": 3,
+      "isActive": true,
+      "filenamePattern": "contrat;cdi;cdd;arrete;nomination;avancement",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [
+        "MINFI-DRH"
+      ],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DRH",
+      "domain": "DEMO-DOM-RH",
+      "activity": "DEMO-ACT-RH-CONTRATS",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_04",
+      "name": "Formation",
+      "priority": 4,
+      "isActive": true,
+      "filenamePattern": "formation;seminaire;atelier",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [
+        "MINFI-DRH"
+      ],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DRH",
+      "domain": "DEMO-DOM-RH",
+      "activity": "DEMO-ACT-RH-FORMATION",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_05",
+      "name": "Factures",
+      "priority": 5,
+      "isActive": true,
+      "filenamePattern": "facture;devis;proforma",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DAF",
+      "domain": "DEMO-DOM-FIN",
+      "activity": "DEMO-ACT-FIN-FACTURES",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_06",
+      "name": "Engagements",
+      "priority": 6,
+      "isActive": true,
+      "filenamePattern": "mandat;engagement;ordonnancement;bon de commande",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DAF",
+      "domain": "DEMO-DOM-FIN",
+      "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_07",
+      "name": "Marchés",
+      "priority": 7,
+      "isActive": true,
+      "filenamePattern": "marche;appel d offres;dao;pv ouverture",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DAF",
+      "domain": "DEMO-DOM-FIN",
+      "activity": "DEMO-ACT-FIN-MARCHES",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_08",
+      "name": "Incidents",
+      "priority": 8,
+      "isActive": true,
+      "filenamePattern": "incident;ticket;intervention;panne",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DSI",
+      "domain": "DEMO-DOM-SI",
+      "activity": "DEMO-ACT-SI-INCIDENTS",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_09",
+      "name": "Courrier entrant",
+      "priority": 9,
+      "isActive": true,
+      "filenamePattern": "courrier;lettre;correspondance;note",
+      "mimeTypePattern": "application/pdf",
+      "sourceOrgUnits": [],
+      "targetScope": "service",
+      "targetOrgUnit": null,
+      "domain": "DEMO-DOM-COURRIER",
+      "activity": "DEMO-ACT-COURRIER-ENTRANT",
+      "yearStrategy": "from_filename"
+    },
+    {
+      "code": "demo_rule_10",
+      "name": "Rapports financiers",
+      "priority": 10,
+      "isActive": false,
+      "filenamePattern": "rapport;bilan;etat financier",
+      "mimeTypePattern": null,
+      "sourceOrgUnits": [],
+      "targetScope": "service",
+      "targetOrgUnit": "MINFI-DAF",
+      "domain": "DEMO-DOM-FIN",
+      "activity": "DEMO-ACT-FIN-RAPPORTS",
+      "yearStrategy": "from_filename"
+    }
+  ],
+  "corpus": {
+    "seed": 237,
+    "generator": "backend/scripts/demo_dataset.py",
+    "files": 455,
+    "sha256": "27d4454965097ecaeb471c7f56f6ebf34e9efa23878bc1598ccae6c9b167ad58"
+  },
+  "expected": {
+    "domains": [
+      "DEMO-DOM-RH",
+      "DEMO-DOM-FIN",
+      "DEMO-DOM-SI",
+      "DEMO-DOM-COURRIER"
+    ],
+    "activities": [
+      "DEMO-ACT-RH-CONTRATS",
+      "DEMO-ACT-RH-PAIE",
+      "DEMO-ACT-RH-FORMATION",
+      "DEMO-ACT-RH-CONGES",
+      "DEMO-ACT-FIN-FACTURES",
+      "DEMO-ACT-FIN-ENGAGEMENTS",
+      "DEMO-ACT-FIN-MARCHES",
+      "DEMO-ACT-FIN-RAPPORTS",
+      "DEMO-ACT-SI-MAINTENANCE",
+      "DEMO-ACT-SI-INCIDENTS",
+      "DEMO-ACT-SI-LICENCES",
+      "DEMO-ACT-SI-PROCEDURES",
+      "DEMO-ACT-COURRIER-ENTRANT",
+      "DEMO-ACT-COURRIER-NOTES"
+    ],
+    "classificationRules": [
+      "demo_rule_01",
+      "demo_rule_02",
+      "demo_rule_03",
+      "demo_rule_04",
+      "demo_rule_05",
+      "demo_rule_06",
+      "demo_rule_07",
+      "demo_rule_08",
+      "demo_rule_09",
+      "demo_rule_10"
+    ],
+    "inactiveRules": [
+      "demo_rule_10"
+    ],
+    "counting": {
+      "classified": "documents created at commit (list, search, trash, locks, versions act on these)",
+      "toReview": "open classification reviews (review screen); no document until the review is resolved",
+      "total": "classified + toReview"
+    },
+    "documents": {
+      "total": 408,
+      "classified": 357,
+      "toReview": 51
+    },
+    "byOrgUnit": {
+      "MINFI-DRH": {
+        "total": 154,
+        "classified": 146,
+        "toReview": 8
+      },
+      "MINFI-DAF": {
+        "total": 157,
+        "classified": 137,
+        "toReview": 20
+      },
+      "MINFI-DSI": {
+        "total": 87,
+        "classified": 74,
+        "toReview": 13
+      },
+      "MINESUP-DAAJ": {
+        "total": 10,
+        "classified": 0,
+        "toReview": 10
+      }
+    },
+    "imports": {
+      "jobs": 4,
+      "duplicates": 12
+    },
+    "trash": [
+      "facture_lindy Penda-2025",
+      "facture fournisseur_Brice Mvoo-2025",
+      "contrat cdi Mireille Biloa 2025",
+      "arrete de nomination_Mireille iBloa-2025",
+      "fiche de paie - Jep Mbarga - 2024 - corrige",
+      "fiche de paie_Mireile Biloa-2024",
+      "attestation formation Mireille Biloa 2025",
+      "bulletin de salaire - Briic-Mvogo - 2024 - signer"
+    ],
+    "locks": {
+      "MGR001": [
+        "new - devis - lAi Mvudn - 2025 - a_trier",
+        "dao_usine-Ngono-2025-v3",
+        "engagement budgetaire Lucie EEbang 2024"
+      ]
+    },
+    "versions": {
+      "facture fournisseur_Brice Mvoo-2025": 2,
+      "copie - devis - old Roger Ndjodo - 2024 - v2": 2,
+      "old - mandat de paiement - ice MMvago - 2025 - backup": 2,
+      "engagement budgetaire_Armell-Tccahm-2024-final": 2,
+      "bon de commande Nsdine Tsafack 2025": 2
+    },
+    "live": {
+      "files": 30,
+      "new": 28,
+      "duplicates": 2
+    },
+    "files": [
+      {
+        "path": "DRH/contrat cdi Mireille Biloa 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete de nomination_Mireille iBloa-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/fiche de paie - Jep Mbarga - 2024 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/fiche de paie_Mireile Biloa-2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/attestation formation Mireille Biloa 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de salaire - Briic-Mvogo - 2024 - signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/fichier_Cindy Penda-2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/arrete de nomination_brouillon Patck_Nkom-2025-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/etat de salaire Mireille Biiloo 2024 corrige.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/plan de formation_Roogr tdjo-2024-a_trier.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/correspondance - Samuel Essono - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DRH/fiche de paie - Roger Ndjodo - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/fiche de paie - Kevin Foe - 2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/courrier Kevin Fom 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete de nomination_Justine Ngono-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de paie - Juetm NNgo - 2024 - backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdd Samel Essono 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/attestation formation - Justne Ngonno - 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de salaire - RRger tgjodo - 2024 - ok.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/copie_atelier_tmp Snlviie-MMveg-2025-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete de nomination_uLcie Eabng-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/piece - lettre - Alm_Mvondo - 2025 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/old - correspondance - Brice_Mvogo - 2025 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/note de service_Justine gNono-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/piece jointe_Alice Mvondo-2024.docx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/copie - bulletin de salaire - Nadne Tsafack - 2024 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/copie_lettre_Samuel-Essonn-2025-ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de salaire_Jean Mbapa-2024-a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/tmp - etat de salaire - Sylvie_Mveng - 2025 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete_atrick Nkom-2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdd - BBri evoo - 2025 - a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/attestation formation archiv Keivvn Foe 2025 signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/plan de formation_Cindy Peenda-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/brouillon_contrat cdi_Mireille lo-2024-backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/etat de salaire_Justine Ngono-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/atelier - Alice Mvondt - 2024.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/etat de salaire_Armel Tcahm-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/old attestation formation Paul Atangaah 2025 a_trier.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/tmp_etat de salaire_Rogie-Njdd-2024-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/brouillon - bulletin de salaire - AAmr-Tcrram - 2025 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/piece jointe - Nadinoe Tsafac - 2024 - ok.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/etat de salaire Sylvie Mveng 2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/arrete_Kevin Foe-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/brouillon - arrete de nomination - Mireill Biloa - 2025 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/attestation formation - Lice Ebang - 2024 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/decision avancement Cindy Penda 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/new_etat de salaire_Jean Mbarga-2025-v2.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete de nomination_rBicce Mvogo-2024-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/correspondance_Paul Atangana-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/fiche de paie Smauel Essno 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/lettre_Ndaiine Tsgface-2025-final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/fiche de paie Pall Aatnana 2024 ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/decision avancement - Samugl Essono - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/scan - fiche de paie - hiindy_Pnead - 2025 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/archiv_piece jointe_Lrcei Eabngg-2024-corrige.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/etat de salaire - Cindy Pe - 2025 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/decision avancement_Jea Mabrga-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/attestation formation Patirck Nkom 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/seminaire_Nadie Tsaafck-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete rBicu Mvogo 2024 ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdi_Lucie Ebang-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/arrete - Nadine Tasfack - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/lettre - Sylive Mvng - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/plan de formation - Brice Mvogo - 2024.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/atelier - Armel-Tcham - 2024 - backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/attestation formation Mireille Biloa 2025 (2).xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/contrat cdi - ucu_ma - 2024 - a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/attestation formation - Jean Mbaaga - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/decision avancement Alice Meondo 2025 signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/plan de formation_Nadine Tsafack-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/courrier - Jean Mbarga - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/etat de salaire Kv soi 2024 corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/urgent_attestation formation_Amel Tcham-2025-signer.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de paie_Jstine Nogno-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/atelier rce-Mvoeeo 2024 ok.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/etat de salaire - Kevin Foe - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/urgent - seminaire - scan aJan_Mbraga - 2025 - a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete Nadin Tsafack 2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/old correspondance Roer-Ndjodo 2024 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DRH/etat de salaire eKvan Fao 2025 backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/brouillon_courrier_old Jlt Mbarga-2024-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DRH/urgent - contrat cdi - RRogerr_Njdoo - 2024 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/bulletin de salaire_Jean Mbarga-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de paie Nadine Tsafack 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de salaire Naidne Tsafack 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de salaire - Samuel Essono - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/correspondance - Sylviee vMeng - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/courrier - Roger Njeodo - 2025 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/recu_courrier_CCi Penda-2024-v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DRH/scan - etat de salaire - uci_bans - 2024 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdi - Paau Atanga - 2024 - v2.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdi iCndy Pendaa 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/etat de salaire - Brice Mvvogoo - 2024 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/urgent_seminaire_Slive Mveng-2024-ok.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/atelier_Rogeer Ndjood-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdd - recu Patric_Nnm - 2024 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/numerisation Patrick Nkomm 2025.png",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/bulletin de salaire Brc Mvaog 2025 final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/tmp_plan de formation_Samue EEshono-2025-v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/piece_fichier_scan ogerr-adjdoo-2025-a_trier.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/contrat cdd Jea Mbaga 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/lettre - Rogia Ndjodo - 2025 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/urgent_arrete_Cnid Peenda-2025-a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/plan de formation Alcie Mvodno 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/note de service Patrick Nokm 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/recu - note de service - Jean mbarga - 2024 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdi_Jstine Ngonoo-2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/brouillon seminaire Nadine Tsafack 2025 a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/attestation formation Lucie Ebang 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/brouillon fiche de paie Lucccie-bEangg 2024 ok.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/arrete de nomination Cindy Pndh 2024 final.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/fiche de paie - uJstine Ngolo - 2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/attestation formation_Jean Mbarga-2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/copie - plan de formation - gamul Essono - 2025 - backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/new_seminaire_Samuel Essono-2025-ok.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/decision avancement Brice_Moggo 2025 v2.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete de nomination piece Syli Mene 2025 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/fiche de paie Kei Foi 2025 final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/recu_fiche de paie_Alliic ondo-2025-final.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DRH/etat de salaire_Samueel Essonno-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/recu_contrat cdd_Lcuei Ebang-2025-ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/arrete Jean Marga 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/contrat cdi - Roger Ndjodo - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/courrier_Paul Atangana-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/decision avancement - old Arm Tphaam - 2025 - v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/brouillon - arrete - Samuel_Esso - 2025 - ok.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/archiv_seminaire_Nadine_Tsiaack-2025-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/lettre - Paul Atangana - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/old - arrete de nomination - iinyd Penddda - 2024 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/seminaire Bricm Mvoggo 2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/urgent_arrete_Patrick Nkom-2024-v3.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2024
+      },
+      {
+        "path": "DRH/note de service_Paul Attangana-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DRH/etat de salaire_Samuuel Essnoo-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/brouillon - attestation formation - Jean bgarga - 2025 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2025
+      },
+      {
+        "path": "DRH/atelier - Mireille Biloa - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-FORMATION",
+        "year": 2024
+      },
+      {
+        "path": "DRH/arrete de nomination - Armel Tchau - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/bulletin de salaire Luciee Ebaang 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/contrat cdi - Kevvin Foe - 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/tmp correspondance Alice Movn 2024 ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DRH/bulletin de paie - Armmm-Tchn - 2024 - a_trier.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/numerisation - Mireille Biloa - 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/tmp arrete Ndine Tasfaack 2025 signer.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/etat de salaire_Justine Ngouoo-2024-backup.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/annexe Roger Ndodo 2025.docx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/arrete - archiv Pu Attngana - 2025 - backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-CONTRATS",
+        "year": 2025
+      },
+      {
+        "path": "DRH/urgent - bulletin de paie - Paul tAanana - 2024 - ok.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DRH/Copie bulletin de salaire - RRger tgjodo - 2024 - ok.png",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/copie de arrete rBicu Mvogo 2024 ok.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/copie de note de service Patrick Nokm 2025.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DRH/doublon fiche de paie Kei Foi 2025 final.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/new - devis - lAi Mvudn - 2025 - a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/scan_JJen-brga-2024-corrige.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/dao_usine-Ngono-2025-v3.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/engagement budgetaire Lucie EEbang 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/facture_lindy Penda-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/facture fournisseur_Brice Mvoo-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/appel d offres_Cindy Penda-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/engagement budgetaire_Brice Mvogo-2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/correspondance Lucie Ebang 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/scan - Armel hcham - 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/dao_Mireillee Bioa-2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/bon de commande - Kvin Fue - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/pv ouverture des plis_iCndy Peeenda-2025-v3.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/appel d offres_Samel_Esoosno-2025-backup.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/facture fournisseur Nadine Tsafack 2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/etat financier - Justine Ngono - 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/urgent facture mAel cThm 2024 corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/copie - devis - old Roger Ndjodo - 2024 - v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/old - mandat de paiement - ice MMvago - 2025 - backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DAF/note de service - PPatrck Nkom - 2024 - a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/facture fournisseur - Justine gono - 2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/piece - devis - Sylvve vetg - 2025 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/copie correspondance Mireille iBlpa 2025 a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DAF/pv ouverture des plis_Arrmel Tcham-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/engagement budgetaire_Armell-Tccahm-2024-final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/bon de commande Nsdine Tsafack 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/ordonnancement_oBrice_Mvsog-2025-backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/facture_Kevin Foe-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/correspondance_Armell Tcham-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/devis Justtine egono 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/pv ouverture des plis_Nadine Tsafack-2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/mandat de paiement_Alice Mvondo-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DAF/engagement budgetaire - Miueilll Bliao - 2025 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma_Paul Atangana-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/mandat de paiement_Patrick Nkom-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DAF/pv ouverture des plis_Lucie Euangg-2024-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/proforma - lice Mvonod - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/ordonnancement_Jean Mbomga-2025-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/devis Jutsine Ngont 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/dao_piece Pou Atanngan-2024-ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/devis - Paul Atangana - 2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/old etat financier Samuel Essono 2024 v3.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/engagement budgetaire - Cid Pnda - 2025 - backup.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/scan - dao - sustinne-uNon - 2024 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/old rapport financier Roger Nrjdoo 2025 backup.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/devis_Jutsine Ngono-2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/devis_Alic Mvnodo-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma - Armmel Tcham - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/proforma - Nadine Tsafack - 2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/appel d offres old rAm-Tcahmm 2024 a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/lettre_urgent Rer Ndjodo-2025-a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DAF/bon de commande - Armel Tcham - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma - Patrick Nom - 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/archiv facture fournisseur Rser dNjood 2025 backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/marche_Armel Tcam-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/appel d offres - Alice Mvondo - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/proforma Alice Mvondo 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/rapport financier ylvie vMeng 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/new appel d offres Blce Mvvog 2025 v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/correspondance Cindy renda 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/bon de commande Lucie Ebang 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/bon de commande_Patrikc Nkom-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/old engagement budgetaire Pattriick Nkom 2025 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/bilan Nadine Tsafack 2024.docx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/engagement budgetaire natrick Nkom 2025.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/old courrier Paalu_Atagaan 2024 final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/copie - proforma - Kevin Foe - 2025 - signer.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/appel d offres_RRoger Ndjdoo-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/contrat maintenance climatiseurs 2025.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/facture fournisseur - Pull-Atangana - 2025 - backup.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/pv ouverture des plis - Paul Atangana - 2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/facture_hndy Penda-2025-signer.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/etat financier - Lucie Euang - 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/mandat de paiement Saamuel Essono 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DAF/facture trick Nlm 2025 a_trier.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/pv ouverture des plis - Patrick Nkom - 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma - Kevin eoe - 2024.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/appel d offres - Alcie Mondo - 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/correspondance - Slyvie Mvneg - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DAF/engagement budgetaire - Patrick eom - 2024 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/bilan - Arme Tccham - 2025.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/new_engagement budgetaire_scan oKevin Foe-2025-a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma_Bric Mvogo-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/lettre - Nadine Tsafaok - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/correspondance Lucie Ebang 2024 (2).pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/engagement budgetaire - Samuel Essono - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/courrier - Brice Mvogoo - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/ordonnancement Kevin Foe 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/piece proforma Brii_Mvogo 2025 backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/bon de commande_Lucie Ebang-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/brouillon - document - mirreille Biloooa - 2025 - backup.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/bilan - Samuel Essono - 2025.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/dao Jean Mbarga 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/pv ouverture des plis_Lucie Ebang-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/lettre_Paul Atangana-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/devis samuel Essono 2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/proforma_Sylviee Mveg-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/copie courrier Samug Essono 2025 backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DAF/new_devis_MMireile ilol-2025-signer.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/engagement budgetaire piece Alec Mon 2024 a_trier.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/recu - facture - lic_MMvondoo - 2025 - backup.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/old_facture_Jean-Mbarga-2024-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/ordonnancement Puul_Aatnga 2025 v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/piece - note de service - Jsiine Nng - 2024 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/rapport financier Lucie Ebang 2025.png",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/facture BBricee MvMogo 2025 corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/facture fournisseur - Mireille Biloa - 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/marche Armel Tcham 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/appel d offres_Jean Mabrga-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/bon de commande_Mireille Biloa-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/correspondance Cindy_Pl 2024 a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/proforma_Patrick Nkom-2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/facture fournisseur - Lucie Ebano - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/rapport financier Jean barga 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/recu_proforma_ogei Ndjjodoo-2024-ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/appel d offres_Patrick Nkom-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/marche - Justine Ngono - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/new bon de commande Lcue Ebang 2024 signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/scan - mandat de paiement - Je Mbarga - 2025 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DAF/note de service Brice_Movg 2024 signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/courrier - attrick uNom - 2025 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DAF/pv ouverture des plis Roger-Ndjdd 2024 ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/tmp - engagement budgetaire - archiv ssea barua - 2024 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/appel d offres_Lucie Ebang-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/tmp devis new Saunel Esosn 2024 corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/scan proforma Lul-Ebann 2025 ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/engagement budgetaire Alice Mvondo 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/mandat de paiement - Brice tvgoo - 2024 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2024
+      },
+      {
+        "path": "DAF/note de service_Bcr oMvgo-2024-final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/appel d offres - Sylvie Mveng - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/mandat de paiement - Justine Ngono - 2025 - a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DAF/marche Sylvt-Mveng 2024 a_trier.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/bilan Roger Ndjodo 2025.xlsx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/brouillon mandat de paiement Paul Atangana 2025 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DRH",
+        "domain": "DEMO-DOM-RH",
+        "activity": "DEMO-ACT-RH-PAIE",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma Keevin Foe 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/bilan - Nadine Tsafack - 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/ordonnancement_Lucie Ebang-2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/scan_bon de commande_mre ham-2024-ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/numerisation piece Luic-hb 2025 v3.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/pv ouverture des plis_MMireel_Biloa-2024-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/dao_Jan_Mbr-2024-signer.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/facture fournisseur Paul Atangana 2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/archiv bon de commande copie Jael Mbarga 2025 ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/piece_facture_Roger dNjoro-2025-v3.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/facture Ailce Mvndo 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma - Armel Tcham - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/devis - Brcie Mvsgo - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/piece - bon de commande - PPau sstangan - 2024 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/engagement budgetaire Briec Mvogo 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/bilan - Paul Atangna - 2025.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/facture fournisseur_Patrick Nkom-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/lettre - Alice Mvondo - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/urgent - ordonnancement - Alice-Mvord - 2025 - v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/copie rapport financier Paul tnagana 2024 corrige.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/engagement budgetaire - Brice Mvogo - 2024.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/appel d offres - Syvlie Mveng - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-MARCHES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/devis scan Alcce_Mvondo 2025 ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma_Paul Atangana-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/proforma_Samuel Essono-2024-ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/correspondance Cindy Pneda 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DAF/copie ordonnancement archiv Cudy-Penda 2025 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2025
+      },
+      {
+        "path": "DAF/piece - devis - ri Mvvggo - 2024 - ok.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2024
+      },
+      {
+        "path": "DAF/facture - new Ndie Tsfac - 2025 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-FACTURES",
+        "year": 2025
+      },
+      {
+        "path": "DAF/old ordonnancement Lcucie Eang 2024 backup.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DAF",
+        "domain": "DEMO-DOM-FIN",
+        "activity": "DEMO-ACT-FIN-ENGAGEMENTS",
+        "year": 2024
+      },
+      {
+        "path": "DAF/rapport financier - Kevin Foe - 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/copie de engagement budgetaire piece Alec Mon 2024 a_trier.png",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/copie de bon de commande - Kvin Fue - 2024.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/Copie correspondance Cindy Pneda 2024.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/Copie scan - dao - sustinne-uNon - 2024 - corrige.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DAF/doublon copie - proforma - Kevin Foe - 2025 - signer.xlsx",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/brouillon_maintenance serveurs_archiv Stlvei Mvengg-2025-v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/lettre Brice Mvogo 2024 corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/note de service - RRooger-Nddjo - 2025 - final.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/panne Paul Atang 2025 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/correspondance Roger NNdjodo 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/maintenance serveurs Mireille Biloa 2025.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/piece contrat maintenance onduleur mAmel TTchat 2024 v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/new licence new Kevin Fooe 2025 signer.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/ticket - Jean Mbarga - 2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/licence_Briice Mvogo-2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/ticket - Jpaa-Mbram - 2025 - v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/incident - Sylvie Mveng - 2025.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/ticket - Armel Tcsam - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/maintenance serveurs - Samuel Essonno - 2024 - backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/contrat de maintenance - Kevin Foe - 2024.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/panne - tmp CCindyy gen - 2024 - ok.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/contrat de maintenance_Kevin Fooe-2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/lettre - Kevin Fol - 2024 - ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/tmp annexe brouillon Petrick Nkom 2025 a_trier.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/tmp_note de service_Lucie bEn-2025-v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/old_inventaire equipements_imreille_Bliao-2024-ok.xlsx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/contrat de maintenance_Jean Mbarga-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/contrat de maintenance Roo djd 2025 a_trier.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/ticket Kerin Foe 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/lettre BBricce oMg 2024 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/fiche intervention Patrick Nom 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/piece jointe Armel Tcham 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/contrat de maintenance - Paul_Atangana - 2025 - corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/fiche intervention Paul Atangana 2025.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/lettre Patrick Nkom 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/contrat de maintenance_Sylvie Mveng-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/scan_contrat de maintenance_Aempl echham-2024-v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/annexe - Crdy Penda - 2024 - signer.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/scan - ticket - Kevin Foe - 2024 - v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/incident_Arel Tcham-2024.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/scan panne aine aTfack 2024 v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/courrier Armei Tchas 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/procedure_Patrick Nko-2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/numerisation_Alcce-Mvvono-2024-ok.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/piece panne Armel Tcham 2025 signer.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/copie panne Paerikc-Nkom 2025 backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/correspondance_Cindy enad-2024-backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/piece jointe_Naddine Tsafack-2024.xlsx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/piece_maintenance serveurs_Luuc Ebang-2024-v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/new_maintenance serveurs_copie SSauel Essono-2024-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/scan lettre brouillon Mireille Bil 2025 corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/courrier_Justlen NNgoo-2024-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/panne_Patrick rrkom-2025-backup.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/panne Armel Tcham 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/panne_scan Smule Esolo-2025-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/scan_contrat maintenance onduleur_Mireille Blao-2025-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/contrat de maintenance Patrick-tkkom 2025 v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/contrat de maintenance_copie amSuel Essono-2024-final.docx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/ticket new Justine Nggoono 2025 v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/panne - scan Rgr adjod - 2024 - v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/urgent_fiche intervention_Saaue Essono-2025-v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/incident recu Lucie Ebang 2025 signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/urgent maintenance serveurs copie Slyvie Mnveg 2025 backup.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/correspondance_Lucie Ebang-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/scan_maintenance serveurs_ireol_BBiloa-2025-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/panne Armel Tcham 2025 (2).png",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/contrat maintenance onduleur_Alic_Mvondo-2025-v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/scan - contrat maintenance onduleur - Cindy-Pnnda - 2024 - v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/incident Romre_Nnjoodo 2024 signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/panne_Armel Tnnham-2024-corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/ticket - Mireille Biloa - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/piece_inventaire equipements_Nadine Teafaack-2024-v3.xlsx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/scan contrat maintenance onduleur Cindy Peend 2024 corrige.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/lettre - Kenin Foe - 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/procedure Roger_Ndjodo 2025 v3.xlsx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/document_urgent Sam_Essnlo-2024-v3.xlsx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/maintenance serveurs - Patrick Nkom - 2025 - v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/maintenance serveurs_piece Smlie Mveng-2025-v3.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/maintenance serveurs Mireiille iBloa 2025.png",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/incident - Cindy eenda - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/maintenance serveurs - lice Mvoondo - 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/courrier_Cindy Penda-2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/recu - inventaire equipements - Alice ovndo - 2024 - v3.docx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/lettre Nadine Tsafack 2025.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/courrier scan atrpck kkNo 2024 corrige.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/ticket_Jaen-Mbraa-2024-backup.xlsx",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2024
+      },
+      {
+        "path": "DSI/maintenance serveurs_Jean Mbara-2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/piece_lettre_Naihne_Tssfcak-2025-signer.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2025
+      },
+      {
+        "path": "DSI/contrat de maintenance_Rorge-Ndjooodo-2024-ok.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2024
+      },
+      {
+        "path": "DSI/archiv_contrat de maintenance_urgent Roger Ndjoddo-2025-v2.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-MAINTENANCE",
+        "year": 2025
+      },
+      {
+        "path": "DSI/note de service Patrick kNom 2024.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-COURRIER",
+        "activity": "DEMO-ACT-COURRIER-ENTRANT",
+        "year": 2024
+      },
+      {
+        "path": "DSI/old panne aSuel Essso 2025 a_trier.pdf",
+        "status": "classified",
+        "orgUnit": "MINFI-DSI",
+        "domain": "DEMO-DOM-SI",
+        "activity": "DEMO-ACT-SI-INCIDENTS",
+        "year": 2025
+      },
+      {
+        "path": "DSI/copie de panne - scan Rgr adjod - 2024 - v2.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/doublon ticket - Jean Mbarga - 2024.docx",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "DSI/copie de ticket new Justine Nggoono 2025 v2.pdf",
+        "status": "duplicate",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/circulaire_Mireille Biloa-2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/avis juridique_Roger Ndjodo-2025.docx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/convention_Cindy Pedna-2025.png",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/avis juridique - SSamuel Essont - 2025.docx",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/old avis juridique Miaei Billooa 2024 corrige.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/scan_circulaire_Alicel Mvodnoo-2025-v3.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/archiv - convention - recu Lucie_Ebang - 2025 - corrige.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/circulaire_Samuel Essono-2025-a_trier.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/avis juridique Brice Mvogo 2024.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      },
+      {
+        "path": "MINESUP/archiv convention Paul Atangggana 2024 signer.pdf",
+        "status": "needs_review",
+        "orgUnit": null,
+        "domain": null,
+        "activity": null,
+        "year": null
+      }
+    ]
+  }
+}

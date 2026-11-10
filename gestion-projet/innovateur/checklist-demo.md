@@ -47,6 +47,7 @@
 ### Arrêt de la veille
 
 - [ ] **Q** — **Worker OCR arrêté** (`docker compose stop worker`) après la pré-OCRisation ; l'import en direct P2 n'a donc pas d'OCR : vérifier que les compteurs d'import et le classement ne dépendent pas du worker (sinon laisser le worker actif avec `--concurrency=1` et le noter).
+- [ ] **B** — **Redis et backend de résultats Celery sains** avant la démo : `CELERY_BROKER_URL` et `CELERY_RESULT_BACKEND` du conteneur api pointent vers le Redis de la pile (`redis-cli ping` = `PONG` depuis l'api). Sinon la validation d'un import reste bloquée sans message (LESSON-2026-026) ; test : un import d'un fichier en P2 répété la veille.
 - [ ] **O** — Pile laissée **éteinte** la nuit (`docker compose stop`, pas `down -v`) ; redémarrage chronométré le matin (< 3 min attendu).
 
 ## C. J0 — lundi 30/11
