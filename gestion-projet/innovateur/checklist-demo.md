@@ -14,6 +14,7 @@
 - [ ] **Q** — Jeu de démo `demo-manifest.json` + `docker compose exec api sh scripts/e2e_reset.sh demo` rejoués deux fois avec compteurs identiques à `expected` (preuve : walkthrough du 20/11).
 - [ ] **Q** — 8 parcours Playwright verts sur la pile Docker (run du 21/11) ; rapport HTML + traces archivés comme **plan B** (`frontend/e2e-out` copié hors du dépôt, sur le poste de démo et le poste de secours).
 - [ ] **Q** — OCR-0 exécuté (14/11) ; décision OCR-1 actée (V1.1 par défaut) ; moteur de démo = pile actuelle Tesseract-first.
+- [ ] **O** — **Coupure ferme mer 19/11 18:00** (DEC-002, révision du 10/11) : pour chacun des 5 écarts réouverts (critères contenu OCR/date, export/import des règles, KPI doublons, surveillance continue, export du journal + verrou 3 OTP), état relevé à 18:00 : *fusionné sur `main`* = livré, sinon *V1.1* ; déroulé § 3, critères et plan de présentation § 3 mis à jour le 19 au soir ; aucune fusion de ces lots après cette heure.
 - [ ] **F** — Garde de routes admin/non-admin livrée (18/11) ; `SpacesPage` branchée sur les filtres serveur (17/11).
 - [ ] **B + Q** — Sauvegarde/restauration : `restore.sh --wipe` prouvé **deux fois** (10/11 pile e2e, avancé, 20/11 jeu de démo sur le poste de secours ; `sauvegarde-restauration.md` § 6.3) ; durée mesurée < 10 min ; second passage sans écart.
 - [ ] **O** — Release `v1.0.0-rc.N` publiée en pré-release GitHub (dernier rc avant le 27 matin, `release-demo.md` § 3), artefact `release-integrity` (SBOM + manifeste signé) joint ; **Q** : images Docker construites depuis ce tag, `docker save` des 7 images sur une clé USB (`ged237-v1.0.0-rc.N-images.tar` + `.sha256`) ; `/health` affiche la version du tag.
@@ -46,6 +47,7 @@
 ### Arrêt de la veille
 
 - [ ] **Q** — **Worker OCR arrêté** (`docker compose stop worker`) après la pré-OCRisation ; l'import en direct P2 n'a donc pas d'OCR : vérifier que les compteurs d'import et le classement ne dépendent pas du worker (sinon laisser le worker actif avec `--concurrency=1` et le noter).
+- [ ] **B** — **Redis et backend de résultats Celery sains** avant la démo : `CELERY_BROKER_URL` et `CELERY_RESULT_BACKEND` du conteneur api pointent vers le Redis de la pile (`redis-cli ping` = `PONG` depuis l'api). Sinon la validation d'un import reste bloquée sans message (LESSON-2026-026) ; test : un import d'un fichier en P2 répété la veille.
 - [ ] **O** — Pile laissée **éteinte** la nuit (`docker compose stop`, pas `down -v`) ; redémarrage chronométré le matin (< 3 min attendu).
 
 ## C. J0 — lundi 30/11
