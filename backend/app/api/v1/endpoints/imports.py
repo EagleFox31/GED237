@@ -8,6 +8,7 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
     status,
 )
@@ -18,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from app.core.authz import authorize_or_403, can_perform
 from app.core.authz.context import AuthzContext
 from app.core.database import get_db
+from app.services.audit_trail import audit_entry
 from app.core.dependencies import get_current_user
 from app.core.errors.domain import FileTooLargeError
 from app.core.tenant_guard import assert_org_unit_scope
@@ -254,6 +256,7 @@ async def analyze_import_job(
 @router.post("/{job_id}/commit", response_model=ImportCommitResponse)
 async def commit_import_job(
     job_id: UUID,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -274,6 +277,21 @@ async def commit_import_job(
 
     service = ImportExecutionService(db)
     summary = await service.commit(job=job)
+    db.add(
+        audit_entry(
+            tenant_id=current_user.tenant_id,
+            user_id=current_user.id,
+            table_name="imports",
+            record_id=job.id,
+            action="import_committed",
+            details={
+                "imported": summary.imported_documents,
+                "pending_review": summary.pending_review_items,
+                "failed": summary.failed_items,
+            },
+            request=request,
+        )
+    )
     try:
         await db.commit()
     except Exception:
