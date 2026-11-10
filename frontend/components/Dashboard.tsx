@@ -88,15 +88,15 @@ const Dashboard: React.FC = () => {
               <div className="grid grid-cols-3 gap-6 h-full items-center">
                 <div className="text-center p-6 bg-green-50 rounded-3xl">
                   <p className="text-5xl font-black text-green-600">{metrics.workflows.completed}</p>
-                  <p className="text-xs font-bold text-green-500 mt-2 uppercase tracking-widest">Validés</p>
+                  <p className="text-xs font-bold text-green-700 mt-2 uppercase tracking-widest">Validés</p>
                 </div>
                 <div className="text-center p-6 bg-blue-50 rounded-3xl">
                   <p className="text-5xl font-black text-blue-600">{metrics.workflows.pending}</p>
-                  <p className="text-xs font-bold text-blue-500 mt-2 uppercase tracking-widest">En Attente</p>
+                  <p className="text-xs font-bold text-blue-700 mt-2 uppercase tracking-widest">En Attente</p>
                 </div>
                 <div className="text-center p-6 bg-red-50 rounded-3xl">
                   <p className="text-5xl font-black text-red-600">{metrics.workflows.rejected}</p>
-                  <p className="text-xs font-bold text-red-500 mt-2 uppercase tracking-widest">Rejetés</p>
+                  <p className="text-xs font-bold text-red-700 mt-2 uppercase tracking-widest">Rejetés</p>
                 </div>
               </div>
             ) : (
