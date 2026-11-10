@@ -125,7 +125,7 @@ const AuditLogs: React.FC = () => {
   const actorIds = new Set(
     logs.filter((log) => actorLabels.includes(getActorLabel(log))).map((log) => log.user_id).filter(Boolean),
   );
-  const exportUserId = actorLabels.length === 1 && actorIds.size === 1 ? [...actorIds][0] : undefined;
+  const exportUserId = actorLabels.length === 1 && actorIds.size === 1 ? ([...actorIds][0] ?? undefined) : undefined;
   const exportBlocked = actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
   const [exporting, setExporting] = useState(false);
 
