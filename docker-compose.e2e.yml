@@ -53,13 +53,20 @@ services:
     memswap_limit: 1g
     cpus: 1.5
     logging: *default-logging
-    # seed_db.py builds the schema from the models (as the pytest suite does) and loads the demo
-    # accounts the specs log in with; `stamp head` then records the schema as fully migrated.
-    # Migrations are not replayed here: the backend gate already runs `alembic upgrade head` + `check`.
+    # e2e_reset.sh: seed_db.py builds the schema from the models (as the pytest suite does) and loads
+    # the demo accounts, then seed_e2e.py loads frontend/e2e/data/seed-manifest.json (categories,
+    # classification plan, E2E-WF-VALID circuit, documents in known states). `stamp head` then records
+    # the schema as fully migrated. Migrations are not replayed here: the backend gate already runs
+    # `alembic upgrade head` + `check`.
     command: >-
-      sh -c "python scripts/seed_db.py
+      sh -c "sh scripts/e2e_reset.sh e2e
       && alembic stamp head
       && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./frontend/e2e/data:/e2e-data:ro
+      # Server-side folder for POST /documents/ingest-directory (SC-ADM-08). Same container path as
+      # docker-compose.yml (only the host corpus differs); INGEST_ALLOWED_ROOTS points to it.
+      - ./frontend/e2e/data/demo-import:/data/ingest:ro
     environment:
       DATABASE_URL: postgresql+asyncpg://e2e:e2e@postgres:5432/edossier_e2e
       REDIS_URL: redis://redis:6379/0
@@ -71,6 +78,9 @@ services:
       ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
       # development echoes the OTP in the login response; the specs rely on it.
       ENVIRONMENT: development
+      E2E_MANIFEST: /e2e-data/seed-manifest.json
+      # Directory imports are refused outside these roots (403 INGEST_PATH_FORBIDDEN when empty).
+      INGEST_ALLOWED_ROOTS: /data/ingest
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
       # The suite logs in once per test and retries on CI: keep auth rate limits above that pace.
       AUTH_LOGIN_RATE_LIMIT: 30/minute
@@ -80,7 +90,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 60
-      start_period: 20s
+      # Covers both seeds before uvicorn listens.
+      start_period: 60s
     depends_on:
       postgres:
         condition: service_healthy

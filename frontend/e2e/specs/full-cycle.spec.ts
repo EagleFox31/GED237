@@ -1,12 +1,7 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { test, expect, TEST_USERS } from '../fixtures/auth.fixture';
 import { LoginPage } from '../pages/login.page';
 import { DraftWorkspacePage } from '../pages/documents.page';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const TEST_FILE = path.resolve(__dirname, '../fixtures/files/test-document.txt');
+import { uniqueTextFile } from '../data/files';
 
 /**
  * SC-E2E-01 — Cycle complet d'un dossier officiel
@@ -23,7 +18,8 @@ const TEST_FILE = path.resolve(__dirname, '../fixtures/files/test-document.txt')
 test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
 
   test('Given rédacteur → valideur → auditeur, When cycle, Then traçabilité complète', async ({ page }) => {
-    test.fixme(true, 'SMK-04: collaborator upload refused (403); lifted by #47');
+    // Three logins, an upload and a submission: well beyond the default 30 s budget on a loaded runner.
+    test.slow();
     const lp = new LoginPage(page);
     const docTitle = `Cycle E2E ${Date.now()}`;
 
@@ -50,7 +46,7 @@ test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
     const workspace = new DraftWorkspacePage(page);
     await workspace.expectPageVisible();
     await workspace.openUploadModal();
-    await workspace.fillUploadForm(docTitle, 'Note', 'cycle, e2e', TEST_FILE);
+    await workspace.fillUploadForm(docTitle, 'Note', 'cycle, e2e', uniqueTextFile());
     await workspace.submitUpload();
     await workspace.expectUploadModalClosed();
     await workspace.expectDocumentsLoaded();
@@ -80,7 +76,8 @@ test.describe('Feature: Cycle complet d\'un dossier (SC-E2E-01)', () => {
     // ─── 2. Valideur retrouve le document et peut agir ─────────────
     await switchUser('manager');
     await page.goto('tasks');
-    await page.waitForLoadState('networkidle');
+    // No networkidle wait: on this page it never resolved in the E2E stack (2 of 3 runs hit the test timeout).
+    // Playwright discourages it anyway; the visibility assertion below waits for the page.
 
     // Le document soumis doit apparaître dans la pile (si workflow auto-assigné)
     // On tolère l'absence si la règle n'existe pas ; on asserte seulement que la page charge

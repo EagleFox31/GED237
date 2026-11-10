@@ -1,0 +1,70 @@
+{
+  "$comment": "E2E reference data. Loaded by backend/scripts/seed_e2e.py (idempotent, keyed by code) and asserted by e2e/specs/seed.spec.ts. Codes are stable IDs: the acceptance matrix cites them.",
+  "schemaVersion": 1,
+  "profile": "e2e",
+  "tenant": "MINFI",
+  "categories": [
+    { "code": "E2E-CAT-GEN", "name": "Finance E2E", "description": "Catégorie générale des parcours E2E" },
+    { "code": "E2E-CAT-WF", "name": "Circuit E2E", "description": "Déclenche le circuit E2E-WF-VALID" }
+  ],
+  "classification": {
+    "domains": [
+      {
+        "code": "E2E-DOM",
+        "name": "Finances publiques E2E",
+        "activities": [{ "code": "E2E-ACT", "name": "Exécution budgétaire E2E" }]
+      }
+    ],
+    "rules": [
+      {
+        "code": "E2E-RULE-DEMO",
+        "name": "Règle de démonstration E2E",
+        "priority": 10,
+        "filenamePattern": "e2edemo",
+        "sourceScope": "service",
+        "targetScope": "service",
+        "targetOrgUnit": "MINFI-DAF",
+        "domain": "E2E-DOM",
+        "activity": "E2E-ACT",
+        "yearStrategy": "current"
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "code": "E2E-WF-VALID",
+      "name": "Circuit de validation E2E",
+      "steps": [
+        { "order": 1, "label": "Visa du chef de service", "action": "visa", "role": "manager", "scope": "same_org_unit" },
+        { "order": 2, "label": "Signature finale", "action": "final_signature", "role": "tenant_admin", "scope": "same_org_unit", "targetUnitType": "MINISTRY" }
+      ],
+      "routing": {
+        "code": "E2E-ROUTE-VALID",
+        "name": "Aiguillage E2E vers le circuit de validation",
+        "priority": 10,
+        "categories": ["E2E-CAT-WF"],
+        "orgUnits": ["MINFI-DAF"]
+      }
+    }
+  ],
+  "documents": [
+    { "code": "E2E-VAL-VISA", "title": "[E2E] Bordereau à viser", "owner": "MINFI002", "category": "E2E-CAT-WF" },
+    { "code": "E2E-VAL-REJET", "title": "[E2E] Bordereau à rejeter", "owner": "MINFI002", "category": "E2E-CAT-WF" },
+    { "code": "E2E-VAL-RETOUR", "title": "[E2E] Bordereau à retourner", "owner": "MINFI002", "category": "E2E-CAT-WF" },
+    { "code": "E2E-TRASH", "title": "[E2E] Note en corbeille", "owner": "MINFI002", "category": "E2E-CAT-GEN", "trashed": true },
+    { "code": "E2E-MULTI-VERSION", "title": "[E2E] Rapport en deux versions", "owner": "MINFI002", "category": "E2E-CAT-GEN", "versions": 2 }
+  ],
+  "expected": {
+    "categories": ["E2E-CAT-GEN", "E2E-CAT-WF"],
+    "domains": ["E2E-DOM"],
+    "activities": ["E2E-ACT"],
+    "classificationRules": ["E2E-RULE-DEMO"],
+    "workflowTemplates": ["E2E-WF-VALID"],
+    "routingRules": ["E2E-ROUTE-VALID"],
+    "pendingTasks": {
+      "MGR001": ["[E2E] Bordereau à viser", "[E2E] Bordereau à rejeter", "[E2E] Bordereau à retourner"]
+    },
+    "trash": ["[E2E] Note en corbeille"],
+    "versions": { "[E2E] Rapport en deux versions": 2 }
+  }
+}
