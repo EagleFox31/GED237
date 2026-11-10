@@ -58,7 +58,7 @@ export default defineConfig({
       // PR gate (docker-compose.e2e.yml): critical journeys against the real API + seeded demo data.
       // Keep it short; the full suite belongs to the nightly run.
       name: 'smoke',
-      testMatch: /(auth|security-isolation|documents|full-cycle|a11y)\.spec\.ts/,
+      testMatch: /(auth|security-isolation|route-guard|documents|full-cycle|a11y)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
       // The seed check runs first: missing reference data fails there, listing what is absent.
       dependencies: ['seed'],
