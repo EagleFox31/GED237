@@ -430,3 +430,17 @@ première requête utilisateur.
 **Leçon généralisée** — Un `try/except` autour d'un appel réseau ne protège pas d'une boucle de reconnexion interne : toute dépendance réseau optionnelle doit avoir un délai borné. Face à un processus muet, prendre une pile (faulthandler) avant de supposer la cause.
 
 ---
+
+### LESSON-2026-032 — Sortie vide de `gh` sous saturation mémoire lue comme « PR fusionnée » : 15 chaînes de fusion lancées hors ordre
+
+- **Date :** 2026-11-10
+- **Catégorie :** process / ci-cd / tooling
+- **Statut :** prevention-added
+- **Liens :** chaînes de fusion de l'orchestrateur (file de 15 PR V1.1 du 10/11), ruleset `main` (branche à jour obligatoire → `update-branch` par PR), LESSON-2026-029 (contrôle de chaîne avant fusion), LESSON-2026-031 (règle de mise en file)
+
+**Contexte** — File de fusion en série gérée hors GitHub : une boucle par chaîne attend que la PR précédente soit fusionnée (`gh pr view --json state`) avant de mettre à jour la suivante et de la fusionner. Quinze chaînes attendaient en parallèle sur un poste déjà chargé (pile Docker, suite pytest, campagne Playwright, plusieurs sessions).
+**Échec / near miss** — Sous saturation mémoire, `gh` (et `git` qu'il lance) échoue avec « ressources système insuffisantes » et renvoie une **sortie vide**, code de retour non nul. Les boucles testaient `[ "$s" != "OPEN" ]` : une chaîne vide n'est pas `OPEN`, donc chaque attente a conclu « fusionnée » au même instant. Quinze chaînes sont parties hors ordre, avec des `update-branch` en rafale sur des PR dont la base n'était pas fusionnée ; la saturation s'est aggravée d'autant. Aucune fusion erronée constatée (le ruleset et `wait_clean` ont tenu), mais la file a dû être arrêtée et reconstruite. Le même symptôme a été observé dans une autre session au même moment (`gh pr list` : « Ressources système insuffisantes pour terminer le service demandé »).
+**Cause racine** — Le test d'attente vérifiait la **négation** d'un état (`≠ OPEN`) au lieu de l'état **positif** attendu (`= MERGED`), de sorte qu'un échec d'outil (sortie vide) était indistinguable du succès ; et le parallélisme (une boucle par chaîne) multipliait la charge sur la ressource même dont dépendait la lecture.
+**Résolution** — File unique : un seul processus, une PR en vol à la fois ; relance (3 essais, attente croissante) quand `gh` renvoie vide ou un code non nul ; une PR rouge est sautée jusqu'à son push suivant, sans bloquer les autres ; les chaînes parallèles sont supprimées.
+**Prévention** — (1) Toute attente d'état teste la valeur positive attendue : `[ "$s" = "MERGED" ]` (ou `CLOSED` quand c'est l'issue voulue), jamais la négation d'une sortie qui peut être vide ; contrôle : `grep -n '!= *"OPEN"' <scripts de chaîne>` = 0 ligne. (2) Une sortie vide ou un code non nul de `gh`/`git` est un **échec à relancer**, pas une donnée. (3) Un seul orchestrateur de fusion par dépôt ; les sessions limitent leurs processus pendant une file (pas de suite de tests ni de campagne e2e lancées « en attendant » sur le même poste sans l'accord de l'orchestrateur). (4) Un relevé d'état (`gh pr list`, `gh pr checks`) cité dans un document porte l'heure et, s'il a dû être relancé, la mention de l'échec.
+**Leçon généralisée** — Un test d'attente doit échouer quand l'outil échoue : comparer à la réussite attendue, pas à l'absence de l'état précédent. Et la ressource qui manque (mémoire, API) est aussi celle que la boucle consomme : réduire le parallélisme avant d'augmenter les relances.
