@@ -1,11 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
+import type { WorkflowDecision } from '../../../services/resources/workflows.api';
+import type { PendingWorkflowTask } from '../../../types';
+import { RejectReasonDialog } from '../../../components/workflow/RejectReasonDialog';
+import { ApiError } from '../../../lib/errors';
+import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
 const ValidationHub: React.FC = () => {
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<PendingWorkflowTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<PendingWorkflowTask | null>(null);
 
   useEffect(() => {
     fetchWorkflows();
@@ -22,27 +28,25 @@ const ValidationHub: React.FC = () => {
     }
   };
 
-  const handleDecision = async (stepId: string, actionType: string, isApproval: boolean) => {
-    const outcome = isApproval ? (actionType === 'read_ack' ? 'acknowledged' : 'accepted') : 'rejected';
-    const step = documents.find(d => d.id === stepId);
-
-    if (!confirm(`Confirmer la décision : ${isApproval ? 'Accepter' : 'Rejeter'} ?`)) return;
-
-    setProcessingId(stepId);
+  const decide = async (task: PendingWorkflowTask, decision: WorkflowDecision, comment?: string) => {
+    setProcessingId(task.id);
     try {
-      await api.submitWorkflowAction(stepId, {
-        action_type: actionType,
-        outcome: outcome,
-        document_version_id: step?.document_version_id ?? step?.current_version_id ?? '',
-        comment: `Action via Dashboard Manager (${outcome})`
-      });
-      // Remove from list or refresh
-      setDocuments(prev => prev.filter(d => d.id !== stepId));
+      await api.decideWorkflowStep(task, decision, comment);
+      setDocuments(prev => prev.filter(d => d.id !== task.id));
+      setRejecting(null);
     } catch (e) {
-      alert("Erreur lors du traitement");
+      // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (version absente).
+      if (!(e instanceof ApiError)) {
+        pushClientOperationError(e, { fallbackDetail: 'Décision impossible sur ce document.' });
+      }
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const accept = (task: PendingWorkflowTask) => {
+    if (!confirm(`Confirmer : ${getActionLabel(task.expected_action_type)} ?`)) return;
+    void decide(task, 'accept');
   };
 
   const getActionLabel = (type: string) => {
@@ -87,14 +91,14 @@ const ValidationHub: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleDecision(item.id, item.expected_action_type || 'visa', false)}
+                  onClick={() => setRejecting(item)}
                   disabled={processingId === item.id}
                   className="py-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
                 >
                   Rejeter
                 </button>
                 <button
-                  onClick={() => handleDecision(item.id, item.expected_action_type || 'visa', true)}
+                  onClick={() => accept(item)}
                   disabled={processingId === item.id}
                   className="py-3 bg-rdpc-blue text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all hover:bg-blue-800 disabled:opacity-50"
                 >
@@ -104,6 +108,13 @@ const ValidationHub: React.FC = () => {
             </div>
           )))}
       </div>
+
+      <RejectReasonDialog
+        documentTitle={rejecting ? rejecting.document?.title || 'Document sans titre' : null}
+        submitting={rejecting !== null && processingId === rejecting.id}
+        onConfirm={(reason) => rejecting && void decide(rejecting, 'reject', reason)}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   );
 };
