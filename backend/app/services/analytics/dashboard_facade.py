@@ -6,6 +6,12 @@ from app.core.config import settings
 from app.models.user import User
 from app.models.document import Document
 from app.models.workflow import WorkflowStep
+from app.models.audit import AuditLog
+from app.models.import_job import ImportJob
+
+# Jobs whose analysis was committed: an analysis that is cancelled or re-run must not count its
+# duplicates twice.
+COMMITTED_IMPORT_STATUSES = ("running", "completed", "completed_with_errors")
 
 
 class DashboardFacade:
@@ -58,7 +64,29 @@ class DashboardFacade:
 
         wf_res = (await self.db.execute(stmt_workflows)).first()
 
-        # 4. Storage format in MB for UI convenience
+        # 4. Duplicates refused since the origin: upload/new version (audited as dup_detected, 409 to the
+        # user) and committed imports (ImportJob.duplicate_files, not audited: no double count).
+        refused_upload = (
+            await self.db.scalar(
+                select(func.count(AuditLog.id)).where(
+                    AuditLog.tenant_id == tenant_id,
+                    AuditLog.table_name == "documents",
+                    AuditLog.action == "dup_detected",
+                )
+            )
+            or 0
+        )
+        refused_import = (
+            await self.db.scalar(
+                select(func.coalesce(func.sum(ImportJob.duplicate_files), 0)).where(
+                    ImportJob.tenant_id == tenant_id,
+                    ImportJob.status.in_(COMMITTED_IMPORT_STATUSES),
+                )
+            )
+            or 0
+        )
+
+        # 5. Storage format in MB for UI convenience
         storage_mb = round(storage_bytes / (1024 * 1024), 2)
 
         return {
@@ -72,6 +100,11 @@ class DashboardFacade:
                 "pending": wf_res.pending if wf_res else 0,
                 "completed": wf_res.completed if wf_res else 0,
                 "rejected": wf_res.rejected if wf_res else 0,
+            },
+            "duplicates": {
+                "refused": refused_upload + refused_import,
+                "refused_upload": refused_upload,
+                "refused_import": refused_import,
             },
         }
 
