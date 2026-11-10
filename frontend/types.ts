@@ -294,6 +294,30 @@ export interface WorkflowTask extends WorkflowStep {
   document_title?: string;  // joined from document if available
 }
 
+/** Document joint à une tâche de GET /workflows/pending (DocumentSummary côté API). */
+export interface WorkflowDocumentSummary {
+  id: string;
+  title: string;
+  status: string;
+  owner_name?: string | null;
+  /** Version à citer dans document_version_id lors d'une décision ; null si le document n'a aucune version. */
+  current_version_id: string | null;
+  created_at: string;
+}
+
+/** Tâche de GET /workflows/pending : l'étape courante et son document. */
+export interface PendingWorkflowTask extends WorkflowStep {
+  created_at: string;
+  document?: WorkflowDocumentSummary | null;
+  assignment_error?: string | null;
+}
+
+/** Entrée de GET /workflows/validators : valideurs proposables au rédacteur. */
+export interface WorkflowValidator {
+  id: string;
+  full_name: string;
+}
+
 export interface Tenant {
   id: string;
   name: string;
