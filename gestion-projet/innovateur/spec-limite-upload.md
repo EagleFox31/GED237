@@ -1,6 +1,6 @@
-# Spécification — plafond d'upload `MAX_UPLOAD_SIZE` appliqué (ordre 2 de DEC-2026-002, mercredi 12/11, B 0,5 j)
+# Spécification — plafond d'upload `MAX_UPLOAD_SIZE` appliqué (ordre 2 de DEC-2026-002, jeudi 12/11, B 0,5 j)
 
-- **Pour** : dev-backend (correctif), dev-frontend (message), ci-qa (test). Instruit par l'innovateur le 2026-11-09 21:45.
+- **Pour** : dev-backend (correctif), dev-frontend (message), ci-qa (test). Instruit par l'innovateur le 2026-11-09 21:45. **Livré** : #52 fusionnée le 10/11 (`FileTooLargeError` 413 `FILE_TOO_LARGE`, `core/errors/domain.py:230-237` ; `MAX_UPLOAD_SIZE_MB` opérateur, `core/config.py:65-66`).
 - **Niveaux** : `Vérifié` = lu dans le dépôt ce jour ; `Documenté` = doc éditeur / avis de sécurité ; `Déduit` = raisonnement ; `Proposé` = conception.
 - **Exigence DEC-002** : « plafond d'upload : 413 pendant l'écriture par blocs ; test 413 sur un fichier > `MAX_UPLOAD_SIZE` ». Même PR « sécurité » que l'ordre 1 ou PR séparée, au choix de B.
 
