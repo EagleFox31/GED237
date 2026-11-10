@@ -80,9 +80,11 @@ services:
       # Directory imports are refused outside these roots (403 INGEST_PATH_FORBIDDEN when empty).
       INGEST_ALLOWED_ROOTS: /data/ingest
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
-      # The suite logs in once per test and retries on CI: keep auth rate limits above that pace.
-      AUTH_LOGIN_RATE_LIMIT: 30/minute
-      AUTH_OTP_RATE_LIMIT: 30/minute
+      # The suite logs in once per test (several times in multi-role journeys) and retries on CI: keep the
+      # auth rate limits well above that pace. E2E stack only; the production defaults (5/minute) are unchanged.
+      AUTH_LOGIN_RATE_LIMIT: 300/minute
+      AUTH_OTP_RATE_LIMIT: 300/minute
+      AUTH_REFRESH_RATE_LIMIT: 300/minute
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
       interval: 5s
