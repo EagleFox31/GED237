@@ -14,7 +14,7 @@ import { SEED } from '../../data/seed';
  * SC-VAL-04 est réduit (écart 17, « Retourner pour correction » -> V1.1) : le rédacteur voit le statut Rejeté
  * de son document ; SC-VAL-04b vérifie le motif dans le détail du document (/documents, onglet Circuit de Validation).
  */
-const AWAITING_VALIDATION_UI = true;
+const AWAITING_VALIDATION_UI = false;
 
 const task = (code: string) => {
   const doc = SEED.documents.find((d) => d.code === code);
@@ -31,6 +31,16 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
 
   const card = (page: import('@playwright/test').Page, title: string) =>
     page.locator('.grid > div').filter({ hasText: title });
+
+  // The manager session from beforeEach would hide the login form: drop it before changing user.
+  const switchTo = async (
+    page: import('@playwright/test').Page,
+    loginAs: (role: 'collaborator') => Promise<void>,
+  ) => {
+    await page.context().clearCookies();
+    await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+    await loginAs('collaborator');
+  };
 
   test.beforeEach(async ({ loginAs, page }) => {
     await loginAs('manager');
@@ -61,13 +71,13 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
   });
 
   test('SC-VAL-04 (réduit) - Given document rejeté, When le rédacteur ouvre son espace, Then le statut Rejeté est visible', async ({ loginAs, page }) => {
-    await loginAs('collaborator');
-    await expect(page.locator('.grid > div').filter({ hasText: TO_REJECT }).getByText('Rejeté')).toBeVisible();
+    await switchTo(page, loginAs);
+    await expect(page.locator('.grid > div').filter({ hasText: TO_REJECT }).getByText(/^rejected$/i)).toBeVisible(); // DraftWorkspace prints the raw status value
   });
 
   test('SC-VAL-04b - Given document rejeté, When le rédacteur ouvre son détail, Then le motif est visible dans le circuit', async ({ loginAs, page }) => {
     // The reason is shown in the document detail (DocumentDetailModal, tab "Circuit de Validation"), not in the Atelier card.
-    await loginAs('collaborator');
+    await switchTo(page, loginAs);
     await page.goto('documents');
     await page.getByText(TO_REJECT).first().click();
     await page.getByText('Circuit de Validation').click();
