@@ -11,6 +11,10 @@ import { test, expect } from '../fixtures/auth.fixture';
 const BLOCKING = new Set(['critical', 'serious']);
 
 const audit = async (page: Page, label: string) => {
+  // Page stabilisée avant mesure : axe calcule le contraste sur les couleurs rendues, donc un
+  // fondu en cours (animate-in) ou un bouton encore désactivé pendant le chargement faussent le ratio.
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))));
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze();
@@ -22,19 +26,17 @@ const audit = async (page: Page, label: string) => {
 
   const blocking = results.violations
     .filter((v) => BLOCKING.has(v.impact ?? ''))
-    .map((v) => `${v.impact} ${v.id} (${v.nodes.length}) — ${v.help}`);
+    .map((v) => `${v.impact} ${v.id} (${v.nodes.length}) — ${v.help} : ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
   expect(blocking, `Violations bloquantes sur ${label}`).toEqual([]);
 };
 
 test.describe('Feature: Accessibilité (SC-A11Y)', () => {
   test('SC-A11Y-01 — Given page de connexion, Then aucune violation bloquante', async ({ loginPage, page }) => {
-    test.fixme(true, 'SMK-01: axe violations on the login page; contrast fixes in #45');
     await loginPage.goto();
     await audit(page, 'login');
   });
 
   test('SC-A11Y-02 — Given admin connecté, When tableau de bord, Then aucune violation bloquante', async ({ loginAs, page }) => {
-    test.fixme(true, 'SMK-02: axe violations on the dashboard; contrast fixes in #45');
     await loginAs('tenant_admin');
     await audit(page, 'dashboard');
   });
