@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/authenticated.fixture';
 import { RulesPage } from '../pages/rules.page';
 
 /**
- * SC-ADM-RULES — Création des règles de classement automatique
+ * SC-ADM-05 — Création des règles de classement automatique
  *
  * Le tenant_admin doit créer les règles IFTTT qui guideront le moteur
  * au moment de l'upload. Sans ces règles, aucun document n'est tagué
@@ -26,7 +26,7 @@ const RULES = [
   { name: 'Classement Marketing',   keyword: 'campagne',  tag: 'Marketing' },
 ];
 
-test.describe.serial('Feature: Règles de classement automatique (SC-ADM-RULES)', () => {
+test.describe.serial('Feature: Règles de classement automatique (SC-ADM-05)', () => {
   test.beforeEach(async ({}, testInfo) => {
     test.skip(
       testInfo.project.name !== 'authed-chromium',
@@ -42,7 +42,7 @@ test.describe.serial('Feature: Règles de classement automatique (SC-ADM-RULES)'
   });
 
   for (const rule of RULES) {
-    test(`SC-ADM-RULES — créer la règle "${rule.name}"`, async ({ page }) => {
+    test(`SC-ADM-05 — créer la règle "${rule.name}"`, async ({ page }) => {
       const rp = new RulesPage(page);
       await rp.goto();
       await rp.expectLoaded();
@@ -63,7 +63,7 @@ test.describe.serial('Feature: Règles de classement automatique (SC-ADM-RULES)'
     });
   }
 
-  test('SC-ADM-RULES — les 6 règles sont listées', async ({ page }) => {
+  test('SC-ADM-05 — les 6 règles sont listées', async ({ page }) => {
     const rp = new RulesPage(page);
     await rp.goto();
     await rp.expectLoaded();
