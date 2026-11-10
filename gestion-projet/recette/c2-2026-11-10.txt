@@ -1,0 +1,6 @@
+C2  total_seed=420 exclus_doublons=12 exclus_attendus_needs_review=51 denominateur=357
+    classes_bonne_destination=357 classes_mauvaise_destination=0 non_classes_couverts=0
+    C2 = 357/357 = 100,0 %   C2b (brut, hors doublons) = 357/408 = 87,5 %
+    seuil 95.0 % : GO
+ECARTS (0)
+  aucun
