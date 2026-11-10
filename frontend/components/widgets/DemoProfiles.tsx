@@ -24,7 +24,7 @@ const DemoProfiles: React.FC<DemoProfilesProps> = ({ onSelect }) => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
       <div className="flex items-center gap-4">
         <div className="h-px flex-1 bg-slate-100"></div>
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 whitespace-nowrap italic">Espace Démo Interactif</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 whitespace-nowrap italic">Espace Démo Interactif</span>
         <div className="h-px flex-1 bg-slate-100"></div>
       </div>
 

@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
 import type { WorkflowValidator } from '../../../types';
 
+const STATUS_LABELS: Record<string, string> = {
+  in_review: 'En Validation',
+  rejected: 'Rejeté',
+  validated: 'Validé',
+  signed: 'Signé',
+};
+
 const DraftWorkspace: React.FC = () => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [validators, setValidators] = useState<WorkflowValidator[]>([]);
@@ -149,11 +156,11 @@ const DraftWorkspace: React.FC = () => {
                     {submitting ? 'Soumission...' : 'Soumettre'}
                   </button>
                 ) : (
-                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${doc.status === 'rejected' ? 'bg-red-50 text-red-500' :
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${doc.status === 'rejected' ? 'bg-red-50 text-red-700' :
                     doc.status === 'validated' || doc.status === 'signed' ? 'bg-green-50 text-green-600' :
                       'bg-yellow-50 text-yellow-600'
                     }`}>
-                    {doc.status === 'in_review' ? 'En Validation' : doc.status}
+                    {STATUS_LABELS[doc.status] ?? doc.status}
                   </span>
                 )}
               </div>

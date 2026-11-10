@@ -22,6 +22,19 @@
 
 Direct = 13:00 (P1 1:30 + P2 2:30 + P3 1:30 + P6 1:00 + P4 1:30 + P5 2:00 + P8 2:00 + P7 1:00). Tampon ± 1 min : se prend sur P2 (import plus long) et se rend sur P4/P7. Si le direct dépasse 14:00 à la fin de P5, **P8 réduit à visa seul** (le rejet motivé passe en capture) et P7 à 0:45.
 
+## 1 bis. Moments conditionnels V1.1 (ajout daté du 10/11, DEC-002 révision du 10/11)
+
+Règle : un moment ci-dessous ne se joue **que si sa PR est fusionnée le mer 19/11 18:00** (coupure ferme) ; sinon il est retiré du déroulé et sa phrase d'écart reste au bloc 15:00–17:00. Chaque moment livré **retire une phrase** de ce bloc : le temps ajouté (≈ 1:50 au total) se prend d'abord sur Écarts (2:00 → 1:00 si les quatre sont livrés), puis sur le tampon ± 1. Aucun repli API pour ces moments : en cas d'incident, on passe et on dit la phrase d'écart. Chronométrage le 27/11 avec le reste (§ 5).
+
+| Moment | Quand | Fenêtre / profil | Clics | Résultat attendu sur le jeu D1 | Conditionnel |
+|---|---|---|---|---|---|
+| **Tuile « Doublons refusés »** (lot 1) | fin de P2 (≈ 5:45), +0:20 | B — administrateur du seed, `/dashboard` | ouvrir le tableau de bord (F5 s'il est déjà ouvert) ; montrer la carte | carte « Doublons refusés » **> 0** : au moins **2** (les 2 doublons volontaires de `demo-import/live/`), **14** si les 12 doublons du seed passent par un job d'import engagé (chiffre figé par Q au rejeu du 17) ; compteur du tenant seul. Phrase : « rien n'est stocké deux fois, et on le compte. » | PR **#77** (API) **et #81** (carte) fusionnées avant le 19/11 18:00 |
+| **Export puis réimport des règles** (lot 2) | début de P3 (≈ 6:00, avant la simulation), +0:45 | B — administrateur, `/rules` | « Exporter » → fichier `regles-classement-MINFI-<date>.json` téléchargé ; « Importer » → **ce même fichier** → dialogue de simulation « 0 à créer, 0 à mettre à jour, 9 identiques » → Confirmer → rapport `created 0, updated 0, skipped 9, applied true` ; liste `/rules` inchangée | 9 = règles de D1 (`demo-manifest.json`). Phrase : « on sauvegarde les règles d'un ministère et on les rejoue sans rien casser : le second import n'écrit rien. » | PR **#79** (API) **et #84** (boutons) |
+| **Export CSV du journal** (lot 3a) | fin de P7 (≈ 14:45), +0:15 | B — `AUDIT001`, `/audit`, filtre déjà posé (`MINFI002` + aujourd'hui) | « Exporter (CSV) » → téléchargement `journal-audit-<date>.csv` ; ouvrir dans le tableur préparé (onglet 3) | mêmes lignes que l'écran, filtres compris, séparateur `;`. Phrase : « le journal sort de l'outil pour l'auditeur, filtres compris. » | PR **#80** |
+| **Verrou après 3 OTP** (lot 3b) | fin de P8, juste avant P7 (≈ 13:50), +0:30 | B — compte **dédié `UNIT001`** (administrateur d'unité du seed, utilisé nulle part ailleurs dans la séance). **Jamais** `MINFI002`, `MGR001`, `READ001`, `AUDIT001` ni l'administrateur : le verrou dure 15 min, soit la fin de la démo | connexion `UNIT001` → 3 codes OTP faux : 1 et 2 → « code invalide », 3e → message « Compte verrouillé 15 min après 3 codes erronés », bouton désactivé avec compte à rebours ; **ne pas réessayer** | puis P7 avec `AUDIT001` : ligne `account_locked` sur `UNIT001` dans le journal (filtre agent retiré). Limite auth : 2 connexions + 4 OTP dans la minute → joué **seulement** avec le compose de démo à `30/minute` (checklist § B) ; à `5/minute`, ce moment saute. Si un compte de séance est verrouillé par erreur : `DOCS/exploitation/deverrouiller-compte.md`. | PR **#83** |
+
+Les lots 4 (critères contenu/date) et 5 (surveillance d'un répertoire) n'ont pas de moment : sans PR au 10/11, ils restent des phrases d'écart (moment n° 1 du § 3).
+
 ## 2. Repli par parcours (checklist § C : une tentative F5, sinon bascule < 60 s, sinon captures ; jamais de redémarrage)
 
 | Parcours | Repli **manuel** (même poste) | Repli **API** (poste de secours, client REST préparé, jeton jamais affiché) | Capture (plan B, rapport Playwright du 27 ouvert en onglet 2) |
