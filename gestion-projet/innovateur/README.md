@@ -41,3 +41,9 @@ place (pas de doublon), jamais de secret ni de donnée personnelle.
 
 À compléter en S1 : analyse du CDC (`DOCS/engineering/*.pdf|docx`) en critères d'acceptation,
 concurrents (Alfresco, Nuxeo, Paperless-ngx, Maarch) pour positionner la démo, trame de présentation.
+| `specs-v11-avant-gel/lot-1-kpi-doublons.md` | Lot 1 (révision DEC-002 du 10/11) : clé `duplicates` de `GET /analytics/tenant`, carte « Doublons refusés », 4 cas pytest + e2e, livré si fusionné le 19/11 18:00 |
+| `specs-v11-avant-gel/lot-2-export-import-regles.md` | Lot 2 : export/import JSON des règles de classement par codes (sans UUID), `dry_run` + rapport, 7 cas pytest + e2e, livré si fusionné le 19/11 18:00 |
+| `specs-v11-avant-gel/lot-3-export-journal-verrou-otp.md` | Lot 3 : 3a export CSV du journal d'audit (`/audit/logs/export`, export journalisé) ; 3b verrou Redis par compte après 3 OTP (423 `ACCOUNT_LOCKED`, 15 min) ; 10 cas pytest + 2 e2e, livré si fusionné le 19/11 18:00 |
+| `specs-v11-avant-gel/lot-4-criteres-contenu-date.md` | Lot 4 : critères `content_pattern` et `year_min`/`year_max` des règles (migration, 2 contrôles de plus, reclassement après OCR des documents restés `pending`), 7 cas pytest + e2e, dépend du lot 2, livré si fusionné le 19/11 18:00. |
+| `specs-v11-avant-gel/lot-5-surveillance-dossier.md` | Lot 5 : surveillance continue d'un dossier par tâche Celery beat configurée (`INGEST_WATCH_FOLDERS`), réutilise `DirectoryIngestionService`, déduplication par empreinte, `_traites/`, `GET /documents/ingest-watch/status`, 8 cas pytest + recette, livré si fusionné le 19/11 18:00. |
+| `specs-v11-avant-gel/grille-relecture.md` | Grille de relecture des PR des cinq lots : § 0 commun, une checklist par lot (contrat, idempotence, tests, non-régression ; lot 4 avant/après OCR, lot 5 sous racines autorisées), § 6 mises à jour à chaque fusion. |
