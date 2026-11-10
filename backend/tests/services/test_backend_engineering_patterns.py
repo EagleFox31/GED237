@@ -174,6 +174,20 @@ async def test_classification_rule_engine_patterns(monkeypatch):
     assert (
         engine._resolve_year(filename="note-2099.pdf", strategy="from_filename") == 2026
     )
+    # "_" is a word character: the year must still be read next to underscores
+    assert (
+        engine._resolve_year(filename="facture_2024_x.pdf", strategy="from_filename")
+        == 2024
+    )
+    assert (
+        engine._resolve_year(filename="BP_DRH_2023.pdf", strategy="from_filename")
+        == 2023
+    )
+    # a year inside a longer number is not a year
+    assert (
+        engine._resolve_year(filename="ref-120245.pdf", strategy="from_filename")
+        == 2026
+    )
     assert (
         engine._resolve_year(filename="note.pdf", strategy="fixed", fixed_year=2021)
         == 2021
