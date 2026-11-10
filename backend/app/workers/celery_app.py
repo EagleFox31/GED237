@@ -20,5 +20,9 @@ celery_app.conf.update(
     timezone="Africa/Douala",
     enable_utc=True,
     task_track_started=True,
+    # No caller reads task results. Sending a task that keeps its result first subscribes to the result
+    # backend, and that subscription retries forever when the backend is unreachable: the HTTP request
+    # that enqueues OCR (import commit, upload, review) then never returns (LESSON-2026-026).
+    task_ignore_result=True,
     task_default_queue="celery",
 )
