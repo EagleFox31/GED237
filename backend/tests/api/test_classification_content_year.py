@@ -1,11 +1,13 @@
 """Lot 4 (V1.1): rule criteria on the OCR text and on the document year."""
 
+import io
 import uuid
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.config import settings
 from app.models.classification_rule import ClassificationRule
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
@@ -313,3 +315,120 @@ async def test_new_criteria_survive_an_export_import_roundtrip(
     assert report["created"] == 1, report
     copy = next(r for r in reexported["rules"] if r["code"] == "factures_copie")
     assert [copy[k] for k in criteria] == ["facture", 2015, 2020]
+
+
+@pytest.mark.asyncio
+async def test_year_range_fails_when_the_file_name_has_no_year(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _add_rule(
+        test_engine,
+        db_seed,
+        code="recents",
+        name="Recents",
+        year_min=2000,
+    )
+
+    result = (
+        await admin_client.post(SIMULATE, json=_simulation(db_seed, "budget.pdf"))
+    ).json()
+
+    check = next(
+        c for c in result["diagnostics"][0]["checks"] if c["key"] == "year_range"
+    )
+    assert result["status"] == "no_rule"
+    assert (check["passed"], check["detail"]) == (
+        False,
+        "Aucune annee dans le nom du fichier.",
+    )
+
+
+@pytest.mark.asyncio
+async def test_failing_classification_after_ocr_keeps_the_ocr_text(
+    test_engine, db_seed, monkeypatch
+):
+    await _add_rule(
+        test_engine,
+        db_seed,
+        code="factures",
+        name="Factures",
+        content_pattern="facture",
+    )
+    document_id = await _add_document(test_engine, db_seed)
+    await _classify_at_upload(test_engine, db_seed, document_id)
+
+    async def broken(self, document):
+        raise RuntimeError("regle mal formee")
+
+    monkeypatch.setattr(ClassificationRuleEngine, "reclassify_after_ocr", broken)
+    await _run_ocr_worker(test_engine, monkeypatch, document_id, "Facture 7")
+
+    document = await _document(test_engine, document_id)
+    assert document.ocr_content == "Facture 7"
+    assert document.extra_data["ocr_engine"] == "tesseract"
+    assert document.classification_status == "pending"
+
+
+@pytest.fixture
+def storage_tmp_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "STORAGE_PATH", str(tmp_path / "storage"))
+    return tmp_path
+
+
+@pytest.mark.asyncio
+async def test_imported_file_waiting_for_its_content_goes_to_review(
+    auth_client: AsyncClient, test_engine, db_seed, storage_tmp_path
+):
+    # An import never creates an unclassified document: the file waits in the review queue.
+    await _add_rule(
+        test_engine,
+        db_seed,
+        code="factures",
+        name="Factures",
+        content_pattern="facture",
+    )
+    analyze = await auth_client.post(
+        "/api/v1/imports/analyze",
+        files=[("files", ("scan_import.txt", io.BytesIO(b"scan"), "text/plain"))],
+        data={
+            "source_scope": "service",
+            "default_document_category_id": str(db_seed["category_id"]),
+            "processing_mode": "archive",
+        },
+    )
+    assert analyze.status_code == 201, analyze.text
+    commit = await auth_client.post(f"/api/v1/imports/{analyze.json()['id']}/commit")
+    assert commit.status_code == 200, commit.text
+
+    [item] = commit.json()["job"]["items"]
+    assert item["document_id"] is None
+    assert item["status"] in {"pending", "needs_review"}
+
+
+@pytest.mark.asyncio
+async def test_ingested_document_is_classified_once_its_text_is_extracted(
+    auth_client: AsyncClient, test_engine, db_seed, monkeypatch, storage_tmp_path
+):
+    await _add_rule(
+        test_engine,
+        db_seed,
+        code="factures",
+        name="Factures",
+        content_pattern="facture",
+    )
+    root = storage_tmp_path / "depot"
+    root.mkdir()
+    (root / "scan_depot.txt").write_text("scan", encoding="utf-8")
+    monkeypatch.setattr(settings, "INGEST_ALLOWED_ROOTS_STR", str(root))
+
+    response = await auth_client.post(
+        "/api/v1/documents/ingest-directory",
+        json={"directory_path": str(root), "processing_mode": "archive"},
+    )
+    assert response.status_code == 200, response.text
+    document_id = response.json()["details"][0]["document_id"]
+    await _run_ocr_worker(test_engine, monkeypatch, document_id, "FACTURE 12")
+
+    document = await _document(test_engine, uuid.UUID(document_id))
+    assert document.classification_status == "classified"
+    assert document.extra_data["classification_inputs"]["filename"] == "scan_depot.txt"

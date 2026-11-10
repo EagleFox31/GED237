@@ -5,6 +5,7 @@ Refactored to use OCR Strategy pattern with SRP
 
 import os
 import asyncio
+import logging
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
@@ -14,6 +15,8 @@ from app.workers.celery_app import celery_app
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # Async engine for database updates from the worker
@@ -49,10 +52,18 @@ async def update_document_ocr(
                 "ocr_engine": engine_used,
             }
 
-            # Rules with content keywords could not be checked before the text existed.
-            await ClassificationRuleEngine(session).reclassify_after_ocr(document)
-
             await session.commit()
+
+            # Rules with content keywords could not be checked before the text existed.
+            # Separate transaction: a failing rule must never lose the OCR text or fail the task.
+            try:
+                await ClassificationRuleEngine(session).reclassify_after_ocr(document)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                logger.exception(
+                    "Classification after OCR failed for document %s", document_id
+                )
 
 
 @celery_app.task(name="app.workers.tasks.process_document_ocr")

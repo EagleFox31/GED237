@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document
+from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.core.config import settings
 from app.core.errors.domain import IngestPathForbiddenError
 
@@ -286,7 +287,17 @@ class DirectoryIngestionService:
             org_unit_id=org_unit_id,
             status="draft",
             processing_mode=processing_mode,
-            extra_data={"source_path": file_path, "ingestion": "directory"},
+            extra_data={
+                "source_path": file_path,
+                "ingestion": "directory",
+                # Not classified here: the pass after OCR classifies it with every rule.
+                **ClassificationRuleEngine.classification_inputs(
+                    source_scope="service",
+                    source_user_id=owner_id,
+                    filename=os.path.basename(file_path),
+                    mime_type=mime_type,
+                ),
+            },
         )
 
         self.db.add(document)
