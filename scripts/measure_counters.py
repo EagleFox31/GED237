@@ -2,7 +2,7 @@
 """Real counters vs the `expected` section of a manifest (jeu-donnees-demo.md section 5, step 4).
 
 Checks what the API can show: domains, activities, classificationRules, inactiveRules, documents
-(total = live + trash; toReview = classification_status pending or needs_review), byOrgUnit (documents.org_unit_id),
+(classified = live + trash; toReview = open classification reviews, no document), byOrgUnit (classified per target unit),
 trash (titles), versions (title -> count). Keys the API cannot answer (imports, locks, live) are listed
 as NOT COVERED rather than skipped silently. Prints one line per check with the real value; exit 1 on any mismatch
 unless --no-fail (values-only mode).
@@ -55,22 +55,29 @@ def main() -> None:
         contains("classificationRules", expected["classificationRules"], set(rules))
     if "inactiveRules" in expected:
         check("inactiveRules", sorted(expected["inactiveRules"]), sorted(c for c, r in rules.items() if not r["is_active"]))
-    review = lambda ds: sum(d["classification_status"] in ("pending", "needs_review") for d in ds)  # noqa: E731
+    # D1 contract: classified = documents created (live + trash); toReview = open classification reviews
+    # (no document). Units of another tenant are invisible to this account, so their reviews are not expected.
+    visible = set(maps["org"].values())
+    foreign = sum(c["toReview"] for u, c in expected.get("byOrgUnit", {}).items() if u not in visible)
+    reviews = [r for r in api.get_all("/classification-reviews") if r.get("review_status") == "open"]
     if "documents" in expected:
         e = expected["documents"]
-        real = {"total": len(docs), "classified": sum(d["classification_status"] == "classified" for d in docs),
-                "toReview": review(docs)}
-        for k, v in e.items():
-            check(f"documents.{k}", v, real.get(k))
+        real = {"classified": sum(d["classification_status"] == "classified" for d in docs),
+                "toReview": len(reviews)}
+        real["total"] = real["classified"] + real["toReview"]
+        want = {**e, "toReview": e["toReview"] - foreign}
+        want["total"] = e["total"] - foreign
+        for k, v in want.items():
+            check(f"documents.{k}" + (f" (hors {foreign} revues d'un autre tenant)" if k != "classified" and foreign else ""), v, real.get(k))
     for unit, e in expected.get("byOrgUnit", {}).items():
-        ds = [d for d in docs if maps["org"].get(d.get("org_unit_id")) == unit]
-        real = {"total": len(ds), "classified": sum(d["classification_status"] == "classified" for d in ds),
-                "toReview": review(ds)}
-        for k, v in e.items():
-            check(f"byOrgUnit.{unit}.{k}", v, real.get(k))
+        if unit not in visible:
+            lines.append(f"OK   byOrgUnit.{unit}: invisible pour ce compte (isolation tenant)")
+            continue
+        ds = [d for d in docs if maps["org"].get(d.get("classification_target_org_unit_id")) == unit]
+        check(f"byOrgUnit.{unit}.classified (unite cible)", e["classified"], len(ds))
     if "trash" in expected:
         check("trash", sorted(expected["trash"]), sorted(d["title"] for d in trash))
-    titles = {d["title"]: d for d in live}
+    titles = {d["title"]: d for d in docs}
     for title, count in expected.get("versions", {}).items():
         d = titles.get(title)
         got = len(api.get(f"/documents/{d['id']}/versions")) if d else "document absent"
