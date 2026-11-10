@@ -355,6 +355,8 @@ export interface TenantMetrics {
   users: { total: number };
   documents: { total: number; storage_used_mb: number; storage_quota_mb?: number };
   workflows: { pending: number; completed: number; rejected: number };
+  /** Doublons refusés (absent tant que l'API ne le fournit pas). */
+  duplicates?: { refused: number; refused_upload: number; refused_import: number };
 }
 
 export interface PlatformMetrics {
