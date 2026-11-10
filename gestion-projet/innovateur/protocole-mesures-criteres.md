@@ -62,7 +62,7 @@ Deux colonnes de temps : **`took_ms`** (serveur, celui que l'UI affiche, critèr
 
 ## C6 — Disponibilité ≥ 99 % pendant les tests de validation
 
-Le contrat parle de « tests de validation » : on mesure sur la **campagne S2 (lun 17 → ven 21)**, deux relevés par jour (matin ≈ 09:00, soir ≈ 18:00) = **10 relevés**, plus un relevé avant et après chaque suite e2e (bonus, même format).
+Le contrat parle de « tests de validation » : on mesure sur la **campagne S2 (mar 17 → sam 21)**, deux relevés par jour (matin ≈ 09:00, soir ≈ 18:00) = **10 relevés**, plus un relevé avant et après chaque suite e2e (bonus, même format).
 
 **Commande** (`scripts/probe_c6.sh`, Q, ≈ 10 lignes, idempotent : une ligne ajoutée par appel) :
 
@@ -86,14 +86,14 @@ printf '%s\thealth=%s\t%s\t%s\n' "$ts" "$health" "$ps" "$restarts" >> c6.tsv
 
 | Quand | Quoi | Qui | Coût |
 |---|---|---|---|
-| lun 17 matin | créer `mesures-2026-11-20/`, `probe_c6.sh`, premier relevé ; relevés matin/soir jusqu'au 21 | Q | 0,1 j + 2 min/jour |
-| mar 18 | écrire `measure_c2.py` et `measure_c3.sh` sur la pile e2e (données e2e, juste pour valider les scripts) ; figer `c3-queries.txt` dès que le corpus de démo est généré | Q | 0,25 j |
-| mer 19 soir | corpus de démo chargé, worker OCR allumé pour la nuit | Q | (D1) |
-| **jeu 20** | worker éteint, aucune suite e2e en cours, **C2 puis C3**, 15 min ; synthèse dans `point-2026-11-14.md` § 4 et matrice | Q → O | 0,1 j |
-| ven 21 | dernier relevé C6, verdict | Q → O | — |
-| **jeu 27** (répétition générale) | rejouer C3 sur le poste de démo réel : mêmes 10 requêtes, le chiffre dit au jury est celui-là | Q | 10 min |
+| mar 17 matin | créer `mesures-2026-11-20/`, `probe_c6.sh`, premier relevé ; relevés matin/soir jusqu'au 21 | Q | 0,1 j + 2 min/jour |
+| mer 18 | écrire `measure_c2.py` et `measure_c3.sh` sur la pile e2e (données e2e, juste pour valider les scripts) ; figer `c3-queries.txt` dès que le corpus de démo est généré | Q | 0,25 j |
+| jeu 19 soir | corpus de démo chargé, worker OCR allumé pour la nuit | Q | (D1) |
+| **ven 20** | worker éteint, aucune suite e2e en cours, **C2 puis C3**, 15 min ; synthèse dans `point-2026-11-14.md` § 4 et matrice | Q → O | 0,1 j |
+| sam 21 | dernier relevé C6, verdict | Q → O | — |
+| **ven 27** (répétition générale) | rejouer C3 sur le poste de démo réel : mêmes 10 requêtes, le chiffre dit au jury est celui-là | Q | 10 min |
 
-Total Q : **≈ 0,5 j**, déjà dans l'enveloppe « recette élargie » de S2 (DEC-002 mar 18). Aucune action B sauf NO-GO.
+Total Q : **≈ 0,5 j**, déjà dans l'enveloppe « recette élargie » de S2 (DEC-002 mer 18). Aucune action B sauf NO-GO.
 
 ## Sources
 

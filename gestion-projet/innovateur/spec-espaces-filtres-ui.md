@@ -1,4 +1,4 @@
-# Spec — `SpacesPage` sur les filtres serveur du Lot C9 (ordre 4 côté UI, DEC-2026-002 ; lundi 17/11)
+# Spec — `SpacesPage` sur les filtres serveur du Lot C9 (ordre 4 côté UI, DEC-2026-002 ; mardi 17/11)
 
 - **Pour** : dev-frontend (implémente), ci-qa (spec e2e), orchestrateur (recette). Instruite par l'innovateur le 2026-11-09 19:40. Aucun code écrit ici.
 - **Niveaux** : `Vérifié` = lu dans le dépôt / PR ce jour ; `Déduit` ; `Proposé`.
@@ -115,7 +115,7 @@ Spec `frontend/e2e/specs/spaces-filters.spec.ts` (ou reprise de `spaces.spec.ts:
 
 Chaque test lit la requête avec `page.waitForRequest(req => req.url().includes('/spaces/documents'))` : c'est la preuve que le filtre est **serveur**, pas client.
 
-### 5.2 Recette O (lundi 17 soir)
+### 5.2 Recette O (mardi 17 soir)
 
 PR fusionnée, run e2e vert joint, capture recadrée de la rangée de filtres + de l'état vide. Point S1 : B5 (API) déjà fusionné le 09/11 ; F en semaine 2 selon DEC-002.
 
