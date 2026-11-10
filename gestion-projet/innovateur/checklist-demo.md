@@ -63,7 +63,7 @@
 
 - [ ] **O** — Branchement écran/projecteur, résolution 1920×1080, test de lisibilité du dernier rang.
 - [ ] **O** — `docker compose up -d --pull never` ; `GET /health` OK ; login `collab@minfi` + OTP + déconnexion joués une fois (chauffe des caches, vérification de la limite auth : pas de 429).
-- [ ] **O** — **Version affichée = `1.0.0-rc.1`** aux deux endroits : `GET /health` (champ `version`, variable `APP_VERSION` du compose) et pied de la barre latérale (`VITE_APP_VERSION`, #94) ; un « 0.0.0-dev » ou « dev » = image ou build de la mauvaise étiquette, reconstruire avant H-30.
+- [ ] **O** — **Version affichée = `1.0.0-rc.1`** aux deux endroits : `GET /health` (champ `version`, variable `APP_VERSION` du compose) et pied de la barre latérale (`VITE_APP_VERSION`, #94 : valeur figée **à la construction de l'image**, donc `APP_VERSION=v1.0.0-rc.1` posé dans `.env` **avant** `docker compose build`, pas seulement avant `up`) ; un « 0.0.0-dev » ou « dev » = image ou build de la mauvaise étiquette, reconstruire avant H-30.
 - [ ] **O** — Limites d'authentification de la démo : `docker compose exec api printenv AUTH_LOGIN_RATE_LIMIT AUTH_OTP_RATE_LIMIT` = **`30/minute`** chacune (`docker-compose.yml`, pas la valeur e2e `300/minute` ni le défaut `5/minute`).
 - [ ] **O** — Poste de secours allumé, pile démarrée, login joué, puis laissé en veille écran seulement.
 - [ ] **P** — Fiche de déroulé (minute par minute, `plan-presentation.md` § 1) et fiche des comptes à portée de main ; chronomètre.
@@ -72,6 +72,7 @@
 
 - [ ] **O** — Vérification des 4 écrans « sensibles » : `/rules` (règle 10 inactive visible), `/needs-review` (compteur), `/spaces` DAF (pagination), `/audit` (filtre date prêt) ; *(lots fusionnés)* tableau de bord (tuile doublons = 12), `/rules` (bouton export/import visible), `/audit` (bouton CSV visible).
 - [ ] **O** — `redis-cli --scan --pattern 'lock:*'` sans résultat (aucun compte verrouillé par la chauffe H-90) ; sinon purge ci-dessus (§ B « Comptes et accès »).
+- [ ] **O** — *(lot 5 fusionné, #101)* Dossiers surveillés : **un seul** service `worker` porte `-B` (`docker compose ps` : un seul conteneur worker ; deux beat = passages en double, le verrou Redis n'évite que la simultanéité) ; le worker monte `/data/ingest` **en lecture-écriture** (il déplace les fichiers traités vers `_traites/` et `_erreurs/`), l'API le garde en lecture seule ; `docker compose exec worker printenv INGEST_WATCH_FOLDERS` **ne contient pas** `/data/ingest/live` (sinon le worker vide le dossier de l'import en direct avant P2) — vide `[]` si le lot 5 n'est pas montré.
 - [ ] **O** — Seed vérifié : connexion `MGR001` réussie après le seed explicite (le compose ne seed pas ; `jeu-donnees-demo.md` § 2), puis déconnexion.
 - [ ] **Q** — Rapport Playwright du plan B ouvert dans un second onglet (local, `file://`), captures des 8 parcours vérifiées.
 - [ ] **O** — Téléphones en silencieux, notifications système coupées, Docker Desktop réduit (pas de fenêtre « mise à jour disponible »).
