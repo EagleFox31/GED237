@@ -73,6 +73,24 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
       const denied = await request.post(`${RULES}/import`, { headers: reader, data: { format: base.format, version: 1, rules: [] } });
       expect(denied.status(), 'lecteur : import interdit').toBe(403);
     });
+
+    test('SC-V11-02b - Given les regles du seed (codes bruts), When export puis reimport du fichier complet, Then 0 ecriture et le re-export est accepte', async ({ request }) => {
+      const admin = await token(request, { matricule: 'MINFI001', password: 'Minfi@2025' });
+      const exp = await request.get(RULES + '/export', { headers: admin });
+      expect(exp.status(), 'export').toBe(200);
+      const file = await exp.json();
+      const count = file.rules.length;
+      const run = async (query: string) => {
+        const res = await request.post(RULES + '/import?' + query, { headers: admin, data: file });
+        expect(res.status(), 'import ' + query).toBe(200);
+        return res.json() as Promise<{ created: number; updated: number; rejected: number }>;
+      };
+      for (const query of ['dry_run=true', 'dry_run=false', 'dry_run=false']) {
+        expect(await run(query), 'reimport ' + query).toMatchObject({ created: 0, updated: 0, rejected: 0 });
+      }
+      const after = await request.get(RULES + '/export', { headers: admin });
+      expect((await after.json()).rules, 'pas de jumeau cree').toHaveLength(count);
+    });
   });
 
   test.fixme('SC-V11-03 - Given un journal d\'audit avec des evenements, When l\'auditeur l\'exporte, Then le fichier contient les evenements du filtre ; Given 3 OTP errones, When un 4e essai, Then le compte est verrouille avec un message explicite', async () => {});
