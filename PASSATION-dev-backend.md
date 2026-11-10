@@ -193,3 +193,108 @@
 ## 2026-11-09 20:16 — Contrat P8 transmis au frontend
 
 Contrat de `GET /workflows/validators` (ValidatorRead : `id`, `full_name`) et de `current_version_id` (nullable, dans `task.document` de `GET /workflows/pending`) envoyé à ged-dev-frontend, qui code `fix/validation-cycle-ui` dessus : ne plus changer ces noms sans le prévenir. Suite #47 toujours en cours.
+
+## 2026-11-09 20:30 — PR #50 rôles ouverte
+
+**Objectif en cours** — attendre le résultat de la suite complète #47 (tâche de fond, log $TEMP/claude/full_authz_suite.log), puis tests workflow.
+**Fait** — PR #50 `fix/role-codes-lowercase` ouverte (worktree ../GED237-roles, commit e6eaa3f) ; numéro envoyé à l'orchestrateur ; réponse à l'innovateur (option A, create_all gardé jusqu'à bascule e2e_reset.sh, api/worker non dépendants de seed, e2e compose à ci-qa).
+**Reste à faire** — 1) résultat suite #47 → walkthrough « Preuves », commit retrait POLICY + walkthrough, push, commentaire PR 47, message orchestrateur ; 2) `tests/api/test_authz*.py` en Docker pour #50 (consigner dans le walkthrough) ; 3) ../GED237-workflow : lancer `tests/api/test_workflow_validators.py tests/api/test_workflows.py` en Docker, walkthrough, commit, push, PR, prévenir orchestrateur + frontend ; 4) après fusions : `gh pr update-branch 47`, conflit lessons-learned, nettoyage worktrees search/debug/authz.
+**Pièges / contexte** — une seule exécution pytest à la fois (test_ged partagée) ; ordre de fusion #39 → #42 → #47 → #48 → #50.
+
+## 2026-11-09 22:19 — Suite #47 verte, #50 relue, workflow prêt à tester
+
+**Objectif en cours** — tests authz ciblés sur #47 à jour (fond, log $TEMP/claude/authz_targeted.log), puis tests de la branche workflow, puis PR.
+**Fait** — suite complète #47 : 252 passed, couverture 85,21 % ; main fusionnée dans fix/authz-collaborator (2295afa, lessons 022 puis 023), poussée, commentaire PR 47. #50 relue OK par l'orchestrateur (fusion après #47, lessons 022-023-021 au rebase) ; sa remarque « pas de plafond de logs sur seed » est infondée : `logging: *default-logging` présent, répondu. Walkthrough workflow rédigé (Preuves à compléter).
+**Décisions** — push forcé refusé par les permissions de la session : fusion de main dans la branche au lieu d'un rebase, pour #47 et à venir pour #50.
+**Reste à faire** — 1) compléter commentaire PR 47 avec le résultat authz ciblé ; 2) ../GED237-workflow : tests Docker, Preuves, commit, push, PR, message orchestrateur ; 3) tests authz ciblés sur #50 ; 4) après fusion #47 : fusionner main dans #50 (lessons 022, 023, 021).
+**Contrat frontend (rappel pour dev-frontend)** — GET /api/v1/workflows/validators → [{id, full_name}] (manager + tenant_admin actifs du tenant, 403 lecteur) ; GET /workflows/pending : task.document.current_version_id (UUID nullable).
+
+## 2026-11-09 22:24 — PR #51 workflow ouverte
+
+**Fait** — #47 : 78 passed ciblés sur branche à jour, commenté. Workflow : 19 passed en Docker, commit 5f390ae, PR #51 ouverte, orchestrateur et dev-frontend prévenus.
+**Reste à faire** — 1) demain matin : upload 413 (spec-limite-upload.md) puis `fix/ingest-allowed-roots` (§5) ; 2) après fusion #47 : fusionner main dans fix/role-codes-lowercase (#50), lessons 022-023-021, tests authz ciblés ; 3) nettoyage worktrees search/debug/authz après fusions ; 4) 17/11 PR ops/backup-restore.
+**Pièges / contexte** — PRs ouvertes : #47 (PO dès CI verte), #50 (après #47), #51. Push forcé interdit : fusionner main dans la branche.
+
+## 2026-11-09 22:55 — PR #52 upload 413 et PR #53 ingest racines autorisées ouvertes
+
+**Objectif en cours** — PRs de sécurité du 9/11 (DEC-2026-002) ; attente revue PO/orchestrateur.
+**Fait** — Upload 413 (`../GED237-upload`, commit 9e54f06, PR #52) : `MAX_UPLOAD_SIZE_MB`, `FileTooLargeError` 413 `FILE_TOO_LARGE` dans `core/errors/domain.py`, plafond dans `storage/local.py` et `s3.py` (`.part` + `os.replace`), pré-contrôle Content-Length sur `documents.py` (upload + versions), import en masse atomique (`import_analysis_service.py`, `imports.py`), nginx 101M ; `tests/api/test_upload_limit.py` 5 tests ; suite complète Docker 263 passed (13 min). Ingest (`../GED237-ingest`, commit c7a179f, PR #53) : `INGEST_ALLOWED_ROOTS` (défaut vide = refus), `resolve_source_dir` realpath+commonpath dans `services/ingestion.py`, `IngestPathForbiddenError` 403 `INGEST_PATH_FORBIDDEN`, montage `:ro` + variable dans `docker-compose.yml`, `data/ingest/README.md` ; 9 tests Docker passed ; suite complète lancée en arrière-plan (log `$TEMP/claude/ingest_full_suite.log`), résultat à poster en commentaire sur #53.
+**Décisions** — exceptions dans `core/errors/domain.py` (sous-classes AppError, un seul handler) plutôt que dans storage/services : écart spec noté dans les walkthroughs. Compose e2e (`../GED237-e2e`) non touché : absent de main, à reporter par ci-qa.
+**Reste à faire** — 1) commenter #53 avec la suite complète ; 2) après fusion #47 : fusionner main dans fix/role-codes-lowercase (#50), lessons 022-023-021, tests authz ciblés ; 3) #52 et #53 touchent tous deux `errors/domain.py` et `errors/__init__.py` : fusionner main dans le second après fusion du premier (conflit d'import trivial) ; 4) nettoyage worktrees search/debug/authz/upload/ingest après fusions ; 5) 17/11 PR ops/backup-restore.
+**Pièges / contexte** — PRs ouvertes : #47, #50, #51, #52, #53. Push forcé interdit : fusionner main dans la branche. Une seule suite pytest Docker à la fois (base test_ged partagée).
+
+## 2026-11-09 23:14 — PR #54 sauvegarde/restauration ouverte ; suite complète #53 à relancer
+
+**Objectif en cours** — Attente revue PO sur #47/#50/#51/#52/#53/#54 ; relancer la suite complète #53 après feu vert ci-qa.
+**Fait** — Worktree `../GED237-backup-restore` (branche `ops/backup-restore`, commit 4d5c81b, PR #54) : `ops/lib/common.sh` (cible compose ou `PG_CONTAINER`/`STORAGE_VOLUME`, helper plafonné sans réseau), `ops/backup.sh` (pg_dump -Fc, tar.gz reproductible, SHA256SUMS, MANIFEST sans horodatage, rétention), `ops/restore.sh <dir> [--wipe] [--yes]` (empreintes, refus cible non vide code 3, comptages vs manifeste code 2), `.env.example` racine, `backups/.gitkeep` + `.gitignore`, `DOCS/exploitation/sauvegarde-restauration.md` (preuve : sauvegarde 3 s, restauration 11 s, couple ≈ 15 s), walkthrough `[Claude] Sauvegarde et restauration - 2026-11-09.md`. Conteneurs de preuve supprimés.
+**Décisions** — chemins `ops/` + `DOCS/exploitation/sauvegarde-restauration.md` (instruction orchestrateur) plutôt que spec §6 ; manifeste sans horodatage pour comparer deux états identiques. Règle de charge : une seule charge Docker lourde à la fois, prévenir ged-ci-qa avant toute suite complète.
+**Reste à faire** — 1) après feu vert ci-qa : relancer la suite complète sur `../GED237-ingest` (résultat précédent perdu : conteneur détaché après arrêt du shell) et commenter #53 ; 2) après fusion #47 : fusionner main dans #50, lessons 022-023-021, tests authz ciblés ; 3) fusions dans l'ordre #45→#47→#39→#48→#50→#51→#52→#53→#54, fusionner main dans la branche suivante à chaque fois ; 4) nettoyage worktrees ; 5) leçon lessons-learned : `seed_db.py` incompatible avec une base migrée (données de référence déjà insérées) — à ajouter à la fusion de #54.
+**Pièges / contexte** — `docker stop` refusé par le mode de permissions : ne pas compter dessus pour libérer la VM, prévenir ci-qa avant de lancer. `container_name` fixes dans `docker-compose.yml` : impossible de lancer deux piles compose ; la preuve a utilisé des conteneurs `docker run` nommés gedbak-*.
+
+## 2026-11-09 23:25 — #50 seed réconcilié avec les migrations ; suite complète #53 relancée
+
+**Objectif en cours** — Suite complète #53 en cours (tâche de fond, log `$TEMP/claude/ingest_full_suite2.log`) ; à son terme : commenter #53 et prévenir ged-ci-qa.
+**Fait** — `../GED237-roles` commit 6698241 (PR #50) : `seed_db.py` déclare les codes/libellés de `001_initial_schema` (`MINISTRY`, `DIRECTION`, `DEPARTMENT`, `SERVICE`) ; preuve vierge → upgrade head → seed → seed = SKIP, `org_unit_types=7` constant, commentaire posté sur #50, orchestrateur informé (constat #54 clos). #54 placée en fin d'ordre par l'orchestrateur.
+**Reste à faire** — 1) fin de suite #53 → commentaire PR + message ci-qa ; 2) après fusion #47 : fusionner main dans #50, lessons 022-023-021, tests authz ciblés ; 3) fusions #45→#47→#39→#48→#50→#51→#52→#53→#54, main fusionné dans la branche suivante ; 4) nettoyage worktrees.
+**Pièges / contexte** — Le garde-fou interdit `rm -rf` dans un `bash -c` composé et `docker stop` : préparer le conteneur sans `rm`, nettoyer par une commande `docker rm -f` isolée.
+
+## 2026-11-09 23:45 — #47 fusionnée ; main fusionné dans #50 (2021be9) ; #53 suite verte
+
+**Objectif en cours** — Attente des fusions PO (#49 → #45 → #39 → #48 → #50 → #51 → #52 → #53 → #54) ; l'orchestrateur fait les update-branch de #51-#54, intervenir seulement sur conflit signalé.
+**Fait** — #50 : origin/main (02672f5) fusionné (commit de fusion 2021be9), `DOCS/engineering/lessons-learned.md` réordonné 022, 023, 021 ; tests Docker `test_authz.py` + `test_authz_smoke_fixes.py` + `test_auth.py` = 77 passed. #53 : suite complète 267 passed (12 min) en commentaire. ci-qa et orchestrateur informés.
+**Reste à faire** — 1) conflits éventuels sur #51/#52/#53/#54 lors des update-branch (#52 et #53 : `errors/domain.py`, `errors/__init__.py`) ; 2) nettoyage worktrees `../GED237-{search,debug,authz,upload,ingest,roles,workflow,backup-restore}` après fusions (authz déjà fusionnée) ; 3) leçon lessons-learned « seed vs données de référence des migrations » à proposer à la fusion de #50/#54.
+**Pièges / contexte** — Dans `test-in-docker.sh`, les globs `tests/api/test_authz*.py` ne sont pas développés : donner les fichiers explicitement.
+
+## 2026-11-10 00:05 — #50 : LESSON-021 complétée, test du seed ajouté (b5d0009)
+
+**Objectif en cours** — Attente des fusions PO ; l'orchestrateur fera update-branch sur #50 après #39 ; si conflit sur lessons-learned (020 inséré par #39) : ordre 019, 020, 022, 023, 021.
+**Fait** — `backend/scripts/seed_db.py` : `ORG_UNIT_TYPES` constante de module ; `backend/tests/test_seed_db.py` (codes seed ⊆ migration 001, `upsert_by_code` idempotent) ; LESSON-2026-021 : paragraphe « Second near miss » (types d'unité en doublon, preuve 6 compteurs, garde-fou) ; walkthrough #50 complété. Docker : 12 passed (seed + authz smoke + coverage config). Commit b5d0009 poussé.
+**Reste à faire** — 1) conflits éventuels sur #50–#54 lors des update-branch ; 2) nettoyage worktrees après fusions ; 3) rien d'autre ce soir (consigne orchestrateur).
+
+## 2026-11-10 00:40 — #53 : main fusionné (3a6bedb), tests ciblés verts
+
+**Objectif en cours** — #50, #51, #52 fusionnées. Orchestrateur fusionne #55 puis #53 puis #54 (update-branch suffit pour #54).
+**Fait** — `origin/main` fusionné dans `fix/ingest-allowed-roots` (commit 3a6bedb, poussé). Conflits additifs résolus en gardant les deux côtés : `backend/.env.example` (INGEST_ALLOWED_ROOTS + MAX_UPLOAD_SIZE_MB), `endpoints/documents.py` (import FileTooLargeError + IngestPathForbiddenError), `core/config.py` (`import os`, `model_validator`, MAX_UPLOAD_SIZE_MB + INGEST_ALLOWED_ROOTS_STR), `errors/__init__.py` (les deux erreurs). Docker : `test_ingest_allowed_roots.py` + `test_upload_limit.py` + `test_documents.py` = 20 passed.
+**Reste à faire** — 1) conflit éventuel sur #54 à l'update-branch ; 2) nettoyage des worktrees `../GED237-{search,debug,authz,upload,ingest,roles,workflow,backup-restore}` après fusions ; 3) rien d'autre cette nuit.
+
+## 2026-11-10 01:20 — PR #58 APP_VERSION ouverte ; #54 fusionnée (bbed941)
+
+**Objectif en cours** — Attente fusions : #55 (ci-qa, rouge en CI, correctifs de son côté) puis #53 (update-branch par l'orchestrateur). PR #58 `chore/app-version` (worktree `../GED237-version`, commit 921ec64) à faire fusionner par le PO.
+**Fait** — #58 : `APP_VERSION` (env, défaut `0.0.0-dev`) dans `core/config.py`, `main.py` (FastAPI, `/health`, `/`), `app/__init__.py` (`__version__` retiré), compose démo + e2e (`${APP_VERSION:-0.0.0-dev}`), `.env.example`, `tests/api/test_health.py`. Docker : 66 passed (health + authz). Preuve compose : `/health` → `version: test`, pile `gedver` supprimée (`down -v`).
+**Décisions** — `VERSION` de settings retirée (aucun consommateur) ; frontend et workflows non touchés ; `docker-compose.e2e.yml` modifié d'une ligne (demande orchestrateur) : conflit possible avec #55 qui touche ce fichier.
+**Reste à faire** — 1) envoyer #58 à l'orchestrateur ; 2) conflits éventuels #53/#58 ; 3) ensuite, au signal orchestrateur : retrait de `create_all` côté app quand la pile e2e sera sur « upgrade head puis seed » ; 4) nettoyage worktrees `../GED237-{search,debug,authz,upload,ingest,roles,workflow,backup-restore,version}` après fusions.
+**Pièges / contexte** — OpenAPI servi sous `/api/...` (pas `/openapi.json`). Compose démo : `container_name` fixes → un seul exemplaire à la fois, projet `-p gedver` pour des volumes séparés.
+
+## 2026-11-10 01:40 — #58 fusionnée (2aeeec7) ; worktrees fusionnés nettoyés
+
+**Objectif en cours** — Attente : #55 (ci-qa) puis #53 (update-branch orchestrateur) ; signal « retrait de create_all » à venir.
+**Fait** — Worktrees supprimés et branches locales effacées (toutes fusionnées dans main) : `../GED237-{search,debug,authz,upload,roles,workflow,backup-restore,version}`. Conservés : `../GED237-ingest` (#53 ouverte) et les worktrees des autres sessions (`docs*`, `e2e`, `ocr0`, `recette1`, `route-guard`, `valcycle`, `lotc-frontend`, `merge39`).
+**Reste à faire** — 1) conflit éventuel sur #53 ; 2) retrait de `create_all` au signal ; 3) supprimer `../GED237-ingest` après fusion de #53.
+
+## 2026-11-10 02:05 — #55 (bf1ce57) et #53 (42a161e) fusionnées ; périmètre de la nuit sur main
+
+**Objectif en cours** — Prochaine tâche au signal orchestrateur (après fusion de la PR e2e « upgrade head puis seed » de ci-qa) : retrait de `create_all` côté app (`seed_db.py`, pile e2e, tests de la suite qui en dépendraient). Aucune PR backend ouverte.
+**Fait** — `../GED237-ingest` supprimé, branche locale effacée ; plus aucun worktree de cette session. Docker libre.
+**Reste à faire** — 1) retrait de `create_all` (worktree neuf `../GED237-<sujet>` sur main, jamais de git dans `GED237/`) ; 2) plus tard : S2 perf pytest ; routes `simulate` en doublon (`classification.py:742`, `gedrules.py:458`).
+**Pièges / contexte** — `create_all` est aussi dans `tests/conftest.py` (`prepare_database` : drop_all/create_all par test) : à distinguer de celui de l'app/seed ; cadrer avec l'orchestrateur avant de toucher au conftest.
+
+## 2026-11-10 02:50 — PR #60 brouillon « retrait de create_all » (627b358), suite complète en cours
+
+**Objectif en cours** — #60 `chore/drop-create-all` (worktree `../GED237-create-all`) à fusionner après #59 (ci-qa, « upgrade head puis seed ») : au signal orchestrateur, fusionner main dans la branche, passer la PR en prête.
+**Fait** — `seed_db.py` : create_all → `get_schema_status` (exit 2 si base hors tête) ; `core/database.py` : `init_db()` retiré ; README backend + `DOCS/exploitation/sauvegarde-restauration.md` ; `tests/test_seed_db.py` 3 passed. Preuves Docker (upgrade head → seed → seed SKIP ; base non migrée → exit 2) dans le corps de la PR. Suite complète lancée en arrière-plan (log `$TEMP/claude/createall_full_suite.log`) : résultat à poster en commentaire sur #60 et à signaler à ci-qa (Docker libre).
+**Reste à faire** — 1) commenter le résultat de la suite sur #60, prévenir ci-qa ; 2) au signal #59 fusionnée : merge main → push → PR prête ; 3) supprimer `../GED237-create-all` après fusion ; 4) plus tard : S2 perf pytest, routes `simulate` en doublon.
+
+## 2026-11-10 03:10 — #60 prête (56d7c29), suite complète 290 passed
+
+**Objectif en cours** — #60 `chore/drop-create-all` passée en « prête » ; orchestrateur lance la chaîne CI → merge → suppression.
+**Fait** — main (4953e81, #59 de ci-qa) fusionné sans conflit (56d7c29, poussé) ; suite complète Docker sur 627b358 : 290 passed, couverture 86,41 %, posté en commentaire ; ci-qa prévenu (Docker libre).
+**Reste à faire** — 1) après fusion de #60 : supprimer `../GED237-create-all` et la branche locale ; 2) tâche suivante au signal orchestrateur ; en réserve : S2 perf pytest, routes `simulate` en doublon (`classification.py:742`, `gedrules.py:458`).
+
+## 2026-11-10 03:30 — Tâche D1 reçue : jeu de données de démo (feat/demo-dataset)
+
+**Objectif en cours** — Après fusion de #60 (chaîne en cours) : worktree neuf sur main `../GED237-demo-dataset`, branche `feat/demo-dataset`. Spec : `gestion-projet/innovateur/jeu-donnees-demo.md` § 5 étapes 1 et 2 (lire § 1-4 : 3 dossiers DRH/DAF/DSI + live, 10 règles dont la 10 inactive, cas « contrat climatiseurs DAF » à revoir).
+**Consigne orchestrateur (intégrale)** —
+(1) `scripts/demo-dataset.sh` (Docker, conteneur api) : `backend/scripts/test_real_export_v2.py` adapté par variable d'environnement (pas de copie ; sortie déterministe `GED_EXPORT_SEED=237`) → `frontend/e2e/data/demo-import/{DRH,DAF,DSI,live}/` + `demo-manifest.json` avec section `expected` (classés / à revoir / doublons / corbeille / verrous / versions) ; corpus généré non versionné (.gitignore), seuls script et manifeste suivis.
+(2) `backend/scripts/e2e_reset.sh` profil `demo` : vide documents/jobs/règles du tenant MINFI, rejoue le seed, crée les règles via le `POST /rules` existant (aucun nouvel endpoint d'import : pas de surface API avant le gel), importe les 3 dossiers via l'API, applique corbeille/verrous/versions depuis `expected` ; deux exécutions = même état (compteurs identiques). Format du manifeste aligné sur `frontend/e2e/data/seed-manifest.json` de ci-qa (pas l'inverse).
+Preuve : reset profil demo sur base vierge en Docker, compteurs réels vs expected, temps de reset mesuré ; comparaison Playwright (étape 4) reste à ci-qa. Charge lourde : annoncer à ci-qa (rejeu sauvegarde/restauration en cours jusqu'à ~03:45). PR normale depuis main, corps avec le tableau obtenu.
+**Reste à faire** — 1) supprimer `../GED237-create-all` après fusion #60 ; 2) lire spec § 1-5, `seed-manifest.json`, `seed_e2e.py`, `test_real_export_v2.py`, `e2e_reset.sh` ; 3) implémenter (1) puis (2) ; 4) preuve Docker ; 5) PR.

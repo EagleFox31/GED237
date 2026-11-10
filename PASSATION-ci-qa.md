@@ -167,3 +167,106 @@ Pièges : hook pre-commit cassé sur l'hôte (venv `E:\GED237` absent). Les cont
 
 - PR 2a garde « seed puis stamp ». La bascule vers « upgrade head puis seed » se fait **juste après la fusion de la PR de migration des rôles** (dev-backend, seed_db convergent) : une ligne à changer dans `e2e_reset.sh`. L'orchestrateur transmet lui-même à dev-backend.
 - Ordre de fusion : #39 → #42 → #47 → #48. Aucun fixme supplémentaire dans #48. dev-frontend supprime full-cycle au rebase, innovateur aligne la §4.
+
+## 2026-11-09 22:59 — #39 à jour avec main, correctifs PR 2a, INGEST_ALLOWED_ROOTS
+
+- **#39** : fusion origin/main poussée (09c2587, conflit lessons-learned résolu 019→020→022), CI 13/13 verte, CLEAN, brouillon. `gh pr edit 39 --body-file scratchpad/pr1-v2.md` et `gh pr ready 39` attendent l'accord de l'utilisateur ou du PO dans cette session, jamais via un pair. Fusion prévue après #47.
+- **ci/e2e-seed (PR 2a, non poussée)** : adf9a6d (fichier unique par upload via e2e/data/files.ts, attente stable de l'onglet circuit) ; 2044f39 (INGEST_ALLOWED_ROOTS=/data/ingest dans le compose e2e, exigé par #53 : PR 2a doit fusionner avant #53).
+- **Worktrees** : GED237-e2e sur tmp/smoke-combined (seed + #45 + #47, fixme SMK-04 à 08 retirés hors commit), branche jetable. GED237-merge39 sur ci/e2e-seed.
+- **Runs** : documents+full-cycle avec fixme → 13 réussis, 6 sautés. Sans fixme → full-cycle 3/3 en échec et SMK-08 instable, tous au page.goto (Vite > 10 s) pendant la suite backend de #53 (npm ci 13 min). Rerun en cours (log scratchpad/e2e-run4.log). Si vert → défaillance d'environnement. Si rouge → mesurer free -m / docker stats et prévenir l'orchestrateur avant toute action.
+- **Règle** : une seule charge Docker lourde à la fois ; dev-backend et moi nous prévenons mutuellement.
+- **Rapport HTML** à garder pour dev-frontend : GED237-e2e/frontend/e2e-out/playwright-report ; mes runs écrivent dans playwright-report-run2 (override scratchpad/e2e-run2.override.yml).
+- **#35** : fusion après le 30/11, pas d'image v1.65 sans signal.
+- **File** : PR 2a mer 11 → e2e P8 jeu 12 → OCR-0 ven 13 matin → après #50 : service seed + bascule e2e_reset.sh « upgrade head puis seed » (une PR, reset chronométré).
+
+## 2026-11-09 23:15 — documents + full-cycle verts, PR 2a complète en local
+
+- **Preuve** : branche combinée seed + #45 + #47, fixme retirés, VM calme, `--repeat-each=3 --retries=0` → 9/9 (full-cycle 11 à 14 s, SMK-08 9 à 12 s). Log : scratchpad/e2e-run6.log.
+- **Causes** : SMK-08 = charge VM (suite #53 concurrente). full-cycle = budget 30 s trop court (`test.slow()`) + `networkidle` sur la page tasks qui n'aboutissait jamais (retiré ; cause non tracée, WebSocket notifications suspect non prouvé).
+- **ci/e2e-seed (local, non poussé, worktree GED237-merge39)** : adf9a6d, 2044f39, 9ba9cc2. Les fixme SMK-04 à 07 restent jusqu'à la fusion de #45/#47.
+- **GED237-e2e** : tmp/smoke-combined avec des modifications non commitées (jetable).
+- **Verrou Docker** : feu vert donné à dev-backend pour la suite #53 ; aucune campagne e2e avant qu'il signale la fin.
+- **En attente** : accord utilisateur/PO pour `gh pr edit 39 --body-file` et `gh pr ready 39`.
+
+## 2026-11-09 23:18 — PR 2a ouverte : #55
+
+- **#55** (brouillon) : base ci/e2e-smoke (empilée sur #39, reciblée sur main à sa fusion), head ci/e2e-seed. Contenu : seed déclaratif + adf9a6d + 2044f39 + 9ba9cc2 + 0e9ca16 (conventions en en-tête de playwright.config.ts, LESSON-2026-025). Corps de PR : scratchpad/pr2a.md.
+- **Contraintes** : #55 doit fusionner avant #53 (INGEST_ALLOWED_ROOTS). Retirer les fixme SMK-04 à 07 dans #55 à la fusion de #45/#47.
+- **Verrou Docker** : suite complète #53 de dev-backend en cours ; pas de campagne e2e avant son signal.
+- **En attente** : accord utilisateur/PO pour `gh pr edit 39 --body-file` et `gh pr ready 39`.
+- **Ensuite** : e2e P8 jeu 12 → OCR-0 ven 13 matin → après #50 : service seed + bascule « upgrade head puis seed ».
+
+## 2026-11-09 23:51 — OCR-0 outillé, merge main → #55 en cours
+
+- **OCR-0** : worktree GED237-ocr0, branche ci/ocr-0-bench (depuis origin/main 4e0ddba, non poussée). Fichiers : backend/scripts/bench_ocr_0.py (prepare/run/table), backend/Dockerfile.bench (FROM api, rapidocr 3.10.0, onnxruntime 1.31.1, jiwer 4.0.0, tessdata_best dans /opt/tessdata_best), backend/scripts/bench_ocr_0.sh (1 conteneur plafonné 1g/2 CPU par moteur, --rm). Entrées de la répétition : scratchpad/ocr0/make_seed_pdfs.py (6 PDF du seed). Base : edossier-e2e-api:latest. Lint ruff/bandit relancé (PyPI très lent).
+- **Écarts protocole à remonter à l'innovateur** : (1) tessdata_best copié dans le tessdata par défaut transformerait T-fast en T-best → dossier séparé + --tessdata-dir ; (2) RapidOCR ≥ 3.9 : PP-OCRv6 small multilingue (fr inclus) par défaut, lang_type sans effet en v6 → pas de « latin » ; (3) RapidOCR attend du BGR ; (4) le texte du seed (Helvetica sans /Encoding) rend « à » selon StandardEncoding — sans incidence pour une répétition, vérité = pdftotext.
+- **Orchestrateur 23:4x** : #49, #45, #39 fusionnées ; #55 reciblée sur main. À faire : merge origin/main dans ci/e2e-seed (sans forcer), retirer fixme SMK-04..07, smoke local vert, pousser, SHA à l'orchestrateur ; lessons attendues 019, 020, 022, 023, 025. #55 après #52, avant #53.
+- **Docker** : dev-backend a libéré Docker (267 + 77 passed).
+
+## 2026-11-10 00:19 — #55 poussée, OCR-0 en répétition, prochaine tâche : e2e « upgrade head puis seed »
+
+- **#55** : be18a98 poussée (merge main 3059179 + retrait fixme SMK-04..08). Smoke local --retries=0 : 31 passed, 3 skipped (SMK-01/02/10), 0 échec. Dans la chaîne de fusion de l'orchestrateur (update-branch, CI, merge) puis #53, #54.
+- **OCR-0** : ci/ocr-0-bench local 8aea340 (+ correctif runner non commité : here=host_path). Répétition run2 en cours (scratchpad/ocr0/run2.log, work/results/). Livrable à l'orchestrateur : 3 lignes (durée, débit, écarts d'outillage) + tableau en passation + écarts à l'innovateur.
+- **Ensuite (orchestrateur)** : #50/#51/#52 sur main. Petite PR depuis worktree neuf sur main : pile e2e en « alembic upgrade head puis seed » (plus de create_all/stamp côté e2e). Preuve : reset e2e + smoke --retries=0 vert. Prévenir dev-backend avant la campagne Docker ; signaler le push à l'orchestrateur (dev-backend retirera create_all côté app).
+
+## 2026-11-10 00:40 — #55 rouge en CI : correctifs prêts, non poussés
+
+- CI #55 (run 42718458561) : (1) TS2614 `FilePayload` non exporté par @playwright/test → type local exporté par frontend/e2e/data/files.ts, importé dans pages/documents.page.ts ; (2) seed_e2e : `targetUnitType: "ministry"` → `MINISTRY` (codes migration 001 en majuscules depuis #50, LESSON-021).
+- Worktree GED237-merge39 : pull de 5f5c3ba (update-branch GitHub) fait, correctifs non commités. Reste : typecheck frontend + smoke --retries=0 en conteneur, commit, push, SHA à l'orchestrateur.
+- OCR-0 run2 en cours ; dev-backend lance la pile gedver quelques minutes (charge concurrente à noter sur les temps OCR).
+- Puis : PR e2e « upgrade head puis seed » (après fusion de #55, e2e_reset.sh n'existe sur main qu'avec elle).
+
+## 2026-11-10 00:57 — #55 poussée (789068d), outillage OCR-0 corrigé (057802e local)
+
+- #55 : 49c5402 (type FilePayload local + MINISTRY) puis merge origin/main 2aeeec7 (#58). Conflit docker-compose.e2e.yml résolu en gardant les deux côtés (E2E_MANIFEST/INGEST_ALLOWED_ROOTS + APP_VERSION). Preuve locale : typecheck OK, smoke --retries=0 31 passed / 3 skipped. CI run 42724526471 en cours ; SHA envoyé à l'orchestrateur (chaîne #55 → #53).
+- OCR-0 (ci/ocr-0-bench, non poussée) : 057802e = threads alignés sur le quota cgroup, CSV écrit au fil de l'eau, ligne OOM dans le tableau, reset des résultats à chaque run ; ruff et bandit propres. Répétition à blanc : 29 min 49 s ; T-fast 0,8/1,8 s/p ; T-best 0,9/1,7 ; R 9,7/10,3 s/p, pic 858 Mo ; E OOM à 1 Go. Écarts reportés par l'innovateur dans protocole-ocr-0.md.
+- Walkthrough du 13 : si E est OOM, comparer R à T-fast/T-best et conclure « E hors budget mémoire » ; noter rapidocr 3.10.0.
+- Suite : re-mesurer R/E avec les threads limités (au prochain créneau Docker, prévenir dev-backend) ; après la fusion de #55, PR e2e « upgrade head puis seed ».
+
+## 2026-11-10 07:49 — CI #55 verte ; OCR-0 R/E re-mesurés (threads = 2)
+
+- #55 : CI verte sur 789068d (run 42724526471). Fusion faite par la chaîne de l'orchestrateur (go PO), puis #53. J'attends le SHA de merge pour lancer, depuis un worktree neuf sur main, la PR e2e « upgrade head puis seed » ; prévenir dev-backend avant la campagne Docker.
+- OCR-0 run3 (ENGINES="easyocr rapidocr") : R 3,15 s/p propre (P95 7,7, 1re page à froid) et 2,53 dégradé, pic 721 Mo, démarrage 3,0 s, CER 2,7 / 3,9 %. E se charge en 19,3 s puis OOM (137) dès la 1re page. Tableau dans scratchpad ocr0/work/results/table.md. Docker rendu à dev-backend.
+
+## 2026-11-10 08:01 — PR #59 « upgrade head puis seed » ouverte
+
+- #55 fusionnée (bf1ce57), puis #53 (42a161e). Worktree neuf GED237-e2eup, branche ci/e2e-upgrade-head : e2e_reset.sh lance `alembic upgrade head` en tête ; `stamp head` est retiré de docker-compose.e2e.yml.
+- Preuves : smoke --retries=0 31 passed / 3 skipped ; second reset (`exec api` dans la pile en marche) = 0 migration, seed_db [SKIP], seed_e2e 0 created / 14 unchanged.
+- Piège : le postgres e2e est sur tmpfs. Après `up --abort-on-container-exit`, relancer postgres repart d'une base vide, donc le second reset se fait par exec dans la pile en marche.
+- Suite : CI #59, puis dev-backend retire create_all de seed_db.py. Ensuite : route-guard.spec.ts dans le smoke ; lever le fixme de SMK-01/02/10 après fix/recette-smoke-2 ; rejouer SC-VAL-01 ; P8 jeudi 12 ; OCR-0 réel vendredi 13.
+
+## 2026-11-10 08:02 — Rejeu n° 1 sauvegarde/restauration avancé à aujourd'hui (demande de l'orchestrateur)
+
+- #59 relue par l'orchestrateur ; sa chaîne la fusionne quand la CI est verte (le SHA viendra). La tâche de fond b4spyyd4e suit sa CI.
+- Rejeu n° 1 (sauvegarde-restauration.md § 6.3/6.4) : worktree GED237-restore, branche docs/recette-restauration-1 sur main 42a161e. Scripts ops/backup.sh et ops/restore.sh ; mode compose via COMPOSE_FILE ; cible = pile edossier-e2e.
+- Écart : la pile e2e n'a pas de volume de stockage (STORAGE_PATH=/tmp/ged-storage dans le conteneur api). Je monte donc pour le rejeu seulement un override de scratchpad, volume nommé storage_data sur /tmp/ged-storage, pour que backup.sh trouve edossier-e2e_storage_data. À signaler dans la preuve.
+- Déroulé : up api → backup.sh → down -v → up api (base seedée neuve) → restore.sh --wipe --yes → /health → smoke (P1 = auth, P5 = security-isolation/documents) → second restore → down -v. Preuve à écrire dans gestion-projet/recette/restauration-2026-11-10.txt, puis PR docs.
+- Verrou : la suite backend de dev-backend (#60, ~13 min) tourne. J'attends son signal et je lui annonce le rejeu avant de lancer.
+
+## 2026-11-10 08:07 — CI #59 verte, rejeu restauration prêt
+
+- #59 : CI verte (8 checks pass, le reste skippé par l impact) ; fusion par la chaîne de l orchestrateur.
+- Rejeu n° 1 prêt dans scratchpad : restore-drill.sh + restore.override.yml (volume storage_data). Cible vierge = postgres up + `compose create api`, sans seed, pour prouver une vraie restauration. Lancement : `bash restore-drill.sh > restore-drill.log 2>&1` au signal de fin de dev-backend (runner lucid_sammet encore actif).
+- Ensuite : preuve dans gestion-projet/recette/restauration-2026-11-10.txt (worktree GED237-restore), puis PR docs.
+
+## 2026-11-10 08:15 — Rejeu restauration n° 1 lancé
+
+- #59 fusionnée (main 4953e81). Worktree GED237-restore fast-forward sur 4953e81 ; GED237-e2eup supprimé.
+- dev-backend a fini (290 passed). Rejeu lancé en tâche de fond (bmblr98x8) : log dans scratchpad/restore-drill.log, sauvegardes dans scratchpad/backups/.
+- À la fin : prévenir dev-backend, écrire gestion-projet/recette/restauration-2026-11-10.txt (§ 6.4 ; sans mot de passe, identifiant seed seul ; noter l override storage_data), puis PR docs depuis docs/recette-restauration-1, numéro à l orchestrateur.
+
+## 2026-11-10 08:22 — Rejeu restauration n° 1 vert, PR #61
+
+- Rejeu sur la pile e2e (main 4953e81) : backup 10 s (sha OK) ; down -v ; restore sur cible vierge 8 s (comptages = manifeste) ; /health 200 ; smoke 31 passed / 3 skipped ; second restore 16 s, zéro écart, code 0. Preuve : gestion-projet/recette/restauration-2026-11-10.txt. PR docs #61 (branche docs/recette-restauration-1, worktree GED237-restore).
+- Écart : override hors dépôt (volume storage_data sur /tmp/ged-storage), car la pile e2e n a pas de volume. P5 partiel (pas de spec de recherche bornée). restore.sh rend la main avant que l api écoute : signalé à dev-backend.
+- Docker rendu. Suite : CI #61 et fusion par l orchestrateur ; route-guard.spec.ts dans le smoke ; levée du fixme de SMK-01/02/10 après fix/recette-smoke-2 ; SC-VAL-01 ; P8 jeudi 12 ; OCR-0 réel vendredi 13 ; rejeu n° 2 le 20.
+
+## 2026-11-10 08:23 — Tâches en cours : smoke + route-guard, outillage des mesures C2/recherche
+
+- #61 relue et conforme ; l orchestrateur la fusionne avec #57 au go PO.
+- En cours : smoke avec route-guard.spec.ts ajouté au testMatch du projet smoke (worktree GED237-guard, branche ci/smoke-route-guard, main 97e4ea1, une ligne dans frontend/playwright.config.ts). Run en tâche de fond bplzi9kut, log scratchpad/e2e-run11.log. Si vert : commit, PR, numéro à l orchestrateur, Docker rendu à dev-backend (prévenu).
+- Tâche suivante (orchestrateur) : outillage de protocole-mesures-criteres.md, PR depuis main 97e4ea1 :
+  (a) script C2 : taux de documents classés >= 95 %, avec la liste des écarts destination / non classés ;
+  (b) script recherche : p95 took_ms < 2 s sur les requêtes du protocole, et le max sur un mot fréquent ;
+  (c) jeu-donnees-demo.md § 5 étape 4 : comparaison smoke des compteurs réels à la section expected de demo-manifest.json ; format d expected à caler avec dev-backend, aligné sur seed-manifest.json.
+  Sortie texte datée dans gestion-projet/recette/. Preuve : scripts joués sur la pile e2e (valeurs sans seuil), tests ciblés seulement.
