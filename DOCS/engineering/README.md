@@ -18,6 +18,8 @@ These patterns are intended for FastAPI + SQLAlchemy + PostgreSQL projects, but 
 - [SQLAlchemy patterns](sqlalchemy-patterns.md)
 - [Migration patterns](migration-patterns.md)
 - [API contract patterns](api-contract-patterns.md)
+- [Runbook CI rouge](runbook-ci-rouge.md) : diagnostiquer plateforme / gate / job avant de toucher aux pipelines
+- Contrôle liens relatifs / colonnes des tableaux markdown (gestion-projet, DOCS) : candidat check CI docs, V1.1 — script de référence chez l'innovateur, pas encore dans le dépôt
 
 ## CI rule
 

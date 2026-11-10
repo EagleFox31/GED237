@@ -16,9 +16,9 @@ Le PO n'a signé que ces sept lignes. Tout le reste (37 scénarios) en est la d�
 | C4 | **Respect strict des droits par rôle** | SC-SEC-01/02 (ci-dessous) + SC-SEC-03/04 du smoke verts **sur `main`** ; aucune route admin accessible à un non-admin (`spec-garde-routes.md` GUARD-01..06) ; zéro 500 sur un 403 | **Rouge** : recherche non bornée au service (ordre 1, #42 ouverte), upload collaborateur 403 (SMK-04/05), reader perd ses documents sur 403 (SMK-10) | GO seulement après #42 + `fix/authz-collaborator` + garde (18/11) |
 | C5 | Déploiement on-site opérationnel **et** accès démo en ligne | PO 09/11 : démo **sur place** ; « en ligne » devient `images docker save + poste de secours` (checklist-demo) ; VPS = écart annoncé (plan-presentation) | `Vérifié` : décision PO consignée | GO conditionnel : l'écart « pas de VPS » est annoncé, pas caché |
 | C6 | Disponibilité ≥ 99 % pendant les tests de validation | sur la campagne S2 (17-21/11) : aucun redémarrage non expliqué de `api`, `postgres`, `redis`, `nginx` (le worker, éteint volontairement, est exclu) ; `/health` = 200 et `docker ps` `healthy` relevés matin et soir par Q (10 relevés, GO = 10/10, `probe_c6.sh` du protocole) | non mesuré | mesurable S2, 0 j |
-| C7 | **Tests de restauration de sauvegarde réalisés et validés** | `restore.sh --wipe` sur base vierge → les 8 parcours rejouables, **deux rejeux datés (18 et 20/11)**, second passage sans écart (`sauvegarde-restauration.md` § 6.3-6.4) ; **jamais sacrifié** (D2 sacrifie l'automatisation, pas la restauration) | `Proposé` : prévu mar 18 (B) | GO si walkthrough daté de la restauration |
+| C7 | **Tests de restauration de sauvegarde réalisés et validés** | `restore.sh --wipe` sur base vierge → les 8 parcours rejouables, **deux rejeux datés (10 et 20/11)**, second passage sans écart (`sauvegarde-restauration.md` § 6.3-6.4) ; **jamais sacrifié** (D2 sacrifie l'automatisation, pas la restauration) | `Proposé` : prévu mer 18 (B) | GO si walkthrough daté de la restauration |
 
-Hors contrat mais dans le CDC 2025 § 3.1, donc attendus par le jury : tri automatique par type/nom/date/**contenu** (contenu = OCR → DEC-003, V1.1, écart 14), surveillance automatique d'un dossier (non livré : import manuel du dossier, écart à ajouter si absent de la liste des 15), tags (absent), historique des actions (P7).
+Hors contrat mais dans le CDC 2025 § 3.1, donc attendus par le jury : tri automatique par type/nom/date/**contenu** (contenu = OCR → DEC-003, V1.1, écart 14), surveillance automatique d'un dossier (non livré : import manuel du dossier, écart à ajouter si absent de la liste des 15), tags (absent), historique des actions (P7). **Révision du 10/11** (DEC-002) : critères contenu/date des règles et surveillance continue réouverts, **livrés si fusionnés le 19/11 18:00, sinon V1.1** ; même règle pour l'export/import des règles (C2 inchangé) et le compteur KPI doublons (SC-ADM-08 inchangé).
 
 ## 2. Critères par scénario (mêmes ID que `matrice-recette.md`)
 
@@ -29,7 +29,7 @@ Format : **Donnée** → **Action** → **Alors** (observable) ; *Exception du g
 | ID | Critère vérifiable | Preuve |
 |---|---|---|
 | SC-AUTH-01 | Compte collab MINFI002 actif → identifiant + mot de passe + OTP reçu → le tableau de bord **du profil collab** s'affiche en < 5 s, l'institution affichée est MINFI (D5). *E1* : mauvais mot de passe → « Identifiants invalides » sans dire lequel, pas de session. | e2e `auth` + `uat/auth-2fa` |
-| SC-AUTH-02 (sens démo) | OTP erroné → « Code invalide », nouvelle saisie possible, `sessionStorage` sans `access_token`. *E3* : 3 OTP ratés → retour à la connexion (si la limite `AUTH_OTP_RATE_LIMIT` est celle de la démo, pas celle de la pile e2e à 30/min : **à acter**, D4 du point S1). | e2e |
+| SC-AUTH-02 (sens démo) | OTP erroné → « Code invalide », nouvelle saisie possible, `sessionStorage` sans `access_token`. *E3* : 3 OTP ratés → retour à la connexion (si la limite `AUTH_OTP_RATE_LIMIT` est celle de la démo, pas celle de la pile e2e à 30/min : **à acter**, D4 du point S1). **Révision du 10/11** (DEC-002) : verrou par compte après 3 OTP réouvert, livré si fusionné le 19/11 18:00 (E3 devient alors « compte verrouillé, message explicite »), sinon V1.1. | e2e |
 | SC-AUTH-03 | Déconnexion → `/login`, bouton Précédent ne rouvre pas l'application, `GET /documents` avec l'ancien jeton → 401 (blacklist Redis). | e2e + API |
 | P1 étape 5 | F5 sur n'importe quelle page connectée → même page, même profil, sans passage par `/login`. | e2e |
 
@@ -81,7 +81,7 @@ Format : **Donnée** → **Action** → **Alors** (observable) ; *Exception du g
 |---|---|---|
 | SC-AUD-01 | AUDIT001 ouvre `/audit`, filtre agent = MINFI002 et jour = aujourd'hui → les actions des parcours P2, P5, P6 jouées ce jour apparaissent (dépôt, consultation, mise en corbeille, revue), chacune avec horodatage, auteur, objet ; l'auditeur n'a aucun bouton d'écriture. Guide Go/No-Go : « la piste d'audit reflète fidèlement chaque action de chaque scénario » → **critère transverse** : chaque ligne des tables ci-dessus qui modifie un document produit une entrée. | e2e `uat/audit-trail` |
 | SC-ADM-09 (D3) | Connexion, dépôt, import génèrent chacun une entrée (3 lignes pour login + upload + ingest). | pytest B4 + e2e (`fixme` levé) |
-| SC-AUD-02 | **Non livré, V1.1** (D4, écart 8). Critère de remplacement pour le jury : la liste `/audit` est filtrable et consultable ; l'export est annoncé comme écart. | — |
+| SC-AUD-02 | **Non livré, V1.1** (D4, écart 8) ; **révision du 10/11** (DEC-002) : réouvert, **livré si fusionné le 19/11 18:00, sinon V1.1** (le critère d'origine redevient alors applicable). Critère de remplacement pour le jury : la liste `/audit` est filtrable et consultable ; l'export est annoncé comme écart. | — |
 
 ### P8 — Cycle de validation (SC-VAL-01..04) et cycle de vie API
 

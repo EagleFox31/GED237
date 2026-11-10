@@ -1,0 +1,88 @@
+Rejeu n° 1 sauvegarde/restauration (sauvegarde-restauration.md § 6.3, avancé du 18 au 10/11)
+=================================================================================================
+Date        : 2026-11-10, 07:15–07:21 UTC
+Code        : main 4953e81 (ops/backup.sh, ops/restore.sh de #54 ; e2e « upgrade head puis seed » de #59)
+Pile        : edossier-e2e (docker-compose.e2e.yml), Docker Desktop / Windows, Git Bash
+Exécutant   : ci-qa
+Aucun mot de passe ni jeton dans ce fichier ; les comptes seed sont désignés par leur rôle.
+
+Écart de pile (à connaître pour le rejeu n° 2)
+- La pile e2e n'a pas de volume de stockage (STORAGE_PATH=/tmp/ged-storage dans le conteneur api).
+  Pour ce rejeu seulement, un override hors dépôt monte un volume nommé storage_data sur ce chemin,
+  comme docker-compose.yml : backup.sh/restore.sh trouvent alors edossier-e2e_storage_data.
+  Le compose e2e du dépôt n'est pas modifié.
+- Mode compose des scripts via COMPOSE_FILE="docker-compose.e2e.yml;<override>", BACKUP_DIR hors dépôt.
+- PostgreSQL e2e est en tmpfs : « down -v » efface la base ET le volume de stockage (cas prouvé).
+
+Déroulé et résultats
+--------------------
+1. Pile montée, seed initial (upgrade head + seed_db + seed_e2e)    /health 200 ; documents=11 users=8 alembic=f0a1b2c3d4e5
+2. ops/backup.sh                                                    code 0, 10 s (dump 1 s, stockage 1 s)       [C7.1 < 5 min : OK]
+   Dossier ged237-20261110T071625Z : db.dump 132K, storage.tar.gz 4.0K (5 fichiers)
+   sha256sum -c SHA256SUMS                                          db.dump: OK / storage.tar.gz: OK
+3. docker compose down -v                                           base tmpfs et volume supprimés
+4. Cible vierge : postgres démarré, conteneur api créé sans démarrer (volume neuf, vide)
+                                                                    relation "documents" does not exist (base vide)
+5. ops/restore.sh <dossier> --wipe --yes (1er passage)              code 0, 11 s ; 5 comptages = manifeste   [C7.2 < 10 min : OK]
+6. Démarrage de l'api sur la base restaurée                         /health 200 ; documents=11 users=8 alembic=f0a1b2c3d4e5
+7. Playwright projet smoke, --retries=0                              31 passed, 3 skipped (fixme SMK-01/02/10), 2,8 min
+   - P1 (auth.spec.ts) : connexion + OTP des comptes seed (profils démo), mauvais mot de passe refusé,
+     /dashboard non authentifié renvoyé au login : vert
+   - P5 partiel : security-isolation.spec.ts (SC-SEC-01..04, rôles rédacteur/lecteur/collaborateur/auditeur)
+     et documents.spec.ts (cartes depuis la base restaurée, détail d'un document, upload) : vert. La recherche bornée au service
+     n'a pas encore de spec e2e réelle sur main (matrice-recette.md) : non couverte ici.
+8. ops/restore.sh <même dossier> --wipe --yes (2e passage, après les écritures du smoke)
+                                                                    code 0, 16 s ; zéro écart                [C7.3 : OK]
+9. docker compose down -v                                           pile retirée
+
+Observation (sans effet sur C7)
+- Juste après le 2e passage, la sonde /health lancée 1 s après « redémarrage des services : api » a reçu
+  « connection refused » : l'api rejoue alors son script de démarrage (upgrade head + seeds) avant d'écouter.
+  restore.sh compare les comptages en base sans attendre l'api. Les comptages lus ensuite = 11/8/f0a1b2c3d4e5.
+  Piste pour B : attendre la santé de l'api avant de rendre la main (docker compose up -d --wait).
+
+MANIFEST.txt avant (sortie de backup.sh) et après (relu après le 2e passage) : identiques
+------------------------------------------------------------------------------------------
+format=1
+database=edossier_e2e
+alembic_version=f0a1b2c3d4e5
+tenants=3
+users=8
+documents=11
+storage_files=5
+storage_volume=edossier-e2e_storage_data
+compose_project=edossier-e2e
+(SHA256SUMS revérifié après le 2e passage : db.dump: OK / storage.tar.gz: OK)
+
+Sortie du 1er passage de restore.sh (heures locales UTC+1, chemins et identifiants de conteneur abrégés)
+--------------------------------------------------------------------------------------------------------
+[08:16:52] source : <BACKUP_DIR>/ged237-20261110T071625Z (base edossier_e2e, alembic f0a1b2c3d4e5)
+[08:16:52] cible  : conteneur=edossier-e2e-postgres-1 base=edossier_e2e volume=edossier-e2e_storage_data
+[08:16:52] vérification des empreintes
+[08:16:56] base restaurée en 1 s
+[08:16:57] stockage restauré : 5 fichier(s) en 1 s
+[08:16:57] comparaison avec le manifeste
+[08:16:58]   alembic_version : f0a1b2c3d4e5 = manifeste
+[08:16:58]   tenants : 3 = manifeste
+[08:16:59]   users : 8 = manifeste
+[08:16:59]   documents : 11 = manifeste
+[08:17:00]   storage_files : 5 = manifeste
+[08:17:00] terminé en 8 s (base 1 s, stockage 1 s) : comptages identiques
+
+Sortie du 2e passage de restore.sh
+----------------------------------
+[08:20:28] source : <BACKUP_DIR>/ged237-20261110T071625Z (base edossier_e2e, alembic f0a1b2c3d4e5)
+[08:20:28] cible  : conteneur=edossier-e2e-postgres-1 base=edossier_e2e volume=edossier-e2e_storage_data
+[08:20:28] vérification des empreintes
+[08:20:30] arrêt des services : api
+[08:20:36] écrasement : base edossier_e2e recréée, volume edossier-e2e_storage_data vidé
+[08:20:38] base restaurée en 1 s
+[08:20:40] stockage restauré : 5 fichier(s) en 2 s
+[08:20:40] redémarrage des services : api
+[08:20:41] comparaison avec le manifeste
+[08:20:42]   alembic_version : f0a1b2c3d4e5 = manifeste
+[08:20:42]   tenants : 3 = manifeste
+[08:20:43]   users : 8 = manifeste
+[08:20:43]   documents : 11 = manifeste
+[08:20:44]   storage_files : 5 = manifeste
+[08:20:44] terminé en 16 s (base 1 s, stockage 2 s) : comptages identiques

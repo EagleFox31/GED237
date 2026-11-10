@@ -91,11 +91,18 @@ stop_services() {
   docker compose stop $STOPPED_SERVICES >/dev/null
   trap restart_services EXIT
 }
+# Rend la main seulement quand les services relancés sont sains (l'api rejoue
+# `upgrade head` et les seeds au démarrage : un /health immédiat répond « connection
+# refused »). `--no-recreate` garde les conteneurs existants ; l'attente est bornée.
 restart_services() {
   if [ -n "$STOPPED_SERVICES" ]; then
     log "redémarrage des services : $STOPPED_SERVICES"
     # shellcheck disable=SC2086
-    docker compose start $STOPPED_SERVICES >/dev/null
+    if ! docker compose up -d --no-recreate --wait         --wait-timeout "${BACKUP_WAIT_TIMEOUT:-180}" $STOPPED_SERVICES >/dev/null; then
+      log "services non sains après ${BACKUP_WAIT_TIMEOUT:-180} s : $STOPPED_SERVICES (voir docker compose ps)"
+      STOPPED_SERVICES=""
+      return 1
+    fi
     STOPPED_SERVICES=""
   fi
   return 0

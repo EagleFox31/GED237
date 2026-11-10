@@ -74,8 +74,8 @@ Corriger 6 écarts pour 9 j-p (sécurité recherche + upload d'abord, 8 parcours
 
 ## Amendements acceptés avec la décision (2026-11-09)
 
-- Migration de normalisation des rôles en minuscules (`001_initial_schema.py:67-72`) : obligatoire, 0,25 j B, mardi 11, test « `alembic upgrade head` seul puis login du compte seed », LESSON-2026-020.
-- D3 journal d'audit sans connexion / dépôt / import : corrigé, 0,5 j B, mercredi 12 avec le plafond upload ; test « login + upload + ingest = 3 lignes visibles par l'auditeur ».
+- Migration de normalisation des rôles en minuscules (`001_initial_schema.py:67-72`) : obligatoire, 0,25 j B, mercredi 11, test « `alembic upgrade head` seul puis login du compte seed », LESSON-2026-020.
+- D3 journal d'audit sans connexion / dépôt / import : corrigé, 0,5 j B, jeudi 12 avec le plafond upload ; test « login + upload + ingest = 3 lignes visibles par l'auditeur ».
 - D4 export du journal : annoncé en V1.1 (écart 8) ; SC-AUD-02 retiré de P7.
 - Verrou par compte après 3 OTP erronés : abandonné et annoncé (écart 9 : « 5 tentatives/min par IP ; verrou par compte en V1.1 ») ; `DEBUG` vérifié faux sur l'environnement de démo.
 - P8 (corbeille / version sans UI) : remplacé par le cycle de validation, 0 j.
@@ -86,8 +86,15 @@ Corriger 6 écarts pour 9 j-p (sécurité recherche + upload d'abord, 8 parcours
 Sur la base du dossier `../innovateur/decision-po-vps-b6.md` (mesures VPS du 2026-11-09 19:05), le PO a accepté les deux recommandations :
 
 - **(a) Démo sur place en Docker**, avec un second poste de secours (0,5 j). Le VPS OVH (198 Mo libres, disque à 77 %) n'est pas retenu ; l'option « URL vitrine » n'est pas demandée. Conséquences : OCR-1 reste en V1.1 ; l'ordre 6 (garde de routes) est maintenu ; aucune tâche VPS/Caddy avant le gel.
-- **(b) B6 : garde de routes admin / non-admin seule** côté frontend (ordre 6, 0,5 j, mardi 18). Les trois constats backend (assignable-roles sans RBAC, `users:update_own`, clé snapshot) passent en **V1.1** et rejoignent les écarts annoncés.
+- **(b) B6 : garde de routes admin / non-admin seule** côté frontend (ordre 6, 0,5 j, mercredi 18). Les trois constats backend (assignable-roles sans RBAC, `users:update_own`, clé snapshot) passent en **V1.1** et rejoignent les écarts annoncés.
 
 Hypothèse de travail du 2026-11-09 18:07 confirmée ; plus aucune question ouverte sur cette décision.
 
 Numérotation des écarts : la liste consolidée de `../innovateur/plan-presentation.md` § 3 (15 écarts) fait foi pour la présentation ; le « verrou OTP abandonné » appelé écart 9 dans les amendements ci-dessus y porte le numéro 12.
+
+## Révision du 2026-11-10 — réouverture des cinq écarts annoncés, coupure ferme le 19/11 18:00 (GO PO, relayé par O)
+
+- **Décision** : les cinq écarts annoncés « V1.1 » le 09/11 sont **réouverts** avant le gel : (1) critères « contenu OCR » et « date » des règles (écart 7) ; (2) export/import des règles (écart 7) ; (3) compteur KPI doublons au tableau de bord (écart 8) ; (4) surveillance continue d'un dossier (§ 1 n° 7) ; (5) export du journal d'audit (D4, écart 8) et verrou par compte après 3 OTP erronés (écart 9, n° 12 du plan de présentation). **Coupure ferme : mercredi 19/11 à 18:00.** Ce qui est fusionné sur `main` à cette heure est livré et sort de la liste des écarts ; ce qui ne l'est pas **reste annoncé en V1.1**, formulations du § 4 et des amendements inchangées.
+- **Raison** : chiffrage refait en **temps de session** : 2 à 3 jours de sessions au total pour les cinq lots, et non 6 à 8 j-p. Les goulots ne sont pas l'écriture mais la **CI**, **Docker**, la **relecture** et la **recette du 20 au 23/11** ; d'où une coupure fixe, antérieure au gel du 24, qui laisse la recette intacte.
+- **Ce qui ne change pas** : liste § 2 et ordre de sacrifice (les lots réouverts ne s'y substituent pas), gel mar 24, démo lun 30, décisions (a) et (b), OCR-1 en V1.1 (DEC-003). Aucune fusion de ces lots après le 19/11 18:00, quel que soit l'état de la PR.
+- **Dans les fiches** : `deroule-demo.md` § 3, `checklist-demo.md`, `criteres-acceptation.md` portent la mention « livré si fusionné le 19/11 18:00, sinon V1.1 » ; `plans/dossier-point-s1.md` § 3 ajoute le risque « gel ». Le relevé de l'état des cinq lots à 18:00 est fait par O et reporté dans ces fiches le 19 au soir.

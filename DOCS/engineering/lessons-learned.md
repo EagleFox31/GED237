@@ -398,6 +398,23 @@ première requête utilisateur.
 
 ---
 
+
+## LESSON-2026-024 — CI rouge sans aucun job : vérifier l'état du fournisseur CI avant de toucher aux pipelines
+
+- **Mécanisme** : un échec simultané sur plusieurs branches sans lien, dont une sans aucune surface CI, pointe vers la plateforme, pas vers le code ni les workflows.
+- **Contexte** (2026-11-09, heures UTC ; locale = UTC+1) : vers 18:08 les runs des PR #42 (code) et #43 (documentation seule) échouent avec « This run likely failed because of a workflow file issue », aucun job lancé ; `main` passait trois minutes plus tôt et #43 ne touche aucun fichier `.github/`.
+- **Cause racine** : panne partielle du fournisseur CI. GitHub incident `tp8cghg7tlc4` « Incident with Actions and Checks API » (https://stspg.io/7yw63xl9ztrv), ouvert 18:12, résolu 18:59 ; composant « Actions » revenu `operational` à 18:47 (`https://www.githubstatus.com/api/v2/components.json`). Aucun défaut dans le dépôt ; le workflow réutilisable épinglé par SHA était joignable (hypothèse écartée, voir arbre).
+- **Classification** : cause externe ; near miss confirmé : aucun fichier `.github/` modifié pendant le diagnostic. Dommage réel : ≈ 22 min de diagnostic, fusions #42/#43/#44 décalées d'environ 1 h 30.
+- **Résolution** : attente du retour `operational`, puis relance des runs (`gh run rerun`) ; aucune autre action.
+- **Arbre de diagnostic « CI rouge sans job »** (dans l'ordre, s'arrêter au premier verdict) :
+  1. État du fournisseur : page de statut (GitHub : `components.json`, composant « Actions ») ; `partial_outage`/`major_outage` → attendre, ne rien toucher.
+  2. PR témoin sans surface CI (docs-only) rouge en même temps → plateforme.
+  3. Annotations du run : `gh api repos/<owner>/<repo>/check-runs/<id>/annotations` ; une erreur de syntaxe ou de référence nommée → défaut interne, corriger.
+  4. Workflow réutilisable épinglé joignable : `gh api repos/EagleFox31/appfactory-project-automation/commits/<sha>` (404 = SHA réécrit, dépôt privé ou jeton insuffisant → défaut interne).
+  5. Seulement ensuite : modifier un workflow, avec l'annotation citée dans la PR.
+- **Prévention vérifiable** : (a) `DOCS/engineering/runbook-ci-rouge.md` porte cet arbre en étape 0 (rédaction innovateur, PR docs suivante) ; (b) règle de revue : aucune modification de `.github/` sans annotation d'erreur citée dans la PR (contrôlable à la relecture) ; (c) optionnel après le 14/11 : `scripts/ci-status.sh` (statut fournisseur + trois derniers runs de `main`), propriétaire ci-qa.
+- **Leçon généralisée** : avant de corriger un pipeline qui n'a pas changé, prouver que l'infrastructure qui l'exécute est saine ; la page de statut du fournisseur et une PR témoin sans surface CI sont les deux discriminants, quel que soit le fournisseur.
+
 ### LESSON-2026-026 — Validation d'import bloquée sans fin quand le stockage des résultats Celery est injoignable
 
 - **Date :** 2026-11-10

@@ -18,9 +18,9 @@ Dégradation du lot A pour simuler des scans (Pillow, déterministe, graine 237)
 | Code | Moteur | Installation | Appel |
 |---|---|---|---|
 | T-fast | Tesseract 5 `fra+eng`, tessdata par défaut de l'image | déjà dans `backend/Dockerfile` (`tesseract-ocr-fra`, `tesseract-ocr-eng`, `Vérifié`) | `pytesseract.image_to_string(img, lang="fra+eng", config="--psm 6")` (même usage que `tesseract_engine.py`) |
-| T-best | Tesseract 5, `tessdata_best/fra.traineddata` | `curl` du fichier depuis github.com/tesseract-ocr/tessdata_best dans `/usr/share/tesseract-ocr/5/tessdata/` de l'image de bench | idem, `--oem 1` |
+| T-best | Tesseract 5, `tessdata_best/fra` + `eng` | `curl` des deux fichiers depuis github.com/tesseract-ocr/tessdata_best dans un **dossier séparé** `/opt/tessdata_best` de l'image de bench (**corrigé 10/11, ci-qa** : écrire dans `/usr/share/tesseract-ocr/5/tessdata/` écrasait le modèle de T-fast et rendait les deux configurations identiques) | idem, `--oem 1 --tessdata-dir /opt/tessdata_best` |
 | E | EasyOCR 1.7.2 `['fr','en']`, CPU | déjà dans l'image (`torch==2.6.0` CPU, `Vérifié`) | `reader.readtext(img, detail=0, paragraph=True)` |
-| R | RapidOCR 3.10 (ONNX Runtime), modèles PP-OCRv6 small, reconnaissance latin/français | `pip install rapidocr==3.10.0 onnxruntime` dans l'image de bench ; sélection du modèle de reconnaissance latin/français selon `rapidai.github.io/RapidOCRDocs/main/model_list/` (`Déduit` : paramètre `params={"Rec.lang_type": "latin"}` ou équivalent v6 ; noter la valeur exacte utilisée dans le tableau) | `RapidOCR()(img_path)` → `result.txts` joints par `\n` |
+| R | RapidOCR 3.10 (ONNX Runtime), modèles PP-OCRv6 small, reconnaissance multilingue (fr inclus) | `pip install rapidocr==3.10.0 onnxruntime` dans l'image de bench ; **corrigé 10/11, ci-qa (`Vérifié`, doc `model_list`)** : avec rapidocr ≥ 3.9, PP-OCRv6 small est le défaut et sa reconnaissance est multilingue, `lang_type` est sans effet en v6 → aucun paramètre « latin » ; valeur à noter dans le tableau : « det+rec PP-OCRv6 small, onnxruntime » | `RapidOCR()(img_bgr)` (RapidOCR attend du **BGR**, pas du RGB) → `result.txts` joints par `\n` |
 
 Image de bench : `Dockerfile.bench` = `FROM` l'image `api` déjà construite + `pip install rapidocr onnxruntime jiwer` + téléchargement `tessdata_best/fra`. Aucun changement à `backend/Dockerfile`.
 
@@ -32,6 +32,7 @@ Image de bench : `Dockerfile.bench` = `FROM` l'image `api` déjà construite + `
 | WER (indicatif) | `jiwer.wer` même normalisation | % |
 | **Temps par page** | `time.perf_counter()` autour de l'appel moteur seul (chargement des modèles mesuré une fois à part, en « temps de démarrage ») | s/page, moyenne et P95 |
 | **Pic mémoire** | le script est lancé **par moteur** dans un conteneur distinct `docker run --rm --memory=1g --memory-swap=1g --cpus=2` ; à la fin, lire `/sys/fs/cgroup/memory.peak` (cgroup v2, `Déduit` : si absent, utiliser `docker stats --no-stream` en boucle toutes les 0,5 s depuis l'hôte et garder le maximum) ; noter aussi un éventuel OOM (code de sortie 137) | Mo |
+| **Threads** | **ajouté 10/11 (ci-qa)** : sous `--cpus=2`, onnxruntime, torch et Tesseract dimensionnent leurs threads sur les cœurs visibles de l'hôte (16), ce qui gonfle le temps par page (R 9,7 s/page et 858 Mo de pic à blanc) ; **confirmé 10/11 à threads = 2** : R 3,2 s/page (lot propre), 2,5 s/page (dégradé), pic 721 Mo, démarrage 3,0 s ; le script fixe `threads = quota cgroup` (`OMP_NUM_THREADS`, `intra_op_num_threads`, `omp_thread_limit` Tesseract) et la valeur figure dans le bloc meta du tableau | entier |
 | Taille installée | `pip show` + `du -sh` de `site-packages/torch` vs `onnxruntime` + modèles | Mo |
 
 Un run complet = 4 configurations × 50 images (20 propres + 20 dégradées + 10 réelles) ; à 1–3 s/page, < 15 min de calcul.
@@ -40,8 +41,9 @@ Un run complet = 4 configurations × 50 images (20 propres + 20 dégradées + 10
 
 | Critère | Seuil | Si non atteint |
 |---|---|---|
-| CER R ≤ CER E sur le **lot B** (réel) **et** sur le lot A dégradé | go OCR-1 | si R est pire de ≤ 1 point de CER mais 2× plus rapide et sous 1 Go : go avec mention ; au-delà : no-go, rester Tesseract-first + EasyOCR en V1, revoir en V1.1 |
+| CER R ≤ CER E sur le **lot B** (réel) **et** sur le lot A dégradé — **critère révisé `Proposé` (DEC-003, à valider PO au point S1)** : E étant hors budget, comparer **CER R ≤ CER T-best** sur les deux lots, débit R en regard | go OCR-1 | si R est pire de ≤ 1 point de CER mais 2× plus rapide et sous 1 Go : go avec mention ; au-delà : no-go, rester Tesseract-first + EasyOCR en V1, revoir en V1.1 |
 | Pic mémoire conteneur R < **1 Go** (modèles chargés + 1 page A4 300 dpi) | go | no-go pour le VPS ; OCR-1 peut rester utile pour la taille d'image mais ne résout pas la RAM |
+| EasyOCR sous 1 Go | **constaté 10/11 (répétition à blanc, ci-qa)** : E est tué par l'OOM (`exit 137`) à sa 1re page A4 200 dpi, après 19,3 s de chargement, **même à threads = 2** (re-mesure 10/11) : l'OOM vient de l'inférence, pas des threads → le seuil est déjà discriminant ; la ligne E du tableau porte `OOM = oui`, CER non mesuré | — |
 | Temps R par page ≤ temps E | attendu (`Documenté` : 0,6 s vs ~2 s) | information seulement |
 | T-best vs T-fast | si T-best réduit le CER de ≥ 2 points, l'adopter immédiatement (changement de fichier de données, 0 code) | — |
 
@@ -58,7 +60,7 @@ Suivi de : version exacte des paquets (`pip freeze | grep -i -E "rapidocr|onnxru
 
 ## 6. Déroulé pour ci-qa (0,5 j)
 
-1. (30 min) Générer le lot A dans le conteneur `api` : `GED_EXPORT_OUT=/tmp/bench GED_EXPORT_DOC_COUNT=20 python -I scripts/test_real_export_v2.py` (si la variable de sortie n'est pas encore acceptée par le script, copier les 20 PDF depuis le chemin par défaut) ; sauvegarder la vérité terrain ; rendre et dégrader les images.
+1. (30 min) Générer le lot A dans le conteneur `api` : `GED_EXPORT_OUT=/tmp/bench GED_EXPORT_DOC_COUNT=20 python -I scripts/test_real_export_v2.py` (**à vérifier avant le 13**, ci-qa : `GED_EXPORT_OUT` n'est pas confirmé accepté par `test_real_export_v2.py` ; sinon copier les 20 PDF depuis le chemin par défaut). Le seed e2e ne sert qu'à valider l'outillage : texte d'une ligne, CER non significatif ; sauvegarder la vérité terrain ; rendre et dégrader les images.
 2. (30 min) Déposer le lot B dans `bench/real/` avec sa vérité terrain ; anonymisation vérifiée (aucun nom réel, aucun NIU).
 3. (30 min) Construire `Dockerfile.bench` ; vérifier que les 4 configurations tournent sur une image.
 4. (60 min) 4 runs plafonnés, un par configuration ; CSV + mémoire.
@@ -70,4 +72,5 @@ Suivi de : version exacte des paquets (`pip freeze | grep -i -E "rapidocr|onnxru
 - `jiwer` exige des chaînes non vides : une page vide côté hypothèse donne CER = 1,0, à garder (c'est une vraie défaillance).
 - Tesseract `--psm 6` suppose un bloc uniforme ; pour les scans réels avec colonnes, noter si `--psm 3` fait mieux, sans en faire une configuration de plus.
 - EasyOCR télécharge ses modèles au premier appel : les inclure dans l'image de bench (`Dockerfile.bench`) pour que le temps de démarrage ne compte pas le réseau.
-- RapidOCR : vérifier que les modèles téléchargés sont bien la variante **PP-OCRv6 small** et la langue latin/français ; le nom du modèle figure dans le tableau.
+- RapidOCR : vérifier que les modèles téléchargés sont bien la variante **PP-OCRv6 small** (défaut rapidocr ≥ 3.9, multilingue) ; le nom du modèle figure dans le tableau ; passer les images en BGR.
+- Outillage de la répétition à blanc (ci-qa, 10/11) : branche locale `ci/ocr-0-bench`, `backend/scripts/bench_ocr_0.py` + `.sh`, `backend/Dockerfile.bench`.
