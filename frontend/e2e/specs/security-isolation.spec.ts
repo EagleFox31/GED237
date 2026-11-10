@@ -35,8 +35,9 @@ test.describe('Feature: Isolation & Séparation des pouvoirs (SC-SEC-03/04)', ()
     await page.goto('documents');
     await page.waitForLoadState('networkidle');
 
-    // Pas de bouton d'import/upload visible
-    const uploadVisible = await page.getByRole('button', { name: /importer|ajouter|téléverser|upload/i }).first().isVisible().catch(() => false);
+    // Pas de bouton de dépôt visible. Le menu « Ranger / Importer » (rangement local, aucun envoi
+    // au serveur) est de la navigation, pas un dépôt : le sélecteur vise donc le bouton de dépôt.
+    const uploadVisible = await page.getByRole('button', { name: /nouveau document|téléverser|upload/i }).first().isVisible().catch(() => false);
     expect(uploadVisible).toBeFalsy();
 
     // Pas de bouton de suppression visible
