@@ -72,7 +72,7 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
 
   test('SC-VAL-04 (réduit) - Given document rejeté, When le rédacteur ouvre son espace, Then le statut Rejeté est visible', async ({ loginAs, page }) => {
     await switchTo(page, loginAs);
-    await expect(page.locator('.grid > div').filter({ hasText: TO_REJECT }).getByText(/^rejected$/i)).toBeVisible(); // DraftWorkspace prints the raw status value
+    await expect(page.locator('.grid > div').filter({ hasText: TO_REJECT }).getByText(/^(rejected|rejeté)$/i)).toBeVisible(); // tolère le libellé brut jusqu au correctif F
   });
 
   test('SC-VAL-04b - Given document rejeté, When le rédacteur ouvre son détail, Then le motif est visible dans le circuit', async ({ loginAs, page }) => {
