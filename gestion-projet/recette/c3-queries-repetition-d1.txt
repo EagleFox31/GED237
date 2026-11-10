@@ -1,0 +1,11 @@
+# repetition D1 - requetes indicatives (le jeu fige est choisi par Q)
+facture
+contrat
+bulletin de salaire
+mandat de paiement
+bon de commande
+arrete de nomination
+engagement budgetaire
+attestation formation
+devis
+facture	org_unit=MINFI-DAF

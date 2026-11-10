@@ -1,8 +1,12 @@
 # backend/app/api/v1/endpoints/audit.py
+import csv
+import io
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +28,7 @@ TABLE_LABELS = {
     "ged_rules": "Regles GED",
     "local_organize_events": "Rangement local",
     "user_local_arrangement_snapshots": "Bibliotheque locale (compte)",
+    "audit_logs": "Journal d'audit",
 }
 
 ACTION_LABELS = {
@@ -48,7 +53,24 @@ ACTION_LABELS = {
     "archive": "Archivage",
     "local_organize": "Rangement local sur poste",
     "local_snap_put": "Bibliotheque locale (sync)",
+    "dup_detected": "Doublon refuse",
+    "exported": "Export du journal",
 }
+
+# Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.
+LOCAL_TZ = timezone(timedelta(hours=1), "WAT")
+EXPORT_MAX_ROWS = 50_000
+_EXPORT_BATCH = 2_000
+EXPORT_COLUMNS = (
+    "Date",
+    "Matricule",
+    "Utilisateur",
+    "Objet",
+    "Ressource",
+    "Action",
+    "Détail",
+    "Adresse IP",
+)
 
 
 def _extract_resource_label(
@@ -133,28 +155,63 @@ def _serialize_audit_log(
     }
 
 
-@router.get("/logs")
-async def list_audit_logs(
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=500),
-    table_name: Optional[str] = Query(default=None),
-    action: Optional[str] = Query(default=None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+def _filtered_query(
+    tenant_id: UUID,
+    *,
+    table_name: str | list[str] | None,
+    action: str | list[str] | None,
+    user_id: Optional[UUID] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    until: Optional[datetime] = None,
 ):
-    await authorize_or_403(current_user, "audit_logs", "read")
+    """Tenant logs matching the screen filters; dates are local calendar days, both inclusive.
 
-    query = select(AuditLog).where(AuditLog.tenant_id == current_user.tenant_id)
+    ``table_name`` and ``action`` take one value or several (any of them matches).
+    ``until`` freezes the result at an instant (same clock and type as created_at).
+    """
+    query = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
+    table_names = _values(table_name)
+    if table_names:
+        query = query.where(AuditLog.table_name.in_(table_names))
+    actions = [value.lower() for value in _values(action)]
+    if actions:
+        query = query.where(func.lower(AuditLog.action).in_(actions))
+    if user_id is not None:
+        query = query.where(AuditLog.user_id == user_id)
+    if date_from:
+        query = query.where(AuditLog.created_at >= _utc_naive(date_from))
+    if date_to:
+        query = query.where(
+            AuditLog.created_at < _utc_naive(date_to + timedelta(days=1))
+        )
+    if until is not None:
+        query = query.where(AuditLog.created_at <= until)
+    return query
 
-    if table_name:
-        query = query.where(AuditLog.table_name == table_name)
-    if action:
-        query = query.where(func.lower(AuditLog.action) == action.lower())
 
-    query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
-    result = await db.execute(query)
-    logs = list(result.scalars().all())
+def _values(value: str | list[str] | None) -> list[str]:
+    """One query value or a repeated one, empty strings dropped."""
+    items = value if isinstance(value, list) else [value]
+    return [item for item in items if item]
 
+
+def _logged_filter(value: str | list[str] | None) -> str | list[str] | None:
+    """Filter as written in the export's own audit row: a single value stays a string."""
+    items = _values(value)
+    return items[0] if len(items) == 1 else (items or None)
+
+
+def _utc_naive(day: date) -> datetime:
+    """Local midnight of ``day`` as the naive UTC value stored in created_at."""
+    local_midnight = datetime.combine(day, time.min, tzinfo=LOCAL_TZ)
+    return local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+async def _load_references(
+    db: AsyncSession, logs: list[AuditLog]
+) -> tuple[dict[UUID, User], dict[UUID, Document]]:
+    """Actors and documents named by ``logs``, loaded in two queries."""
     user_ids = sorted({log.user_id for log in logs if log.user_id}, key=str)
     document_ids = sorted(
         {log.record_id for log in logs if log.table_name == "documents"}, key=str
@@ -173,6 +230,143 @@ async def list_audit_logs(
         documents_by_id = {
             document.id: document for document in documents_result.scalars().all()
         }
+    return actors_by_id, documents_by_id
+
+
+def _local_iso(value: Optional[datetime]) -> str:
+    if value is None:
+        return ""
+    aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return aware.astimezone(LOCAL_TZ).isoformat(timespec="seconds")
+
+
+# A cell starting with one of these is run as a formula by Excel (OWASP CSV injection).
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_cell(value: Optional[str]) -> str:
+    """User-typed text as inert text: a leading apostrophe stops formula evaluation."""
+    text = value or ""
+    return f"'{text}" if text.startswith(_FORMULA_PREFIXES) else text
+
+
+def _csv_row(entry: dict[str, Any], created_at: Optional[datetime]) -> list[str]:
+    return [_local_iso(created_at)] + [
+        _csv_cell(entry[key])
+        for key in (
+            "user_matricule",
+            "user_name",
+            "table_label",
+            "resource_label",
+            "action_label",
+            "detail",
+            "ip_address",
+        )
+    ]
+
+
+@router.get("/logs/export")
+async def export_audit_logs(
+    # Repeat the parameter for several values (?action=upload&action=delete), like the screen.
+    table_name: Optional[list[str]] = Query(default=None),
+    action: Optional[list[str]] = Query(default=None),
+    user_id: Optional[UUID] = Query(default=None),
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """CSV of the filtered journal (Excel in French: UTF-8 BOM, ``;``). The export is itself logged."""
+    await authorize_or_403(current_user, "audit_logs", "read")
+    filters = {
+        "table_name": _logged_filter(table_name),
+        "action": _logged_filter(action),
+        "user_id": str(user_id) if user_id else None,
+        "date_from": date_from.isoformat() if date_from else None,
+        "date_to": date_to.isoformat() if date_to else None,
+    }
+    # Rows logged after this instant (by anyone) would shift the offset pages: freeze them out.
+    # localtimestamp is the clock created_at is filled from (now() stored without zone).
+    snapshot = await db.scalar(select(func.localtimestamp()))
+    query = _filtered_query(
+        current_user.tenant_id,
+        table_name=table_name,
+        action=action,
+        user_id=user_id,
+        date_from=date_from,
+        date_to=date_to,
+        until=snapshot,
+    )
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    if total > EXPORT_MAX_ROWS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Plus de {EXPORT_MAX_ROWS} lignes : affinez la periode ou les filtres.",
+        )
+
+    # Rows are read in batches; the CSV is built before the response so the DB session
+    # is not used after the dependency closes it.
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";", lineterminator="\r\n")
+    writer.writerow(EXPORT_COLUMNS)
+    ordered = query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+    for offset in range(0, total, _EXPORT_BATCH):
+        logs = list(
+            (await db.execute(ordered.offset(offset).limit(_EXPORT_BATCH)))
+            .scalars()
+            .all()
+        )
+        actors_by_id, documents_by_id = await _load_references(db, logs)
+        for log in logs:
+            entry = _serialize_audit_log(
+                log, actors_by_id=actors_by_id, documents_by_id=documents_by_id
+            )
+            writer.writerow(_csv_row(entry, log.created_at))
+
+    db.add(
+        AuditLog(
+            tenant_id=current_user.tenant_id,
+            user_id=current_user.id,
+            table_name="audit_logs",
+            record_id=current_user.id,
+            action="exported",
+            new_data={
+                "rows": total,
+                "filters": {key: value for key, value in filters.items() if value},
+            },
+        )
+    )
+    await db.commit()
+
+    content = "\ufeff" + buffer.getvalue()
+    stamp = datetime.now(LOCAL_TZ).strftime("%Y%m%d-%H%M")
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="journal-audit-{stamp}.csv"'
+        },
+    )
+
+
+@router.get("/logs")
+async def list_audit_logs(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=500),
+    table_name: Optional[str] = Query(default=None),
+    action: Optional[str] = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await authorize_or_403(current_user, "audit_logs", "read")
+
+    query = _filtered_query(
+        current_user.tenant_id, table_name=table_name, action=action
+    )
+    query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    logs = list(result.scalars().all())
+    actors_by_id, documents_by_id = await _load_references(db, logs)
 
     return [
         _serialize_audit_log(
