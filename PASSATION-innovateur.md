@@ -220,3 +220,6 @@ Checklist J-1/J0 par rôle (O/B/F/Q/P), hypothèse démo sur place, variante VPS
 
 ## 2026-11-10 08:25 — relance dev-frontend préparée
 - `spec-validation-cycle-ui.md` vérifiée contre #51 sur main : routes, enums ActionType/OutcomeType, `WorkflowActionCreate` conformes ; corrigé lignes de schéma (72-78 → 87-93, 48 → 51) et précisé rôles valideurs (`manager`, `tenant_admin`, `VALIDATOR_ROLE_CODES` workflows.py:40). `PASSATION-dev-frontend.md` : entrée « consignes de relance 10/11 » ajoutée en fin. Lint vert. Signalé à O. Prochaine étape : attente réelle jusqu au point S1 ven 13 (vérif des 6 conditions avant le point).
+
+## 2026-11-10 09:16 — dossier de décision point S1 livré
+- `gestion-projet/plans/dossier-point-s1.md` créé (une page) : état main 97e4ea1 en 5 lignes, D2 (seuil 0,25 j), D3 (critère révisé, bench 10/11 : R 3,2/2,5 s/page, 721 Mo ; E OOM ; CER ven 13), D5 (20 branches hors main : 7 PR ouvertes, 12 fusionnées, 1 fermée → 13 supprimables ; delete_branch_on_merge=false), date (ven 13), relance F (oui dès le go PO) ; 7 risques avant le gel. Nouvelles PR vues : #61 recette restauration n° 1, #62 fix/restore-wait. Lint vert. Signalé à O pour #57. Prochaine étape : attente ; ven 13 vérif des 6 conditions.
