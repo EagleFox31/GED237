@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
+import type { WorkflowValidator } from '../../../types';
 
 const DraftWorkspace: React.FC = () => {
   const [documents, setDocuments] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -20,12 +21,13 @@ const DraftWorkspace: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [docsResp, usersResp] = await Promise.all([
+      // Valideurs proposables (managers et administrateurs du tenant) ; liste vide si l'appel échoue.
+      const [docsResp, validatorsResp] = await Promise.all([
         api.getDocuments(),
-        api.getUsers().catch(() => []) // Fallback to empty array if getUsers fails
+        api.getWorkflowValidators().catch(() => [] as WorkflowValidator[])
       ]);
       setDocuments(docsResp);
-      setUsers(usersResp);
+      setValidators(validatorsResp);
     } catch (error) {
       console.error("Failed to fetch data", error);
     } finally {
@@ -243,12 +245,15 @@ const DraftWorkspace: React.FC = () => {
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none focus:border-cam-yellow/50 appearance-none"
                 >
                   <option value="" disabled>-- Sélectionner un manager --</option>
-                  {users.filter(u => u.role_id !== 5).map(user => ( // Simple filter: exclude 'collaborator' role if possible, or show all for now
-                    <option key={user.id} value={user.id}>
-                      {user.matricule} {user.first_name ? `- ${user.first_name} ${user.last_name || ''}` : ''}
+                  {validators.map(validator => (
+                    <option key={validator.id} value={validator.id}>
+                      {validator.full_name}
                     </option>
                   ))}
                 </select>
+                {!loading && validators.length === 0 && (
+                  <p className="ml-1 text-xs text-slate-400">Aucun valideur disponible. Contactez votre administrateur.</p>
+                )}
               </div>
 
               <button
