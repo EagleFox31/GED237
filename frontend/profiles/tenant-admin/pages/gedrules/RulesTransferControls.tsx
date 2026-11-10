@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../../../../services/api';
 import type { RulesImportReport } from '../../../../services/resources/classification.api';
 import { ApiError } from '../../../../lib/errors';
@@ -25,7 +25,14 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
   const fileRef = useRef<HTMLInputElement | null>(null);
   const titleId = useId();
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<{ content: unknown; report: RulesImportReport } | null>(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (fichier illisible).
   const reportError = (err: unknown, fallbackDetail: string) => {
@@ -41,7 +48,8 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
       link.href = url;
       link.download = filename;
       link.click();
-      URL.revokeObjectURL(url);
+      // Différé : une révocation immédiate peut annuler le téléchargement sous Firefox.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (err) {
       reportError(err, "Export des règles impossible.");
     } finally {
@@ -80,6 +88,10 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
       const result = await api.importClassificationRules(pending.content, { dryRun: false });
       if (result.applied) {
         setPending(null);
+        const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+        setNotice(
+          `${plural(result.created, 'règle créée', 'règles créées')}, ${plural(result.updated, 'mise à jour', 'mises à jour')}`,
+        );
         onImported();
       } else {
         // Une règle a été rejetée entre-temps : on affiche le nouveau rapport, rien n'a été écrit.
@@ -126,6 +138,12 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
           onChange={onFileChosen}
         />
       </div>
+
+      {notice && (
+        <p role="status" className="mb-2 rounded-2xl bg-green-50 px-4 py-2 text-xs font-bold text-green-800">
+          {notice}
+        </p>
+      )}
 
       {report && (
         <div
