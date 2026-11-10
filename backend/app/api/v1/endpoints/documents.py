@@ -1,4 +1,5 @@
 # backend/app/api/v1/endpoints/documents.py
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -24,7 +25,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.errors.domain import FileTooLargeError
+from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
@@ -1475,6 +1476,15 @@ async def ingest_directory(
     await authorize_or_403(current_user, "documents", "create")
 
     service = DirectoryIngestionService(db)
+    try:
+        service.resolve_source_dir(request.directory_path)
+    except IngestPathForbiddenError:
+        logging.getLogger(__name__).warning(
+            "[Ingestion] user %s refused: %r is outside INGEST_ALLOWED_ROOTS",
+            current_user.id,
+            request.directory_path,
+        )
+        raise
     report = service.ingest(
         source_dir=request.directory_path,
         tenant_id=current_user.tenant_id,

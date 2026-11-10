@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document
 from app.core.config import settings
+from app.core.errors.domain import IngestPathForbiddenError
 
 
 logger = logging.getLogger(__name__)
@@ -110,15 +111,22 @@ class DirectoryIngestionService:
         """
         report = IngestionReport()
 
+        requested = source_dir
+        source_dir, root = self.resolve_source_dir(requested)
+
         if not os.path.isdir(source_dir):
             report.errors.append(
-                {"file": source_dir, "error": "Le répertoire n'existe pas"}
+                {"file": requested, "error": "Le répertoire n'existe pas"}
             )
             return report
 
-        # Collect files
-        files = self._scan_directory(source_dir, recursive)
-        report.total_found = len(files)
+        # Collect files (links escaping the root are reported, not imported)
+        files, rejected = self._scan_directory(source_dir, recursive, root)
+        for path in rejected:
+            report.errors.append(
+                {"file": path, "error": "Lien hors des emplacements autorisés"}
+            )
+        report.total_found = len(files) + len(rejected)
 
         if not files:
             return report
@@ -148,25 +156,80 @@ class DirectoryIngestionService:
         report.skipped = report.total_found - report.imported - len(report.errors)
         return report
 
-    def _scan_directory(self, source_dir: str, recursive: bool) -> List[str]:
-        """Return list of supported file paths in source_dir."""
-        files: List[str] = []
+    # ── Allowed roots (INGEST_ALLOWED_ROOTS) ──────────────────────────
+
+    @staticmethod
+    def _allowed_roots() -> List[str]:
+        """Real paths of the configured roots; missing ones are skipped with a warning."""
+        roots: List[str] = []
+        for raw in settings.INGEST_ALLOWED_ROOTS:
+            real = os.path.realpath(raw)
+            if os.path.isdir(real):
+                roots.append(real)
+            else:
+                logger.warning(
+                    "[Ingestion] INGEST_ALLOWED_ROOTS entry ignored, not a directory: %s",
+                    raw,
+                )
+        return roots
+
+    @staticmethod
+    def _is_under(real_path: str, real_root: str) -> bool:
+        """True when real_path is real_root or below it (no prefix trick: /root-bis)."""
+        try:
+            return os.path.commonpath([real_path, real_root]) == real_root
+        except ValueError:  # different drives (Windows)
+            return False
+
+    def resolve_source_dir(self, requested: str) -> tuple[str, str]:
+        """Map the requested directory onto an allowed root.
+
+        A relative path is resolved against the first root. ``realpath`` on both
+        sides neutralises ``..`` and symlinks, ``commonpath`` rejects look-alike
+        prefixes. Returns (real_source_dir, real_root) or raises
+        IngestPathForbiddenError, including when no root is configured.
+        """
+        roots = self._allowed_roots()
+        candidate = (requested or "").strip()
+        if not roots or not candidate or candidate in (".", ".."):
+            raise IngestPathForbiddenError(requested)
+        if not os.path.isabs(candidate):
+            candidate = os.path.join(roots[0], candidate)
+        real = os.path.realpath(candidate)
+        for root in roots:
+            if self._is_under(real, root):
+                return real, root
+        raise IngestPathForbiddenError(requested)
+
+    def _scan_directory(
+        self, source_dir: str, recursive: bool, root: str
+    ) -> tuple[List[str], List[str]]:
+        """Return (supported files under root, supported files whose target escapes root)."""
+        candidates: List[str] = []
 
         if recursive:
-            for root, _dirs, filenames in os.walk(source_dir):
+            for dirpath, _dirs, filenames in os.walk(source_dir, followlinks=False):
                 for name in filenames:
                     ext = os.path.splitext(name)[1].lower()
                     if ext in SUPPORTED_EXTENSIONS:
-                        files.append(os.path.join(root, name))
+                        candidates.append(os.path.join(dirpath, name))
         else:
             for name in os.listdir(source_dir):
                 full = os.path.join(source_dir, name)
                 if os.path.isfile(full):
                     ext = os.path.splitext(name)[1].lower()
                     if ext in SUPPORTED_EXTENSIONS:
-                        files.append(full)
+                        candidates.append(full)
 
-        return sorted(files)
+        files: List[str] = []
+        rejected: List[str] = []
+        for path in sorted(candidates):
+            # A file symlink is followed at copy time: check where it really points.
+            if self._is_under(os.path.realpath(path), root):
+                files.append(path)
+            else:
+                rejected.append(path)
+        return files, rejected
 
     async def _ingest_single_file(
         self,
