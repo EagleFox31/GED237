@@ -65,8 +65,12 @@ except ImportError:
     canvas = None
 
 # === CONFIGURATION DU TEST ===
-SOURCE_GED = Path("E:/tmp_ged_real_v2")  # Stockage GED interne
-REMOTE_SERVER = Path("E:/tmp_remote_server_v2")  # Serveur distant
+# GED_EXPORT_OUT : dossier racine de sortie (défaut historique E:/ pour l'essai
+# local). Les sous-dossiers « ged » / « remote » sont recréés par main(), pas à
+# l'import du module, pour que les helpers (noms, bruit) soient réutilisables.
+EXPORT_OUT = Path(os.getenv("GED_EXPORT_OUT", "E:/"))
+SOURCE_GED = EXPORT_OUT / "tmp_ged_real_v2"  # Stockage GED interne
+REMOTE_SERVER = EXPORT_OUT / "tmp_remote_server_v2"  # Serveur distant
 FALLBACK_FOLDER = "Autre"  # Dossier si aucune règle ne match
 TOTAL_DOCUMENTS = int(os.getenv("GED_EXPORT_DOC_COUNT", "500"))
 RANDOM_SEED = int(os.getenv("GED_EXPORT_SEED", "237"))
@@ -639,12 +643,6 @@ def build_test_documents(
     return documents
 
 
-# Nettoyage des runs précédents
-for d in [SOURCE_GED, REMOTE_SERVER]:
-    if d.exists():
-        shutil.rmtree(d)
-    d.mkdir(parents=True, exist_ok=True)
-
 # =============================================
 # 2. GÉNÉRATEURS DE VRAIS FICHIERS BINAIRES
 # =============================================
@@ -985,7 +983,16 @@ def export_results_csv(results: List[Dict[str, Any]], path: Path) -> None:
 # =============================================
 
 
+def reset_output_dirs() -> None:
+    """Nettoyage des runs précédents."""
+    for d in [SOURCE_GED, REMOTE_SERVER]:
+        if d.exists():
+            shutil.rmtree(d)
+        d.mkdir(parents=True, exist_ok=True)
+
+
 async def main():
+    reset_output_dirs()
     print("=" * 65)
     print(
         f"  TEST RÉEL GED — {TOTAL_DOCUMENTS} Vrais Documents Bruités + Classement Automatique"

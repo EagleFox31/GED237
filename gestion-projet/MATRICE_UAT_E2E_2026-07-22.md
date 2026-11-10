@@ -6,6 +6,16 @@
 > Référence PERT : T07
 > Sources : `Phase de Conception/GUIDE_TEST_FONCTIONNEL.md`,
 > `frontend/e2e/specs/`, `frontend/e2e/fixtures/auth.fixture.ts`
+>
+> **Remplacée** par `gestion-projet/innovateur/matrice-recette.md` à compter du 2026-11-14 (recette de la démo).
+> Collisions d'identifiants résolues, le sens de la démo gagne :
+> - SC-AUTH-02 désigne l'OTP erroné ; le refresh silencieux devient SC-AUTH-02b ;
+> - SC-VAL-03 désigne le rejet avec motif (P8) ;
+> - SC-ADM-06 (circuit de validation) est couvert par SC-VAL-01 ;
+> - les tests de `redacteur.spec.ts` sont renumérotés : SC-RED-04 (corbeille) devient SC-RED-05, SC-RED-05 (recherche) devient SC-LEC-01 ;
+> - SC-SEC-01 et SC-SEC-02 désignent le cloisonnement service et tenant (P5) ; les tests 403 sur les policies deviennent SC-SEC-03a et 03b, les tests « pas de dépôt » SC-SEC-04a et 04b ;
+> - SC-ADM-REVIEW devient SC-ADM-07, SC-ADM-RULES devient SC-ADM-05 ;
+> - SC-E2E-BULK est supprimé (couvert par `uat/directory-import.spec.ts`).
 
 ## 1. Synthèse
 
