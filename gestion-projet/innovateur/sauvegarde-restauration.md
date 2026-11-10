@@ -94,7 +94,7 @@ Ce qui change par rapport aux § 3-4 (non réécrits) : O fixe le portage à **�
 
 | Quand | Quoi | Preuve consignée (`gestion-projet/recette/`) |
 |---|---|---|
-| **mer 18** | rejeu n° 1 sur la pile e2e : `backup.sh` → `docker compose down -v` → `restore.sh --wipe` → parcours P1 et P5 verts ; puis `restore.sh` une seconde fois sur le même répertoire | `restauration-2026-11-18.txt` : durées, `MANIFEST.txt` avant/après, `SHA256SUMS`, sortie du second passage (zéro écart) |
+| **mar 10** (avancé par ci-qa, #54 sur `main` le 10/11 ; prévu mer 18) | rejeu n° 1 sur la pile e2e : `backup.sh` → `docker compose down -v` → `restore.sh --wipe` → parcours P1 et P5 verts ; puis `restore.sh` une seconde fois sur le même répertoire | `restauration-2026-11-10.txt` : durées, `MANIFEST.txt` avant/après, `SHA256SUMS`, sortie du second passage (zéro écart) |
 | **ven 20 soir** (après C2/C3 et pré-OCRisation) | rejeu n° 2 sur le **jeu de démo** : sauvegarde complète, restauration sur le **poste de secours** (c'est ainsi qu'il est synchronisé), 8 parcours Playwright verts dessus | `restauration-2026-11-20.txt` + run Playwright ; cette archive devient le **point de reprise de référence** jusqu'à J-1 |
 | **J-1 (dim 29)** | sauvegarde complète après le reset final et la pré-OCRisation ; restaurée sur le poste de secours | ligne de `checklist-demo.md` § B cochée, répertoire copié sur la clé USB |
 

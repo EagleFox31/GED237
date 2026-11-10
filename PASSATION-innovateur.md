@@ -210,3 +210,6 @@ Checklist J-1/J0 par rôle (O/B/F/Q/P), hypothèse démo sur place, variante VPS
 
 ## 2026-11-10 07:49 — DEC-003 : débit R mis à jour (ligne Proposé)
 - Ligne « OCR-0, critère révisé » : débit R ≈ 3 s/page propre (P95 7,7), 2,5 dégradé, pic 721 Mo, threads alignés (re-mesure 10/11) ; statut Proposé inchangé. O recopie protocole + DEC dans la PR docs #57. Prochaine étape : attente réelle jusqu au point S1 ven 13.
+
+## 2026-11-10 08:18 — D1 avancée (O) : 4 fiches mises à jour
+- `jeu-donnees-demo.md` § 5 : titre + porteurs (B étapes 1-2 ≈ 0,5 j, Q 4-5), règles via POST /rules existant ; `plans/semaine-2026-11-10.md` : B jeu 12 / ven 13, Q jeu 12 (#59 livrée, étapes 4-5) ; `plans/point-2026-11-14.md` § 4 : paragraphe « Mise à jour O 10/11 — D1 avancée » (marge inchangée, #54/#58/#59 sur main) ; `sauvegarde-restauration.md` § 6.3 : rejeu n° 1 mar 10, preuve restauration-2026-11-10.txt. Lint vert. O porte dans #57. Prochaine étape : attente réelle jusqu au point S1 ven 13.

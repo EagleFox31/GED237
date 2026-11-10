@@ -227,3 +227,30 @@ Pièges : hook pre-commit cassé sur l'hôte (venv `E:\GED237` absent). Les cont
 
 - #55 : CI verte sur 789068d (run 42724526471). Fusion faite par la chaîne de l'orchestrateur (go PO), puis #53. J'attends le SHA de merge pour lancer, depuis un worktree neuf sur main, la PR e2e « upgrade head puis seed » ; prévenir dev-backend avant la campagne Docker.
 - OCR-0 run3 (ENGINES="easyocr rapidocr") : R 3,15 s/p propre (P95 7,7, 1re page à froid) et 2,53 dégradé, pic 721 Mo, démarrage 3,0 s, CER 2,7 / 3,9 %. E se charge en 19,3 s puis OOM (137) dès la 1re page. Tableau dans scratchpad ocr0/work/results/table.md. Docker rendu à dev-backend.
+
+## 2026-11-10 08:01 — PR #59 « upgrade head puis seed » ouverte
+
+- #55 fusionnée (bf1ce57), puis #53 (42a161e). Worktree neuf GED237-e2eup, branche ci/e2e-upgrade-head : e2e_reset.sh lance `alembic upgrade head` en tête ; `stamp head` est retiré de docker-compose.e2e.yml.
+- Preuves : smoke --retries=0 31 passed / 3 skipped ; second reset (`exec api` dans la pile en marche) = 0 migration, seed_db [SKIP], seed_e2e 0 created / 14 unchanged.
+- Piège : le postgres e2e est sur tmpfs. Après `up --abort-on-container-exit`, relancer postgres repart d'une base vide, donc le second reset se fait par exec dans la pile en marche.
+- Suite : CI #59, puis dev-backend retire create_all de seed_db.py. Ensuite : route-guard.spec.ts dans le smoke ; lever le fixme de SMK-01/02/10 après fix/recette-smoke-2 ; rejouer SC-VAL-01 ; P8 jeudi 12 ; OCR-0 réel vendredi 13.
+
+## 2026-11-10 08:02 — Rejeu n° 1 sauvegarde/restauration avancé à aujourd'hui (demande de l'orchestrateur)
+
+- #59 relue par l'orchestrateur ; sa chaîne la fusionne quand la CI est verte (le SHA viendra). La tâche de fond b4spyyd4e suit sa CI.
+- Rejeu n° 1 (sauvegarde-restauration.md § 6.3/6.4) : worktree GED237-restore, branche docs/recette-restauration-1 sur main 42a161e. Scripts ops/backup.sh et ops/restore.sh ; mode compose via COMPOSE_FILE ; cible = pile edossier-e2e.
+- Écart : la pile e2e n'a pas de volume de stockage (STORAGE_PATH=/tmp/ged-storage dans le conteneur api). Je monte donc pour le rejeu seulement un override de scratchpad, volume nommé storage_data sur /tmp/ged-storage, pour que backup.sh trouve edossier-e2e_storage_data. À signaler dans la preuve.
+- Déroulé : up api → backup.sh → down -v → up api (base seedée neuve) → restore.sh --wipe --yes → /health → smoke (P1 = auth, P5 = security-isolation/documents) → second restore → down -v. Preuve à écrire dans gestion-projet/recette/restauration-2026-11-10.txt, puis PR docs.
+- Verrou : la suite backend de dev-backend (#60, ~13 min) tourne. J'attends son signal et je lui annonce le rejeu avant de lancer.
+
+## 2026-11-10 08:07 — CI #59 verte, rejeu restauration prêt
+
+- #59 : CI verte (8 checks pass, le reste skippé par l impact) ; fusion par la chaîne de l orchestrateur.
+- Rejeu n° 1 prêt dans scratchpad : restore-drill.sh + restore.override.yml (volume storage_data). Cible vierge = postgres up + `compose create api`, sans seed, pour prouver une vraie restauration. Lancement : `bash restore-drill.sh > restore-drill.log 2>&1` au signal de fin de dev-backend (runner lucid_sammet encore actif).
+- Ensuite : preuve dans gestion-projet/recette/restauration-2026-11-10.txt (worktree GED237-restore), puis PR docs.
+
+## 2026-11-10 08:15 — Rejeu restauration n° 1 lancé
+
+- #59 fusionnée (main 4953e81). Worktree GED237-restore fast-forward sur 4953e81 ; GED237-e2eup supprimé.
+- dev-backend a fini (290 passed). Rejeu lancé en tâche de fond (bmblr98x8) : log dans scratchpad/restore-drill.log, sauvegardes dans scratchpad/backups/.
+- À la fin : prévenir dev-backend, écrire gestion-projet/recette/restauration-2026-11-10.txt (§ 6.4 ; sans mot de passe, identifiant seed seul ; noter l override storage_data), puis PR docs depuis docs/recette-restauration-1, numéro à l orchestrateur.

@@ -64,13 +64,13 @@ Codes `DEMO-RULE-xx`, priorité = ordre ci-dessous (les plus spécifiques d'abor
 
 Point d'attention : un `contrat_maintenance_climatiseurs_2025.pdf` déposé par la **DAF** n'a aucune règle (02 et 03 exigent une source DSI ou DRH) → « à revoir », cas montré en P6.
 
-## 5. Procédure (ci-qa 0,75 j ; dev-backend 0,25 j si aucun endpoint d'import JSON des règles n'existe)
+## 5. Procédure (répartition révisée par O le 10/11 : **dev-backend ≈ 0,5 j** étapes 1–2, **ci-qa** étapes 4–5 ; avancée du 18–19/11 à la semaine du 10/11, dev-backend libre et périmètre DEC-002 épuisé)
 
-1. Script `scripts/demo-dataset.sh` (Docker, conteneur api) : `python -I scripts/test_real_export_v2.py` adapté → `frontend/e2e/data/demo-import/{DRH,DAF,DSI,live}/…` + `demo-manifest.json` ; sortie déterministe (`GED_EXPORT_SEED=237`) ; **corpus généré, non versionné** (`.gitignore`), seuls le manifeste et le script le sont (RAIDER-I : second run = mêmes fichiers, mêmes SHA-256).
-2. Reset : `scripts/e2e-reset.sh` étendu d'un profil `demo` (vide documents / jobs / règles du tenant MINFI, rejoue le seed, importe les règles, lance l'import des 3 dossiers via l'API, applique corbeille / verrous / versions depuis `expected`).
+1. **(B)** Script `scripts/demo-dataset.sh` (Docker, conteneur api) : `python -I scripts/test_real_export_v2.py` adapté → `frontend/e2e/data/demo-import/{DRH,DAF,DSI,live}/…` + `demo-manifest.json` ; sortie déterministe (`GED_EXPORT_SEED=237`) ; **corpus généré, non versionné** (`.gitignore`), seuls le manifeste et le script le sont (RAIDER-I : second run = mêmes fichiers, mêmes SHA-256).
+2. **(B)** Reset : `scripts/e2e-reset.sh` étendu d'un profil `demo` (vide documents / jobs / règles du tenant MINFI, rejoue le seed, crée les règles via le `POST /rules` existant (aucun endpoint d'import), lance l'import des 3 dossiers via l'API, applique corbeille / verrous / versions depuis `expected`).
 3. Pré-OCRisation la veille (27/11), puis worker OCR arrêté pendant la présentation (DEC-003).
-4. Vérification : le projet Playwright `smoke` compare les compteurs réels à `expected` ; rapport joint au walkthrough.
-5. Livraison : walkthrough `DONE` avec le tableau réel obtenu (classés / à revoir / doublons) et le temps de reset mesuré.
+4. **(Q)** Vérification : le projet Playwright `smoke` compare les compteurs réels à `expected` ; rapport joint au walkthrough.
+5. **(Q)** Livraison : walkthrough `DONE` avec le tableau réel obtenu (classés / à revoir / doublons) et le temps de reset mesuré.
 
 ## 6. Risques
 

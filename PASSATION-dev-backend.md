@@ -270,3 +270,31 @@ Contrat de `GET /workflows/validators` (ValidatorRead : `id`, `full_name`) et de
 **Objectif en cours** — Attente : #55 (ci-qa) puis #53 (update-branch orchestrateur) ; signal « retrait de create_all » à venir.
 **Fait** — Worktrees supprimés et branches locales effacées (toutes fusionnées dans main) : `../GED237-{search,debug,authz,upload,roles,workflow,backup-restore,version}`. Conservés : `../GED237-ingest` (#53 ouverte) et les worktrees des autres sessions (`docs*`, `e2e`, `ocr0`, `recette1`, `route-guard`, `valcycle`, `lotc-frontend`, `merge39`).
 **Reste à faire** — 1) conflit éventuel sur #53 ; 2) retrait de `create_all` au signal ; 3) supprimer `../GED237-ingest` après fusion de #53.
+
+## 2026-11-10 02:05 — #55 (bf1ce57) et #53 (42a161e) fusionnées ; périmètre de la nuit sur main
+
+**Objectif en cours** — Prochaine tâche au signal orchestrateur (après fusion de la PR e2e « upgrade head puis seed » de ci-qa) : retrait de `create_all` côté app (`seed_db.py`, pile e2e, tests de la suite qui en dépendraient). Aucune PR backend ouverte.
+**Fait** — `../GED237-ingest` supprimé, branche locale effacée ; plus aucun worktree de cette session. Docker libre.
+**Reste à faire** — 1) retrait de `create_all` (worktree neuf `../GED237-<sujet>` sur main, jamais de git dans `GED237/`) ; 2) plus tard : S2 perf pytest ; routes `simulate` en doublon (`classification.py:742`, `gedrules.py:458`).
+**Pièges / contexte** — `create_all` est aussi dans `tests/conftest.py` (`prepare_database` : drop_all/create_all par test) : à distinguer de celui de l'app/seed ; cadrer avec l'orchestrateur avant de toucher au conftest.
+
+## 2026-11-10 02:50 — PR #60 brouillon « retrait de create_all » (627b358), suite complète en cours
+
+**Objectif en cours** — #60 `chore/drop-create-all` (worktree `../GED237-create-all`) à fusionner après #59 (ci-qa, « upgrade head puis seed ») : au signal orchestrateur, fusionner main dans la branche, passer la PR en prête.
+**Fait** — `seed_db.py` : create_all → `get_schema_status` (exit 2 si base hors tête) ; `core/database.py` : `init_db()` retiré ; README backend + `DOCS/exploitation/sauvegarde-restauration.md` ; `tests/test_seed_db.py` 3 passed. Preuves Docker (upgrade head → seed → seed SKIP ; base non migrée → exit 2) dans le corps de la PR. Suite complète lancée en arrière-plan (log `$TEMP/claude/createall_full_suite.log`) : résultat à poster en commentaire sur #60 et à signaler à ci-qa (Docker libre).
+**Reste à faire** — 1) commenter le résultat de la suite sur #60, prévenir ci-qa ; 2) au signal #59 fusionnée : merge main → push → PR prête ; 3) supprimer `../GED237-create-all` après fusion ; 4) plus tard : S2 perf pytest, routes `simulate` en doublon.
+
+## 2026-11-10 03:10 — #60 prête (56d7c29), suite complète 290 passed
+
+**Objectif en cours** — #60 `chore/drop-create-all` passée en « prête » ; orchestrateur lance la chaîne CI → merge → suppression.
+**Fait** — main (4953e81, #59 de ci-qa) fusionné sans conflit (56d7c29, poussé) ; suite complète Docker sur 627b358 : 290 passed, couverture 86,41 %, posté en commentaire ; ci-qa prévenu (Docker libre).
+**Reste à faire** — 1) après fusion de #60 : supprimer `../GED237-create-all` et la branche locale ; 2) tâche suivante au signal orchestrateur ; en réserve : S2 perf pytest, routes `simulate` en doublon (`classification.py:742`, `gedrules.py:458`).
+
+## 2026-11-10 03:30 — Tâche D1 reçue : jeu de données de démo (feat/demo-dataset)
+
+**Objectif en cours** — Après fusion de #60 (chaîne en cours) : worktree neuf sur main `../GED237-demo-dataset`, branche `feat/demo-dataset`. Spec : `gestion-projet/innovateur/jeu-donnees-demo.md` § 5 étapes 1 et 2 (lire § 1-4 : 3 dossiers DRH/DAF/DSI + live, 10 règles dont la 10 inactive, cas « contrat climatiseurs DAF » à revoir).
+**Consigne orchestrateur (intégrale)** —
+(1) `scripts/demo-dataset.sh` (Docker, conteneur api) : `backend/scripts/test_real_export_v2.py` adapté par variable d'environnement (pas de copie ; sortie déterministe `GED_EXPORT_SEED=237`) → `frontend/e2e/data/demo-import/{DRH,DAF,DSI,live}/` + `demo-manifest.json` avec section `expected` (classés / à revoir / doublons / corbeille / verrous / versions) ; corpus généré non versionné (.gitignore), seuls script et manifeste suivis.
+(2) `backend/scripts/e2e_reset.sh` profil `demo` : vide documents/jobs/règles du tenant MINFI, rejoue le seed, crée les règles via le `POST /rules` existant (aucun nouvel endpoint d'import : pas de surface API avant le gel), importe les 3 dossiers via l'API, applique corbeille/verrous/versions depuis `expected` ; deux exécutions = même état (compteurs identiques). Format du manifeste aligné sur `frontend/e2e/data/seed-manifest.json` de ci-qa (pas l'inverse).
+Preuve : reset profil demo sur base vierge en Docker, compteurs réels vs expected, temps de reset mesuré ; comparaison Playwright (étape 4) reste à ci-qa. Charge lourde : annoncer à ci-qa (rejeu sauvegarde/restauration en cours jusqu'à ~03:45). PR normale depuis main, corps avec le tableau obtenu.
+**Reste à faire** — 1) supprimer `../GED237-create-all` après fusion #60 ; 2) lire spec § 1-5, `seed-manifest.json`, `seed_e2e.py`, `test_real_export_v2.py`, `e2e_reset.sh` ; 3) implémenter (1) puis (2) ; 4) preuve Docker ; 5) PR.
