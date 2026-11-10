@@ -1,13 +1,9 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { test, expect } from '../fixtures/auth.fixture';
 import { DocumentsPage, DraftWorkspacePage, UploadDocumentModalPage } from '../pages/documents.page';
 import { DocumentDetailModal } from '../pages/document-detail.page';
+import { seedCategory } from '../data/seed';
+import { uniqueTextFile } from '../data/files';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const TEST_FILE = path.resolve(__dirname, '../fixtures/files/test-document.txt');
 
 test.describe('Feature: Explorateur de documents', () => {
 
@@ -138,11 +134,8 @@ test.describe('Feature: Explorateur de documents', () => {
     // WHEN — switch to workflow
     await detailModal.switchToWorkflowTab();
 
-    // THEN — either steps or empty state visible
-    const hasSteps = await detailModal.workflowSteps.count() > 0;
-    if (!hasSteps) {
-      await detailModal.expectNoWorkflowSteps();
-    }
+    // THEN — the circuit steps or the empty state, once loaded (seeded documents have a circuit)
+    await expect(detailModal.workflowSteps.first().or(detailModal.workflowEmpty)).toBeVisible();
 
     // WHEN — switch to history
     await detailModal.switchToHistoryTab();
@@ -240,7 +233,6 @@ test.describe('Feature: Upload de document (Collaborateur)', () => {
    *   AND    le document apparaît dans la grille
    */
   test('Given modal upload, When remplir et soumettre, Then document créé', async ({ page }) => {
-    test.fixme(true, 'SMK-04: collaborator upload refused (403); lifted by #47');
     const workspace = new DraftWorkspacePage(page);
     const docTitle = `Test E2E ${Date.now()}`;
 
@@ -249,7 +241,7 @@ test.describe('Feature: Upload de document (Collaborateur)', () => {
     await workspace.openUploadModal();
 
     // WHEN
-    await workspace.fillUploadForm(docTitle, 'Note', 'test, e2e', TEST_FILE);
+    await workspace.fillUploadForm(docTitle, 'Note', 'test, e2e', uniqueTextFile());
 
     // AND
     await workspace.submitUpload();
@@ -272,7 +264,6 @@ test.describe('Feature: Upload de document (Collaborateur)', () => {
    *   AND    le statut du document change (plus de bouton "Soumettre")
    */
   test('Given brouillon existant, When soumettre au visa, Then workflow créé', async ({ page }) => {
-    test.fixme(true, 'SMK-05: needs a collaborator draft (403 on upload); lifted by #47');
     const workspace = new DraftWorkspacePage(page);
 
     // GIVEN — créer un document d'abord
@@ -287,7 +278,7 @@ test.describe('Feature: Upload de document (Collaborateur)', () => {
       // Créer un doc pour avoir un draft
       const docTitle = `Draft Visa ${Date.now()}`;
       await workspace.openUploadModal();
-      await workspace.fillUploadForm(docTitle, 'Courrier', 'visa', TEST_FILE);
+      await workspace.fillUploadForm(docTitle, 'Courrier', 'visa', uniqueTextFile());
       await workspace.submitUpload();
       await workspace.expectUploadModalClosed();
       await workspace.expectDocumentsLoaded();
@@ -359,7 +350,6 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
    *   AND    la grille de documents est toujours visible
    */
   test('Given modale ouverte, When annuler, Then modale fermée sans effet', async ({ page }) => {
-    test.fixme(true, 'SMK-06: upload modal overflows the viewport; lifted by #45');
     const docsPage = new DocumentsPage(page);
     const modal = new UploadDocumentModalPage(page);
 
@@ -397,7 +387,7 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     await modal.expectVisible();
 
     // WHEN
-    await modal.setFile(TEST_FILE);
+    await modal.setFile(uniqueTextFile());
 
     // THEN — nom du fichier visible dans la zone de dép
     await expect(modal.dropZone).toContainText('test-document');
@@ -415,7 +405,6 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
    *   AND    la modale reste ouverte
    */
   test('Given fichier sélectionné, When titre vide et submit, Then erreur titre affiché', async ({ page }) => {
-    test.fixme(true, 'SMK-07: upload modal overflows the viewport; lifted by #45');
     const docsPage = new DocumentsPage(page);
     const modal = new UploadDocumentModalPage(page);
 
@@ -423,7 +412,7 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     await docsPage.goto();
     await docsPage.uploadButton.click();
     await modal.expectVisible();
-    await modal.setFile(TEST_FILE);
+    await modal.setFile(uniqueTextFile());
 
     // WHEN — vider le titre (auto-rempli) et soumettre
     await modal.fillTitle('');
@@ -447,7 +436,6 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
    *   AND    son statut est "draft" ou "in_review" (selon la règle GEDRules)
    */
   test('Given form complet, When submit, Then document créé et liste rafraîchie', async ({ page }) => {
-    test.fixme(true, 'SMK-08: needs #45 (modal) and the seeded E2E category (ci/e2e-seed)');
     const docsPage = new DocumentsPage(page);
     const modal = new UploadDocumentModalPage(page);
     const docTitle = `GED Upload E2E ${Date.now()}`;
@@ -461,9 +449,9 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     await modal.expectVisible();
 
     // WHEN
-    await modal.setFile(TEST_FILE);
+    await modal.setFile(uniqueTextFile());
     await modal.fillTitle(docTitle);
-    await modal.selectCategory('finance');
+    await modal.selectCategory({ label: seedCategory('E2E-CAT-GEN').name });
     await modal.fillTags('test, e2e, playwright');
     await modal.fillDescription('Document de test créé par Playwright.');
     await modal.submit();
