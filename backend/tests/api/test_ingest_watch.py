@@ -311,3 +311,51 @@ async def test_status_requires_the_right_to_create_documents(
     async with client_as("reader", tenant_id=db_seed["tenant_id"]) as client:
         response = await client.get(STATUS)
     assert response.status_code == 403, response.text
+
+
+def test_watch_is_off_by_default_and_the_task_touches_nothing(monkeypatch):
+    """Default config: no schedule, and a stray task call reads neither Redis nor folders."""
+    import redis.asyncio as aioredis
+
+    from app.workers.celery_app import celery_app
+    from app.workers.tasks import watch_ingest_folders
+
+    monkeypatch.setattr(
+        settings,
+        "INGEST_WATCH_FOLDERS_STR",
+        type(settings).model_fields["INGEST_WATCH_FOLDERS_STR"].default,
+    )
+
+    def no_redis(*_args, **_kwargs):
+        raise AssertionError("Redis must not be reached when nothing is watched")
+
+    monkeypatch.setattr(aioredis, "from_url", no_redis)
+
+    assert settings.INGEST_WATCH_FOLDERS == []
+    assert "watch-ingest-folders" not in (celery_app.conf.beat_schedule or {})
+    assert watch_ingest_folders() is None
+
+
+@pytest.mark.asyncio
+async def test_folder_overlapping_the_hand_import_folder_is_never_emptied(
+    test_engine, db_seed, watch_fs, monkeypatch
+):
+    root = watch_fs["root"]
+    live = root / "live"
+    (live / "lot").mkdir(parents=True)
+    (live / "lot" / "p2.txt").write_text("demo", encoding="utf-8")
+    (watch_fs["folder"] / "courrier.txt").write_text("courrier", encoding="utf-8")
+    monkeypatch.setattr(settings, "INGEST_WATCH_PROTECTED_DIRS_STR", str(live))
+    _watch(
+        monkeypatch,
+        _entry(live),  # the folder itself
+        _entry(root),  # a parent, recursive by default
+        _entry(live / "lot"),  # a child
+        _entry(watch_fs["folder"]),  # a sibling: still watched
+    )
+
+    result = await run_watch_pass(_sessions(test_engine), MemoryRedis())
+
+    assert [f["path"] for f in result["folders"]] == [str(watch_fs["folder"])]
+    assert os.listdir(live / "lot") == ["p2.txt"]
+    assert _processed(watch_fs["folder"]) == ["courrier.txt"]

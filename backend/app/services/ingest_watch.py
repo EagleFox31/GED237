@@ -69,6 +69,23 @@ def folder_record_id(path: str) -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_URL, f"ingest-watch:{path}")
 
 
+def _overlaps(path: str, other: str) -> bool:
+    """True when one real path is the other or contains it."""
+    a, b = os.path.realpath(path), os.path.realpath(other)
+    try:
+        common = os.path.commonpath([a, b])
+    except ValueError:  # different drives
+        return False
+    return common in (a, b)
+
+
+def protected_dir_hit(path: str) -> Optional[str]:
+    """The protected folder a watched path overlaps, if any."""
+    return next(
+        (d for d in settings.INGEST_WATCH_PROTECTED_DIRS if _overlaps(path, d)), None
+    )
+
+
 def _move_into(file_path: str, target_dir: str) -> None:
     os.makedirs(target_dir, exist_ok=True)
     base, ext = os.path.splitext(os.path.basename(file_path))
@@ -109,6 +126,15 @@ class IngestWatchService:
         except IngestPathForbiddenError:
             logger.warning(
                 "[IngestWatch] %s ignored: outside INGEST_ALLOWED_ROOTS", path
+            )
+            return None
+        protected = protected_dir_hit(path)
+        if protected is not None:
+            logger.warning(
+                "[IngestWatch] %s ignored: overlaps %s (INGEST_WATCH_PROTECTED_DIRS), "
+                "its files are imported by hand",
+                path,
+                protected,
             )
             return None
 

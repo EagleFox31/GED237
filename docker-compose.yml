@@ -184,6 +184,8 @@ services:
       INGEST_ALLOWED_ROOTS: /data/ingest
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      # Demo live import folder: never watched, even through a parent folder.
+      INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
     depends_on:
       redis:
         condition: service_healthy
