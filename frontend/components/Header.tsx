@@ -63,9 +63,11 @@ interface HeaderProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   onOpenSettings?: () => void;
+  /** Ouvre la barre latérale repliée (écrans étroits). */
+  onOpenMenu?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onTabChange, onOpenSettings }) => {
+const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onTabChange, onOpenSettings, onOpenMenu }) => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchConfig = resolveSearchConfig(location.pathname);
@@ -179,8 +181,18 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   return (
     <header className={`glass border-b border-slate-200/50 flex flex-col sticky top-0 z-40 shrink-0 transition-all duration-500 ${layoutMode === 'topbar' ? 'h-32' : 'h-20'}`}>
       {/* Top Section */}
-      <div className="flex-1 flex items-center justify-between px-8">
-        <div className="flex items-center gap-6">
+      <div className="flex-1 flex items-center justify-between px-4 md:px-8">
+        <div className="flex items-center gap-3 md:gap-6">
+          {layoutMode === 'sidebar' && onOpenMenu && (
+            <button
+              type="button"
+              onClick={onOpenMenu}
+              aria-label="Ouvrir le menu"
+              className="md:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+          )}
           {layoutMode === 'topbar' && (
             <div className="flex items-center gap-3 pr-6 border-r border-slate-200">
               <div className={`w-10 h-10 ${userProfile?.color || 'bg-rdpc-blue'} rounded-xl flex items-center justify-center text-white shadow-lg`}>
@@ -188,7 +200,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               </div>
               <div className="hidden lg:block">
                 <h1 className="text-base font-black text-slate-800 tracking-tighter leading-none italic uppercase">E-Dossier</h1>
-                <p className="text-[8px] uppercase font-bold text-red-500 tracking-widest mt-0.5">Gestion Documentaire</p>
+                <p className="text-[8px] uppercase font-bold text-red-700 tracking-widest mt-0.5">Gestion Documentaire</p>
               </div>
             </div>
           )}
