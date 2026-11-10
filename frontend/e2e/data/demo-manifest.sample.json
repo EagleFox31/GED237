@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "profile": "demo",
+  "tenant": "MINFI",
+  "note": "Trial manifest: respects the expected.files contract so the comparison spec can be wired before the generated demo-manifest.json (D1) lands. Not a dataset.",
+  "expected": {
+    "domains": ["DEMO-DOM-RH", "DEMO-DOM-FIN"],
+    "activities": ["DEMO-ACT-CONGES", "DEMO-ACT-BUDGET"],
+    "classificationRules": ["DEMO-RULE-01", "DEMO-RULE-02"],
+    "inactiveRules": [],
+    "documents": { "total": 5, "classified": 3, "toReview": 2 },
+    "byOrgUnit": {
+      "MINFI-DRH": { "total": 3, "classified": 2, "toReview": 1 },
+      "MINFI-DAF": { "total": 2, "classified": 1, "toReview": 1 }
+    },
+    "imports": { "jobs": 2, "duplicates": 1 },
+    "trash": [],
+    "locks": {},
+    "versions": {},
+    "files": [
+      { "path": "DRH/conges-2024-001.pdf", "status": "classified", "orgUnit": "MINFI-DRH", "domain": "DEMO-DOM-RH", "activity": "DEMO-ACT-CONGES", "year": 2024 },
+      { "path": "DRH/conges-2024-002.pdf", "status": "classified", "orgUnit": "MINFI-DRH", "domain": "DEMO-DOM-RH", "activity": "DEMO-ACT-CONGES", "year": 2024 },
+      { "path": "DRH/divers.pdf", "status": "needs_review", "orgUnit": null, "domain": null, "activity": null, "year": null },
+      { "path": "DAF/budget-2025-001.pdf", "status": "classified", "orgUnit": "MINFI-DAF", "domain": "DEMO-DOM-FIN", "activity": "DEMO-ACT-BUDGET", "year": 2025 },
+      { "path": "DAF/inconnu.pdf", "status": "needs_review", "orgUnit": null, "domain": null, "activity": null, "year": null },
+      { "path": "DAF/budget-2025-001-copie.pdf", "status": "duplicate", "orgUnit": null, "domain": null, "activity": null, "year": null }
+    ]
+  }
+}
