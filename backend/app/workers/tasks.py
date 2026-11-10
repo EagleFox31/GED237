@@ -12,6 +12,7 @@ from sqlalchemy.sql import func
 
 from app.workers.celery_app import celery_app
 from app.models.document import Document
+from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.core.config import settings
 
 
@@ -40,12 +41,16 @@ async def update_document_ocr(
             # Index text in Postgres TSVECTOR
             document.ocr_content_vector = func.to_tsvector("french", text)
 
-            # Store OCR metadata in extra_data
-            if not document.extra_data:
-                document.extra_data = {}
+            # Store OCR metadata in extra_data. A new dict, not an in-place change: the
+            # JSONB column is not change-tracked, so mutating it would never be written.
+            document.extra_data = {
+                **(document.extra_data or {}),
+                "ocr_confidence": confidence,
+                "ocr_engine": engine_used,
+            }
 
-            document.extra_data["ocr_confidence"] = confidence
-            document.extra_data["ocr_engine"] = engine_used
+            # Rules with content keywords could not be checked before the text existed.
+            await ClassificationRuleEngine(session).reclassify_after_ocr(document)
 
             await session.commit()
 
