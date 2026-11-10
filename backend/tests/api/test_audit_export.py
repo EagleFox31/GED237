@@ -153,3 +153,54 @@ async def test_too_many_rows_is_422(
 
     assert response.status_code == 422
     assert "affinez" in response.json()["detail"]
+
+
+async def _add_log(test_engine, db_seed, *, title: str, created_at: datetime) -> None:
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with session_factory() as session:
+        session.add(
+            AuditLog(
+                tenant_id=db_seed["tenant_id"],
+                user_id=db_seed["user_id"],
+                table_name="documents",
+                record_id=uuid.uuid4(),
+                action="upload",
+                new_data={"title": title},
+                created_at=created_at,
+            )
+        )
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_formula_in_a_file_name_is_exported_as_text(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _add_log(
+        test_engine, db_seed, title="=1+1.pdf", created_at=datetime(2026, 11, 5)
+    )
+    await _add_log(
+        test_engine, db_seed, title="@SUM(A1)", created_at=datetime(2026, 11, 4)
+    )
+
+    rows = _rows(await admin_client.get(EXPORT))
+
+    assert [row[4] for row in rows[1:]] == ["'=1+1.pdf", "'@SUM(A1)"]
+
+
+@pytest.mark.asyncio
+async def test_rows_logged_after_the_export_started_are_left_out(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _seed_logs(test_engine, db_seed)
+    # Stands for a row written while the export pages are being read.
+    await _add_log(
+        test_engine, db_seed, title="pendant", created_at=datetime(2099, 1, 1)
+    )
+
+    rows = _rows(await admin_client.get(EXPORT))
+
+    assert len(rows) == 4
+    assert "pendant" not in {row[4] for row in rows}

@@ -158,8 +158,12 @@ def _filtered_query(
     action: Optional[str],
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    until: Optional[datetime] = None,
 ):
-    """Tenant logs matching the screen filters; dates are local calendar days, both inclusive."""
+    """Tenant logs matching the screen filters; dates are local calendar days, both inclusive.
+
+    ``until`` freezes the result at an instant (same clock and type as created_at).
+    """
     query = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
     if table_name:
         query = query.where(AuditLog.table_name == table_name)
@@ -171,6 +175,8 @@ def _filtered_query(
         query = query.where(
             AuditLog.created_at < _utc_naive(date_to + timedelta(days=1))
         )
+    if until is not None:
+        query = query.where(AuditLog.created_at <= until)
     return query
 
 
@@ -212,16 +218,28 @@ def _local_iso(value: Optional[datetime]) -> str:
     return aware.astimezone(LOCAL_TZ).isoformat(timespec="seconds")
 
 
+# A cell starting with one of these is run as a formula by Excel (OWASP CSV injection).
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_cell(value: Optional[str]) -> str:
+    """User-typed text as inert text: a leading apostrophe stops formula evaluation."""
+    text = value or ""
+    return f"'{text}" if text.startswith(_FORMULA_PREFIXES) else text
+
+
 def _csv_row(entry: dict[str, Any], created_at: Optional[datetime]) -> list[str]:
-    return [
-        _local_iso(created_at),
-        entry["user_matricule"] or "",
-        entry["user_name"] or "",
-        entry["table_label"],
-        entry["resource_label"],
-        entry["action_label"],
-        entry["detail"],
-        entry["ip_address"] or "",
+    return [_local_iso(created_at)] + [
+        _csv_cell(entry[key])
+        for key in (
+            "user_matricule",
+            "user_name",
+            "table_label",
+            "resource_label",
+            "action_label",
+            "detail",
+            "ip_address",
+        )
     ]
 
 
@@ -242,12 +260,16 @@ async def export_audit_logs(
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
     }
+    # Rows logged after this instant (by anyone) would shift the offset pages: freeze them out.
+    # localtimestamp is the clock created_at is filled from (now() stored without zone).
+    snapshot = await db.scalar(select(func.localtimestamp()))
     query = _filtered_query(
         current_user.tenant_id,
         table_name=table_name,
         action=action,
         date_from=date_from,
         date_to=date_to,
+        until=snapshot,
     )
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
     if total > EXPORT_MAX_ROWS:
