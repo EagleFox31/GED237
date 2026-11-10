@@ -4,16 +4,22 @@ Directory Ingestion Service
 Scans a local directory, imports files into the GED, and triggers classification via rules + OCR.
 """
 
+import hashlib
 import os
 import shutil
 import mimetypes
 import logging
-from typing import List, Dict, Any, Optional
+import time
+from datetime import datetime, timezone
+from typing import Iterable, List, Dict, Any, Optional
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.audit import AuditLog
 from app.models.document import Document
+from app.models.document_version import DocumentVersion
 from app.core.config import settings
 from app.core.errors.domain import IngestPathForbiddenError
 
@@ -55,6 +61,8 @@ class IngestionReport:
         self.skipped: int = 0
         self.errors: List[Dict[str, str]] = []
         self.details: List[Dict[str, Any]] = []
+        # Files already in the GED (same SHA-256 in the tenant): counted in skipped.
+        self.duplicates: List[Dict[str, str]] = []
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -64,6 +72,8 @@ class IngestionReport:
             "error_count": len(self.errors),
             "errors": self.errors,
             "details": self.details,
+            "duplicate_count": len(self.duplicates),
+            "duplicates": self.duplicates,
         }
 
 
@@ -73,6 +83,14 @@ def _derive_file_type(filename: str, mime_type: str) -> str | None:
         return extension[:50]
     subtype = (mime_type or "").split("/")[-1].lower().strip()
     return subtype[:50] if subtype else None
+
+
+def _sha256_of(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 class DirectoryIngestionService:
@@ -94,6 +112,8 @@ class DirectoryIngestionService:
         recursive: bool = True,
         document_category_id: Optional[UUID] = None,
         processing_mode: str = "process",
+        exclude_dirs: Iterable[str] = (),
+        settle_seconds: int = 0,
     ) -> IngestionReport:
         """
         Scan source_dir and import all supported files.
@@ -121,7 +141,13 @@ class DirectoryIngestionService:
             return report
 
         # Collect files (links escaping the root are reported, not imported)
-        files, rejected = self._scan_directory(source_dir, recursive, root)
+        files, rejected = self._scan_directory(
+            source_dir,
+            recursive,
+            root,
+            exclude_dirs=set(exclude_dirs),
+            settle_seconds=settle_seconds,
+        )
         for path in rejected:
             report.errors.append(
                 {"file": path, "error": "Lien hors des emplacements autorisés"}
@@ -147,9 +173,14 @@ class DirectoryIngestionService:
                     document_category_id=document_category_id,
                     processing_mode=processing_mode,
                 )
+                if "duplicate_of" in result:
+                    report.duplicates.append(result)
+                    continue
                 report.imported += 1
                 report.details.append(result)
             except Exception as e:
+                # A failed flush leaves the session unusable: the next files need it.
+                await self.db.rollback()
                 logger.error(f"[Ingestion] Failed to ingest {file_path}: {e}")
                 report.errors.append({"file": file_path, "error": str(e)})
 
@@ -202,13 +233,25 @@ class DirectoryIngestionService:
         raise IngestPathForbiddenError(requested)
 
     def _scan_directory(
-        self, source_dir: str, recursive: bool, root: str
+        self,
+        source_dir: str,
+        recursive: bool,
+        root: str,
+        *,
+        exclude_dirs: set[str] | None = None,
+        settle_seconds: int = 0,
     ) -> tuple[List[str], List[str]]:
-        """Return (supported files under root, supported files whose target escapes root)."""
+        """Return (supported files under root, supported files whose target escapes root).
+
+        ``exclude_dirs`` names are pruned at any depth; with ``settle_seconds``, files
+        modified more recently are left for a later pass (still being copied).
+        """
         candidates: List[str] = []
+        exclude_dirs = exclude_dirs or set()
 
         if recursive:
-            for dirpath, _dirs, filenames in os.walk(source_dir, followlinks=False):
+            for dirpath, dirs, filenames in os.walk(source_dir, followlinks=False):
+                dirs[:] = [d for d in dirs if d not in exclude_dirs]
                 for name in filenames:
                     ext = os.path.splitext(name)[1].lower()
                     if ext in SUPPORTED_EXTENSIONS:
@@ -220,6 +263,12 @@ class DirectoryIngestionService:
                     ext = os.path.splitext(name)[1].lower()
                     if ext in SUPPORTED_EXTENSIONS:
                         candidates.append(full)
+
+        if settle_seconds > 0:
+            settled_before = time.time() - settle_seconds
+            candidates = [
+                p for p in candidates if os.path.getmtime(p) <= settled_before
+            ]
 
         files: List[str] = []
         rejected: List[str] = []
@@ -247,6 +296,42 @@ class DirectoryIngestionService:
         filename = os.path.basename(file_path)
         file_size = os.path.getsize(file_path)
         mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+
+        # 0. Same content already in the tenant: not imported again (rescan, copy).
+        checksum = _sha256_of(file_path)
+        existing = await self.db.execute(
+            select(DocumentVersion)
+            .join(Document, Document.id == DocumentVersion.document_id)
+            .where(
+                DocumentVersion.checksum_sha256 == checksum,
+                Document.tenant_id == tenant_id,
+                Document.deleted_at.is_(None),
+            )
+            .limit(1)
+        )
+        duplicate = existing.scalar_one_or_none()
+        if duplicate is not None:
+            # Same audit row as a refused upload: counted by the duplicates KPI.
+            self.db.add(
+                AuditLog(
+                    tenant_id=tenant_id,
+                    user_id=owner_id,
+                    table_name="documents",
+                    record_id=duplicate.document_id,
+                    action="dup_detected",
+                    new_data={
+                        "checksum_sha256": checksum,
+                        "attempted_filename": filename,
+                        "during": "ingestion",
+                    },
+                )
+            )
+            await self.db.commit()
+            return {
+                "duplicate_of": str(duplicate.document_id),
+                "filename": filename,
+                "source_path": file_path,
+            }
 
         # 1. Copy file to GED storage
         relative_path = os.path.join(ged_dir, filename).replace("\\", "/")
@@ -290,6 +375,21 @@ class DirectoryIngestionService:
         )
 
         self.db.add(document)
+        await self.db.flush()
+        # First version carries the checksum, as on upload: later passes see the duplicate.
+        version = DocumentVersion(
+            document_id=document.id,
+            version_number="1.0",
+            file_path=relative_path,
+            file_size=file_size,
+            mime_type=mime_type,
+            checksum_sha256=checksum,
+            uploaded_by_id=owner_id,
+            uploaded_at=datetime.now(timezone.utc),
+        )
+        self.db.add(version)
+        await self.db.flush()
+        document.current_version_id = version.id
         await self.db.commit()
         await self.db.refresh(document)
 
@@ -336,4 +436,5 @@ class DirectoryIngestionService:
             "file_size": file_size,
             "rules_matched": matched_rules,
             "ocr_queued": ocr_queued,
+            "source_path": file_path,
         }

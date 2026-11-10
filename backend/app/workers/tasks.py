@@ -142,3 +142,31 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
 
         traceback.print_exc()
         return False
+
+
+@celery_app.task(name="app.workers.tasks.watch_ingest_folders")
+def watch_ingest_folders():
+    """Beat task (lot 5): one locked pass over INGEST_WATCH_FOLDERS."""
+    import redis.asyncio as aioredis
+
+    from app.services.ingest_watch import run_watch_pass, watch_enabled
+
+    if not watch_enabled():
+        return None
+
+    async def _run():
+        client = aioredis.from_url(
+            settings.REDIS_URL, encoding="utf-8", decode_responses=True
+        )
+        try:
+            return await run_watch_pass(AsyncSessionLocal, client)
+        finally:
+            await client.aclose()
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.run_until_complete(_run())
+    return None

@@ -40,6 +40,7 @@ from app.schemas.document import (
     ClassificationStatus,
     DirectoryIngestRequest,
     DirectoryIngestResponse,
+    IngestWatchStatus,
     DocumentOCRContent,
     DocumentRead,
     DocumentStatus,
@@ -49,6 +50,9 @@ from app.schemas.document import (
 )
 from app.services.space_path_builder import SpacePathBuilder
 from app.services.classification_review_service import ClassificationReviewService
+from app.core.redis import get_redis
+from app.models.tenant import Tenant
+from app.services.ingest_watch import read_last_run, status_for_tenant
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.services.storage.factory import get_storage_service
@@ -764,6 +768,20 @@ async def list_trashed_documents(
         .limit(limit)
     )
     return [_serialize_document(document) for document in result.scalars().all()]
+
+
+@router.get("/ingest-watch/status", response_model=IngestWatchStatus)
+async def ingest_watch_status(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Watched folders of the current tenant and their last pass (lot 5)."""
+    await authorize_or_403(current_user, "documents", "create")
+    tenant_code = await db.scalar(
+        select(Tenant.short_name).where(Tenant.id == current_user.tenant_id)
+    )
+    last_run = await read_last_run(await get_redis())
+    return status_for_tenant(last_run, current_user.tenant_id, tenant_code)
 
 
 @router.get("/needs-review", response_model=List[NeedsReviewDocument])

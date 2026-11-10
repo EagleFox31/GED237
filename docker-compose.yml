@@ -134,6 +134,9 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       STORAGE_PATH: /var/storage_data
       INGEST_ALLOWED_ROOTS: /data/ingest
+      # Watched folders: read here only for GET /documents/ingest-watch/status.
+      INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
+      INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
@@ -160,7 +163,8 @@ services:
       dockerfile: Dockerfile
     container_name: edossier_worker
     # OCR (EasyOCR/torch) is the heaviest consumer; one child per CPU granted.
-    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    # -B: embedded beat for the watched folders (single worker: no second scheduler).
+    command: celery -A app.workers.celery_app worker -B --schedule=/tmp/celerybeat-schedule --loglevel=info --concurrency=2
     mem_limit: 2g
     memswap_limit: 2g
     cpus: 2.0
@@ -169,12 +173,17 @@ services:
     volumes:
       - ./backend/app:/app/app
       - storage_data:/var/storage_data
+      # Watched folders: read-write, processed files move to _traites/ and _erreurs/.
+      - ${INGEST_SOURCE_DIR:-./data/ingest}:/data/ingest
     environment:
       DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:-changeme}@postgres/edossier
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       STORAGE_PATH: /var/storage_data
+      INGEST_ALLOWED_ROOTS: /data/ingest
+      INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
+      INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
     depends_on:
       redis:
         condition: service_healthy
