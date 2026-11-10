@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { takePostLoginDestination } from './services';
 import { pushClientOperationError } from './lib/errors';
 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -179,9 +180,11 @@ const AppLayout: React.FC = () => {
   // ignoring whatever URL was left over from a previous session/user.
   React.useEffect(() => {
     if (justLoggedIn) {
+      // Session expirée en cours de travail : retour à la page quittée (même compte uniquement).
+      const resumed = takePostLoginDestination(userProfile?.id);
       const target = userProfile?.mustChangePassword
         ? '/change-password'
-        : defaultRouteForProfile(userProfile?.id);
+        : resumed ?? defaultRouteForProfile(userProfile?.id);
       consumeJustLoggedIn();
       navigate(target, { replace: true });
     }

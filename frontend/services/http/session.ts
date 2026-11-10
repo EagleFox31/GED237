@@ -24,7 +24,42 @@ export const redirectToLogin = (): void => {
     }
 };
 
+const DESTINATION_KEY = 'post_login_destination';
+
+/**
+ * Mémorise la page en cours quand la session expire, pour y revenir après la
+ * reconnexion. Liée à l'utilisateur : un autre compte ne la reprend pas.
+ */
+const rememberDestination = (): void => {
+    if (typeof window === 'undefined') return;
+    try {
+        const { pathname, search, hash } = window.location;
+        const inApp = APP_BASE_PATH && pathname.startsWith(APP_BASE_PATH) ? pathname.slice(APP_BASE_PATH.length) : pathname;
+        if (!inApp.startsWith('/') || inApp.startsWith('//') || inApp === '/login' || inApp === '/') return;
+        const profile = JSON.parse(sessionStorage.getItem('user_profile') || 'null');
+        if (!profile?.id) return;
+        sessionStorage.setItem(DESTINATION_KEY, JSON.stringify({ path: `${inApp}${search}${hash}`, userId: profile.id }));
+    } catch {
+        // Stockage indisponible : on retombe sur la page d'accueil du profil.
+    }
+};
+
+/** Retourne la page mémorisée (une seule fois) si elle appartient à cet utilisateur. */
+export const takePostLoginDestination = (userId: string | undefined): string | null => {
+    try {
+        const raw = sessionStorage.getItem(DESTINATION_KEY);
+        sessionStorage.removeItem(DESTINATION_KEY);
+        if (!raw || !userId) return null;
+        const saved = JSON.parse(raw) as { path?: string; userId?: string };
+        return saved.userId === userId && saved.path ? saved.path : null;
+    } catch {
+        return null;
+    }
+};
+
 export const clearAuthSession = (redirect = false): void => {
+    if (redirect) rememberDestination();
+    else sessionStorage.removeItem(DESTINATION_KEY);
     AUTH_STORAGE_KEYS.forEach((key) => sessionStorage.removeItem(key));
     if (redirect) redirectToLogin();
 };
