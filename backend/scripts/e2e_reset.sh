@@ -3,10 +3,17 @@
 # migrations first (Alembic owns the schema, CHECK constraints included), then the demo accounts
 # (seed_db.py, skipped when already seeded), then the manifest's reference data and documents
 # (seed_e2e.py, idempotent). Running it twice is a no-op.
-#   sh scripts/e2e_reset.sh [profile]     # E2E_MANIFEST points to seed-manifest.json
+#   sh scripts/e2e_reset.sh [profile]     # E2E_MANIFEST points to frontend/e2e/data/seed-manifest.json
+# Profile demo: E2E_MANIFEST points to demo-manifest.json; after the reference data, seed_demo.py
+# purges the demo tenants' documents, jobs and rules, posts the rules, imports the corpus
+# (DEMO_CORPUS, default /data/ingest, see scripts/demo-dataset.sh) through the API and checks the
+# result against the manifest's `expected` section. Two runs give the same counters.
 set -eu
 profile="${1:-e2e}"
-: "${E2E_MANIFEST:?E2E_MANIFEST must point to frontend/e2e/data/seed-manifest.json}"
+: "${E2E_MANIFEST:?E2E_MANIFEST must point to frontend/e2e/data/seed-manifest.json (or demo-manifest.json)}"
 alembic upgrade head
 python scripts/seed_db.py
 python scripts/seed_e2e.py --manifest "$E2E_MANIFEST" --profile "$profile"
+if [ "$profile" = "demo" ]; then
+  python scripts/seed_demo.py --manifest "$E2E_MANIFEST" --corpus "${DEMO_CORPUS:-/data/ingest}"
+fi

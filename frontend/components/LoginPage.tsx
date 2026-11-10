@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import CameroonMap from './CameroonMap';
 import DemoProfiles from './widgets/DemoProfiles';
 import { api, type AuthSession } from '../services/api';
+import { ApiError } from '../lib/errors';
+
+const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
+const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
 
 interface LoginPageProps {
   onLogin: (session: AuthSession) => void;
@@ -96,7 +100,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
     } catch (err) {
       console.error(err);
-      setError("Échec de connexion. Vérifiez vos identifiants.");
+      setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Échec de connexion. Vérifiez vos identifiants.");
     } finally {
       setLoading(false);
     }
@@ -120,7 +124,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       });
       onLogin(response);
     } catch (err) {
-      setError("Code invalide");
+      setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Code invalide");
     } finally {
       setLoading(false);
     }
