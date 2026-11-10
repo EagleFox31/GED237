@@ -12,6 +12,20 @@ import type {
     ResolveClassificationReviewResponse,
 } from '../../types';
 
+export interface IngestWatchFolderRun {
+    path: string;
+    found: number;
+    imported: number;
+    skipped: number;
+    errors: number;
+}
+
+export interface IngestWatchStatus {
+    enabled: boolean;
+    interval_seconds: number;
+    last_run: { at: string; folders: IngestWatchFolderRun[] } | null;
+}
+
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
 
 export interface ResolveReviewPayload {
@@ -166,6 +180,15 @@ export const documentsApi = {
                 }),
             },
             'Ingestion du répertoire impossible',
+        ),
+
+    // ── Surveillance de dossier ───────────────────────────────────────────
+
+    getIngestWatchStatus: (): Promise<IngestWatchStatus> =>
+        apiCall<IngestWatchStatus>(
+            '/documents/ingest-watch/status',
+            {},
+            "Lecture de l'état de la surveillance impossible",
         ),
 
     // ── Démarrage workflow ────────────────────────────────────────────────
