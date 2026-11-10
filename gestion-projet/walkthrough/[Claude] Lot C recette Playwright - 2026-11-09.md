@@ -21,7 +21,7 @@ du 2026-11-09) :
 | P5 Recherche plein texte restreinte | SC-LEC-01 | — | attend le correctif de recherche restreinte |
 | P6 Revue manuelle | SC-ADM-07 | `uat/manual-review.spec.ts` | écrite |
 | P7 Journal d'audit | SC-AUD-01 / ADM-09 | `uat/audit-trail.spec.ts` | écrite (produit sa propre trace : pas de dépendance d'ordre) ; D3, D4 en `fixme` |
-| P8 Cycle de validation (DEC-2026-002 acceptée, remplace corbeille/versions) | SC-VAL-01..05, SC-E2E-01 | `uat/validation-cycle.spec.ts` (remplace `validation.spec.ts`, `workflow.spec.ts`, `full-cycle.spec.ts`, supprimées : elles se mettaient en `test.skip` dès que la pile du manager était vide) | écrite ; écran bloqué par VAL-D1..D3 |
+| P8 Cycle de validation (DEC-2026-002 acceptée, remplace corbeille/versions) | SC-VAL-01..05, SC-E2E-01 | `uat/validation-cycle.spec.ts`, écrite par ci-qa (#67) ; mes `validation.spec.ts`, `workflow.spec.ts` et `full-cycle.spec.ts` d'origine sont supprimées (elles se mettaient en `test.skip` dès que la pile du manager était vide) | défauts VAL-D1..D3 corrigés par #51 et #66 ; activation de la spec par ci-qa |
 
 Un fichier de spec par parcours, sous `frontend/e2e/specs/uat/`, exécuté par le projet Playwright `uat`.
 Les 4 specs mockées (ingestion, rules, classification-admin, spaces) sont remplacées par ces specs.
@@ -61,9 +61,9 @@ Colonne « Démo » : parcours prioritaire pour la démo.
 | SC-RED-03 | Corriger un document retourné | | | non testé |
 | SC-RED-04 | Déposer une nouvelle version | | | non testé (pas de bouton à l'écran, API seule) |
 | SC-RED-05 | Supprimer un brouillon (corbeille) | | `redacteur.spec.ts` (ex-SC-RED-04, skip si l'action est absente) | non démontré |
-| SC-VAL-01 | Consulter les dossiers en attente | oui | `uat/validation-cycle.spec.ts` | écrit ; 403 au dépôt en `collaborator` tant que #47 n'est pas fusionnée ; soumission à l'écran en `fixme` (VAL-D1) |
-| SC-VAL-02 | Viser un document | oui | `uat/validation-cycle.spec.ts` | `fixme` (VAL-D2) |
-| SC-VAL-03 | Rejeter un document avec motif | oui | `uat/validation-cycle.spec.ts` | `fixme` (VAL-D2, VAL-D3) |
+| SC-VAL-01 | Consulter les dossiers en attente | oui | `uat/validation-cycle.spec.ts` (#67) | écran corrigé par #66 ; activation par ci-qa |
+| SC-VAL-02 | Viser un document | oui | `uat/validation-cycle.spec.ts` (#67) | VAL-D2 corrigé par #51 et #66 |
+| SC-VAL-03 | Rejeter un document avec motif | oui | `uat/validation-cycle.spec.ts` (#67) | VAL-D2 et VAL-D3 corrigés par #51 et #66 |
 | SC-VAL-04 | Retourner pour correction | oui | `uat/validation-cycle.spec.ts` | `fixme` : action reportée en V1.1 |
 | SC-VAL-05 | Signer (signature finale) | | | non testé |
 | SC-RESP-01 | Affecter un document sans destinataire | | | non testé |
@@ -143,7 +143,7 @@ Run 3 du 2026-11-09 (pile `docker-compose.e2e.yml`, image `edossier-e2e-api:late
   - Bouton « Vérifier le classement » ambigu.
   - Compteur rendu « N document(s) ».
 
-Run P8 du 2026-11-09 (`--project=uat --retries=0 validation-cycle`) : **1 échec, 4 `fixme`**. L'échec vient de la préparation, pas de l'écran : le dépôt en MINFI002 répond 403 (`create` sur `documents` refusé au rôle `collaborator`), écart corrigé par #47. SC-VAL-01 est à rejouer après #47 ; SC-VAL-02 et 03 après les correctifs VAL-D2 et VAL-D3. Si SC-VAL n'est pas vert le 13/11, le repli manuel de la matrice s'applique.
+Run P8 du 2026-11-09 (`--project=uat --retries=0 validation-cycle`) : **1 échec, 4 `fixme`**. L'échec vient de la préparation, pas de l'écran : le dépôt en MINFI002 répond 403 (`create` sur `documents` refusé au rôle `collaborator`), écart corrigé par #47. SC-VAL-01 est à rejouer après #47 ; SC-VAL-02 et 03 après les correctifs VAL-D2 et VAL-D3. Si SC-VAL n'est pas vert le 13/11, le repli manuel de la matrice s'applique. Mise à jour du 2026-11-10 : une spec P8 jouée avec le code de #66 (4 réussis, 1 `fixme` SC-VAL-04) a été remplacée par celle de ci-qa (#67) lors du rebase sur main, pour ne garder qu'une spec par parcours. Le parcours « le rédacteur soumet depuis l'Atelier » n'est plus couvert.
 
 Ménage de la campagne :
 - specs supprimées :
@@ -151,7 +151,7 @@ Ménage de la campagne :
   - `bulk-upload.spec.ts` (SC-E2E-BULK, couvert par P2) ;
   - `validation`, `workflow`, `full-cycle` et `pages/workflow.page.ts` ;
   - `audit` et `auditor-export` ;
-- le projet `smoke` exécute `validation-cycle` au lieu de `full-cycle` ;
+- le projet `smoke` exécute `validation-cycle` (écrite par ci-qa) au lieu de `full-cycle` ;
 - les collisions d'ID de la matrice (§4) sont résolues, avec une note de correspondance en tête de `MATRICE_UAT_E2E_2026-07-22.md`.
 
 ## Checklist RAIDER
