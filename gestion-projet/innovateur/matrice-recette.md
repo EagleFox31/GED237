@@ -129,3 +129,17 @@ Les IDs ci-dessous portent **deux sens** (guide UAT de juillet vs specs). La rè
 - `gestion-projet/walkthrough/[Audit] Audit fonctionnel profond - 2026-11-09.md` (l. 21, 51, 65-80, 88) ; `gestion-projet/MATRICE_UAT_E2E_2026-07-22.md` (l. 1-35, 49-51, 57-61, 69, 88-91, 107-119) ; `gestion-projet/innovateur/parcours-demo.md` § 2, § 4 ; DEC-2026-002 § 3 (l. 19, 31-37, 69).
 - `frontend/e2e/specs/*.spec.ts` sur `main` a4b8dbe (comptage `test(`, `test.skip`, `mockAuth`, IDs `SC-*`), `frontend/test-results/.last-run.json` ; worktree `GED237-lotc-frontend` (branche `test/uat-playwright` 24e8f64) : `frontend/e2e/specs/uat/*.spec.ts`, `frontend/playwright.config.ts` (projets `smoke`, `authed-chromium`, `testIgnore` uat) ; PR #39 (`smoke` testMatch), #38 (fusionnée), #41 (fusionnée), #42 (ouverte).
 - `PASSATION-dev-frontend.md` (entrées 18:04 → 19:29), `PASSATION-ci-qa.md` (18:54 → 19:33).
+
+## 6. Lots V1.1 réouverts avant le gel (GO PO du 10/11, DEC-2026-002) — `Proposé`
+
+Règle : un lot est **livré seulement s'il est fusionné le 19/11 à 18:00**, sinon il reste V1.1 (écart annoncé). Un scénario court par lot, `fixme` dans `frontend/e2e/specs/uat/v11-lots.spec.ts` jusqu'à la PR du lot ; le fixme est levé dans la PR de recette, pas dans celle du lot. Preuve attendue : e2e réel sur pile e2e, `--retries=0`.
+
+| Lot | ID | Scénario (Given / When / Then) | Preuve | Resp. | État |
+|---|---|---|---|---|---|
+| Compteur doublons (écart 8) | SC-V11-01 | Doublon refusé à l'upload ou à l'import → le compteur « doublons détectés » du tableau de bord admin augmente de 1 | e2e réel + API `/documents/stats` | B + F | fixme, lot non livré |
+| Export / import des règles (écart 7) | SC-V11-02 | Règles actives exportées puis importées sur base vide → mêmes règles (code, priorité, statut) ; second import = aucun doublon | e2e réel | B + F | fixme |
+| Export journal d'audit + verrou OTP (écarts 8, 9) | SC-V11-03 | Journal exporté par l'auditeur = événements du filtre ; 3 OTP erronés puis un 4e essai → compte verrouillé, message explicite | e2e réel + API | B + F | fixme |
+| Critères contenu OCR / date (écart 7) | SC-V11-04 | Règle « mots-clés OCR » ou « date » → document importé classé à la destination attendue ; simulation visible avant activation | e2e réel (dépend OCR-3, DEC-003) | B + F | fixme |
+| Surveillance de dossier (écart 7) | SC-V11-05 | Fichier déposé dans le dossier surveillé → importé et classé sans action ; fichier déjà connu refusé comme doublon | e2e réel (volume `/data/ingest`) | B + Q | fixme |
+
+Les mesures C2/C3 (`scripts/measure_c2.py`, `measure_c3.py`) restent la preuve des critères chiffrés ; ces cinq lignes ne les remplacent pas.
