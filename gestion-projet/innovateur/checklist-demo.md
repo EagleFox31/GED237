@@ -3,6 +3,7 @@
 - Consolide les décisions du 2026-11-09 : DEC-2026-002 (amendée), DEC-2026-003, `decision-po-vps-b6.md` (**décision PO du 2026-11-09 : démo sur place en Docker, poste de secours, VPS écarté**), § 0 de `parcours-demo.md` (limites auth), `jeu-donnees-demo.md`, `sauvegarde-restauration.md`, `plan-presentation.md`.
 - Rôles : **O** orchestrateur, **B** dev-backend, **F** dev-frontend, **Q** ci-qa, **P** présentateur (PO ou personne désignée). Une case = un item, une personne, un moment. Preuve attendue entre parenthèses quand elle n'est pas évidente.
 - Instruction de l'innovateur, 2026-11-09 20:50 ; à transformer en issue GitHub épinglée par O.
+- Révision du 2026-11-10 : items marqués *(lot n, si fusionné)* = nouveautés V1.1 de la fenêtre du 19/11 ; ils ne s'appliquent que si la ligne correspondante est **TIENT** au relevé de coupure (`plans/releve-coupure-19-11.md`), sinon les barrer le 19 au soir.
 
 ## A. Avant J-1 (à vérifier le samedi 28/11, O)
 
@@ -35,6 +36,10 @@
 - [ ] **Q** — Dossier `demo-import/live/` (30 fichiers, dont 2 doublons volontaires) monté **en lecture seule** dans le conteneur api à **`/data/ingest`** (seul chemin conteneur, identique en e2e et en démo ; `INGEST_ALLOWED_ROOTS=/data/ingest`, tranché O 09/11, `spec-limite-upload.md` § 5) ; **non importé**.
 - [ ] **Q** — Pré-OCRisation complète du corpus (worker actif jusqu'à file vide : `celery inspect active` vide, `ocr_content` non nul sur les PDF image) ; recherche P5 testée sur le mot-clé prévu (résultat attendu noté).
 - [ ] **Q** — Règle 10 « Rapports financiers » **créée inactive** ; les ~15 documents cibles sont bien « à revoir ».
+- [ ] **Q** — *(lot 2, si fusionné au relevé du 19)* Les 9 règles actives du seed + la règle 10 visibles sur `/rules` ; **export** du fichier de règles puis **réimport à blanc** du même fichier : résultat « 0 créée, 0 mise à jour » (zéro écriture, `updated_at` inchangé) ; le fichier exporté est gardé dans la pochette (reprise des règles sur le poste de secours).
+- [ ] **Q** — *(lot 1, si fusionné)* Tuile « Doublons refusés » du tableau de bord = **12** après le reset (valeur `expected` du jeu D1) ; elle passera à **14** après l'import P2 (2 doublons volontaires) : les deux valeurs notées sur la fiche de P.
+- [ ] **Q** — *(lot 3a, si fusionné)* Export CSV du journal d'audit téléchargé sur le poste principal et **ouvert dans Excel** (accents lisibles, colonnes séparées, dates au bon format) ; Excel installé et testé **sur les deux postes**.
+- [ ] **Q** — *(lot 4, si fusionné)* Un fichier de `demo-import/live/` dont le **nom contient l'année** (ex. `…_2025.pdf`) désigné pour le moment lot 4, nom noté sur la fiche ; la règle « contenu + année » le prend après reconnaissance (vérifié une fois la veille, puis le document remis dans `live/` par le reset).
 - [ ] **B** — **Sauvegarde fraîche** après le reset et la pré-OCRisation : `ops/backup.sh` (répertoire horodaté `backups/ged237-…/` sur l'hôte, `SHA256SUMS`) copié sur la clé USB et sur le poste de secours ; `restore.sh --wipe` rejoué sur le poste de secours (c'est ainsi qu'on le synchronise : **il est le point de reprise**).
 - [ ] **O** — Journal d'audit vidé des traces de préparation ou date de filtre convenue pour P7 (sinon le journal montre les actions de Q).
 
@@ -43,6 +48,7 @@
 - [ ] **P** — Mots de passe des 5 comptes de démo (`admin`, `manager`, `collab`, `reader`, `auditor` @minfi) connus de P, **jamais dans un fichier du dépôt** ; gestionnaire de mots de passe ou fiche papier dans la pochette.
 - [ ] **P** — Procédure OTP répétée : lecture du code dans la réponse (`development`) ou dans Redis ; un **OTP faux volontaire** prévu en P1 et compté dans la limite (3 connexions + 4 OTP max par minute dans le déroulé).
 - [ ] **P** — Si un compte est verrouillé pendant la démo (3 codes OTP erronés → 423 pendant 15 min, lot 3b) : suivre `DOCS/exploitation/deverrouiller-compte.md` (arrive avec #83) ; en répétition, ne jamais dépasser 2 OTP faux sur le compte de démo.
+- [ ] **O** — Après la dernière répétition : **compteurs de verrou purgés** pour les 5 comptes (`docker compose exec redis redis-cli DEL lock:<user_id> otp_fail:<user_id>`, `DOCS/exploitation/deverrouiller-compte.md`) ; contrôle `redis-cli --scan --pattern 'lock:*'` et `--scan --pattern 'otp_fail:*'` sans résultat.
 - [ ] **P** — Ordre des changements de compte affiché sur une fiche : collab → admin → collab → admin → manager → collab → reader → collab → auditor.
 
 ### Arrêt de la veille
@@ -57,12 +63,16 @@
 
 - [ ] **O** — Branchement écran/projecteur, résolution 1920×1080, test de lisibilité du dernier rang.
 - [ ] **O** — `docker compose up -d --pull never` ; `GET /health` OK ; login `collab@minfi` + OTP + déconnexion joués une fois (chauffe des caches, vérification de la limite auth : pas de 429).
+- [ ] **O** — **Version affichée = `1.0.0-rc.1`** aux deux endroits : `GET /health` (champ `version`, variable `APP_VERSION` du compose) et pied de la barre latérale (`VITE_APP_VERSION`, #94 : valeur figée **à la construction de l'image**, donc `APP_VERSION=v1.0.0-rc.1` posé dans `.env` **avant** `docker compose build`, pas seulement avant `up`) ; un « 0.0.0-dev » ou « dev » = image ou build de la mauvaise étiquette, reconstruire avant H-30.
+- [ ] **O** — Limites d'authentification de la démo : `docker compose exec api printenv AUTH_LOGIN_RATE_LIMIT AUTH_OTP_RATE_LIMIT` = **`30/minute`** chacune (`docker-compose.yml`, pas la valeur e2e `300/minute` ni le défaut `5/minute`).
 - [ ] **O** — Poste de secours allumé, pile démarrée, login joué, puis laissé en veille écran seulement.
 - [ ] **P** — Fiche de déroulé (minute par minute, `plan-presentation.md` § 1) et fiche des comptes à portée de main ; chronomètre.
 
 ### H-30 min
 
-- [ ] **O** — Vérification des 4 écrans « sensibles » : `/rules` (règle 10 inactive visible), `/needs-review` (compteur), `/spaces` DAF (pagination), `/audit` (filtre date prêt).
+- [ ] **O** — Vérification des 4 écrans « sensibles » : `/rules` (règle 10 inactive visible), `/needs-review` (compteur), `/spaces` DAF (pagination), `/audit` (filtre date prêt) ; *(lots fusionnés)* tableau de bord (tuile doublons = 12), `/rules` (bouton export/import visible), `/audit` (bouton CSV visible).
+- [ ] **O** — `redis-cli --scan --pattern 'lock:*'` sans résultat (aucun compte verrouillé par la chauffe H-90) ; sinon purge ci-dessus (§ B « Comptes et accès »).
+- [ ] **O** — *(lot 5 fusionné, #101)* Dossiers surveillés : **un seul** service `worker` porte `-B` (`docker compose ps` : un seul conteneur worker ; deux beat = passages en double, le verrou Redis n'évite que la simultanéité) ; le worker monte `/data/ingest` **en lecture-écriture** (il déplace les fichiers traités vers `_traites/` et `_erreurs/`), l'API le garde en lecture seule ; `docker compose exec worker printenv INGEST_WATCH_FOLDERS` **ne contient pas** `/data/ingest/live` (sinon le worker vide le dossier de l'import en direct avant P2) — vide `[]` si le lot 5 n'est pas montré.
 - [ ] **O** — Seed vérifié : connexion `MGR001` réussie après le seed explicite (le compose ne seed pas ; `jeu-donnees-demo.md` § 2), puis déconnexion.
 - [ ] **Q** — Rapport Playwright du plan B ouvert dans un second onglet (local, `file://`), captures des 8 parcours vérifiées.
 - [ ] **O** — Téléphones en silencieux, notifications système coupées, Docker Desktop réduit (pas de fenêtre « mise à jour disponible »).
