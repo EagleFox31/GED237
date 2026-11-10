@@ -38,12 +38,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-async def init_db():
-    """Initialize database (create tables)"""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
 # Alias used by listeners.py and other background services
 async_session_maker = AsyncSessionLocal
 
