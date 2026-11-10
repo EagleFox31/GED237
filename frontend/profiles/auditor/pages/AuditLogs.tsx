@@ -118,22 +118,25 @@ const AuditLogs: React.FC = () => {
     [logs],
   );
 
-  // Le serveur n'accepte qu'un registre et qu'une action : on reprend les filtres de l'écran
-  // quand ils tiennent dans ce contrat ; sinon l'export est plus large que le tableau.
+  // L'export reprend les filtres du tableau ; le serveur n'accepte qu'un seul utilisateur.
   const tableValues = columnFilters.table_name ?? [];
   const actionValues = columnFilters.action ?? [];
-  const exportTable = tableValues.length === 1 ? tableValues[0] : undefined;
-  const exportAction = actionValues.length === 1 ? actionValues[0] : undefined;
-  const exportIsWider =
-    tableValues.length > 1 ||
-    actionValues.length > 1 ||
-    (columnFilters.actor ?? []).length > 0;
+  const actorLabels = columnFilters.actor ?? [];
+  const actorIds = new Set(
+    logs.filter((log) => actorLabels.includes(getActorLabel(log))).map((log) => log.user_id).filter(Boolean),
+  );
+  const exportUserId = actorLabels.length === 1 && actorIds.size === 1 ? [...actorIds][0] : undefined;
+  const exportBlocked = actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
   const [exporting, setExporting] = useState(false);
 
   const exportCsv = async () => {
     setExporting(true);
     try {
-      const { blob, filename } = await api.exportAuditLogs({ table_name: exportTable, action: exportAction });
+      const { blob, filename } = await api.exportAuditLogs({
+        table_name: tableValues,
+        action: actionValues,
+        user_id: exportUserId,
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -305,10 +308,10 @@ const AuditLogs: React.FC = () => {
           <button
             type="button"
             onClick={exportCsv}
-            disabled={exporting}
+            disabled={exporting || exportBlocked}
             title={
-              exportIsWider
-                ? "L'export reprend le registre et l'action choisis ; les autres filtres ne sont pas appliqués."
+              exportBlocked
+                ? 'Choisissez un seul utilisateur pour exporter.'
                 : 'Télécharger le journal (fichier Excel)'
             }
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-700 hover:text-rdpc-blue disabled:opacity-50"

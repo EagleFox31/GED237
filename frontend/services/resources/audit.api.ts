@@ -30,11 +30,19 @@ export const auditApi = {
      * est affiché par le bus d'erreurs global.
      */
     exportAuditLogs: async (
-        params: { table_name?: string; action?: string; date_from?: string; date_to?: string } = {},
+        params: {
+            table_name?: string[];
+            action?: string[];
+            user_id?: string;
+            date_from?: string;
+            date_to?: string;
+        } = {},
     ): Promise<{ blob: Blob; filename: string }> => {
+        // Les listes sont envoyées en paramètres répétés (?action=a&action=b).
         const q = new URLSearchParams();
         Object.entries(params).forEach(([key, value]) => {
-            if (value) q.append(key, value);
+            if (Array.isArray(value)) value.forEach((v) => v && q.append(key, v));
+            else if (value) q.append(key, value);
         });
         const qs = q.toString();
         const response = await fetchWithRefresh(`${API_URL}/audit/logs/export${qs ? `?${qs}` : ''}`, {
