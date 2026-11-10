@@ -45,15 +45,17 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
 
       // A new, inactive rule built from an exported one (references are codes, so the file stays valid).
       const added = { ...base.rules[0], code: CODE, is_active: false };
-      const file = { ...base, rules: [...base.rules, added] };
-      const post = async (query: string) => {
-        const res = await request.post(`${RULES}/import?${query}`, { headers: admin, data: file });
+      // Only the new rule: the seed rule E2E-RULE-DEMO has a raw (non-normalized) code, so a full-file import would collide with its normalized twin (reported to the backend).
+      const file = { ...base, rules: [added] };
+      const post = async (query: string, body: unknown = file) => {
+        const res = await request.post(`${RULES}/import?${query}`, { headers: admin, data: body });
         expect(res.status(), `import ${query}`).toBe(200);
         return res.json() as Promise<{ dry_run: boolean; applied: boolean; created: number; updated: number; skipped: number; rejected: number }>;
       };
 
       const dry = await post('dry_run=true');
-      expect(dry).toMatchObject({ dry_run: true, applied: false, created: 1, rejected: 0 });
+      expect(dry).toMatchObject({ dry_run: true, applied: false, rejected: 0 });
+      expect(dry.created).toBe(1);
       expect((await exported()).rules, 'dry_run n\'ecrit rien').toHaveLength(base.rules.length);
 
       const applied = await post('dry_run=false');
@@ -64,7 +66,7 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
 
       const replay = await post('dry_run=false');
       expect(replay, 'second import = 0 ecriture').toMatchObject({ created: 0, updated: 0, rejected: 0 });
-      expect(replay.skipped).toBe(file.rules.length);
+      expect(replay.skipped).toBe(1);
       expect((await exported()).rules).toHaveLength(after.rules.length);
 
       const reader = await token(request, { matricule: 'READ001', password: 'Read@2025' });
