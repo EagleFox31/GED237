@@ -7,6 +7,12 @@ import UploadDocumentModal from './UploadDocumentModal';
 import { Document, DocumentCategory, formatFileSize, getFileTypeLabel, getStatusLabel, formatDate } from '../types';
 import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
+import { useAuthStore } from '../stores/authStore';
+import { pushClientOperationError } from '../lib/errors';
+
+// Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
+// Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
+const CAN_CREATE_DOCUMENT = new Set(['super', 'tenant', 'manager', 'collab']);
 
 const Documents: React.FC = () => {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
@@ -14,6 +20,8 @@ const Documents: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const profileId = useAuthStore((s) => s.userProfile?.id);
+  const canCreate = !!profileId && CAN_CREATE_DOCUMENT.has(profileId);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -31,12 +39,20 @@ const Documents: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [docsData, catsData] = await Promise.all([
+      // Les catégories ne servent qu'au filtre : leur échec (ex. 403) ne doit pas masquer la liste.
+      const [docsData, catsResult] = await Promise.all([
         api.getDocuments(),
-        categoriesApi.list()
+        categoriesApi.list().catch(() => {
+          pushClientOperationError(null, {
+            fallbackDetail: 'Catégories indisponibles : le filtre par catégorie est désactivé.',
+            errorCode: 'CATEGORIES_UNAVAILABLE',
+            severity: 'warning',
+          });
+          return [] as DocumentCategory[];
+        }),
       ]);
       setDocs(docsData);
-      setCategories(catsData);
+      setCategories(catsResult);
     } catch (err) {
       console.error('Failed to fetch data:', err);
       setError('Impossible de charger les données.');
@@ -87,12 +103,14 @@ const Documents: React.FC = () => {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase">Explorateur <span className="text-rdpc-blue">GED</span></h2>
+          {canCreate && (
           <button
             onClick={() => setIsUploadModalOpen(true)}
             className="flex items-center gap-3 px-6 py-3 bg-rdpc-blue text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:scale-105 transition-transform">
             <span className="material-symbols-outlined text-lg">upload_file</span>
             Nouveau Document
           </button>
+          )}
         </div>
 
         {/* Barre de filtres — la recherche par texte vit dans la navbar globale (?q=). */}
@@ -201,7 +219,7 @@ const Documents: React.FC = () => {
         />
       )}
 
-      {isUploadModalOpen && (
+      {canCreate && isUploadModalOpen && (
         <UploadDocumentModal
           onClose={() => setIsUploadModalOpen(false)}
           onSuccess={() => {

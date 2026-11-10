@@ -95,7 +95,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={handleClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-[2rem] shadow-2xl shadow-slate-900/20 w-full max-w-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="relative bg-white rounded-[2rem] shadow-2xl shadow-slate-900/20 w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
 
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-8 pb-6">

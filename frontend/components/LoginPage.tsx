@@ -158,7 +158,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
             <div>
               <h2 className="text-white text-2xl font-black tracking-tighter leading-none uppercase italic">E-Dossier</h2>
-              <p className="text-white/60 text-[10px] font-bold tracking-[0.4em] uppercase mt-1">Souveraineté Numérique</p>
+              <p className="text-white/80 text-[10px] font-bold tracking-[0.4em] uppercase mt-1">Souveraineté Numérique</p>
             </div>
           </div>
 
@@ -197,9 +197,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <form onSubmit={handleInitialSubmit} className="space-y-6 max-w-xl">
                   <div className="space-y-5">
                     <div className="space-y-2 group">
-                      <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 ml-1">Administration / Organisme</label>
+                      <label htmlFor="institution" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 ml-1">Administration / Organisme</label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-300 group-focus-within:text-rdpc-blue transition-colors">
+                        <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
                           <span className="material-symbols-outlined">corporate_fare</span>
                         </div>
                         {tenantsLoadError ? (
@@ -224,7 +224,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                                 return <option key={label} value={label}>{label}</option>;
                               })}
                             </select>
-                            <div className="absolute inset-y-0 right-0 pr-6 flex items-center pointer-events-none text-slate-300 group-focus-within:text-rdpc-blue transition-colors">
+                            <div className="absolute inset-y-0 right-0 pr-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
                               <span className="material-symbols-outlined">expand_more</span>
                             </div>
                           </>
@@ -233,26 +233,26 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     </div>
 
                     <div className="space-y-2 group">
-                      <label htmlFor="matricule" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 ml-1">Matricule Personnel</label>
+                      <label htmlFor="matricule" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 ml-1">Matricule Personnel</label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-300 group-focus-within:text-rdpc-blue transition-colors">
+                        <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
                           <span className="material-symbols-outlined">badge</span>
                         </div>
-                        <input id="matricule" name="matricule" type="text" value={matricule} onChange={(e) => setMatricule(e.target.value)} className="block w-full pl-16 pr-6 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-300" placeholder="EX: 752458-M" required />
+                        <input id="matricule" name="matricule" type="text" value={matricule} onChange={(e) => setMatricule(e.target.value)} className="block w-full pl-16 pr-6 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-500" placeholder="EX: 752458-M" required />
                       </div>
                     </div>
 
                     <div className="space-y-2 group">
                       <div className="flex justify-between px-1">
-                        <label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Mot de Passe</label>
+                        <label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Mot de Passe</label>
                         <button type="button" className="text-[10px] font-black text-rdpc-blue uppercase hover:underline">Oublié ?</button>
                       </div>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-300 group-focus-within:text-rdpc-blue transition-colors">
+                        <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
                           <span className="material-symbols-outlined">lock_open</span>
                         </div>
-                        <input id="password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="block w-full pl-16 pr-16 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-300" placeholder="••••••••" required />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-6 flex items-center text-slate-300 hover:text-rdpc-blue transition-colors">
+                        <input id="password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="block w-full pl-16 pr-16 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-500" placeholder="••••••••" required />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-6 flex items-center text-slate-500 hover:text-rdpc-blue transition-colors">
                           <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
                         </button>
                       </div>
@@ -286,7 +286,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                       {loading ? "Validation..." : <span className="flex items-center gap-3 italic relative z-10">Confirmer l'identité <span className="material-symbols-outlined group-hover:scale-125 transition-transform font-bold">verified_user</span></span>}
                       <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                     </button>
-                    <button type="button" onClick={() => setStep('login')} className="w-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rdpc-blue transition-colors">Utiliser une autre méthode</button>
+                    <button type="button" onClick={() => setStep('login')} className="w-full text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rdpc-blue transition-colors">Utiliser une autre méthode</button>
                   </div>
                 </form>
               </div>
@@ -295,7 +295,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             {step === 'login' && <DemoProfiles onSelect={handleDemoSelect} />}
 
             <div className="mt-8 pt-8 border-t border-slate-50 opacity-30 group hover:opacity-100 transition-opacity">
-              <p className="text-[9px] text-slate-400 font-bold text-center leading-relaxed italic">
+              <p className="text-[9px] text-slate-500 font-bold text-center leading-relaxed italic">
                 Ce système est la propriété exclusive de l'État du Cameroun. <br />Toute utilisation non autorisée sera poursuivie conformément à la loi sur la cybercriminalité.
               </p>
             </div>

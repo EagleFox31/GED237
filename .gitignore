@@ -60,11 +60,17 @@ backend/alembic_output2.txt
 # Test artifacts
 frontend/playwright-report/
 frontend/test-results/
+frontend/e2e-out/
 frontend/.auth/
+# Corpus generated for the directory-ingestion journey (SC-ADM-08); only the placeholder is tracked.
+frontend/e2e/data/demo-import/*
+!frontend/e2e/data/demo-import/.gitkeep
 
 # Runtime data / backups
 storage/files/
 backend/backups/
+backups/*
+!backups/.gitkeep
 
 # Local scratch / extracted artifacts
 backend/scripts/E*/

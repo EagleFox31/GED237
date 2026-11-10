@@ -14,11 +14,13 @@ class IStorageService(ABC):
 
     @abstractmethod
     async def save_file_with_checksum(
-        self, file: UploadFile, directory: str = ""
+        self, file: UploadFile, directory: str = "", max_bytes: int | None = None
     ) -> Tuple[str, str]:
         """
         Save an upload file to storage while computing its SHA-256 in a single pass.
         Returns a tuple (relative_path, checksum_sha256).
+        Enforces ``max_bytes`` (default settings.MAX_UPLOAD_SIZE) while streaming:
+        raises app.core.errors.FileTooLargeError and leaves no partial file behind.
         Never reads the full file into memory — uses chunked streaming.
         """
         pass

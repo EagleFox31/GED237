@@ -2,13 +2,12 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import AuthenticationError, NotFoundError
+from app.core.rate_limit import limiter
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
@@ -28,11 +27,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 auth_service = AuthService()
-limiter = Limiter(key_func=get_remote_address)
+# Limits are read at request time so settings can be changed without reload
+# (and by tests). DEBUG never relaxes them.
 
 
 @router.post("/login", response_model=LoginResponse)
-@limiter.limit("1000/minute" if settings.DEBUG else "5/minute")
+@limiter.limit(lambda: settings.AUTH_LOGIN_RATE_LIMIT)
 async def login(
     request: Request,
     credentials: LoginRequest,
@@ -68,7 +68,7 @@ async def login(
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-@limiter.limit("1000/minute" if settings.DEBUG else "5/minute")
+@limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
 async def verify_otp(
     request: Request,
     otp_data: OTPVerifyRequest,
@@ -95,7 +95,7 @@ async def verify_otp(
 
 
 @router.post("/refresh", response_model=RefreshTokenResponse)
-@limiter.limit("1000/minute" if settings.DEBUG else "10/minute")
+@limiter.limit(lambda: settings.AUTH_REFRESH_RATE_LIMIT)
 async def refresh_token(
     request: Request,
     token_data: RefreshTokenRequest,

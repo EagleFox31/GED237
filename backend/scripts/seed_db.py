@@ -14,9 +14,11 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sqlalchemy import text
-from app.core.database import engine, AsyncSessionLocal, Base
+from sqlalchemy import select
+from app.core.database import engine, AsyncSessionLocal
+from app.core.schema_check import get_schema_status
 from app.core.security import hash_password
+from app.core.authz.roles import ROLE_CODES
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.org_unit import OrgUnit, OrgUnitType
@@ -27,91 +29,123 @@ from app.models.workflow import WorkflowStep, ActionType
 import uuid
 
 
+REFERENCE_ATTRS = ("label", "hierarchy_level", "description", "level")
+
+# Same codes and labels as alembic 001_initial_schema: the seed reconciles the
+# reference rows the migrations already inserted instead of adding look-alikes
+# (LESSON-2026-021). tests/test_seed_db.py checks this against the migration.
+ORG_UNIT_TYPES = (
+    {"code": "MINISTRY", "label": "Ministère", "level": 1},
+    {"code": "DIRECTION", "label": "Direction", "level": 2},
+    {"code": "DEPARTMENT", "label": "Département", "level": 3},
+    {"code": "SERVICE", "label": "Service", "level": 4},
+)
+
+
+async def upsert_by_code(db, model, rows):
+    """Reconcile reference rows (roles, org unit types) by ``code``.
+
+    A row already present is updated in place, a missing one is inserted; ids
+    are never forced, so the seed converges on a database that the alembic
+    migrations (or an earlier seed) already populated. Returns ``{code: id}``.
+    """
+    existing = {row.code: row for row in (await db.execute(select(model))).scalars()}
+    ids = {}
+    for row in rows:
+        current = existing.get(row.code)
+        if current is None:
+            db.add(row)
+            await db.flush()
+            current = row
+        else:
+            for attr in REFERENCE_ATTRS:
+                if hasattr(row, attr) and getattr(row, attr) is not None:
+                    setattr(current, attr, getattr(row, attr))
+        ids[row.code] = current.id
+    await db.flush()
+    return ids
+
+
 async def seed():
     print("=== E-Dossier Cameroun - Database Seed ===\n")
 
-    # 1. Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("[OK] Tables created")
+    # 1. The schema comes from the migrations only (`alembic upgrade head`): the
+    # seed never builds tables from the models, so a database that is not at
+    # head stops here with the fix to apply instead of failing half-way.
+    status = await get_schema_status(engine)
+    if not status.at_head:
+        print(f"[ERROR] {status.describe()}")
+        sys.exit(2)
+    print(f"[OK] Schema at Alembic head ({', '.join(sorted(status.expected))})")
 
     async with AsyncSessionLocal() as db:
-        # Check if already seeded
-        result = await db.execute(text("SELECT COUNT(*) FROM roles"))
-        count = result.scalar()
-        if count and count > 0:
-            print("[SKIP] Database already seeded. Drop tables first to re-seed.")
-            print(
-                "       Run: psql -U postgres -d edossier -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'"
-            )
-            return
-
         # ─── ROLES ────────────────────────────────────────
         roles = [
             Role(
-                id=1,
                 code="super_admin",
                 label="Super Administrateur",
                 hierarchy_level=1,
                 description="Administrateur de la plateforme",
             ),
             Role(
-                id=2,
                 code="tenant_admin",
                 label="Administrateur Tenant",
                 hierarchy_level=2,
                 description="Administrateur d'un ministere",
             ),
             Role(
-                id=3,
                 code="unit_admin",
                 label="Administrateur Unite",
                 hierarchy_level=3,
                 description="Responsable d'une direction/service",
             ),
             Role(
-                id=4,
                 code="manager",
                 label="Manager / Valideur",
                 hierarchy_level=4,
                 description="Valideur et signataire",
             ),
             Role(
-                id=5,
                 code="collaborator",
                 label="Collaborateur",
                 hierarchy_level=5,
                 description="Agent contributeur",
             ),
             Role(
-                id=6,
                 code="reader",
                 label="Lecteur",
                 hierarchy_level=6,
                 description="Consultation uniquement",
             ),
             Role(
-                id=7,
                 code="auditor",
                 label="Auditeur",
                 hierarchy_level=7,
                 description="Compliance et audit",
             ),
         ]
-        db.add_all(roles)
-        await db.flush()
-        print("[OK] 7 roles created")
+        # The seed and the policy must name the same roles (LESSON-2026-021).
+        assert {r.code for r in roles} == ROLE_CODES, {
+            r.code for r in roles
+        } ^ ROLE_CODES
+        role_ids = await upsert_by_code(db, Role, roles)
+        print(f"[OK] {len(role_ids)} roles reconciled")
 
         # ─── ORG UNIT TYPES ──────────────────────────────
-        org_types = [
-            OrgUnitType(id=1, code="ministry", label="Ministere", level=1),
-            OrgUnitType(id=2, code="direction", label="Direction", level=2),
-            OrgUnitType(id=3, code="sub_direction", label="Sous-Direction", level=3),
-            OrgUnitType(id=4, code="service", label="Service", level=4),
-        ]
-        db.add_all(org_types)
-        await db.flush()
-        print("[OK] 4 org unit types created")
+        org_types = [OrgUnitType(**row) for row in ORG_UNIT_TYPES]
+        type_ids = await upsert_by_code(db, OrgUnitType, org_types)
+
+        # Idempotence guard on the demo data itself, not on the reference
+        # tables (which the migrations also fill): re-running the seed must
+        # never duplicate tenants, units, users or documents.
+        minfi = await db.execute(select(Tenant).where(Tenant.short_name == "MINFI"))
+        if minfi.scalar_one_or_none() is not None:
+            await db.commit()
+            print(
+                "[SKIP] Demo tenant MINFI already present; reference data reconciled only."
+            )
+            return
+        print("[OK] 4 org unit types reconciled")
 
         # ─── TENANTS ─────────────────────────────────────
         # PLATFORM : tenant systeme heberge les super_admins (non-visible aux autres roles).
@@ -162,7 +196,7 @@ async def seed():
                 code="MINFI-CAB",
                 name="Cabinet du Ministre",
                 short_name="CAB",
-                type_id=1,
+                type_id=type_ids["MINISTRY"],
                 level=1,
                 path="/MINFI-CAB",
             ),
@@ -173,7 +207,7 @@ async def seed():
                 code="MINFI-SG",
                 name="Secretariat General",
                 short_name="SG",
-                type_id=2,
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-SG",
             ),
@@ -184,7 +218,7 @@ async def seed():
                 code="MINFI-DRH",
                 name="Direction des Ressources Humaines",
                 short_name="DRH",
-                type_id=2,
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-DRH",
             ),
@@ -195,7 +229,7 @@ async def seed():
                 code="MINFI-DAF",
                 name="Direction des Affaires Financieres",
                 short_name="DAF",
-                type_id=2,
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-DAF",
             ),
@@ -206,7 +240,7 @@ async def seed():
                 code="MINFI-DSI",
                 name="Direction des Systemes d'Information",
                 short_name="DSI",
-                type_id=2,
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINFI-CAB/MINFI-DSI",
             ),
@@ -217,7 +251,7 @@ async def seed():
                 code="MINESUP-CAB",
                 name="Cabinet du Ministre",
                 short_name="CAB",
-                type_id=1,
+                type_id=type_ids["MINISTRY"],
                 level=1,
                 path="/MINESUP-CAB",
             ),
@@ -228,7 +262,7 @@ async def seed():
                 code="MINESUP-DAAJ",
                 name="Direction des Affaires Academiques",
                 short_name="DAAJ",
-                type_id=2,
+                type_id=type_ids["DIRECTION"],
                 level=2,
                 path="/MINESUP-CAB/MINESUP-DAAJ",
             ),
@@ -253,7 +287,7 @@ async def seed():
                 id=super_admin_id,
                 tenant_id=platform_id,
                 org_unit_id=None,
-                role_id=1,
+                role_id=role_ids["super_admin"],
                 matricule="SUPER001",
                 email="super@edossier.cm",
                 first_name="Jean-Pierre",
@@ -265,7 +299,7 @@ async def seed():
                 id=tenant_admin_id,
                 tenant_id=minfi_id,
                 org_unit_id=minfi_root_id,
-                role_id=2,
+                role_id=role_ids["tenant_admin"],
                 matricule="MINFI001",
                 email="admin@minfi.gov.cm",
                 first_name="Marie",
@@ -277,7 +311,7 @@ async def seed():
                 id=unit_admin_id,
                 tenant_id=minfi_id,
                 org_unit_id=minfi_drh_id,
-                role_id=3,
+                role_id=role_ids["unit_admin"],
                 matricule="UNIT001",
                 email="drh@minfi.gov.cm",
                 first_name="Paul",
@@ -289,7 +323,7 @@ async def seed():
                 id=manager_id,
                 tenant_id=minfi_id,
                 org_unit_id=minfi_daf_id,
-                role_id=4,
+                role_id=role_ids["manager"],
                 matricule="MGR001",
                 email="manager@minfi.gov.cm",
                 first_name="Celestin",
@@ -301,7 +335,7 @@ async def seed():
                 id=collab_id,
                 tenant_id=minfi_id,
                 org_unit_id=minfi_daf_id,
-                role_id=5,
+                role_id=role_ids["collaborator"],
                 matricule="MINFI002",
                 email="collab@minfi.gov.cm",
                 first_name="Rosine",
@@ -313,7 +347,7 @@ async def seed():
                 id=reader_id,
                 tenant_id=minfi_id,
                 org_unit_id=minfi_dsi_id,
-                role_id=6,
+                role_id=role_ids["reader"],
                 matricule="READ001",
                 email="reader@minfi.gov.cm",
                 first_name="Emmanuel",
@@ -325,7 +359,7 @@ async def seed():
                 id=auditor_id,
                 tenant_id=minfi_id,
                 org_unit_id=minfi_root_id,
-                role_id=7,
+                role_id=role_ids["auditor"],
                 matricule="AUDIT001",
                 email="audit@minfi.gov.cm",
                 first_name="Sandrine",
@@ -338,7 +372,7 @@ async def seed():
                 id=minesup_user_id,
                 tenant_id=minesup_id,
                 org_unit_id=minesup_root_id,
-                role_id=5,
+                role_id=role_ids["collaborator"],
                 matricule="MINESUP001",
                 email="user@minesup.gov.cm",
                 first_name="Alain",

@@ -1,5 +1,7 @@
 # backend/app/core/config.py
-from pydantic import Field, field_validator
+import os
+
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 from typing import List, Any
 from functools import lru_cache
@@ -10,9 +12,13 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "E-Dossier Cameroun"
-    VERSION: str = "1.0.0"
+    # Version shown by FastAPI and /health. Never hard-coded: a release sets it
+    # from the git tag (APP_VERSION env), anything else is a dev build.
+    APP_VERSION: str = "0.0.0-dev"
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    # DEBUG only drives SQLAlchemy echo (database.py). It never relaxes security
+    # controls such as rate limits: those have their own settings below.
+    DEBUG: bool = False
 
     @field_validator("DEBUG", mode="before")
     @classmethod
@@ -40,10 +46,28 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Auth rate limits (slowapi syntax: "<count>/<minute|hour|day>"), keyed by
+    # client IP. Demo stacks raise them (docker-compose.yml); tests set them high.
+    AUTH_LOGIN_RATE_LIMIT: str = "5/minute"
+    AUTH_OTP_RATE_LIMIT: str = "5/minute"
+    AUTH_REFRESH_RATE_LIMIT: str = "10/minute"
+    # True only when the API is reachable exclusively through a reverse proxy
+    # that sets X-Forwarded-For (nginx/nginx.conf). Otherwise the header is
+    # client-controlled and ignored.
+    TRUSTED_PROXY: bool = False
+
     # Storage
     STORAGE_TYPE: str = "local"  # local | s3
     STORAGE_PATH: str = "./storage/files"
-    MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100MB
+    # Per-file upload cap, enforced by the storage layer on every upload path
+    # (documents, versions, bulk imports). Operators set MAX_UPLOAD_SIZE_MB; the
+    # byte value is derived from it and is what the code reads.
+    MAX_UPLOAD_SIZE_MB: int | None = None
+    MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100 MiB
+    # Directory import (POST /documents/ingest-directory): absolute container
+    # paths the API may read from, separated by os.pathsep (':' on Linux).
+    # Empty (default) refuses every import: least privilege, opt-in per stack.
+    INGEST_ALLOWED_ROOTS_STR: str = Field(default="", alias="INGEST_ALLOWED_ROOTS")
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
     # Celery
@@ -67,6 +91,14 @@ class Settings(BaseSettings):
     AUTHZ_METRICS_BACKEND: str = "memory"  # memory | redis
     AUTHZ_METRICS_REDIS_URL: str = ""
     AUTHZ_METRICS_REDIS_PREFIX: str = "authz:metrics"
+
+    @model_validator(mode="after")
+    def _derive_max_upload_size(self):
+        if self.MAX_UPLOAD_SIZE_MB is not None:
+            if self.MAX_UPLOAD_SIZE_MB <= 0:
+                raise ValueError("MAX_UPLOAD_SIZE_MB must be a positive integer")
+            self.MAX_UPLOAD_SIZE = self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+        return self
 
     @field_validator("AUTHZ_BACKEND", mode="before")
     @classmethod
@@ -124,6 +156,15 @@ class Settings(BaseSettings):
     def ALLOWED_ORIGINS(self) -> List[str]:
         """Parse ALLOWED_ORIGINS from comma-separated string"""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS_STR.split(",")]
+
+    @property
+    def INGEST_ALLOWED_ROOTS(self) -> List[str]:
+        """Parse INGEST_ALLOWED_ROOTS (os.pathsep-separated, blanks ignored)."""
+        return [
+            p.strip()
+            for p in self.INGEST_ALLOWED_ROOTS_STR.split(os.pathsep)
+            if p.strip()
+        ]
 
     @property
     def AUTHZ_EFFECTIVE_POLICY_DATABASE_URL(self) -> str:

@@ -1,13 +1,9 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { test, expect } from '../fixtures/auth.fixture';
 import { DocumentsPage, DraftWorkspacePage, UploadDocumentModalPage } from '../pages/documents.page';
 import { DocumentDetailModal } from '../pages/document-detail.page';
+import { seedCategory } from '../data/seed';
+import { uniqueTextFile } from '../data/files';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const TEST_FILE = path.resolve(__dirname, '../fixtures/files/test-document.txt');
 
 test.describe('Feature: Explorateur de documents', () => {
 
@@ -123,7 +119,7 @@ test.describe('Feature: Explorateur de documents', () => {
    *   WHEN   l'utilisateur clique sur "Circuit de Validation"
    *   THEN   le contenu workflow s'affiche
    *   WHEN   il clique sur "Historique des Versions"
-   *   THEN   le message "fonctionnalité à venir" s'affiche
+   *   THEN   les versions (ou l'état vide) s'affichent
    */
   test('Given modal info, When switch onglets, Then contenu change', async ({ page }) => {
     const docsPage = new DocumentsPage(page);
@@ -138,17 +134,13 @@ test.describe('Feature: Explorateur de documents', () => {
     // WHEN — switch to workflow
     await detailModal.switchToWorkflowTab();
 
-    // THEN — either steps or empty state visible
-    const hasSteps = await detailModal.workflowSteps.count() > 0;
-    if (!hasSteps) {
-      await detailModal.expectNoWorkflowSteps();
-    }
+    // THEN — the circuit steps or the empty state, once loaded (seeded documents have a circuit)
+    await expect(detailModal.workflowSteps.first().or(detailModal.workflowEmpty)).toBeVisible();
 
     // WHEN — switch to history
     await detailModal.switchToHistoryTab();
 
-    // THEN
-    await expect(page.getByText(/fonctionnalité à venir/i)).toBeVisible();
+    // THEN — asserted by switchToHistoryTab (versions or empty state)
   });
 
   /**
@@ -249,7 +241,7 @@ test.describe('Feature: Upload de document (Collaborateur)', () => {
     await workspace.openUploadModal();
 
     // WHEN
-    await workspace.fillUploadForm(docTitle, 'Note', 'test, e2e', TEST_FILE);
+    await workspace.fillUploadForm(docTitle, 'Note', 'test, e2e', uniqueTextFile());
 
     // AND
     await workspace.submitUpload();
@@ -286,7 +278,7 @@ test.describe('Feature: Upload de document (Collaborateur)', () => {
       // Créer un doc pour avoir un draft
       const docTitle = `Draft Visa ${Date.now()}`;
       await workspace.openUploadModal();
-      await workspace.fillUploadForm(docTitle, 'Courrier', 'visa', TEST_FILE);
+      await workspace.fillUploadForm(docTitle, 'Courrier', 'visa', uniqueTextFile());
       await workspace.submitUpload();
       await workspace.expectUploadModalClosed();
       await workspace.expectDocumentsLoaded();
@@ -395,7 +387,7 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     await modal.expectVisible();
 
     // WHEN
-    await modal.setFile(TEST_FILE);
+    await modal.setFile(uniqueTextFile());
 
     // THEN — nom du fichier visible dans la zone de dép
     await expect(modal.dropZone).toContainText('test-document');
@@ -420,7 +412,7 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     await docsPage.goto();
     await docsPage.uploadButton.click();
     await modal.expectVisible();
-    await modal.setFile(TEST_FILE);
+    await modal.setFile(uniqueTextFile());
 
     // WHEN — vider le titre (auto-rempli) et soumettre
     await modal.fillTitle('');
@@ -457,9 +449,9 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     await modal.expectVisible();
 
     // WHEN
-    await modal.setFile(TEST_FILE);
+    await modal.setFile(uniqueTextFile());
     await modal.fillTitle(docTitle);
-    await modal.selectCategory('finance');
+    await modal.selectCategory({ label: seedCategory('E2E-CAT-GEN').name });
     await modal.fillTags('test, e2e, playwright');
     await modal.fillDescription('Document de test créé par Playwright.');
     await modal.submit();

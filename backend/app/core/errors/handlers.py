@@ -71,6 +71,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         retryable=exc.retryable,
         correlation_id=cid,
         instance=str(request.url.path),
+        extras_public=exc.extras_public or None,
     )
     return _problem_response(payload, exc.status_code)
 

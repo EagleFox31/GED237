@@ -1,3 +1,9 @@
+// Spec conventions for the stack-backed projects (seed, smoke):
+// - No new 'networkidle' wait: on some pages it never resolves (LESSON-2026-025); replace existing ones when touched.
+//   Assert on what the user sees (toBeVisible, toHaveURL) or wait for the specific API response.
+// - A journey that logs in several users calls test.slow(): the default 30 s budget is per test.
+// - Each upload sends unique content (e2e/data/files.ts): the API refuses a file already stored.
+
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
@@ -47,6 +53,20 @@ export default defineConfig({
         storageState: '.auth/tenant_admin.storage.json',
       },
       dependencies: ['setup'],
+    },
+    {
+      // PR gate (docker-compose.e2e.yml): critical journeys against the real API + seeded demo data.
+      // Keep it short; the full suite belongs to the nightly run.
+      name: 'smoke',
+      testMatch: /(auth|security-isolation|documents|full-cycle|a11y)\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+      // The seed check runs first: missing reference data fails there, listing what is absent.
+      dependencies: ['seed'],
+    },
+    {
+      // API-only check of e2e/data/seed-manifest.json against the running stack (e2e_reset.sh).
+      name: 'seed',
+      testMatch: /seed\.spec\.ts/,
     },
     {
       name: 'mocked-chromium',

@@ -42,16 +42,16 @@ Ce que la décision A débloque immédiatement : OCR-1 confirmé en V1.1 (DEC-00
 
 | Option | Coût (j-p) | Risques démo | Débloque |
 |---|---|---|---|
-| **B1. Garde minimale admin / non-admin** (ordre 6 de DEC-002) : routes `/admin/*` et `/super-admin/*` → redirection vers l'accueil du profil ; une liste déclarative route → rôles autorisés | **0,5 F** (déjà budgété, mardi 18) | faible : liste de 7 profils × ~12 routes à relire par ci-qa | parcours « lecteur sur /admin → redirection » dans SEC ; message « on ne voit que son périmètre » tenable à l'écran |
+| **B1. Garde minimale admin / non-admin** (ordre 6 de DEC-002) : routes `/admin/*` et `/super-admin/*` → redirection vers l'accueil du profil ; une liste déclarative route → rôles autorisés | **0,5 F** (déjà budgété, mercredi 18) | faible : liste de 7 profils × ~12 routes à relire par ci-qa | parcours « lecteur sur /admin → redirection » dans SEC ; message « on ne voit que son périmètre » tenable à l'écran |
 | **B2. B1 + garde fine par profil** (manager, auditeur, rédacteur, lecteur, admin d'unité) | 1 F | recette plus large : chaque profil à rejouer | cohérent avec la matrice UAT ; retire 0,5 j ailleurs (sacrifice : sauvegarde automatisée) |
 | **B3. Corriger aussi les 3 constats backend** | + 0,75 B (RBAC sur `assignable-roles` 0,25 ; permission `users:update_own` 0,25 ; clé de snapshot 0,25) | aucun pour la démo (surfaces non montrées) | dette fermée avant le gel ; mais 0,75 j que B n'a plus |
 | **B4. Reporter tout en V1.1** | 0 | un clic hors périmètre en démo affiche un écran vide | libère 0,5 j pour la marge |
 
 ### Recommandation (une phrase)
 
-**B1 avant le gel (0,5 j F, mardi 18, déjà dans le plan) ; les trois constats backend en V1.1 car aucun n'est exposé en démo ni exploitable sans compte administrateur ; B2 seulement si la recette du 18–20 laisse la marge intacte.**
+**B1 avant le gel (0,5 j F, mercredi 18, déjà dans le plan) ; les trois constats backend en V1.1 car aucun n'est exposé en démo ni exploitable sans compte administrateur ; B2 seulement si la recette du 18–20 laisse la marge intacte.**
 
-Ce que B1 débloque : la journée du mardi 18 côté frontend est fixée (garde + brancher `SpacesPage` le 17), le parcours sécurité gagne une étape visible, et la décision n'exige aucune migration ni changement d'API.
+Ce que B1 débloque : la journée du mercredi 18 côté frontend est fixée (garde + brancher `SpacesPage` le 17), le parcours sécurité gagne une étape visible, et la décision n'exige aucune migration ni changement d'API.
 
 ## Récapitulatif pour le PO
 
@@ -60,4 +60,4 @@ Ce que B1 débloque : la journée du mardi 18 côté frontend est fixée (garde 
 | (a) Lieu de la démo | **Sur place, Docker, poste de secours** | 0,5 j | VPS : + 2 à 2,5 j, OCR-1 avant le gel, sauvegarde automatisée abandonnée, risque de panne mémoire en séance |
 | (b) B6 | **Garde admin / non-admin seulement ; reste en V1.1** | 0,5 j déjà prévu | Garde fine : + 0,5 j pris sur la sauvegarde ; backend B6 : + 0,75 j que le plan n'a pas |
 
-**Décision du PO (2026-11-09)** : les deux recommandations sont retenues telles quelles. Conséquences actées : OCR-1 reste en V1.1, ordre 6 maintenu (mardi 18), aucune tâche VPS/Caddy avant le gel, constats backend B6 annoncés au jury (écart 10 de `plan-presentation.md`).
+**Décision du PO (2026-11-09)** : les deux recommandations sont retenues telles quelles. Conséquences actées : OCR-1 reste en V1.1, ordre 6 maintenu (mercredi 18), aucune tâche VPS/Caddy avant le gel, constats backend B6 annoncés au jury (écart 10 de `plan-presentation.md`).
