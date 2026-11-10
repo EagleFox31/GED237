@@ -14,8 +14,8 @@ let UNIQUE_UPLOAD_FILE = path.resolve(__dirname, `../fixtures/files/test-documen
  *
  *   - SC-RED-02 : créer une nouvelle version d'un document existant
  *   - SC-RED-03 : partager un document avec un autre utilisateur
- *   - SC-RED-04 : supprimer (mettre à la corbeille) un document
- *   - SC-RED-05 : rechercher un document par mot-clé full-text
+ *   - SC-RED-05 : supprimer (mettre à la corbeille) un document
+ *   - SC-LEC-01 : rechercher un document par mot-clé full-text
  *
  * Chaque scénario est défensif : si la fonctionnalité n'est pas exposée
  * dans l'UI courante, le test se skippe plutôt que d'échouer.
@@ -98,7 +98,7 @@ test.describe.serial('Feature: Parcours rédacteur (SC-RED-02..05)', () => {
     await expect(page.getByText(/partagé|succès|ajouté/i).first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test('SC-RED-04 — Given un document, When supprimer, Then disparaît de la grille', async ({ loginAs, page }) => {
+  test('SC-RED-05 — Given un document, When supprimer, Then disparaît de la grille', async ({ loginAs, page }) => {
     await loginAs('collaborator');
     const ws = new DraftWorkspacePage(page);
     await ws.expectPageVisible();
@@ -127,7 +127,7 @@ test.describe.serial('Feature: Parcours rédacteur (SC-RED-02..05)', () => {
     await expect(page.locator('.grid').getByText(docTitle)).toBeHidden({ timeout: 10_000 });
   });
 
-  test('SC-RED-05 — Given documents indexés, When recherche par mot-clé, Then résultat filtré', async ({ loginAs, page }) => {
+  test('SC-LEC-01 — Given documents indexés, When recherche par mot-clé, Then résultat filtré', async ({ loginAs, page }) => {
     await loginAs('collaborator');
     const ws = new DraftWorkspacePage(page);
     await ws.expectPageVisible();

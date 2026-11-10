@@ -32,22 +32,22 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
       },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: /auth\.setup\.ts/,
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
     },
     {
       name: 'authed-chromium',
-      testMatch: /(rules-setup|bulk-upload|needs-review)\.spec\.ts/,
+      testMatch: /(rules-setup|needs-review)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
@@ -58,7 +58,7 @@ export default defineConfig({
       // PR gate (docker-compose.e2e.yml): critical journeys against the real API + seeded demo data.
       // Keep it short; the full suite belongs to the nightly run.
       name: 'smoke',
-      testMatch: /(auth|security-isolation|route-guard|documents|full-cycle|a11y|validation-cycle)\.spec\.ts/,
+      testMatch: /(auth|security-isolation|route-guard|documents|validation-cycle|a11y)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
       // The seed check runs first: missing reference data fails there, listing what is absent.
       dependencies: ['seed'],
@@ -74,11 +74,11 @@ export default defineConfig({
       testMatch: /demo-counters\.spec\.ts/,
     },
     {
-      name: 'mocked-chromium',
-      testMatch: /(classification-admin|classification-reviews|ingestion|spaces)\.spec\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
+      // UAT campaign (gestion-projet/MATRICE_UAT_E2E): one spec per journey, real API, no mocks.
+      // Each spec seeds its own data through the API, so specs are order-independent and replayable.
+      name: 'uat',
+      testMatch: /specs[\\/]uat[\\/].*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
   webServer: {
