@@ -66,10 +66,18 @@ export const test = base.extend<AuthFixtures, WorkerFixtures>({
 
   roleSession: [async ({ browser }, use, workerInfo) => {
     const baseURL = workerInfo.project.use.baseURL;
-    const cache = new Map<UserRole, Promise<SessionDump>>();
+    // The cache is never invalidated by a logout or a lock: a spec that logs out (the token goes on the
+    // blacklist) or locks an account MUST use test.use({ freshLogin: true }), or the cached session is dead
+    // for the rest of the worker. The access token lives 30 min and the front does not refresh on 401, so a
+    // capture older than MAX_AGE_MS is retaken.
+    const MAX_AGE_MS = 20 * 60 * 1000;
+    const cache = new Map<UserRole, { at: number; dump: Promise<SessionDump> }>();
     await use((role) => {
-      if (!cache.has(role)) cache.set(role, captureSession(browser, baseURL, role));
-      return cache.get(role)!;
+      const hit = cache.get(role);
+      if (hit && Date.now() - hit.at < MAX_AGE_MS) return hit.dump;
+      const dump = captureSession(browser, baseURL, role);
+      cache.set(role, { at: Date.now(), dump });
+      return dump;
     });
   }, { scope: 'worker' }],
 
