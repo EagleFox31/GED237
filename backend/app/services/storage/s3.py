@@ -6,6 +6,7 @@ from botocore.exceptions import ClientError
 from fastapi import UploadFile
 
 from app.core.config import settings
+from app.core.errors.domain import FileTooLargeError
 from app.services.storage.base import IStorageService
 
 
@@ -38,23 +39,35 @@ class S3StorageService(IStorageService):
 
         return object_name
 
-    async def save_file_with_checksum(self, file: UploadFile, directory: str = ""):
+    async def save_file_with_checksum(
+        self, file: UploadFile, directory: str = "", max_bytes: int | None = None
+    ):
+        # Same cap as LocalStorageService: enforced while spooling, before any
+        # byte reaches the bucket.
+        if max_bytes is None:
+            max_bytes = settings.MAX_UPLOAD_SIZE
         filename = file.filename
         object_name = f"{directory}/{filename}" if directory else filename
         object_name = object_name.replace("\\", "/")
 
         await file.seek(0)
         sha256 = hashlib.sha256()
+        received = 0
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp_path = tmp.name
-            while True:
-                chunk = await file.read(1024 * 1024)
-                if not chunk:
-                    break
-                sha256.update(chunk)
-                tmp.write(chunk)
-
         try:
+            with open(tmp_path, "wb") as spool:
+                while True:
+                    chunk = await file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    received += len(chunk)
+                    if received > max_bytes:
+                        raise FileTooLargeError(
+                            filename, max_bytes=max_bytes, received_at_least=received
+                        )
+                    sha256.update(chunk)
+                    spool.write(chunk)
             self.s3_client.upload_file(tmp_path, self.bucket_name, object_name)
         finally:
             if os.path.exists(tmp_path):

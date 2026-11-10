@@ -5,6 +5,7 @@ from fastapi import UploadFile
 from typing import Tuple, Optional
 
 from app.core.config import settings
+from app.core.errors.domain import FileTooLargeError
 from app.services.storage.base import IStorageService
 
 CHUNK_SIZE = 1 * 1024 * 1024  # 1 Mo — bon compromis perf/RAM pour une V1
@@ -21,31 +22,53 @@ class LocalStorageService(IStorageService):
         return path
 
     async def save_file_with_checksum(
-        self, file: UploadFile, directory: str = ""
+        self, file: UploadFile, directory: str = "", max_bytes: int | None = None
     ) -> Tuple[str, str]:
         """
         Save file to local storage while computing SHA-256 in a single streaming pass.
         Never loads the full file into RAM — reads and writes by CHUNK_SIZE-sized chunks.
 
+        ``max_bytes`` (default: settings.MAX_UPLOAD_SIZE) is enforced while
+        streaming: the write stops at the first chunk that crosses the cap, the
+        partial file is removed and FileTooLargeError is raised. The file is
+        written to ``<name>.part`` and renamed at the end so a crash or a
+        rejection never leaves a half-written file under its final name.
+
         Returns (relative_path, checksum_sha256_hex).
         The SHA-256 is the canonical fingerprint for binary duplicate detection.
         """
+        if max_bytes is None:
+            max_bytes = settings.MAX_UPLOAD_SIZE
         target_dir = os.path.join(self.base_path, directory)
         os.makedirs(target_dir, exist_ok=True)
 
         filename = file.filename
         file_path = os.path.join(target_dir, filename)
 
+        part_path = file_path + ".part"
+
         await file.seek(0)
 
         sha256 = hashlib.sha256()
-        with open(file_path, "wb") as buffer:
-            while True:
-                chunk = await file.read(CHUNK_SIZE)
-                if not chunk:
-                    break
-                sha256.update(chunk)
-                buffer.write(chunk)
+        received = 0
+        try:
+            with open(part_path, "wb") as buffer:
+                while True:
+                    chunk = await file.read(CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    received += len(chunk)
+                    if received > max_bytes:
+                        raise FileTooLargeError(
+                            filename, max_bytes=max_bytes, received_at_least=received
+                        )
+                    sha256.update(chunk)
+                    buffer.write(chunk)
+            os.replace(part_path, file_path)
+        except BaseException:
+            if os.path.exists(part_path):
+                os.remove(part_path)
+            raise
 
         relative_path = os.path.join(directory, filename).replace("\\", "/")
         return relative_path, sha256.hexdigest()

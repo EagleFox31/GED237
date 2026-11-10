@@ -54,6 +54,7 @@ class AppError(Exception):
         severity: Optional[Severity] = None,
         retryable: Optional[bool] = None,
         extras: Optional[Mapping[str, Any]] = None,
+        extras_public: Optional[Mapping[str, Any]] = None,
     ) -> None:
         self.user_message: str = user_message or self.default_user_message
         # Fallback explicite : signal qu'aucun détail technique n'a été fourni.
@@ -67,6 +68,9 @@ class AppError(Exception):
         # extras : usage interne logs uniquement.
         # NE JAMAIS y mettre password, token, payload complet, stack, requête SQL.
         self.extras: dict[str, Any] = dict(extras or {})
+        # extras_public : champs additionnels SÛRS, aplatis dans le Problem Details
+        # (ex. plafond applicable). Jamais de donnée sensible.
+        self.extras_public: dict[str, Any] = dict(extras_public or {})
 
         super().__init__(self.technical_detail)
 
@@ -134,6 +138,30 @@ class AuthorizationError(AppError):
     default_user_message = "Vous n'avez pas les droits nécessaires pour cette action."
 
 
+class IngestPathForbiddenError(AppError):
+    """Import de répertoire visant un chemin hors de INGEST_ALLOWED_ROOTS.
+
+    Décision d'autorisation sur la ressource visée (403, pas 400) : la requête
+    est bien formée. Le message public ne révèle ni l'existence du chemin ni
+    la liste des racines ; le chemin demandé reste dans le détail technique.
+    """
+
+    status_code = 403
+    default_error_code = "INGEST_PATH_FORBIDDEN"
+    default_severity = Severity.warning
+    default_retryable = False
+    default_user_message = "Dossier hors des emplacements autorisés"
+
+    def __init__(self, requested_path: str) -> None:
+        self.requested_path = requested_path
+        super().__init__(
+            technical_detail=(
+                f"ingest-directory refused: {requested_path!r} is outside "
+                "INGEST_ALLOWED_ROOTS"
+            ),
+        )
+
+
 class NotFoundError(AppError):
     """
     Ressource inexistante OU inaccessible dans le périmètre courant (multi-tenant).
@@ -196,3 +224,34 @@ class ExternalServiceError(AppError):
         "Un service externe est temporairement indisponible. "
         "Réessayez dans un instant."
     )
+
+
+class FileTooLargeError(AppError):
+    """Fichier téléversé au-delà de MAX_UPLOAD_SIZE (RFC 9110 §15.5.14 : 413).
+
+    Levée par la couche stockage dès le premier bloc qui dépasse, quel que soit le
+    backend (local, S3) ; traduite une seule fois en Problem Details par le handler.
+    """
+
+    status_code = 413
+    default_error_code = "FILE_TOO_LARGE"
+    default_severity = Severity.warning
+    default_retryable = False
+
+    def __init__(
+        self, filename: str, *, max_bytes: int, received_at_least: int
+    ) -> None:
+        self.filename = filename
+        self.max_bytes = max_bytes
+        self.received_at_least = received_at_least
+        max_mb = max_bytes / (1024 * 1024)
+        shown = f"{max_mb:g}" if max_mb >= 1 else f"{max_mb:.3g}"
+        super().__init__(
+            f"Le fichier « {filename} » dépasse la taille maximale autorisée "
+            f"({shown} Mo).",
+            technical_detail=(
+                f"upload of {filename!r} exceeded max_bytes={max_bytes} "
+                f"(received at least {received_at_least})"
+            ),
+            extras_public={"max_upload_size_bytes": max_bytes, "filename": filename},
+        )

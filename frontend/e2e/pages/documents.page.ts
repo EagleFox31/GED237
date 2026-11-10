@@ -1,4 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import type { FilePayload } from '../data/files';
 
 /**
  * Page Object Model for the Documents explorer (components/Documents.tsx)
@@ -135,16 +136,16 @@ export class UploadDocumentModalPage {
     await expect(this.modal).toBeHidden({ timeout: 10_000 });
   }
 
-  async setFile(filePath: string) {
-    await this.fileInput.setInputFiles(filePath);
+  async setFile(file: string | FilePayload) {
+    await this.fileInput.setInputFiles(file);
   }
 
   async fillTitle(title: string) {
     await this.titleInput.fill(title);
   }
 
-  async selectCategory(value: string) {
-    await this.categorySelect.selectOption(value);
+  async selectCategory(option: string | { label: string }) {
+    await this.categorySelect.selectOption(option);
   }
 
   async fillTags(tags: string) {
@@ -249,11 +250,11 @@ export class DraftWorkspacePage {
     await expect(this.uploadModal).toBeVisible();
   }
 
-  async fillUploadForm(title: string, category: string, tags: string, filePath: string) {
+  async fillUploadForm(title: string, category: string, tags: string, file: string | FilePayload) {
     await this.titleInput.fill(title);
     await this.categorySelect.selectOption(category);
     await this.tagsInput.fill(tags);
-    await this.fileInput.setInputFiles(filePath);
+    await this.fileInput.setInputFiles(file);
   }
 
   async submitUpload() {
