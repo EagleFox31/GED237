@@ -2,6 +2,8 @@
 
 Pour : dev-backend (tâche périodique, déduplication), ci-qa (compose, preuve), dev-frontend (état affiché), orchestrateur. Fiche courte de l'innovateur, 2026-11-10, lue sur `main` 950e66b. Règle : **livré si fusionné le mer 19/11 18:00, sinon V1.1** (phrase § 1 n° 7 inchangée : « import manuel d'un dossier, surveillance en V1.1 »). Dernier dans l'ordre O : le moins visible en démo, le plus sensible côté exploitation (RAM du worker, chemins). Niveaux : `Vérifié` = lu dans le dépôt ; `Proposé` = à trancher dans la PR. Pas de code ici.
 
+**État au 10/11 11:10** : aucune PR ; B confirme la configuration par variables sans table.
+
 ## 1. Existant (`Vérifié`)
 
 | Où | Ce qui existe |

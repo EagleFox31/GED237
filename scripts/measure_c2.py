@@ -35,7 +35,7 @@ def main() -> None:
     files = json.loads(Path(a.manifest).read_text(encoding="utf-8"))["expected"]["files"]
     api = Api(a.api, a.institution, a.matricule)
     maps = code_maps(api)
-    docs = api.get_all("/documents/")
+    docs = api.get_all("/documents/") + api.get_all("/documents/trash")  # trashed documents keep their classification
     key = "source_relative_path" if a.match == "path" else "title"
     by_key = {d.get(key): d for d in docs if d.get(key)}
 

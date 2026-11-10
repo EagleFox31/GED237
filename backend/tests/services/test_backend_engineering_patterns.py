@@ -174,6 +174,20 @@ async def test_classification_rule_engine_patterns(monkeypatch):
     assert (
         engine._resolve_year(filename="note-2099.pdf", strategy="from_filename") == 2026
     )
+    # "_" is a word character: the year must still be read next to underscores
+    assert (
+        engine._resolve_year(filename="facture_2024_x.pdf", strategy="from_filename")
+        == 2024
+    )
+    assert (
+        engine._resolve_year(filename="BP_DRH_2023.pdf", strategy="from_filename")
+        == 2023
+    )
+    # a year inside a longer number is not a year
+    assert (
+        engine._resolve_year(filename="ref-120245.pdf", strategy="from_filename")
+        == 2026
+    )
     assert (
         engine._resolve_year(filename="note.pdf", strategy="fixed", fixed_year=2021)
         == 2021
@@ -562,7 +576,8 @@ def test_tesseract_engine_patterns(monkeypatch):
 @pytest.mark.asyncio
 async def test_dashboard_facade_patterns():
     tenant_db = QueueDB(
-        scalar_values=[4],
+        # users, refused uploads (audit), refused import files
+        scalar_values=[4, 2, 3],
         results=[
             FakeResult(
                 first=SimpleNamespace(total_docs=3, total_storage_bytes=2 * 1024 * 1024)
@@ -576,6 +591,11 @@ async def test_dashboard_facade_patterns():
     assert tenant_metrics["users"]["total"] == 4
     assert tenant_metrics["documents"]["storage_used_mb"] == 2.0
     assert tenant_metrics["workflows"] == {"pending": 2, "completed": 5, "rejected": 1}
+    assert tenant_metrics["duplicates"] == {
+        "refused": 5,
+        "refused_upload": 2,
+        "refused_import": 3,
+    }
 
     manager_db = QueueDB(
         results=[
@@ -611,12 +631,13 @@ async def test_dashboard_facade_patterns():
     assert platform["platform"] == {"total_documents": 20, "total_storage_gb": 2.0}
 
     empty_db = QueueDB(
-        scalar_values=[0],
+        scalar_values=[0, None, None],
         results=[FakeResult(first=None), FakeResult(first=None)],
     )
     empty = await DashboardFacade(empty_db).get_tenant_metrics(str(uuid.uuid4()))
     assert empty["documents"]["total"] == 0
     assert empty["workflows"]["pending"] == 0
+    assert empty["duplicates"]["refused"] == 0
 
 
 @pytest.mark.asyncio

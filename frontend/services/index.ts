@@ -167,6 +167,7 @@ export const api = {
     // Spaces
     getSpacesTree: spacesApi.getSpacesTree,
     getSpaceDocuments: spacesApi.getSpaceDocuments,
+    getSpaceDocumentsPage: spacesApi.getSpaceDocumentsPage,
 
     // Notifications
     getNotifications: notificationsApi.getNotifications,
