@@ -154,21 +154,27 @@ def _serialize_audit_log(
 def _filtered_query(
     tenant_id: UUID,
     *,
-    table_name: Optional[str],
-    action: Optional[str],
+    table_name: str | list[str] | None,
+    action: str | list[str] | None,
+    user_id: Optional[UUID] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     until: Optional[datetime] = None,
 ):
     """Tenant logs matching the screen filters; dates are local calendar days, both inclusive.
 
+    ``table_name`` and ``action`` take one value or several (any of them matches).
     ``until`` freezes the result at an instant (same clock and type as created_at).
     """
     query = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
-    if table_name:
-        query = query.where(AuditLog.table_name == table_name)
-    if action:
-        query = query.where(func.lower(AuditLog.action) == action.lower())
+    table_names = _values(table_name)
+    if table_names:
+        query = query.where(AuditLog.table_name.in_(table_names))
+    actions = [value.lower() for value in _values(action)]
+    if actions:
+        query = query.where(func.lower(AuditLog.action).in_(actions))
+    if user_id is not None:
+        query = query.where(AuditLog.user_id == user_id)
     if date_from:
         query = query.where(AuditLog.created_at >= _utc_naive(date_from))
     if date_to:
@@ -178,6 +184,18 @@ def _filtered_query(
     if until is not None:
         query = query.where(AuditLog.created_at <= until)
     return query
+
+
+def _values(value: str | list[str] | None) -> list[str]:
+    """One query value or a repeated one, empty strings dropped."""
+    items = value if isinstance(value, list) else [value]
+    return [item for item in items if item]
+
+
+def _logged_filter(value: str | list[str] | None) -> str | list[str] | None:
+    """Filter as written in the export's own audit row: a single value stays a string."""
+    items = _values(value)
+    return items[0] if len(items) == 1 else (items or None)
 
 
 def _utc_naive(day: date) -> datetime:
@@ -245,8 +263,10 @@ def _csv_row(entry: dict[str, Any], created_at: Optional[datetime]) -> list[str]
 
 @router.get("/logs/export")
 async def export_audit_logs(
-    table_name: Optional[str] = Query(default=None),
-    action: Optional[str] = Query(default=None),
+    # Repeat the parameter for several values (?action=upload&action=delete), like the screen.
+    table_name: Optional[list[str]] = Query(default=None),
+    action: Optional[list[str]] = Query(default=None),
+    user_id: Optional[UUID] = Query(default=None),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
     current_user: User = Depends(get_current_user),
@@ -255,8 +275,9 @@ async def export_audit_logs(
     """CSV of the filtered journal (Excel in French: UTF-8 BOM, ``;``). The export is itself logged."""
     await authorize_or_403(current_user, "audit_logs", "read")
     filters = {
-        "table_name": table_name,
-        "action": action,
+        "table_name": _logged_filter(table_name),
+        "action": _logged_filter(action),
+        "user_id": str(user_id) if user_id else None,
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
     }
@@ -267,6 +288,7 @@ async def export_audit_logs(
         current_user.tenant_id,
         table_name=table_name,
         action=action,
+        user_id=user_id,
         date_from=date_from,
         date_to=date_to,
         until=snapshot,

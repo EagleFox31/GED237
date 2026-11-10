@@ -204,3 +204,67 @@ async def test_rows_logged_after_the_export_started_are_left_out(
 
     assert len(rows) == 4
     assert "pendant" not in {row[4] for row in rows}
+
+
+@pytest.mark.asyncio
+async def test_several_tables_and_actions_match_any_of_them(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _seed_logs(test_engine, db_seed)
+
+    response = await admin_client.get(
+        f"{EXPORT}?table_name=users&table_name=documents&action=LOGIN&action=upload"
+    )
+    one_table = _rows(await admin_client.get(EXPORT, params={"table_name": "users"}))
+
+    rows = _rows(response)
+    # login (users) and upload (documents) match; dup_detected does not.
+    assert len(rows) == 3
+    assert "Doublon refuse" not in {row[5] for row in rows}
+    assert len(one_table) == 2
+    logged = (
+        await admin_client.get(
+            "/api/v1/audit/logs", params={"table_name": "audit_logs"}
+        )
+    ).json()
+    assert {
+        "table_name": ["users", "documents"],
+        "action": ["LOGIN", "upload"],
+    } in [entry["new_data"]["filters"] for entry in logged]
+
+
+@pytest.mark.asyncio
+async def test_user_filter_keeps_only_that_user(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    await _seed_logs(test_engine, db_seed)
+    await _add_log(
+        test_engine, db_seed, title="autre agent", created_at=datetime(2026, 11, 2)
+    )
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with session_factory() as session:
+        session.add(
+            AuditLog(
+                tenant_id=db_seed["tenant_id"],
+                user_id=None,
+                table_name="documents",
+                record_id=uuid.uuid4(),
+                action="upload",
+                new_data={"title": "systeme"},
+                created_at=datetime(2026, 11, 1),
+            )
+        )
+        await session.commit()
+
+    mine = _rows(
+        await admin_client.get(EXPORT, params={"user_id": str(db_seed["user_id"])})
+    )
+    nobody = _rows(
+        await admin_client.get(EXPORT, params={"user_id": str(uuid.uuid4())})
+    )
+
+    assert len(mine) == 5
+    assert "systeme" not in {row[4] for row in mine}
+    assert nobody == [HEADER]
