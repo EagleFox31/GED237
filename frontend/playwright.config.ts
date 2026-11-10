@@ -69,6 +69,11 @@ export default defineConfig({
       testMatch: /seed\.spec\.ts/,
     },
     {
+      // API-only comparison of the demo dataset with demo-manifest (expected); run on a stack reset with the demo profile.
+      name: 'demo',
+      testMatch: /demo-counters\.spec\.ts/,
+    },
+    {
       name: 'mocked-chromium',
       testMatch: /(classification-admin|classification-reviews|ingestion|spaces)\.spec\.ts/,
       use: {

@@ -1,0 +1,46 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+/**
+ * Typed view of the demo manifest (section `expected`, contract in gestion-projet/recette/mesures-outillage.md).
+ * DEMO_MANIFEST_FILE is the single switch: the sample until the generated demo-manifest.json (D1) is on main.
+ */
+export const DEMO_MANIFEST_FILE = 'demo-manifest.sample.json';
+
+export type ExpectedStatus = 'classified' | 'needs_review' | 'duplicate';
+
+export interface ExpectedFile {
+  path: string;
+  status: ExpectedStatus;
+  orgUnit: string | null;
+  domain: string | null;
+  activity: string | null;
+  year: number | null;
+}
+
+export interface Counters {
+  total: number;
+  classified: number;
+  toReview: number;
+}
+
+export interface DemoManifest {
+  schemaVersion: number;
+  profile: string;
+  tenant: string;
+  expected: {
+    domains: string[];
+    activities: string[];
+    classificationRules: string[];
+    inactiveRules: string[];
+    documents: Counters;
+    byOrgUnit: Record<string, Counters>;
+    trash: string[];
+    versions: Record<string, number>;
+    files: ExpectedFile[];
+  };
+}
+
+const dir = path.dirname(fileURLToPath(import.meta.url));
+export const DEMO: DemoManifest = JSON.parse(fs.readFileSync(path.join(dir, DEMO_MANIFEST_FILE), 'utf-8'));
