@@ -161,6 +161,8 @@ export const api = {
     updateClassificationRule: classificationApi.updateClassificationRule,
     deleteClassificationRule: classificationApi.deleteClassificationRule,
     simulateClassification: classificationApi.simulateClassification,
+    exportClassificationRules: classificationApi.exportClassificationRules,
+    importClassificationRules: classificationApi.importClassificationRules,
 
     // Spaces
     getSpacesTree: spacesApi.getSpacesTree,
