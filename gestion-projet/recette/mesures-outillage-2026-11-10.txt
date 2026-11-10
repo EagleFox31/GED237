@@ -1,0 +1,16 @@
+Preuve de l'outillage des mesures - 2026-11-10 - pile docker-compose.e2e.yml (jeu seed-manifest.json), valeurs sans seuil.
+Manifeste de preuve factice (6 fichiers par titre, destinations non contrôlées) : valide la chaîne, pas un résultat de recette.
+
+measure_c2.py --match title
+C2  total_seed=6 exclus_doublons=1 exclus_attendus_needs_review=1 denominateur=4
+    classes_bonne_destination=0 classes_mauvaise_destination=0 non_classes_couverts=4
+    C2 = 0/4 = 0,0 %   C2b (brut, hors doublons) = 0/5 = 0,0 %
+ECARTS (4): 3 NON CLASSE (statut pending), 1 ABSENT
+
+measure_counters.py --no-fail
+9 contrôles : domains, activities, classificationRules, inactiveRules, trash, versions OK ;
+documents.total attendu 6 réel 10 et documents.toReview attendu 6 réel 10 en ECART (attendus volontairement faux) ;
+locks NON COUVERT.
+
+measure_c3.py (5 requêtes x 3 = 15 mesures)
+C3 took_ms p50=3 p95=23 max=23 ; e2e p95=32
