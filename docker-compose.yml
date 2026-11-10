@@ -141,6 +141,9 @@ services:
       # Demo room: ~10 logins/OTP in 13 min from one NAT address (parcours-demo.md §0).
       AUTH_LOGIN_RATE_LIMIT: "30/minute"
       AUTH_OTP_RATE_LIMIT: "30/minute"
+      # Not relaxed for the demo: the account lock must stay visible.
+      AUTH_OTP_MAX_FAILURES: "3"
+      AUTH_LOCKOUT_SECONDS: "900"
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
     depends_on:
