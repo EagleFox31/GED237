@@ -29,6 +29,7 @@ from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
+from app.services.audit_trail import audit_entry
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
@@ -379,14 +380,16 @@ def _audit_document_action(
     document_id: UUID,
     action: str,
     details: Optional[Dict[str, Any]] = None,
+    request: Optional[Request] = None,
 ) -> AuditLog:
-    return AuditLog(
+    return audit_entry(
         tenant_id=user.tenant_id,
         user_id=user.id,
         table_name="documents",
         record_id=document_id,
         action=action,
-        new_data=details or {},
+        details=details,
+        request=request,
     )
 
 
@@ -669,6 +672,15 @@ async def upload_document(
     if db_document.classification_status in {"pending", "needs_review"}:
         review_service = ClassificationReviewService(db)
         await review_service.ensure_open_review_for_document(document=db_document)
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=db_document.id,
+            action="upload",
+            details={"title": title, "filename": file.filename, "version": "1.0"},
+            request=request,
+        )
+    )
     await db.commit()
     await db.refresh(db_document)
 
