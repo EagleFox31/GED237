@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
 import type { Document } from '../../../types';
@@ -6,6 +6,7 @@ import { formatDate, formatFileSize, getFileTypeLabel, getStatusLabel } from '..
 import { ClassificationSlideOver } from '../../../components/ClassificationSlideOver';
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
+import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 
 interface UserNode {
   id: string;
@@ -108,6 +109,13 @@ const getDocumentFilename = (document: Document) => {
   return rawName;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CLASSIFICATION_STATUSES = ['pending', 'classified', 'needs_review', 'rejected'] as const;
+const DOCUMENT_STATUSES = ['draft', 'in_review', 'validated', 'signed', 'archived', 'rejected', 'returned'] as const;
+const SPACES_PAGE_SIZE = 50;
+const FILTER_SELECT =
+  'h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none focus:border-rdpc-blue';
+
 type ViewMode = 'details' | 'icons';
 
 type ContextMenuState =
@@ -134,12 +142,57 @@ const SpacesPage: React.FC = () => {
   // recherche globale (Header) écrit dedans.
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
-  const setSearchQuery = (next: string) => {
+  // Filtres serveur (Lot C9) : l'URL est la seule source de vérité ; une valeur invalide est ignorée
+  // (jamais envoyée, donc jamais de 422).
+  const updateParams = (patch: Record<string, string | undefined>) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (next) nextParams.set('q', next);
-    else nextParams.delete('q');
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value) nextParams.set(key, value);
+      else nextParams.delete(key);
+    });
+    if (!('page' in patch)) nextParams.delete('page');
     setSearchParams(nextParams, { replace: true });
   };
+  const setSearchQuery = (next: string) => updateParams({ q: next || undefined });
+  const uuidParam = (key: string) => {
+    const value = searchParams.get(key) || '';
+    return UUID_RE.test(value) ? value : '';
+  };
+  const enumParam = (key: string, allowed: readonly string[]) => {
+    const value = searchParams.get(key) || '';
+    return allowed.includes(value) ? value : '';
+  };
+  const domainFilter = uuidParam('domain');
+  const activityFilter = uuidParam('activity');
+  const yearFilter = (() => {
+    const year = Number(searchParams.get('year'));
+    return Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : undefined;
+  })();
+  const classificationFilter = enumParam('cls', CLASSIFICATION_STATUSES);
+  const statusFilter = enumParam('status', DOCUMENT_STATUSES);
+  const page = (() => {
+    const value = Number(searchParams.get('page'));
+    return Number.isInteger(value) && value >= 1 ? value : 1;
+  })();
+  const hasActiveFilters = Boolean(
+    domainFilter || activityFilter || yearFilter || classificationFilter || statusFilter,
+  );
+  const [totalDocuments, setTotalDocuments] = useState(0);
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery.trim().slice(0, 120)), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  const abortRef = useRef<AbortController | null>(null);
+  const [stale, setStale] = useState(false);
+  const loadedUnitRef = useRef<string | null>(null);
+  const resetFilters = () =>
+    updateParams({ domain: undefined, activity: undefined, year: undefined, cls: undefined, status: undefined });
+  // Années proposées : année courante -10 → +1.
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    return Array.from({ length: 12 }, (_, i) => current + 1 - i);
+  }, []);
   const [viewMode, setViewMode] = useState<ViewMode>('icons');
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
@@ -239,12 +292,39 @@ const SpacesPage: React.FC = () => {
         // Une recherche active impose le mode récursif : par définition,
         // l'utilisateur veut chercher partout dans la branche, pas seulement
         // dans le service courant.
-        const effective = recursive || Boolean(searchQuery.trim());
-        const docs = await api.getSpaceDocuments(selectedUnitId, effective);
-        setDocuments(docs);
+        const effective = recursive || Boolean(debouncedQuery);
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const result = await api.getSpaceDocumentsPage(
+          {
+            orgUnitId: selectedUnitId,
+            recursive: effective,
+            domainId: domainFilter || undefined,
+            activityId: activityFilter || undefined,
+            year: yearFilter,
+            status: statusFilter || undefined,
+            classificationStatus: classificationFilter || undefined,
+            q: debouncedQuery || undefined,
+            limit: SPACES_PAGE_SIZE,
+            offset: (page - 1) * SPACES_PAGE_SIZE,
+          },
+          controller.signal,
+        );
+        setDocuments(result.items);
+        setTotalDocuments(result.total);
+        setStale(false);
+        loadedUnitRef.current = selectedUnitId;
       } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
         console.error('Failed to fetch space documents', e);
+        if (loadedUnitRef.current === selectedUnitId) {
+          // Liste précédente conservée : on signale seulement qu'elle n'est plus à jour.
+          setStale(true);
+          return;
+        }
         setDocuments([]);
+        setTotalDocuments(0);
         const message =
           e instanceof Error && e.message
             ? e.message
@@ -260,7 +340,7 @@ const SpacesPage: React.FC = () => {
     // searchQuery participe à la dep : on recharge si l'utilisateur active
     // ou désactive une recherche, pour bénéficier du mode récursif forcé.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUnitId, recursive, Boolean(searchQuery.trim())]);
+  }, [selectedUnitId, recursive, debouncedQuery, domainFilter, activityFilter, yearFilter, classificationFilter, statusFilter, page]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -294,25 +374,8 @@ const SpacesPage: React.FC = () => {
     );
   };
 
-  const filteredDocuments = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    return documents.filter((doc) => {
-      const targetUnitName = getTargetLabel(doc);
-      const searchCorpus = [
-        doc.title,
-        doc.category_name || 'Non classe',
-        getFileTypeLabel(doc.mime_type || doc.file_type),
-        doc.logical_space_path || '',
-        doc.classification_domain_name || '',
-        doc.classification_activity_name || '',
-        targetUnitName,
-      ]
-        .join(' ')
-        .toLowerCase();
-
-      return !normalizedQuery || searchCorpus.includes(normalizedQuery);
-    });
-  }, [documents, orgUnitNames, searchQuery, userNames]);
+  // Filtrage et recherche : faits par le serveur (Lot C9). Reste côté client : séparation service / sous-services.
+  const filteredDocuments = documents;
 
   const isSearchMode = Boolean(searchQuery.trim());
 
@@ -533,6 +596,89 @@ const SpacesPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              <div className="relative mt-4 flex flex-wrap items-center gap-2 pr-10">
+                <select
+                  aria-label="Filtre domaine"
+                  value={domainFilter}
+                  onChange={(e) => updateParams({ domain: e.target.value || undefined, activity: undefined })}
+                  className={FILTER_SELECT}
+                >
+                  <option value="">Tous les domaines</option>
+                  {domains.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filtre activité"
+                  value={activityFilter}
+                  disabled={!domainFilter}
+                  onChange={(e) => updateParams({ activity: e.target.value || undefined })}
+                  className={`${FILTER_SELECT} disabled:opacity-50`}
+                >
+                  <option value="">Toutes les activités</option>
+                  {activities
+                    .filter((a) => a.domain_id === domainFilter)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                </select>
+                <select
+                  aria-label="Filtre année"
+                  value={yearFilter ? String(yearFilter) : ''}
+                  onChange={(e) => updateParams({ year: e.target.value || undefined })}
+                  className={FILTER_SELECT}
+                >
+                  <option value="">Toutes les années</option>
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filtre statut de classement"
+                  value={classificationFilter}
+                  onChange={(e) => updateParams({ cls: e.target.value || undefined })}
+                  className={FILTER_SELECT}
+                >
+                  <option value="">Tous les classements</option>
+                  {CLASSIFICATION_STATUSES.map((v) => (
+                    <option key={v} value={v}>{getClassificationStatusLabel(v)}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filtre statut du document"
+                  value={statusFilter}
+                  onChange={(e) => updateParams({ status: e.target.value || undefined })}
+                  className={FILTER_SELECT}
+                >
+                  <option value="">Tous les statuts</option>
+                  {DOCUMENT_STATUSES.map((v) => (
+                    <option key={v} value={v}>{getStatusLabel(v)}</option>
+                  ))}
+                </select>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    aria-label="Réinitialiser les filtres"
+                    title="Réinitialiser les filtres"
+                    onClick={resetFilters}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:text-rdpc-blue"
+                  >
+                    <span className="material-symbols-outlined text-lg">filter_alt_off</span>
+                  </button>
+                )}
+                {stale && (
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-800">
+                    Liste non actualisée
+                  </span>
+                )}
+                <div className="absolute right-0 top-0">
+                  <InlineHelpButton
+                    label="Aide sur les filtres"
+                    content="Les filtres s'appliquent au service affiché (et à ses sous-services si la case est cochée)."
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="min-h-[560px] px-8 py-8">
@@ -577,7 +723,10 @@ const SpacesPage: React.FC = () => {
               )}
 
               {childUnits.length > 0 && hiddenDescendantDocumentsCount > 0 && !isSearchMode && (
-                <div className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-600">
+                <div
+                  title="sur cette page"
+                  className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-600"
+                >
                   {hiddenDescendantDocumentsCount} document{hiddenDescendantDocumentsCount > 1 ? 's' : ''} disponible{hiddenDescendantDocumentsCount > 1 ? 's' : ''} dans les sous-services.
                 </div>
               )}
@@ -748,6 +897,57 @@ const SpacesPage: React.FC = () => {
                         })}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {!error && !documentsLoading && visibleDocuments.length === 0 && (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 px-5 py-12 text-center">
+                  <span className="material-symbols-outlined text-4xl text-slate-400">folder_open</span>
+                  <p className="text-sm font-semibold text-slate-600">
+                    {debouncedQuery
+                      ? `Aucun résultat pour “${debouncedQuery}”.`
+                      : hasActiveFilters
+                        ? 'Aucun document ne correspond a vos criteres.'
+                        : 'Aucun document dans ce service.'}
+                  </p>
+                  {!debouncedQuery && !hasActiveFilters && childUnits.length > 0 && (
+                    <p className="text-xs text-slate-500">Des documents peuvent se trouver dans les sous-services.</p>
+                  )}
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="rounded-xl bg-slate-100 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-rdpc-blue"
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!error && totalDocuments > SPACES_PAGE_SIZE && (
+                <div className="flex items-center justify-end gap-3 pt-4 text-xs font-semibold text-slate-600">
+                  <span>
+                    {(page - 1) * SPACES_PAGE_SIZE + 1}–{Math.min(page * SPACES_PAGE_SIZE, totalDocuments)} sur {totalDocuments}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Page précédente"
+                    disabled={page <= 1 || documentsLoading}
+                    onClick={() => updateParams({ page: page > 2 ? String(page - 1) : undefined })}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 disabled:opacity-40"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_left</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Page suivante"
+                    disabled={page * SPACES_PAGE_SIZE >= totalDocuments || documentsLoading}
+                    onClick={() => updateParams({ page: String(page + 1) })}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 disabled:opacity-40"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_right</span>
+                  </button>
                 </div>
               )}
             </div>
