@@ -124,7 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
                  {isHealthy === null ? 'Vérification...' : isHealthy ? 'Système Opérationnel' : 'Système Indisponible'}
                </span>
             </div>
-            <p data-testid="app-version" className="mt-2 text-[8px] font-bold uppercase tracking-widest text-white/40">
+            <p data-testid="app-version" className="mt-2 text-[8px] font-bold uppercase tracking-widest text-white/70">
               Version {APP_VERSION}
             </p>
           </div>
