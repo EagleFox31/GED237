@@ -18,7 +18,7 @@ Pour : dev-backend (API), dev-frontend (carte), ci-qa (preuve), orchestrateur. F
 1. **Réponse** `GET /analytics/tenant` : nouvelle clé **`duplicates`**, les clés existantes inchangées :
    `"duplicates": {"refused": <int>, "refused_upload": <int>, "refused_import": <int>}` avec `refused = refused_upload + refused_import`.
    - `refused_upload` = `count(AuditLog)` où `tenant_id` = tenant courant, `table_name="documents"`, `action="dup_detected"` (couvre upload et nouvelle version).
-   - `refused_import` = `sum(ImportJob.duplicate_files)` du tenant, jobs au statut terminé (pas `draft`).
+   - `refused_import` = `sum(ImportJob.duplicate_files)` du tenant, jobs **engagés** seulement (`running`, `completed`, `completed_with_errors`) : une analyse annulée ou relancée compterait sinon deux fois les mêmes fichiers (précision de dev-backend le 10/11, retenue).
    - Pas de double comptage : l'import n'écrit pas `dup_detected` (§ 1). Si B ajoute l'audit à `ingest-directory`, il compte dans `refused_upload` et n'incrémente pas `duplicate_files`.
 2. **Cumul depuis l'origine du tenant**, aucune fenêtre temporelle (la démo part d'un reset ; une fenêtre « 30 jours » se discute en V1.1).
 3. **Même façade** `DashboardFacade.get_tenant_metrics` (deux requêtes `count`/`sum` supplémentaires, pas de table ni de migration). `get_manager_metrics` et `get_platform_metrics` inchangés.
