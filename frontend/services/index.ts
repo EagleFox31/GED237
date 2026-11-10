@@ -183,6 +183,7 @@ export const api = {
 
     // Audit
     getAuditLogs: auditApi.getAuditLogs,
+    exportAuditLogs: auditApi.exportAuditLogs,
 
     // Analytics
     getTenantAnalytics: analyticsApi.getTenantAnalytics,
