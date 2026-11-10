@@ -1,4 +1,4 @@
-# Spec — garde de routes admin / non-admin (ordre 6, décision PO (b) « B1 », DEC-2026-002 ; mardi 18/11)
+# Spec — garde de routes admin / non-admin (ordre 6, décision PO (b) « B1 », DEC-2026-002 ; mercredi 18/11)
 
 - **Pour** : dev-frontend (implémente), ci-qa (spec Playwright dans sa pile e2e), orchestrateur (recette). Instruite par l'innovateur le 2026-11-09 19:30. Aucun code écrit ici.
 - **Niveaux** : `Vérifié` = lu dans le dépôt ce jour (chemin:ligne) ; `Déduit` ; `Proposé`.
@@ -24,7 +24,7 @@
 
 **Décision de conception** : la garde compare **`userProfile.id`** (`'super'`, `'tenant'`, …), jamais `backendRole` ni le code brut. C'est la seule valeur déjà normalisée.
 
-### 1.3 Lien avec la migration des rôles (B2, mardi 11)
+### 1.3 Lien avec la migration des rôles (B2, mercredi 11)
 
 La migration de dev-backend passe les codes de rôle en minuscules (`super_admin`, …) alors que `001_initial_schema.py:66-72` les avait insérés en majuscules et que le seed les écrit en minuscules. Côté client, `resolveTemplate` absorbe les deux casses **avant** que la garde ne lise `userProfile.id`. Conséquence : **aucune dépendance de calendrier** entre B2 et cette garde, à une condition : **ne jamais écrire `backendRole === 'TENANT_ADMIN'` dans la garde**. Un test unitaire (§ 4.1) fige ce point.
 
@@ -101,7 +101,7 @@ Réutilise `loginAs(role)` de `frontend/e2e/fixtures/auth.fixture.ts` (`TEST_USE
 
 Six cas, ~40 lignes, moins d'une minute d'exécution. GUARD-06 est le seul qui prouve « pas de page blanche » et « pas d'appel API » : ne pas le couper.
 
-### 4.3 Recette O (mardi 18 soir)
+### 4.3 Recette O (mercredi 18 soir)
 
 PR fusionnée + run Playwright vert joint au walkthrough ; capture **recadrée** du message chez un lecteur. Point S1 : rien à changer (ordre 6 maintenu, D2 inchangé).
 

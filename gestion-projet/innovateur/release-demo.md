@@ -1,4 +1,4 @@
-# Release taguée pour la démo du 30/11 (ordre 6 « release taguée », DEC-2026-002 ; gel lundi 24/11)
+# Release taguée pour la démo du 30/11 (ordre 6 « release taguée », DEC-2026-002 ; gel mardi 24/11)
 
 - **Pour** : orchestrateur (déclenche), ci-qa (vérifie), dev-backend / dev-frontend (bump de version). Instruit par l'innovateur le 2026-11-09 22:00.
 - **Niveaux** : `Vérifié` = dépôt / API GitHub lus ce jour ; `Constaté` = observé sans vérifier la cause ; `Déduit` ; `Proposé`.
@@ -33,8 +33,8 @@
 
 | Tag | Quand | Qui | Contenu |
 |---|---|---|---|
-| `v1.0.0-rc.1` | **lundi 24/11**, après le dernier merge du gel | O | release candidate = périmètre figé ; **pré-release** GitHub (case « pre-release » cochée) |
-| `v1.0.0-rc.2` (si correctifs de recette après le 24) | au plus tard **jeudi 27/11 matin**, avant la répétition générale | O | mêmes règles ; **le tag monté sur les postes de démo est le dernier rc** |
+| `v1.0.0-rc.1` | **mardi 24/11**, après le dernier merge du gel | O | release candidate = périmètre figé ; **pré-release** GitHub (case « pre-release » cochée) |
+| `v1.0.0-rc.2` (si correctifs de recette après le 24) | au plus tard **vendredi 27/11 matin**, avant la répétition générale | O | mêmes règles ; **le tag monté sur les postes de démo est le dernier rc** |
 | `v1.0.0` | **après** la démo, si GO du PO | O | V1 livrée ; ensuite Release Please (option B) prend la suite |
 
 Semver strict (`v` + `MAJOR.MINOR.PATCH[-rc.N]`) : compatible avec Release Please plus tard et avec le `v` par défaut de l'outil ; pas de suffixe « -demo » (non ordonnable, illisible dans six mois). Règle : **aucune image non taguée** sur le poste principal ni le poste de secours.

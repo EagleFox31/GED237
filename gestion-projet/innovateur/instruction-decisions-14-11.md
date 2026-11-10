@@ -8,7 +8,7 @@
 - **Faits (09/11)** : `jeu-donnees-demo.md` § 5 : Q constitue (générateur `test_real_export_v2.py` adapté, `demo-manifest.json` au format du manifeste e2e, profil `demo` de `e2e_reset.sh`), B 0,25 j seulement si aucun import JSON des règles n'existe ; corpus `/data/ingest` monté en lecture seule (tranché 09/11). Q porte déjà le seed e2e (PR 2 en préparation) et OCR-0 (0,5 j) ; enveloppe Q S1 = 2 j + 0,5.
 - **À vérifier le 13 au soir** : PR 2 seed de Q fusionnée ou au moins verte (sinon P8 et P2 n'ont rien à viser) ; existence d'un endpoint d'import des règles (`POST /rules` unitaire suffit : le script boucle).
 - **Options** : (i) Q constitue, B 0,25 j si besoin ; (ii) B seul ; (iii) F.
-- **Recommandation** : **(i)**, mais planifier la constitution **mar 18–mer 19** (pas jeu 20 comme DEC-002) pour que C2/C3 soient mesurables jeu 20 et que la restauration n° 2 du 20 soir porte sur le jeu de démo (`sauvegarde-restauration.md` § 6.3).
+- **Recommandation** : **(i)**, mais planifier la constitution **mer 18–jeu 19** (pas ven 20 comme DEC-002) pour que C2/C3 soient mesurables ven 20 et que la restauration n° 2 du 20 soir porte sur le jeu de démo (`sauvegarde-restauration.md` § 6.3).
 - **Présentation** : sans jeu de démo au 20, l'écart 1 (« chiffres non mesurés ») reste tel quel et la démo tourne sur le jeu e2e (400 fichiers synthétiques, codes `E2E-…` visibles à l'écran) : à éviter.
 
 ## D2 — Ordre de sacrifice si retard constaté
@@ -55,7 +55,7 @@
 
 | Déc. | Recommandation | Condition le 13 au soir |
 |---|---|---|
-| D1 | (i) Q constitue, B 0,25 j si besoin, constitution mar 18–mer 19 | PR 2 seed verte |
+| D1 | (i) Q constitue, B 0,25 j si besoin, constitution mer 18–jeu 19 | PR 2 seed verte |
 | D2 | nouvel ordre : pagination → retour pour correction → C2/C3 au 27 → une seule restauration ; **jamais** restauration prouvée ni 8 parcours | #45/#46/#47 + PR P8 fusionnées ; budget § 4 avec +0,95 j-p |
 | D3 | V1.1 quel que soit OCR-0 | OCR-0 exécuté ou non : sans effet |
 | D4 | variable seule dans les deux compose | PR B fusionnée, compose e2e aligné |

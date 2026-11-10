@@ -74,8 +74,8 @@ Corriger 6 écarts pour 9 j-p (sécurité recherche + upload d'abord, 8 parcours
 
 ## Amendements acceptés avec la décision (2026-11-09)
 
-- Migration de normalisation des rôles en minuscules (`001_initial_schema.py:67-72`) : obligatoire, 0,25 j B, mardi 11, test « `alembic upgrade head` seul puis login du compte seed », LESSON-2026-020.
-- D3 journal d'audit sans connexion / dépôt / import : corrigé, 0,5 j B, mercredi 12 avec le plafond upload ; test « login + upload + ingest = 3 lignes visibles par l'auditeur ».
+- Migration de normalisation des rôles en minuscules (`001_initial_schema.py:67-72`) : obligatoire, 0,25 j B, mercredi 11, test « `alembic upgrade head` seul puis login du compte seed », LESSON-2026-020.
+- D3 journal d'audit sans connexion / dépôt / import : corrigé, 0,5 j B, jeudi 12 avec le plafond upload ; test « login + upload + ingest = 3 lignes visibles par l'auditeur ».
 - D4 export du journal : annoncé en V1.1 (écart 8) ; SC-AUD-02 retiré de P7.
 - Verrou par compte après 3 OTP erronés : abandonné et annoncé (écart 9 : « 5 tentatives/min par IP ; verrou par compte en V1.1 ») ; `DEBUG` vérifié faux sur l'environnement de démo.
 - P8 (corbeille / version sans UI) : remplacé par le cycle de validation, 0 j.
@@ -86,7 +86,7 @@ Corriger 6 écarts pour 9 j-p (sécurité recherche + upload d'abord, 8 parcours
 Sur la base du dossier `../innovateur/decision-po-vps-b6.md` (mesures VPS du 2026-11-09 19:05), le PO a accepté les deux recommandations :
 
 - **(a) Démo sur place en Docker**, avec un second poste de secours (0,5 j). Le VPS OVH (198 Mo libres, disque à 77 %) n'est pas retenu ; l'option « URL vitrine » n'est pas demandée. Conséquences : OCR-1 reste en V1.1 ; l'ordre 6 (garde de routes) est maintenu ; aucune tâche VPS/Caddy avant le gel.
-- **(b) B6 : garde de routes admin / non-admin seule** côté frontend (ordre 6, 0,5 j, mardi 18). Les trois constats backend (assignable-roles sans RBAC, `users:update_own`, clé snapshot) passent en **V1.1** et rejoignent les écarts annoncés.
+- **(b) B6 : garde de routes admin / non-admin seule** côté frontend (ordre 6, 0,5 j, mercredi 18). Les trois constats backend (assignable-roles sans RBAC, `users:update_own`, clé snapshot) passent en **V1.1** et rejoignent les écarts annoncés.
 
 Hypothèse de travail du 2026-11-09 18:07 confirmée ; plus aucune question ouverte sur cette décision.
 

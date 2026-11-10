@@ -16,6 +16,7 @@
 | Lot | Contenu | Session | Effort | Preuve attendue |
 |---|---|---|---|---|
 | OCR-0 | Mesure sur 30 pages réelles : CER Tesseract vs RapidOCR vs EasyOCR ; RAM et temps par page sur le VPS (ou conteneur plafonné équivalent) | Q | 0,5 j | tableau chiffré dans un walkthrough ; condition de go pour OCR-1 : CER RapidOCR ≤ CER EasyOCR et RAM du worker < 1 Go |
+| OCR-0, critère révisé | **Proposé — à valider par le PO au point S1 (ven 13)**, suite à la répétition à blanc de ci-qa du 10/11 : E hors budget mémoire (OOM à 1 Go dès le chargement) ; D3 go/no-go OCR-1 se décide sur : **pic R < 1 Go ET CER R ≤ CER T-best** (meilleure option viable sous budget, pas T-fast), débit R ≈ 3 s/page propre (P95 7,7), 2,5 dégradé, pic 721 Mo, threads alignés sur le quota (re-mesure 10/11). La ligne E reste dans le tableau avec « hors budget » | O / PO | 0 j | ligne « Décision prise » du point S1 (`point-2026-11-14.md` § 2, D3) |
 | OCR-1 | `RapidOCREngine` + retrait EasyOCR/torch + couche texte par page + cache SHA-256 | B | 1,5–2 j | tests unitaires du moteur et du cache ; taille d'image Docker avant/après ; corpus de démo ré-OCRisé |
 | OCR-2 | OCRmyPDF conteneurisé en pré-traitement | B | 1–2 j | V1.1 |
 | OCR-3 | regex + spaCy fr → critères « contenu » des règles IFTTT | B | 2–3 j | V1.1 (lot Mois 5 du CDC) |
