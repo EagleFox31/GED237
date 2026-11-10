@@ -254,3 +254,19 @@ Pièges : hook pre-commit cassé sur l'hôte (venv `E:\GED237` absent). Les cont
 - #59 fusionnée (main 4953e81). Worktree GED237-restore fast-forward sur 4953e81 ; GED237-e2eup supprimé.
 - dev-backend a fini (290 passed). Rejeu lancé en tâche de fond (bmblr98x8) : log dans scratchpad/restore-drill.log, sauvegardes dans scratchpad/backups/.
 - À la fin : prévenir dev-backend, écrire gestion-projet/recette/restauration-2026-11-10.txt (§ 6.4 ; sans mot de passe, identifiant seed seul ; noter l override storage_data), puis PR docs depuis docs/recette-restauration-1, numéro à l orchestrateur.
+
+## 2026-11-10 08:22 — Rejeu restauration n° 1 vert, PR #61
+
+- Rejeu sur la pile e2e (main 4953e81) : backup 10 s (sha OK) ; down -v ; restore sur cible vierge 8 s (comptages = manifeste) ; /health 200 ; smoke 31 passed / 3 skipped ; second restore 16 s, zéro écart, code 0. Preuve : gestion-projet/recette/restauration-2026-11-10.txt. PR docs #61 (branche docs/recette-restauration-1, worktree GED237-restore).
+- Écart : override hors dépôt (volume storage_data sur /tmp/ged-storage), car la pile e2e n a pas de volume. P5 partiel (pas de spec de recherche bornée). restore.sh rend la main avant que l api écoute : signalé à dev-backend.
+- Docker rendu. Suite : CI #61 et fusion par l orchestrateur ; route-guard.spec.ts dans le smoke ; levée du fixme de SMK-01/02/10 après fix/recette-smoke-2 ; SC-VAL-01 ; P8 jeudi 12 ; OCR-0 réel vendredi 13 ; rejeu n° 2 le 20.
+
+## 2026-11-10 08:23 — Tâches en cours : smoke + route-guard, outillage des mesures C2/recherche
+
+- #61 relue et conforme ; l orchestrateur la fusionne avec #57 au go PO.
+- En cours : smoke avec route-guard.spec.ts ajouté au testMatch du projet smoke (worktree GED237-guard, branche ci/smoke-route-guard, main 97e4ea1, une ligne dans frontend/playwright.config.ts). Run en tâche de fond bplzi9kut, log scratchpad/e2e-run11.log. Si vert : commit, PR, numéro à l orchestrateur, Docker rendu à dev-backend (prévenu).
+- Tâche suivante (orchestrateur) : outillage de protocole-mesures-criteres.md, PR depuis main 97e4ea1 :
+  (a) script C2 : taux de documents classés >= 95 %, avec la liste des écarts destination / non classés ;
+  (b) script recherche : p95 took_ms < 2 s sur les requêtes du protocole, et le max sur un mot fréquent ;
+  (c) jeu-donnees-demo.md § 5 étape 4 : comparaison smoke des compteurs réels à la section expected de demo-manifest.json ; format d expected à caler avec dev-backend, aligné sur seed-manifest.json.
+  Sortie texte datée dans gestion-projet/recette/. Preuve : scripts joués sur la pile e2e (valeurs sans seuil), tests ciblés seulement.

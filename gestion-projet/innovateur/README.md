@@ -11,8 +11,8 @@ consultation et un niveau de preuve (`Vérifié` / `Documenté` / `Déduit` / `P
 | `plan-presentation.md` | Déroulé 20 min du 30/11, messages ISO 15489, 15 écarts annoncés consolidés le 09/11, questions du jury |
 | `decision-po-vps-b6.md` | Dossier PO **tranché le 09/11** : démo sur place (A), B6 garde minimale (B1), constats backend en V1.1 |
 | `triage-dependabot-35.md` | PR #35 (zustand 5.1.0, @playwright/test 1.65.0) : fusionner |
-| `jeu-donnees-demo.md` | § 7 (09/11 soir) : chemin de seed de la pile démo, reco service one-shot `seed`, état livré PR #50 (api/worker dépendent de migrate, create_all gardé jusqu à la bascule ci-qa) ; Jeu de démo du 20/11 : arborescence, 420 documents, états, 10 règles IFTTT, procédure ci-qa |
-| `sauvegarde-restauration.md` | Ordre 5 : § 6 (09/11 soir) voie V1 = `backup.sh`/`restore.sh` maison ≤ 0,25 j B, deux restaurations prouvées (18 et 20/11), point de reprise démo ; offen → V1.1 ; étude initiale : Adopt offen + `restore.sh`, plan 0,75 j B + 0,5 j Q |
+| `jeu-donnees-demo.md` | § 7 (09/11 soir) : chemin de seed de la pile démo, reco service one-shot `seed`, état livré PR #50 (api/worker dépendent de migrate, create_all gardé jusqu à la bascule ci-qa, retiré par #60 le 10/11) ; Jeu de démo du 20/11 : arborescence, 420 documents, états, 10 règles IFTTT, procédure ci-qa |
+| `sauvegarde-restauration.md` | Ordre 5 : § 6 (09/11 soir) voie V1 = `backup.sh`/`restore.sh` maison ≤ 0,25 j B, deux restaurations prouvées (10 et 20/11), point de reprise démo ; offen → V1.1 ; étude initiale : Adopt offen + `restore.sh`, plan 0,75 j B + 0,5 j Q |
 | `protocole-ocr-0.md` | Benchmark OCR-0 pour ci-qa (14/11) : corpus, 4 configurations, CER jiwer, pic mémoire, seuils DEC-003, tableau |
 | `branches-distantes.md` | Inventaire des 19 branches distantes : 13 supprimables sur accord PO, 6 gardées ; aucune suppression faite |
 | `checklist-demo.md` | Cases à cocher J-1 / J0 (qui, quand) : DEBUG, limites auth, corpus pré-OCRisé, worker éteint, poste de secours, sauvegarde, plan B, comptes |

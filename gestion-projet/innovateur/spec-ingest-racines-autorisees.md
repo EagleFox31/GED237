@@ -1,6 +1,6 @@
 # Spécification — `POST /documents/ingest-directory` : racines autorisées (`INGEST_ALLOWED_ROOTS`, B ≈ 0,25 j, après le 413)
 
-Pour : dev-backend (PR `fix/ingest-allowed-roots`), ci-qa (montage et rejeu P2), orchestrateur. Instruction innovateur du 2026-11-09 soir ; développe la fiche courte `spec-limite-upload.md` § 5 (qui reste la référence du choix `/data/ingest`, tranché O). Niveaux : `Vérifié` = lu dans `main` a4b8dbe ; `Proposé` = à trancher dans la PR. Pas de code ici.
+Pour : dev-backend (PR `fix/ingest-allowed-roots`, **livrée #53 le 10/11** : `INGEST_ALLOWED_ROOTS` `core/config.py:70,161`, `/data/ingest` dans les deux compose), ci-qa (montage et rejeu P2), orchestrateur. Instruction innovateur du 2026-11-09 soir ; développe la fiche courte `spec-limite-upload.md` § 5 (qui reste la référence du choix `/data/ingest`, tranché O). Niveaux : `Vérifié` = lu dans `main` a4b8dbe ; `Proposé` = à trancher dans la PR. Pas de code ici.
 
 ## 1. Risque
 

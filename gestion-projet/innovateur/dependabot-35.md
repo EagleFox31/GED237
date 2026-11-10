@@ -1,6 +1,6 @@
 # PR #35 Dependabot — groupe npm `/frontend` (zustand 5.0.16 → 5.1.0, @playwright/test 1.64.1 → 1.65.0)
 
-Pour : orchestrateur (décision de fusion), ci-qa (image Playwright), dev-frontend. Fiche courte de l'innovateur, 2026-11-09 soir ; même logique que `DEC-2026-001` (pas de DEC : aucune majeure runtime). Niveaux : `Vérifié` = lu dans `gh pr view/diff 35`, `gh pr checks 35`, `gh api /advisories`, `main` a4b8dbe et `../GED237-e2e/docker-compose.e2e.yml` ; `Déduit` = raisonnement sans exécution.
+Pour : orchestrateur (décision de fusion), ci-qa (image Playwright), dev-frontend. Fiche courte de l'innovateur, 2026-11-09 soir ; même logique que `DEC-2026-001` (pas de DEC : aucune majeure runtime). Niveaux : `Vérifié` = lu dans `gh pr view/diff 35`, `gh pr checks 35`, `gh api /advisories`, `main` a4b8dbe et `docker-compose.e2e.yml` ; `Déduit` = raisonnement sans exécution.
 
 ## 1. Contenu (`Vérifié`)
 
@@ -20,7 +20,7 @@ PR ouverte le 09/11 16:37, `MERGEABLE`, CI verte : Build, Lint & Typecheck, Triv
 | Risque | Niveau | Détail |
 |---|---|---|
 | zustand 5.1.0 | faible (`Vérifié` par lecture du changelog et des deux imports) | changements limités à `persist` et `devtools`, non utilisés ; `create` inchangé |
-| @playwright/test 1.65.0 **vs image e2e** | **élevé** (`Vérifié` sur la ligne, `Déduit` sur l'effet) | `../GED237-e2e/docker-compose.e2e.yml:99-100` : `# Keep the tag in step with @playwright/test in frontend/package-lock.json` → `image: mcr.microsoft.com/playwright:v1.64.1-noble`. Le conteneur fait `npm ci` puis `npx playwright test` (l.120-121) : avec le lock en 1.65.0, le runner cherche la révision Chromium r1254 absente de l'image 1.64.1 → « Executable doesn't exist », **toute la campagne e2e rouge** (smoke, UAT, P8 jeu 12). Dependabot ne peut pas éditer le compose : la correction est un commit ci-qa (`v1.65.0-noble`) dans `ci/e2e-smoke` (#39) ou une PR dédiée |
+| @playwright/test 1.65.0 **vs image e2e** | **élevé** (`Vérifié` sur la ligne, `Déduit` sur l'effet) | `docker-compose.e2e.yml:99-101` (racine du dépôt depuis #39) : `# Keep the tag in step with @playwright/test in frontend/package-lock.json` → `image: mcr.microsoft.com/playwright:v1.64.1-noble`. Le conteneur fait `npm ci` puis `npx playwright test` (l.120-121) : avec le lock en 1.65.0, le runner cherche la révision Chromium r1254 absente de l'image 1.64.1 → « Executable doesn't exist », **toute la campagne e2e rouge** (smoke, UAT, P8 jeu 12). Dependabot ne peut pas éditer le compose : la correction est un commit ci-qa (`v1.65.0-noble`) dans `ci/e2e-smoke` (#39) ou une PR dédiée |
 | Changement de comportement des specs | faible | Bun est opt-in (`--bun`) ; reporters existants inchangés ; aucune API dépréciée citée dans les notes 1.65 pour `test`, `expect`, `locator` |
 | Majeure | aucune | les deux bumps sont mineurs |
 
@@ -39,7 +39,7 @@ Coût : 0,1 j Q (image + run) + 0 j F.
 - Laisser #35 **ouverte** : Dependabot la rebase seul ; après le 30/11, fusion avec le bump d'image dans la même journée (règle à inscrire : « bump `@playwright/test` ⇒ bump du tag `mcr.microsoft.com/playwright` », candidat check CI docs/compose V1.1, `DOCS/engineering/README.md`).
 - Si le PO tient à fusionner avant le gel : seulement après la campagne du 13 et avec le point 4.1 fait le même jour par ci-qa ; jamais entre #39 et jeu 12.
 
-Sources : `gh pr view 35`, `gh pr diff 35`, `gh pr checks 35`, `gh api /advisories` (09/11 soir) ; `frontend/package.json` ; `frontend/stores/authStore.ts` ; `frontend/lib/errors/errorBus.ts` ; `../GED237-e2e/docker-compose.e2e.yml` (lecture seule) ; `DEC-2026-001` ; `point-2026-11-14.md` § 4.
+Sources : `gh pr view 35`, `gh pr diff 35`, `gh pr checks 35`, `gh api /advisories` (09/11 soir) ; `frontend/package.json` ; `frontend/stores/authStore.ts` ; `frontend/lib/errors/errorBus.ts` ; `docker-compose.e2e.yml` (lecture seule) ; `DEC-2026-001` ; `point-2026-11-14.md` § 4.
 
 ## Mise à jour du 2026-11-09 (nuit)
 

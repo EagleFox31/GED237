@@ -28,7 +28,7 @@ Choix : **Adopt offen/docker-volume-backup pour produire l'artefact ; Build un s
 
 ## 3. Conception (`Proposé`, prête à appliquer)
 
-### 3.1 Service compose `backup` (profil `ops`, fichier `docker-compose.backup.yml` pour ne pas toucher au compose principal)
+### 3.1 Service compose `backup` (profil `ops`, fichier `docker-compose.backup.yml` pour ne pas toucher au compose principal) — *option étudiée ; livré #54 (10/11) sous forme de script `ops/backup.sh`, sans service compose*
 
 - Image `offen/docker-volume-backup:v2.50.1` épinglée ; `mem_limit: 128m` ; montages : `postgres_data`… **non** (on ne copie pas le volume Postgres brut), à la place un volume `backup_dump:/backup/db:ro` partagé avec postgres, `storage_data:/backup/storage:ro`, `./backups:/archive` (local) ; `/var/run/docker.sock:ro` pour les labels.
 - Variables : `BACKUP_CRON_EXPRESSION="0 2 * * *"`, `BACKUP_FILENAME="ged237-%Y-%m-%dT%H-%M-%S.tar.gz"`, `BACKUP_RETENTION_DAYS=14`, `BACKUP_PRUNING_PREFIX=ged237-`, option `AWS_*`/`S3_ENDPOINT` laissée vide (activable vers MinIO sans changer le script : RAIDER-A), `GPG_PASSPHRASE` lue depuis `.env` (jamais versionnée).
@@ -36,7 +36,7 @@ Choix : **Adopt offen/docker-volume-backup pour produire l'artefact ; Build un s
 - Déclenchement manuel (avant la démo, après la répétition) : `docker compose --profile ops exec backup backup`.
 - Artefact résultant : un `tar.gz` contenant `db/edossier.dump` (+ `.sha256`) et `storage/…` ; manifeste `MANIFEST.json` écrit par `archive-pre` (date, version Alembic via `SELECT version_num FROM alembic_version`, nombre de documents, taille du stockage) pour le contrôle après restauration.
 
-### 3.2 `scripts/restore.sh <archive.tar.gz>` (Build, ~60 lignes, idempotent)
+### 3.2 `scripts/restore.sh <archive.tar.gz>` (Build, ~60 lignes, idempotent) — *livré #54 : `ops/restore.sh <dossier-sauvegarde> [--wipe] [--yes]`*
 
 1. Vérifier la somme SHA-256 de l'archive et du dump ; refuser si absente.
 2. `docker compose stop api worker` ; `docker compose up -d postgres` sur une base **vierge** (`docker compose down -v` au préalable dans le rejeu ci-qa ; en exploitation, `DROP DATABASE`/`CREATE DATABASE` explicite demandée par option `--wipe`).
@@ -76,7 +76,7 @@ Hors périmètre V1, à annoncer : chiffrement GPG activé par défaut, copie ho
 
 Ce qui change par rapport aux § 3-4 (non réécrits) : O fixe le portage à **≤ 0,25 j** et exige une restauration **répétée au moins une fois avant le 27** avec preuve. Le service compose `offen/docker-volume-backup` (§ 3.1, 0,75 j) devient donc la **V1.1** (planification, rotation, chiffrement) ; la voie V1 est le **repli du § 4 promu en voie principale** : deux scripts maison, même format d'artefact, pas de conteneur supplémentaire. Rien n'est perdu : `restore.sh` est identique dans les deux voies.
 
-### 6.1 Contrat des scripts (`backend/scripts/backup.sh`, `backend/scripts/restore.sh`, POSIX sh, Docker uniquement)
+### 6.1 Contrat des scripts (livrés #54 : `ops/backup.sh`, `ops/restore.sh <dossier> [--wipe] [--yes]`, sortie `backups/ged237-<UTC>/` = `db.dump`, `storage.tar.gz`, `SHA256SUMS`, `MANIFEST.txt` ; POSIX sh, Docker uniquement)
 
 | Point | Décision |
 |---|---|
@@ -107,7 +107,7 @@ Ce qui change par rapport aux § 3-4 (non réécrits) : O fixe le portage à **�
 
 ### 6.5 Intégration à `checklist-demo.md` (lignes ajoutées ce soir)
 
-- **J-1** : sauvegarde complète = ligne existante (§ B Données), commande remplacée par `scripts/backup.sh`.
+- **J-1** : sauvegarde complète = ligne existante (§ B Données), commande remplacée par `ops/backup.sh`.
 - **Point de reprise avant la séance** : le poste de secours **est** la restauration de la sauvegarde J-1 ; vérification H-30 : `/health` 200 sur les deux postes, même nombre de documents.
 - **Si une purge part en démo** (`DELETE /purge` ou suppression définitive) : **aucune restauration en séance** (règle « jamais de redémarrage de conteneur en séance ») ; O bascule sur le **poste de secours** (< 60 s), qui montre l'état J-1 ; la restauration du poste principal se fait **après** la séance depuis le répertoire J-1. P commente « le document est en corbeille, l'administrateur peut le restaurer » et ne tente pas de le faire en direct.
 
