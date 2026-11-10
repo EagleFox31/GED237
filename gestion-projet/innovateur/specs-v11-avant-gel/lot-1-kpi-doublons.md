@@ -2,6 +2,8 @@
 
 Pour : dev-backend (API), dev-frontend (carte), ci-qa (preuve), orchestrateur. Fiche courte de l'innovateur, 2026-11-10, lue sur `main` 950e66b. Règle : **livré si fusionné le mer 19/11 18:00, sinon V1.1** (phrase d'écart inchangée : « le compteur au tableau de bord arrive en V1.1 »). Niveaux : `Vérifié` = lu dans le dépôt ; `Proposé` = à trancher dans la PR. Pas de code ici.
 
+**État au 10/11 11:10** : PR B **#77** (`feat/kpi-duplicates`, CI avec un échec à corriger) et PR F **#81** (`feat/dashboard-duplicates-tile`, CI verte) ouvertes ; non fusionné.
+
 ## 1. Existant (`Vérifié`)
 
 | Où | Ce qui existe |
