@@ -15,7 +15,8 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlalchemy import select
-from app.core.database import engine, AsyncSessionLocal, Base
+from app.core.database import engine, AsyncSessionLocal
+from app.core.schema_check import get_schema_status
 from app.core.security import hash_password
 from app.core.authz.roles import ROLE_CODES
 from app.models.role import Role
@@ -68,10 +69,14 @@ async def upsert_by_code(db, model, rows):
 async def seed():
     print("=== E-Dossier Cameroun - Database Seed ===\n")
 
-    # 1. Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("[OK] Tables created")
+    # 1. The schema comes from the migrations only (`alembic upgrade head`): the
+    # seed never builds tables from the models, so a database that is not at
+    # head stops here with the fix to apply instead of failing half-way.
+    status = await get_schema_status(engine)
+    if not status.at_head:
+        print(f"[ERROR] {status.describe()}")
+        sys.exit(2)
+    print(f"[OK] Schema at Alembic head ({', '.join(sorted(status.expected))})")
 
     async with AsyncSessionLocal() as db:
         # ─── ROLES ────────────────────────────────────────
@@ -140,7 +145,7 @@ async def seed():
                 "[SKIP] Demo tenant MINFI already present; reference data reconciled only."
             )
             return
-        print("[OK] 4 org unit types created")
+        print("[OK] 4 org unit types reconciled")
 
         # ─── TENANTS ─────────────────────────────────────
         # PLATFORM : tenant systeme heberge les super_admins (non-visible aux autres roles).

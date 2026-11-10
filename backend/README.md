@@ -52,6 +52,10 @@ Le script cree au besoin le reseau, PostgreSQL, Redis et les volumes (`gedtest-*
 `pytest` cree le schema via `create_all` : tester les migrations separement (`alembic upgrade head`,
 `alembic check` sur une base vierge).
 
+Hors tests, le schema vient uniquement des migrations : `scripts/seed_db.py` exige une base a la tete
+Alembic (`alembic upgrade head` d'abord, code de sortie 2 sinon) et reconcilie les donnees de reference
+deja inserees par les migrations au lieu de les recreer.
+
 ## Outils et runbooks
 
 - runbook AuthZ : `docs/AUTHZ_ROLLOUT_RUNBOOK.md`
