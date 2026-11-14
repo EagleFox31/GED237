@@ -87,6 +87,7 @@ export const api = {
     resolveClassificationReview: documentsApi.resolveClassificationReview,
     getDocumentAuditLogs: documentsApi.getDocumentAuditLogs,
     ingestDirectory: documentsApi.ingestDirectory,
+    getIngestWatchStatus: documentsApi.getIngestWatchStatus,
     startDocumentWorkflow: documentsApi.startDocumentWorkflow,
 
     // Imports
