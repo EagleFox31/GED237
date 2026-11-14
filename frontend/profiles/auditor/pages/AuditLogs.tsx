@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { DataTable, type Column, type SortState } from '../../../components/ui/DataTable';
 import { api } from '../../../services/api';
@@ -58,7 +59,12 @@ const AuditLogs: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState | null>({ key: 'created_at', dir: 'desc' });
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [searchParams] = useSearchParams();
+  // Filtre d'action initial lu de l'URL (ex. ?action=dup_detected depuis la tuile doublons).
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>((): Record<string, string[]> => {
+    const action = searchParams.get('action');
+    return action ? { action: [action] } : {};
+  });
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>([
     'created_at',
     'resource',
