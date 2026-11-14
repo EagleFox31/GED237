@@ -1,5 +1,8 @@
 import { test, expect, TEST_USERS } from '../fixtures/auth.fixture';
 
+// These specs test the login itself: every loginAs goes through the real form.
+test.use({ freshLogin: true });
+
 test.describe('Feature: Authentification 2FA', () => {
 
   /**

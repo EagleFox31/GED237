@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     AUTH_LOGIN_RATE_LIMIT: str = "5/minute"
     AUTH_OTP_RATE_LIMIT: str = "5/minute"
     AUTH_REFRESH_RATE_LIMIT: str = "10/minute"
+    # Account lock: after this many wrong OTP codes the account is refused (423) for
+    # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
+    AUTH_OTP_MAX_FAILURES: int = 3
+    AUTH_LOCKOUT_SECONDS: int = 900
     # True only when the API is reachable exclusively through a reverse proxy
     # that sets X-Forwarded-For (nginx/nginx.conf). Otherwise the header is
     # client-controlled and ignored.

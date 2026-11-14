@@ -101,6 +101,7 @@ class FakeRedis:
         self.values = dict(values or {})
         self.setex_calls = []
         self.deleted = []
+        self.ttls = {}
 
     async def get(self, key):
         return self.values.get(key)
@@ -108,11 +109,19 @@ class FakeRedis:
     async def setex(self, key, ttl, value):
         self.setex_calls.append((key, ttl, value))
         self.values[key] = value
+        self.ttls[key] = ttl
+
+    async def ttl(self, key):
+        # Redis semantics: -2 missing key, -1 key without expiry.
+        if key not in self.values:
+            return -2
+        return self.ttls.get(key, -1)
 
     async def delete(self, *keys):
         self.deleted.extend(keys)
         for key in keys:
             self.values.pop(key, None)
+            self.ttls.pop(key, None)
 
 
 class AsyncUpload:
@@ -721,7 +730,12 @@ async def test_auth_service_patterns(monkeypatch):
     verified = await service.verify_otp(verify_db, "session-token", "123456")
     assert verified["access_token"].startswith("access-")
     assert verified["user"]["role"] == "collaborator"
-    assert set(verify_redis.deleted) == {"otp:session-token", "session:session-token"}
+    # A valid code also resets the failure counter of the lockout.
+    assert set(verify_redis.deleted) == {
+        "otp:session-token",
+        "session:session-token",
+        f"otp_fail:{user.id}",
+    }
 
     monkeypatch.setattr(module, "get_redis", AsyncMock(return_value=FakeRedis()))
     with pytest.raises(AuthenticationError):
