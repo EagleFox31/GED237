@@ -33,6 +33,7 @@ TABLE_LABELS = {
 }
 
 ACTION_LABELS = {
+    "account_locked": "Compte verrouille",
     "create": "Creation",
     "update": "Modification",
     "delete": "Suppression",
