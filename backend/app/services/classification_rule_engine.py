@@ -808,7 +808,8 @@ class ClassificationRuleEngine:
         if strategy == "fixed" and fixed_year:
             return fixed_year
         if strategy == "from_filename":
-            match = re.search(r"\b(19|20)\d{2}\b", filename)
+            # Digit lookarounds, not \b: "_" is a word character, so \b missed "facture_2024_x.pdf".
+            match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", filename)
             if match:
                 parsed_year = int(match.group(0))
                 # Filtrer les années aberrantes

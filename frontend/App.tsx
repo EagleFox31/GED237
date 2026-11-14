@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { takePostLoginDestination } from './services';
 import { pushClientOperationError } from './lib/errors';
 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -175,13 +176,21 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
   const { userProfile, layoutMode, setLayoutMode, justLoggedIn, consumeJustLoggedIn } = useAuthStore();
 
+  // Tiroir de navigation (écrans < 768 px) : refermé après chaque navigation.
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  React.useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
   // After a fresh login, route the user to their role-specific landing page,
   // ignoring whatever URL was left over from a previous session/user.
   React.useEffect(() => {
     if (justLoggedIn) {
+      // Session expirée en cours de travail : retour à la page quittée (même compte uniquement).
+      const resumed = takePostLoginDestination(userProfile?.id);
       const target = userProfile?.mustChangePassword
         ? '/change-password'
-        : defaultRouteForProfile(userProfile?.id);
+        : resumed ?? defaultRouteForProfile(userProfile?.id);
       consumeJustLoggedIn();
       navigate(target, { replace: true });
     }
@@ -219,15 +228,22 @@ const AppLayout: React.FC = () => {
   return (
     <div className="h-screen bg-slate-50 flex transition-all duration-500 overflow-hidden relative">
       {layoutMode === 'sidebar' && (
-        <Sidebar activeTab={activeTab} onTabChange={handleTabChange} userProfile={userProfile} />
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          userProfile={userProfile}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+        />
       )}
-      <main className={`flex-1 flex flex-col h-screen min-h-0 transition-all duration-500 ${layoutMode === 'sidebar' ? 'ml-72' : 'ml-0'}`}>
+      <main className={`flex-1 flex flex-col h-screen min-h-0 transition-all duration-500 ${layoutMode === 'sidebar' ? 'md:ml-72' : 'ml-0'}`}>
         <Header
           userProfile={userProfile}
           layoutMode={layoutMode}
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onOpenSettings={() => navigate('/settings/display')}
+          onOpenMenu={() => setMenuOpen(true)}
         />
         <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth">
           <Routes>

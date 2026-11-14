@@ -1,0 +1,21 @@
+OK   domains: attendus=4 manquants=[]
+OK   activities: attendus=14 manquants=[]
+OK   classificationRules: attendus=10 manquants=[]
+OK   inactiveRules: attendu=['demo_rule_10'] reel=['demo_rule_10']
+OK   documents.total (hors 10 revues d'un autre tenant): attendu=398 reel=398
+OK   documents.classified: attendu=357 reel=357
+OK   documents.toReview (hors 10 revues d'un autre tenant): attendu=41 reel=41
+OK   byOrgUnit.MINFI-DRH.classified (unite cible): attendu=146 reel=146
+OK   byOrgUnit.MINFI-DAF.classified (unite cible): attendu=137 reel=137
+OK   byOrgUnit.MINFI-DSI.classified (unite cible): attendu=74 reel=74
+OK   byOrgUnit.MINESUP-DAAJ: invisible pour ce compte (isolation tenant)
+OK   trash: attendu=['arrete de nomination_Mireille iBloa-2025', 'attestation formation Mireille Biloa 2025', 'bulletin de salaire - Briic-Mvogo - 2024 - signer', 'contrat cdi Mireille Biloa 2025', 'facture fournisseur_Brice Mvoo-2025', 'facture_lindy Penda-2025', 'fiche de paie - Jep Mbarga - 2024 - corrige', 'fiche de paie_Mireile Biloa-2024'] reel=['arrete de nomination_Mireille iBloa-2025', 'attestation formation Mireille Biloa 2025', 'bulletin de salaire - Briic-Mvogo - 2024 - signer', 'contrat cdi Mireille Biloa 2025', 'facture fournisseur_Brice Mvoo-2025', 'facture_lindy Penda-2025', 'fiche de paie - Jep Mbarga - 2024 - corrige', 'fiche de paie_Mireile Biloa-2024']
+OK   versions[facture fournisseur_Brice Mvoo-2025]: attendu=2 reel=2
+OK   versions[copie - devis - old Roger Ndjodo - 2024 - v2]: attendu=2 reel=2
+OK   versions[old - mandat de paiement - ice MMvago - 2025 - backup]: attendu=2 reel=2
+OK   versions[engagement budgetaire_Armell-Tccahm-2024-final]: attendu=2 reel=2
+OK   versions[bon de commande Nsdine Tsafack 2025]: attendu=2 reel=2
+NON COUVERT imports: pas d'endpoint de lecture (voir la base ou le rapport d'import)
+NON COUVERT locks: pas d'endpoint de lecture (voir la base ou le rapport d'import)
+NON COUVERT live: pas d'endpoint de lecture (voir la base ou le rapport d'import)
+COMPTEURS 17 controles, 0 ecart(s)
