@@ -139,7 +139,7 @@ Règle : un lot est **livré seulement s'il est fusionné le 19/11 à 18:00**, s
 | Compteur doublons (écart 8) | SC-V11-01 | Doublon refusé à l'upload ou à l'import → le compteur « doublons détectés » du tableau de bord admin augmente de 1 | e2e réel + API `/documents/stats` | B + F | fixme, lot non livré |
 | Export / import des règles (écart 7) | SC-V11-02 | Règles actives exportées puis importées sur base vide → mêmes règles (code, priorité, statut) ; second import = aucun doublon | e2e réel | B + F | fixme |
 | Export journal d'audit + verrou OTP (écarts 8, 9) | SC-V11-03 | Journal exporté par l'auditeur = événements du filtre ; 3 OTP erronés puis un 4e essai → compte verrouillé, message explicite | e2e réel + API | B + F | fixme |
-| Critères contenu OCR / date (écart 7) | SC-V11-04 | Règle « mots-clés OCR » ou « date » → document importé classé à la destination attendue ; simulation visible avant activation | e2e réel (dépend OCR-3, DEC-003) | B + F | fixme |
+| Critères contenu OCR / date (écart 7) | SC-V11-04 | Règle « mots-clés OCR » ou « année » → document déposé (upload, worker OCR actif) classé à la destination attendue une fois son texte extrait ; un fichier sans année dans le nom échoue sur la règle « année » ; simulation visible avant activation | e2e réel (#92 B, #95 F) | B + F | fixme (à lever par Q à la fusion de #92) |
 | Surveillance de dossier (écart 7) | SC-V11-05 | Fichier déposé dans le dossier surveillé → importé et classé sans action ; fichier déjà connu refusé comme doublon | e2e réel (volume `/data/ingest`) | B + Q | fixme |
 
 Les mesures C2/C3 (`scripts/measure_c2.py`, `measure_c3.py`) restent la preuve des critères chiffrés ; ces cinq lignes ne les remplacent pas.
