@@ -52,6 +52,7 @@ async def login(
             institution=credentials.institution,
             matricule=credentials.matricule,
             password=credentials.password,
+            request=request,
         )
         return LoginResponse(**result)
     except AuthenticationError as exc:
@@ -80,6 +81,7 @@ async def verify_otp(
             db=db,
             session_token=otp_data.session_token,
             otp=otp_data.otp,
+            request=request,
         )
         return TokenResponse(**result)
     except (AuthenticationError, NotFoundError) as exc:
