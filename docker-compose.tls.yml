@@ -1,0 +1,36 @@
+# HTTPS local (item CDC 27) : second reverse proxy en 443, additif. Le port 8080 (démo, e2e, sonde) ne change pas.
+#
+#   mkcert -install
+#   mkcert -cert-file certs/tls.crt -key-file certs/tls.key localhost 127.0.0.1 <IP du poste>
+#   TLS_CERT_DIR=./certs docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile tls up -d
+#
+# Le certificat est généré sur le poste et jamais committé (certs/ est ignoré par git).
+services:
+  api:
+    environment:
+      ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80,https://localhost:${TLS_PORT:-8443}"
+
+  nginx-tls:
+    profiles: ["tls"]
+    image: nginx:alpine
+    container_name: edossier_nginx_tls
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+    restart: unless-stopped
+    ports:
+      - "${TLS_PORT:-8443}:443"
+    volumes:
+      - ./nginx/nginx-tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/app-locations.conf:/etc/nginx/snippets/app-locations.conf:ro
+      - ${TLS_CERT_DIR:?TLS_CERT_DIR doit pointer vers le dossier contenant tls.crt et tls.key}:/etc/nginx/certs:ro
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - edossier_network
