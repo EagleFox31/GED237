@@ -129,6 +129,23 @@ class AuthenticationError(AppError):
     default_user_message = "Authentification requise. Veuillez vous reconnecter."
 
 
+class AccountLockedError(AppError):
+    """Account refused for a while after too many wrong OTP codes."""
+
+    status_code = 423
+    default_error_code = "ACCOUNT_LOCKED"
+    default_severity = Severity.warning
+    default_retryable = True
+
+    def __init__(self, *, retry_after: int, failures: int, lock_seconds: int) -> None:
+        minutes = max(1, -(-lock_seconds // 60))
+        super().__init__(
+            f"Compte verrouillé {minutes} min après {failures} codes erronés",
+            technical_detail="account locked after wrong OTP codes",
+            extras_public={"retry_after": max(1, retry_after)},
+        )
+
+
 class AuthorizationError(AppError):
     """Utilisateur identifié mais non autorisé pour cette action."""
 

@@ -101,6 +101,7 @@ class FakeRedis:
         self.values = dict(values or {})
         self.setex_calls = []
         self.deleted = []
+        self.ttls = {}
 
     async def get(self, key):
         return self.values.get(key)
@@ -108,11 +109,19 @@ class FakeRedis:
     async def setex(self, key, ttl, value):
         self.setex_calls.append((key, ttl, value))
         self.values[key] = value
+        self.ttls[key] = ttl
+
+    async def ttl(self, key):
+        # Redis semantics: -2 missing key, -1 key without expiry.
+        if key not in self.values:
+            return -2
+        return self.ttls.get(key, -1)
 
     async def delete(self, *keys):
         self.deleted.extend(keys)
         for key in keys:
             self.values.pop(key, None)
+            self.ttls.pop(key, None)
 
 
 class AsyncUpload:
@@ -142,6 +151,9 @@ def make_rule(**overrides):
         "source_user_ids": None,
         "filename_pattern": None,
         "mime_type_pattern": None,
+        "content_pattern": None,
+        "year_min": None,
+        "year_max": None,
         "target_scope": "service",
         "target_org_unit_id": None,
         "target_user_id": None,
@@ -337,6 +349,8 @@ async def test_classification_rule_engine_patterns(monkeypatch):
         classification_target_user_id=uuid.uuid4(),
         classification_status="stale",
         logical_space_path="stale",
+        ocr_content=None,
+        extra_data=None,
     )
     resolutions = [
         ClassificationResolution(
@@ -576,7 +590,8 @@ def test_tesseract_engine_patterns(monkeypatch):
 @pytest.mark.asyncio
 async def test_dashboard_facade_patterns():
     tenant_db = QueueDB(
-        scalar_values=[4],
+        # users, refused uploads (audit), refused import files
+        scalar_values=[4, 2, 3],
         results=[
             FakeResult(
                 first=SimpleNamespace(total_docs=3, total_storage_bytes=2 * 1024 * 1024)
@@ -590,6 +605,11 @@ async def test_dashboard_facade_patterns():
     assert tenant_metrics["users"]["total"] == 4
     assert tenant_metrics["documents"]["storage_used_mb"] == 2.0
     assert tenant_metrics["workflows"] == {"pending": 2, "completed": 5, "rejected": 1}
+    assert tenant_metrics["duplicates"] == {
+        "refused": 5,
+        "refused_upload": 2,
+        "refused_import": 3,
+    }
 
     manager_db = QueueDB(
         results=[
@@ -625,12 +645,13 @@ async def test_dashboard_facade_patterns():
     assert platform["platform"] == {"total_documents": 20, "total_storage_gb": 2.0}
 
     empty_db = QueueDB(
-        scalar_values=[0],
+        scalar_values=[0, None, None],
         results=[FakeResult(first=None), FakeResult(first=None)],
     )
     empty = await DashboardFacade(empty_db).get_tenant_metrics(str(uuid.uuid4()))
     assert empty["documents"]["total"] == 0
     assert empty["workflows"]["pending"] == 0
+    assert empty["duplicates"]["refused"] == 0
 
 
 @pytest.mark.asyncio
@@ -714,7 +735,12 @@ async def test_auth_service_patterns(monkeypatch):
     verified = await service.verify_otp(verify_db, "session-token", "123456")
     assert verified["access_token"].startswith("access-")
     assert verified["user"]["role"] == "collaborator"
-    assert set(verify_redis.deleted) == {"otp:session-token", "session:session-token"}
+    # A valid code also resets the failure counter of the lockout.
+    assert set(verify_redis.deleted) == {
+        "otp:session-token",
+        "session:session-token",
+        f"otp_fail:{user.id}",
+    }
 
     monkeypatch.setattr(module, "get_redis", AsyncMock(return_value=FakeRedis()))
     with pytest.raises(AuthenticationError):

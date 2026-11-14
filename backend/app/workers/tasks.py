@@ -5,6 +5,7 @@ Refactored to use OCR Strategy pattern with SRP
 
 import os
 import asyncio
+import logging
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
@@ -14,6 +15,8 @@ from app.workers.celery_app import celery_app
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # Async engine for database updates from the worker
@@ -49,10 +52,18 @@ async def update_document_ocr(
                 "ocr_engine": engine_used,
             }
 
-            # Rules with content keywords could not be checked before the text existed.
-            await ClassificationRuleEngine(session).reclassify_after_ocr(document)
-
             await session.commit()
+
+            # Rules with content keywords could not be checked before the text existed.
+            # Separate transaction: a failing rule must never lose the OCR text or fail the task.
+            try:
+                await ClassificationRuleEngine(session).reclassify_after_ocr(document)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                logger.exception(
+                    "Classification after OCR failed for document %s", document_id
+                )
 
 
 @celery_app.task(name="app.workers.tasks.process_document_ocr")
@@ -147,3 +158,31 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
 
         traceback.print_exc()
         return False
+
+
+@celery_app.task(name="app.workers.tasks.watch_ingest_folders")
+def watch_ingest_folders():
+    """Beat task (lot 5): one locked pass over INGEST_WATCH_FOLDERS."""
+    import redis.asyncio as aioredis
+
+    from app.services.ingest_watch import run_watch_pass, watch_enabled
+
+    if not watch_enabled():
+        return None
+
+    async def _run():
+        client = aioredis.from_url(
+            settings.REDIS_URL, encoding="utf-8", decode_responses=True
+        )
+        try:
+            return await run_watch_pass(AsyncSessionLocal, client)
+        finally:
+            await client.aclose()
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.run_until_complete(_run())
+    return None

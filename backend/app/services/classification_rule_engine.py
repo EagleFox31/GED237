@@ -227,12 +227,12 @@ class ClassificationRuleEngine:
         # Kept so the OCR worker can run the same classification once the text exists.
         document.extra_data = {
             **(document.extra_data or {}),
-            CLASSIFICATION_INPUTS_KEY: {
-                "source_scope": source_scope,
-                "source_user_id": str(source_user_id) if source_user_id else None,
-                "filename": filename,
-                "mime_type": mime_type,
-            },
+            **self.classification_inputs(
+                source_scope=source_scope,
+                source_user_id=source_user_id,
+                filename=filename,
+                mime_type=mime_type,
+            ),
         }
 
         self._reset_document_classification(document)
@@ -267,6 +267,28 @@ class ClassificationRuleEngine:
             document.logical_space_path = resolution.logical_space_path
 
         return resolution
+
+    @staticmethod
+    def classification_inputs(
+        *,
+        source_scope: str,
+        source_user_id: Optional[UUID],
+        filename: str,
+        mime_type: Optional[str],
+    ) -> dict:
+        """``extra_data`` entry read by :meth:`reclassify_after_ocr`.
+
+        Written by every path that creates a document (upload, batch import, directory
+        ingestion), so the classification can be run again once the OCR text exists.
+        """
+        return {
+            CLASSIFICATION_INPUTS_KEY: {
+                "source_scope": source_scope,
+                "source_user_id": str(source_user_id) if source_user_id else None,
+                "filename": filename,
+                "mime_type": mime_type,
+            }
+        }
 
     async def reclassify_after_ocr(
         self, document: Document
@@ -416,16 +438,21 @@ class ClassificationRuleEngine:
         year_ok = True
         year_detail = "Aucune borne d'annee exigee."
         if rule.year_min is not None or rule.year_max is not None:
-            year = self._resolve_year(filename=filename, strategy="from_filename")
-            year_ok = (rule.year_min is None or year >= rule.year_min) and (
-                rule.year_max is None or year <= rule.year_max
-            )
+            # No fallback to the current year: a range is only met by a year actually written.
+            year = self._year_in_filename(filename)
             bounds = f"{rule.year_min or '...'}-{rule.year_max or '...'}"
-            year_detail = (
-                f"Annee {year} dans la plage {bounds}."
-                if year_ok
-                else f"Annee {year} hors de la plage {bounds}."
-            )
+            if year is None:
+                year_ok = False
+                year_detail = "Aucune annee dans le nom du fichier."
+            else:
+                year_ok = (rule.year_min is None or year >= rule.year_min) and (
+                    rule.year_max is None or year <= rule.year_max
+                )
+                year_detail = (
+                    f"Annee {year} dans la plage {bounds}."
+                    if year_ok
+                    else f"Annee {year} hors de la plage {bounds}."
+                )
         checks.append(
             RuleCheck(
                 key="year_range",
@@ -897,11 +924,18 @@ class ClassificationRuleEngine:
         if strategy == "fixed" and fixed_year:
             return fixed_year
         if strategy == "from_filename":
-            # Digit lookarounds, not \b: "_" is a word character, so \b missed "facture_2024_x.pdf".
-            match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", filename)
-            if match:
-                parsed_year = int(match.group(0))
-                # Filtrer les années aberrantes
-                if 1900 <= parsed_year <= self.current_year + 1:
-                    return parsed_year
+            parsed_year = self._year_in_filename(filename)
+            if parsed_year is not None:
+                return parsed_year
         return self.current_year
+
+    def _year_in_filename(self, filename: str) -> Optional[int]:
+        """First plausible year written in the file name, or None."""
+        # Digit lookarounds, not \b: "_" is a word character, so \b missed "facture_2024_x.pdf".
+        match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", filename)
+        if match:
+            parsed_year = int(match.group(0))
+            # Filtrer les années aberrantes
+            if 1900 <= parsed_year <= self.current_year + 1:
+                return parsed_year
+        return None

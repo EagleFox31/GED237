@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ClassificationActivityPayload, type ClassificationDomainPayload, type ClassificationRulePayload } from '../../../../services/api';
 import { MultiCheckSelect } from '../../../../components/ui/MultiCheckSelect';
+import { RulesTransferControls } from './RulesTransferControls';
 import { SimulationTracePanel } from '../../../../components/classification/SimulationTracePanel';
 import { categoriesApi, type DocumentCategory } from '../../../../services/categories.api';
 import type {
@@ -2048,6 +2049,7 @@ const ClassificationSettingsTab: React.FC = () => {
           <span className="material-symbols-outlined">add</span>
           Nouvelle Règle
         </button>
+        <RulesTransferControls onImported={() => void loadData()} />
 
         {rules.length === 0 ? (
           <div className="p-5 rounded-[1.5rem] border-2 border-dashed border-slate-200 bg-white/40 text-center">
