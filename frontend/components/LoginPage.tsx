@@ -6,6 +6,20 @@ import { ApiError } from '../lib/errors';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
+const LOCKED_FALLBACK = 'Compte verrouillé temporairement.';
+
+/** Verrou de compte (423) : message serveur et durée restante en secondes. */
+const lockoutOf = (err: unknown): { message: string; seconds: number } | null => {
+  if (!(err instanceof ApiError) || err.status !== 423) return null;
+  const retry = Number(err.raw.retry_after);
+  return {
+    message: err.raw.detail || LOCKED_FALLBACK,
+    seconds: Number.isFinite(retry) && retry >= 1 ? Math.ceil(retry) : 60,
+  };
+};
+
+const formatCountdown = (seconds: number) =>
+  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 interface LoginPageProps {
   onLogin: (session: AuthSession) => void;
@@ -37,6 +51,34 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [lockSeconds, setLockSeconds] = useState(0);
+
+  useEffect(() => {
+    if (lockedUntil === null) return;
+    const tick = () => {
+      const left = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (left <= 0) {
+        setLockedUntil(null);
+        setLockSeconds(0);
+        setError(null);
+      } else {
+        setLockSeconds(left);
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil !== null;
+  const applyLockout = (lock: { message: string; seconds: number }) => {
+    setTempToken(null);
+    setOtp(['', '', '', '', '', '']);
+    setStep('login');
+    setError(lock.message);
+    setLockedUntil(Date.now() + lock.seconds * 1000);
+  };
 
   // Form controlled inputs
   const [institution, setInstitution] = useState('');
@@ -100,6 +142,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
     } catch (err) {
       console.error(err);
+      const lock = lockoutOf(err);
+      if (lock) {
+        applyLockout(lock);
+        return;
+      }
       setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Échec de connexion. Vérifiez vos identifiants.");
     } finally {
       setLoading(false);
@@ -124,6 +171,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       });
       onLogin(response);
     } catch (err) {
+      const lock = lockoutOf(err);
+      if (lock) {
+        applyLockout(lock);
+        return;
+      }
       setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Code invalide");
     } finally {
       setLoading(false);
@@ -263,8 +315,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 disabled:opacity-70 group overflow-hidden relative">
-                    {loading ? "Connexion..." : <span className="flex items-center gap-3 italic">Étape Suivante <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform font-bold">east</span></span>}
+                  <button type="submit" disabled={loading || isLocked} className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 disabled:opacity-70 group overflow-hidden relative">
+                    {loading ? "Connexion..." : isLocked ? `Réessayer dans ${formatCountdown(lockSeconds)}` : <span className="flex items-center gap-3 italic">Étape Suivante <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform font-bold">east</span></span>}
                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                   </button>
                 </form>
