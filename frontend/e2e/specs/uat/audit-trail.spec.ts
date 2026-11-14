@@ -11,10 +11,6 @@ import { test, expect, apiAs } from '../../fixtures/uat.fixture';
  * via les en-têtes de DataTable (« Filtrer <colonne> » → cases à cocher).
  */
 
-const D3_NOT_AUDITED =
-  'Défaut D3 : ni la connexion, ni le dépôt, ni l’import ne créent d’entrée audit_logs ' +
-  '(seuls review_resolved, content_viewed, dup_detected, corbeille et versions sont tracés). ' +
-  'Correctif backend prévu le 2026-11-12 : réactiver ce test à sa livraison.';
 
 test.describe('P7 — Journal d’audit (SC-AUD-01, SC-ADM-09)', () => {
   test('l’auditeur retrouve l’action de l’administrateur, avec auteur et date, et filtre par auteur et par action', async ({
@@ -85,7 +81,6 @@ test.describe('P7 — Journal d’audit (SC-AUD-01, SC-ADM-09)', () => {
   });
 
   test('connexion et dépôt de document sont tracés avec leur auteur', async ({ request, adminApi, runId }) => {
-    test.fixme(true, D3_NOT_AUDITED);
     const doc = await adminApi.uploadDocument(`depot-trace-${runId}.txt`, `Dépôt tracé ${runId}`, `Trace ${runId}`);
     const auditorApi = await apiAs(request, 'auditor');
     const entries = await auditorApi.auditLogs({ limit: '500' });

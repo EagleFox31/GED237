@@ -1,5 +1,6 @@
 import { test, expect, TEST_USERS } from '../../fixtures/uat.fixture';
 import { LoginPage } from '../../pages/login.page';
+import type { Page } from '@playwright/test';
 
 /**
  * UAT — Phase de Conception/GUIDE_TEST_FONCTIONNEL.md
@@ -137,25 +138,40 @@ test.describe('SC-AUTH-02 — Prolonger une session active', () => {
     expect(await page.evaluate(() => sessionStorage.getItem('access_token'))).toBeNull();
   });
 
-  test('E1 : la destination voulue est conservée après reconnexion', async ({ page, loginAs }) => {
-    test.fixme(true, 'Défaut SC-AUTH-02 E1 : redirectToLogin() (services/http/session.ts) ne conserve pas la destination.');
-    await loginAs('tenant_admin');
+  const DESTINATION = 'audit?e2e=destination';
+
+  async function expireOn(page: Page) {
     await page.evaluate((bogus) => {
       sessionStorage.setItem('access_token', bogus);
       sessionStorage.setItem('token', bogus);
       sessionStorage.setItem('refresh_token', bogus);
     }, BOGUS_TOKEN);
-    await page.goto('documents');
+    await page.goto(DESTINATION);
     await new LoginPage(page).expectLoginPageVisible();
+  }
 
+  async function relog(page: Page, user: (typeof TEST_USERS)[keyof typeof TEST_USERS]) {
     const lp = new LoginPage(page);
-    const admin = TEST_USERS.tenant_admin;
-    await lp.fillCredentials(admin.institution, admin.matricule, admin.password);
+    await lp.fillCredentials(user.institution, user.matricule, user.password);
     await lp.submitLogin();
     await lp.waitForOtpStep();
     await lp.expectOtpPreFilled();
     await lp.submitOtp();
-    await expect(page).toHaveURL(/\/documents/);
+  }
+
+  test('E1 : la destination voulue (avec ses paramètres) est conservée après reconnexion du même compte', async ({ page, loginAs }) => {
+    await loginAs('tenant_admin');
+    await expireOn(page);
+    await relog(page, TEST_USERS.tenant_admin);
+    await expect(page).toHaveURL(/\/audit\?e2e=destination/);
+  });
+
+  test('E1 : un autre compte ne reprend pas la destination et arrive sur sa page d’accueil', async ({ page, loginAs }) => {
+    await loginAs('tenant_admin');
+    await expireOn(page);
+    await relog(page, TEST_USERS.collaborator);
+    await expect(page).not.toHaveURL(/\/audit/);
+    await new LoginPage(page).expectDashboardVisible();
   });
 });
 
