@@ -63,6 +63,11 @@ class ClassificationRule(Base, UUIDMixin, TimestampMixin):
     source_org_unit_excluded_ids = Column(JSONB, nullable=True)
     source_user_ids = Column(JSONB, nullable=True)
     filename_pattern = Column(String(255))
+    # Keywords looked for in the OCR text; checked again once the OCR is done (lot 4).
+    content_pattern = Column(String(255))
+    # Inclusive range on the year read from the file name (current year otherwise).
+    year_min = Column(Integer)
+    year_max = Column(Integer)
     mime_type_pattern = Column(String(100))
     target_scope = Column(String(30), nullable=False)
     target_org_unit_id = Column(

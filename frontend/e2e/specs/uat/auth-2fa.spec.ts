@@ -22,6 +22,9 @@ async function readOtp(page: import('@playwright/test').Page): Promise<string> {
   return code;
 }
 
+// These specs test the login itself: every loginAs goes through the real form.
+test.use({ freshLogin: true });
+
 test.describe('SC-AUTH-01 — Se connecter (2FA)', () => {
   test('séquence principale : ministère, matricule, mot de passe, OTP, tableau de bord', async ({ page }) => {
     const lp = new LoginPage(page);

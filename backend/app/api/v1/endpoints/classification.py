@@ -301,6 +301,14 @@ async def _validate_rule_payload(
     fixed_year = effective("fixed_year")
     source_org_unit_ids = effective("source_org_unit_ids") or []
     source_org_unit_excluded_ids = effective("source_org_unit_excluded_ids") or []
+    year_min = effective("year_min")
+    year_max = effective("year_max")
+
+    if year_min is not None and year_max is not None and year_min > year_max:
+        raise HTTPException(
+            status_code=400,
+            detail="L'annee minimale doit etre inferieure ou egale a l'annee maximale.",
+        )
 
     if activity_id and not domain_id:
         raise HTTPException(
@@ -933,6 +941,7 @@ async def simulate_classification(
         source_user_id=payload.source_user_id,
         filename=payload.filename,
         mime_type=payload.mime_type,
+        content=payload.content_sample,
     )
 
     return ClassificationSimulationResponse(
