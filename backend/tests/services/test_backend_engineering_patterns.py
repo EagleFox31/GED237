@@ -340,6 +340,8 @@ async def test_classification_rule_engine_patterns(monkeypatch):
         classification_target_user_id=uuid.uuid4(),
         classification_status="stale",
         logical_space_path="stale",
+        ocr_content=None,
+        extra_data=None,
     )
     resolutions = [
         ClassificationResolution(
