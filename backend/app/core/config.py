@@ -1,4 +1,6 @@
 # backend/app/core/config.py
+import json
+import logging
 import os
 
 from pydantic import Field, field_validator, model_validator
@@ -68,6 +70,19 @@ class Settings(BaseSettings):
     # paths the API may read from, separated by os.pathsep (':' on Linux).
     # Empty (default) refuses every import: least privilege, opt-in per stack.
     INGEST_ALLOWED_ROOTS_STR: str = Field(default="", alias="INGEST_ALLOWED_ROOTS")
+    # Watched folders (lot 5): JSON list of {"path", "tenant_code", "org_unit_code",
+    # "matricule", "document_category_code"?, "recursive"?, "processing_mode"?}.
+    # Each path must sit under INGEST_ALLOWED_ROOTS. Empty list: nothing is watched.
+    INGEST_WATCH_FOLDERS_STR: str = Field(default="[]", alias="INGEST_WATCH_FOLDERS")
+    INGEST_WATCH_INTERVAL_SECONDS: int = 60  # 0 disables the periodic pass
+    # A file modified more recently than this is still being copied: next pass.
+    INGEST_WATCH_SETTLE_SECONDS: int = 10
+    # Folders imported by hand (demo live import): a watched folder that is, contains or
+    # sits inside one of them is ignored, so the worker never empties it. Same format
+    # as INGEST_ALLOWED_ROOTS.
+    INGEST_WATCH_PROTECTED_DIRS_STR: str = Field(
+        default="", alias="INGEST_WATCH_PROTECTED_DIRS"
+    )
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
     # Celery
@@ -165,6 +180,28 @@ class Settings(BaseSettings):
             for p in self.INGEST_ALLOWED_ROOTS_STR.split(os.pathsep)
             if p.strip()
         ]
+
+    @property
+    def INGEST_WATCH_PROTECTED_DIRS(self) -> List[str]:
+        return [
+            p.strip()
+            for p in self.INGEST_WATCH_PROTECTED_DIRS_STR.split(os.pathsep)
+            if p.strip()
+        ]
+
+    @property
+    def INGEST_WATCH_FOLDERS(self) -> List[dict]:
+        """Parse INGEST_WATCH_FOLDERS; invalid JSON or entries without a path are ignored."""
+        try:
+            raw = json.loads(self.INGEST_WATCH_FOLDERS_STR or "[]")
+        except ValueError:
+            logging.getLogger(__name__).warning(
+                "INGEST_WATCH_FOLDERS ignored: not valid JSON"
+            )
+            return []
+        if not isinstance(raw, list):
+            return []
+        return [f for f in raw if isinstance(f, dict) and f.get("path")]
 
     @property
     def AUTHZ_EFFECTIVE_POLICY_DATABASE_URL(self) -> str:
