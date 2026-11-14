@@ -2,11 +2,11 @@
 # C6 (availability) probe: read-only. One line appended to the log per reading.
 #   sh scripts/probe_c6.sh                 one reading
 #   sh scripts/probe_c6.sh --loop [SECS]   a reading every SECS seconds (default 300), until stopped
-# Variables: BASE_URL (default http://localhost, nginx port 80), C6_LOG (default c6.tsv),
+# Variables: BASE_URL (default http://localhost:8080, compose APP_PORT), C6_LOG (default c6.tsv),
 #            C6_PREFIX (default edossier_, container name prefix).
 # Line format: <UTC time> TAB health=<http code> TAB <name>=<status> ... TAB <name>=<RestartCount> ...
 # Protocol and KO rule: gestion-projet/innovateur/protocole-mesures-criteres.md (section C6).
-BASE_URL="${BASE_URL:-http://localhost}"
+BASE_URL="${BASE_URL:-http://localhost:8080}"
 LOG="${C6_LOG:-c6.tsv}"
 PREFIX="${C6_PREFIX:-edossier_}"
 
