@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.errors.domain import AccountLockedError
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.rate_limit import limiter
 from app.schemas.auth import (
@@ -55,6 +56,8 @@ async def login(
             request=request,
         )
         return LoginResponse(**result)
+    except AccountLockedError:
+        raise
     except AuthenticationError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,6 +87,8 @@ async def verify_otp(
             request=request,
         )
         return TokenResponse(**result)
+    except AccountLockedError:
+        raise
     except (AuthenticationError, NotFoundError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -8,13 +8,9 @@ import { SEED } from '../../data/seed';
  * Données : les 3 tâches `E2E-VAL-*` du manager MGR001 (seed-manifest.json, circuit E2E-WF-VALID).
  * Les tâches sont consommées : une pile fraîche (reset e2e) est nécessaire à chaque run.
  *
- * Activation : AWAITING_VALIDATION_UI = false une fois fix/validation-cycle-ui (écran Valider / Rejeter + motif)
- * et fix/workflow-pending-validators (version courante dans /workflows/pending) fusionnées.
- *
  * SC-VAL-04 est réduit (écart 17, « Retourner pour correction » -> V1.1) : le rédacteur voit le statut Rejeté
  * de son document ; SC-VAL-04b vérifie le motif dans le détail du document (/documents, onglet Circuit de Validation).
  */
-const AWAITING_VALIDATION_UI = false;
 
 const task = (code: string) => {
   const doc = SEED.documents.find((d) => d.code === code);
@@ -26,7 +22,6 @@ const TO_REJECT = task('E2E-VAL-REJET');
 const REASON = 'Merci de préciser la référence budgétaire';
 
 test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
-  test.fixme(AWAITING_VALIDATION_UI, 'waiting for fix/validation-cycle-ui and fix/workflow-pending-validators');
   test.slow(); // several logins and API round trips per test
 
   const card = (page: import('@playwright/test').Page, title: string) =>
