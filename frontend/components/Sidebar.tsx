@@ -4,6 +4,7 @@ import { TENANT_ADMIN_MENU } from '../profiles/tenant-admin/menuConfig';
 import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
 import { Logo } from './Logo';
+import { APP_VERSION } from '../constants';
 
 interface SidebarProps {
   activeTab: string;
@@ -149,6 +150,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
                  {isHealthy === null ? 'Vérification...' : isHealthy ? 'Système Opérationnel' : 'Système Indisponible'}
                </span>
             </div>
+            <p data-testid="app-version" className="mt-2 text-[8px] font-bold uppercase tracking-widest text-white/70">
+              Version {APP_VERSION}
+            </p>
           </div>
           <span className="material-symbols-outlined absolute -right-2 -bottom-2 text-4xl text-white/5 rotate-12">verified</span>
         </div>

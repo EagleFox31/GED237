@@ -24,9 +24,11 @@ TABLE_LABELS = {
     "documents": "Documents",
     "workflows": "Workflows",
     "users": "Utilisateurs",
+    "imports": "Imports",
     "ged_rules": "Regles GED",
     "local_organize_events": "Rangement local",
     "user_local_arrangement_snapshots": "Bibliotheque locale (compte)",
+    "ingest_watch": "Dossiers surveilles",
     "audit_logs": "Journal d'audit",
 }
 
@@ -36,6 +38,9 @@ ACTION_LABELS = {
     "update": "Modification",
     "delete": "Suppression",
     "upload": "Depot de document",
+    "login": "Connexion",
+    "login_failed": "Connexion refusee",
+    "import_committed": "Import execute",
     "content_viewed": "Consultation du document",
     "classification": "Tentative de classement",
     "needs_review": "Mise en attente pour arbitrage",
@@ -50,6 +55,7 @@ ACTION_LABELS = {
     "archive": "Archivage",
     "local_organize": "Rangement local sur poste",
     "local_snap_put": "Bibliotheque locale (sync)",
+    "watch_ingested": "Import automatique d'un dossier",
     "dup_detected": "Doublon refuse",
     "exported": "Export du journal",
 }

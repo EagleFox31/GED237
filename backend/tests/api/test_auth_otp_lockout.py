@@ -172,3 +172,22 @@ async def test_lock_is_audited_without_the_code(admin_client: AsyncClient, db_se
     assert len(logs) == 1
     assert logs[0]["table_name"] == "users"
     assert logs[0]["new_data"] == {"failures": 3, "lock_seconds": 900}
+
+
+@pytest.mark.asyncio
+async def test_every_wrong_code_is_audited_including_the_locking_one(
+    admin_client: AsyncClient, db_seed
+):
+    step1 = await _login(admin_client)
+    await _wrong_otps(admin_client, step1, 3)
+
+    failed = (
+        await admin_client.get("/api/v1/audit/logs", params={"action": "login_failed"})
+    ).json()
+
+    # The 3rd code ends the session: it is audited before the counter does that.
+    assert len(failed) == 3
+    assert all(
+        f["new_data"]["reason"] == "code de verification incorrect" for f in failed
+    )
+    assert step1["otp"] not in str(failed)
