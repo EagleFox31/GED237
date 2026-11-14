@@ -1,7 +1,7 @@
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 EngineClassificationStatus = Literal[
     "classified", "needs_review", "no_rule", "rejected"
@@ -19,6 +19,8 @@ class ClassificationSimulationRequest(BaseModel):
     source_user_id: Optional[UUID] = None
     filename: str
     mime_type: Optional[str] = None
+    # Stands for the OCR text when testing a rule with content keywords.
+    content_sample: Optional[str] = Field(default=None, max_length=20_000)
 
 
 class ClassificationRuleCheck(BaseModel):
