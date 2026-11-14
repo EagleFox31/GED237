@@ -116,6 +116,8 @@ class DirectoryIngestResponse(BaseModel):
     error_count: int
     errors: List[IngestError] = []
     details: List[IngestFileDetail] = []
+    # Files whose content is already in the GED (counted in skipped).
+    duplicate_count: int = 0
 
 
 class NeedsReviewDocument(DocumentRead):
@@ -146,3 +148,23 @@ class ResolveReviewPayload(BaseModel):
     mark_as_resolved: bool
     create_rule_suggestion: Optional[bool] = False
     rule_suggestion: Optional[RuleSuggestion] = None
+
+
+class IngestWatchFolderStatus(BaseModel):
+    path: str
+    found: int
+    imported: int
+    # Includes the files already in the GED.
+    skipped: int
+    errors: int
+
+
+class IngestWatchLastRun(BaseModel):
+    at: datetime
+    folders: List[IngestWatchFolderStatus] = []
+
+
+class IngestWatchStatus(BaseModel):
+    enabled: bool
+    interval_seconds: int
+    last_run: Optional[IngestWatchLastRun] = None

@@ -1,9 +1,11 @@
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from uuid import UUID
 import re
 import secrets
 import unicodedata
 
+from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +22,7 @@ from app.core.security import (
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
+from app.services.audit_trail import audit_entry
 
 
 class AuthService:
@@ -72,6 +75,7 @@ class AuthService:
         institution: str,
         matricule: str,
         password: str,
+        request: Optional[Request] = None,
     ) -> Dict[str, Any]:
         """
         Step 1: Verify credentials and generate OTP.
@@ -91,6 +95,7 @@ class AuthService:
             raise AuthenticationError("Invalid credentials")
 
         if not verify_password(password, user.password_hash):
+            await self._audit_refused(db, user, "mot de passe incorrect", request)
             raise AuthenticationError("Invalid credentials")
 
         otp = generate_otp(6)
@@ -113,28 +118,57 @@ class AuthService:
             response["otp"] = otp
         return response
 
+    @staticmethod
+    async def _audit_refused(
+        db: AsyncSession, user: User, reason: str, request: Optional[Request]
+    ) -> None:
+        """Refused login of an identified account. Never the password or the code."""
+        db.add(
+            audit_entry(
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+                table_name="users",
+                record_id=user.id,
+                action="login_failed",
+                details={
+                    "name": user.full_name,
+                    "matricule": user.matricule,
+                    "reason": reason,
+                },
+                request=request,
+            )
+        )
+        # Committed here: the caller raises right after, and get_db rolls back on error.
+        await db.commit()
+
     async def verify_otp(
         self,
         db: AsyncSession,
         session_token: str,
         otp: str,
+        request: Optional[Request] = None,
     ) -> Dict[str, Any]:
         """Step 2: Verify OTP and generate JWT tokens."""
         redis = await get_redis()
 
         otp_key = f"otp:{session_token}"
+        session_key = f"session:{session_token}"
         stored_otp = await redis.get(otp_key)
         if not stored_otp:
             raise AuthenticationError("Invalid or expired session")
         if stored_otp != otp:
+            pending_user_id = await redis.get(session_key)
+            if pending_user_id:
+                user = await db.get(User, UUID(pending_user_id))
+                if user is not None:
+                    await self._audit_refused(
+                        db, user, "code de verification incorrect", request
+                    )
             raise AuthenticationError("Invalid OTP")
 
-        session_key = f"session:{session_token}"
         user_id_str = await redis.get(session_key)
         if not user_id_str:
             raise AuthenticationError("Session expired")
-
-        from uuid import UUID
 
         user_id = UUID(user_id_str)
         result = await db.execute(select(User).where(User.id == user_id))
@@ -146,6 +180,18 @@ class AuthService:
         role = result.scalar_one()
 
         user.last_login = datetime.utcnow()
+        # Logged when the tokens are issued, i.e. once the second factor is checked.
+        db.add(
+            audit_entry(
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+                table_name="users",
+                record_id=user.id,
+                action="login",
+                details={"name": user.full_name, "matricule": user.matricule},
+                request=request,
+            )
+        )
         await db.commit()
 
         token_data = {
