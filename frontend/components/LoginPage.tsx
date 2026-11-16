@@ -3,9 +3,25 @@ import CameroonMap from './CameroonMap';
 import DemoProfiles from './widgets/DemoProfiles';
 import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
+import { HelpHint } from './HelpHint';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
+const LOCKED_FALLBACK = 'Compte verrouillé temporairement.';
+
+/** Verrou de compte (423) : message serveur et durée restante en secondes. */
+const lockoutOf = (err: unknown): { message: string; seconds: number } | null => {
+  if (!(err instanceof ApiError) || err.status !== 423) return null;
+  const retry = Number(err.raw.retry_after);
+  return {
+    message: err.raw.detail || LOCKED_FALLBACK,
+    seconds: Number.isFinite(retry) && retry >= 1 ? Math.ceil(retry) : 60,
+  };
+};
+
+/** « 14 min 59 s » ; « 45 s » sous la minute. */
+const formatLockDelay = (seconds: number) =>
+  seconds >= 60 ? `${Math.floor(seconds / 60)} min ${seconds % 60} s` : `${seconds} s`;
 
 interface LoginPageProps {
   onLogin: (session: AuthSession) => void;
@@ -37,6 +53,34 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [lockSeconds, setLockSeconds] = useState(0);
+
+  useEffect(() => {
+    if (lockedUntil === null) return;
+    const tick = () => {
+      const left = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (left <= 0) {
+        setLockedUntil(null);
+        setLockSeconds(0);
+        setError(null);
+      } else {
+        setLockSeconds(left);
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil !== null;
+  const applyLockout = (lock: { message: string; seconds: number }) => {
+    setTempToken(null);
+    setOtp(['', '', '', '', '', '']);
+    setStep('login');
+    setError(lock.message);
+    setLockedUntil(Date.now() + lock.seconds * 1000);
+  };
 
   // Form controlled inputs
   const [institution, setInstitution] = useState('');
@@ -100,6 +144,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
     } catch (err) {
       console.error(err);
+      const lock = lockoutOf(err);
+      if (lock) {
+        applyLockout(lock);
+        return;
+      }
       setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Échec de connexion. Vérifiez vos identifiants.");
     } finally {
       setLoading(false);
@@ -124,6 +173,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       });
       onLogin(response);
     } catch (err) {
+      const lock = lockoutOf(err);
+      if (lock) {
+        applyLockout(lock);
+        return;
+      }
       setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Code invalide");
     } finally {
       setLoading(false);
@@ -195,7 +249,19 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-rdpc-blue rounded-full text-[9px] font-black uppercase tracking-widest">Portail Officiel</div>
                   <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">Connexion</h1>
                   <p className="text-slate-500 text-lg font-medium leading-relaxed">Accédez à votre espace de travail dématérialisé.</p>
-                  {error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>}
+                  {isLocked ? (
+                    <p role="alert" className="flex items-start gap-2 text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">
+                      <span className="flex-1">{`Compte verrouillé. Réessayez dans ${formatLockDelay(lockSeconds)}.`}</span>
+                      <HelpHint
+                        label="Aide sur le verrou du compte"
+                        tip="Après 3 codes erronés, le compte est bloqué 15 minutes."
+                      >
+                        Attendez la fin du décompte avant de réessayer ; saisir un nouveau code ne raccourcit pas le délai. Si vous ne pouvez pas attendre, demandez le déblocage à votre administrateur.
+                      </HelpHint>
+                    </p>
+                  ) : (
+                    error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
+                  )}
                 </div>
 
                 <form onSubmit={handleInitialSubmit} className="space-y-6 max-w-xl">
@@ -263,8 +329,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 disabled:opacity-70 group overflow-hidden relative">
-                    {loading ? "Connexion..." : <span className="flex items-center gap-3 italic">Étape Suivante <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform font-bold">east</span></span>}
+                  <button type="submit" disabled={loading || isLocked} className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 disabled:opacity-70 group overflow-hidden relative">
+                    {loading ? "Connexion..." : isLocked ? 'Compte verrouillé' : <span className="flex items-center gap-3 italic">Étape Suivante <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform font-bold">east</span></span>}
                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                   </button>
                 </form>

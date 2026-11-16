@@ -20,6 +20,10 @@ from app.models.user import User
 from app.services.space_path_builder import SpacePathBuilder
 
 
+# extra_data key holding what classify_document was called with, replayed after OCR.
+CLASSIFICATION_INPUTS_KEY = "classification_inputs"
+
+
 class ClassificationStatus(str, Enum):
     classified = "classified"
     needs_review = "needs_review"
@@ -92,6 +96,7 @@ class ClassificationRuleEngine:
         source_user_id: Optional[UUID],
         filename: str,
         mime_type: Optional[str],
+        content: Optional[str] = None,
     ) -> ClassificationResolution:
         rules = await self._load_rules(tenant_id)
         matching_rules = []
@@ -105,6 +110,7 @@ class ClassificationRuleEngine:
                 source_user_id=source_user_id,
                 filename=filename,
                 mime_type=mime_type,
+                content=content,
             )
             diagnostics.append(diagnostic)
             if diagnostic.matched:
@@ -216,7 +222,18 @@ class ClassificationRuleEngine:
             source_user_id=source_user_id,
             filename=filename,
             mime_type=mime_type,
+            content=document.ocr_content,
         )
+        # Kept so the OCR worker can run the same classification once the text exists.
+        document.extra_data = {
+            **(document.extra_data or {}),
+            **self.classification_inputs(
+                source_scope=source_scope,
+                source_user_id=source_user_id,
+                filename=filename,
+                mime_type=mime_type,
+            ),
+        }
 
         self._reset_document_classification(document)
 
@@ -251,6 +268,51 @@ class ClassificationRuleEngine:
 
         return resolution
 
+    @staticmethod
+    def classification_inputs(
+        *,
+        source_scope: str,
+        source_user_id: Optional[UUID],
+        filename: str,
+        mime_type: Optional[str],
+    ) -> dict:
+        """``extra_data`` entry read by :meth:`reclassify_after_ocr`.
+
+        Written by every path that creates a document (upload, batch import, directory
+        ingestion), so the classification can be run again once the OCR text exists.
+        """
+        return {
+            CLASSIFICATION_INPUTS_KEY: {
+                "source_scope": source_scope,
+                "source_user_id": str(source_user_id) if source_user_id else None,
+                "filename": filename,
+                "mime_type": mime_type,
+            }
+        }
+
+    async def reclassify_after_ocr(
+        self, document: Document
+    ) -> Optional[ClassificationResolution]:
+        """Second pass once the OCR text exists, for a document still ``pending`` only.
+
+        A document already classified (or waiting for review) is never moved after the
+        fact. Documents classified before this pass existed carry no stored inputs and
+        are left alone.
+        """
+        if document.classification_status != ClassificationStatus.pending.value:
+            return None
+        inputs = (document.extra_data or {}).get(CLASSIFICATION_INPUTS_KEY)
+        if not inputs:
+            return None
+        source_user_id = inputs.get("source_user_id")
+        return await self.classify_document(
+            document=document,
+            source_scope=inputs["source_scope"],
+            source_user_id=UUID(source_user_id) if source_user_id else None,
+            filename=inputs["filename"],
+            mime_type=inputs.get("mime_type"),
+        )
+
     async def _load_rules(self, tenant_id: UUID) -> list[ClassificationRule]:
         result = await self.db.execute(
             select(ClassificationRule)
@@ -278,6 +340,7 @@ class ClassificationRuleEngine:
         source_user_id: Optional[UUID],
         filename: str,
         mime_type: Optional[str],
+        content: Optional[str] = None,
     ) -> RuleDiagnostic:
         checks: list[RuleCheck] = []
 
@@ -348,6 +411,57 @@ class ClassificationRuleEngine:
             )
         )
 
+        if rule.content_pattern:
+            if not content:
+                content_ok = False
+                content_detail = "Contenu non encore extrait"
+            else:
+                content_ok = self._matches_filename_pattern(
+                    content, rule.content_pattern
+                )
+                content_detail = (
+                    "Au moins un mot-cle a ete trouve dans le contenu."
+                    if content_ok
+                    else "Aucun des mots-cles de la regle n'a ete trouve dans le contenu."
+                )
+        else:
+            content_ok, content_detail = True, "Aucun mot-cle de contenu exige."
+        checks.append(
+            RuleCheck(
+                key="content_pattern",
+                label="Mots-cles du contenu",
+                passed=content_ok,
+                detail=content_detail,
+            )
+        )
+
+        year_ok = True
+        year_detail = "Aucune borne d'annee exigee."
+        if rule.year_min is not None or rule.year_max is not None:
+            # No fallback to the current year: a range is only met by a year actually written.
+            year = self._year_in_filename(filename)
+            bounds = f"{rule.year_min or '...'}-{rule.year_max or '...'}"
+            if year is None:
+                year_ok = False
+                year_detail = "Aucune annee dans le nom du fichier."
+            else:
+                year_ok = (rule.year_min is None or year >= rule.year_min) and (
+                    rule.year_max is None or year <= rule.year_max
+                )
+                year_detail = (
+                    f"Annee {year} dans la plage {bounds}."
+                    if year_ok
+                    else f"Annee {year} hors de la plage {bounds}."
+                )
+        checks.append(
+            RuleCheck(
+                key="year_range",
+                label="Annee du document",
+                passed=year_ok,
+                detail=year_detail,
+            )
+        )
+
         mime_ok = True
         if rule.mime_type_pattern:
             mime_ok = self._matches_mime_type(mime_type, rule.mime_type_pattern)
@@ -383,6 +497,8 @@ class ClassificationRuleEngine:
             ("source_origin", "Filtre sur l'origine concernee"),
             ("source_user", "Filtre sur l'agent emetteur"),
             ("filename_pattern", "Filtre sur les mots-cles du nom"),
+            ("content_pattern", "Filtre sur les mots-cles du contenu"),
+            ("year_range", "Filtre sur l'annee du document"),
             ("mime_type", "Filtre sur le format du fichier"),
         ]
 
@@ -808,11 +924,18 @@ class ClassificationRuleEngine:
         if strategy == "fixed" and fixed_year:
             return fixed_year
         if strategy == "from_filename":
-            # Digit lookarounds, not \b: "_" is a word character, so \b missed "facture_2024_x.pdf".
-            match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", filename)
-            if match:
-                parsed_year = int(match.group(0))
-                # Filtrer les années aberrantes
-                if 1900 <= parsed_year <= self.current_year + 1:
-                    return parsed_year
+            parsed_year = self._year_in_filename(filename)
+            if parsed_year is not None:
+                return parsed_year
         return self.current_year
+
+    def _year_in_filename(self, filename: str) -> Optional[int]:
+        """First plausible year written in the file name, or None."""
+        # Digit lookarounds, not \b: "_" is a word character, so \b missed "facture_2024_x.pdf".
+        match = re.search(r"(?<!\d)(19|20)\d{2}(?!\d)", filename)
+        if match:
+            parsed_year = int(match.group(0))
+            # Filtrer les années aberrantes
+            if 1900 <= parsed_year <= self.current_year + 1:
+                return parsed_year
+        return None
