@@ -1,17 +1,21 @@
 import { test, expect } from '../../fixtures/uat.fixture';
-import { RulesPage } from '../../pages/rules.page';
+import type { Page } from '@playwright/test';
 
 /**
- * V1.1 lot 2 — export / import des règles de classement (écran Automates & Règles).
+ * V1.1 lot 2 — export / import des règles de classement (écran Plan de classement).
  * L'import passe par une simulation : le dialogue annonce « n à créer, n à mettre à jour,
  * n identiques, n rejetées » ; rien n'est écrit tant que l'utilisateur ne confirme pas.
  */
+/** L'export / import vit sur l'écran « Plan de classement » (/classement), onglet « Règles de classement » (et non /rules). */
+async function openClassementRules(page: Page) {
+  await page.goto('classement');
+  await page.getByRole('main').getByRole('button', { name: /règles de classement/i }).first().click();
+}
+
 test.describe('Règles de classement — export / import (V1.1 lot 2)', () => {
   test('réimporter son propre export annonce des règles identiques, sans rien à confirmer', async ({ page, loginAs }) => {
     await loginAs('tenant_admin');
-    const rulesPage = new RulesPage(page);
-    await rulesPage.goto();
-    await rulesPage.openRulesTab();
+    await openClassementRules(page);
 
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Exporter' }).click();
@@ -31,9 +35,7 @@ test.describe('Règles de classement — export / import (V1.1 lot 2)', () => {
 
   test('un fichier qui n’est pas un export de règles est refusé sans dialogue d’import', async ({ page, loginAs }) => {
     await loginAs('tenant_admin');
-    const rulesPage = new RulesPage(page);
-    await rulesPage.goto();
-    await rulesPage.openRulesTab();
+    await openClassementRules(page);
 
     await page.getByLabel('Fichier de règles à importer').setInputFiles({
       name: 'nimporte-quoi.json',
