@@ -3,6 +3,7 @@ import CameroonMap from './CameroonMap';
 import DemoProfiles from './widgets/DemoProfiles';
 import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
+import { HelpHint } from './HelpHint';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
@@ -18,8 +19,9 @@ const lockoutOf = (err: unknown): { message: string; seconds: number } | null =>
   };
 };
 
-const formatCountdown = (seconds: number) =>
-  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+/** « 14 min 59 s » ; « 45 s » sous la minute. */
+const formatLockDelay = (seconds: number) =>
+  seconds >= 60 ? `${Math.floor(seconds / 60)} min ${seconds % 60} s` : `${seconds} s`;
 
 interface LoginPageProps {
   onLogin: (session: AuthSession) => void;
@@ -247,7 +249,19 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-rdpc-blue rounded-full text-[9px] font-black uppercase tracking-widest">Portail Officiel</div>
                   <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">Connexion</h1>
                   <p className="text-slate-500 text-lg font-medium leading-relaxed">Accédez à votre espace de travail dématérialisé.</p>
-                  {error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>}
+                  {isLocked ? (
+                    <p role="alert" className="flex items-start gap-2 text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">
+                      <span className="flex-1">{`Compte verrouillé. Réessayez dans ${formatLockDelay(lockSeconds)}.`}</span>
+                      <HelpHint
+                        label="Aide sur le verrou du compte"
+                        tip="Après 3 codes erronés, le compte est bloqué 15 minutes."
+                      >
+                        Attendez la fin du décompte avant de réessayer ; saisir un nouveau code ne raccourcit pas le délai. Si vous ne pouvez pas attendre, demandez le déblocage à votre administrateur.
+                      </HelpHint>
+                    </p>
+                  ) : (
+                    error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
+                  )}
                 </div>
 
                 <form onSubmit={handleInitialSubmit} className="space-y-6 max-w-xl">
@@ -316,7 +330,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   </div>
 
                   <button type="submit" disabled={loading || isLocked} className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 disabled:opacity-70 group overflow-hidden relative">
-                    {loading ? "Connexion..." : isLocked ? `Réessayer dans ${formatCountdown(lockSeconds)}` : <span className="flex items-center gap-3 italic">Étape Suivante <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform font-bold">east</span></span>}
+                    {loading ? "Connexion..." : isLocked ? 'Compte verrouillé' : <span className="flex items-center gap-3 italic">Étape Suivante <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform font-bold">east</span></span>}
                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                   </button>
                 </form>
