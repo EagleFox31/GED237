@@ -58,6 +58,37 @@ def reset_redis_singleton():
 
 
 @pytest_asyncio.fixture
+async def fake_redis_factory():
+    """Fabrique de substituts Redis (fakeredis), refermés en fin de test.
+
+    ``await fake_redis_factory({"clé": "valeur"})`` renvoie un client neuf, amorcé,
+    avec ``decode_responses=True`` comme ``app.core.redis``. Ne pas redéfinir de
+    faux Redis dans un fichier de tests.
+    """
+    from fakeredis import FakeAsyncRedis
+
+    clients = []
+
+    async def make(values=None):
+        client = FakeAsyncRedis(decode_responses=True)
+        clients.append(client)
+        for key, value in (values or {}).items():
+            await client.set(key, value)
+        return client
+
+    yield make
+    for client in clients:
+        await client.flushall()
+        await client.aclose()
+
+
+@pytest_asyncio.fixture
+async def fake_redis(fake_redis_factory):
+    """Un substitut Redis vide (voir ``fake_redis_factory``)."""
+    return await fake_redis_factory()
+
+
+@pytest_asyncio.fixture
 async def test_engine():
     """Create an isolated engine for the current test context."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
