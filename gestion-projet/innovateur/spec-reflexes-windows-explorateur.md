@@ -2,7 +2,7 @@
 
 - **Pour** : F (réalisation), O (mise en file et fenêtre : avant le 30/11 ou V1.1), PO (demandeur). Innovateur, 2026-11-17.
 - **Demande du PO (17/11)** : l'application devait permettre de garder les réflexes de Windows (raccourcis, clic droit). Élément à réaliser.
-- **Statut** : à réaliser, non planifié. La fenêtre de livraison n'est pas décidée.
+- **Statut (décision O, 17/11)** : L1 et L2 confiés à F avant la coupure, en 2 PR, mises en file seulement si elles sont vertes et relues par Q avant le 19 à 12:00 ; sinon V1.1. L3 et L4 en V1.1, en issues ; F vérifie l'API pour L4. Résultat à reporter dans les notes rc.1 le 19 (« L1/L2 livrés » ou « réflexes Windows en V1.1 »).
 
 ## 1. État constaté (lecture du code, `main`, application non lancée)
 
