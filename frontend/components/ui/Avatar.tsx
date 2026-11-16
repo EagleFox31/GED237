@@ -16,11 +16,17 @@ const colorFor = (key: string): string => {
   return AVATAR_PALETTE[h % AVATAR_PALETTE.length] || AVATAR_PALETTE[0]!;
 };
 
-export const Avatar: React.FC<{ name: string; matricule: string; size?: 'sm' | 'md' }> = ({ name, matricule, size = 'md' }) => {
+export const Avatar: React.FC<{ name: string; matricule: string; size?: 'sm' | 'md'; square?: boolean; className?: string }> = ({
+  name,
+  matricule,
+  size = 'md',
+  square = false,
+  className = '',
+}) => {
   const cls = colorFor(matricule || name);
   const dim = size === 'sm' ? 'w-8 h-8 text-[10px]' : 'w-10 h-10 text-xs';
   return (
-    <div className={`${dim} ${cls} rounded-full flex items-center justify-center font-black tracking-wider flex-shrink-0`}>
+    <div className={`${dim} ${cls} ${square ? 'rounded-xl' : 'rounded-full'} ${className} flex items-center justify-center font-black tracking-wider flex-shrink-0`}>
       {initialsOf(name, matricule)}
     </div>
   );
