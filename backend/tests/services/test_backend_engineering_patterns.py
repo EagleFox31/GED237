@@ -151,6 +151,9 @@ def make_rule(**overrides):
         "source_user_ids": None,
         "filename_pattern": None,
         "mime_type_pattern": None,
+        "content_pattern": None,
+        "year_min": None,
+        "year_max": None,
         "target_scope": "service",
         "target_org_unit_id": None,
         "target_user_id": None,
@@ -346,6 +349,8 @@ async def test_classification_rule_engine_patterns(monkeypatch):
         classification_target_user_id=uuid.uuid4(),
         classification_status="stale",
         logical_space_path="stale",
+        ocr_content=None,
+        extra_data=None,
     )
     resolutions = [
         ClassificationResolution(
