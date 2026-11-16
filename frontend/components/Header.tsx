@@ -434,7 +434,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
             <div className="space-y-3">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Liens utiles</h4>
               <a
-                href={`${(import.meta as any).env?.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') || 'http://localhost:8000'}/api/docs`}
+                href={`${(import.meta as any).env?.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') || ''}/api/docs`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-blue-50 rounded-xl transition-colors group"
