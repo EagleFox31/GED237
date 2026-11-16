@@ -12,9 +12,9 @@
 | Certificat | mkcert, généré **sur le poste réel** à H-30, autorité locale installée dans le navigateur de ce poste (`mkcert -install`, navigateur redémarré) | idem, § Mise en route |
 | Poste de secours | `mkcert -install` aussi sur ce poste, sinon avertissement de certificat | idem, § Limites |
 | Preuve avant la séance | `sh scripts/prove_tls.sh` : `OK: HTTPS …` et code 0 ; cadenas fermé dans le navigateur | idem, § Vérifier |
-| Jeton, session | inchangés ; vérifier au P1 que la session survit à un F5 en HTTPS | à confirmer au rejeu du 20 |
+| Jeton, session | pas de cookie : jetons dans `sessionStorage` (propre à l'onglet **et** à l'origine) ; un F5 en HTTPS garde la session (`Déduit` du code, `audit-https-2026-11-16.md` ; à confirmer au rejeu du 20) | idem |
 
-Avant d'ouvrir la séance : onglet 1 = `https://localhost:8443` avec le cadenas visible ; onglet de repli = `http://localhost:8080` (même pile, aucun redémarrage).
+Avant d'ouvrir la séance : onglet 1 = `https://localhost:8443` avec le cadenas visible ; onglet de repli = `http://localhost:8080` **connecté au même compte que la fenêtre A à H-5** (même pile, aucun redémarrage). Vérifier aussi à H-30 que la salle a un accès Internet : l'interface charge ses styles et polices depuis Internet (`audit-https-2026-11-16.md`, écart 1).
 
 ## 2. Les 8 parcours dans l'ordre
 
@@ -37,7 +37,7 @@ L'ordre est celui de `deroule-demo.md` (P1, P2, P3, P6, P4, P5, P8, P7) ; ne pas
 
 | Situation | Action | Délai |
 |---|---|---|
-| Avertissement de certificat ou cadenas barré sur le poste principal | ouvrir `http://localhost:8080` (onglet de repli), poursuivre ; dire « l'accès chiffré est livré, le certificat est local, il se prouve hors séance » | < 30 s |
+| Avertissement de certificat ou cadenas barré sur le poste principal | ouvrir l'onglet de repli `http://localhost:8080` **déjà connecté à H-5** (la session ne passe pas d'une origine à l'autre : sans onglet préparé, nouvelle connexion avec OTP dans chaque fenêtre, ≈ 40 s) ; dire « l'accès chiffré est livré, le certificat est local, il se prouve hors séance » | < 30 s avec onglet préparé, ≈ 40 s par fenêtre sinon |
 | `nginx-tls` arrêté ou port 8443 occupé | ne pas redémarrer pendant la séance ; basculer sur 8080 ; `prove_tls.sh` rejoué après la séance | < 30 s |
 | Poste de secours sans autorité mkcert | utiliser `http://<poste>:8080` | immédiat |
 | Échec du rejeu du 20 | repli (b) de D6 : démonstration en HTTP, profil `tls` non activé, item 27 `partiel` | décision O le 20 |
