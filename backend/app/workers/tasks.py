@@ -5,6 +5,7 @@ Refactored to use OCR Strategy pattern with SRP
 
 import os
 import asyncio
+import logging
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
@@ -12,7 +13,10 @@ from sqlalchemy.sql import func
 
 from app.workers.celery_app import celery_app
 from app.models.document import Document
+from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # Async engine for database updates from the worker
@@ -40,14 +44,26 @@ async def update_document_ocr(
             # Index text in Postgres TSVECTOR
             document.ocr_content_vector = func.to_tsvector("french", text)
 
-            # Store OCR metadata in extra_data
-            if not document.extra_data:
-                document.extra_data = {}
-
-            document.extra_data["ocr_confidence"] = confidence
-            document.extra_data["ocr_engine"] = engine_used
+            # Store OCR metadata in extra_data. A new dict, not an in-place change: the
+            # JSONB column is not change-tracked, so mutating it would never be written.
+            document.extra_data = {
+                **(document.extra_data or {}),
+                "ocr_confidence": confidence,
+                "ocr_engine": engine_used,
+            }
 
             await session.commit()
+
+            # Rules with content keywords could not be checked before the text existed.
+            # Separate transaction: a failing rule must never lose the OCR text or fail the task.
+            try:
+                await ClassificationRuleEngine(session).reclassify_after_ocr(document)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                logger.exception(
+                    "Classification after OCR failed for document %s", document_id
+                )
 
 
 @celery_app.task(name="app.workers.tasks.process_document_ocr")
