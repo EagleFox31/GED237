@@ -1,4 +1,6 @@
 
+// Version affichée dans l'UI : injectée au build (tag de release), « dev » sinon.
+export const APP_VERSION: string = import.meta.env.VITE_APP_VERSION || 'dev';
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 export const COLORS = {

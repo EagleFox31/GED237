@@ -133,6 +133,9 @@ export interface ClassificationRule {
   source_user_ids?: string[] | null;
   filename_pattern?: string | null;
   mime_type_pattern?: string | null;
+  content_pattern?: string | null;
+  year_min?: number | null;
+  year_max?: number | null;
   target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
   target_org_unit_id?: string | null;
   target_org_unit_name?: string | null;

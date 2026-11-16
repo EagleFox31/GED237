@@ -3,7 +3,9 @@
 // Domaine : règles de classement — domaines, activités, règles, simulation.
 // SRP : change uniquement si le contrat /classification-rules/* évolue.
 
-import { apiCall, apiCallVoid } from '../http/client';
+import { API_URL } from '../../constants';
+import { apiCall, apiCallVoid, fetchWithRefresh, getHeaders } from '../http/client';
+import { buildApiError } from '../http/errorAdapter';
 import type {
     ClassificationDomain,
     ClassificationActivity,
@@ -12,6 +14,25 @@ import type {
 } from '../../types';
 
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
+
+export type RulesImportMode = 'upsert' | 'create_only';
+
+export interface RulesImportItem {
+    code: string;
+    action: 'create' | 'update' | 'skip' | 'reject';
+    reason?: string | null;
+}
+
+export interface RulesImportReport {
+    dry_run: boolean;
+    /** true seulement si l'écriture a eu lieu (jamais en simulation, jamais si une règle est rejetée). */
+    applied: boolean;
+    created: number;
+    updated: number;
+    skipped: number;
+    rejected: number;
+    items: RulesImportItem[];
+}
 
 export interface ClassificationDomainPayload {
     code: string;
@@ -44,6 +65,9 @@ export interface ClassificationRulePayload {
     source_user_ids?: string[] | null;
     filename_pattern?: string | null;
     mime_type_pattern?: string | null;
+    content_pattern?: string | null;
+    year_min?: number | null;
+    year_max?: number | null;
     target_scope: 'person' | 'service' | 'subdirectorate' | 'directorate';
     target_org_unit_id?: string | null;
     target_user_id?: string | null;
@@ -178,6 +202,33 @@ export const classificationApi = {
         return true;
     },
 
+    // ── Export / import des règles ───────────────────────────────────────
+
+    /** Fichier JSON des règles ; le nom vient de Content-Disposition (repli : nom neutre). */
+    exportClassificationRules: async (): Promise<{ blob: Blob; filename: string }> => {
+        const response = await fetchWithRefresh(`${API_URL}/classification-rules/rules/export`, {
+            headers: getHeaders(false),
+        });
+        if (!response.ok) throw await buildApiError(response, 'Export des règles impossible');
+        const disposition = response.headers.get('Content-Disposition') ?? '';
+        const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+        return {
+            blob: await response.blob(),
+            filename: match?.[1] ? decodeURIComponent(match[1]) : 'regles-classement.json',
+        };
+    },
+
+    /** Simulation (dryRun=true) ou application (dryRun=false) d'un fichier de règles. */
+    importClassificationRules: (
+        fileContent: unknown,
+        options: { dryRun: boolean; mode?: RulesImportMode },
+    ): Promise<RulesImportReport> =>
+        apiCall<RulesImportReport>(
+            `/classification-rules/rules/import?dry_run=${options.dryRun}&mode=${options.mode ?? 'upsert'}`,
+            { method: 'POST', body: JSON.stringify(fileContent) },
+            "Import des règles impossible",
+        ),
+
     // ── Simulation ────────────────────────────────────────────────────────
 
     simulateClassification: (payload: {
@@ -187,6 +238,7 @@ export const classificationApi = {
         source_user_id?: string | null;
         filename: string;
         mime_type?: string | null;
+        content_sample?: string | null;
     }): Promise<ClassificationSimulationResponse> =>
         apiCall<ClassificationSimulationResponse>(
             '/classification-rules/simulate',

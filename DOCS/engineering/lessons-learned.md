@@ -430,3 +430,73 @@ première requête utilisateur.
 **Leçon généralisée** — Un `try/except` autour d'un appel réseau ne protège pas d'une boucle de reconnexion interne : toute dépendance réseau optionnelle doit avoir un délai borné. Face à un processus muet, prendre une pile (faulthandler) avant de supposer la cause.
 
 ---
+
+### LESSON-2026-027 — Import de règles non idempotent : le code normalisé crée un jumeau de la règle d'origine
+
+- **Date :** 2026-11-10
+- **Catégorie :** data / backend
+- **Statut :** prevention-added
+- **Liens :** PR #79 (`feat/rules-export-import`, correctif 1061880), spec e2e SC-V11-02 (#91), `backend/app/services/classification_rule_engine.py`
+
+**Contexte** — Lot 2 V1.1 : export des règles de classement en JSON portable et réimport (`dry_run`, `mode`). Rejeu par la recette (Q) : export des règles du seed, réimport sans modification, nouvel export.
+**Échec / near miss** — Le réimport normalisait le code de chaque règle (`E2E-RULE-DEMO` → `e2e_rule_demo`) puis cherchait ce code normalisé en base, où la règle du seed gardait son code brut. Aucune correspondance : une règle jumelle était créée. Le second export était alors rejeté (deux codes identiques une fois normalisés). Un rejeu « sans changement » écrivait en base et rendait la fonction inutilisable : bloquant pour la démo.
+**Cause racine** — La normalisation n'était appliquée qu'à un seul côté du rapprochement. Le seul test d'idempotence exerçait des règles déjà créées par l'import lui-même (donc déjà normalisées) : les données héritées, écrites avant la fonction, n'étaient pas représentées.
+**Résolution** — Rapprochement sur le code normalisé des deux côtés ; la règle rapprochée garde son code d'origine ; deux codes existants identiques après normalisation font refuser l'import avec un message explicite. 3 tests ajoutés, dont « import des règles héritées = zéro écriture ».
+**Prévention** — Pour toute fonction d'import ou de synchronisation : un test avec des données **préexistantes au format hérité** (seed réel) et l'assertion « second passage = 0 création, 0 mise à jour ». Le `dry_run` doit afficher ce zéro avant tout import en démo (checklist H-30, lot 2).
+**Leçon généralisée** — L'idempotence (RAIDER I) se prouve sur l'état existant, pas seulement sur ce que la fonction a elle-même produit ; toute normalisation de clé s'applique aux deux membres de la comparaison, et les données rétroactives (RAIDER R) sont le premier jeu de test.
+
+### LESSON-2026-028 — Lot 4 : trois écarts de conception trouvés en relecture, aucun par les tests
+
+- **Date :** 2026-11-10
+- **Catégorie :** architecture / testing
+- **Statut :** prevention-added
+- **Liens :** PR #92 (`feat/rule-content-date`, correctif 2ef66d2), `backend/app/workers/`, `backend/app/services/ingestion.py`, fiche `gestion-projet/innovateur/specs-v11-avant-gel/lot-4.md`
+
+**Contexte** — Lot 4 V1.1 : critères de règle sur le texte OCR et l'année du document ; reclassement par le worker après l'OCR. 7 tests verts à l'ouverture de la PR.
+**Échec / near miss** — La relecture a relevé trois écarts que les tests ne voyaient pas : (1) le reclassement s'exécutait dans la même transaction que l'enregistrement de l'OCR, donc un échec du moteur de règles perdait le texte extrait ; (2) l'ingestion de dossier ne stockait pas les entrées de classement, les règles contenu/année ne pouvaient jamais s'y appliquer ; (3) un document sans date retombait sur l'année courante et pouvait matcher une règle d'année par défaut. Sans relecture, les trois seraient partis en recette avec des tests verts.
+**Cause racine** — Les tests exerçaient le moteur en isolation (texte et année fournis) ; aucun ne traversait les frontières : échec du reclassement après OCR, chemin d'ingestion, document sans date. La fiche de lot décrivait les critères, pas les cas limites de ces frontières.
+**Résolution** — OCR commité avant le reclassement (transaction séparée, échec journalisé) ; l'ingestion stocke `classification_inputs` ; bornes d'année sans repli ; 4 tests ajoutés sur ces trois cas.
+**Prévention** — Toute fiche de lot comporte une ligne « cas limites aux frontières » (échec de l'étape suivante, entrée absente, second chemin d'entrée) que la PR doit couvrir par un test nommé ; la relecture § 0 vérifie cette ligne avant le code. Règle de revue : « que se passe-t-il quand la donnée d'entrée manque ? » pour chaque critère nouveau.
+**Leçon généralisée** — Un critère ajouté à un moteur s'évalue sur tous ses chemins d'alimentation et sur l'absence de donnée ; un repli silencieux sur une valeur « raisonnable » (année courante) est une décision métier, jamais un défaut de code.
+
+### LESSON-2026-029 — PR empilée fermée par GitHub quand sa branche de base est supprimée à la fusion
+
+- **Date :** 2026-11-10
+- **Catégorie :** process / ci-cd
+- **Statut :** prevention-added
+- **Liens :** PR #95 (base `feat/rule-content-date` = branche de #92), fiche D5 `gestion-projet/innovateur/decisions-po-2026-11-13.md`
+
+**Contexte** — File de fusion en série (ruleset `main` : branche à jour obligatoire). Pour avancer sans attendre, F a ouvert #95 (UI lot 4) avec pour base la branche de #92 (API lot 4) plutôt que `main`. En parallèle, la décision D5 propose la suppression automatique des branches à la fusion.
+**Échec / near miss** — Quand la branche de base d'une PR est supprimée, GitHub ferme la PR empilée : ses commits restent mais elle disparaît de la file, sans alerte dans la chaîne. Avec la suppression automatique activée, la fusion de #92 aurait fermé #95 ; le même schéma vaut pour toute PR « empilée » (UI lot 5 sur API lot 5, e2e sur la PR qu'il teste). Repéré avant la fusion de #92.
+**Cause racine** — Le découplage « code prêt avant sa dépendance » a été réglé par la base Git de la PR, alors que la file de fusion est gérée hors GitHub (chaînes de l'orchestrateur) ; personne ne portait la règle « rebasculer la base sur `main` avant de fusionner la dépendance ».
+**Résolution** — Avant la fusion de la dépendance, l'orchestrateur rebascule : `gh pr edit <n> --base main` (GitHub recalcule le diff ; les commits de la base fusionnée disparaissent du delta). Pas de changement de base par l'auteur pendant que la PR est en file.
+**Prévention** — Contrôle de chaîne avant toute fusion : la liste des PR ouvertes dont `baseRefName` n'est pas `main` (`gh pr list --json number,baseRefName`) doit être vide ou chaque ligne traitée par `--base main`. Si D5 active `delete_branch_on_merge`, ce contrôle devient obligatoire et figure dans la procédure de fusion.
+**Leçon généralisée** — Une PR empilée est une dépendance implicite portée par l'outil, pas par le plan ; toute automatisation qui supprime une ressource (branche) doit être précédée de l'inventaire de ce qui la référence encore.
+
+### LESSON-2026-030 — Dossier surveillé pouvant englober le dossier de l'import en direct
+
+- **Date :** 2026-11-10
+- **Catégorie :** infrastructure / data
+- **Statut :** prevention-added
+- **Liens :** PR #101 (`feat/ingest-watch`, lot 5), `backend/app/services/ingest_watch.py`, `docker-compose.yml` (worker `-B`, montage `/data/ingest` en lecture-écriture), `gestion-projet/innovateur/checklist-demo.md` H-30
+
+**Contexte** — Lot 5 V1.1 : le worker importe périodiquement les fichiers déposés dans les dossiers de `INGEST_WATCH_FOLDERS` et **déplace** chaque fichier traité dans `_traites/<date>/` ou `_erreurs/`. Pour cela le worker monte `/data/ingest` en lecture-écriture, alors que l'API le lisait en lecture seule pour l'import en direct de la démo (`/data/ingest/live`, parcours P2).
+**Échec / near miss** — Une configuration `INGEST_WATCH_FOLDERS` pointant sur `/data/ingest` (ou `/data/ingest/live`, récursif) aurait fait vider par le worker, dès le premier passage, le dossier que l'animateur montre en séance : fichiers déplacés dans `_traites/`, parcours P2 impossible devant le jury. Deux services portant `-B` auraient aussi doublé les passages (le verrou Redis n'empêche que la simultanéité). Repéré en relecture, avant toute pile démo.
+**Cause racine** — Le même volume sert deux usages aux droits différents (lecture seule pour l'import à la main, lecture-écriture pour l'import automatique) et rien n'interdit au second d'englober le premier : la séparation est portée par la configuration, pas par le code.
+**Résolution** — Garde-fou dans #101 : surveillance **désactivée par défaut** (`INGEST_WATCH_FOLDERS=[]`), l'API garde son montage `:ro`. Checklist H-30 : un seul service porte `-B`, le worker monte `/data/ingest` en lecture-écriture, `printenv INGEST_WATCH_FOLDERS` dans le worker ne contient pas `/data/ingest/live`. Passage réel (dépôt, déplacement, libération du verrou dans les logs) au plan de recette du 20.
+**Prévention** — Garde-fou de code dans #101 (demandé par l'orchestrateur, *à confirmer à la fusion de #101*) : un dossier surveillé égal au dossier d'import en direct, le contenant ou contenu dans celui-ci (chemin lu depuis la configuration) est **ignoré** avec un avertissement dans les logs, couvert par un test ; en second rideau, le contrôle H-30 ci-dessus. Reste V1.1 : refus de deux dossiers surveillés imbriqués.
+**Leçon généralisée** — Tout traitement qui déplace ou supprime des fichiers sur un volume partagé doit prouver que son périmètre n'englobe pas celui d'un autre usage ; « éteint par défaut » est la bonne valeur quand la configuration peut détruire une donnée de démonstration.
+
+### LESSON-2026-031 — PR relue « conforme » et chaînée alors que sa CI n'a jamais été verte : faux Redis divergents entre tests
+
+- **Date :** 2026-11-10
+- **Catégorie :** testing / process
+- **Statut :** prevention-added
+- **Liens :** PR #83 (`feat/otp-lockout`, runs CI 42799141376 et 42811302993), `backend/tests/services/test_backend_engineering_patterns.py` (`FakeRedis`, l. 99), `backend/app/services/auth_service.py` (`_raise_if_locked`), PR #101 (`MemoryRedis` dans `tests/api/test_ingest_watch.py`)
+
+**Contexte** — Lot 3b : verrou du compte après trois codes OTP erronés. Le service appelle désormais `redis.ttl("lock:<id>")` avant de comparer l'OTP. La PR a été relue (innovateur, orchestrateur), déclarée conforme et placée en file de fusion ; elle est passée rouge « après la mise à jour sur `dc4daae` » et a bloqué la file.
+**Échec / near miss** — Lecture des runs : la CI de #83 **n'a jamais été verte**. Le premier run (47b9b07) a été annulé par le push suivant ; les deux runs complets (36c974b à 10:26, 9aa3bc4 à 11:54) échouent sur le même test, `test_auth_service_patterns`, avec la même erreur : `'FakeRedis' object has no attribute 'ttl'`. Aucune fusion de `main` (#80, #82) n'a rendu ce test incompatible : il est rouge depuis le premier commit de la branche. La preuve locale de B portait sur son seul fichier de tests (5 tests, vrai Redis) ; la relecture n'a pas regardé `gh pr checks` ; la PR a été mise en file sans lecture de ses checks. Le contrôle de fusion (`wait_clean`) l'a bien arrêtée sur rouge : le défaut est en amont de la chaîne, pas dans la chaîne.
+**Cause racine** — Deux causes. (1) **Faux Redis divergents** : chaque fichier de tests porte son propre substitut (`FakeRedis` de 2026-09 : `get`/`setex`/`delete` ; `MemoryRedis` de #101 : `set nx ex`, `eval`…), chacun ne couvrant que les méthodes connues à sa date ; toute nouvelle méthode Redis appelée par un service casse les tests des autres fichiers, qui monkeypatchent `get_redis` à l'aveugle. Même fichier, même classe d'erreur le même jour sur #92 (2ef66d2) : `test_classification_rule_engine_patterns` construit ses règles en `SimpleNamespace` à la main et échoue sur `content_pattern`, nouvel attribut du modèle ; tout double écrit à la main dans un fichier de tests vieillit avec le modèle. (2) **Preuve partielle acceptée** : « mes tests passent » (un fichier) a tenu lieu de « la suite passe », et la relecture § 0 ne comportait pas la lecture de l'état CI de la tête relue.
+**Résolution** — B ajoute `ttl` au `FakeRedis` historique (correctif immédiat) ; #83 repasse en CI complète avant de reprendre sa place en file.
+**Prévention** — (1) Un **seul substitut Redis partagé** pour toute la suite : candidat Adopt `fakeredis` (`FakeAsyncRedis`, compatible `redis.asyncio`, `ttl`, pipelines, Lua via l'extra `lua`), ce qui exercerait aussi la libération Lua de #101 aujourd'hui non testée ; à défaut, une classe unique dans `tests/conftest.py` et interdiction de redéfinir un faux Redis dans un fichier de tests (contrôle : `grep -rn "^class \w*Redis" backend/tests` ne renvoie qu'un fichier). (2) **Grille de relecture § 0** : première ligne = `gh pr checks <n>` sur la tête relue ; une PR rouge n'est pas « conforme », elle est « conforme sous réserve de CI ». (3) **Règle de mise en file** : une PR n'entre en file que si son dernier run complet est vert (un run annulé ne vaut pas vert) ; le contrôle de fusion reste le second rideau. (4) Preuve d'un auteur = suite complète en Docker, pas le fichier touché.
+**Leçon généralisée** — Un substitut de test écrit « juste pour ce fichier » devient un contrat implicite pour tout le code qui partage la dépendance : mutualiser les doubles d'infrastructure (Redis, S3, horloge) ou adopter un faux de référence. Et un statut CI se lit, il ne se suppose pas : « vert avant » doit être cité avec le numéro de run.

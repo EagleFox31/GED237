@@ -88,6 +88,9 @@ class ClassificationRuleBase(BaseModel):
     source_org_unit_excluded_ids: Optional[List[UUID]] = None
     source_user_ids: Optional[List[UUID]] = None
     filename_pattern: Optional[str] = Field(default=None, max_length=255)
+    content_pattern: Optional[str] = Field(default=None, max_length=255)
+    year_min: Optional[int] = Field(default=None, ge=1900, le=2100)
+    year_max: Optional[int] = Field(default=None, ge=1900, le=2100)
     mime_type_pattern: Optional[str] = Field(default=None, max_length=100)
     target_scope: ClassificationTargetScope
     target_org_unit_id: Optional[UUID] = None
@@ -118,6 +121,9 @@ class ClassificationRuleUpdate(BaseModel):
     source_org_unit_excluded_ids: Optional[List[UUID]] = None
     source_user_ids: Optional[List[UUID]] = None
     filename_pattern: Optional[str] = Field(default=None, max_length=255)
+    content_pattern: Optional[str] = Field(default=None, max_length=255)
+    year_min: Optional[int] = Field(default=None, ge=1900, le=2100)
+    year_max: Optional[int] = Field(default=None, ge=1900, le=2100)
     mime_type_pattern: Optional[str] = Field(default=None, max_length=100)
     target_scope: Optional[ClassificationTargetScope] = None
     target_org_unit_id: Optional[UUID] = None
@@ -145,3 +151,30 @@ class ClassificationRuleRead(ClassificationRuleBase):
 
     class Config:
         from_attributes = True
+
+
+class ClassificationRulesExchange(BaseModel):
+    """Exchange file of GET /classification-rules/rules/export and POST .../rules/import."""
+
+    format: str
+    version: int
+    exported_at: Optional[str] = None
+    tenant_code: Optional[str] = None
+    rules: List[dict] = Field(max_length=500)
+
+
+class ClassificationRuleImportItem(BaseModel):
+    code: str
+    action: Literal["create", "update", "skip", "reject"]
+    reason: Optional[str] = None
+
+
+class ClassificationRuleImportReport(BaseModel):
+    dry_run: bool
+    # True only when the rules were written: never in dry run, never when one rule is rejected.
+    applied: bool = False
+    created: int = 0
+    updated: int = 0
+    skipped: int = 0
+    rejected: int = 0
+    items: List[ClassificationRuleImportItem] = []

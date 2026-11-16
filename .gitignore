@@ -78,3 +78,6 @@ backend/scratch_*.py
 nul
 design_docs_content.txt
 extracted_text.txt
+
+# C6 probe readings (scripts/probe_c6.sh); dated results go in gestion-projet/recette/mesures-*/
+/c6.tsv

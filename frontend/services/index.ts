@@ -61,7 +61,7 @@ export { usageApi }            from './resources/usage.api';
 // Re-exports http/ pour les rares cas où un hook/composant a besoin du
 // transport directement (ex: categories.api.ts, stores d'auth).
 export { fetchWithRefresh, apiCall, apiCallVoid, requestJson, getHeaders } from './http/client';
-export { clearAuthSession, persistAuthTokens, isAuthEndpoint }             from './http/session';
+export { clearAuthSession, persistAuthTokens, isAuthEndpoint, takePostLoginDestination } from './http/session';
 export { buildApiError }                                                    from './http/errorAdapter';
 
 export const api = {
@@ -161,6 +161,8 @@ export const api = {
     updateClassificationRule: classificationApi.updateClassificationRule,
     deleteClassificationRule: classificationApi.deleteClassificationRule,
     simulateClassification: classificationApi.simulateClassification,
+    exportClassificationRules: classificationApi.exportClassificationRules,
+    importClassificationRules: classificationApi.importClassificationRules,
 
     // Spaces
     getSpacesTree: spacesApi.getSpacesTree,
@@ -184,6 +186,7 @@ export const api = {
 
     // Audit
     getAuditLogs: auditApi.getAuditLogs,
+    exportAuditLogs: auditApi.exportAuditLogs,
 
     // Analytics
     getTenantAnalytics: analyticsApi.getTenantAnalytics,
