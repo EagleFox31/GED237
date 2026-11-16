@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+
+// Classes écrites en entier : Tailwind (compilé) ne génère pas une classe construite par concaténation.
+type AccentClasses = { focusBorder: string; check: string };
+const ACCENT: Record<string, AccentClasses> = {
+  'rdpc-blue': { focusBorder: 'focus:border-rdpc-blue', check: 'text-rdpc-blue focus:ring-rdpc-blue' },
+  'emerald-500': { focusBorder: 'focus:border-emerald-500', check: 'text-emerald-500 focus:ring-emerald-500' },
+};
 export interface MultiCheckOption {
   value: string;
   label: string;
@@ -10,7 +17,7 @@ export interface MultiCheckSelectProps {
   selected: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
-  /** Couleur d'accent Tailwind (ex: 'rdpc-blue', 'emerald-500'). */
+  /** Couleur d'accent : 'rdpc-blue' (défaut) ou 'emerald-500'. */
   accent?: string;
   /** Désactive le champ. */
   disabled?: boolean;
@@ -37,6 +44,7 @@ export const MultiCheckSelect: React.FC<MultiCheckSelectProps> = ({
   searchable = true,
   ariaLabel,
 }) => {
+  const tone: AccentClasses = ACCENT[accent] ?? { focusBorder: 'focus:border-rdpc-blue', check: 'text-rdpc-blue focus:ring-rdpc-blue' };
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -93,7 +101,7 @@ export const MultiCheckSelect: React.FC<MultiCheckSelectProps> = ({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-${accent} disabled:opacity-50 flex items-center justify-between gap-2 text-left`}
+        className={`w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none ${tone.focusBorder} disabled:opacity-50 flex items-center justify-between gap-2 text-left`}
       >
         <span className={selected.length === 0 ? 'text-slate-400 font-medium' : ''}>
           {summary}
@@ -134,7 +142,7 @@ export const MultiCheckSelect: React.FC<MultiCheckSelectProps> = ({
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(opt.value)}
-                      className={`w-4 h-4 rounded border-slate-300 text-${accent} focus:ring-${accent}`}
+                      className={`w-4 h-4 rounded border-slate-300 ${tone.check}`}
                     />
                     <span className="text-sm font-medium text-slate-700 flex-1">
                       {opt.label}

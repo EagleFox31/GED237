@@ -7,7 +7,8 @@
 # Profile demo: E2E_MANIFEST points to demo-manifest.json; after the reference data, seed_demo.py
 # purges the demo tenants' documents, jobs and rules, posts the rules, imports the corpus
 # (DEMO_CORPUS, default /data/ingest, see scripts/demo-dataset.sh) through the API and checks the
-# result against the manifest's `expected` section. Two runs give the same counters.
+# result against the manifest's `expected` section. Two runs give the same counters. Last, the P8 data
+# (demo-p8-manifest.json: validation circuit + 2 documents) is seeded on top, outside those counters.
 set -eu
 profile="${1:-e2e}"
 : "${E2E_MANIFEST:?E2E_MANIFEST must point to frontend/e2e/data/seed-manifest.json (or demo-manifest.json)}"
@@ -16,4 +17,7 @@ python scripts/seed_db.py
 python scripts/seed_e2e.py --manifest "$E2E_MANIFEST" --profile "$profile"
 if [ "$profile" = "demo" ]; then
   python scripts/seed_demo.py --manifest "$E2E_MANIFEST" --corpus "${DEMO_CORPUS:-/data/ingest}"
+  # Parcours P8 (circuit de validation + 2 documents DAF) : après seed_demo.py, qui vide les documents du
+  # tenant. Idempotent (clé = code) ; le manifeste est cherché à côté de demo-manifest.json.
+  python scripts/seed_e2e.py --manifest "${DEMO_P8_MANIFEST:-$(dirname "$E2E_MANIFEST")/demo-p8-manifest.json}" --profile demo-p8
 fi
