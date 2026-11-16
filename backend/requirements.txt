@@ -50,6 +50,7 @@ pytest-asyncio==0.23.5
 pytest-cov==7.1.0
 pytest-timeout==2.3.1
 pytest-benchmark==4.0.0
+fakeredis[lua]==2.40.0
 
 # Security scanning (T6.7, T6.8)
 bandit==1.8.3
