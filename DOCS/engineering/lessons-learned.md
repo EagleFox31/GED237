@@ -528,3 +528,17 @@ première requête utilisateur.
 **Résolution** — Spec réécrit sur `/classement` dans #108 (helper `openClassementRules`), à valider par le run `--project=uat` de #108.
 **Prévention** — (1) Un spec e2e ajouté ou modifié est **exécuté** avant fusion : la PR cite la commande et le résultat (`E2E_ARGS="--project=uat <spec>"`) ; « listé, non exécuté » = limite écrite, pas preuve. (2) Run `uat` complet obligatoire avant chaque tag rc (checklist de recette), à défaut d'un job CI planifié — à trancher par ci-qa (`ci.yml` hors de ce lot). (3) Objet de page = un écran : la fonctionnalité testée doit être rendue par la route du `goto()` choisi ; contrôle en relecture : `git grep -n "<Composant>" frontend/profiles` mène bien à la page de la route visée.
 **Leçon généralisée** — Un test qui ne tourne jamais n'est pas un filet, c'est une dette silencieuse : tout ensemble de tests hors CI doit avoir un déclencheur explicite (avant release, planifié) sinon il pourrit sans bruit. Et quand une fonctionnalité change d'écran, ses objets de page et ses specs font partie du changement.
+
+### LESSON-2026-036 — Specs unitaires purs rattachés à un projet e2e dépendant d'une pile : jamais exécutés en CI
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / ci
+- **Statut :** prevention-added (PR #143)
+- **Liens :** PR #97 (`safe-path.spec.ts`), PR #140 (`account-key.spec.ts`), PR #143, `frontend/playwright.config.ts` (projet `chromium` → `setup`), `frontend/playwright.unit.config.ts`, `.github/workflows/frontend.yml`
+
+**Contexte** — Les specs purs (aucun navigateur, aucune API) tournaient sous `@playwright/test`, dans le projet `chromium`, qui dépend de `setup` (connexion sur une pile réelle). La CI ne lance que `--project=smoke`.
+**Échec / near miss** — Un cas de `safe-path.spec.ts` était rouge depuis #97 sans que personne le voie : `'/\evil.example'` vaut `/evil.example` en JS, donc il testait une URL sûre. Découvert le 2026-11-17 en lançant ces specs à la main pour #140.
+**Cause racine** — Même schéma que LESSON-2026-034 : un ensemble de tests sans déclencheur. Le rattachement à un projet qui exige une pile rendait leur exécution coûteuse, donc jamais faite.
+**Résolution** — #143 : `playwright.unit.config.ts` (sans pile ni `webServer`), `npm run test:unit` lancé dans le job Frontend Lint & Typecheck ; cas antislash corrigé (`'/\evil.example'`). 12/12 verts.
+**Prévention** — Un spec pur s'ajoute au `testMatch` de `playwright.unit.config.ts` (commentaire dans le fichier) ; contrôle en relecture : `git grep -L "page\|request" frontend/e2e/specs/*.spec.ts` doit renvoyer seulement des fichiers listés dans ce motif.
+**Leçon généralisée** — Un test unitaire ne doit pas dépendre de l'infrastructure d'un test d'intégration : sinon il en hérite le coût et sort de la CI.
