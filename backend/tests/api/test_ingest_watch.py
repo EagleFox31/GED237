@@ -26,28 +26,6 @@ from app.services.ingestion import DirectoryIngestionService
 STATUS = "/api/v1/documents/ingest-watch/status"
 
 
-class MemoryRedis:
-    """The few Redis calls the watch uses: SET NX EX, GET, compare-and-delete."""
-
-    def __init__(self):
-        self.data: dict[str, str] = {}
-
-    async def set(self, key, value, nx=False, ex=None):
-        if nx and key in self.data:
-            return None
-        self.data[key] = value
-        return True
-
-    async def get(self, key):
-        return self.data.get(key)
-
-    async def eval(self, _script, _numkeys, key, token):
-        if self.data.get(key) == token:
-            del self.data[key]
-            return 1
-        return 0
-
-
 @pytest.fixture
 def watch_fs(tmp_path, monkeypatch):
     root = tmp_path / "root"
@@ -106,13 +84,13 @@ def test_invalid_watch_config_is_ignored(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_pass_imports_then_moves_files_and_second_pass_is_a_no_op(
-    test_engine, db_seed, watch_fs, monkeypatch
+    fake_redis, test_engine, db_seed, watch_fs, monkeypatch
 ):
     folder = watch_fs["folder"]
     (folder / "a.txt").write_text("alpha", encoding="utf-8")
     (folder / "b.txt").write_text("beta", encoding="utf-8")
     _watch(monkeypatch, _entry(folder))
-    redis = MemoryRedis()
+    redis = fake_redis
 
     first = await run_watch_pass(_sessions(test_engine), redis)
     second = await run_watch_pass(_sessions(test_engine), redis)
@@ -136,21 +114,21 @@ async def test_pass_imports_then_moves_files_and_second_pass_is_a_no_op(
     }
     assert await _count(test_engine, Document, tenant) == 2
     assert await _count(test_engine, AuditLog, AuditLog.action == "watch_ingested") == 1
-    assert json.loads(redis.data[LAST_RUN_KEY]) == second
-    assert LOCK_KEY not in redis.data
+    assert json.loads(await redis.get(LAST_RUN_KEY)) == second
+    assert await redis.exists(LOCK_KEY) == 0
 
 
 @pytest.mark.asyncio
 async def test_file_already_in_the_ged_is_not_imported_again(
-    test_engine, db_seed, watch_fs, monkeypatch
+    fake_redis, test_engine, db_seed, watch_fs, monkeypatch
 ):
     folder = watch_fs["folder"]
     (folder / "note.txt").write_text("meme contenu", encoding="utf-8")
     _watch(monkeypatch, _entry(folder))
-    await run_watch_pass(_sessions(test_engine), MemoryRedis())
+    await run_watch_pass(_sessions(test_engine), fake_redis)
     (folder / "copie.txt").write_text("meme contenu", encoding="utf-8")
 
-    result = await run_watch_pass(_sessions(test_engine), MemoryRedis())
+    result = await run_watch_pass(_sessions(test_engine), fake_redis)
 
     assert {k: result["folders"][0][k] for k in ("found", "imported", "skipped")} == {
         "found": 1,
@@ -167,14 +145,14 @@ async def test_file_already_in_the_ged_is_not_imported_again(
 
 @pytest.mark.asyncio
 async def test_folder_outside_allowed_roots_is_never_read(
-    test_engine, db_seed, watch_fs, monkeypatch
+    fake_redis, test_engine, db_seed, watch_fs, monkeypatch
 ):
     outside = watch_fs["tmp"] / "autre"
     outside.mkdir()
     (outside / "x.txt").write_text("secret", encoding="utf-8")
     _watch(monkeypatch, _entry(outside))
 
-    result = await run_watch_pass(_sessions(test_engine), MemoryRedis())
+    result = await run_watch_pass(_sessions(test_engine), fake_redis)
 
     assert result["folders"] == []
     assert os.listdir(outside) == ["x.txt"]
@@ -186,7 +164,7 @@ async def test_folder_outside_allowed_roots_is_never_read(
 
 @pytest.mark.asyncio
 async def test_file_still_being_copied_waits_for_the_next_pass(
-    test_engine, db_seed, watch_fs, monkeypatch
+    fake_redis, test_engine, db_seed, watch_fs, monkeypatch
 ):
     folder = watch_fs["folder"]
     fresh = folder / "en_cours.txt"
@@ -194,10 +172,10 @@ async def test_file_still_being_copied_waits_for_the_next_pass(
     monkeypatch.setattr(settings, "INGEST_WATCH_SETTLE_SECONDS", 600)
     _watch(monkeypatch, _entry(folder))
 
-    waiting = await run_watch_pass(_sessions(test_engine), MemoryRedis())
+    waiting = await run_watch_pass(_sessions(test_engine), fake_redis)
     old = time.time() - 3600
     os.utime(fresh, (old, old))
-    settled = await run_watch_pass(_sessions(test_engine), MemoryRedis())
+    settled = await run_watch_pass(_sessions(test_engine), fake_redis)
 
     assert waiting["folders"][0]["found"] == 0
     assert fresh.exists() is False
@@ -206,7 +184,7 @@ async def test_file_still_being_copied_waits_for_the_next_pass(
 
 @pytest.mark.asyncio
 async def test_failing_file_goes_to_errors_and_others_are_imported(
-    test_engine, db_seed, watch_fs, monkeypatch
+    fake_redis, test_engine, db_seed, watch_fs, monkeypatch
 ):
     folder = watch_fs["folder"]
     (folder / "bon.txt").write_text("bon", encoding="utf-8")
@@ -221,7 +199,7 @@ async def test_failing_file_goes_to_errors_and_others_are_imported(
 
     monkeypatch.setattr(DirectoryIngestionService, "_ingest_single_file", failing)
 
-    result = await run_watch_pass(_sessions(test_engine), MemoryRedis())
+    result = await run_watch_pass(_sessions(test_engine), fake_redis)
 
     assert {k: result["folders"][0][k] for k in ("imported", "errors")} == {
         "imported": 1,
@@ -233,21 +211,21 @@ async def test_failing_file_goes_to_errors_and_others_are_imported(
 
 @pytest.mark.asyncio
 async def test_pass_is_skipped_while_another_one_holds_the_lock(
-    test_engine, db_seed, watch_fs, monkeypatch
+    fake_redis, test_engine, db_seed, watch_fs, monkeypatch
 ):
     (watch_fs["folder"] / "a.txt").write_text("alpha", encoding="utf-8")
     _watch(monkeypatch, _entry(watch_fs["folder"]))
-    redis = MemoryRedis()
-    redis.data[LOCK_KEY] = "autre-passage"
+    redis = fake_redis
+    await redis.set(LOCK_KEY, "autre-passage")
 
     assert await run_watch_pass(_sessions(test_engine), redis) is None
-    assert redis.data[LOCK_KEY] == "autre-passage"
+    assert await redis.get(LOCK_KEY) == "autre-passage"
     assert (watch_fs["folder"] / "a.txt").exists()
 
 
 @pytest.mark.asyncio
 async def test_status_shows_only_the_folders_of_the_current_tenant(
-    auth_client: AsyncClient, db_seed, watch_fs, monkeypatch
+    fake_redis, auth_client: AsyncClient, db_seed, watch_fs, monkeypatch
 ):
     other_tenant = str(uuid.uuid4())
     _watch(
@@ -255,35 +233,38 @@ async def test_status_shows_only_the_folders_of_the_current_tenant(
         _entry(watch_fs["folder"]),
         _entry("/data/autre", tenant_code="AUTRE"),
     )
-    redis = MemoryRedis()
-    redis.data[LAST_RUN_KEY] = json.dumps(
-        {
-            "at": "2026-11-10T12:00:00+00:00",
-            "folders": [
-                {
-                    "path": str(watch_fs["folder"]),
-                    "tenant_id": str(db_seed["tenant_id"]),
-                    "found": 2,
-                    "imported": 1,
-                    "skipped": 1,
-                    "errors": 0,
-                },
-                {
-                    "path": "/data/autre",
-                    "tenant_id": other_tenant,
-                    "found": 9,
-                    "imported": 9,
-                    "skipped": 0,
-                    "errors": 0,
-                },
-            ],
-        }
+    redis = fake_redis
+    await redis.set(
+        LAST_RUN_KEY,
+        json.dumps(
+            {
+                "at": "2026-11-10T12:00:00+00:00",
+                "folders": [
+                    {
+                        "path": str(watch_fs["folder"]),
+                        "tenant_id": str(db_seed["tenant_id"]),
+                        "found": 2,
+                        "imported": 1,
+                        "skipped": 1,
+                        "errors": 0,
+                    },
+                    {
+                        "path": "/data/autre",
+                        "tenant_id": other_tenant,
+                        "found": 9,
+                        "imported": 9,
+                        "skipped": 0,
+                        "errors": 0,
+                    },
+                ],
+            }
+        ),
     )
 
-    async def fake_redis():
+    async def _get_redis():
         return redis
 
-    monkeypatch.setattr("app.api.v1.endpoints.documents.get_redis", fake_redis)
+    monkeypatch.setattr("app.api.v1.endpoints.documents.get_redis", _get_redis)
 
     response = await auth_client.get(STATUS)
     assert response.status_code == 200, response.text
@@ -338,7 +319,7 @@ def test_watch_is_off_by_default_and_the_task_touches_nothing(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_folder_overlapping_the_hand_import_folder_is_never_emptied(
-    test_engine, db_seed, watch_fs, monkeypatch
+    fake_redis, test_engine, db_seed, watch_fs, monkeypatch
 ):
     root = watch_fs["root"]
     live = root / "live"
@@ -354,7 +335,7 @@ async def test_folder_overlapping_the_hand_import_folder_is_never_emptied(
         _entry(watch_fs["folder"]),  # a sibling: still watched
     )
 
-    result = await run_watch_pass(_sessions(test_engine), MemoryRedis())
+    result = await run_watch_pass(_sessions(test_engine), fake_redis)
 
     assert [f["path"] for f in result["folders"]] == [str(watch_fs["folder"])]
     assert os.listdir(live / "lot") == ["p2.txt"]
