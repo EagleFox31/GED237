@@ -96,34 +96,6 @@ class QueueDB:
         self.refreshes += 1
 
 
-class FakeRedis:
-    def __init__(self, values=None):
-        self.values = dict(values or {})
-        self.setex_calls = []
-        self.deleted = []
-        self.ttls = {}
-
-    async def get(self, key):
-        return self.values.get(key)
-
-    async def setex(self, key, ttl, value):
-        self.setex_calls.append((key, ttl, value))
-        self.values[key] = value
-        self.ttls[key] = ttl
-
-    async def ttl(self, key):
-        # Redis semantics: -2 missing key, -1 key without expiry.
-        if key not in self.values:
-            return -2
-        return self.ttls.get(key, -1)
-
-    async def delete(self, *keys):
-        self.deleted.extend(keys)
-        for key in keys:
-            self.values.pop(key, None)
-            self.ttls.pop(key, None)
-
-
 class AsyncUpload:
     def __init__(self, filename: str, content: bytes):
         self.filename = filename
@@ -655,7 +627,7 @@ async def test_dashboard_facade_patterns():
 
 
 @pytest.mark.asyncio
-async def test_auth_service_patterns(monkeypatch):
+async def test_auth_service_patterns(monkeypatch, fake_redis_factory):
     import app.services.auth_service as module
 
     service = AuthService()
@@ -693,7 +665,7 @@ async def test_auth_service_patterns(monkeypatch):
         must_change_password=False,
         last_login=None,
     )
-    redis = FakeRedis()
+    redis = await fake_redis_factory()
     monkeypatch.setattr(service, "_resolve_tenant", AsyncMock(return_value=tenant))
     monkeypatch.setattr(module, "verify_password", lambda _raw, _hash: True)
     monkeypatch.setattr(module, "generate_otp", lambda _length: "123456")
@@ -702,7 +674,7 @@ async def test_auth_service_patterns(monkeypatch):
     login_db = QueueDB(results=[FakeResult(scalar=user)])
     login = await service.login(login_db, "MINFI", "A001", "secret")
     assert login["session_token"] == "session-token"
-    assert {call[0] for call in redis.setex_calls} == {
+    assert set(await redis.keys("*")) == {
         "otp:session-token",
         "session:session-token",
     }
@@ -718,10 +690,11 @@ async def test_auth_service_patterns(monkeypatch):
         )
 
     role = SimpleNamespace(code="collaborator", label="Standard")
-    verify_redis = FakeRedis(
+    verify_redis = await fake_redis_factory(
         {
             "otp:session-token": "123456",
             "session:session-token": str(user.id),
+            f"otp_fail:{user.id}": "2",
         }
     )
     monkeypatch.setattr(module, "get_redis", AsyncMock(return_value=verify_redis))
@@ -736,20 +709,18 @@ async def test_auth_service_patterns(monkeypatch):
     assert verified["access_token"].startswith("access-")
     assert verified["user"]["role"] == "collaborator"
     # A valid code also resets the failure counter of the lockout.
-    assert set(verify_redis.deleted) == {
-        "otp:session-token",
-        "session:session-token",
-        f"otp_fail:{user.id}",
-    }
+    assert await verify_redis.keys("*") == []
 
-    monkeypatch.setattr(module, "get_redis", AsyncMock(return_value=FakeRedis()))
+    monkeypatch.setattr(
+        module, "get_redis", AsyncMock(return_value=await fake_redis_factory())
+    )
     with pytest.raises(AuthenticationError):
         await service.verify_otp(QueueDB(), "missing", "123456")
 
     monkeypatch.setattr(
         module,
         "get_redis",
-        AsyncMock(return_value=FakeRedis({"otp:s": "111111"})),
+        AsyncMock(return_value=await fake_redis_factory({"otp:s": "111111"})),
     )
     with pytest.raises(AuthenticationError):
         await service.verify_otp(QueueDB(), "s", "222222")
@@ -757,7 +728,7 @@ async def test_auth_service_patterns(monkeypatch):
     monkeypatch.setattr(
         module,
         "get_redis",
-        AsyncMock(return_value=FakeRedis({"otp:s": "111111"})),
+        AsyncMock(return_value=await fake_redis_factory({"otp:s": "111111"})),
     )
     with pytest.raises(AuthenticationError):
         await service.verify_otp(QueueDB(), "s", "111111")
@@ -766,7 +737,9 @@ async def test_auth_service_patterns(monkeypatch):
         module,
         "get_redis",
         AsyncMock(
-            return_value=FakeRedis({"otp:s": "111111", "session:s": str(user.id)})
+            return_value=await fake_redis_factory(
+                {"otp:s": "111111", "session:s": str(user.id)}
+            )
         ),
     )
     with pytest.raises(NotFoundError):
@@ -795,7 +768,7 @@ async def test_auth_service_patterns(monkeypatch):
     monkeypatch.setattr(module, "decode_token", lambda _token: None)
     assert await service.logout("bad") == {"message": "Logged out successfully"}
 
-    logout_redis = FakeRedis()
+    logout_redis = await fake_redis_factory()
     monkeypatch.setattr(module, "get_redis", AsyncMock(return_value=logout_redis))
     monkeypatch.setattr(
         module,
@@ -803,7 +776,8 @@ async def test_auth_service_patterns(monkeypatch):
         lambda _token: {"exp": time.time() + 120},
     )
     assert await service.logout("access") == {"message": "Logged out successfully"}
-    assert logout_redis.setex_calls[0][0] == "blacklist:access"
+    assert await logout_redis.exists("blacklist:access") == 1
+    assert 0 < await logout_redis.ttl("blacklist:access") <= 120
 
 
 @pytest.mark.asyncio
