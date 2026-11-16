@@ -31,6 +31,8 @@ FPR=7776361468B5DF0CFF903723A00188980F856DF1
 
 - [ ] Prendre les notes de version de #104 (décision O du 16/11) :
   `git show $SHA:gestion-projet/innovateur/notes-version-v1.0.0-rc.1.md > /tmp/notes-rc1.md`
+- [ ] **Bloquant** : le fichier versionné est exactement ce qui est publié, donc sans en-tête interne (décision O du 17/11). La commande suivante doit afficher `OK` :
+  `head -n 5 /tmp/notes-rc1.md | grep -Eiq 'brouillon|Pour\**[[:space:]]*:' && echo "STOP: en-tête interne présent" || echo OK`
 - [ ] Relire `/tmp/notes-rc1.md` : le fichier n'est pas vide et il ne reste aucun texte d'attente (« relevé O reporté ici le 19 au soir », « brouillon vivant ») ni l'en-tête interne (puces « Pour », « Format », « Périmètre » avant `---`).
 - [ ] La section `## [1.0.0-rc.1]` de `CHANGELOG.md`, qui fait référence, concorde avec les notes :
   `diff <(git show $SHA:CHANGELOG.md | awk '/^## \[1\.0\.0-rc\.1\]/{f=1} f&&/^## \[/&&!/rc\.1/{exit} f') <(sed -n '/^## \[1\.0\.0-rc\.1\]/,$p' /tmp/notes-rc1.md)` ne renvoie rien, ou seulement des écarts expliqués.
