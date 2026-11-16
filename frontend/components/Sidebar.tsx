@@ -4,14 +4,18 @@ import { TENANT_ADMIN_MENU } from '../profiles/tenant-admin/menuConfig';
 import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
 import { Logo } from './Logo';
+import { APP_VERSION } from '../constants';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   userProfile?: any;
+  /** Écrans étroits : tiroir ouvert ou replié (ignoré dès 768 px). */
+  open?: boolean;
+  onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, open = false, onClose }) => {
   const [tenantLabel, setTenantLabel] = useState<string>('');
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
 
@@ -100,8 +104,31 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
     );
   };
 
+  useEffect(() => {
+    if (!open || !onClose) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   return (
-    <div className="w-72 h-screen glass border-r border-slate-200/50 flex flex-col fixed left-0 top-0 z-50">
+    <>
+    {open && (
+      <div
+        data-testid="sidebar-overlay"
+        aria-hidden="true"
+        onClick={onClose}
+        className="md:hidden fixed inset-0 z-40 bg-slate-950/35"
+      />
+    )}
+    <div
+      id="app-sidebar"
+      className={`w-72 max-w-[85vw] h-screen glass border-r border-slate-200/50 flex flex-col fixed left-0 top-0 z-50 transition-transform duration-300 md:translate-x-0 ${
+        open ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
       <div className="p-6 shrink-0 border-b border-slate-100/50">
         <Logo className="scale-90 origin-left" />
       </div>
@@ -123,11 +150,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile }
                  {isHealthy === null ? 'Vérification...' : isHealthy ? 'Système Opérationnel' : 'Système Indisponible'}
                </span>
             </div>
+            <p data-testid="app-version" className="mt-2 text-[8px] font-bold uppercase tracking-widest text-white/70">
+              Version {APP_VERSION}
+            </p>
           </div>
           <span className="material-symbols-outlined absolute -right-2 -bottom-2 text-4xl text-white/5 rotate-12">verified</span>
         </div>
       </div>
     </div>
+    </>
   );
 };
 

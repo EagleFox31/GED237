@@ -29,6 +29,7 @@ from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
+from app.services.audit_trail import audit_entry
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
@@ -40,6 +41,7 @@ from app.schemas.document import (
     ClassificationStatus,
     DirectoryIngestRequest,
     DirectoryIngestResponse,
+    IngestWatchStatus,
     DocumentOCRContent,
     DocumentRead,
     DocumentStatus,
@@ -49,6 +51,9 @@ from app.schemas.document import (
 )
 from app.services.space_path_builder import SpacePathBuilder
 from app.services.classification_review_service import ClassificationReviewService
+from app.core.redis import get_redis
+from app.models.tenant import Tenant
+from app.services.ingest_watch import read_last_run, status_for_tenant
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.services.storage.factory import get_storage_service
@@ -375,14 +380,16 @@ def _audit_document_action(
     document_id: UUID,
     action: str,
     details: Optional[Dict[str, Any]] = None,
+    request: Optional[Request] = None,
 ) -> AuditLog:
-    return AuditLog(
+    return audit_entry(
         tenant_id=user.tenant_id,
         user_id=user.id,
         table_name="documents",
         record_id=document_id,
         action=action,
-        new_data=details or {},
+        details=details,
+        request=request,
     )
 
 
@@ -665,6 +672,15 @@ async def upload_document(
     if db_document.classification_status in {"pending", "needs_review"}:
         review_service = ClassificationReviewService(db)
         await review_service.ensure_open_review_for_document(document=db_document)
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=db_document.id,
+            action="upload",
+            details={"title": title, "filename": file.filename, "version": "1.0"},
+            request=request,
+        )
+    )
     await db.commit()
     await db.refresh(db_document)
 
@@ -764,6 +780,20 @@ async def list_trashed_documents(
         .limit(limit)
     )
     return [_serialize_document(document) for document in result.scalars().all()]
+
+
+@router.get("/ingest-watch/status", response_model=IngestWatchStatus)
+async def ingest_watch_status(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Watched folders of the current tenant and their last pass (lot 5)."""
+    await authorize_or_403(current_user, "documents", "create")
+    tenant_code = await db.scalar(
+        select(Tenant.short_name).where(Tenant.id == current_user.tenant_id)
+    )
+    last_run = await read_last_run(await get_redis())
+    return status_for_tenant(last_run, current_user.tenant_id, tenant_code)
 
 
 @router.get("/needs-review", response_model=List[NeedsReviewDocument])

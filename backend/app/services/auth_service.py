@@ -1,13 +1,16 @@
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from uuid import UUID
 import re
 import secrets
 import unicodedata
 
+from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.errors.domain import AccountLockedError
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.redis import get_redis
 from app.core.security import (
@@ -20,6 +23,7 @@ from app.core.security import (
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
+from app.services.audit_trail import audit_entry
 
 
 class AuthService:
@@ -72,6 +76,7 @@ class AuthService:
         institution: str,
         matricule: str,
         password: str,
+        request: Optional[Request] = None,
     ) -> Dict[str, Any]:
         """
         Step 1: Verify credentials and generate OTP.
@@ -90,13 +95,17 @@ class AuthService:
         if user is None:
             raise AuthenticationError("Invalid credentials")
 
+        redis = await get_redis()
+        # Checked before the password: a locked account must not confirm a right password.
+        await self._raise_if_locked(redis, user.id)
+
         if not verify_password(password, user.password_hash):
+            await self._audit_refused(db, user, "mot de passe incorrect", request)
             raise AuthenticationError("Invalid credentials")
 
         otp = generate_otp(6)
         session_token = secrets.token_urlsafe(32)
 
-        redis = await get_redis()
         await redis.setex(f"otp:{session_token}", self.OTP_EXPIRY_SECONDS, otp)
         await redis.setex(
             f"session:{session_token}",
@@ -113,30 +122,65 @@ class AuthService:
             response["otp"] = otp
         return response
 
+    @staticmethod
+    async def _audit_refused(
+        db: AsyncSession, user: User, reason: str, request: Optional[Request]
+    ) -> None:
+        """Refused login of an identified account. Never the password or the code."""
+        db.add(
+            audit_entry(
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+                table_name="users",
+                record_id=user.id,
+                action="login_failed",
+                details={
+                    "name": user.full_name,
+                    "matricule": user.matricule,
+                    "reason": reason,
+                },
+                request=request,
+            )
+        )
+        # Committed here: the caller raises right after, and get_db rolls back on error.
+        await db.commit()
+
     async def verify_otp(
         self,
         db: AsyncSession,
         session_token: str,
         otp: str,
+        request: Optional[Request] = None,
     ) -> Dict[str, Any]:
         """Step 2: Verify OTP and generate JWT tokens."""
         redis = await get_redis()
 
         otp_key = f"otp:{session_token}"
+        session_key = f"session:{session_token}"
         stored_otp = await redis.get(otp_key)
         if not stored_otp:
             raise AuthenticationError("Invalid or expired session")
-        if stored_otp != otp:
-            raise AuthenticationError("Invalid OTP")
 
-        session_key = f"session:{session_token}"
         user_id_str = await redis.get(session_key)
         if not user_id_str:
             raise AuthenticationError("Session expired")
 
-        from uuid import UUID
-
         user_id = UUID(user_id_str)
+        # A session opened just before the lock must not get round it.
+        await self._raise_if_locked(redis, user_id)
+        if not secrets.compare_digest(stored_otp.encode(), otp.encode()):
+            # Audited before the counter: at the limit it ends the session.
+            pending_user = await db.get(User, user_id)
+            if pending_user is not None:
+                await self._audit_refused(
+                    db, pending_user, "code de verification incorrect", request
+                )
+            await self._record_otp_failure(
+                db, redis, user_id, otp_key, session_key, request
+            )
+            raise AuthenticationError("Invalid OTP")
+        await redis.delete(f"otp_fail:{user_id}")
+
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if user is None:
@@ -146,6 +190,18 @@ class AuthService:
         role = result.scalar_one()
 
         user.last_login = datetime.utcnow()
+        # Logged when the tokens are issued, i.e. once the second factor is checked.
+        db.add(
+            audit_entry(
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+                table_name="users",
+                record_id=user.id,
+                action="login",
+                details={"name": user.full_name, "matricule": user.matricule},
+                request=request,
+            )
+        )
         await db.commit()
 
         token_data = {
@@ -177,6 +233,59 @@ class AuthService:
                 "must_change_password": bool(user.must_change_password),
             },
         }
+
+    @staticmethod
+    async def _raise_if_locked(redis, user_id) -> None:
+        remaining = await redis.ttl(f"lock:{user_id}")
+        # -2: no lock. -1 (no expiry) cannot be set by this service; treated as a full lock.
+        if remaining == -2:
+            return
+        lock_seconds = settings.AUTH_LOCKOUT_SECONDS
+        raise AccountLockedError(
+            retry_after=remaining if remaining > 0 else lock_seconds,
+            failures=settings.AUTH_OTP_MAX_FAILURES,
+            lock_seconds=lock_seconds,
+        )
+
+    async def _record_otp_failure(
+        self,
+        db: AsyncSession,
+        redis,
+        user_id,
+        otp_key: str,
+        session_key: str,
+        request: Optional[Request] = None,
+    ) -> None:
+        """Count a wrong OTP; at the limit, lock the account, end the session and audit it."""
+        max_failures = settings.AUTH_OTP_MAX_FAILURES
+        lock_seconds = settings.AUTH_LOCKOUT_SECONDS
+        fail_key = f"otp_fail:{user_id}"
+        async with redis.pipeline(transaction=True) as pipe:
+            pipe.incr(fail_key)
+            pipe.expire(fail_key, lock_seconds)
+            failures, _ = await pipe.execute()
+        if failures < max_failures:
+            return
+
+        # SET NX: two wrong codes racing at the limit lock (and audit) only once.
+        locked_now = await redis.set(f"lock:{user_id}", "1", ex=lock_seconds, nx=True)
+        await redis.delete(otp_key, session_key, fail_key)
+        if locked_now:
+            user = await db.get(User, user_id)
+            if user is not None:
+                db.add(
+                    audit_entry(
+                        tenant_id=user.tenant_id,
+                        user_id=user.id,
+                        table_name="users",
+                        record_id=user.id,
+                        action="account_locked",
+                        details={"failures": failures, "lock_seconds": lock_seconds},
+                        request=request,
+                    )
+                )
+                await db.commit()
+        await self._raise_if_locked(redis, user_id)
 
     async def refresh_access_token(self, refresh_token: str) -> Dict[str, str]:
         """

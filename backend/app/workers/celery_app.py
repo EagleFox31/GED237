@@ -1,6 +1,8 @@
 import os
 from celery import Celery
 
+from app.core.config import settings
+
 # Use environment variables or defaults
 redis_url = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/1")
 redis_backend = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
@@ -26,3 +28,13 @@ celery_app.conf.update(
     task_ignore_result=True,
     task_default_queue="celery",
 )
+
+# Watched folders (lot 5): the worker runs beat (-B in docker-compose.yml). No folder
+# configured or interval 0: no schedule at all.
+if settings.INGEST_WATCH_FOLDERS and settings.INGEST_WATCH_INTERVAL_SECONDS > 0:
+    celery_app.conf.beat_schedule = {
+        "watch-ingest-folders": {
+            "task": "app.workers.tasks.watch_ingest_folders",
+            "schedule": float(settings.INGEST_WATCH_INTERVAL_SECONDS),
+        }
+    }

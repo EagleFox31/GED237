@@ -3,6 +3,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, type Column, type SortState } from '../../../components/ui/DataTable';
 import { api } from '../../../services/api';
 import type { AuditLogEntry } from '../../../types';
+import { ApiError } from '../../../lib/errors';
+import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('fr-CM', {
@@ -116,6 +118,42 @@ const AuditLogs: React.FC = () => {
     [logs],
   );
 
+  // L'export reprend les filtres du tableau ; le serveur n'accepte qu'un seul utilisateur.
+  const tableValues = columnFilters.table_name ?? [];
+  const actionValues = columnFilters.action ?? [];
+  const actorLabels = columnFilters.actor ?? [];
+  const actorIds = new Set(
+    logs.filter((log) => actorLabels.includes(getActorLabel(log))).map((log) => log.user_id).filter(Boolean),
+  );
+  const exportUserId = actorLabels.length === 1 && actorIds.size === 1 ? ([...actorIds][0] ?? undefined) : undefined;
+  const exportBlocked = actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
+  const [exporting, setExporting] = useState(false);
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await api.exportAuditLogs({
+        table_name: tableValues,
+        action: actionValues,
+        user_id: exportUserId,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      // Différé : une révocation immédiate peut annuler le téléchargement sous Firefox.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (err) {
+      // Les erreurs HTTP (dont le 422 « affinez la période ») sont déjà affichées par le bus global.
+      if (!(err instanceof ApiError)) {
+        pushClientOperationError(err, { fallbackDetail: "Export du journal d'audit impossible." });
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const tableFilter = columnFilters.table_name ?? [];
@@ -130,6 +168,8 @@ const AuditLogs: React.FC = () => {
       return true;
     });
   }, [columnFilters, logs]);
+
+  const nothingToExport = !isLoading && filteredLogs.length === 0;
 
   const sortedLogs = useMemo(() => {
     if (!sort) return filteredLogs;
@@ -266,9 +306,27 @@ const AuditLogs: React.FC = () => {
             Historique des consultations, modifications, arbitrages et autres actions sensibles.
           </p>
         </div>
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">
-          Tableau filtrable et colonnes personnalisables
-        </p>
+        <div className="flex flex-col items-start gap-2 md:items-end">
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={exporting || exportBlocked || nothingToExport}
+            title={
+              nothingToExport
+                ? 'Rien à exporter'
+                : exportBlocked
+                  ? 'Choisissez un seul utilisateur pour exporter.'
+                  : 'Télécharger le journal (fichier Excel)'
+            }
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-700 hover:text-rdpc-blue disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-base">download</span>
+            Exporter (CSV)
+          </button>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+            Tableau filtrable et colonnes personnalisables
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
