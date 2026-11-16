@@ -184,16 +184,21 @@ const AppLayout: React.FC = () => {
 
   // After a fresh login, route the user to their role-specific landing page,
   // ignoring whatever URL was left over from a previous session/user.
+  // La destination est lue une seule fois par connexion : l'effet peut être rejoué (StrictMode,
+  // changement de dépendance) avant que justLoggedIn repasse à false, et la lecture est destructive.
+  const resumedRef = React.useRef<string | null | undefined>(undefined);
   React.useEffect(() => {
-    if (justLoggedIn) {
-      // Session expirée en cours de travail : retour à la page quittée (même compte uniquement).
-      const resumed = takePostLoginDestination(userProfile?.id);
-      const target = userProfile?.mustChangePassword
-        ? '/change-password'
-        : resumed ?? defaultRouteForProfile(userProfile?.id);
-      consumeJustLoggedIn();
-      navigate(target, { replace: true });
+    if (!justLoggedIn) {
+      resumedRef.current = undefined;
+      return;
     }
+    // Session expirée en cours de travail : retour à la page quittée (même compte uniquement).
+    if (resumedRef.current === undefined) resumedRef.current = takePostLoginDestination(userProfile?.id);
+    const target = userProfile?.mustChangePassword
+      ? '/change-password'
+      : resumedRef.current ?? defaultRouteForProfile(userProfile?.id);
+    consumeJustLoggedIn();
+    navigate(target, { replace: true });
   }, [justLoggedIn, userProfile?.id, userProfile?.mustChangePassword, navigate, consumeJustLoggedIn]);
 
   // Force redirect to /change-password when the user must rotate their first-login password.
