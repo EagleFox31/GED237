@@ -88,6 +88,9 @@ class ClassificationRuleBase(BaseModel):
     source_org_unit_excluded_ids: Optional[List[UUID]] = None
     source_user_ids: Optional[List[UUID]] = None
     filename_pattern: Optional[str] = Field(default=None, max_length=255)
+    content_pattern: Optional[str] = Field(default=None, max_length=255)
+    year_min: Optional[int] = Field(default=None, ge=1900, le=2100)
+    year_max: Optional[int] = Field(default=None, ge=1900, le=2100)
     mime_type_pattern: Optional[str] = Field(default=None, max_length=100)
     target_scope: ClassificationTargetScope
     target_org_unit_id: Optional[UUID] = None
@@ -118,6 +121,9 @@ class ClassificationRuleUpdate(BaseModel):
     source_org_unit_excluded_ids: Optional[List[UUID]] = None
     source_user_ids: Optional[List[UUID]] = None
     filename_pattern: Optional[str] = Field(default=None, max_length=255)
+    content_pattern: Optional[str] = Field(default=None, max_length=255)
+    year_min: Optional[int] = Field(default=None, ge=1900, le=2100)
+    year_max: Optional[int] = Field(default=None, ge=1900, le=2100)
     mime_type_pattern: Optional[str] = Field(default=None, max_length=100)
     target_scope: Optional[ClassificationTargetScope] = None
     target_org_unit_id: Optional[UUID] = None
