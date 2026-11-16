@@ -1,6 +1,6 @@
 # Notes de version — v1.0.0-rc.1 (brouillon vivant, tag prévu le mar 24/11)
 
-- **Pour** : O (relit, publie avec le tag), le PO, les utilisateurs du ministère pilote. Brouillon de l'innovateur ouvert le 2026-11-10 sur `main` d34d51b ; **mis à jour à chaque fusion** jusqu'à la coupure du mer 19/11 18:00, puis figé au gel du 24. Pas de commit avant le 19/11 18:00 (consigne O).
+- **Pour** : O (relit, publie avec le tag), le PO, les utilisateurs du ministère pilote. Brouillon de l'innovateur ouvert le 2026-11-10 sur `main` d34d51b ; **mis à jour à chaque fusion** jusqu'à la coupure du mer 19/11 18:00, puis figé au gel du 24. Mis à jour le 16/11 sur `main` ca9953b ; porté par la PR #104 (brouillon, prête le 19/11 18:00).
 - **Format** (reuse-first, `Vérifié` 10/11) : le dépôt n'a ni `CHANGELOG.md`, ni tag, ni Release Please ; `release-integrity.yml` se déclenche à la publication d'une release GitHub (SBOM, manifeste, signature). Choix : **Keep a Changelog 1.1.0** (`## [1.0.0-rc.1] - 2026-11-24`, sections par type), compatible avec une adoption ultérieure de `reusable-release.yml` (appfactory) ; sections en français pour l'utilisateur final. Le texte ci-dessous est le corps de la release GitHub ; décision O du 10/11 : il **devient aussi `CHANGELOG.md` à la racine** (même contenu, tenu en miroir ici jusqu'au commit du 19 au soir).
 - **Périmètre** : aucun tag antérieur, donc toutes les PR fusionnées depuis le 28/10 (#1 à #75, `gh pr list --state merged`). Une ligne par élément, formulée pour l'utilisateur ; les PR de dépendances et d'outillage sont regroupées.
 
@@ -25,6 +25,13 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Sauvegarde et restauration de la base et du stockage par scripts d'exploitation, avec attente de la santé des services (#54, #62).
 - Version de l'application affichée par l'API (`/health`) et lue du tag de release (#58).
 - Jeu de démonstration reproductible (D1) et profil de remise à zéro associé (#70).
+- Tableau de bord : tuile « Doublons refusés » (#77 ac77271, #81 3f10054).
+- Règles de classement : export et import en un fichier, rejouable sans doublon (#79 96ea1fc, #84 a137d8d) ; critères sur le texte OCR et sur l'année du document (#92 aa1ff60, #95 fa26e17) ; année avec `_` dans les noms de fichiers (#76) ; espaces : filtres et pagination (#78).
+- Journal d'audit : export CSV plafonné à 50 000 lignes (#80 dc4daae, #87 c6724ea) ; traçage des connexions, dépôts et imports (#98 351c82c).
+- Verrou du compte pendant 15 minutes après trois codes OTP erronés, avec compte à rebours à l'écran (#83 64ade05, #88 6669f2c).
+- Retour à la page quittée après une reconnexion (#97 42397a3) ; version de l'application dans la barre latérale (#94 7bea1c0) ; barre latérale repliée sous 768 px (#93 6516d29).
+- Dossiers surveillés importés automatiquement par le worker (#101 3cc6e15) ; écran d'état de la surveillance : **en attente de fusion** (#100).
+- Manuel d'installation (#105 b6e0004, corrigé par #107 7fa1ab8) ; sonde de disponibilité `scripts/probe_c6.sh` (#106 ca9953b) ; accès HTTPS local : **en attente de fusion** (#109).
 
 ### Corrections
 
@@ -56,14 +63,14 @@ Relevé des `fixme` encore ouverts dans `frontend/e2e/specs` (main 7ecde2b, 10/1
 
 | Défaut (spec) | Ce que voit l'utilisateur | Statut |
 |---|---|---|
-| SC-AUTH-02 E1 (`auth-2fa`) | Après une session expirée, la reconnexion ramène au tableau de bord et non à la page demandée : il faut y retourner soi-même. | **corrigé avant le 19 (#97), bascule en V1.1 le 19 à 18:00 si non fusionné** |
-| SC-AUTH-01 E3 (`auth-2fa`) | Trois codes OTP erronés verrouillent le compte 15 minutes, avec un compte à rebours à l'écran ; le déblocage anticipé passe par l'administrateur (procédure d'exploitation), écran de déblocage en V1.1. | **corrigé avant le 19** (#83 + #88) |
-| D3 (`audit-trail`) | Le journal d'audit ne trace ni les connexions, ni les dépôts, ni les imports : seuls la revue manuelle, les consultations, les doublons refusés, la corbeille et les versions y figurent. | **corrigé avant le 19 (PR à venir), bascule en V1.1 le 19 à 18:00 si non fusionné** (B, après le lot 4) |
-| SC-V11-01 (`v11-lots`) | Tuile « Doublons refusés » du tableau de bord. | **corrigé avant le 19** (#77 + #81) |
-| SC-V11-02 (`v11-lots`) | Export puis import des règles de classement, rejouable sans doublon. | **corrigé avant le 19** (#79 + #84) |
-| SC-V11-03 (`v11-lots`) | Export CSV du journal d'audit, plafonné à 50 000 lignes (au-delà, affiner la période ou les filtres) ; verrou après 3 codes erronés. | **corrigé avant le 19** (#80 + #87 ; #83) |
-| SC-V11-04 (`v11-lots`) | Les règles ne lisent ni le texte OCR ni la date du document : classement par nom de fichier et dossier seulement. | **corrigé avant le 19 (#92 relue OK, #95 UI), bascule en V1.1 le 19 à 18:00 si non fusionné** (lot 4). Limites de #92 (restent en V1.0) : un fichier passé par la file de revue d'import que rien ne classe à l'analyse ne crée pas de document, donc il n'est pas reclassé après OCR (seuls l'ingestion de dossier et le dépôt le sont) ; à l'ingestion, les règles sont évaluées avec la portée « service » : une règle à portée « utilisateur » ne s'applique jamais à un document ingéré ; les documents classés avant cette version ne sont pas reclassés. |
-| SC-V11-05 (`v11-lots`) | Aucun dossier n'est surveillé en continu : l'import se lance à la main depuis l'écran Ingestion. | **en cours, bascule en V1.1 le 19 à 18:00 si non fusionné** (lot 5, aucune PR) |
+| SC-AUTH-02 E1 (`auth-2fa`) | Après une session expirée, la reconnexion ramène au tableau de bord et non à la page demandée : il faut y retourner soi-même. | **corrigé** (#97 42397a3) |
+| SC-AUTH-01 E3 (`auth-2fa`) | Trois codes OTP erronés verrouillent le compte 15 minutes, avec un compte à rebours à l'écran ; le déblocage anticipé passe par l'administrateur (procédure d'exploitation), écran de déblocage en V1.1. | **corrigé** (#83 64ade05 + #88 6669f2c) |
+| D3 (`audit-trail`) | Le journal d'audit ne trace ni les connexions, ni les dépôts, ni les imports : seuls la revue manuelle, les consultations, les doublons refusés, la corbeille et les versions y figurent. | **corrigé** (#98 351c82c) |
+| SC-V11-01 (`v11-lots`) | Tuile « Doublons refusés » du tableau de bord. | **corrigé** (#77 ac77271 + #81 3f10054) |
+| SC-V11-02 (`v11-lots`) | Export puis import des règles de classement, rejouable sans doublon. | **corrigé** (#79 96ea1fc + #84 a137d8d) |
+| SC-V11-03 (`v11-lots`) | Export CSV du journal d'audit, plafonné à 50 000 lignes (au-delà, affiner la période ou les filtres) ; verrou après 3 codes erronés. | **corrigé** (#80 dc4daae + #87 c6724ea ; #83 64ade05) |
+| SC-V11-04 (`v11-lots`) | Les règles ne lisent ni le texte OCR ni la date du document : classement par nom de fichier et dossier seulement. | **corrigé** (#92 aa1ff60 + #95 fa26e17). Limites de #92 (restent en V1.0) : un fichier passé par la file de revue d'import que rien ne classe à l'analyse ne crée pas de document, donc il n'est pas reclassé après OCR (seuls l'ingestion de dossier et le dépôt le sont) ; à l'ingestion, les règles sont évaluées avec la portée « service » : une règle à portée « utilisateur » ne s'applique jamais à un document ingéré ; les documents classés avant cette version ne sont pas reclassés. |
+| SC-V11-05 (`v11-lots`) | Aucun dossier n'est surveillé en continu : l'import se lance à la main depuis l'écran Ingestion. | **moteur corrigé** (#101 3cc6e15) ; écran d'état en attente (#100), **bascule en V1.1 le 19 à 18:00 si non fusionnée** |
 
 Hors tableau : `demo-counters` (`AWAITING_D1`) est une activation de test, levée par #82 (recette, pas une limite produit) ; `validation-cycle` est déjà actif (`AWAITING_VALIDATION_UI = false`).
 
@@ -73,9 +80,31 @@ Limites hors `fixme` :
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
 - Lots non fusionnés au 19/11 18:00 : relevé O reporté ici le 19 au soir ; phrases d'écart dans `plan-presentation.md` § 3.
+### Écarts d'exploitation connus
+
+- **HTTPS (item CDC 27)** : l'accès chiffré `https://localhost:8443` utilise un certificat local (mkcert) installé sur le poste de démonstration ; aucun certificat public (pas de nom de domaine, démonstration sur place). Un autre poste affiche un avertissement tant que `mkcert -install` n'y a pas été lancé. Le HTTP sur le port 8080 reste disponible. Livré par #109 ; décision du PO du 16/11 : la démonstration se fait en HTTPS. *Si #109 n'est pas fusionnée le 19 à 18:00 : « accès HTTP seulement ».*
+- **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; la valeur retenue est celle des relevés du `c6.tsv` : **à renseigner le 19 au soir (≥ 6 relevés verts) puis le 21 (10 sur 10)**, sans arrondi.
+- **Déploiement sur serveur distant (item CDC 28)** : non livré, décision du PO du 9/11 (démonstration sur place, mêmes conteneurs).
+- **Volumétrie (item CDC 8)** : 420 documents mesurés ; les 100 000 fichiers du cahier des charges sont mesurés en décembre.
+
+### Dépendances
+
+Gel des dépendances jusqu'à la démonstration du 30/11 : les mises à jour proposées automatiquement (#110 à #113, #29, #30, #56) ne sont pas fusionnées ; reprise une par une après la démonstration (`plans/note-gel-dependances-rc1.md`).
+
+### Retour arrière (à valider par un rejeu avant le tag)
+
+1. Avant toute mise à jour : `bash ops/backup.sh` (dossier `backups/ged237-<horodatage>`).
+2. Revenir au tag précédent : `docker compose down`, `git checkout <tag précédent>`.
+3. Restaurer les données **de la sauvegarde d'avant la mise à jour** : `docker compose up -d postgres redis`, puis `bash ops/restore.sh backups/ged237-<horodatage> --wipe`, puis `docker compose up -d --build`.
+4. Contrôler : `curl -s http://localhost:8080/health` (version attendue = tag précédent) et `docker compose exec api alembic current`.
+
+On ne « descend » pas les migrations à la main : deux migrations de réparation (`a7d9e2f4c6b8`, `b8e1f3a5c7d9`) sont volontairement à sens unique (`downgrade` vide), la restauration de la sauvegarde est le seul retour arrière garanti. Cette procédure découle de `DOCS/exploitation/sauvegarde-restauration.md` et de `installation.md` § 6 ; elle n'a pas été rejouée de bout en bout (rejeu prévu au plan de recette du 20/11).
+
 ---
 
 ## Suivi des fusions à reporter ici (à tenir jusqu'au 19/11 18:00)
+
+Au 16/11 (`main` ca9953b) : tout est fusionné, sauf #99, #100 et #109 ; état de référence : `plans/releve-coupure-19-11.md`. Le tableau ci-dessous est l'état du 10/11, conservé pour mémoire.
 
 | PR | Lot / sujet | Ligne cible | État au 10/11 |
 |---|---|---|---|
