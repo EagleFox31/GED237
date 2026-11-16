@@ -151,6 +151,7 @@ test.describe('SC-AUTH-02 — Prolonger une session active', () => {
     }, BOGUS_TOKEN);
     await page.goto(DESTINATION);
     await new LoginPage(page).expectLoginPageVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem('post_login_destination')), 'destination mémorisée').toContain('/audit?e2e=destination');
   }
 
   async function relog(page: Page, user: (typeof TEST_USERS)[keyof typeof TEST_USERS]) {

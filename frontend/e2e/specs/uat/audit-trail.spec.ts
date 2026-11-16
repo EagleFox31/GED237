@@ -55,7 +55,8 @@ test.describe('P7 — Journal d’audit (SC-AUD-01, SC-ADM-09)', () => {
     expect((await logsLoaded).status()).toBe(200);
 
     const rows = page.locator('tbody tr');
-    const row = rows.filter({ hasText: title });
+    // Depuis D3 le dépôt est aussi tracé : le titre apparaît sur plusieurs lignes, on cible celle de l'arbitrage.
+    const row = rows.filter({ hasText: title }).filter({ hasText: entry!.action_label || 'review_resolved' });
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(actor);
     await expect(row).toContainText(entry!.action_label || 'review_resolved');
