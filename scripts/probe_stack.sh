@@ -34,6 +34,19 @@ compose() {
   fi
 }
 
+# True only if the pidfile points to a live probe_stack.sh loop (a reused PID must never be killed).
+loop_alive() {
+  [ -f "$PIDFILE" ] || return 1
+  pid=$(cat "$PIDFILE" 2>/dev/null)
+  case "$pid" in ""|*[!0-9]*) return 1 ;; esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  if [ -r "/proc/$pid/cmdline" ]; then
+    tr "\0" " " < "/proc/$pid/cmdline" | grep -q "probe_stack.sh"
+  else
+    ps -p "$pid" -o args= 2>/dev/null | grep -q "probe_stack.sh"
+  fi
+}
+
 guard_loop() {
   tick=0
   every=$((PROBE_SECS / 60))
@@ -62,7 +75,7 @@ case "${1:-}" in
       echo "refused: not enough free memory" >&2
       exit 1
     fi
-    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    if loop_alive; then
       echo "probe loop already running (pid $(cat "$PIDFILE"))"
       exit 0
     fi
@@ -87,7 +100,7 @@ case "${1:-}" in
     [ -f "$LOG" ] && tail -n 3 "$LOG" | cut -c1-200
     ;;
   stop)
-    [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null
+    if loop_alive; then kill "$(cat "$PIDFILE")"; else [ -f "$PIDFILE" ] && echo "stale pidfile removed, nothing killed"; fi
     rm -f "$PIDFILE"
     compose stop
     ;;
