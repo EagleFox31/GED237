@@ -6,6 +6,7 @@ import { api } from '../../../services/api';
 import type { AuditLogEntry } from '../../../types';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { HelpHint } from '../../../components/HelpHint';
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('fr-CM', {
@@ -313,6 +314,13 @@ const AuditLogs: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 md:items-end">
+          <div className="flex items-center gap-2">
+          <HelpHint
+            label="Aide sur l'export du journal"
+            tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
+          >
+            L'export s'arrête à 50 000 lignes. Au-delà, réduisez la période ou ajoutez un filtre avant de recommencer.
+          </HelpHint>
           <button
             type="button"
             onClick={exportCsv}
@@ -329,6 +337,7 @@ const AuditLogs: React.FC = () => {
             <span className="material-symbols-outlined text-base">download</span>
             Exporter (CSV)
           </button>
+          </div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
             Tableau filtrable et colonnes personnalisables
           </p>

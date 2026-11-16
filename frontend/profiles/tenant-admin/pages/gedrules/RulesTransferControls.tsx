@@ -3,6 +3,7 @@ import { api } from '../../../../services/api';
 import type { RulesImportReport } from '../../../../services/resources/classification.api';
 import { ApiError } from '../../../../lib/errors';
 import { pushClientOperationError } from '../../../../lib/errors/clientOperationError';
+import { HelpHint } from '../../../../components/HelpHint';
 
 interface RulesTransferControlsProps {
   /** Appelé après un import appliqué, pour recharger la liste des règles. */
@@ -68,7 +69,7 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
         content = JSON.parse(await file.text());
       } catch {
         pushClientOperationError(new Error('Fichier illisible'), {
-          fallbackDetail: "Ce fichier n'est pas un export de règles valide.",
+          fallbackDetail: "Ce fichier n'est pas un export de règles.",
         });
         return;
       }
@@ -90,7 +91,7 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
         setPending(null);
         const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
         setNotice(
-          `${plural(result.created, 'règle créée', 'règles créées')}, ${plural(result.updated, 'mise à jour', 'mises à jour')}`,
+          `${plural(result.created, 'règle créée', 'règles créées')}, ${plural(result.updated, 'mise à jour', 'mises à jour')}, ${plural(result.skipped, 'inchangée', 'inchangées')}`,
         );
         onImported();
       } else {
@@ -137,6 +138,13 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
           className="hidden"
           onChange={onFileChosen}
         />
+        <HelpHint
+          label="Aide sur l'export et l'import des règles"
+          tip="Exportez vos règles de classement dans un fichier pour les sauvegarder ou les charger ailleurs."
+          className="self-center"
+        >
+          L'import reconnaît les règles déjà présentes : rien n'est créé en double, seules les règles modifiées sont mises à jour. Les règles actives le restent, les règles inactives aussi.
+        </HelpHint>
       </div>
 
       {notice && (
