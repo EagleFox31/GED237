@@ -1,6 +1,6 @@
 # Déroulé de la démonstration du 30/11 en HTTPS
 
-- **Pour** : P (présente), O (clavier de secours, chrono), Q (plan B). Innovateur, 2026-11-16, sur `main` ca9953b ; décision du PO du 16/11 (D6) : démonstration en HTTPS.
+- **Pour** : P (présente), O (clavier de secours, chrono), Q (plan B). Innovateur, 2026-11-16, sur `main` ca9953b ; décision du PO du 16/11 (D6) : démonstration en HTTPS. Relu le 17/11 par lecture du code de `main` 371c0a0 (routes de `frontend/App.tsx`, menu de `frontend/profiles/tenant-admin/menuConfig.ts`), application non lancée : les écarts trouvés sont au § 2 bis.
 - **Règle de lecture** : ce document **complète** `deroule-demo.md` (chronologie minute par minute, replis par parcours, questions) et ne le remplace pas. Il donne l'ordre des 8 parcours, le résultat attendu et le plan B de chacun, et ce que l'HTTPS change. Détail des clics : `parcours-demo.md` § 2. Comptes par identifiant seul (MINFI002, MGR001, READ001, AUDIT001, UNIT001 ; administrateur du seed), jamais par mot de passe.
 - **Durée** : 20 min = ouverture 2 + direct 13 ± 1 + écarts 2 + questions 3 (identique à `deroule-demo.md` § 1).
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | Adresse de la démonstration | `https://localhost:8443` (ou le nom / l'IP du poste, s'il figure dans le certificat) ; l'accès `http://localhost:8080` reste actif | `DOCS/exploitation/https-local.md` (#109) |
 | Certificat | mkcert, généré **sur le poste réel** à H-30, autorité locale installée dans le navigateur de ce poste (`mkcert -install`, navigateur redémarré) | idem, § Mise en route |
-| Poste de secours | `mkcert -install` aussi sur ce poste, sinon avertissement de certificat | idem, § Limites |
+| Poste de secours | seulement si le PO en annonce un (décision O du 17/11 : poste unique par défaut) ; dans ce cas `mkcert -install` aussi sur ce poste, sinon avertissement de certificat | idem, § Limites |
 | Preuve avant la séance | `sh scripts/prove_tls.sh` : `OK: HTTPS …` et code 0 ; cadenas fermé dans le navigateur | idem, § Vérifier |
 | Jeton, session | pas de cookie : jetons dans `sessionStorage` (propre à l'onglet **et** à l'origine) ; un F5 en HTTPS garde la session (`Déduit` du code, `audit-https-2026-11-16.md` ; à confirmer au rejeu du 20) | idem |
 
@@ -31,7 +31,23 @@ Résultat attendu et repli : voir `deroule-demo.md` § 1 (colonne « Ce que le j
 | 12:00–14:00 | **P8** cycle de validation (A `MINFI002`, B `MGR001`) | 2:00 | visa d'un document, rejet motivé d'un autre, statut chez le rédacteur | visa seul, rejet en capture ; sinon repli API | aucun |
 | 14:00–15:00 | **P7** journal d'audit (B `AUDIT001`, `/audit`) | 1:00 | connexions, imports, corbeille, revue, visa et rejet dans l'ordre, lecture seule | retirer le filtre agent, garder la journée ; sinon repli API | aucun |
 
-L'ordre est celui de `deroule-demo.md` (P1, P2, P3, P6, P4, P5, P8, P7) ; ne pas le réordonner sans repasser par la répétition du 27/11. Lots de la V1.1 livrés (tuile doublons, export / import des règles, export CSV du journal, verrou après 3 OTP avec `UNIT001` seul, critères contenu et année) : leurs moments se jouent comme décrit dans `deroule-demo.md` § 1 bis ; la surveillance de dossier n'est montrée que si #100 est fusionnée le 19 à 18:00.
+L'ordre est celui de `deroule-demo.md` (P1, P2, P3, P6, P4, P5, P8, P7) ; ne pas le réordonner sans repasser par la répétition du 27/11. Lots de la V1.1 livrés (tuile doublons, export / import des règles, export CSV du journal, verrou après 3 OTP avec `UNIT001` seul, critères contenu et année) : leurs moments se jouent comme décrit dans `deroule-demo.md` § 1 bis ; la surveillance de dossier est livrée (#100, 187b7f7) et se montre sur `/ingestion`.
+
+## 2 bis. Écarts relevés le 17/11 entre ce déroulé et `main` 371c0a0
+
+`Déduit` du code, à confirmer au rejeu du 20. La ligne P6 du tableau (nombre de documents « à revoir ») est corrigée par F dans une PR séparée, après la fusion de #104 ; elle n'est pas retouchée ici.
+
+| Parcours | Ce que `main` change | Conséquence pour la séance |
+|---|---|---|
+| Tous | l'interface n'appelle plus aucun service externe : styles compilés (#122), polices embarquées (#116), avatars locaux (#126) | l'en-tête montre un avatar local au lieu d'une image distante ; rien à dire au jury |
+| P1, et toute reconnexion | après une reconnexion, l'application rouvre **la page quittée** et non le tableau de bord (#123) ; la mémoire est liée au profil de rôle, pas au compte (#134, correctif #140 non fusionné) | en fenêtre B, après un changement de compte, vérifier la page d'arrivée et passer par le menu si ce n'est pas la bonne ; en plan B, la reconnexion ramène sur la page en cours |
+| P2 | l'export et l'import des règles sont sur `/classement` (menu « Plan de classement », onglet des règles de classement), pas sur `/rules` | pour le moment « export / import » du § 1 bis de `deroule-demo.md`, ouvrir `/classement` |
+| P2 | `/ingestion` (menu « Import en masse ») affiche l'état de la surveillance de dossier (#100) | montrer l'encart, puis le fichier déposé dans un dossier surveillé (`INGEST_WATCH_FOLDERS`, checklist H-30) |
+| P3 | le simulateur est un onglet de `/rules` (menu « Traitement des documents ») | inchangé |
+| P6 | `/needs-review` redirige vers `/classification-reviews` (menu « Ma bannette ») | l'adresse affichée change, l'écran est le même |
+| P4 | `/spaces` s'appelle « Explorateur documentaire » dans le menu ; clic droit sur un document et double-clic disponibles ; clavier et clic droit étendu (lots L1 et L2) seulement si leurs PR sont fusionnées le 19 | ne montrer un raccourci clavier que s'il figure au relevé du 19 |
+| P8 | les données du circuit de validation viennent de #127 (non fusionnée le 17/11) | sans #127, P8 se joue en repli (visa seul ou capture) |
+| Tous | aides contextuelles `HelpHint` et tuile des doublons livrées (#99, f89fce8) | une icône d'aide peut être ouverte pour répondre à une question, sans y passer plus de 10 s |
 
 ## 3. Plan B général (HTTPS)
 
@@ -46,9 +62,11 @@ Toute bascule garde la même pile : aucun redémarrage de conteneur pendant la s
 
 ## 4. À rejouer le 20/11 (condition de D6)
 
-1. H-30 sur le poste de démonstration : `mkcert -install`, génération du certificat, `sh scripts/prove_tls.sh` vert (mémoire libre ≥ 5 Go).
-2. Les **8 parcours en HTTPS** à la suite, chronométrés, de P1 à P7 dans l'ordre du § 2 ; noter écarts et durées dans un walkthrough daté.
-3. Même rejeu partiel sur le poste de secours.
-4. Résultat reporté sur l'item 27 du taux CDC (fait si #109 fusionnée et preuve verte) ; si un parcours échoue en HTTPS et pas en HTTP, repli (b).
+Horaires et critères d'arrêt : `registre-risques-demo-2026-11-17.md` § 3 (passages 2 et 5).
+
+1. Sur le poste de démonstration, le 19 à 19:30, PO présent (confirmé le 17/11) : `mkcert -install`, génération du certificat, `sh scripts/prove_tls.sh` vert (mémoire libre ≥ 5 Go).
+2. Le 20 à 09:45 : les **8 parcours en HTTPS** à la suite, chronométrés, de P1 à P7 dans l'ordre du § 2, joués par F et B ; Q observe, le PO assiste s'il est là ; écarts et durées notés dans le compte rendu du 20 (`gabarit-compte-rendu-20-11.md`).
+3. Même rejeu partiel sur le poste de secours, seulement si le PO en annonce un.
+4. Résultat reporté sur l'item 27 du taux CDC (#109 fusionnée en e1480c8 ; `fait` quand la preuve est verte) ; si un parcours échoue en HTTPS et pas en HTTP, repli (b).
 
 Ce document ne contient aucun mot de passe ni certificat ; les clés et l'autorité mkcert ne sortent jamais du poste de démonstration.
