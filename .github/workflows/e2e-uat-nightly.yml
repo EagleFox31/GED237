@@ -9,6 +9,8 @@ on:
     # 01:30 UTC = 02:30 in Douala (WAT).
     - cron: "30 1 * * *"
   workflow_dispatch: {}
+  push:
+    branches: [ci/e2e-uat-nightly]
 
 permissions:
   contents: read
