@@ -49,3 +49,34 @@ Items encore conditionnels, chacun vaut 0,5 point (1,6 %) :
 | Trois conditions (plafond) | 29,0 | 90,6 % |
 
 **Conséquence pour le relevé du 19** : à 18:00, seul l'item 29 peut avoir basculé, donc le taux relevé ce soir-là sera de 87,5 % au mieux. Les items 27 et 31 se prouvent après l'arrêt de la sonde ; le taux de 90,6 % ne peut être constaté que le 20, une fois les deux preuves datées versées en recette. Les items 8 et 28 restent `absent`, l'item 19 `partiel`.
+
+## 3. Annexe — ordre des cinq passages, du 19 à 18:00 au 20 à 12:00 (parade de R1)
+
+**Brouillon à valider par O et Q le 19 à 12:00.** Un seul poste, une seule pile `edossier_*` à la fois. Les heures sont des heures de Douala. Les durées sont en heures de session (h-s) ; sauf mention « mesuré », ce sont des estimations de l'innovateur. Mémoire : le seuil de 5 Go libres vient de l'en-tête de `scripts/prove_tls.sh` et de la règle posée par O le 16/11.
+
+Idée directrice : le rejeu du manuel construit la pile neuve depuis `main`, et cette même pile sert ensuite aux quatre autres passages. Rien n'est construit deux fois.
+
+| Heure | Passage | Durée | Mémoire libre requise | Prérequis | Propriétaire | Critère de réussite | Critère d'arrêt |
+|---|---|---|---|---|---|---|---|
+| 19/11 18:00 | **0. Arrêt de la sonde C6** : `sh scripts/c6_summary.sh ../GED237-c6/c6.tsv`, copie du relevé en recette, arrêt de la pile de la sonde | 0,25 h-s | — | relevé de coupure de O fait, SHA de coupure annoncé | Q | synthèse par demi-journée versée ; item 29 tranché | — |
+| 19/11 18:15 | **1. Rejeu du manuel d'installation** : clone neuf au SHA de coupure, `DOCS/exploitation/installation.md` suivi pas à pas, build neuf | 1 h-s | ≥ 5 Go | passage 0 fini (aucune autre pile) ; #129 et #139 fusionnées ; Internet pour le build | Q | `/health` 200, connexion d'un compte, chaque étape notée (commande, message, durée) ; item 31 `fait` | 2 builds en échec, ou 20:00 atteint : démarrer la pile avec l'image existante, item 31 reste `partiel`, écart noté, passer au passage 2 |
+| 19/11 19:30 | **2. `prove_tls.sh`** : `mkcert -install`, puis `sh scripts/prove_tls.sh` ; ensuite les deux contrôles de l'audit HTTPS (redirection 307, WebSocket) | 0,5 h-s | ≥ 5 Go | pile du passage 1 démarrée ; **PO présent** pour accepter la fenêtre Windows ; mkcert installé | Q, PO | code de sortie 0, sortie datée versée en recette ; item 27 `fait` | PO absent le 19 : report au 20 à 08:00, avant le passage 3. 2 échecs du script : repli HTTP décidé par O, item 27 reste `partiel`, le passage 5 se joue en HTTP |
+| 20/11 08:00 | **3. Restauration n° 2** : `e2e_reset.sh demo`, `bash ops/backup.sh`, `bash ops/restore.sh <dossier> --wipe`, puis `alembic current`, `/health` et comptages | 0,5 h-s (sauvegarde 10 s et restauration 11 s mesurées le 10/11) | pile déjà démarrée, ≥ 4 Go | pile du passage 1 ; données de démonstration chargées | Q | comptages égaux au manifeste, version attendue ; `recette/restauration-2026-11-20.txt` | comptages différents après un second passage : anomalie `REC-nn` bloquante, O décide ; ne pas enchaîner sur le passage 4 avec des données douteuses (rejouer `e2e_reset.sh demo`) |
+| 20/11 08:45 | **4. Run uat officiel (run 1)** : smoke puis `--project=uat`, sans nouvelle tentative automatique | 0,5 h-s (smoke 2,8 min mesuré le 10/11 ; uat ≈ 5 min en CI le 16/11) | ≥ 5 Go | pile au SHA de coupure, données de démonstration, aucune autre pile | Q | 0 échec : run 1 compté | un échec : un seul rejeu ciblé des tests rouges pour écarter l'instabilité, puis anomalies `REC-nn` ; pas de troisième essai, on continue |
+| 20/11 09:30 | **5. Les 8 parcours en HTTPS** : `e2e_reset.sh demo` (le run uat modifie les données), puis `deroule-demo-https.md` dans l'ordre P1, P2, P3, P6, P4, P5, P8, P7, avec l'onglet de repli | 1,5 h-s (déroulé ≈ 20 min, plus le relevé des écarts) | ≥ 4 Go (pile et navigateur) | passage 2 vert (sinon HTTP) ; données réinitialisées | F et B (répartition du plan de recette), Q observe | 8 parcours au résultat attendu, cadenas visible, F5 garde la session | un parcours bloquant : `REC-nn`, on passe au suivant ; fin à 11:30 au plus tard |
+| 20/11 11:30 | **Marge** | 0,5 h-s | — | — | O | compte rendu à 12:00 : cinq passages, preuves, taux CDC constaté | — |
+
+Total : ≈ 4,25 h-s de passages, 0,5 h-s de marge.
+
+Règles si le temps manque :
+
+1. Avant chaque passage, mesurer la mémoire libre. Sous le seuil, fermer navigateurs et sessions inutiles ; si le seuil n'est pas atteint en 15 min, O décide (parade de R2).
+2. Ordre de priorité : passage 2, puis 4, puis 5, puis 3, puis 1. Le rejeu du manuel est le premier à glisser (au 20 après-midi), la restauration le second (au 21, avant le run 2). Si le passage 1 glisse, la pile se construit quand même au SHA de coupure le 19 au soir, sans suivre le manuel.
+3. Aucun rebuild de l'image après le passage 1 : tous les passages suivants utilisent la même image.
+4. Chaque passage laisse une preuve datée dans `gestion-projet/recette/` avant le suivant.
+
+Points à trancher à la validation du 19 à 12:00 :
+
+- **Poste de la restauration n° 2** : le plan de recette la place sur le poste de secours ; cet ordre la joue sur le poste unique. Si un poste de secours existe, le passage 3 s'y joue en parallèle et libère 0,5 h-s.
+- **Présence du PO** le 19 à 19:30 pour `mkcert -install`, sinon le 20 à 08:00.
+- **Qui joue le passage 5** : F et B comme au plan de recette, ou le démonstrateur du 30.
