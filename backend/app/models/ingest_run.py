@@ -48,6 +48,8 @@ class IngestRun(Base, UUIDMixin):
     attempts = Column(Integer, nullable=False, default=1)
     started_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     finished_at = Column(TIMESTAMP)
+    # Bumped with each file: a "running" run without a recent beat was cut.
+    heartbeat_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
     __table_args__ = (Index("ix_ingest_runs_tenant_status", "tenant_id", "status"),)
 

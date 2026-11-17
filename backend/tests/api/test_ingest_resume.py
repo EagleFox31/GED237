@@ -5,15 +5,18 @@ request after an interruption, or after failures, only does what is left, and
 GET /documents/ingest-runs/{id} gives the progress.
 """
 
+import asyncio
 import uuid
+from datetime import timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.config import settings
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.ingest_run import IngestRun
+from app.models.tenant import Tenant
 from app.services.ingestion import DirectoryIngestionService
 
 INGEST = "/api/v1/documents/ingest-directory"
@@ -82,6 +85,15 @@ async def test_an_interrupted_import_resumes_where_it_stopped(
     run = (await db_session.execute(select(IngestRun))).scalar_one()
     assert run.status == "running"
     monkeypatch.setattr(DirectoryIngestionService, "_ingest_single_file", original)
+
+    # Cut a moment ago: still taken for a live import.
+    live = await admin_client.post(INGEST, json=_payload(lot))
+    assert live.status_code == 409, live.text
+    # No heartbeat for longer than the window: it was cut, the request resumes it.
+    await db_session.execute(
+        update(IngestRun).values(heartbeat_at=func.now() - timedelta(minutes=10))
+    )
+    await db_session.commit()
 
     resumed = await admin_client.post(INGEST, json=_payload(lot))
     assert resumed.status_code == 200, resumed.text
@@ -158,3 +170,71 @@ async def test_a_run_is_visible_to_its_owner_only(
     ) as other:
         assert (await other.get(f"{RUNS}/{run_id}")).status_code == 404
         assert (await other.get(f"{RUNS}/{run_id}/files")).status_code == 404
+
+
+BUSY = "Cet import est déjà en cours. Réessayez quand il sera terminé."
+
+
+@pytest.mark.asyncio
+async def test_the_same_import_never_runs_twice_at_once(
+    admin_client, db_session, lot, monkeypatch
+):
+    original = DirectoryIngestionService._ingest_single_file
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def held(self, **kwargs):
+        started.set()
+        await release.wait()
+        return await original(self, **kwargs)
+
+    monkeypatch.setattr(DirectoryIngestionService, "_ingest_single_file", held)
+    first = asyncio.create_task(admin_client.post(INGEST, json=_payload(lot)))
+    await asyncio.wait_for(started.wait(), timeout=30)
+
+    second = await admin_client.post(INGEST, json=_payload(lot))
+    assert second.status_code == 409, second.text
+    assert second.json()["detail"] == BUSY
+
+    release.set()
+    done = await asyncio.wait_for(first, timeout=60)
+    assert done.status_code == 200, done.text
+    assert (done.json()["imported"], done.json()["error_count"]) == (5, 0)
+    assert await _count(db_session, Document) == 5
+    assert await _count(db_session, IngestRun) == 1
+
+
+@pytest.mark.asyncio
+async def test_an_import_being_opened_elsewhere_is_refused(
+    admin_client, db_session, test_engine, lot, monkeypatch
+):
+    monkeypatch.setattr(
+        DirectoryIngestionService, "_run_lock_key", staticmethod(lambda *p: "held")
+    )
+    async with test_engine.connect() as other:  # another request, mid-opening
+        await other.execute(select(func.pg_advisory_xact_lock(func.hashtext("held"))))
+        refused = await admin_client.post(INGEST, json=_payload(lot))
+        await other.rollback()
+    assert refused.status_code == 409, refused.text
+    assert await _count(db_session, IngestRun) == 0
+    assert await _count(db_session, Document) == 0
+
+
+@pytest.mark.asyncio
+async def test_another_institution_does_not_see_the_run(
+    admin_client, client_as, db_session, lot
+):
+    run_id = (await admin_client.post(INGEST, json=_payload(lot))).json()["run_id"]
+    other = uuid.uuid4()
+    db_session.add(
+        Tenant(
+            id=other,
+            name="Autre institution",
+            short_name="AUTRE",
+            domain=f"autre-{other}.gov.cm",
+            is_active=True,
+        )
+    )
+    await db_session.commit()
+    async with client_as("tenant_admin", id=uuid.uuid4(), tenant_id=other) as client:
+        assert (await client.get(f"{RUNS}/{run_id}")).status_code == 404
+        assert (await client.get(f"{RUNS}/{run_id}/files")).status_code == 404

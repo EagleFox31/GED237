@@ -10,7 +10,7 @@ import shutil
 import mimetypes
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, List, Dict, Any, Optional
 from uuid import UUID
 
@@ -24,7 +24,10 @@ from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.models.document_version import DocumentVersion
 from app.models.ingest_run import IngestRun, IngestRunFile
 from app.core.config import settings
-from app.core.errors.domain import IngestPathForbiddenError
+from app.core.errors.domain import (
+    IngestPathForbiddenError,
+    IngestRunInProgressError,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -91,6 +94,10 @@ DONE_STATUSES = ("imported", "duplicate")
 # A run that ended with failed files stays "partial": the same request retries
 # those files only. "completed" means every file is in the GED.
 RESUMABLE_STATUSES = ("running", "partial")
+# A "running" run with a heartbeat this recent is live: the same request is
+# refused (409). Older, it was cut and the request resumes it. Each file bumps
+# the heartbeat; one file (hash, copy, version) stays well under this.
+RUN_ALIVE_WINDOW = timedelta(minutes=5)
 
 
 def _derive_file_type(filename: str, mime_type: str) -> str | None:
@@ -241,6 +248,11 @@ class DirectoryIngestionService:
 
     # ── Resumable runs (tracked imports) ──────────────────────────────
 
+    @staticmethod
+    def _run_lock_key(*params) -> str:
+        """Advisory-lock key of one import (same request, same key)."""
+        return "ingest-run:" + ":".join(str(p) for p in params)
+
     async def _open_run(
         self,
         *,
@@ -254,7 +266,26 @@ class DirectoryIngestionService:
         total_found: int,
     ) -> tuple[UUID, set[str]]:
         """The unfinished run with the same parameters, or a new one, and the
-        source paths it already brought into the GED (imported or duplicate)."""
+        source paths it already brought into the GED (imported or duplicate).
+
+        Raises ``IngestRunInProgressError`` while another request runs the same
+        import: the lock serialises the opening, the heartbeat tells a live run
+        from one that was cut."""
+        key = self._run_lock_key(
+            tenant_id,
+            owner_id,
+            org_unit_id,
+            source_dir,
+            recursive,
+            processing_mode,
+            document_category_id,
+        )
+        locked = await self.db.scalar(
+            select(func.pg_try_advisory_xact_lock(func.hashtext(key)))
+        )
+        if not locked:
+            await self.db.rollback()
+            raise IngestRunInProgressError(technical_detail=f"lock busy: {key}")
         run = (
             await self.db.execute(
                 select(IngestRun)
@@ -291,7 +322,15 @@ class DirectoryIngestionService:
             await self.db.flush()
             done: set[str] = set()
         else:
+            if run.status == "running" and await self.db.scalar(
+                select(IngestRun.heartbeat_at > func.now() - RUN_ALIVE_WINDOW).where(
+                    IngestRun.id == run.id
+                )
+            ):
+                await self.db.rollback()
+                raise IngestRunInProgressError(technical_detail=f"run {run.id} alive")
             run.attempts = (run.attempts or 1) + 1
+            run.heartbeat_at = func.now()
             run.status, run.finished_at = "running", None
             run.total_found = total_found
             done = set(
@@ -343,6 +382,11 @@ class DirectoryIngestionService:
                 constraint="uq_ingest_run_files_path",
                 set_={**values, "updated_at": func.now()},
             )
+        )
+        await self.db.execute(
+            update(IngestRun)
+            .where(IngestRun.id == run_id)
+            .values(heartbeat_at=func.now())
         )
 
     # ── Allowed roots (INGEST_ALLOWED_ROOTS) ──────────────────────────

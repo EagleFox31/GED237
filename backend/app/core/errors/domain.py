@@ -272,3 +272,16 @@ class FileTooLargeError(AppError):
             ),
             extras_public={"max_upload_size_bytes": max_bytes, "filename": filename},
         )
+
+
+class IngestRunInProgressError(ConflictError):
+    """Same directory import already running (another request, another tab).
+
+    Two requests resuming one import would import its files twice.
+    """
+
+    default_error_code = "INGEST_RUN_IN_PROGRESS"
+    default_retryable = True
+    default_user_message = (
+        "Cet import est déjà en cours. Réessayez quand il sera terminé."
+    )

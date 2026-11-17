@@ -51,6 +51,12 @@ def upgrade() -> None:
             "started_at", sa.TIMESTAMP(), nullable=False, server_default=sa.func.now()
         ),
         sa.Column("finished_at", sa.TIMESTAMP()),
+        sa.Column(
+            "heartbeat_at",
+            sa.TIMESTAMP(),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
     )
     op.create_index(
         "ix_ingest_runs_tenant_status", "ingest_runs", ["tenant_id", "status"]
