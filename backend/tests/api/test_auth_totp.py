@@ -19,10 +19,11 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 
 from app.api.v1.endpoints import auth as auth_endpoints
-from app.cli import reset_totp
+from app.cli import admins_without_email, reset_totp
 from app.core.config import Settings, get_settings, settings
 from app.core.rate_limit import limiter
 from app.core.redis import get_redis
+from app.core.security import create_access_token, create_refresh_token
 from app.models.audit import AuditLog
 from app.models.role import Role
 from app.models.user import User
@@ -47,7 +48,13 @@ S0 = T0 // totp.STEP_SECONDS
 
 async def _clear_keys() -> None:
     redis = await get_redis()
-    for pattern in ("lock:*", "otp_fail:*", "otp_resend:*", "totp_enrol:*"):
+    for pattern in (
+        "lock:*",
+        "otp_fail:*",
+        "otp_resend:*",
+        "totp_enrol:*",
+        "sessions_revoked:*",
+    ):
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
@@ -780,6 +787,150 @@ async def test_ops_script_shows_first_then_resets(db_session, db_seed, outbox):
         ["--institution", "TESTMIN", "--matricule", "NOPE", "--operator", "Exploitant"]
     )
     assert await reset_totp.run(db_session, unknown, out=lines.append) == 1
+
+
+# --- a reset closes every session (stolen phone) ------------------------------
+
+REFRESH = "/api/v1/auth/refresh"
+ME = "/api/v1/users/me"
+
+
+def _tokens(db_seed) -> tuple[str, str]:
+    """What a login issues to the seeded user."""
+    claims = {
+        "sub": str(db_seed["user_id"]),
+        "tenant_id": str(db_seed["tenant_id"]),
+        "role": "collaborator",
+        "matricule": "TEST001",
+    }
+    return create_access_token(claims), create_refresh_token(claims)
+
+
+@pytest.mark.asyncio
+async def test_reset_revokes_every_session_refresh_tokens_included(
+    async_client: AsyncClient, db_session, db_seed, outbox
+):
+    access, refresh = _tokens(db_seed)
+    assert (await async_client.get(ME, headers=_bearer(access))).status_code == 200
+    rotated = await async_client.post(REFRESH, json={"refresh_token": refresh})
+    assert rotated.status_code == 200, rotated.text
+    rotated_refresh = rotated.json()["refresh_token"]
+
+    await _seed_app(db_session, db_seed)
+    chief = await _real_user(db_session, db_seed, "TA001")
+    assert await totp.reset(
+        db_session, await db_session.get(User, db_seed["user_id"]), actor=chief
+    )
+    assert (await _audit(db_session, "totp_reset"))[0].new_data["sessions_revoked"]
+
+    # Everything issued before the reset is refused, the rotated refresh too.
+    assert (await async_client.get(ME, headers=_bearer(access))).status_code == 401
+    for old in (refresh, rotated_refresh):
+        refused = await async_client.post(REFRESH, json={"refresh_token": old})
+        assert refused.status_code == 401, old
+
+    # The holder signs in again: the new tokens work.
+    await asyncio.sleep(0.005)
+    access, refresh = _tokens(db_seed)
+    assert (await async_client.get(ME, headers=_bearer(access))).status_code == 200
+    again = await async_client.post(REFRESH, json={"refresh_token": refresh})
+    assert again.status_code == 200, again.text
+
+
+@pytest.mark.asyncio
+async def test_nothing_to_reset_revokes_nothing(async_client, db_session, db_seed):
+    access, _ = _tokens(db_seed)
+    chief = await _real_user(db_session, db_seed, "TA001")
+    assert not await totp.reset(
+        db_session, await db_session.get(User, db_seed["user_id"]), actor=chief
+    )
+    assert (await async_client.get(ME, headers=_bearer(access))).status_code == 200
+
+
+def _bearer(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
+
+
+# --- a role that must use the app needs an e-mail address ----------------------
+
+
+def _new_user(db_seed, **fields) -> dict:
+    return {
+        "matricule": "MAIL001",
+        "first_name": "Sans",
+        "last_name": "Adresse",
+        "role_id": db_seed["role_id"],
+        "tenant_id": str(db_seed["tenant_id"]),
+        "org_unit_id": str(db_seed["org_unit_id"]),
+        "password": "mail-test-123",
+        **fields,
+    }
+
+
+@pytest.mark.asyncio
+async def test_required_role_without_email_is_refused_on_create(
+    admin_client: AsyncClient, db_session, db_seed, required
+):
+    refused = await admin_client.post("/api/v1/users/", json=_new_user(db_seed))
+    assert refused.status_code == 422, refused.text
+    assert "adresse e-mail" in refused.json()["detail"]
+    assert (
+        await db_session.scalar(
+            select(func.count()).select_from(User).where(User.matricule == "MAIL001")
+        )
+        == 0
+    )
+
+    created = await admin_client.post(
+        "/api/v1/users/", json=_new_user(db_seed, email="mail001@example.test")
+    )
+    assert created.status_code == 201, created.text
+
+
+@pytest.mark.asyncio
+async def test_required_role_cannot_lose_its_email(
+    admin_client: AsyncClient, db_session, db_seed, required
+):
+    url = f"/api/v1/users/{db_seed['user_id']}"
+    refused = await admin_client.patch(url, json={"email": None})
+    assert refused.status_code == 422, refused.text
+    seeded = await db_session.get(User, db_seed["user_id"])
+    await db_session.refresh(seeded)
+    assert seeded.email == HOLDER
+
+
+@pytest.mark.asyncio
+async def test_ordinary_role_or_app_off_may_have_no_email(
+    admin_client: AsyncClient, db_seed, monkeypatch
+):
+    # The seeded role (collaborator) need not use the app.
+    created = await admin_client.post("/api/v1/users/", json=_new_user(db_seed))
+    assert created.status_code == 201, created.text
+    # The app off: no role needs it, whatever the list says.
+    monkeypatch.setattr(settings, "AUTH_TOTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AUTH_TOTP_REQUIRED_ROLES", "collaborator")
+    other = await admin_client.post(
+        "/api/v1/users/", json=_new_user(db_seed, matricule="MAIL002")
+    )
+    assert other.status_code == 201, other.text
+
+
+@pytest.mark.asyncio
+async def test_script_lists_required_accounts_without_email(
+    db_session, db_seed, monkeypatch
+):
+    lines: list[str] = []
+    assert await admins_without_email.run(db_session, out=lines.append) == 0
+
+    seeded = await db_session.get(User, db_seed["user_id"])
+    seeded.email = None
+    await db_session.commit()
+    # Listed even while the app is off: to fix before turning it on.
+    monkeypatch.setattr(settings, "AUTH_TOTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AUTH_TOTP_REQUIRED_ROLES", "collaborator")
+    lines.clear()
+    assert await admins_without_email.run(db_session, out=lines.append) == 1
+    assert any(line.startswith("- TEST001 (collaborator, TESTMIN)") for line in lines)
 
 
 # --- security review of #193 ---------------------------------------------------

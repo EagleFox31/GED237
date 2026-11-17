@@ -9,6 +9,7 @@ from uuid import UUID
 from app.core.database import get_db, AsyncSessionLocal
 from app.core.security import decode_token
 from app.core.redis import get_redis
+from app.core import session_revocation
 from app.models.user import User
 
 security = HTTPBearer()
@@ -31,6 +32,13 @@ async def get_current_user_id(
     # Check if token has been blacklisted (logout)
     redis_client = await get_redis()
     if await redis_client.get(f"blacklist:{token}"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Every session of the account revoked (authenticator app reset).
+    if await session_revocation.is_revoked(redis_client, payload):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been revoked",
@@ -104,6 +112,8 @@ async def get_current_user_ws(token: str) -> Optional[User]:
     """Authenticate a WebSocket connection from a raw token string."""
     payload = decode_token(token)
     if payload is None:
+        return None
+    if await session_revocation.is_revoked(await get_redis(), payload):
         return None
 
     user_id_str: str = payload.get("sub")

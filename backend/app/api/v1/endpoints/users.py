@@ -40,6 +40,23 @@ def _role_code(user: User) -> str:
     return (getattr(getattr(user, "role", None), "code", "") or "").lower()
 
 
+async def _require_email_for_app_role(
+    db: AsyncSession, role_id: Optional[int], email: Optional[str]
+) -> None:
+    """422 when the role must use the authenticator app and there is no e-mail
+    address (DEC-2026-004): the account would never reach enrolment."""
+    if email:
+        return
+    role_code = await totp.role_code_needing_email(db, role_id)
+    if role_code is not None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Le rôle {role_code} exige une adresse e-mail : le code de "
+            "connexion y est envoyé avant l'enregistrement de l'application "
+            "d'authentification.",
+        )
+
+
 async def _validate_reports_to(
     db: AsyncSession,
     *,
@@ -114,6 +131,7 @@ async def create_user(
                 status_code=422, detail=f"Unknown role_code: {user_in.role_code}"
             )
         user_in.role_id = role_row.id
+    await _require_email_for_app_role(db, user_in.role_id, user_in.email)
 
     query = select(User).filter(
         User.matricule == user_in.matricule, User.tenant_id == user_in.tenant_id
@@ -329,6 +347,13 @@ async def update_user(
 
     if "org_unit_id" in update_data:
         assert_org_unit_scope(update_data["org_unit_id"], current_user)
+
+    if "role_id" in update_data or "email" in update_data:
+        await _require_email_for_app_role(
+            db,
+            update_data.get("role_id", user.role_id),
+            update_data.get("email", user.email),
+        )
 
     if "reports_to_user_id" in update_data:
         await _validate_reports_to(

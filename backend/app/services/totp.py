@@ -24,8 +24,11 @@ from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from fastapi import Request
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.core import session_revocation
 from app.core.config import settings
+from app.core.redis import get_redis
 from app.models.role import Role
 from app.models.user import User
 from app.models.user_totp import UserTotp
@@ -178,6 +181,39 @@ def required_for(role_code: Optional[str]) -> bool:
     )
 
 
+async def role_code_needing_email(
+    db: AsyncSession, role_id: Optional[int]
+) -> Optional[str]:
+    """The role's code when it must use the app, else None.
+
+    Such an account reaches enrolment only after the e-mail code, so it needs an
+    address: without one it could never sign in."""
+    if role_id is None:
+        return None
+    code = (
+        await db.execute(select(Role.code).where(Role.id == role_id))
+    ).scalar_one_or_none()
+    return code if required_for(code) else None
+
+
+async def required_without_email(db: AsyncSession) -> list[User]:
+    """Active accounts of a role that must use the app, without an e-mail address.
+
+    Listed whether the app is on or not: they must be fixed before it is."""
+    found = await db.execute(
+        select(User)
+        .options(selectinload(User.role), selectinload(User.tenant))
+        .join(Role, Role.id == User.role_id)
+        .where(
+            Role.code.in_(sorted(settings.totp_required_roles)),
+            User.is_active.is_(True),
+            or_(User.email.is_(None), User.email == ""),
+        )
+        .order_by(User.matricule)
+    )
+    return list(found.scalars().all())
+
+
 async def begin_enrolment(db: AsyncSession, user: User) -> tuple[str, str]:
     """New secret for ``user``, unconfirmed until a first code. Returns the secret
     and its otpauth link. ValueError when an app is already confirmed."""
@@ -230,11 +266,15 @@ async def reset(
     """Remove ``target``'s app after an in-person check. False: nothing to reset.
 
     ``actor`` is the superior who did it; None for the ops script, which names
-    its ``operator``. Audited, then the holder is told by e-mail."""
+    its ``operator``. Revokes every session of the account, audited, then the holder is told
+    by e-mail."""
     record = await get_record(db, target.id)
     if record is None:
         return False
     await db.delete(record)
+    # Lost or stolen phone: every open session goes, refresh tokens included.
+    # Before the commit: if Redis fails, nothing is reset and the caller retries.
+    await session_revocation.revoke_all(await get_redis(), target.id)
     by = actor.matricule if actor is not None else f"ops:{operator}"
     db.add(
         audit_entry(
@@ -243,7 +283,12 @@ async def reset(
             table_name="users",
             record_id=target.id,
             action="totp_reset",
-            details={"name": target.full_name, "matricule": target.matricule, "by": by},
+            details={
+                "name": target.full_name,
+                "matricule": target.matricule,
+                "by": by,
+                "sessions_revoked": True,
+            },
             request=request,
         )
     )

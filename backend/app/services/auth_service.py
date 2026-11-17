@@ -19,6 +19,7 @@ from app.core.errors.domain import (
 )
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.redis import get_redis
+from app.core import session_revocation
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -549,6 +550,9 @@ class AuthService:
         """
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
+            raise AuthenticationError("Invalid refresh token")
+        # Issued before the account's sessions were revoked (app reset).
+        if await session_revocation.is_revoked(await get_redis(), payload):
             raise AuthenticationError("Invalid refresh token")
 
         token_data = {
