@@ -1,4 +1,4 @@
-# Relevé de coupure — mer 19/11 18:00 (gabarit)
+# Relevé de coupure — jeu 19/11 18:00 (gabarit)
 
 - **Pour** : O (remplit à 18:00, en une passe, avec la commande § 3), I (reporte dans `CHANGELOG.md` « Limites connues » et `plan-presentation.md` § 3 le soir même), B/F/Q (lisent, ne contestent pas : non fusionné = V1.1). Innovateur, 2026-11-10, non commité ; numéros de PR relevés le 10/11 à 12:30 (`gh pr list`), rafraîchis le 14/11 à 12:45 (`main` 3cc6e15), puis le 16/11 à 19:45 (`main` ca9953b : fusions du 14/11 reportées avec leur SHA ; ouvertes : #99, #100, #108, #109 ; #107 fusionnée 7fa1ab8), à compléter pour les PR ouvertes d'ici le 19.
 - **Règle** : une ligne est **TIENT** si chacune de ses PR requises est `MERGED` dans `main` à 18:00 (SHA du `mergeCommit` reporté) ; sinon elle **bascule en V1.1** telle quelle, sans exception ni « presque », et sa phrase « Limites connues » (colonne de droite, déjà écrite) entre dans `CHANGELOG.md`. Une PR e2e manquante ne fait pas basculer la ligne : la recette 20–23 la remplace (le scénario se joue à la main et se note `REC-nn`).
@@ -24,13 +24,13 @@
 | Ops — sonde de disponibilité C6 (item CDC 29 ; `scripts/probe_c6.sh`) | — | — | — (preuve = relevés datés `recette/mesures-2026-11-20/c6.tsv`) | #106 : MERGED ca9953b | TIENT / V1.1 | Pas de sonde de disponibilité versionnée : la disponibilité n'est pas mesurée en continu ; l'item 29 reste `absent`. — Statut `partiel` le 19 avec ≥ 6 relevés verts, `fait` le 21 si 10/10. |
 | Ops — profil HTTPS local (item CDC 27 ; nginx 443, certificat mkcert) | #109 (B) | — | — (preuve = `curl -sk https://localhost:8443/health` daté) | #109 : MERGED e1480c8 · #114 (lien vers https-local) : MERGED f90017c | TIENT / V1.1 | La démonstration est servie en HTTP ; aucun point de terminaison TLS n'est livré (écart annoncé, item 27 `absent`). — Sous réserve de la décision D6 (tranchée : démo en HTTPS). L'item 27 compte `fait` seulement quand Q a passé `prove_tls.sh` au vert sur le poste de démonstration ; sinon `partiel` (repli HTTP). |
 
-Lignes hors fenêtre, pour mémoire (ne basculent pas, déjà tranchées) : `demo-counters` levé par #82 ; `validation-cycle` actif ; PR docs sans surface produit (#90 plan de recette, #96 checklist H-30, #103 leçons, #104 notes rc.1) : fusionnées avant le run 1 du jeu 20, pas de phrase « Limites connues ».
+Lignes hors fenêtre, pour mémoire (ne basculent pas, déjà tranchées) : `demo-counters` levé par #82 ; `validation-cycle` actif ; PR docs sans surface produit (#90 plan de recette, #96 checklist H-30, #103 leçons, #104 notes rc.1) : fusionnées avant le run 1 du ven 20, pas de phrase « Limites connues ».
 
 ## 2. Ce que fait I le 19 au soir, à partir de ce tableau
 
 1. Pour chaque ligne **V1.1** : copier la phrase dans `CHANGELOG.md` « Limites connues » (statut **V1.1**), retirer la ligne « corrigé avant le 19 » correspondante ; ajouter la phrase d'écart dans `plan-presentation.md` § 3 ; retirer le moment démo du `deroule-demo.md` s'il en dépend (lot 1 tuile, lot 2 export/import, lot 3a CSV, lot 4 « document importé », lot 5).
 2. Pour chaque ligne **TIENT** : statut « corrigé » + SHA dans le CHANGELOG ; scénario SC-V11-0x activé dans `matrice-recette.md` (colonne État = à recetter le 20).
-3. Commit docs unique (`docs(release): relevé de coupure du 19/11`) dans `../GED237-docs-notes-version`, PR sans surface CI, fusion par O avant le run 1 du jeu 20.
+3. Commit docs unique (`docs(release): relevé de coupure du 19/11`) dans `../GED237-docs-notes-version`, PR sans surface CI, fusion par O avant le run 1 du ven 20.
 4. Ligne « Lots non fusionnés » des notes rc.1 (`innovateur/notes-version-v1.0.0-rc.1.md`, § « Limites connues ») : remplacer la ligne d'attente par l'un des deux textes ci-dessous, puis remplir `<SHA_COUPURE>` avec le SHA de coupure du § 4.1. Au 17/11 (`main` b701314), les 14 lignes du § 1 sont toutes `MERGED` : le cas A est attendu.
    - **Cas A, aucune ligne en V1.1** :
      `- Lots non fusionnés au 19/11 18:00 (coupure <SHA_COUPURE>) : aucun. Les 14 éléments prévus pour cette version sont dans main.`
