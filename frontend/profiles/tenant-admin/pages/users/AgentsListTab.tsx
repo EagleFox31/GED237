@@ -422,21 +422,21 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
     });
   };
 
-  const handleDisableMfa = (agent: Agent) => {
+  const handleResetTotp = (agent: Agent) => {
     setPendingConfirm({
-      title: 'Réinitialiser la double authentification',
-      message: `Le secret 2FA actuel de « ${agent.full_name} » sera effacé. À sa prochaine connexion, l’agent devra reconfigurer son application d’authentification (Google Authenticator, etc.).`,
-      confirmLabel: 'Réinitialiser le 2FA',
+      title: 'Réinitialiser l’application d’authentification',
+      message: `« ${agent.full_name} » configurera une nouvelle application à sa prochaine connexion.`,
+      confirmLabel: 'Réinitialiser',
       icon: 'smartphone',
       bullets: [
-        'À utiliser uniquement si l’agent a perdu son téléphone ou son accès 2FA.',
-        'L’agent ne pourra pas se connecter tant qu’il n’aura pas reconfiguré son application.',
+        'Vérifiez l’identité de l’agent en personne.',
+        'Toutes ses sessions seront fermées.',
       ],
       run: async () => {
         setWorking(`mfa:${agent.id}`);
         try {
-          await api.disableUserMfa(agent.id);
-          showToast({ tone: 'success', message: '2FA réinitialisé. L’agent devra le reconfigurer.' });
+          await api.resetUserTotp(agent.id);
+          showToast({ tone: 'success', message: 'Application réinitialisée. Sessions de l’agent fermées.' });
           await loadData();
         } catch {
           /* bus */
@@ -713,12 +713,12 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
               {!isSelf && (
                 <button
                   type="button"
-                  onClick={() => { void handleDisableMfa(selectedAgent); }}
+                  onClick={() => handleResetTotp(selectedAgent)}
                   disabled={Boolean(working)}
                   className="px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-amber-500 hover:text-white transition-all text-xs tracking-widest uppercase flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[16px]">smartphone</span>
-                  Réinitialiser la double authentification
+                  Réinitialiser l’application d’authentification
                 </button>
               )}
               {!isSelf && (

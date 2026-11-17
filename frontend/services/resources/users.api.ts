@@ -70,4 +70,12 @@ export const usersApi = {
             { method: 'POST' },
             'Réinitialisation du 2FA impossible',
         ),
+
+    /** Retire l'application d'authentification (204) et ferme toutes les sessions de l'agent. */
+    resetUserTotp: (id: string): Promise<void> =>
+        apiCallVoid(
+            `/users/${id}/totp/reset`,
+            { method: 'POST' },
+            "Réinitialisation de l'application impossible",
+        ),
 };
