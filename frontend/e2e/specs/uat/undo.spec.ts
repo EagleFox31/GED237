@@ -46,6 +46,29 @@ test.describe('Annuler la dernière action dans l’explorateur', () => {
     await expect(item).toBeVisible();
   });
 
+  test('Ctrl+Z sans effet quand un menu est ouvert par-dessus', async ({ page, loginAs, adminApi, runId }) => {
+    const kept = `Menu reste ${runId}`;
+    const trashed = `Menu corbeille ${runId}`;
+    await adminApi.uploadDocument(`menu-reste-${runId}.txt`, kept, `Reste ${runId}`);
+    await adminApi.uploadDocument(`menu-corbeille-${runId}.txt`, trashed, `Corbeille ${runId}`);
+
+    await loginAs('tenant_admin');
+    await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
+    const gone = page.getByLabel(new RegExp(`^${trashed} — `));
+    await gone.focus();
+    await page.keyboard.press('Delete');
+    await expect(page.getByRole('button', { name: 'Annuler' })).toBeVisible();
+
+    await page.getByLabel(new RegExp(`^${kept} — `)).click({ button: 'right' });
+    await expect(page.getByRole('menu')).toBeVisible();
+    await page.keyboard.press('Control+z');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    // Toujours à la corbeille : le raccourci n'a pas visé la page sous le menu.
+    await expect(gone).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Annuler' })).toBeVisible();
+  });
+
   test('glisser vers un dossier reclasse ; « Annuler » rend l’emplacement d’origine', async ({
     page,
     loginAs,
