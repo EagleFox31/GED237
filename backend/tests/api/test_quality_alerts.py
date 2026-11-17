@@ -1,6 +1,7 @@
 """Quality alerts: one notification per breach and per return below the threshold,
 refusals, and the /analytics/quality/alerts routes."""
 
+import logging
 import uuid
 
 import pytest
@@ -10,6 +11,7 @@ from app.core.config import settings
 from app.models.document import Document
 from app.models.notification import Notification
 from app.models.quality_alert import QualityAlertEvent, QualityAlertRule
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.services.quality_alerts import EVENT_TYPE, evaluate_rules
 from app.workers.celery_app import celery_app
@@ -214,6 +216,8 @@ async def test_disabled_server_refuses_alerts_and_evaluates_nothing(
         {"indicator": "no_text", "measure": "rate", "threshold": 120},
         {"indicator": "unknown", "measure": "count", "threshold": 1},
         {"indicator": "no_text", "measure": "count", "threshold": -1},
+        {"indicator": "no_text", "measure": "count", "threshold": 0},
+        {"indicator": "no_text", "measure": "rate", "threshold": 0},
     ],
 )
 async def test_invalid_alert_is_rejected(admin_client, payload):
@@ -227,3 +231,48 @@ async def test_a_foreign_alert_is_not_found(client_as, db_session, db_seed):
     async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as client:
         response = await client.delete(f"{ALERTS}/{rule.id}")
     assert response.status_code == 404
+
+
+async def _other_tenant(db_session) -> uuid.UUID:
+    tenant_id = uuid.uuid4()
+    db_session.add(
+        Tenant(
+            id=tenant_id,
+            name="Autre institution",
+            short_name="AUTRE",
+            domain=f"autre-{tenant_id}.gov.cm",
+            is_active=True,
+        )
+    )
+    await db_session.commit()
+    return tenant_id
+
+
+@pytest.mark.asyncio
+async def test_another_institution_neither_sees_nor_stops_it(
+    client_as, db_session, db_seed
+):
+    rule_id = (await _rule(db_session, db_seed)).id
+    other = await _other_tenant(db_session)
+    async with client_as("tenant_admin", tenant_id=other) as client:
+        listed = await client.get(ALERTS)
+        stopped = await client.delete(f"{ALERTS}/{rule_id}")
+    assert listed.status_code == 200 and listed.json() == []
+    assert stopped.status_code == 404
+    assert await db_session.scalar(
+        select(QualityAlertRule.is_active).where(QualityAlertRule.id == rule_id)
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_rule_for_another_institution_is_refused(db_session, db_seed, caplog):
+    await _document(db_session, db_seed, classification_year=None)
+    other = await _other_tenant(db_session)
+    rule_id = str((await _rule(db_session, db_seed, tenant_id=other)).id)
+    caplog.set_level(logging.WARNING, logger="app.services.quality_alerts")
+
+    result = await evaluate_rules(db_session)
+    assert (result.opened, result.refused) == ([], [rule_id])
+    assert "Institution de l'alerte invalide." in caplog.text
+    assert await db_session.scalar(select(func.count(QualityAlertEvent.id))) == 0
+    assert await _alert_messages(db_session) == []

@@ -63,7 +63,7 @@ class QualityAlertCreate(BaseModel):
     indicator: QualityIndicatorKey
     # count: number of documents; rate: percent of the documents in scope.
     measure: QualityAlertMeasure
-    threshold: float = Field(ge=0)
+    threshold: float = Field(gt=0)  # 0 would alert with no defect at all
     tenant_id: Optional[UUID] = None  # super admin only, like the report screens
     scope: QualityAlertScope = Field(default_factory=QualityAlertScope)
 
