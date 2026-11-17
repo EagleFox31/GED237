@@ -588,3 +588,17 @@ Une sauvegarde aurait donc été écrite chaque nuit, avec ses sommes de contrô
 **Résolution** — Avant chaque sauvegarde planifiée, les versions majeures du client et du serveur sont comparées. Si elles diffèrent, la sauvegarde échoue avec un message explicite, et l'alerte de sauvegarde ainsi que la notification au super-admin sont déclenchées. Le chemin du client se règle par `SCHEDULED_BACKUP_PG_DUMP`. Le job est désactivé par défaut. L'installation du client 15 (PGDG) dans le worker est prévue après le 30/11.
 **Prévention** — Deux tests : `test_version_guard_refuses_a_different_major` et `test_version_guard_fails_the_run_before_any_dump` (le dossier partiel est supprimé, l'échec est enregistré).
 **Leçon généralisée** — Un outil de sauvegarde doit avoir la version de la cible de restauration, et cette condition doit être vérifiée à l'exécution, pas supposée. Une sauvegarde ne vaut que par une restauration prouvée avec l'outil réel de la procédure.
+
+### LESSON-2026-040 — Entrée du menu admin sans page : « Recherche » ouvrait la page introuvable
+
+- **Date :** 2026-11-17
+- **Catégorie :** frontend / testing
+- **Statut :** prevention-added
+- **Liens :** `frontend/profiles/tenant-admin/menuConfig.ts`, `frontend/App.tsx` (`TAB_TO_ROUTE`, repli `/${tab}`, `NotFoundPage`), `frontend/e2e/specs/route-guard.spec.ts` (GUARD-07)
+
+**Contexte** — Le menu admin est déclaré dans `menuConfig.ts` par identifiants d'onglet. `App.tsx` traduit l'identifiant en route via `TAB_TO_ROUTE`, et à défaut navigue vers `/${tab}`.
+**Échec / near miss** — L'entrée « Recherche » (`search_config`) n'avait ni route ni page : `/search_config` affichait « Espace en Travaux ». Signalé pendant la recette rc.1.
+**Cause racine** — Le menu et les routes sont deux listes séparées, sans contrôle qui les relie. Le repli `/${tab}` masque l'absence de correspondance au lieu de la signaler.
+**Résolution** — Entrée retirée : aucune page de recherche n'existe. La recherche plein texte passe par le bandeau, et le filtre par l'Explorateur documentaire. Ensuite, la version durcie de GUARD-07 a trouvé un 2e lien mort, « Accès & Permissions » (`security_config`). La 1re version l'avait laissé passer. L'entrée est retirée elle aussi : `/authz` est réservé au super admin, et les rôles et permissions sont gérés dans « Agents & Rôles ».
+**Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
+**Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
