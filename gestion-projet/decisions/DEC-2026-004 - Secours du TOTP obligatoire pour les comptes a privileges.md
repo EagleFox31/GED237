@@ -1,6 +1,6 @@
 # DEC-2026-004 — Secours du TOTP : application obligatoire pour les comptes à privilèges, réinitialisation par l'administrateur
 
-- **Statut** : PROPOSÉ. Instruit pour le PO, présenté par O. Numéro confirmé par O le 17/11.
+- **Statut** : DÉCIDÉ le 17/11/2026 (accord du PO en séance, relayé par O vers 11:05) : option (d). Instruit pour le PO, présenté par O. Numéro confirmé par O le 17/11.
 - **Instruction** : innovateur, 2026-11-17. Sources consultées le 17/11/2026 (§ 2). État GED237 `Vérifié` sur #193 (fcab5a1).
 - **Contrainte du PO (17/11)** : les utilisateurs finaux sont des agents publics, peu enclins aux étapes supplémentaires. Des codes sur papier seront perdus, et une application imposée à tous sera contournée ou bloquera des comptes.
 - **Calendrier** : #193 est gelée jusqu'au 30/11 (`plan-fusion-post-rc1.md` § 5). Cette décision ne touche ni la rc.1 ni la démo.
@@ -97,7 +97,16 @@ Lecture (`Déduit`) : l'e-mail ne remplace pas un second facteur à la connexion
 - **Comptes non privilégiés** : l'e-mail reste leur second facteur, contraire au NIST § 3.1.3.1. C'est la limite déjà consignée de la décision 4 : (d) ne la crée pas et ne la rouvre pas. Elle reste acceptée parce qu'elle porte sur les comptes dont les droits sont les plus faibles, et que l'imposer aux agents bloquerait des comptes (contrainte du PO).
 - **Comptes à privilèges** : aucun écart. Le second facteur est l'application. Le recouvrement passe par une vérification d'identité en personne avec notification (§ 4.2), à condition que l'identité de l'agent ait été établie à son arrivée (`Déduit` : cas d'un agent public).
 
-## 8. Décision attendue du PO
+## 8. Décision du PO
+
+**Décidé le 17/11/2026, accord du PO en séance** (réponse « ok » vers 11:05, relayée par O) :
+
+- **Option (d) retenue** ; (b) reste l'alternative instruite, non retenue.
+- **TOTP obligatoire pour `tenant_admin` et `super_admin` seulement** (réglage `AUTH_TOTP_REQUIRED_ROLES`) ; les autres rôles gardent le code par e-mail, le TOTP leur reste proposé.
+- **Au moins deux `super_admin`** par installation. Les sept conditions du § 4 s'appliquent telles quelles, y compris la procédure d'exploitation hors application si un seul `super_admin` reste joignable.
+- **Mise en œuvre** : B ≈ 3,5 h-s et F ≈ 2 h-s, prévenus par O ; la part de Q (≈ 1 h-s) vient après le 30. Aucune migration nouvelle : la chaîne alembic du plan de fusion ne change pas, et #193 reste après le 30.
+
+Questions posées au PO (instruction du 17/11) :
 
 1. (d), recommandée, ou (b).
 2. Rôles soumis à l'obligation : `tenant_admin` et `super_admin` (réglage, extensible à `auditor` plus tard).
