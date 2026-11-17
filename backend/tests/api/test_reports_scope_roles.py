@@ -312,3 +312,18 @@ async def test_a_role_missing_from_the_lists_is_kept_to_its_unit(monkeypatch):
     with pytest.raises(HTTPException) as denied:
         await reports_scope.resolve_report_scope(homeless, db=None)
     assert denied.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_super_admin_is_not_kept_to_a_unit(client_as, tree):
+    # Recognised by its permission, before the role lists: it is in neither.
+    assert "super_admin" not in reports_scope.INSTITUTION_WIDE_ROLES
+    async with client_as(
+        "super_admin", tenant_id=tree["tenant"], org_unit_id=tree["a1"]
+    ) as client:
+        assert await _signals(client) == (2, 2, 10)
+        assert await _signals(client, org_unit_id=tree["b"], recursive=True) == (
+            1,
+            1,
+            7,
+        )
