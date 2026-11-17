@@ -406,9 +406,18 @@ async def _next_sequence(db: AsyncSession, tenant_id: UUID, year: int) -> int:
 
 
 async def issue_official_report(
-    db: AsyncSession, user, request: OfficialReportRequest, scope: ReportScope
+    db: AsyncSession,
+    user,
+    request: OfficialReportRequest,
+    scope: ReportScope,
+    *,
+    commit: bool = True,
 ) -> IssuedReport:
-    """Build, number, register and log one official report; commits."""
+    """Build, number, register and log one official report.
+
+    Commits, unless ``commit`` is False: the caller then owns the transaction (the
+    scheduler adds its run line and notification to the same commit).
+    """
     tenant = await db.get(Tenant, scope.tenant_id)
     if tenant is None:
         raise LookupError("Institution introuvable.")
@@ -451,8 +460,9 @@ async def issue_official_report(
     db.add(issue)
     await db.flush()
     _log(db, user, issue, "report_generated")
-    await db.commit()
-    await db.refresh(issue)
+    if commit:
+        await db.commit()
+        await db.refresh(issue)
     return IssuedReport(
         issue=issue,
         content=content,

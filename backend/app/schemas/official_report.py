@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.reports import ReportsGranularity
 
@@ -43,3 +43,27 @@ class OfficialReportIssueOut(BaseModel):
     file_sha256: str
     issued_by: Optional[UUID] = None
     issued_at: datetime
+
+
+ReportFrequency = Literal["weekly", "monthly"]
+
+
+class ReportScheduleCreate(BaseModel):
+    """One official report per closed week or month; ``evolution`` covers that period."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=120)
+    frequency: ReportFrequency
+    report: OfficialReportRequest
+
+
+class ReportScheduleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    frequency: str
+    request: dict
+    is_active: bool
+    created_at: datetime

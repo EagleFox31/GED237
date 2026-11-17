@@ -38,3 +38,16 @@ if settings.INGEST_WATCH_FOLDERS and settings.INGEST_WATCH_INTERVAL_SECONDS > 0:
             "schedule": float(settings.INGEST_WATCH_INTERVAL_SECONDS),
         }
     }
+
+# Scheduled official reports (post-rc1 lot 9): off unless SCHEDULED_REPORTS_ENABLED.
+if (
+    settings.SCHEDULED_REPORTS_ENABLED
+    and settings.SCHEDULED_REPORTS_INTERVAL_SECONDS > 0
+):
+    celery_app.conf.beat_schedule = {
+        **(celery_app.conf.beat_schedule or {}),
+        "run-scheduled-reports": {
+            "task": "app.workers.tasks.run_scheduled_reports",
+            "schedule": float(settings.SCHEDULED_REPORTS_INTERVAL_SECONDS),
+        },
+    }

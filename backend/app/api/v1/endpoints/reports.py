@@ -4,11 +4,13 @@ from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import authorize_or_403
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.models.report_schedule import ReportSchedule
 from app.models.user import User
 from app.schemas.reports import (
     ReportsDocumentActivityResponse,
@@ -21,6 +23,8 @@ from app.schemas.official_report import (
     OfficialReportIssueOut,
     OfficialReportKind,
     OfficialReportRequest,
+    ReportScheduleCreate,
+    ReportScheduleOut,
 )
 from app.services.official_report import (
     OfficialReportError,
@@ -255,3 +259,71 @@ async def reprint_official_report(
         media_type=media_type(issue.format),
         headers=_copy_headers(issue, issue_filename(issue)),
     )
+
+
+@router.get("/official/schedules", response_model=list[ReportScheduleOut])
+async def list_report_schedules(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The caller's active scheduled reports."""
+    await authorize_or_403(current_user, "analytics.tenant", "read")
+    result = await db.execute(
+        select(ReportSchedule)
+        .where(
+            ReportSchedule.created_by == current_user.id,
+            ReportSchedule.is_active.is_(True),
+        )
+        .order_by(ReportSchedule.created_at)
+    )
+    return result.scalars().all()
+
+
+@router.post("/official/schedules", response_model=ReportScheduleOut, status_code=201)
+async def create_report_schedule(
+    payload: ReportScheduleCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Schedule an official report, issued in the caller's name and scope.
+
+    The scope is checked now (403 if refused) and again at each issue.
+    """
+    await authorize_or_403(current_user, "analytics.tenant", "read")
+    scope = await resolve_report_scope(
+        current_user,
+        tenant_id=payload.report.tenant_id,
+        org_unit_id=payload.report.org_unit_id,
+        recursive=payload.report.recursive,
+    )
+    schedule = ReportSchedule(
+        tenant_id=scope.tenant_id,
+        created_by=current_user.id,
+        name=payload.name.strip(),
+        frequency=payload.frequency,
+        request=payload.report.model_dump(
+            mode="json", exclude={"date_from", "date_to"}
+        ),
+        is_active=True,
+    )
+    db.add(schedule)
+    await db.commit()
+    await db.refresh(schedule)
+    return schedule
+
+
+@router.delete("/official/schedules/{schedule_id}", status_code=204)
+async def stop_report_schedule(
+    schedule_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stop a schedule of the caller; copies already issued stay in the register."""
+    await authorize_or_403(current_user, "analytics.tenant", "read")
+    schedule = await db.get(ReportSchedule, schedule_id)
+    if schedule is None or schedule.created_by != current_user.id:
+        raise HTTPException(status_code=404, detail="Rapport programmé introuvable.")
+    if schedule.is_active:
+        schedule.is_active = False
+        await db.commit()
+    return Response(status_code=204)

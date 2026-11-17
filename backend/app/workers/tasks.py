@@ -186,3 +186,30 @@ def watch_ingest_folders():
         asyncio.set_event_loop(loop)
     loop.run_until_complete(_run())
     return None
+
+
+@celery_app.task(name="app.workers.tasks.run_scheduled_reports")
+def run_scheduled_reports():
+    """Beat task (lot 9): one pass over scheduled official reports."""
+    from app.services.scheduled_reports import run_due_schedules
+
+    if not settings.SCHEDULED_REPORTS_ENABLED:
+        return None
+
+    async def _run():
+        async with AsyncSessionLocal() as session:
+            result = await run_due_schedules(session)
+        logger.info(
+            "[ScheduledReports] issued=%d failed=%d skipped=%d",
+            len(result.issued),
+            len(result.failed),
+            result.skipped,
+        )
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.run_until_complete(_run())
+    return None
