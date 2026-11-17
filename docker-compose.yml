@@ -152,6 +152,12 @@ services:
       AUTH_TOTP_ISSUER: ${AUTH_TOTP_ISSUER:-E-Dossier}
       AUTH_TOTP_REQUIRED_ROLES: ${AUTH_TOTP_REQUIRED_ROLES:-tenant_admin,super_admin}
       TOTP_ENCRYPTION_KEYS: ${TOTP_ENCRYPTION_KEYS:-}
+      # How the login code is sent (dev_response: echoed, development only).
+      AUTH_OTP_CHANNEL: ${AUTH_OTP_CHANNEL:-dev_response}
+      AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${AUTH_OTP_RESEND_COOLDOWN_SECONDS:-30}
+      AUTH_OTP_RESEND_MAX_PER_WINDOW: ${AUTH_OTP_RESEND_MAX_PER_WINDOW:-3}
+      AUTH_OTP_RESEND_WINDOW_SECONDS: ${AUTH_OTP_RESEND_WINDOW_SECONDS:-900}
+      EMAIL_SEND_TIMEOUT_SECONDS: ${EMAIL_SEND_TIMEOUT_SECONDS:-10}
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
     depends_on:
