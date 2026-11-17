@@ -39,7 +39,7 @@ const ServiceDashboard: React.FC = () => {
         <p className="text-slate-500 mt-1 font-medium italic">Supervisez les dossiers et la productivité de votre équipe.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="max-w-2xl">
         <div className="glass p-8 rounded-[2.5rem] bg-white border-white">
           <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-1 italic">Indicateurs du Service</h3>
           <p className="text-xs text-slate-500 mb-6">Votre service et ses sous-services.</p>
@@ -67,15 +67,6 @@ const ServiceDashboard: React.FC = () => {
               ))}
             </ul>
           )}
-        </div>
-
-        <div className="glass p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-blue-800 text-white relative overflow-hidden">
-          <div className="relative z-10">
-            <h3 className="text-2xl font-black italic uppercase tracking-tighter mb-4">Planification <br/>de Service</h3>
-            <p className="text-blue-100/70 text-xs font-medium leading-relaxed max-w-[200px] mb-8">Définissez les droits d'accès temporaires pour les projets d'équipe.</p>
-            <button className="px-6 py-3 bg-cam-yellow text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl">Gérer les Permissions</button>
-          </div>
-          <span className="material-symbols-outlined absolute -right-8 -bottom-8 text-[12rem] opacity-10 rotate-12">account_tree</span>
         </div>
       </div>
     </div>

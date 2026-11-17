@@ -598,3 +598,17 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+
+### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
+
+- **Date :** 2026-11-17
+- **Catégorie :** security / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/users.py` (`_assert_role_grantable`, `update_user`), `backend/tests/api/test_users.py`
+
+**Contexte** — POST et PATCH /users acceptent `role_id` (ou `role_code` à la création). Le droit `users:create`/`users:update` était le seul contrôle.
+**Échec / near miss** — Relevé en revue de #222 : un tenant_admin pouvait donner le rôle super_admin à un agent ou à lui-même, donc l'accès à toutes les institutions.
+**Cause racine** — L'autorisation portait sur l'action (« modifier un agent »), pas sur la valeur écrite. Le rôle attribué n'était comparé à rien.
+**Résolution** — Seul un super_admin attribue super_admin ; personne n'attribue un rôle plus élevé que le sien (`hierarchy_level` plus bas) ; personne ne change son propre rôle. Refus en 403 explicite (`ROLE_GRANT_FORBIDDEN`, `OWN_ROLE_CHANGE_FORBIDDEN`). PATCH refuse aussi un e-mail déjà pris (409 `USER_EMAIL_TAKEN`).
+**Prévention** — Tests de non-régression en POST et en PATCH : tenant_admin vers super_admin refusé (sur lui-même et sur un agent), rôle inférieur et super_admin autorisés.
+**Leçon généralisée** — Un droit d'écriture sur une ressource ne couvre pas les champs qui portent eux-mêmes un privilège (rôle, institution, rattachement). Chaque champ de ce type a son contrôle de valeur et son test de refus.
