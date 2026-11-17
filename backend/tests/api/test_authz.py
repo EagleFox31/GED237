@@ -931,7 +931,7 @@ async def test_authz_policy_api_rejects_invalid_resource_or_action(
 
 
 @pytest.mark.asyncio
-async def test_authz_policy_api_unavailable_in_csv_mode(admin_client: AsyncClient):
+async def test_authz_policy_api_csv_mode_is_read_only(admin_client: AsyncClient):
     old_backend = settings.AUTHZ_BACKEND
     old_policy_url = settings.AUTHZ_POLICY_DATABASE_URL
     try:
@@ -940,7 +940,8 @@ async def test_authz_policy_api_unavailable_in_csv_mode(admin_client: AsyncClien
         await reload_enforcer()
 
         resp = await admin_client.get("/api/v1/authz/policies")
-        assert resp.status_code == 409
+        assert resp.status_code == 200
+        # Changes stay refused in csv mode: see test_authz_rights_grid.py.
     finally:
         settings.AUTHZ_BACKEND = old_backend
         settings.AUTHZ_POLICY_DATABASE_URL = old_policy_url
@@ -1120,7 +1121,8 @@ async def test_authz_policy_rate_limit_is_user_scoped_same_ip(test_engine, db_se
             app.dependency_overrides.pop(get_db, None)
             return statuses
 
-        statuses_a = await _run_for_user(uuid.uuid4(), 11)
+        # A real user: the first call changes a right, and its audit row needs the user.
+        statuses_a = await _run_for_user(db_seed["user_id"], 11)
         assert all(code in (200, 201) for code in statuses_a[:10])
         assert statuses_a[10] == 429
 
