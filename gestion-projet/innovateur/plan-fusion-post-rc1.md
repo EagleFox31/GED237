@@ -192,6 +192,8 @@ Contrainte de O : du 20 au 23, Q est pris par la recette. **Pendant ces quatre j
 | dès que relue par Q (au plus tôt le 24, sauf si relue avant le 20) | Chaîne des migrations #161 → #197 → #162 → #180 → #183 → #194 ; puis #193, #186, #165, #192 | ordre alembic du § 2 ; #197 juste après #161 (§ 7) |
 | après la réponse du PO du 23 | #171 (doublons) ; #196 et la PR de #195 (portée) | accord écrit du PO sur le fond (`dossier-decisions-po-23-11.md`) |
 
+**Ordre détaillé : voir le § 8.6 (décision O du 17/11). Il prime sur les lignes « L2 » et « migrations » ci-dessus.**
+
 Il n'y a plus de journée « sans fusion » le 29 : la démo ne dépend plus de `main`.
 
 ### 8.3 Règles levées, et celles qui restent
@@ -217,3 +219,36 @@ Dès le 19, `main` peut porter des migrations que la release n'a pas. Si une bas
 2. **`ci.yml` ne se déclenche que sur `main` et `develop`** (`push` et `pull_request`). Q y ajoute `release/**` avant le gel, comme décidé par O, **dans les deux déclencheurs**. Cet ajout doit être fusionné sur `main` **avant la coupure** pour se retrouver sur la release.
 3. **La recette nocturne planifiée ne tourne que sur la branche par défaut** (cron de `e2e-uat-nightly.yml`). Sur la release, elle se lance à la main par `gh workflow run e2e-uat-nightly.yml --ref release/v1.0.0` (check-list § 1, E3 bis, et § 2).
 4. **#121 et la PR des notes de B ont `main` pour base** (`Vérifié` pour #121). Leurs auteurs les reciblent juste après la coupure, avec `gh pr edit <n> --base release/v1.0.0`, puis les rebasent sur la release.
+
+### 8.6 Ordre de fusion sur `main` après la coupe (décision O du 17/11)
+
+Chaque PR fusionne à deux conditions : elle est relue par Q et sa CI est verte. Q relit dans ce même ordre. La chaîne alembic commande. Cet ordre **remplace** celui des lignes « migrations » et « L2 » du § 8.2. Il est reporté dans la colonne « ordre » de `releve-prs-19-11.md`.
+
+| Étape | PR, dans l'ordre | Condition propre |
+|---|---|---|
+| 1. Indépendantes | #197, #203, #171 | #171 (backend des doublons, sans migration) s’appuie sur `deleted_at`, déjà présent sur `main` ; voir l’écart A pour #197 |
+| 2. Chaîne des migrations | #161 → #180 → #183 → #154 → #193 → #186 → #165 → #192 | chaque PR rebasée, avec `down_revision` posé sur la tête de la précédente |
+| 3. Interfaces empilées | #209 après #180 ; #205 après #165 | reciblées sur `main` après la fusion de leur base |
+| 4. Corbeille et doublons | #152 → #181 → #184 → #211 → #182 → #199 | passes ciblées vertes (§ 4) ; **#199 reste bloquée tant que #171 n’est pas fusionnée** |
+
+**Têtes alembic relevées le 17/11** (`git show` sur les têtes des branches, fichiers ajoutés par rapport à la base) :
+
+| PR | Révision ajoutée | `down_revision` | Commentaire |
+|---|---|---|---|
+| `main` | tête `a7c8d9e0f1b2` | — | — |
+| #161 | `eff6822a5320` | `a7c8d9e0f1b2` | OK |
+| #180 | `b9d4e2f7a1c3` | `eff6822a5320` | OK (embarque la migration de #161) |
+| #183 | `c3e8a5d1f2b7` | `b9d4e2f7a1c3` | OK (embarque les migrations de #161 et #180) |
+| #154 | aucune | — | — |
+| #193 (`f2cc377`) | `d4e8b2c6a1f3` | **`a7c8d9e0f1b2`** | **écart B** : attendu `c3e8a5d1f2b7` |
+| #186 | `d4f1b6c2e8a9` | `a7c8d9e0f1b2` | à reposer sur `d4e8b2c6a1f3` au rebasage |
+| #165 | `8aed3f3826d7` | `a7c8d9e0f1b2` | à reposer sur `d4f1b6c2e8a9` |
+| #192 | `c9f2a7d4e1b6` | `a7c8d9e0f1b2` | à reposer sur `8aed3f3826d7` |
+| #197 | `eff6822a5320` (celle de #161) | `a7c8d9e0f1b2` | voir l'écart A |
+| #203, #152, #181 | aucune | — | — |
+
+**Écarts à trancher par O** :
+- **A. #197 n'est pas indépendante.** Elle contient les commits de #161 (`51fa2cd`, `41ec6cc`, `80c3ea9`), les 10 fichiers de #161 et la même migration `eff6822a5320`. Si elle passe en premier, elle fait entrer #161 sans relecture. Le § 7 la plaçait déjà « juste après #161 ». Proposition : la sortir de l'étape 1 et la placer juste après #161 dans l'étape 2.
+- **B. `down_revision` de #193 vaut `a7c8d9e0f1b2`, et non `c3e8a5d1f2b7`.** La branche a été écrite contre la tête actuelle de `main`. Dans l'ordre décidé, B doit la poser sur `c3e8a5d1f2b7` au rebasage après #183. Sinon, `alembic heads` renvoie deux têtes. Il en va de même pour #186, #165 et #192, qui partent toutes de `a7c8d9e0f1b2`. Chaque rebasage doit être suivi de `alembic heads`, qui doit renvoyer une seule tête.
+- **C. PR de l’ancien ordre absentes du nouveau** : #162 et #194 (migrations, § 8.2), #179 (chaîne L2), #153 → #190 (L3), #155 (L6), #196 (après le PO du 23). #171 est entrée à l’étape 1 (O, 17/11). Il faut décider si elles restent hors de cet ordre ou si elles s'y insèrent. #180 embarque des commits de #162 (`PASSATION-ci-qa.md` l. 607).
+- **D. #171 et l'accord du PO du 23.** Le § 8.2 subordonnait #171 (doublons) à l'accord écrit du PO sur le fond (`dossier-decisions-po-23-11.md`). À l'étape 1, elle peut fusionner dès sa relecture par Q, donc avant le 23. Il faut décider si l'accord du PO reste une condition de fusion de #171, ou seulement de #199 (l'écran).
