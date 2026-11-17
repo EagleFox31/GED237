@@ -11,7 +11,7 @@ import { accountLockOf, authErrorMessage } from './auth/authErrors';
 
 /** Message français d'une erreur d'API sur cet écran (l'API répond en anglais). */
 const messageOf = (err: unknown, fallback: string) =>
-  err instanceof ApiError ? authErrorMessage(err.status, err.raw.detail, fallback) : fallback;
+  err instanceof ApiError ? authErrorMessage(err.status, err.raw.detail, fallback, err.raw.error_code) : fallback;
 
 /** Verrou de compte (423) : message serveur et durée restante en secondes. */
 const lockoutOf = (err: unknown): { message: string; seconds: number } | null =>

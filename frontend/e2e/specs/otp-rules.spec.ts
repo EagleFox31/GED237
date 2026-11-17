@@ -13,6 +13,8 @@ import {
 import {
   LOCKED_FALLBACK,
   LOGIN_FAILED,
+  OTP_CONTACT_MISSING,
+  OTP_DELIVERY_FAILED,
   SESSION_EXPIRED,
   TOO_MANY_TRIES,
   TOO_MANY_TRIES_LONGER,
@@ -54,6 +56,19 @@ test.describe('Écrans de connexion : erreurs API en français', () => {
     expect(withRoleLabels('Le rôle tenant_admin exige une adresse e-mail')).toBe('Le rôle Admin Institution exige une adresse e-mail');
     expect(withRoleLabels('super_admin ou unit_admin')).toBe('Super Admin ou Admin Service');
     expect(authErrorMessage(422, 'Le rôle super_admin exige une adresse e-mail', 'x')).toBe('Le rôle Super Admin exige une adresse e-mail');
+  });
+
+  test('409 sans adresse e-mail : le dire, pas « vérifiez vos identifiants »', () => {
+    const detail = "Aucune adresse e-mail n'est enregistrée pour ce compte. Contactez votre administrateur.";
+    expect(authErrorMessage(409, detail, LOGIN_FAILED, 'OTP_CONTACT_MISSING')).toBe(OTP_CONTACT_MISSING);
+    expect(OTP_CONTACT_MISSING).toBe(
+      "Aucune adresse e-mail n'est enregistrée pour votre compte. Contactez votre administrateur.",
+    );
+  });
+
+  test('503 envoi du code impossible : réessayer plus tard', () => {
+    expect(authErrorMessage(503, 'Le code de vérification…', LOGIN_FAILED, 'OTP_DELIVERY_FAILED')).toBe(OTP_DELIVERY_FAILED);
+    expect(OTP_DELIVERY_FAILED).toBe("Le code n'a pas pu être envoyé. Réessayez dans quelques minutes.");
   });
 
   test('détail inconnu ou absent : message de repli', () => {

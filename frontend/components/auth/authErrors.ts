@@ -8,6 +8,18 @@ export const TOO_MANY_TRIES_LONGER = "Trop d'essais. Réessayez dans quelques mi
 export const SESSION_EXPIRED = 'Délai dépassé. Reconnectez-vous.';
 export const LOGIN_FAILED = 'Échec de connexion. Vérifiez vos identifiants.';
 export const LOCKED_FALLBACK = 'Compte verrouillé temporairement.';
+export const OTP_CONTACT_MISSING =
+  "Aucune adresse e-mail n'est enregistrée pour votre compte. Contactez votre administrateur.";
+export const OTP_DELIVERY_FAILED = "Le code n'a pas pu être envoyé. Réessayez dans quelques minutes.";
+
+/**
+ * Codes d'erreur stables du serveur (#193) → message. Levés seulement après un mot de passe
+ * juste (envoi du code), ils ne révèlent donc rien sur l'existence du compte.
+ */
+const KNOWN_CODES: Record<string, string> = {
+  OTP_CONTACT_MISSING, // 409
+  OTP_DELIVERY_FAILED, // 503
+};
 
 /** Détails connus de l'API (anglais) → message affiché. */
 const KNOWN_DETAILS: Record<string, string> = {
@@ -60,14 +72,18 @@ export const withRoleLabels = (text: string): string =>
  * Message français pour une erreur d'API sur ces écrans.
  * 429 : texte fixe selon la fenêtre (celui de slowapi est en anglais). Le blocage du compte est
  * un 423, traité à part par `accountLockOf`. Détail connu : sa traduction.
- * 422 : le détail (français côté serveur) avec les libellés de rôle. Sinon : `fallback`.
+ * 422 : le détail (français côté serveur) avec les libellés de rôle. Code d'envoi du code connu
+ * (`errorCode`) : son message. Sinon : `fallback`.
  */
 export const authErrorMessage = (
   status: number | undefined,
   detail: string | undefined,
   fallback: string,
+  errorCode?: string,
 ): string => {
   if (status === 429) return rateLimitMessage(detail);
+  const byCode = errorCode ? KNOWN_CODES[errorCode] : undefined;
+  if (byCode) return byCode;
   const known = KNOWN_DETAILS[(detail ?? '').trim().toLowerCase()];
   if (known) return known;
   if (status === 422 && detail) return withRoleLabels(detail);
