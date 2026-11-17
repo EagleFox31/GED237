@@ -1,8 +1,8 @@
 # Fiche admin : activer la vérification par application
 
 - **Pour** : les administrateurs d'institution (`tenant_admin`) et de plateforme (`super_admin`). Elle sert pour #193 et pour les écrans de F.
-- **Règles** : DEC-2026-004, option (d), décidée par le PO le 17/11. Le contrat est celui de la PR #193 (a744d07, relue le 17/11 en lecture seule) : code à 6 chiffres renouvelé toutes les 30 s, émetteur affiché « E-Dossier ».
-- **Libellés** : ceux des écrans de F (message du 17/11). F confirme à l'ouverture de sa PR si l'un d'eux change.
+- **Règles** : DEC-2026-004, option (d), décidée par le PO le 17/11. Le contrat est celui de la PR #193 (tête 3d0e4a7 au 17/11 ; a744d07 relue en lecture seule) : code à 6 chiffres renouvelé toutes les 30 s, émetteur affiché « E-Dossier ».
+- **Libellés** : ceux des écrans de F, confirmés le 17/11 (commit 97a5d3e de `feat/post-rc1-totp-ui`). F confirme à l'ouverture de sa PR si l'un d'eux change.
 - **Hors fiche** : la clé du serveur et le script d'exploitation, qui relèvent de l'installation (`protocole-installation-site.md`).
 
 ---
@@ -28,7 +28,7 @@ Votre compte d'administrateur donne accès à toute l'institution. Pour le prot�
 5. Tapez ce code dans le champ **Code à 6 chiffres**, puis touchez **Valider**.
 6. C'est fait : vous arrivez dans E-Dossier. Un e-mail vous confirme l'ajout de l'application.
 
-Code refusé ? Attendez le code suivant et recommencez. Une erreur ne bloque pas le compte. Après 5 essais en une minute, patientez une minute. Au bout de 10 minutes, l'écran expire : reconnectez-vous et reprenez à l'étape 1.
+« Code incorrect » ? Attendez le code suivant et recommencez. Une erreur ne bloque pas le compte. Après 5 essais en une minute, l'écran affiche « Trop d'essais. Réessayez dans une minute. » : patientez une minute. Au bout de 10 minutes, l'écran affiche « Délai dépassé. Reconnectez-vous. » : reconnectez-vous et reprenez à l'étape 1.
 
 ### 3. Se connecter ensuite (chaque jour)
 
@@ -37,7 +37,7 @@ Code refusé ? Attendez le code suivant et recommencez. Une erreur ne bloque pas
 
 Aucun code n'arrive par e-mail, et le bouton « Renvoyer le code » n'existe pas pour votre compte : c'est normal.
 Un code ne sert qu'une fois. Si vous vous reconnectez aussitôt, attendez le code suivant.
-Le code est toujours refusé ? Vérifiez que l'heure de votre téléphone est réglée sur **automatique**.
+« Code invalide » à chaque essai ? Vérifiez que l'heure de votre téléphone est réglée sur **automatique**.
 Après 3 codes faux, votre compte est bloqué 15 minutes, même avec le bon mot de passe. L'écran affiche le temps restant et vous recevez un e-mail. Si ce n'est pas vous, prévenez un administrateur de plateforme.
 
 ### 4. Téléphone perdu, volé ou changé sans sauvegarde
@@ -47,11 +47,11 @@ Vous ne pouvez pas vous dépanner seul, et l'e-mail ne remplace pas l'applicatio
 1. Allez voir **en personne** la personne de niveau supérieur :
    - vous êtes administrateur d'institution : un administrateur de plateforme ;
    - vous êtes administrateur de plateforme : un **autre** administrateur de plateforme.
-2. Avant de réinitialiser, le niveau supérieur vérifie votre carte professionnelle (ou une pièce d'identité). Il touche ensuite **Réinitialiser l'application d'authentification** dans votre fiche.
-3. **Toutes vos sessions sont fermées aussitôt**, sur tous les appareils, y compris le téléphone perdu. Vous recevez un e-mail qui signale la réinitialisation.
+2. Avant de réinitialiser, le niveau supérieur vérifie votre carte professionnelle (ou une pièce d'identité). Il choisit ensuite **Réinitialiser l'application d'authentification** dans le menu de votre compte. L'écran lui rappelle : « Vérifiez l'identité de l'administrateur en personne. » et « Toutes ses sessions seront fermées. »
+3. **Toutes vos sessions sont fermées aussitôt**, sur tous les appareils, y compris le téléphone perdu. Vous recevez un e-mail qui signale la réinitialisation. À la connexion suivante, un bandeau en donne la date et l'heure, avec « Pas vous ? Contactez un administrateur de plateforme. »
 4. Sur place, reconnectez-vous et refaites la partie 2 avec votre nouveau téléphone.
 
-Vous êtes administrateur d'institution ? C'est vous qui réinitialisez l'application des agents de votre institution ; un administrateur de plateforme ne le fait pas à votre place. Même règle : vérifiez **en personne** sa carte professionnelle (ou une pièce d'identité), jamais par téléphone ni par e-mail. Prévenez l'agent que toutes ses sessions vont se fermer.
+Vous êtes administrateur d'institution ? C'est vous qui réinitialisez l'application des agents de votre institution, Admin Service compris ; un administrateur de plateforme ne peut pas le faire à votre place. Vous ne pouvez pas réinitialiser votre propre compte. Même règle : vérifiez **en personne** sa carte professionnelle (ou une pièce d'identité), jamais par téléphone ni par e-mail. Prévenez l'agent que toutes ses sessions vont se fermer.
 
 ### 5. Pourquoi votre compte doit avoir une adresse e-mail
 
