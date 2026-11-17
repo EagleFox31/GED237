@@ -9,7 +9,9 @@ const PendingAssignmentsInbox: React.FC = () => {
   const inbox = useWorkflowInbox('unassigned', { pageSize: 200 });
   const assignments: any[] = inbox.items;
   const loading = inbox.loading && assignments.length === 0;
-  const fetchAssignments = () => void inbox.reload();
+  const fetchAssignments = () => {
+    inbox.reload();
+  };
   // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('q') || '';
@@ -134,7 +136,7 @@ const PendingAssignmentsInbox: React.FC = () => {
           {inbox.hasMore && (
             <button
               type="button"
-              onClick={() => void inbox.loadMore()}
+              onClick={() => inbox.loadMore()}
               disabled={inbox.loading}
               className="w-full rounded-2xl border-2 border-slate-200 bg-white py-3 text-xs font-bold text-slate-700 hover:border-rdpc-blue hover:text-rdpc-blue disabled:opacity-50"
             >

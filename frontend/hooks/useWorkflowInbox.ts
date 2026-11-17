@@ -37,7 +37,8 @@ export function useWorkflowInbox(scope: InboxScope, { recursive = false, pageSiz
 
   const load = useCallback(
     async (offset: number) => {
-      const id = ++request.current;
+      request.current += 1;
+      const id = request.current;
       setState((s) => ({ ...s, loading: true, failed: false }));
       try {
         const page = await api.getWorkflowInbox({ scope, recursive, limit: pageSize, offset });
@@ -64,7 +65,7 @@ export function useWorkflowInbox(scope: InboxScope, { recursive = false, pageSiz
   );
 
   useEffect(() => {
-    void load(0);
+    load(0);
   }, [load]);
 
   const reload = useCallback(() => load(0), [load]);

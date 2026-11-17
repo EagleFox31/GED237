@@ -200,7 +200,7 @@ const WorkflowTasks: React.FC = () => {
         <div className="flex justify-center">
           <button
             type="button"
-            onClick={() => void inbox.loadMore()}
+            onClick={() => inbox.loadMore()}
             disabled={inbox.loading}
             className="rounded-2xl border-2 border-slate-200 bg-white px-6 py-3 text-xs font-bold text-slate-700 hover:border-rdpc-blue hover:text-rdpc-blue disabled:opacity-50"
           >
@@ -212,7 +212,9 @@ const WorkflowTasks: React.FC = () => {
       <RejectReasonDialog
         documentTitle={rejecting ? rejecting.document?.title || rejecting.label : null}
         submitting={rejecting !== null && processingId === rejecting.id}
-        onConfirm={(reason) => rejecting && void decide(rejecting, 'reject', reason)}
+        onConfirm={(reason) => {
+          if (rejecting) decide(rejecting, 'reject', reason);
+        }}
         onCancel={() => setRejecting(null)}
       />
     </div>
