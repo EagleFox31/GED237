@@ -107,6 +107,7 @@ export const api = {
     getWorkflowActions: workflowsApi.getWorkflowActions,
     getPendingWorkflows: workflowsApi.getPendingWorkflows,
     getPendingAssignments: workflowsApi.getPendingAssignments,
+    getWorkflowInbox: workflowsApi.getWorkflowInbox,
     getWorkflowValidators: workflowsApi.getWorkflowValidators,
     decideWorkflowStep: workflowsApi.decideWorkflowStep,
     submitWorkflowAction: workflowsApi.submitWorkflowAction,

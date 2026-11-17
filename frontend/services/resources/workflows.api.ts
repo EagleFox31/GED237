@@ -3,10 +3,28 @@
 // Domaine : workflows (étapes, actions, en attente, assignation, stats).
 // SRP : change uniquement si le contrat /workflows/* évolue.
 
-import { apiCall } from '../http/client';
+import { API_URL } from '../../constants';
+import { apiCall, fetchWithRefresh, getHeaders } from '../http/client';
+import { buildApiError } from '../http/errorAdapter';
 import type { PendingWorkflowTask, WorkflowValidator } from '../../types';
 
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
+
+/** Files de GET /workflows/inbox : mes étapes, celles de mon unité, celles sans validateur. */
+export type InboxScope = 'mine' | 'unit' | 'unassigned';
+
+export interface InboxQuery {
+    scope: InboxScope;
+    /** Portée `unit` : inclure les unités filles. */
+    recursive?: boolean;
+    limit?: number;
+    offset?: number;
+}
+
+export interface InboxPage {
+    items: PendingWorkflowTask[];
+    total: number;
+}
 
 export interface WorkflowActionPayload {
     action_type: string;
@@ -74,6 +92,21 @@ export const workflowsApi = {
 
     getWorkflowValidators: (): Promise<WorkflowValidator[]> =>
         apiCall<WorkflowValidator[]>('/workflows/validators', {}, 'Récupération des valideurs impossible'),
+
+    /**
+     * File de validation unifiée. `null` quand le serveur ne la propose pas encore
+     * (404 tant que WORKFLOW_INBOX_ENABLED=false) : l'appelant reprend alors les anciennes
+     * routes. Ce 404 attendu ne passe pas par le bus d'erreurs.
+     */
+    getWorkflowInbox: async ({ scope, recursive = false, limit = 50, offset = 0 }: InboxQuery): Promise<InboxPage | null> => {
+        const params = new URLSearchParams({ scope, recursive: String(recursive), limit: String(limit), offset: String(offset) });
+        const response = await fetchWithRefresh(`${API_URL}/workflows/inbox?${params}`, { headers: getHeaders(false) });
+        if (response.status === 404) return null;
+        if (!response.ok) throw await buildApiError(response, 'Récupération de la file de validation impossible');
+        const items = (await response.json()) as PendingWorkflowTask[];
+        const header = Number(response.headers.get('X-Total-Count') ?? NaN);
+        return { items, total: Number.isInteger(header) && header >= 0 ? header : items.length };
+    },
 
     getPendingAssignments: (): Promise<any[]> =>
         apiCall<any[]>('/workflows/pending-assignments', {}, 'Récupération des assignations impossible'),

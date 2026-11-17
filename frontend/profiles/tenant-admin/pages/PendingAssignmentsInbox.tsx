@@ -2,10 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../../services/api';
+import { useWorkflowInbox } from '../../../hooks/useWorkflowInbox';
 
 const PendingAssignmentsInbox: React.FC = () => {
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Même file que l'onglet « Sans validateur » de Tâches & Validations (#153).
+  const inbox = useWorkflowInbox('unassigned', { pageSize: 200 });
+  const assignments: any[] = inbox.items;
+  const loading = inbox.loading && assignments.length === 0;
+  const fetchAssignments = () => void inbox.reload();
   // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('q') || '';
@@ -21,21 +25,8 @@ const PendingAssignmentsInbox: React.FC = () => {
   const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
-    fetchAssignments();
     fetchUsers();
   }, []);
-
-  const fetchAssignments = async () => {
-    try {
-      setLoading(true);
-      const data = await api.getPendingAssignments();
-      setAssignments(data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchUsers = async () => {
     try {
@@ -52,7 +43,7 @@ const PendingAssignmentsInbox: React.FC = () => {
     try {
       setAssigning(true);
       await api.assignPendingStep(selectedAssignment.id, selectedUserId);
-      setAssignments(assignments.filter(a => a.id !== selectedAssignment.id));
+      inbox.remove(selectedAssignment.id);
       setSelectedAssignment(null);
       setSelectedUserId('');
     } catch (e) {
@@ -139,6 +130,16 @@ const PendingAssignmentsInbox: React.FC = () => {
                 )}
               </div>
             ))
+          )}
+          {inbox.hasMore && (
+            <button
+              type="button"
+              onClick={() => void inbox.loadMore()}
+              disabled={inbox.loading}
+              className="w-full rounded-2xl border-2 border-slate-200 bg-white py-3 text-xs font-bold text-slate-700 hover:border-rdpc-blue hover:text-rdpc-blue disabled:opacity-50"
+            >
+              Voir plus
+            </button>
           )}
         </div>
 

@@ -1,38 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { api } from '../../../services/api';
 import type { WorkflowDecision } from '../../../services/resources/workflows.api';
 import type { PendingWorkflowTask } from '../../../types';
 import { RejectReasonDialog } from '../../../components/workflow/RejectReasonDialog';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { useWorkflowInbox } from '../../../hooks/useWorkflowInbox';
 
 const ValidationHub: React.FC = () => {
-  const [documents, setDocuments] = useState<PendingWorkflowTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Même file que l'écran Tâches & Validations (#153).
+  const inbox = useWorkflowInbox('mine');
+  const documents = inbox.items;
+  const loading = inbox.loading && documents.length === 0;
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<PendingWorkflowTask | null>(null);
-
-  useEffect(() => {
-    fetchWorkflows();
-  }, []);
-
-  const fetchWorkflows = async () => {
-    try {
-      const pendingWorkflows = await api.getPendingWorkflows();
-      setDocuments(pendingWorkflows);
-    } catch (error) {
-      console.error("Failed to fetch pending workflows", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const decide = async (task: PendingWorkflowTask, decision: WorkflowDecision, comment?: string) => {
     setProcessingId(task.id);
     try {
       await api.decideWorkflowStep(task, decision, comment);
-      setDocuments(prev => prev.filter(d => d.id !== task.id));
+      inbox.remove(task.id);
       setRejecting(null);
     } catch (e) {
       // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (version absente).
