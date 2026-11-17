@@ -69,7 +69,7 @@ Vous ouvrez les institutions sur la plateforme. Vous ne gérez pas leur travail 
 
 « Dashboard Global », « Institutions », « Utilisateurs », « Gestion AuthZ », « Documents », « Workflows », « Import en masse », « Bibliothèque locale », « Audit », « Paramètres ».
 
-- « Gestion AuthZ » : les règles d'accès communes à toutes les institutions. Ce ne sont pas les circuits de validation.
+- « Gestion AuthZ » : les règles d'accès communes à toutes les institutions. Dans cette version, elles ne s'y modifient pas (voir « Ce qui se règle où »). Ce ne sont pas les circuits de validation.
 - « Workflows » : les circuits de validation.
 
 ### Bon à savoir
@@ -83,11 +83,19 @@ Vous ouvrez les institutions sur la plateforme. Vous ne gérez pas leur travail 
 |---|---|
 | Institutions, leur organisation et leur premier administrateur (« Institutions ») | Mots de passe techniques et clé de sécurité |
 | Comptes (« Utilisateurs ») | Durée des sessions, nombre d'essais de connexion, taille maximale d'un envoi |
-| Règles d'accès (« Gestion AuthZ ») | Sauvegardes et restaurations |
-| Affichage du menu (« Paramètres ») | Adresse et port de l'application |
-| Côté Admin Institution : plan de classement, règles de rangement, modèles, espaces | — |
+| Affichage du menu (« Paramètres ») | Droits des rôles (fichier `policy.csv`) |
+| Côté Admin Institution : plan de classement, règles de rangement, modèles, espaces | Sauvegardes et restaurations |
+| — | Adresse et port de l'application |
 
-Les mots de passe techniques ne passent jamais par l'écran. Les autres réglages du serveur passeront à l'écran dans la prochaine version, avec un écran des droits plus simple (rôles et actions à cocher). Détail des réglages du serveur : `DOCS/exploitation/installation.md` § 3.
+Les mots de passe techniques ne passent jamais par l'écran.
+
+Dans cette version, les droits ne se règlent pas à l'écran. Le serveur les garde dans un fichier, et l'onglet des règles de « Gestion AuthZ » affiche une erreur au lieu de la liste.
+
+Dans la prochaine version :
+- la durée des sessions, le nombre d'essais de connexion et la taille maximale d'un envoi passeront à l'écran ;
+- les droits s'afficheront dans une grille (rôles et actions à cocher), que seul le super admin pourra modifier.
+
+Détail des réglages du serveur : `DOCS/exploitation/installation.md` § 3.
 
 ---
 
