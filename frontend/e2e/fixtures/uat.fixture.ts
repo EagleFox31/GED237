@@ -246,10 +246,6 @@ export class UatApi {
     );
   }
 
-  async document(documentId: string): Promise<{ id: string; status: string; current_version_id: string | null }> {
-    return ok(await this.request.get(`${API_URL}/documents/${documentId}`, { headers: this.headers }), `document ${documentId}`);
-  }
-
   /** Accepts a visa step as its assignee, on the current version (same body as « Valider » in /tasks). */
   async acceptVisa(stepId: string, versionId: string): Promise<void> {
     await ok(

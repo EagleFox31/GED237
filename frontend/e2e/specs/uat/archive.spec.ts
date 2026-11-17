@@ -11,10 +11,10 @@ import { test, expect, apiAs, type UatApi } from '../../fixtures/uat.fixture';
 async function validatedDocument(owner: UatApi, validator: UatApi, runId: string, title: string) {
   const doc = await owner.uploadDocument(`archive-${runId}-${title.length}.txt`, title, `Archiver ${title}`);
   const [step] = await owner.submitForVisa(doc.id, (await validator.me()).id, 'Visa archivage');
-  const { current_version_id: versionId } = await owner.document(doc.id);
+  const { current_version_id: versionId } = await owner.getDocument(doc.id);
   if (!step || !versionId) throw new Error(`circuit ou version absent pour ${title}`);
   await validator.acceptVisa(step.id, versionId);
-  await expect.poll(async () => (await owner.document(doc.id)).status).toBe('validated');
+  await expect.poll(async () => (await owner.getDocument(doc.id)).status).toBe('validated');
   return doc;
 }
 
@@ -37,7 +37,7 @@ test.describe('Archivage', () => {
     await page.getByRole('button', { name: 'Oui, archiver', exact: true }).click();
 
     // Pendant la requête le bouton affiche « Archivage… » : on attend l'état serveur, pas sa disparition.
-    await expect.poll(async () => (await adminApi.document(doc.id)).status).toBe('archived');
+    await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('archived');
     await expect(archive).toHaveCount(0);
     await page.getByRole('button', { name: 'Fermer' }).click();
     await expect(page.locator('.grid > div').filter({ hasText: title }).getByText('Archivé')).toBeVisible();
