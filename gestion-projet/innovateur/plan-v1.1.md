@@ -75,12 +75,25 @@ Classé de la plus faible à la plus forte valeur pour les agents. On sort dans 
 
 | Ordre | À sortir (vers V1.2) | Valeur pour les agents | Gain (h-s) |
 |---|---|---|---|
-| 1 | Versions majeures de Dependabot : #29 (TypeScript 7), #30 (ESLint 10), #110 (Python 3.15), #113 (Starlette 1.x). On garde #111, #112 et #141. | aucune, visible ou non | ≈ 3 (Q 1) |
-| 2 | #265 (suppression de table) et #279 (abandon d'une route) | aucune : nettoyage technique | ≈ 1,25 (Q 0,5) |
-| 3 | Alertes de qualité : #183 et #194 (≈ 4 350 lignes) | faible : elles servent la direction, pas l'agent | ≈ 3,5 (Q 2,5) |
+| 1 | **Sorti vers V1.2 (O, 17/11).** Versions majeures de Dependabot : #29 (TypeScript 7), #30 (ESLint 10), #110 (Python 3.15), #113 (Starlette 1.x). On garde #111, #112 et #141. | aucune, visible ou non | ≈ 3 (Q 1) |
+| 2 | **Sorti vers V1.2 (O, 17/11).** #265 (suppression de table) et #279 et #281 (abandon d'une route) | aucune : nettoyage technique | ≈ 1,25 (Q 0,5) |
+| 3 | **En attente du PO (O, 17/11) :** fonction visible. Alertes de qualité : #183 et #194 (≈ 4 350 lignes) | faible : elles servent la direction, pas l'agent | ≈ 3,5 (Q 2,5) |
 | 4 | #278 (tableau de bord du manager, détail d'un modèle) | moyenne-faible : managers seulement | ≈ 2 (Q 0,5) |
 | 5 | Lot 8b (écran des droits) | faible pour l'agent : administrateur seulement. Mais **le PO l'a choisi** (question 12, C) : à sortir seulement avec son accord. | ≈ 3 (Q 0,5) |
 
 Les sorties 1 à 3 rendent ≈ 7,75 h-s, dont 4 h-s de Q : la marge revient sans toucher à une décision du PO. On ne sort pas la fiche document (lot 9), le périmètre (lot 11), le code par e-mail (lot 2) ni la corbeille et l'annulation (lot 1) : c'est ce que les agents utilisent chaque jour.
 
 **Recommandation** : sortir 1 à 3 dès maintenant, garder le 04/12, et revoir après les chiffres de B et F. S'ils dépassent les miens de plus de 2 h-s, sortir aussi 4, puis demander au PO pour 5.
+
+### Décisions de O et chiffres de F (17/11 au soir)
+
+- **Sortis vers la V1.2** : les sorties 1 et 2 (Dependabot majeurs ; #265, #279 et #281). Gain ≈ 4,25 h-s, dont Q 1,5.
+- **En attente du PO** : la sortie 3 (#183 et #194), car c'est une fonction visible.
+- **Chiffres de F** (code et e2e, sans la relecture de Q) :
+  - #274 : 2. Le ticket comprend l'ajout de 3 champs facultatifs à la fiche côté API, validé par O, le renouvellement et la libération du verrou à la fermeture, et un e2e à deux utilisateurs ;
+  - #275 : 1 ; #276 : 0,5 ; #277 : 1 ; #278 : 1,5 ;
+  - #280 : 8a 1,5 et 8b 1,5, provisoires jusqu'à sa lecture du ticket.
+  F passe de 14,75 à 15,75 h-s. Ordre prévu par F : #249 → #276 → #275 → #274.
+- **Chiffres de B** : `En attente` (API de #280, #254).
+
+Recalcul provisoire : total ≈ 58,75 h-s (B 20,25, F 15,75, Q 23,75). Q dépasse encore de ≈ 1,75 h-s les ≈ 22 h-s disponibles hors marge. **Si le PO accepte la sortie 3, Q tombe à ≈ 21,25 h-s et le 04/12 tient avec sa marge.** Sinon, le 04/12 tient en entamant ≈ 1,75 h-s de marge sur 6,8. Le recalcul définitif se fait aux chiffres de B.
