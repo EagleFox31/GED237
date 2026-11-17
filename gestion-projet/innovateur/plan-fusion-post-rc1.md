@@ -229,7 +229,7 @@ Chaque PR fusionne à deux conditions : elle est relue par Q et sa CI est verte.
 | Étape | PR, dans l'ordre | Propriétaire | Condition propre |
 |---|---|---|---|
 | 1. Indépendantes, sans migration | #179, #153, #155 | B | #179 ouvre la voie à #184, #153 à #190. #155 n'a pas de suite |
-| 2. Chaîne des migrations | #197 → #162 → #180 → #183 → #154 → #193 → #186 → #165 → #192 | B | règle de chaînage ci-dessous. #197 remplace #161 ; #162 (sans migration) avant #180, qui l'embarque |
+| 2. Chaîne des migrations | #197 → #162 → #180 → #183 → #154 → #212 → #193 → #186 → #165 → #192 | B | règle de chaînage ci-dessous. #197 remplace #161 ; #162 (sans migration) avant #180, qui l'embarque ; #212 (sans migration, empilée sur #154) juste après #154 (O, 17/11) |
 | 3. Interfaces empilées | #209 après #180 ; #194 après #183 ; #205 après #165 | F | reciblées sur `main` après la fusion de leur base |
 | 4. Corbeille et validation | #152 → #181 → #184 → #211 → #182 → #190 | B (#152), F (#181, #184, #211, #190), Q (#182) | #179 fusionnée avant #184 ; #153 et #181 fusionnées avant #190. Passes ciblées vertes (§ 4) |
 | 5. Après l'accord écrit du PO | #196 → #203 → #213 ; #171 → #199 | B (#196, #203, #213, #171), F (#199) | aucune ne fusionne avant l'accord, même relue et verte (décision D). #213 (correctif de sécurité #202) est empilée sur #203, sans migration. O pose la question manager/lecteur au PO dès le 17/11 : si elle est tranchée avant le 23, #196 → #203 → #213 peut remonter. #199 après #182 et #171 |
@@ -257,7 +257,7 @@ Garde-fou déjà en place sur `main` (vérifié le 17/11) :
 | #186 | `d4f1b6c2e8a9` | `a7c8d9e0f1b2` | à reposer sur `d4e8b2c6a1f3` au rebasage |
 | #165 | `8aed3f3826d7` | `a7c8d9e0f1b2` | à reposer sur `d4f1b6c2e8a9` |
 | #192 | `c9f2a7d4e1b6` | `a7c8d9e0f1b2` | à reposer sur `8aed3f3826d7` |
-| #162, #179, #153, #155, #152, #181, #184, #211, #182, #190, #194, #209, #205, #196, #203, #213, #171, #199 | aucune | — | — |
+| #162, #212, #179, #153, #155, #152, #181, #184, #211, #182, #190, #194, #209, #205, #196, #203, #213, #171, #199 | aucune | — | — |
 
 **Empilements vérifiés le 17/11** (`git merge-base --is-ancestor`, commit par commit) :
 - #161 ⊂ #197 ; #162 (1 commit sur 2) ⊂ #180 ; #180 ⊂ #183 ⊂ #194 ; #180 ⊂ #209 ; #154 ⊂ #193 ; #165 ⊂ #205 ;
