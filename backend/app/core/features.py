@@ -16,9 +16,10 @@ FEATURES: dict[str, str] = {
     "totp": "AUTH_TOTP_ENABLED",  # #193
 }
 
-# Settings listed above whose pull request is not merged here yet: their key
-# reads false until it lands. Whichever of the two merges second removes the
-# line; tests/api/test_config_features.py fails until it does.
+# Settings listed above whose pull request may not be merged yet: their key
+# reads false until it lands (getattr default). Only a name found neither in
+# Settings nor here fails the test (a typo). A line left after its pull request
+# merged is harmless, so no merge order is imposed; cleaned at the end of v1.1.
 NOT_YET_MERGED: dict[str, str] = {
     "RECENT_DOCUMENTS_TRACKING_ENABLED": "#165",
     "SCHEDULED_REPORTS_ENABLED": "#180",

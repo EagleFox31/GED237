@@ -14,7 +14,11 @@ router = APIRouter()
     dependencies=[Depends(get_current_user)],
 )
 async def read_features(response: Response) -> dict[str, bool]:
-    """Every switch of app.core.features, on or off. Read once after login."""
+    """Every switch of app.core.features, on or off. Read once after login.
+
+    Any signed-in user sees every switch, totp included: they say what the
+    server offers, nothing about an account.
+    """
     # Changes only when the server restarts, but never served stale from a cache.
     response.headers["Cache-Control"] = "no-store"
     return feature_flags()

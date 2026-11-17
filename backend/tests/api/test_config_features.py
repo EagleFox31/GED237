@@ -26,13 +26,26 @@ async def test_an_anonymous_caller_is_refused(async_client):
 
 
 @pytest.mark.asyncio
-async def test_the_contract_every_key_a_boolean_never_cached(client_as, db_seed):
+async def test_an_invalid_token_is_refused(async_client):
+    response = await async_client.get(
+        URL, headers={"Authorization": "Bearer not-a-token"}
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_the_contract_every_key_a_boolean_never_cached(
+    client_as, db_seed, monkeypatch
+):
+    monkeypatch.setattr(
+        features, "settings", SimpleNamespace(**dict.fromkeys(FEATURES.values(), False))
+    )
     async with client_as("reader", tenant_id=db_seed["tenant_id"]) as client:
         response = await client.get(URL)
     assert response.status_code == 200
     body = response.json()
     assert list(body) == CONTRACT
-    assert all(value is False for value in body.values())  # every switch off by default
+    assert all(value is False for value in body.values())
     assert response.headers["cache-control"] == "no-store"
 
 
@@ -53,14 +66,13 @@ def test_a_setting_this_server_lacks_reads_off(monkeypatch):
 
 
 def test_each_switch_is_a_setting_or_awaits_its_pull_request():
+    # One way only: requiring the line to go once the setting exists would turn
+    # red whichever of #224 and the setting's pull request merges second.
     fields = Settings.model_fields
-    wrong = {
-        field: NOT_YET_MERGED.get(field)
+    unknown = [
+        field
         for field in FEATURES.values()
-        if (field in fields) == (field in NOT_YET_MERGED)
-    }
-    assert not wrong, (
-        "app/core/features.py: remove from NOT_YET_MERGED the settings now "
-        "defined, or fix the name of an unknown one: " + str(wrong)
-    )
+        if field not in fields and field not in NOT_YET_MERGED
+    ]
+    assert not unknown, f"app/core/features.py: unknown setting name {unknown}"
     assert set(NOT_YET_MERGED) <= set(FEATURES.values())
