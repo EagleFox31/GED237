@@ -99,6 +99,11 @@ export class UatApi {
     filenamePattern: string;
     domainId: string;
     activityId: string;
+    /** Lot V1.1 criteria (#92): keywords searched in the extracted text, year read from the file name. */
+    contentPattern?: string;
+    yearMin?: number;
+    yearMax?: number;
+    priority?: number;
   }): Promise<{ id: string }> {
     return ok(
       await this.request.post(`${API_URL}/classification-rules/rules`, {
@@ -111,6 +116,10 @@ export class UatApi {
           activity_id: input.activityId,
           target_scope: 'service',
           year_strategy: 'current',
+          ...(input.contentPattern !== undefined && { content_pattern: input.contentPattern }),
+          ...(input.yearMin !== undefined && { year_min: input.yearMin }),
+          ...(input.yearMax !== undefined && { year_max: input.yearMax }),
+          ...(input.priority !== undefined && { priority: input.priority }),
         },
       }),
       'create rule',
@@ -180,8 +189,50 @@ export class UatApi {
   }
 
   /** Profile of the authenticated user (used to address a workflow step to a seeded manager). */
-  async me(): Promise<{ id: string; matricule: string }> {
+  async me(): Promise<{ id: string; matricule: string; tenant_id: string }> {
     return ok(await this.request.get(`${API_URL}/users/me`, { headers: this.headers }), 'users/me');
+  }
+
+  /** Creates an account in the admin's tenant (throwaway accounts for destructive journeys such as the OTP lock). */
+  async createUser(input: { matricule: string; password: string; roleCode: string; tenantId: string }): Promise<{ id: string }> {
+    const created = await ok<{ user: { id: string } }>(
+      await this.request.post(`${API_URL}/users/`, {
+        headers: this.headers,
+        data: {
+          matricule: input.matricule,
+          password: input.password,
+          role_code: input.roleCode,
+          tenant_id: input.tenantId,
+          first_name: 'Recette',
+          last_name: input.matricule,
+        },
+      }),
+      `create user ${input.matricule}`,
+    );
+    return created.user;
+  }
+
+  /** CSV export of the filtered audit journal (same endpoint as « Exporter (CSV) »). */
+  async exportAuditCsv(params: Record<string, string>): Promise<string> {
+    const res = await this.request.get(`${API_URL}/audit/logs/export`, { headers: this.headers, params });
+    if (!res.ok()) throw new Error(`audit export failed: HTTP ${res.status()} ${await res.text()}`);
+    return res.text();
+  }
+
+  /** Dashboard counters of the tenant (same endpoint as the admin dashboard). */
+  async tenantMetrics(): Promise<{ duplicates: { refused: number; refused_upload: number; refused_import: number } }> {
+    return ok(await this.request.get(`${API_URL}/analytics/tenant`, { headers: this.headers }), 'analytics/tenant');
+  }
+
+  /** Rule simulation (« Tester ») on a file name and an optional text sample standing for the OCR text. */
+  async simulate(filename: string, contentSample?: string): Promise<{ status: string; rule_code: string | null }> {
+    return ok(
+      await this.request.post(`${API_URL}/classification-rules/simulate`, {
+        headers: this.headers,
+        data: { filename, mime_type: 'text/plain', ...(contentSample !== undefined && { content_sample: contentSample }) },
+      }),
+      `simulate ${filename}`,
+    );
   }
 
   /** Starts a one-step visa circuit on a draft document, as its owner. */
