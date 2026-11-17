@@ -149,6 +149,9 @@ services:
       AUTH_LOCKOUT_SECONDS: "900"
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
+      # Validation queues (#153), off until switched on for the stack.
+      WORKFLOW_INBOX_ENABLED: ${WORKFLOW_INBOX_ENABLED:-false}
+      WORKFLOW_PENDING_EXCLUDE_TRASHED: ${WORKFLOW_PENDING_EXCLUDE_TRASHED:-false}
     depends_on:
       postgres:
         condition: service_healthy
