@@ -4,6 +4,7 @@ import { api } from '../../../services/api';
 import type { WorkflowDecision } from '../../../services/resources/workflows.api';
 import type { PendingWorkflowTask } from '../../../types';
 import { RejectReasonDialog } from '../../../components/workflow/RejectReasonDialog';
+import { ManagerTiles } from '../../../components/ManagerTiles';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
@@ -68,6 +69,8 @@ const ValidationHub: React.FC = () => {
         <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">Espace <span className="text-cam-yellow">Manager</span></h2>
         <p className="text-slate-500 mt-1 font-medium italic">Validez et signez les dossiers en attente de décision.</p>
       </div>
+
+      <ManagerTiles />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto p-1">
         {loading ? (

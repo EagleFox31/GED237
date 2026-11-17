@@ -113,6 +113,7 @@ export const api = {
     getOrgUnitsTree: orgUnitsApi.getOrgUnitsTree,
     getOrgUnitsTreeForTenant: orgUnitsApi.getOrgUnitsTreeForTenant,
     getOrgUnits: orgUnitsApi.getOrgUnits,
+    getOrgUnit: orgUnitsApi.getOrgUnit,
     getOrgUnitTypes: orgUnitsApi.getOrgUnitTypes,
     getOrgUnitsForTenant: orgUnitsApi.getOrgUnitsForTenant,
     createOrgUnit: orgUnitsApi.createOrgUnit,
@@ -139,6 +140,7 @@ export const api = {
 
     // GEDRules
     getTemplates: gedrulesApi.getTemplates,
+    getTemplate: gedrulesApi.getTemplate,
     createTemplate: gedrulesApi.createTemplate,
     updateTemplate: gedrulesApi.updateTemplate,
     deleteTemplate: gedrulesApi.deleteTemplate,
@@ -192,6 +194,7 @@ export const api = {
 
     // Analytics
     getTenantAnalytics: analyticsApi.getTenantAnalytics,
+    getManagerAnalytics: analyticsApi.getManagerAnalytics,
     getPlatformAnalytics: analyticsApi.getPlatformAnalytics,
 
     // Reports

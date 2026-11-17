@@ -1,29 +1,20 @@
 // frontend/profiles/tenant-admin/pages/gedrules/TemplatesTab.tsx
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../../services/api';
+import { ApiError } from '../../../../lib/errors';
+import {
+  NO_STEP_MESSAGE,
+  roleNamesById,
+  sortedSteps,
+  stepSentence,
+  templateDetailError,
+  type TemplateStep,
+} from '../../../../lib/templateDetail';
 
 type ConfirmState = { title: string; message: string; confirmLabel?: string; tone?: 'danger' | 'primary'; onConfirm: () => void } | null;
 type Toast = { tone: 'success' | 'error' | 'info'; message: string } | null;
 
 const slugifyCode = (s: string) => s.toUpperCase().trim().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-
-// Affichage : libellé dérivé du couple (role_id, scope) car tous les niveaux
-// hiérarchiques partagent role_id=4 (Manager / Valideur) — voir GUIDE_ROUTAGE_HIERARCHIQUE.md
-const ROLE_LABELS: Record<number, string> = {
-  5: "Agent / Cadre / Exécutant",
-  4: "Chef (Service / Bureau)",
-  3: "Direction (Directeur, Sous-Directeur)",
-  2: "Haute Direction (Secrétaire Général, Cabinet, etc.)"
-};
-
-const getRoleScopeLabel = (roleId: number, scope?: string): string => {
-  if (roleId === 4) {
-    if (scope === 'parent_org_unit') return "Direction (Directeur, Sous-Directeur)";
-    if (scope === 'grandparent_org_unit') return "Haute Direction (Secrétaire Général, Cabinet, etc.)";
-    return "Chef (Service / Bureau)";
-  }
-  return ROLE_LABELS[roleId] || `ID: ${roleId}`;
-};
 
 const TemplatesTab: React.FC = () => {
   const [templates, setTemplates] = useState<any[]>([]);
@@ -35,6 +26,8 @@ const TemplatesTab: React.FC = () => {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [unitTypes, setUnitTypes] = useState<{ id: number; code: string; label: string; level: number }[]>([]);
+  const [roleNames, setRoleNames] = useState<Record<number, string>>({});
+  const [detailError, setDetailError] = useState<string | null>(null);
   const showToast = (t: NonNullable<Toast>) => { setToast(t); setTimeout(() => setToast(null), 4000); };
 
   const [newTemplate, setNewTemplate] = useState<{
@@ -67,7 +60,28 @@ const TemplatesTab: React.FC = () => {
   useEffect(() => {
     loadTemplates();
     api.getOrgUnitTypes().then(setUnitTypes).catch(e => console.error('Fetch unit types failed', e));
+    // Noms de rôles en clair pour le détail ; en cas d'échec, la phrase d'étape omet le rôle.
+    api.getAssignableRoles().then(roles => setRoleNames(roleNamesById(roles))).catch(() => undefined);
   }, []);
+
+  // Détail (#278) : affichage immédiat depuis la liste, puis relu sur le serveur.
+  const selectTemplate = (t: { id: string }) => {
+    setSelectedTemplate(t);
+    setDetailError(null);
+    api.getTemplate(t.id)
+      .then(detail => setSelectedTemplate((cur: { id: string } | null) => (cur?.id === t.id ? detail : cur)))
+      .catch((error: unknown) => {
+        const status = error instanceof ApiError ? error.status : undefined;
+        const message = templateDetailError(status);
+        if (status === 404) {
+          setSelectedTemplate((cur: { id: string } | null) => (cur?.id === t.id ? null : cur));
+          showToast({ tone: 'error', message });
+          loadTemplates();
+        } else {
+          setDetailError(message);
+        }
+      });
+  };
 
   const handleAddStep = () => {
     setNewTemplate({
@@ -264,7 +278,7 @@ const TemplatesTab: React.FC = () => {
           templates.map(t => (
             <div
               key={t.id}
-              onClick={() => setSelectedTemplate(t)}
+              onClick={() => selectTemplate(t)}
               className={`p-5 rounded-[2rem] border transition-all cursor-pointer relative ${selectedTemplate?.id === t.id ? 'bg-white border-rdpc-blue shadow-xl ring-2 ring-rdpc-blue/10' : 'bg-white/60 border-transparent hover:bg-white hover:shadow-md'}`}
             >
                <div className="flex justify-between items-start mb-2">
@@ -297,6 +311,13 @@ const TemplatesTab: React.FC = () => {
                  <div>
                    <h2 className="text-2xl font-black uppercase italic tracking-tighter mb-2 text-slate-800">{selectedTemplate.name}</h2>
                    <p className="text-slate-500 font-medium italic">{selectedTemplate.description}</p>
+                   <span
+                     data-testid="template-detail-status"
+                     className={`inline-block mt-2 text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${selectedTemplate.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
+                   >
+                     {selectedTemplate.is_active ? 'Actif' : 'Désactivé'}
+                   </span>
+                   {detailError && <p role="alert" className="mt-2 text-xs text-amber-700">{detailError}</p>}
                  </div>
                  <button
                    onClick={() => handleOpenEdit(selectedTemplate)}
@@ -310,8 +331,11 @@ const TemplatesTab: React.FC = () => {
                <h3 className="font-bold text-slate-700 uppercase tracking-widest text-[10px] mb-4">Structure du circuit</h3>
 
                <div className="space-y-0 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                  {selectedTemplate.steps.map((step: any, index: number) => (
-                    <div key={index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  {sortedSteps<TemplateStep>(selectedTemplate.steps).length === 0 && (
+                    <p className="text-sm italic text-slate-500" data-testid="template-detail-empty">{NO_STEP_MESSAGE}</p>
+                  )}
+                  {sortedSteps<TemplateStep>(selectedTemplate.steps).map((step) => (
+                    <div key={step.step_order} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                         {/* Icon Marker */}
                         <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-white bg-slate-200 text-slate-500 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10">
                             <span className="text-[10px] font-black">{step.step_order}</span>
@@ -331,10 +355,12 @@ const TemplatesTab: React.FC = () => {
                                    <span className="text-[9px] font-black uppercase text-rdpc-blue bg-blue-100 px-2 py-0.5 rounded-full tracking-widest">Visa</span>
                                )}
                            </div>
-                           <p className="text-xs text-slate-500 italic mt-2"><span className="font-bold text-slate-400 not-italic mr-1">Rôle cible :</span>{
-  step.role_id === 4 && step.target_unit_type_id
-    ? `Responsable / Manager au niveau ${unitTypes.find(t => t.id === step.target_unit_type_id)?.label || `type#${step.target_unit_type_id}`}`
-    : getRoleScopeLabel(step.role_id, step.assignment_scope)
+                           <p className="text-xs text-slate-500 italic mt-2" data-testid="template-step-sentence">{
+  stepSentence(
+    step,
+    step.role_id == null ? null : (roleNames[step.role_id] ?? null),
+    step.target_unit_type_id ? (unitTypes.find(t => t.id === step.target_unit_type_id)?.label ?? null) : null,
+  )
 }</p>
                         </div>
                     </div>

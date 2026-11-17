@@ -32,6 +32,12 @@ export const orgUnitsApi = {
         // déclarées avec `/` final (cf. users.api.ts).
         apiCall<any[]>('/org-units/', {}, 'Récupération des services impossible'),
 
+    // Nom du service sur l'accueil du manager (#278) : un échec masque seulement la ligne, sans bandeau.
+    getOrgUnit: (id: string): Promise<{ id: string; name: string }> =>
+        apiCall<{ id: string; name: string }>(`/org-units/${id}`, {}, 'Service indisponible', {
+            handledStatuses: [403, 404, 500, 502, 503, 504],
+        }),
+
     getOrgUnitTypes: (): Promise<OrgUnitType[]> =>
         apiCall<OrgUnitType[]>('/org-units/types', {}, 'Récupération des types d\'unité impossible'),
 
