@@ -18,6 +18,7 @@ META=(
   "180|étape 2 (B)|bloquant levé, delta 5585c4f relu (12:43), CI en attente|main|8|#197, #162"
   "183|étape 2 (B)|changements demandés (12:36), poussée en f1a1a1c, à relire|main|9|#180"
   "154|étape 2 (B)|oui avec remarques (12:39), commit a655f91 dans #193|main|10|-"
+  "212|étape 2 (B), juste après #154 (O, 17/11)|non|main, via #154|10 bis|#154"
   "193|étape 2 (B)|oui avec remarques sur f2cc377 (l. 882), à relire après rebasage|main|11 (écart B : down_revision)|#154, #183"
   "186|étape 2 (B)|oui (OK selon O le 17/11), migration à rechaîner derrière #197|main|12|#193"
   "165|étape 2 (B)|changements demandés (réglages absents du compose)|main|13|#186"
