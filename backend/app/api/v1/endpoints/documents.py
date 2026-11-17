@@ -1578,6 +1578,8 @@ async def start_workflow_a_posteriori(
     """
     await authorize_or_403(current_user, "documents", "update")
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    if not await in_actor_unit_tree(db, current_user, document.org_unit_id):
+        raise HTTPException(status_code=404, detail="Document not found")
     await _ensure_not_locked_for_write(document, current_user)
 
     if document.processing_mode != "archive":
