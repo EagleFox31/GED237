@@ -155,7 +155,7 @@ async def test_year_min_above_year_max_is_refused(admin_client: AsyncClient, db_
     )
 
     assert inverted.status_code == 400
-    assert "annee minimale" in inverted.json()["detail"]
+    assert "année minimale" in inverted.json()["detail"]
     assert out_of_range.status_code == 422
 
 
@@ -339,7 +339,7 @@ async def test_year_range_fails_when_the_file_name_has_no_year(
     assert result["status"] == "no_rule"
     assert (check["passed"], check["detail"]) == (
         False,
-        "Aucune annee dans le nom du fichier.",
+        "Aucune année dans le nom du fichier.",
     )
 
 
