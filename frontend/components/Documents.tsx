@@ -216,6 +216,7 @@ const Documents: React.FC = () => {
         <DocumentDetailModal
           document={selectedDoc}
           onClose={() => setSelectedDoc(null)}
+          onUpdated={(updated) => setDocs((prev) => prev.map((doc) => (doc.id === updated.id ? { ...doc, ...updated } : doc)))}
         />
       )}
 
