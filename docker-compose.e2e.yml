@@ -77,8 +77,8 @@ services:
       # development echoes the OTP in the login response; the specs rely on it.
       ENVIRONMENT: development
       # Post-rc1 L3 (#153): validation queue switches, both driven by E2E_WORKFLOW_INBOX (default off).
-      WORKFLOW_INBOX_ENABLED: ${E2E_WORKFLOW_INBOX:-false}
-      WORKFLOW_PENDING_EXCLUDE_TRASHED: ${E2E_WORKFLOW_INBOX:-false}
+      WORKFLOW_INBOX_ENABLED: ${E2E_WORKFLOW_INBOX:-true}
+      WORKFLOW_PENDING_EXCLUDE_TRASHED: ${E2E_WORKFLOW_INBOX:-true}
       E2E_MANIFEST: /e2e-data/seed-manifest.json
       # Directory imports are refused outside these roots (403 INGEST_PATH_FORBIDDEN when empty).
       INGEST_ALLOWED_ROOTS: /data/ingest
@@ -113,7 +113,7 @@ services:
     environment:
       CI: "true"
       # Tells the specs which queue mode the api runs with (same variable as the api).
-      E2E_WORKFLOW_INBOX: ${E2E_WORKFLOW_INBOX:-false}
+      E2E_WORKFLOW_INBOX: ${E2E_WORKFLOW_INBOX:-true}
       HUSKY: "0"
       VITE_API_URL: http://api:8000/api/v1
       PLAYWRIGHT_HTML_OUTPUT_DIR: /out/playwright-report
