@@ -275,7 +275,7 @@ class Seeder:
             if existing is not None:
                 if item.get("trashed") and existing.deleted_at is None:
                     # A run that restored it then died before trashing it back
-                    # (uat/trash.spec « Vider »): put it back where the manifest says.
+                    # (uat/trash-empty.spec « Vider »): put it back where the manifest says.
                     owner = await self.user(item["owner"])
                     existing.deleted_at = datetime.now(timezone.utc)
                     existing.deleted_by = owner.id

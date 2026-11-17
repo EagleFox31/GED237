@@ -47,6 +47,7 @@ export async function setAsideTrash(
       // eslint-disable-next-line no-await-in-loop
       const restored = await request.post(`${API_URL}/documents/${id}/restore`, { headers });
       if (restored.ok()) setAside.push(id);
+      // Non restaurable : il reste en corbeille et « Vider » l'efface pour de bon (acceptable sur une pile e2e).
       else skipped.add(id);
     }
   }
