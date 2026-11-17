@@ -1,10 +1,10 @@
-import { test, expect, TEST_USERS } from '../../fixtures/uat.fixture';
+import { test, expect, TEST_USERS, API_URL } from '../../fixtures/uat.fixture';
 import { LoginPage } from '../../pages/login.page';
 import type { Page } from '@playwright/test';
 
 /**
  * UAT — Phase de Conception/GUIDE_TEST_FONCTIONNEL.md
- * SC-AUTH-01 : se connecter (2FA), exceptions E1, E2 (E3 en fixme : défaut ouvert) ;
+ * SC-AUTH-01 : se connecter (2FA), exceptions E1, E2, E3 (verrou après 3 codes faux, sur un compte jetable) ;
  * SC-AUTH-02 : prolonger la session (refresh silencieux), E1 ; SC-AUTH-03 : se déconnecter.
  * Backend réel, OTP renvoyé par l'API en ENVIRONMENT=development (alternative A1).
  */
@@ -79,31 +79,47 @@ test.describe('SC-AUTH-01 — Se connecter (2FA)', () => {
     await lp.expectDashboardVisible();
   });
 
-  test('E3 : trois OTP erronés → session bloquée, retour à la saisie des identifiants', async ({ page }) => {
-    test.fixme(true, 'Défaut SC-AUTH-01 E3 : aucun compteur de tentatives OTP (seule la limite slowapi 5/min).');
-    const lp = new LoginPage(page);
-    const admin = TEST_USERS.tenant_admin;
+  // #83 (API : 3 codes faux → 423 pendant AUTH_LOCKOUT_SECONDS) et #88 (écran du verrou).
+  // Compte jetable créé ici : le verrou bloque le compte 15 min, jamais un compte de la démo.
+  test('E3 : trois OTP erronés → compte verrouillé, message explicite, même le bon mot de passe est refusé', async ({
+    page,
+    request,
+    adminApi,
+    runId,
+  }) => {
+    const institution = TEST_USERS.tenant_admin.institution;
+    const matricule = `VERROU-${runId}`.toUpperCase();
+    const password = 'Verrou@2025';
+    const { tenant_id } = await adminApi.me();
+    await adminApi.createUser({ matricule, password, roleCode: 'reader', tenantId: tenant_id });
 
+    const lp = new LoginPage(page);
     await lp.goto();
-    await lp.fillCredentials(admin.institution, admin.matricule, admin.password);
+    await lp.fillCredentials(institution, matricule, password);
     await lp.submitLogin();
     await lp.waitForOtpStep();
     await lp.expectOtpPreFilled();
 
     const goodCode = await readOtp(page);
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       await lp.fillOtp(wrongOtp(goodCode));
       await lp.submitOtp();
-      await expect(page.locator('p.text-red-500')).toBeVisible();
+      await lp.expectErrorVisible('Code invalide');
+      await expect(page.locator('#otp-0'), `essai ${attempt} : la saisie du code reste ouverte`).toBeVisible();
     }
 
-    // La session OTP est invalidée : même le bon code ne permet plus d'entrer.
-    if (await page.locator('#otp-0').isVisible()) {
-      await lp.fillOtp(goodCode);
-      await lp.submitOtp();
-    }
+    // Troisième code faux : retour aux identifiants, délai restant affiché (≤ 15 min), bouton bloqué.
+    await lp.fillOtp(wrongOtp(goodCode));
+    await lp.submitOtp();
     await expect(page.locator('#password')).toBeVisible();
+    await expect(page.getByText(/Compte verrouillé\. Réessayez dans 1[0-5] min/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Compte verrouillé' })).toBeDisabled();
     expect(await page.evaluate(() => sessionStorage.getItem('access_token'))).toBeNull();
+
+    // Pendant le verrou, le bon mot de passe est refusé lui aussi (il n'est même pas vérifié).
+    const relogin = await request.post(`${API_URL}/auth/login`, { data: { institution, matricule, password } });
+    expect(relogin.status(), 'connexion pendant le verrou').toBe(423);
+    expect((await relogin.json()).error_code).toBe('ACCOUNT_LOCKED');
   });
 });
 

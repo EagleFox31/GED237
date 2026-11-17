@@ -13,6 +13,7 @@ scope given by ``resolve_report_scope``. PO decisions of 17/11:
 from __future__ import annotations
 
 import csv
+import functools
 import hashlib
 import html
 import io
@@ -264,11 +265,83 @@ def render_html(header: dict[str, str], sections: list[Section]) -> bytes:
     return "\n".join(parts).encode("utf-8")
 
 
-def render(header: dict[str, str], data: dict[str, Any], fmt: str) -> bytes:
-    sections = build_sections(data)
-    return (
-        render_html(header, sections) if fmt == "html" else render_csv(header, sections)
+def render_pdf(header: dict[str, str], sections: list[Section]) -> bytes:
+    """A4 copy to print or attach: same content as the HTML page.
+
+    Built-in Helvetica (WinAnsi: French accents), no font file, no external
+    resource. ``invariant`` drops the creation date and random id, so the same
+    data gives the same bytes.
+    """
+    # Imported here: only this format needs reportlab.
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
+
+    styles = getSampleStyleSheet()
+    cell, heading = styles["BodyText"], styles["Heading2"]
+    esc = functools.partial(html.escape, quote=False)
+    number = header.get("number", "")
+
+    width = A4[0] - 30 * mm
+
+    def table(rows: list[list[str]], *, head: bool, widths=None) -> Table:
+        grid = Table(
+            [[Paragraph(esc(value), cell) for value in row] for row in rows],
+            colWidths=widths or [width / len(rows[0])] * len(rows[0]),
+            repeatRows=1 if head else 0,
+            hAlign="LEFT",
+        )
+        style = [("GRID", (0, 0), (-1, -1), 0.5, colors.grey)]
+        if head:
+            style.append(("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eeeeee")))
+        grid.setStyle(style)
+        return grid
+
+    story: list[Any] = [Paragraph(esc(header.get("title", "")), styles["Title"])]
+    story.append(
+        table(
+            [[label, header.get(key, "")] for key, label in HEADER_ROWS[1:]],
+            head=False,
+            widths=[45 * mm, width - 45 * mm],
+        )
     )
+    for section in sections:
+        story.append(Spacer(1, 4 * mm))
+        story.append(Paragraph(esc(section.title), heading))
+        rows = [list(row) for row in section.rows] or [
+            ["Aucune donnée"] + [""] * (len(section.headers) - 1)
+        ]
+        story.append(table([list(section.headers), *rows], head=True))
+
+    def footer(canvas, doc) -> None:
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.drawString(15 * mm, 10 * mm, number)
+        canvas.drawRightString(A4[0] - 15 * mm, 10 * mm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    buffer = io.BytesIO()
+    SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
+        topMargin=15 * mm,
+        bottomMargin=18 * mm,
+        title=number,
+        author=header.get("institution", ""),
+        invariant=1,
+    ).build(story, onFirstPage=footer, onLaterPages=footer)
+    return buffer.getvalue()
+
+
+_RENDERERS = {"csv": render_csv, "html": render_html, "pdf": render_pdf}
+
+
+def render(header: dict[str, str], data: dict[str, Any], fmt: str) -> bytes:
+    return _RENDERERS[fmt](header, build_sections(data))
 
 
 def content_digest(kind: str, filters: dict[str, Any], data: dict[str, Any]) -> str:
@@ -307,7 +380,11 @@ def media_type(fmt: str) -> str:
     return _MEDIA_TYPES[fmt]
 
 
-_MEDIA_TYPES = {"csv": "text/csv; charset=utf-8", "html": "text/html; charset=utf-8"}
+_MEDIA_TYPES = {
+    "csv": "text/csv; charset=utf-8",
+    "html": "text/html; charset=utf-8",
+    "pdf": "application/pdf",
+}
 
 
 async def _fetch_data(

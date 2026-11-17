@@ -72,8 +72,8 @@ async def list_quality_documents(
 ):
     """Documents raising one indicator, newest first; ``X-Total-Count`` = total.
 
-    Lists titles, so it also needs ``documents read`` (a collaborator, who only
-    reads their own documents, gets the counts but not this list).
+    Lists titles, so it also needs ``documents read``. A collaborator gets neither
+    the counts nor this list: reports are closed to that role (#188).
     """
     await authorize_or_403(current_user, "analytics.tenant", "read")
     await authorize_or_403(current_user, "documents", "read")
