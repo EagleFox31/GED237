@@ -146,6 +146,32 @@ async def test_an_inactive_creator_is_refused_without_notification(db_session, d
 
 
 @pytest.mark.asyncio
+async def test_a_refused_rule_stops_and_closes_its_open_event(db_session, db_seed):
+    await _document(db_session, db_seed, classification_year=None)
+    rule_id = (await _rule(db_session, db_seed)).id
+    assert (await evaluate_rules(db_session)).opened == [str(rule_id)]
+    await db_session.execute(
+        update(User).where(User.id == db_seed["user_id"]).values(is_active=False)
+    )
+    await db_session.commit()
+
+    assert (await evaluate_rules(db_session)).refused == [str(rule_id)]
+    assert await _open_events(db_session, rule_id) == 0
+    assert (await db_session.get(QualityAlertRule, rule_id)).is_active is False
+    assert len(await _alert_messages(db_session)) == 1  # no end-of-alert message
+    assert (await evaluate_rules(db_session)).refused == []  # stopped for good
+
+
+async def _open_events(db_session, rule_id) -> int:
+    return await db_session.scalar(
+        select(func.count(QualityAlertEvent.id)).where(
+            QualityAlertEvent.rule_id == rule_id,
+            QualityAlertEvent.cleared_at.is_(None),
+        )
+    )
+
+
+@pytest.mark.asyncio
 async def test_a_stopped_rule_is_ignored(db_session, db_seed):
     await _document(db_session, db_seed, classification_year=None)
     await _rule(db_session, db_seed, is_active=False)
@@ -181,6 +207,8 @@ async def test_create_list_and_stop_an_alert(
 
     stopped = await admin_client.delete(f"{ALERTS}/{body['id']}")
     assert stopped.status_code == 204
+    db_session.expire_all()
+    assert await _open_events(db_session, uuid.UUID(body["id"])) == 0
     assert (await admin_client.get(ALERTS)).json() == []
     again = await admin_client.delete(f"{ALERTS}/{body['id']}")
     assert again.status_code == 204  # already stopped: no-op

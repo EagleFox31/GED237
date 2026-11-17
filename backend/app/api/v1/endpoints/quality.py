@@ -20,6 +20,7 @@ from app.schemas.quality import (
     QualityIndicatorKey,
     QualitySummary,
 )
+from app.services.quality_alerts import stop_rule
 from app.services.document_quality import (
     documents_for_indicator,
     quality_summary,
@@ -171,7 +172,6 @@ async def stop_quality_alert(
     rule = await db.get(QualityAlertRule, rule_id)
     if rule is None or rule.created_by != current_user.id:
         raise HTTPException(status_code=404, detail="Alerte introuvable.")
-    if rule.is_active:
-        rule.is_active = False
-        await db.commit()
+    await stop_rule(db, rule)  # also closes an event left open
+    await db.commit()
     return Response(status_code=204)

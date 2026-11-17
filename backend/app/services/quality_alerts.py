@@ -6,6 +6,9 @@ the report screens. When the value reaches the threshold an event opens and the
 creator gets one in-app notification; when it falls back below, the event closes
 and they get one more. The partial unique index (one open event per rule) makes a
 second pass, or a second worker, write nothing.
+A rule whose creator is inactive or no longer has the rights or the scope stops
+for good, and so does a rule its creator stops: its open event closes without a
+notification.
 """
 
 import logging
@@ -165,6 +168,29 @@ async def _clear(db: AsyncSession, rule: QualityAlertRule, value) -> bool:
     return True
 
 
+async def stop_rule(db: AsyncSession, rule: QualityAlertRule) -> None:
+    """Deactivate a rule and close its open event, without notification."""
+    rule.is_active = False
+    await db.execute(
+        update(QualityAlertEvent)
+        .where(
+            QualityAlertEvent.rule_id == rule.id,
+            QualityAlertEvent.cleared_at.is_(None),
+        )
+        .values(cleared_at=func.now())
+    )
+
+
+async def _stop_refused(db: AsyncSession, rule_id) -> None:
+    """A refused rule (creator inactive, rights or scope lost) stops for good."""
+    try:
+        await stop_rule(db, await db.get(QualityAlertRule, rule_id))
+        await db.commit()
+    except Exception:  # noqa: BLE001 - retried at the next pass
+        await db.rollback()
+        logger.exception("[QualityAlerts] rule %s could not be stopped", rule_id)
+
+
 async def evaluate_rules(db: AsyncSession) -> AlertPass:
     """One pass over every active rule; one commit per rule."""
     result = AlertPass()
@@ -188,8 +214,9 @@ async def evaluate_rules(db: AsyncSession) -> AlertPass:
             await db.commit()
         except AlertRefused as refusal:
             await db.rollback()
-            logger.warning("[QualityAlerts] rule %s skipped: %s", rule_id, refusal)
+            logger.warning("[QualityAlerts] rule %s stopped: %s", rule_id, refusal)
             result.refused.append(str(rule_id))
+            await _stop_refused(db, rule_id)
             continue
         except Exception:  # noqa: BLE001 - one bad rule must not stop the others
             await db.rollback()
