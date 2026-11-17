@@ -246,13 +246,6 @@ export class UatApi {
     );
   }
 
-  async workflowSteps(documentId: string): Promise<WorkflowStep[]> {
-    return ok(
-      await this.request.get(`${API_URL}/workflows/document/${documentId}/steps`, { headers: this.headers }),
-      `workflow steps ${documentId}`,
-    );
-  }
-
   /** Raw upload: returns the response so access-denied cases (403) can be asserted. */
   async tryUpload(fileName: string, title: string, content: string) {
     return this.request.post(`${API_URL}/documents/upload`, {
