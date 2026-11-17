@@ -49,12 +49,45 @@ On relève l'heure de début et de fin de chaque étape.
 |---|---|---|---|---|
 | E1 | Récupérer le code (§ 2) | `git clone` | clone copié depuis la clé, ou `git clone` si le site a un accès ; `git checkout v1.0.0-rc.1` | dossier présent, SHA noté |
 | E2 | Configurer (§ 3) | `.env` : `DB_PASSWORD`, `SECRET_KEY`, `APP_PORT`, `APP_VERSION` | idem | `.env` rempli ; **aucune valeur recopiée dans le relevé** |
+| E2 bis | Contrôler la clé (§ 3, l. 40) | `SECRET_KEY` générée par `openssl rand -hex 32`, et égale à aucun défaut connu | idem | contrôles de la clé ci-dessous réussis, avant E4 ; seuls les **compteurs** vont dans le relevé |
 | E3 | Charger les images (§ 9) | — | `images_import.sh` depuis la clé, puis `docker compose config --images` | liste identique à `IMAGES.txt` |
 | E4 | Démarrer (§ 4) | `docker compose up -d --build` | `docker compose up -d` (sans `--build`) | `migrate` et `seed` en `Exited (0)` |
 | E5 | Vérifier (§ 5), **cinq contrôles** | les cinq, dont la **connexion** avec un compte de démonstration (identifiant seul dans le relevé) | idem | tableau de bord affiché après le code |
 | E6 | Sauvegarder (§ 7) | `bash ops/backup.sh` | idem | dossier `ged237-<horodatage>` créé |
 | E7 | Redémarrer la machine | — (pas de `wsl --shutdown`, interdit par Q) | redémarrage complet, **aucune commande** ensuite | tableau de bord accessible |
 | E8 | Désinstaller (§ 7) | `docker compose down -v`, puis le teardown de Q | `docker compose down -v` | aucun volume ni conteneur GED237 |
+
+### Contrôle de la clé (E2 bis), décision O du 17/11
+
+**Pourquoi** : le compose et le code n'ont pas le même défaut de `SECRET_KEY`. Le compose utilise `dev-secret-key-change-in-production` (`docker-compose.yml` l. 70, 96, 134), le code `dev-secret-key-change-this-in-production` (`config.py` l. 46). Le contrôle au démarrage (`config.py` l. 226-235) ne compare qu'à la seconde valeur, et seulement en `production`. Si le `.env` n'a pas de clé, l'API démarre donc sans erreur et signe les jetons avec une clé publique (`Vérifié`, `inventaire-environment-production.md` n° 3 et 4). En rc.1, le code ne change pas : la vérification se fait sur le terrain.
+
+**Étape** : la `SECRET_KEY` du `.env` est générée par `openssl rand -hex 32` (`DOCS/exploitation/installation.md` l. 40) et ne vaut aucun des défauts connus.
+
+**Commandes** (à la racine du dépôt). Elles n'affichent que des compteurs, **jamais la valeur** :
+
+```bash
+# 1. Aucun défaut connu, ni valeur vide : doit afficher 0
+grep -c -E '^SECRET_KEY=(dev-secret-key-change-in-production|dev-secret-key-change-this-in-production)?$' .env
+
+# 2. Une seule ligne, au format de openssl rand -hex 32 (64 caractères hexadécimaux) : doit afficher 1
+grep -c -E '^SECRET_KEY=[0-9a-f]{64}$' .env
+
+# 3. Après E4, la valeur réellement reçue par l'API : doit afficher OK
+docker compose exec -T api sh -c 'case "$SECRET_KEY" in ""|dev-secret-key-*) echo DEFAUT;; *) echo OK;; esac'
+```
+
+Les contrôles 1 et 2 sont tous deux nécessaires. Si la ligne `SECRET_KEY` manque dans le `.env`, le contrôle 1 affiche aussi 0, mais le compose applique alors son défaut. Seul le contrôle 2 le détecte. Les contrôles 1 et 2 supposent un `.env` en fins de ligne LF : un `.env` édité sous Windows (CRLF) fait échouer le contrôle 2 par erreur, il faut alors le convertir avec `sed -i 's/\r$//' .env`. Les trois commandes ont été testées le 17/11 sur des `.env` d'essai : clé générée, défaut du compose, valeur vide, ligne absente. Chaque fois, le résultat attendu a été obtenu.
+
+**Si un contrôle échoue** : ne pas démarrer, ou arrêter la pile avec `docker compose down`, sans `-v`. Régénérer la clé, puis reprendre à E4. L'écart est **bloquant** pour le poste ; il est noté dans la grille du § 4 sans la valeur.
+
+**Secret TOTP (#193, si fusionnée)** : sans `TOTP_ENCRYPTION_KEYS`, la clé qui chiffre les secrets TOTP est **dérivée de `SECRET_KEY`** (`Vérifié` sur le diff de #193). Changer la `SECRET_KEY` après l'enrôlement oblige donc chaque administrateur à **se ré-enrôler**. Il faut fixer la clé définitive **avant** le premier enrôlement, et ne plus y toucher ensuite.
+
+### Préparation de la démo du 30/11
+
+Le contrôle de la clé s'applique aussi au poste de démo, à la mise en place de la pile, avant tout enrôlement TOTP.
+- Les contrôles 1 à 3 doivent réussir (0, 1, OK). Ils figurent dans la liste de préparation de la démo, sans la valeur.
+- La démo tourne en `development` (décision O du 17/11), et le contrôle du code n'y est pas actif : ce contrôle manuel est le seul garde-fou.
+- Si la clé est changée la veille, les jetons en cours sont invalidés (nouvelle connexion) et, avec #193, les comptes enrôlés doivent se ré-enrôler. Il faut donc la fixer au plus tard **avant la répétition générale**.
 
 Point à observer en E7 : `frontend` n'a pas de politique `restart` dans `docker-compose.yml`, alors que les cinq autres services permanents (`postgres`, `redis`, `api`, `worker`, `nginx`) ont `unless-stopped` (`Vérifié`). Sans cette politique, après un redémarrage, nginx répondrait mais l'application ne s'afficherait pas. O l'a confirmé (l. 203) et le fait corriger **en rc.1, avant le gel** : B ouvre une PR courte avec un test de garde. P2, qui tourne sur le tag, ne devrait donc plus le voir. E7 reste dans le protocole pour le prouver ; s'il échoue malgré tout, c'est un écart **bloquant**.
 
