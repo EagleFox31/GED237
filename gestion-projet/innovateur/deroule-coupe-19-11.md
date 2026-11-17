@@ -1,6 +1,7 @@
 # Déroulé de la coupe du 19/11 : du push de #104 à la réouverture de `main`
 
 - **Pour** : O, qui exécute les écritures ; I, Q et B pour leurs étapes. Rédigé par l'innovateur le 17/11, sur `main` 53d4c40, en lecture seule.
+- **Mise à jour du 18/11** : les § 3 et 4 sont remplacés par `runbook-coupe-19-11.md` (coupe sur la fusion de #104, ruleset en plan → apply → plan, correctifs vers la release puis `cherry-pick -x` vers `main`).
 - **Sources** : `checklist-tag-rc1-24-11.md` (E1 à E1 ter), `plan-fusion-post-rc1.md` (§ 8.4 à 8.6), `releve-prs-19-11.md` (§ 1).
 - **Rôles** : I pousse #104 **une seule fois** et lance `gh pr ready 104`. I ne fusionne rien et ne met aucune branche à jour sur GitHub. Seul O fusionne, coupe la release et crée le ruleset.
 - **Horaires** : ce sont des cibles. La CI de `main` a duré entre 1 et 11 min le 17/11 (runs de b701314, bc62fa5 et 53d4c40). Si une étape glisse, les suivantes glissent avec elle, **sans en sauter aucune**.
@@ -25,11 +26,11 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 
 | Heure | Commande (worktree `GED237-docs-notes-version`) | Contrôle attendu | Si KO |
 |---|---|---|---|
-| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | `b43e95f` (main après la fusion de #226, le 17/11 ; la tête locale de #104 part encore de 53d4c40, le merge est donc à faire). Sinon, `main` a encore bougé : faire `git merge origin/main` en local avant le push | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
+| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | `2f15b6e` (main au gel, le 17/11 au soir ; #104 y est déjà recalée en local, commit 93ed914). Sinon, `main` a encore bougé : faire `git merge origin/main` en local avant le push | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
 | 17:56 | `git merge-tree --write-tree origin/main HEAD` | une seule ligne (un SHA d'arbre), sans `CONFLICT` | idem |
 | 17:57 | `head -n 5 gestion-projet/innovateur/notes-version-v1.0.0-rc.1.md \| grep -Eiq 'brouillon\|Pour\**[[:space:]]*:' && echo STOP \|\| echo OK` | `OK` | `STOP` : corriger en local avant le push, qui reste unique |
 | 17:58 | `git diff origin/main...HEAD \| grep -cE '@20(25)'` | `0` : aucun mot de passe de démonstration | retirer la ligne, puis faire un nouveau commit local |
-| 18:00 | `git push origin docs/notes-version-rc1` | `0288c02` (ou le merge de 17:55) arrive sur GitHub | refus du push : ne pas forcer (`--force-with-lease` interdit) ; prévenir O |
+| 18:00 | `git push origin docs/notes-version-rc1` | `93ed914` (ou le merge de 17:55) arrive sur GitHub | refus du push : ne pas forcer (`--force-with-lease` interdit) ; prévenir O |
 | 18:01 | `gh pr ready 104` | `gh pr view 104 --json isDraft -q .isDraft` = `false` | relancer une fois ; sinon O |
 | 18:02 | `gh pr diff 104 --name-only \| grep -vE '^(gestion-projet/\|CHANGELOG\.md$\|DOCS/engineering/lessons-learned\.md$)'` | sortie vide : documentation seule | un fichier hors liste : O décide avant la fusion |
 | 18:03 | `gh pr view 104 --json headRefOid -q .headRefOid` | le SHA poussé | — |
@@ -46,7 +47,7 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 
 `--merge` correspond au mode des fusions récentes (« Merge pull request #223 »). Le dépôt autorise aussi `squash` et `rebase` : c'est à O de choisir.
 
-## 3. Création de `release/v1.0.0` — O, 18:20
+## 3. Création de `release/v1.0.0` — O, 18:20 (remplacé par `runbook-coupe-19-11.md` § 2 et 3)
 
 | Heure | Commande | Contrôle attendu | Si KO |
 |---|---|---|---|
@@ -54,7 +55,7 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 | 18:21 | `gh api repos/$REPO/git/refs -f ref=refs/heads/$BR -f sha=$M` | réponse JSON avec `"ref": "refs/heads/release/v1.0.0"` | `Reference already exists` : lire `gh api repos/$REPO/branches/$BR -q .commit.sha`. Si c'est `$M`, rien à faire. Sinon, **ne pas supprimer** la branche : O tranche |
 | 18:22 | `gh api repos/$REPO/branches/$BR -q .commit.sha` | `= $M`, **avant** le ruleset du § 4 | autre SHA : le corriger maintenant, tant que la règle `deletion` du ruleset n'existe pas encore |
 
-## 4. Ruleset de la release — O, 18:25
+## 4. Ruleset de la release — O, 18:25 (remplacé par `runbook-coupe-19-11.md` § 4)
 
 Fichier hors dépôt, par exemple `ruleset-release.json` dans un dossier temporaire :
 
