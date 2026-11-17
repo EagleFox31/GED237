@@ -229,7 +229,7 @@ Ces PR sont déjà comptées dans leurs lots, sauf #300, #301 et F2.
 - **Q passerait à ≈ 22,5**, au-dessus de 22. Il faut une sortie d'au moins 0,5 h-s de Q.
 - **Sortie proposée : #278** (sortie 4, PR #298), comme le prévoit la règle de O : « au prochain ajout pour Q, #278 sort ». Q − 0,5. La PR est déjà écrite (+424 lignes), donc F ne gagne que ce qui reste à faire, ≈ 0,5 (`Déduit`). #278 irait en tête de la V1.2, avant l'élément 10 qui en dépend.
 - **Autre choix** : garder #278 et prendre 0,5 h-s sur la réserve de Q (6,8). Sortir seulement F2 ne suffit pas (Q − 0,25).
-- **En attente de la décision de O.**
+- **Décision de O (18/11)** : #278 sort de la V1.1 et passe en tête de la V1.2, avant l'élément 10. La réserve de Q n'est pas touchée. Code écrit, PR #298 conservée en brouillon, à relire en début de V1.2. **V1.1 ≈ 61,15 h-s : B 22,9, F 15,75, Q 22,0, I 0,5.**
 
 | | B | F | Q | I | Total |
 |---|---|---|---|---|---|

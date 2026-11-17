@@ -7,7 +7,7 @@
 - **Ce que la V1.2 n'est pas** : un rattrapage de la V1.1. Si une sortie de dernière minute quitte la V1.1 (par exemple #278 ou le lot 8b), elle vient s'ajouter ici en tête.
 - **Sorties de la V1.1 du 17/11** : la phase 2 de #288 et le serveur e-mail à l'écran (éléments 15 et 16), à mettre en tête de la V1.2.
 - **Refus en V1.1 du 17/11** : la surcouche P8 (élément 17, B 0,25), décision de O.
-- **Sortie de la V1.1 du 18/11** : le glisser-déposer de #151 (élément 18, #299), décision de O. Si O retient aussi la sortie de #278 (`plan-v1.1.md`, mise à jour du 18/11), #278 s'ajoute en tête, avant l'élément 10 qui en dépend.
+- **Sortie de la V1.1 du 18/11** : le glisser-déposer de #151 (élément 18, #299), décision de O. #278 sort aussi (élément 19, décision de O) : il passe en tête de la V1.2, avant l'élément 10 qui en dépend.
 
 ## Les éléments
 
@@ -22,7 +22,7 @@
 | 7 | **#254, partie 13 a)** : lecteur désigné hors circuit | un agent peut donner à lire un document à une personne précise d'un autre service, sans lancer de circuit | 1,5 (table et migration) | 1 (écran de désignation) | 0,5 | partie V1.1 de #254 (accès par l'étape de circuit) |
 | 8 | **Versions** : restaurer une ancienne version, comparer deux versions | l'agent revient en arrière après une erreur sans redéposer le fichier, et voit ce qui a changé | 1,25 | 1,75 | 0,75 | #275 (V1.1) |
 | 9 | **#183 → #194** : alertes de qualité et onglet « Qualité » des rapports | la direction est prévenue quand le classement ou les délais se dégradent | 1 (confirmé par B : rebasage de ≈ 3 800 lignes, corrections, CI) | 0,5 (rebasage de #194, empilée sur #183) | 2,5 (chiffre du plan V1.1) | #162 ; à rebaser sur `main` V1.1 |
-| 10 | **Tableaux de bord** des autres rôles, avec l'évolution dans le temps | chacun voit son activité et la tendance, pas seulement un chiffre du jour | 1 (séries dans le temps) | 1,5 | 0,5 | #278 (V1.1) |
+| 10 | **Tableaux de bord** des autres rôles, avec l'évolution dans le temps | chacun voit son activité et la tendance, pas seulement un chiffre du jour | 1 (séries dans le temps) | 1,5 | 0,5 | #278 (élément 19) |
 | 11 | **« Mon équipe » au-delà des N-1** : N-2 et plus, dépliables | un directeur voit toute sa branche, pas seulement ses chefs de service | 0,5 (profondeur et contrôle du périmètre en cascade) | 0,5 | 0,25 | #277 (PR #285) |
 | 12 | **Organigramme graphique** de l'institution | l'administrateur vérifie d'un coup d'œil qui rend compte à qui | 0,5 (route d'arbre complet) | 1,5 | 0,5 | 11 |
 | 13 | **Droits propres à chaque institution** | une institution règle ses droits sans toucher aux autres | 2,5 (domaine par institution dans le modèle de droits, migration de `casbin_rule`) | 1 (grille par institution, modifiable par son administrateur) | 1,5 (tests par rôle et par institution) | lot 8b et passage en `sql` (V1.1). **Seulement si le PO le demande.** |
@@ -31,24 +31,26 @@
 | 16 | **Serveur e-mail à l'écran** (partie du lot 8a), sorti de la V1.1 le 17/11 | l'administrateur change le serveur d'envoi sans intervention technique | 0,5 | — | — | #154 ; en attendant, le réglage reste dans le fichier d'environnement |
 | 17 | **Surcouche P8 : bordereaux classés d'office**, refusée en V1.1 le 17/11 (pas d'ajout sans sortie équivalente) | les 2 bordereaux du jeu de démonstration ne tombent plus dans la bannette « à revoir » | 0,25 | — | — | jeu P8 ; `scenario-demo-30-11.md` § 10 |
 | 18 | **#299 : glisser-déposer un document sur un dossier = reclassement**, partie de #151 sortie de la V1.1 le 18/11 | l'agent range un document en le faisant glisser, avec les mêmes règles et la même trace que « Classer » | — (l'audit du reclassement vient de #300, en V1.1) | 1 (gestionnaires natifs, sans nouvelle bibliothèque ; le dépôt ouvre « Classer » pré-rempli) | 0,5 (e2e du glisser-déposer, refus sans droit) | #300 et la boîte « Classer » (V1.1) |
+| 19 | **#278 : tableau de bord du manager et détail d'un modèle de règle**, sorti de la V1.1 le 18/11 (règle « pas d'ajout sans sortie », pour #300). Code écrit, PR #298 conservée en brouillon, à relire en début de V1.2 | le manager voit l'activité de ses services sur son accueil | — | 0,5 (rebasage et corrections après relecture) | 0,5 | #203 (V1.1) ; avant l'élément 10 |
 
 ## Total
 
 | | B | F | Q | Total |
 |---|---|---|---|---|
 | Socle technique (1 à 6) | 1,75 | 1 | 1,5 | 4,25 |
-| Sorties et refus de la V1.1 (15 à 18) | 1,25 | 1 | 0,75 | 3 |
+| Sorties et refus de la V1.1 (15 à 19) | 1,25 | 1,5 | 1,25 | 4 |
 | Valeur pour l'agent (7, 8, 14) | 2,75 | 3 | 1,5 | 7,25 |
 | Pilotage (9, 10) | 2 | 2 | 3 | 7 |
 | Hiérarchie (11, 12) | 1 | 2 | 0,75 | 3,75 |
 | Droits par institution (13) | 2,5 | 1 | 1,5 | 5 |
-| **Total** | **11,25** | **10** | **9** | **≈ 30,25** |
+| **Total** | **11,25** | **10,5** | **9,5** | **≈ 31,25** |
 
 Q reste le goulot, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q, et les droits par institution (13) en pèsent 1,5. Ce sont les deux leviers de la V1.2.
 
 ## Ordre proposé
 
 1. **Socle (1 à 6), en début de cycle**, quand la branche principale est calme. Les montées de version passent avant les fonctions, pour ne pas rebaser les fonctions deux fois. Ordre : #265, #281, #113, #110, puis #30 et #29.
+   **#278 (élément 19)** se relit aussi en début de cycle, avant l’élément 10 : son code est écrit (PR #298, en brouillon).
 2. **Valeur pour l'agent (7, 8, 14)** : ce que les agents utilisent chaque jour.
 3. **Pilotage (9, 10)**, selon la réponse du PO à la question 1. **#183 se dégrade chaque semaine** : il a ≈ 3 800 lignes de retard sur `main`. S'il est gardé, il passe en tête du pilotage, voire avant le point 2, pour ne pas payer son rebasage deux fois.
 4. **Hiérarchie (11, puis 12)**.
