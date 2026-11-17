@@ -14,6 +14,7 @@ from app.core.errors.domain import (
     AccountLockedError,
     OtpContactMissingError,
     OtpDeliveryError,
+    OtpResendQuotaError,
     OtpResendTooSoonError,
 )
 from app.core.exceptions import AuthenticationError, NotFoundError
@@ -150,6 +151,7 @@ class AuthService:
         # SET NX: two requests racing get one sending.
         if cooldown > 0 and not await redis.set(resend_key, "1", ex=cooldown, nx=True):
             raise OtpResendTooSoonError(retry_after=await redis.ttl(resend_key))
+        quota_key = await self._count_resend(redis, user_id, resend_key)
         try:
             otp = await self._send_code(
                 db, redis, user, session_token, expires_in=remaining, request=request
@@ -157,8 +159,31 @@ class AuthService:
         except OtpDeliveryError:
             # Nothing was sent: the previous code still works and a retry is allowed.
             await redis.delete(resend_key)
+            if quota_key:
+                await redis.decr(quota_key)
             raise
         return self._code_response(session_token, otp, remaining)
+
+    async def _count_resend(self, redis, user_id: UUID, resend_key: str):
+        """Count one resend for the account; 429 beyond the quota of the window.
+
+        Counted per account, not per login session: opening new sessions does not
+        give more codes. The window starts at the first resend (SET NX EX).
+        """
+        allowed = settings.AUTH_OTP_RESEND_MAX_PER_WINDOW
+        if allowed <= 0:
+            return None
+        quota_key = f"otp_resend_count:{user_id}"
+        window = settings.AUTH_OTP_RESEND_WINDOW_SECONDS
+        await redis.set(quota_key, 0, ex=window, nx=True)
+        count = await redis.incr(quota_key)
+        if await redis.ttl(quota_key) < 0:  # expired between SET and INCR
+            await redis.expire(quota_key, window)
+        if count > allowed:
+            await redis.decr(quota_key)
+            await redis.delete(resend_key)
+            raise OtpResendQuotaError(retry_after=await redis.ttl(quota_key))
+        return quota_key
 
     async def _send_code(
         self,
