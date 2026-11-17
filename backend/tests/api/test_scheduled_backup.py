@@ -289,20 +289,30 @@ async def test_backup_restores_with_the_same_counts_and_files(
         dsn = url.set(
             drivername="postgresql", database=scratch, password=None, query={}
         ).render_as_string(hide_password=False)
-        subprocess.run(  # nosec B603 - fixed argv
+        restored = subprocess.run(  # nosec B603 - fixed argv
             [
                 pg_restore,
                 "--no-owner",
                 "--no-privileges",
-                "--exit-on-error",
                 f"--dbname={dsn}",
                 str(backup / "db.dump"),
             ],
             env=env,
-            check=True,
+            check=False,
             capture_output=True,
             text=True,
         )
+        # A client newer than the server writes session settings the server
+        # does not know (pg_dump 17: transaction_timeout). Production never
+        # meets this: the version guard keeps client and server on one major.
+        # Any other restore error fails the test, with pg_restore's own words.
+        errors = [
+            line
+            for line in restored.stderr.splitlines()
+            if line.startswith("pg_restore: error:")
+            and "transaction_timeout" not in line
+        ]
+        assert not errors, restored.stderr
         engine = create_async_engine(
             url.set(database=scratch).render_as_string(hide_password=False),
             poolclass=NullPool,
