@@ -13,7 +13,7 @@ import { SESSION_EXPIRED, TOO_MANY_TRIES, authErrorMessage, withRoleLabels } fro
 
 test.describe('Écrans de connexion : erreurs API en français', () => {
   test('401 et 404 connus traduits', () => {
-    expect(authErrorMessage(401, 'Invalid credentials', 'x')).toBe('Identifiant ou mot de passe incorrect.');
+    expect(authErrorMessage(401, 'Invalid credentials', 'x')).toBe('Échec de connexion. Vérifiez vos identifiants.');
     expect(authErrorMessage(401, 'Invalid OTP', 'x')).toBe('Code invalide');
     expect(authErrorMessage(401, 'Invalid or expired session', 'x')).toBe(SESSION_EXPIRED);
     expect(authErrorMessage(404, 'Invalid or expired enrolment', 'x')).toBe(SESSION_EXPIRED);

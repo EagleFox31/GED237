@@ -8,8 +8,8 @@ export const SESSION_EXPIRED = 'Délai dépassé. Reconnectez-vous.';
 
 /** Détails connus de l'API (anglais) → message affiché. */
 const KNOWN_DETAILS: Record<string, string> = {
-  'invalid credentials': 'Identifiant ou mot de passe incorrect.',
-  // Libellé déjà attendu par la recette (auth-2fa E2) : inchangé.
+  // Libellés déjà attendus par la recette (auth-2fa E1, E2) : inchangés.
+  'invalid credentials': 'Échec de connexion. Vérifiez vos identifiants.',
   'invalid otp': 'Code invalide',
   'invalid or expired session': SESSION_EXPIRED,
   'invalid or expired enrolment': SESSION_EXPIRED,
