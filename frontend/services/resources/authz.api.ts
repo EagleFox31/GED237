@@ -48,8 +48,11 @@ export const authzApi = {
             'Suppression de la politique impossible',
         ),
 
+    // Même garde que /authz/policies côté API (409 en csv), chargé en parallèle : l'écran l'affiche lui-même.
     getAuthzRoles: (): Promise<any[]> =>
-        apiCall<any[]>('/authz/roles', {}, 'Récupération des rôles impossible'),
+        apiCall<any[]>('/authz/roles', {}, 'Récupération des rôles impossible', {
+            handledStatuses: [409],
+        }),
 
     getAuthzMetrics: (filters: AuthzMetricsFilters = {}): Promise<any> => {
         const p = new URLSearchParams();
