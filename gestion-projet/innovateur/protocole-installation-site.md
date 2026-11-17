@@ -22,7 +22,8 @@ Une personne qui n'a jamais vu GED237 installe l'application à partir du manuel
 **Machine de P2 : Décision O.**
 - Le VPS est exclu : 3,7 Go de RAM, sous les 8 Go du manuel (§ 1).
 - Ce PC est exclu : la VM WSL est déjà partagée avec Docker Desktop, et la règle de RAM de Q donnait 631 Mo de marge le 17 à 09:27.
-- Candidat : `academy-server` (réseau local), système et mémoire `À vérifier` par lecture seule avant de le retenir. Sinon, un poste prêté par le PO.
+- `academy-server` : **injoignable depuis ce PC le 17/11 à 11:08**. SSH a expiré et le ping n'a obtenu aucune réponse. Le serveur est sur 192.168.10.x, alors que ce PC est sur 192.168.1.x : il faut être sur le réseau de l'académie. Système et mémoire restent `À vérifier`, en lecture seule, depuis ce réseau.
+- Repli retenu par O : **un poste prêté par le PO**, avec Ubuntu 24.04 neuf, au moins 8 Go de RAM libres et au moins 10 Go de disque libres (manuel § 1).
 
 ## 2. Poste vierge : contrôles avant de commencer
 
@@ -55,7 +56,7 @@ On relève l'heure de début et de fin de chaque étape.
 | E7 | Redémarrer la machine | — (pas de `wsl --shutdown`, interdit par Q) | redémarrage complet, **aucune commande** ensuite | tableau de bord accessible |
 | E8 | Désinstaller (§ 7) | `docker compose down -v`, puis le teardown de Q | `docker compose down -v` | aucun volume ni conteneur GED237 |
 
-Point à observer en E7 : `frontend` n'a pas de politique `restart` dans `docker-compose.yml`, alors que les cinq autres services permanents (`postgres`, `redis`, `api`, `worker`, `nginx`) ont `unless-stopped` (`Vérifié`). Après un redémarrage, il est probable que nginx réponde mais que l'application ne s'affiche pas (`Déduit`, à confirmer par E7). Si c'est le cas, c'est un écart **bloquant pour un site**, à corriger par B après le 30.
+Point à observer en E7 : `frontend` n'a pas de politique `restart` dans `docker-compose.yml`, alors que les cinq autres services permanents (`postgres`, `redis`, `api`, `worker`, `nginx`) ont `unless-stopped` (`Vérifié`). Sans cette politique, après un redémarrage, nginx répondrait mais l'application ne s'afficherait pas. O l'a confirmé (l. 203) et le fait corriger **en rc.1, avant le gel** : B ouvre une PR courte avec un test de garde. P2, qui tourne sur le tag, ne devrait donc plus le voir. E7 reste dans le protocole pour le prouver ; s'il échoue malgré tout, c'est un écart **bloquant**.
 
 ## 4. Grille des écarts
 
@@ -66,6 +67,7 @@ Un écart = tout geste ou toute information dont l'opérateur a eu besoin et que
 | 1 | P1 | E2 (§ 3) | port 8080 pris par la pile de la sonde C6 | `APP_PORT=8180` | mineur (prévu par le manuel) | aucune |
 | 2 | P1 | § 2 du protocole | exécution en root (distribution créée sans utilisateur) | — | mineur | aucune |
 | 3 | P1 | E4 | si `RAM_MODE=soft` : plafonds réduits par un fichier `override` | `docker-compose.override.yml` de Q | **majeur** si utilisé (le manuel n'est plus suivi tel quel) | noter le pic de RAM ; pas de modification du manuel |
+| 4 | P1, P2 | E4 (§ 4) | `frontend` en cible `development` (serveur Vite) dans le compose de site | — | majeur, ligne « produit », hors § 5 | build statique servi par nginx, à instruire après le 30 (B) |
 | … | | | | | | |
 
 Les lignes 1 à 3 viennent de la CHECKLIST de Q (`Vérifié`). Docker installé par les paquets Ubuntu n'est pas un écart : c'est un prérequis du manuel.
@@ -121,7 +123,7 @@ Si le PO refuse, l'item 28 reste `non vérifiable` jusqu'à une démo sur un ser
   - Docker Desktop sous Windows : ce PC ne peut pas servir de poste vierge, car Docker Desktop y héberge d'autres piles. Le manuel ne l'exige pas.
   - HTTPS local (`https-local.md`).
   - Mise à jour (§ 6), à rejouer avec la rc.2 si elle existe.
-- **Écart de forme** : le service `frontend` est construit avec la cible `development` (serveur Vite et dossier monté, `Vérifié` l. 203-217). Ce n'est pas un écart au manuel, mais B devra le regarder pour un site en production (V1.1).
+- **Écart à instruire après le 30** (constat de O, 17/11) : sur site, le service `frontend` tourne avec la cible `development`, c'est-à-dire le serveur Vite avec le dossier source monté (`Vérifié` l. 203-217). Pour un site, il faudrait un build statique servi par nginx. **Rien ne change avant le 30.** Ce n'est pas un écart au manuel : le relevé l'inscrit dans la grille du § 4 comme ligne « produit » (gravité majeure, sans contournement), sans en faire une condition du § 5.
 - **Coût** : I ≈ 1 h-s (ce protocole). Q ≈ 2 h-s : compléments de P1 le 18 ≈ 0,5 ; P2 ≈ 1,5, sans compter le temps machine. B ≈ 0,5 h-s par écart majeur ou bloquant.
 - **Reuse-first** :
   - **Adopt** : `wsl-proof.sh` et la CHECKLIST de Q pour P1, et `images_export.sh` / `images_import.sh` pour P2.
