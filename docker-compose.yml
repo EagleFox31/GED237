@@ -68,7 +68,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:-changeme}@postgres/edossier
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
-      ENVIRONMENT: development
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,7 +94,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:-changeme}@postgres/edossier
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
-      ENVIRONMENT: development
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -138,7 +138,13 @@ services:
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
-      ENVIRONMENT: development
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      # Production needs a real login-code channel, or the API refuses to start
+      # (DOCS/exploitation/installation.md, mode production).
+      AUTH_OTP_CHANNEL: ${AUTH_OTP_CHANNEL:-dev_response}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
       DEBUG: "false"
       # Demo room: ~10 logins/OTP in 13 min from one NAT address (parcours-demo.md §0).

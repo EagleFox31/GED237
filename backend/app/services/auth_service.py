@@ -203,10 +203,7 @@ class AuthService:
             "message": "OTP sent to your registered contact",
             "expires_in": expires_in,
         }
-        if (
-            settings.ENVIRONMENT == "development"
-            and otp_delivery.get_channel().echoes_code
-        ):
+        if settings.is_development and otp_delivery.get_channel().echoes_code:
             response["otp"] = otp
         return response
 

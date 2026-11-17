@@ -10,6 +10,16 @@ from functools import lru_cache
 
 
 OTP_CHANNEL_NAMES = ("dev_response", "email")
+ENVIRONMENT_NAMES = ("development", "production")
+# Every SECRET_KEY default shipped in this repository (config.py, both
+# .env.example and both compose files). They are public: production refuses to start with one.
+KNOWN_DEFAULT_SECRET_KEYS = frozenset(
+    {
+        "dev-secret-key-change-this-in-production",  # nosec B105 - refused, not used
+        "dev-secret-key-change-in-production",  # nosec B105 - refused, not used
+        "your-secret-key-change-this-in-production",  # nosec B105 - refused, not used
+    }
+)
 
 
 class Settings(BaseSettings):
@@ -20,10 +30,31 @@ class Settings(BaseSettings):
     # Version shown by FastAPI and /health. Never hard-coded: a release sets it
     # from the git tag (APP_VERSION env), anything else is a dev build.
     APP_VERSION: str = "0.0.0-dev"
+    # development (demo, tests, e2e) or production. Production shows no login code,
+    # hides the demo frame and refuses to start on an unsafe setting (see
+    # production_refusals below).
     ENVIRONMENT: str = "development"
     # DEBUG only drives SQLAlchemy echo (database.py). It never relaxes security
     # controls such as rate limits: those have their own settings below.
     DEBUG: bool = False
+
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def validate_environment(cls, v: Any) -> str:
+        value = str(v).strip().lower()
+        if value not in ENVIRONMENT_NAMES:
+            raise ValueError(
+                "ENVIRONMENT must be one of: " + ", ".join(ENVIRONMENT_NAMES)
+            )
+        return value
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT == "production"
+
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT == "development"
 
     @field_validator("DEBUG", mode="before")
     @classmethod
@@ -240,17 +271,60 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
+def secret_key_refusal(s: Settings) -> str | None:
+    """Why the JWT key must not be used in production (None: it may)."""
+    if s.is_production and (
+        not s.SECRET_KEY.strip() or s.SECRET_KEY in KNOWN_DEFAULT_SECRET_KEYS
+    ):
+        return (
+            "SECRET_KEY is empty or a public default: set a strong random key "
+            "(openssl rand -hex 32) in .env."
+        )
+    return None
+
+
+def production_refusals(s: Settings) -> list[str]:
+    """Every reason why the API must not start with these settings (empty: it may).
+
+    Production never shows the login code, so it needs a channel that really
+    sends it; otherwise nobody can sign in.
+    """
+    if not s.is_production:
+        return []
+    reasons = [r for r in (secret_key_refusal(s),) if r]
+    if s.AUTH_OTP_CHANNEL == "dev_response":
+        reasons.append(
+            "AUTH_OTP_CHANNEL=dev_response sends no login code: set "
+            "AUTH_OTP_CHANNEL=email."
+        )
+    elif s.AUTH_OTP_CHANNEL == "email" and not (
+        s.EMAIL_ENABLED and s.RESEND_API_KEY.strip()
+    ):
+        reasons.append(
+            "AUTH_OTP_CHANNEL=email needs EMAIL_ENABLED=true and RESEND_API_KEY."
+        )
+    return reasons
+
+
+def refuse_unsafe_production(s: Settings) -> None:
+    reasons = production_refusals(s)
+    if reasons:
+        raise RuntimeError(
+            "Refusing to start in production:\n- " + "\n- ".join(reasons)
+        )
+
+
 @lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings instance"""
+    """Get cached settings instance.
+
+    Every process (API, worker, migrations, seed) refuses a public JWT key in
+    production; the login-code checks run at API start (main.py).
+    """
     s = Settings()
-    if (
-        s.ENVIRONMENT == "production"
-        and s.SECRET_KEY == "dev-secret-key-change-this-in-production"  # nosec B105 - explicit production guard against unchanged dev default
-    ):
-        raise RuntimeError(
-            "SECRET_KEY must be changed in production! Set a strong random key via the SECRET_KEY environment variable."
-        )
+    reason = secret_key_refusal(s)
+    if reason:
+        raise RuntimeError(reason)
     return s
 
 
