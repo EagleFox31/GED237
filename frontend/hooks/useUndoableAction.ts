@@ -51,7 +51,7 @@ export function useUndoableAction(windowMs = UNDO_WINDOW_MS, shortcutEnabled = t
       if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
       if (event.key.toLowerCase() !== 'z' || isEditableTarget(event.target)) return;
       event.preventDefault();
-      void runUndo();
+      runUndo();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
