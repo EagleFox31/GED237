@@ -272,19 +272,62 @@ async def test_enrolment_rules(admin_client: AsyncClient, clock, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_removing_the_app_needs_the_password(
+async def test_password_alone_does_not_remove_the_app(
     admin_client: AsyncClient, clock, monkeypatch
 ):
-    await _enrol(admin_client, clock)
-    monkeypatch.setattr(auth_endpoints, "verify_password", lambda plain, h: False)
-    refused = await admin_client.post(
-        f"{TOTP}/disable", json={"current_password": "wrong"}
+    secret = await _enrol(admin_client, clock)
+    clock.step = 1
+    monkeypatch.setattr(auth_endpoints, "verify_password", lambda plain, h: True)
+    alone = await admin_client.post(
+        f"{TOTP}/disable", json={"current_password": "right"}
     )
-    assert refused.status_code == 400
+    assert alone.status_code == 422
+    wrong_code = await admin_client.post(
+        f"{TOTP}/disable", json={"current_password": "right", "code": "000000"}
+    )
+    assert wrong_code.status_code == 400
+    monkeypatch.setattr(auth_endpoints, "verify_password", lambda plain, h: False)
+    wrong_password = await admin_client.post(
+        f"{TOTP}/disable",
+        json={"current_password": "wrong", "code": totp.code_at(secret, S0 + 1)},
+    )
+    assert wrong_password.status_code == 400
+    assert (await admin_client.get(TOTP)).json()["enrolled"] is True
+
+
+@pytest.mark.asyncio
+async def test_app_code_and_password_remove_the_app(
+    admin_client: AsyncClient, clock, monkeypatch
+):
+    secret = await _enrol(admin_client, clock)
+    clock.step = 1
     monkeypatch.setattr(auth_endpoints, "verify_password", lambda plain, h: True)
     removed = await admin_client.post(
-        f"{TOTP}/disable", json={"current_password": "right"}
+        f"{TOTP}/disable",
+        json={"current_password": "right", "code": totp.code_at(secret, S0 + 1)},
     )
     assert removed.status_code == 204
     assert (await admin_client.get(TOTP)).json()["enrolled"] is False
     assert (await _login(admin_client))["method"] == "dev_response"
+    logs = await admin_client.get(
+        "/api/v1/audit/logs", params={"action": "totp_disabled"}
+    )
+    assert len(logs.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_emailed_code_removes_the_app_without_the_phone(
+    admin_client: AsyncClient, clock, outbox, monkeypatch
+):
+    await _enrol(admin_client, clock)
+    sent = await admin_client.post(f"{TOTP}/disable-code")
+    assert sent.status_code == 200, sent.text
+    assert sent.json()["method"] == "email"
+    assert sent.json()["otp"] is None
+    code = _emailed_code(outbox.messages[-1])
+    monkeypatch.setattr(auth_endpoints, "verify_password", lambda plain, h: True)
+    removed = await admin_client.post(
+        f"{TOTP}/disable", json={"current_password": "right", "code": code}
+    )
+    assert removed.status_code == 204
+    assert (await admin_client.get(TOTP)).json()["enrolled"] is False

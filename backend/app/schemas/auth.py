@@ -48,7 +48,16 @@ class TotpCodeRequest(BaseModel):
 
 
 class TotpDisableRequest(BaseModel):
+    """Password and a second factor: the app code, or a code from /totp/disable-code."""
+
     current_password: str = Field(..., min_length=1)
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class TotpDisableCodeResponse(BaseModel):
+    method: str  # channel the code went by
+    expires_in: int
+    otp: Optional[str] = None  # Only in development
 
 
 class OTPVerifyRequest(BaseModel):

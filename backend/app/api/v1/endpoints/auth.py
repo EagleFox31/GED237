@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.errors.domain import (
     AccountLockedError,
+    OtpContactMissingError,
     OtpDeliveryError,
     OtpResendTooSoonError,
 )
@@ -23,16 +24,18 @@ from app.schemas.auth import (
     RefreshTokenResponse,
     TokenResponse,
     TotpCodeRequest,
+    TotpDisableCodeResponse,
     TotpDisableRequest,
     TotpEnrollResponse,
     TotpStatus,
 )
 from app.services.auth_service import AuthService
 from app.core.dependencies import get_current_user
-from app.core.security import hash_password, verify_password
+from app.core.redis import get_redis
+from app.core.security import generate_otp, hash_password, verify_password
 from app.models.user import User
 from app.models.user_totp import UserTotp
-from app.services import totp
+from app.services import otp_delivery, totp
 from app.services.audit_trail import audit_entry
 from app.schemas.user import ChangePasswordRequest
 
@@ -291,6 +294,47 @@ async def totp_confirm(
     return None
 
 
+TOTP_DISABLE_CODE_SECONDS = 300
+
+
+def _disable_key(user_id) -> str:
+    return f"totp_disable:{user_id}"
+
+
+@router.post("/totp/disable-code", response_model=TotpDisableCodeResponse)
+@limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
+async def totp_disable_code(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Code by the fallback channel, for removing the app without the phone."""
+    code = generate_otp(6)
+    channel = otp_delivery.get_channel()
+    result = await channel.deliver(
+        current_user, code, expires_in=TOTP_DISABLE_CODE_SECONDS
+    )
+    if not result.delivered:
+        if result.reason == otp_delivery.REASON_NO_CONTACT:
+            raise OtpContactMissingError(
+                technical_detail=f"no contact for channel {channel.name}"
+            )
+        raise OtpDeliveryError(
+            technical_detail=f"channel {channel.name}: {result.reason}"
+        )
+    redis = await get_redis()
+    await redis.setex(
+        _disable_key(current_user.id),
+        TOTP_DISABLE_CODE_SECONDS,
+        otp_delivery.hash_code(_disable_key(current_user.id), code),
+    )
+    response = TotpDisableCodeResponse(
+        method=channel.name, expires_in=TOTP_DISABLE_CODE_SECONDS
+    )
+    if settings.ENVIRONMENT == "development" and channel.echoes_code:
+        response.otp = code
+    return response
+
+
 @router.post("/totp/disable", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
 async def totp_disable(
@@ -299,12 +343,22 @@ async def totp_disable(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove the app (password required). The login falls back to the code channel."""
+    """Remove the app: password AND a second factor (app code, or a code from
+    /totp/disable-code). A stolen password alone must not switch it off."""
     if not verify_password(payload.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Mot de passe actuel incorrect",
         )
+    redis = await get_redis()
+    key = _disable_key(current_user.id)
+    stored = await redis.get(key)
+    by_fallback = bool(stored) and otp_delivery.code_matches(stored, key, payload.code)
+    if not by_fallback and not await totp.consume(db, current_user.id, payload.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Code incorrect"
+        )
+    await redis.delete(key)
     record = await totp.get_record(db, current_user.id)
     if record is not None:
         await db.delete(record)
