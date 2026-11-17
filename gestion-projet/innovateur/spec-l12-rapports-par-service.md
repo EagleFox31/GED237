@@ -109,11 +109,11 @@ Données : pile e2e, jeu de démo, deux services frères A et B, A1 sous-service
 
 | Porteur | Travail | h-s |
 |---|---|---|
-| B, **rc.1** | D-L12-1, D-L12-2, portée des deux signaux ; tests CA3 et CA9 dans la même PR | ≈ 0,5 (`Déduit`, à confirmer par B) |
+| B, **rc.1** | D-L12-1, D-L12-2, portée des deux signaux ; tests CA3 et CA9 dans la même PR | ≈ 1 (confirmé par B le 17/11) |
 | B, L12 | dates sur trois routes, bloc `filters`, compteurs par période, `limit`, visée d'un sous-service (dans `resolve_report_scope`) | ≈ 0,75 |
 | F, L12 | barre de filtres, URL, libellés, texte vide, lien « tous les services », menu de l'auditeur (D-L12-3) | 0,75 |
 | Q, L12 | CA1, CA2, CA4 à CA8, CA10 à CA12 (tests d'API dans la suite backend, e2e manager) | 0,5 |
 
-**Total** : 2,5 h-s, comme dans `lot-l11-fonctionnalites.md`, dont ≈ 0,5 avancé en rc.1. Ordre : la PR rc.1 de B d'abord ; puis, après le tag, #159 et #175 fusionnées, B, puis F et Q en parallèle. Si la PR rc.1 fusionne avant #159, #159 reprend ces règles dans `resolve_report_scope` et ses 14 tests (« comportement inchangé ») doivent être mis à jour.
+**Total** : ≈ 3 h-s, dont ≈ 1 avancé en rc.1 (B, 17/11) ; la part après le tag reste à 2 h-s. Ordre : la PR rc.1 de B d'abord ; puis, après le tag, #159 et #175 fusionnées, B, puis F et Q en parallèle. La PR rc.1 nomme déjà la règle `resolve_report_scope` (B, 17/11) ; si elle fusionne avant #159, #159 s'aligne sur elle et ses 14 tests (« comportement inchangé ») doivent être mis à jour.
 
 **Risque** : un Manager qui vise un sous-service passe par la table de fermeture (`OrgUnitClosure`). Un test négatif (service frère → 403) est obligatoire (CA2).

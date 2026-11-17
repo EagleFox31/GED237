@@ -10,8 +10,8 @@ Valeur : **H** (item CDC ou besoin écrit), **M**, **B**. Risque : **H** (suppri
 
 | Rang | Fonctionnalité | Source | Valeur | Risque | h-s | Porteur | Décision PO ? |
 |---|---|---|---|---|---|---|---|
-| 1 | **Rapports du Manager** (**#175, en file**, 17/11) : entrée « Rapports » visible pour le Manager, limitée à son service ; test qui prouve qu'il ne voit pas les autres services | Expression de besoin § 3 : « Managers : … accès aux rapports » | H | B | 1,5 | F (menu), Q (test de portée) | non |
-| 2 | **Recherche du bandeau : frappe rapide sans perte de caractères** (**#174, en file**, 17/11) | #163 (bug) | M à H | B | 1 | F | non |
+| 1 | **Rapports du Manager** (**#175, fusionnée** le 17/11, 74620fe) : entrée « Rapports » visible pour le Manager, limitée à son service ; test qui prouve qu'il ne voit pas les autres services | Expression de besoin § 3 : « Managers : … accès aux rapports » | H | B | 1,5 | F (menu), Q (test de portée) | non |
+| 2 | **Recherche du bandeau : frappe rapide sans perte de caractères** (**#174, fusionnée** le 17/11, 8e992c0) | #163 (bug) | M à H | B | 1 | F | non |
 | 3 | **Vue « doublons »** (**#171, en cours**, brouillon post-rc1) : liste des groupes de doublons, choix du document à garder, les autres partent à la **corbeille** (jamais de suppression définitive) | item 19 `partiel` (vue absente) | H | M | 3 | B (API de liste), F (écran) | non, si la règle « corbeille seulement » est retenue |
 | 4 | **Mesure de charge : 100 000 fichiers en moins de 20 min** : script d'ingestion répétable, mesure sur la pile e2e, résultat daté | item 8 `absent` ; Expression de besoin § 5 | H | M | 4 | Q (script, mesure), B (réglages d'ingestion si la mesure échoue) | **décision PO du 17/11** : mesure sur ce PC, jeu synthétique de 100 000 fichiers généré, exécution après le 24/11 (protocole : `protocole-mesure-charge-100k.md`) |
 | 5 | **Test du contrôle avant tag dans la CI**, lancé seulement quand le script ou son test change | #157 | M | B | 1 | Q | non ; à faire **après** le tag (décision O du 17/11) |
