@@ -13,7 +13,7 @@ Valeur : **H** (item CDC ou besoin écrit), **M**, **B**. Risque : **H** (suppri
 | 1 | **Rapports du Manager** : entrée « Rapports » visible pour le Manager, limitée à son service ; test qui prouve qu'il ne voit pas les autres services | Expression de besoin § 3 : « Managers : … accès aux rapports » | H | B | 1,5 | F (menu), Q (test de portée) | non |
 | 2 | **Recherche du bandeau : frappe rapide sans perte de caractères** | #163 (bug) | M à H | B | 1 | F | non |
 | 3 | **Vue « doublons »** : liste des groupes de doublons, choix du document à garder, les autres partent à la **corbeille** (jamais de suppression définitive) | item 19 `partiel` (vue absente) | H | M | 3 | B (API de liste), F (écran) | non, si la règle « corbeille seulement » est retenue |
-| 4 | **Mesure de charge : 100 000 fichiers en moins de 20 min** : script d'ingestion répétable, mesure sur la pile e2e, résultat daté | item 8 `absent` ; Expression de besoin § 5 | H | M | 4 | Q (script, mesure), B (réglages d'ingestion si la mesure échoue) | **oui** : poste de mesure et jeu de fichiers (synthétique accepté ou non) |
+| 4 | **Mesure de charge : 100 000 fichiers en moins de 20 min** : script d'ingestion répétable, mesure sur la pile e2e, résultat daté | item 8 `absent` ; Expression de besoin § 5 | H | M | 4 | Q (script, mesure), B (réglages d'ingestion si la mesure échoue) | **décision PO du 17/11** : mesure sur ce PC, jeu synthétique de 100 000 fichiers généré, exécution après le 24/11 (protocole : `protocole-mesure-charge-100k.md`) |
 | 5 | **Test du contrôle avant tag dans la CI**, lancé seulement quand le script ou son test change | #157 | M | B | 1 | Q | non ; à faire **après** le tag (décision O du 17/11) |
 | 6 | **Preuve d'installation sur site** : installation rejouée sur un poste vierge à partir du manuel, temps et écarts notés | item 28 « non vérifiable » (VPS écarté le 9/11) | H | B | 2 | Q | **oui** : accepter l'installation sur site comme preuve de l'item 28 à la place du VPS |
 | 7 | **Sélection multiple dans l'explorateur** (Ctrl+clic, Maj+clic, Ctrl+A, compteur, actions de groupe existantes) | #150 | M | M | 3 | F | non |
@@ -36,4 +36,4 @@ Valeur : **H** (item CDC ou besoin écrit), **M**, **B**. Risque : **H** (suppri
 
 ## 4. Si le PO dit « oui » à tout
 
-Ordre de démarrage proposé : 1, 2 et 5 en parallèle (F, F, Q), puis 3 (B et F), puis 4 dès que le poste de mesure est décidé. 6 dès que le PO accepte le critère. 7 après 1 et 2 ; 8 après la décision écrite. Total chiffré, hors 8 : ≈ 15,5 h-s, réparties sur B, F et Q (`Déduit`).
+Ordre de démarrage proposé : 1, 2 et 5 en parallèle (F, F, Q), puis 3 (B et F), puis 4 après le 24/11 (poste et jeu décidés par le PO le 17/11). 6 dès que le PO accepte le critère. 7 après 1 et 2 ; 8 après la décision écrite. Total chiffré, hors 8 : ≈ 15,5 h-s, réparties sur B, F et Q (`Déduit`).
