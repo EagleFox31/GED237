@@ -8,6 +8,7 @@ import asyncio
 import base64
 import re
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -19,7 +20,9 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 
 from app.api.v1.endpoints import auth as auth_endpoints
+from app.api.v1.endpoints import notifications
 from app.cli import admins_without_email, reset_totp
+from app.core import dependencies
 from app.core.config import Settings, get_settings, settings
 from app.core.rate_limit import limiter
 from app.core.redis import get_redis
@@ -847,6 +850,50 @@ async def test_nothing_to_reset_revokes_nothing(async_client, db_session, db_see
     assert (await async_client.get(ME, headers=_bearer(access))).status_code == 200
 
 
+class _Socket:
+    """The part of a WebSocket the notifications endpoint touches first."""
+
+    def __init__(self):
+        self.closed_with = None
+
+    async def close(self, code=1000):
+        self.closed_with = code
+
+    async def accept(self):
+        raise AssertionError("a revoked token must not open the socket")
+
+
+@pytest.mark.asyncio
+async def test_websocket_token_issued_before_the_reset_is_refused(
+    db_session, db_seed, monkeypatch
+):
+    @asynccontextmanager
+    async def same_session():
+        yield db_session
+
+    # get_current_user_ws opens its own session: read the test data instead.
+    monkeypatch.setattr(dependencies, "AsyncSessionLocal", same_session)
+    old, _ = _tokens(db_seed)
+    assert (await dependencies.get_current_user_ws(old)).id == db_seed["user_id"]
+
+    await _seed_app(db_session, db_seed)
+    chief = await _real_user(db_session, db_seed, "TA001")
+    assert await totp.reset(
+        db_session, await db_session.get(User, db_seed["user_id"]), actor=chief
+    )
+
+    assert await dependencies.get_current_user_ws(old) is None
+    socket = _Socket()
+    await notifications.websocket_endpoint(socket, token=old)
+    assert socket.closed_with == 1008
+    assert str(db_seed["user_id"]) not in notifications.manager.active_connections
+
+    # A token from a new login connects again.
+    await asyncio.sleep(0.005)
+    fresh, _ = _tokens(db_seed)
+    assert (await dependencies.get_current_user_ws(fresh)).id == db_seed["user_id"]
+
+
 def _bearer(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
@@ -882,7 +929,7 @@ async def test_required_role_without_email_is_refused_on_create(
     )
 
     created = await admin_client.post(
-        "/api/v1/users/", json=_new_user(db_seed, email="mail001@example.test")
+        "/api/v1/users/", json=_new_user(db_seed, email="mail001@testministry.gov.cm")
     )
     assert created.status_code == 201, created.text
 
