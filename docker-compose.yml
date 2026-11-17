@@ -219,6 +219,7 @@ services:
     environment:
       - VITE_API_URL=/api/v1
       - VITE_APP_VERSION=${APP_VERSION:-dev}
+      - FRONTEND_ALLOWED_HOSTS=${FRONTEND_ALLOWED_HOSTS:-}
     networks:
       - edossier_network
 
