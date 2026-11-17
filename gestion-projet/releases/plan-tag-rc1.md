@@ -12,6 +12,8 @@ FPR=7776361468B5DF0CFF903723A00188980F856DF1
 
 ## 1. Fusion de #121 (version du frontend)
 
+> **Remplacé par `runbook-coupe-19-11.md` : #121 va sur `release/v1.0.0`, le tag part de la tête de la release.**
+
 - [ ] **#121 est la dernière fusion avant le tag** (décision O du 17/11) : les notes de version (#104 et la PR des notes) et toute PR de documentation sont fusionnées avant elle ; aucune fusion après elle. Seuls restent ouverts les brouillons `post-rc1` et les PR reportées après le tag : `gh pr list --state open --json number,isDraft,title`.
 - [ ] `gh pr view 121 --json state,mergeStateStatus,headRefOid` : OPEN, et pas BEHIND (sinon, la file la met à jour).
 - [ ] Fusionner #121 via la file.

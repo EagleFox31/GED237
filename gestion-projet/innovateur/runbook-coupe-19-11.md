@@ -151,7 +151,7 @@ gh api repos/$REPO/rulesets/26190959 -q '.conditions.ref_name.include'
    gh pr edit 121 --base "$BR"
    gh pr view 121 --json baseRefName -q .baseRefName
    ```
-   Attendu : `release/v1.0.0`. La branche de #121 part de f89fce8 (16/11). Après le reciblage, son diff ne montre que `frontend/package.json`, mais elle sera `BEHIND` : la règle `strict` l'exige à jour. Son auteur la met à jour par un `git merge origin/$BR` **en local**, puis un push, le 24 au matin après le dernier correctif. Il faut compter le temps d'une CI (1 à 11 min le 17/11) avant E5.
+   Attendu : `release/v1.0.0`. La branche de #121 part de f89fce8 (16/11). Après le reciblage, son diff ne montre que `frontend/package.json`, mais elle sera `BEHIND` : la règle `strict` l'exige à jour. La file d'O la met à jour par `gh pr update-branch 121` une fois la PR reciblée, puis de nouveau le 24 au matin si un correctif est passé sur la release entre-temps. C'est une branche du dépôt, pas un fork : l'auteur n'a rien à faire. Il faut compter le temps d'une CI (1 à 11 min le 17/11) avant E5.
 3. **Le contrôle d'étanchéité, à chaque fusion sur `main`** : `gh api repos/$REPO/branches/$BR -q .commit.sha` ne bouge pas.
 
 ## 6. Correctif après la coupe : PR vers la release, puis `cherry-pick -x` vers `main`
