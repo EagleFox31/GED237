@@ -68,7 +68,7 @@ Sixième groupe, validé par O le 17/11 : ces PR n'entrent dans aucun des cinq t
 |---|---|---|---|---|---|
 | #153 | Une seule file de validation, triée par ancienneté : mes documents, ceux de mon unité, ceux sans responsable. | Voit tout ce qu'il doit valider au même endroit. Si activé (`WORKFLOW_INBOX_ENABLED`). | Voit aussi les validations sans responsable. | — | à relire |
 | #190 | Écran de la file de validation, à onglets. | Comme #153. | Comme #153. | — | à relire ; suit #181 et #153 |
-| #165 | Favoris, documents récents et documents partagés avec moi. | Met des documents en favori (étoile) et retrouve ses derniers documents ouverts (récents si activés : `RECENT_DOCUMENTS_TRACKING_ENABLED`). | Comme l'agent. | Comme l'agent. | changements demandés (réglage absent du compose, comme #180 et #183) ; en attente du PO (dossier du 23, § 4, q. 5) |
+| #165 | Favoris, documents récents et documents partagés avec moi. | Met des documents en favori (étoile) et retrouve ses derniers documents ouverts (récents si activés : `RECENT_DOCUMENTS_TRACKING_ENABLED`). | Comme l'agent. | Comme l'agent. | changements demandés (réglages absents du compose, comme #180 et #183) |
 | #205 | Écran « Mes documents » : favoris, récents, partagés. | Comme #165. | Comme #165. | Comme #165. | à relire ; suit #165 |
 | #186 | Un import de dossier interrompu reprend où il s'était arrêté, sans tout refaire. | — | Relance un gros import coupé sans doublons ni attente. | — | relue (OK de Q) ; rechaînera sa migration derrière #197 à son tour |
 
@@ -79,4 +79,4 @@ Sixième groupe, validé par O le 17/11 : ces PR n'entrent dans aucun des cinq t
 - **Lignes à confirmer par les auteurs** : la colonne « Ce qui change » vient des descriptions de PR. B et F peuvent corriger une formulation avant la release.
 - **Réglages coupés par défaut** : `SCHEDULED_REPORTS_ENABLED`, `QUALITY_ALERTS_ENABLED`, `TRASH_RETENTION_DAYS`, `NOTIFICATIONS_BROADCAST_MODE`, `SCHEDULED_BACKUP_ENABLED`, `WORKFLOW_INBOX_ENABLED`, `RECENT_DOCUMENTS_TRACKING_ENABLED`. Règle validée par O le 17/11 : chacun est tranché au moment de la release V1.1 ; une ligne dont le réglage reste coupé sort des notes.
 - **Q. 4 du PO** : la ligne #196 « Lecteur » sera fixée par sa réponse (recommandation B : son service seulement).
-- **Q. 5 du PO** : la ligne #165 dépend de sa réponse (recommandation A : le valideur lit le document pendant la validation). Avec B, « Partagés avec moi » ne montre plus les documents à valider venant d'autres services.
+- **Q. 5 du PO** : #165 ne l'attend pas. La réponse donnera une PR à part : avec A, le valideur peut lire le document pendant son étape (contrôle d'accès) ; avec B, un filtre retire ces documents de « Partagés avec moi ».

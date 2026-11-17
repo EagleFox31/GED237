@@ -20,7 +20,7 @@ META=(
   "154|étape 2 (B)|oui avec remarques (12:39), commit a655f91 dans #193|main|10|-"
   "193|étape 2 (B)|oui avec remarques sur f2cc377 (l. 882), à relire après rebasage|main|11 (écart B : down_revision)|#154, #183"
   "186|étape 2 (B)|oui (OK selon O le 17/11), migration à rechaîner derrière #197|main|12|#193"
-  "165|étape 2 (B)|changements demandés (réglage absent du compose) ; q. 5 du PO|main|13|#186, accord PO (q. 5)"
+  "165|étape 2 (B)|changements demandés (réglages absents du compose)|main|13|#186"
   "192|étape 2 (B)|non|main|14|#165"
   "209|étape 3 (F)|non|main, via #180|15|#180"
   "194|étape 3 (F)|non|main, via #183|16|#183"
