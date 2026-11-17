@@ -327,8 +327,9 @@ class DirectoryIngestionService:
                     IngestRun.id == run.id
                 )
             ):
+                alive_id = run.id  # read before the rollback expires it
                 await self.db.rollback()
-                raise IngestRunInProgressError(technical_detail=f"run {run.id} alive")
+                raise IngestRunInProgressError(technical_detail=f"run {alive_id} alive")
             run.attempts = (run.attempts or 1) + 1
             run.heartbeat_at = func.now()
             run.status, run.finished_at = "running", None
