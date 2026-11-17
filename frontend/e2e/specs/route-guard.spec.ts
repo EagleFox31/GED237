@@ -81,7 +81,10 @@ test.describe('Garde des routes d’administration (GUARD-01..07)', () => {
     for (const item of TENANT_ADMIN_MENU.flatMap((section) => section.items)) {
       // Le nom accessible inclut le texte de l'icône : on ancre sur la fin du libellé.
       const label = new RegExp(`${item.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
-      await menu.getByRole('button', { name: label }).click();
+      const entry = menu.getByRole('button', { name: label });
+      await entry.click();
+      // Attendre que la navigation soit rendue : sinon l'assertion négative peut passer trop tôt.
+      await expect(entry, `menu « ${item.label} » actif`).toHaveAttribute('aria-current', 'page');
       await expect(page.getByRole('heading', { name: NOT_FOUND }), `menu « ${item.label} »`).toHaveCount(0);
     }
   });
