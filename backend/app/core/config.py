@@ -10,6 +10,9 @@ from functools import lru_cache
 
 
 OTP_CHANNEL_NAMES = ("dev_response", "email")
+# Channels that never deliver the code. Declared here because otp_delivery
+# imports this module; the guard test checks it against each channel's ``sends``.
+OTP_SILENT_CHANNELS = ("dev_response",)
 
 
 class Settings(BaseSettings):
@@ -255,9 +258,11 @@ def refuse_unsafe_production(s: Settings) -> None:
         raise RuntimeError(
             "SECRET_KEY must be changed in production! Set a strong random key via the SECRET_KEY environment variable."
         )
-    if s.ENVIRONMENT == "production" and s.AUTH_OTP_CHANNEL == "dev_response":
-        # dev_response sends no code and echoes it only in development: in
-        # production nobody could complete the second factor.
+    if s.ENVIRONMENT == "production" and s.AUTH_OTP_CHANNEL in OTP_SILENT_CHANNELS:
+        # A silent channel echoes the code only in development: in production
+        # nobody could complete the second factor. These settings are shared
+        # with the worker: a worker started with ENVIRONMENT=production must
+        # also receive AUTH_OTP_CHANNEL, or it will refuse to start.
         raise RuntimeError(
             "AUTH_OTP_CHANNEL=dev_response sends no login code: in production "
             "nobody could sign in. Set AUTH_OTP_CHANNEL to a channel that sends "

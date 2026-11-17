@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import (
     OTP_CHANNEL_NAMES,
+    OTP_SILENT_CHANNELS,
     Settings,
     refuse_unsafe_production,
     settings,
@@ -139,6 +140,9 @@ def test_production_refuses_to_start_on_a_channel_that_sends_no_code(channel):
     production = Settings(
         ENVIRONMENT="production", SECRET_KEY="k" * 40, AUTH_OTP_CHANNEL=channel
     )
+    assert (channel in OTP_SILENT_CHANNELS) is not otp_delivery.get_channel(
+        channel
+    ).sends
     if otp_delivery.get_channel(channel).sends:
         refuse_unsafe_production(production)
     else:
