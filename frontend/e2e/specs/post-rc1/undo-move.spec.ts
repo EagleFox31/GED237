@@ -3,7 +3,8 @@ import { test, expect, API_URL } from '../../fixtures/uat.fixture';
 
 /**
  * Post-rc1 L4 (#151, server side #179): "Annuler" after Suppr or after a drag-and-drop move.
- * - Suppr = trash; Annuler = POST /documents/{id}/restore.
+ * - Suppr = POST /documents/{id}/trash; Annuler = POST /documents/{id}/restore.
+ *   (Plain DELETE is the hard delete on main until #152 turns it into a move to the trash.)
  * - Move = PATCH /documents/{id} with a new classification; Annuler = the same PATCH with the 7 previous
  *   classification fields. Each move is audited as "reclassify" with before/after.
  * API tests run now against #179; UI tests are fixme until the explorer gets the Annuler button and Ctrl+Z.
@@ -37,7 +38,7 @@ test.describe('Annuler une suppression ou un déplacement (API, #179)', () => {
       (await (await request.get(`${API_URL}/documents/${doc.id}`, { headers: auth(adminToken) })).json()) as Doc;
     const before = pick(await get(), PLACEMENT);
 
-    expect((await request.delete(`${API_URL}/documents/${doc.id}`, { headers: auth(adminToken) })).status()).toBe(204);
+    expect((await request.post(`${API_URL}/documents/${doc.id}/trash`, { headers: auth(adminToken) })).status()).toBe(200);
     expect((await request.post(`${API_URL}/documents/${doc.id}/restore`, { headers: auth(adminToken) })).status()).toBe(200);
     expect(pick(await get(), PLACEMENT)).toEqual(before);
   });
@@ -52,7 +53,8 @@ test.describe('Annuler une suppression ou un déplacement (API, #179)', () => {
       id: string;
       is_active: boolean;
     }[]).filter((u) => u.is_active);
-    expect(units.length, 'au moins deux unités actives').toBeGreaterThanOrEqual(2);
+    const [unitA, unitB] = units;
+    if (!unitA || !unitB) throw new Error('au moins deux unités actives attendues (seed)');
     const place = async (code: string, unitId: string, year: number) => {
       const domain = await adminApi.createDomain(`${code}-${runId}`, `Domaine ${code} ${runId}`);
       const activity = await adminApi.createActivity(domain.id, `${code}-act-${runId}`, `Activité ${code} ${runId}`);
@@ -66,13 +68,13 @@ test.describe('Annuler une suppression ou un déplacement (API, #179)', () => {
         classification_status: 'classified',
       };
     };
-    const home = await place('undo-a', units[0].id, 2026);
-    const elsewhere = await place('undo-b', units[1].id, 2025);
+    const home = await place('undo-a', unitA.id, 2026);
+    const elsewhere = await place('undo-b', unitB.id, 2025);
     const doc = await adminApi.uploadDocument(`undo-mv-${runId}.txt`, `Undo move ${runId}`, `Contenu ${runId}`);
 
     const filed = pick(await patch(request, adminToken, doc.id, home), PLACEMENT);
     const moved = await patch(request, adminToken, doc.id, elsewhere);
-    expect(moved.org_unit_id).toBe(units[1].id);
+    expect(moved.org_unit_id).toBe(unitB.id);
     expect(moved.logical_space_path).not.toBe(filed.logical_space_path);
 
     // Annuler = the same PATCH with the classification kept before the drag.
@@ -88,6 +90,7 @@ test.describe('Annuler une suppression ou un déplacement (API, #179)', () => {
     const mine = logs.filter((l) => l.record_id === doc.id).sort((a, b) => a.created_at.localeCompare(b.created_at));
     expect(mine).toHaveLength(3); // filing, move, undo
     const [, move, undo] = mine;
+    if (!move || !undo) throw new Error('entrées reclassify manquantes');
     expect(undo.new_data.before).toEqual(move.new_data.after);
     expect(undo.new_data.after).toEqual(move.new_data.before);
   });
