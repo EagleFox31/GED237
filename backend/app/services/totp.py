@@ -294,6 +294,8 @@ async def reset(
                 "matricule": target.matricule,
                 "by": actor.matricule,
                 "via": via,
+                # Break-glass only (ops script): the app never lets one reset oneself.
+                "self": actor.id == target.id,
                 "sessions_revoked": True,
             },
             request=request,

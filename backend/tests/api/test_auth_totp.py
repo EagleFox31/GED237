@@ -640,6 +640,8 @@ T1, T2 = uuid.uuid4(), uuid.uuid4()
     [
         ("super_admin", T2, "super_admin", T1, True),  # another super_admin
         ("super_admin", T2, "tenant_admin", T1, True),
+        ("super_admin", T1, "collaborator", T1, False),  # an agent: never
+        ("super_admin", T2, "unit_admin", T1, False),
         ("tenant_admin", T1, "collaborator", T1, True),
         ("tenant_admin", T1, "unit_admin", T1, True),  # an agent of the institution
         ("tenant_admin", T1, "collaborator", T2, False),  # another institution
@@ -730,36 +732,6 @@ async def test_super_admin_resets_a_tenant_admin_of_another_institution(
     assert (await _audit(db_session, "totp_reset"))[0].new_data["via"] == "app"
 
 
-@pytest.mark.parametrize(
-    "actor, target, same_tenant, allowed",
-    [
-        ("super_admin", "super_admin", False, True),
-        ("super_admin", "tenant_admin", False, True),
-        ("super_admin", "collaborator", True, False),  # an agent: never
-        ("super_admin", "unit_admin", False, False),
-        ("tenant_admin", "collaborator", True, True),
-        ("tenant_admin", "unit_admin", True, True),
-        ("tenant_admin", "collaborator", False, False),
-        ("tenant_admin", "tenant_admin", True, False),
-        ("tenant_admin", "super_admin", True, False),
-        ("unit_admin", "collaborator", True, False),
-    ],
-)
-def test_who_resets_whom(actor, target, same_tenant, allowed):
-    tenant = uuid.uuid4()
-    assert (
-        totp.reset_allowed(
-            actor_id=uuid.uuid4(),
-            actor_role=actor,
-            actor_tenant=tenant,
-            target_id=uuid.uuid4(),
-            target_role=target,
-            target_tenant=tenant if same_tenant else uuid.uuid4(),
-        )
-        is allowed
-    )
-
-
 @pytest.mark.asyncio
 async def test_reset_is_refused_when_the_server_runs_without_the_app(
     client_as, db_session, db_seed, monkeypatch
@@ -782,8 +754,7 @@ async def test_reset_is_refused_when_the_server_runs_without_the_app(
         ("super_admin", True, False, 403),
         ("collaborator", True, False, 403),
         ("unit_admin", True, False, 403),
-        ("super_admin", True, True, 403),  # the holder, whatever the role
-        ("tenant_admin", True, True, 403),
+        ("tenant_admin", True, True, 403),  # the holder: never oneself
     ],
 )
 async def test_reset_refused(
@@ -836,6 +807,7 @@ def _ops_args(operator: str, *extra: str):
 async def test_ops_script_shows_first_then_resets(db_session, db_seed, outbox):
     """The last super_admin: reset from the server, after an in-person check."""
     await _seed_app(db_session, db_seed)
+    await _seeded_role_is(db_session, db_seed, "tenant_admin")
     operator = await _super_admin(db_session, db_seed, "SA002")
     args = _ops_args("SA002")
     lines: list[str] = []
@@ -851,6 +823,7 @@ async def test_ops_script_shows_first_then_resets(db_session, db_seed, outbox):
     assert len(rows) == 1
     assert rows[0].user_id == operator.id
     assert (rows[0].new_data["by"], rows[0].new_data["via"]) == ("SA002", "ops-script")
+    assert rows[0].new_data["self"] is False
     assert [m.to for m in outbox.messages] == [HOLDER]
 
     assert await reset_totp.run(db_session, args, out=lines.append) == 0
@@ -861,6 +834,26 @@ async def test_ops_script_shows_first_then_resets(db_session, db_seed, outbox):
         ["--institution", "TESTMIN", "--matricule", "NOPE", "--operator", "SA002"]
     )
     assert await reset_totp.run(db_session, unknown, out=lines.append) == 1
+
+
+@pytest.mark.asyncio
+async def test_ops_script_follows_the_application_rule(db_session, db_seed, outbox):
+    """An agent is reset by its tenant_admin, in the application, not here."""
+    await _seed_app(db_session, db_seed)
+    await _super_admin(db_session, db_seed, "SA002")
+    lines: list[str] = []
+    args = _ops_args("SA002", "--apply")
+    assert await reset_totp.run(db_session, args, out=lines.append) == 2
+    assert lines[-1].startswith("Account refused: TEST001 is collaborator")
+    assert await _app_count(db_session) == 1
+    assert await _audit(db_session, "totp_reset") == []
+    assert outbox.messages == []
+
+    unknown = reset_totp.parse_args(
+        ["--institution", "NOWHERE", "--matricule", "TEST001", "--operator", "SA002"]
+    )
+    assert await reset_totp.run(db_session, unknown, out=lines.append) == 1
+    assert lines[-1] == "Institution not found: NOWHERE"
 
 
 @pytest.mark.asyncio
@@ -886,6 +879,56 @@ async def test_ops_script_needs_an_active_super_admin_operator(
     assert await _app_count(db_session) == 1
     assert await _audit(db_session, "totp_reset") == []
     assert outbox.messages == []
+
+
+async def _holder_is_super_admin(db, db_seed) -> None:
+    """After _super_admin, which creates the super_admin role (id 1)."""
+    await db.execute(
+        update(User).where(User.id == db_seed["user_id"]).values(role_id=1)
+    )
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_ops_script_refuses_the_holder_while_another_super_admin_is_active(
+    db_session, db_seed, outbox
+):
+    """The holder of a super_admin account is reset by another one, in the app."""
+    await _seed_app(db_session, db_seed)
+    await _super_admin(db_session, db_seed, "SA002")
+    await _holder_is_super_admin(db_session, db_seed)
+    lines: list[str] = []
+    args = _ops_args("TEST001", "--apply")
+    assert await reset_totp.run(db_session, args, out=lines.append) == 2
+    assert lines[-1].startswith("Operator refused: TEST001 is the holder and 1 other")
+    assert await _app_count(db_session) == 1
+    assert await _audit(db_session, "totp_reset") == []
+    assert outbox.messages == []
+
+
+@pytest.mark.asyncio
+async def test_ops_script_lets_the_only_active_super_admin_reset_oneself(
+    db_session, db_seed, outbox
+):
+    """Break-glass: nobody else could do it. Said in the output and the audit."""
+    await _seed_app(db_session, db_seed)
+    await _super_admin(db_session, db_seed, "SA003", active=False)  # does not count
+    await _holder_is_super_admin(db_session, db_seed)
+    lines: list[str] = []
+    args = _ops_args("TEST001")
+    assert await reset_totp.run(db_session, args, out=lines.append) == 0
+    assert any(line.startswith("Break-glass") for line in lines)
+    assert lines[-1].startswith("Dry run")
+    assert await _app_count(db_session) == 1
+
+    args.apply = True
+    assert await reset_totp.run(db_session, args, out=lines.append) == 0
+    assert await _app_count(db_session) == 0
+    rows = await _audit(db_session, "totp_reset")
+    assert len(rows) == 1
+    assert rows[0].user_id == db_seed["user_id"]
+    assert (rows[0].new_data["by"], rows[0].new_data["self"]) == ("TEST001", True)
+    assert [m.to for m in outbox.messages] == [HOLDER]
 
 
 @pytest.mark.asyncio
