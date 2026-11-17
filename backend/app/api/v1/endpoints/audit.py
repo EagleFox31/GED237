@@ -53,6 +53,7 @@ ACTION_LABELS = {
     "lock": "Verrouillage",
     "unlock": "Deverrouillage",
     "archive": "Archivage",
+    "reclassify": "Reclassement",
     "local_organize": "Rangement local sur poste",
     "local_snap_put": "Bibliotheque locale (sync)",
     "watch_ingested": "Import automatique d'un dossier",
