@@ -408,10 +408,20 @@ async def test_an_email_already_used_is_refused_on_update(
         )
     assert response.status_code == 409
     assert response.json()["error_code"] == "USER_EMAIL_TAKEN"
+    assert await _user_updated_rows(db_session, db_seed["user_id"]) == []
 
 
 # PATCH writes a user_updated audit row (#225): the names of the changed
 # fields always, values only for the role, the attachment and the activation.
+
+
+async def _user_updated_rows(db_session, target):
+    result = await db_session.execute(
+        select(AuditLog).where(
+            AuditLog.action == "user_updated", AuditLog.record_id == target
+        )
+    )
+    return result.scalars().all()
 
 
 async def _audited_patch(client_as, db_session, db_seed, body):
@@ -424,17 +434,7 @@ async def _audited_patch(client_as, db_session, db_seed, body):
     ) as client:
         response = await client.patch(f"{USERS}/{target}", json=body)
     assert response.status_code == 200, response.text
-    rows = (
-        (
-            await db_session.execute(
-                select(AuditLog).where(
-                    AuditLog.action == "user_updated", AuditLog.record_id == target
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    rows = await _user_updated_rows(db_session, target)
     for row in rows:
         assert (row.user_id, row.tenant_id, row.table_name) == (
             admin_id,
@@ -498,3 +498,34 @@ async def test_a_patch_that_changes_nothing_is_not_audited(
     assert (
         await _audited_patch(client_as, db_session, db_seed, {"is_active": True}) == []
     )
+
+
+@pytest.mark.asyncio
+async def test_a_refused_role_grant_is_not_audited(client_as, db_session, db_seed):
+    await _privileged_roles(db_session)
+    admin = await _add_user(db_session, *_unit(db_seed), "ADM01", role_id=2)
+    async with client_as(
+        "tenant_admin", tenant_id=db_seed["tenant_id"], id=admin.id
+    ) as client:
+        response = await client.patch(
+            f"{USERS}/{db_seed['user_id']}", json={"role_id": 1}
+        )
+    assert response.status_code == 403
+    assert await _user_updated_rows(db_session, db_seed["user_id"]) == []
+
+
+@pytest.mark.asyncio
+async def test_a_change_to_ones_own_profile_is_audited(client_as, db_session, db_seed):
+    await _privileged_roles(db_session)
+    me = (await _add_user(db_session, *_unit(db_seed), "ADM01", role_id=2)).id
+    async with client_as(
+        "tenant_admin",
+        id=me,
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+    ) as client:
+        response = await client.patch(f"{USERS}/{me}", json={"phone": "690000001"})
+    assert response.status_code == 200, response.text
+    [row] = await _user_updated_rows(db_session, me)
+    assert (row.user_id, row.record_id) == (me, me)
+    assert row.old_data == row.new_data == {"fields": ["phone"]}

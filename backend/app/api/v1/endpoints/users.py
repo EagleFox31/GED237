@@ -444,6 +444,7 @@ async def _update_audit(
 
     None when nothing changes. ``old_data``/``new_data`` carry the changed field
     names, plus the role code and the AUDITED_VALUES among them.
+    ``password`` always counts as changed: the stored hash is never compared.
     """
     changed = sorted(
         field
