@@ -5,9 +5,11 @@ import { PAGE_SIZE, ROLE_LABELS, ROLE_BADGE_STYLES } from './constants';
 import { errorMessage } from './hooks';
 import { Avatar } from './Avatar';
 import { DataTable, type Column, type SortState } from '../../../../components/ui/DataTable';
+import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 
 const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ user, onAfter }) => {
   const [open, setOpen] = useState(false);
+  const [confirmTotp, setConfirmTotp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +45,17 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
       window.alert('Mot de passe réinitialisé.');
     } catch (e) {
       window.alert(`Échec : ${errorMessage(e)}`);
+    }
+  };
+
+  const resetTotp = async () => {
+    setConfirmTotp(false);
+    try {
+      await api.resetUserTotp(user.id);
+      window.alert('Application réinitialisée. Sessions fermées.');
+      onAfter();
+    } catch {
+      /* bus global : le message du serveur est affiché */
     }
   };
 
@@ -82,8 +95,30 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
             <span aria-hidden="true" className="material-symbols-outlined text-base">key</span>
             Réinitialiser le mot de passe
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              setConfirmTotp(true);
+            }}
+            className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-base">smartphone</span>
+            Réinitialiser l’application d’authentification
+          </button>
         </div>
       )}
+      <ConfirmationModal
+        open={confirmTotp}
+        title="Réinitialiser l’application d’authentification"
+        message={`« ${user.full_name || user.matricule} » configurera une nouvelle application à sa prochaine connexion.`}
+        confirmLabel="Réinitialiser"
+        icon="smartphone"
+        bullets={['Vérifiez l’identité de l’agent en personne.', 'Toutes ses sessions seront fermées.']}
+        onConfirm={resetTotp}
+        onCancel={() => setConfirmTotp(false)}
+      />
     </div>
   );
 };

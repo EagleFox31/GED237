@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import CameroonMap from './CameroonMap';
 import DemoProfiles from './widgets/DemoProfiles';
 import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
+import { isEnrolmentRequired } from '../services/resources/auth.api';
+import { TotpEnrolment } from './auth/TotpEnrolment';
+import { isAppCode, otpPrompt, resendErrorMessage, resendSecondsLeft } from './auth/otpRules';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
@@ -47,7 +50,12 @@ const tenantLabelForCode = (tenants: PublicTenant[], code: string): string | nul
 };
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [step, setStep] = useState<'login' | 'otp'>('login');
+  const [step, setStep] = useState<'login' | 'otp' | 'enrol'>('login');
+  const [method, setMethod] = useState<string | null>(null);
+  const [enrolmentToken, setEnrolmentToken] = useState<string | null>(null);
+  const [sentAt, setSentAt] = useState<number | null>(null);
+  const [resendLeft, setResendLeft] = useState(0);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -136,6 +144,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       if (response.session_token) {
         setTempToken(response.session_token);
         setStep('otp');
+        setMethod(response.method ?? null);
+        setSentAt(isAppCode(response.method) ? null : Date.now());
+        setResendNotice(null);
         if (response.otp && typeof response.otp === 'string' && response.otp.length === 6) {
           setOtp(response.otp.split(''));
         }
@@ -171,6 +182,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         session_token: tempToken,
         otp: code,
       });
+      if (isEnrolmentRequired(response)) {
+        setEnrolmentToken(response.enrolment_token);
+        setStep('enrol');
+        return;
+      }
       onLogin(response);
     } catch (err) {
       const lock = lockoutOf(err);
@@ -185,6 +201,40 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
 
+  useEffect(() => {
+    if (sentAt === null) {
+      setResendLeft(0);
+      return undefined;
+    }
+    const tick = () => setResendLeft(resendSecondsLeft(sentAt, Date.now()));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [sentAt]);
+
+  /** Nouveau code e-mail (#154) : 60 s entre deux envois, refus du serveur en clair. */
+  const handleResend = async () => {
+    if (!tempToken || resendLeft > 0) return;
+    setError(null);
+    setResendNotice(null);
+    try {
+      const response = await api.resendOTP(tempToken);
+      setTempToken(response.session_token || tempToken);
+      setSentAt(Date.now());
+      setResendNotice('Nouveau code envoyé.');
+      if (response.otp && response.otp.length === 6) setOtp(response.otp.split(''));
+    } catch (err) {
+      setError(resendErrorMessage(err instanceof ApiError ? err.status : undefined));
+    }
+  };
+
+  const handleEnrolmentExpired = useCallback((message: string) => {
+    setEnrolmentToken(null);
+    setTempToken(null);
+    setOtp(['', '', '', '', '', '']);
+    setStep('login');
+    setError(message);
+  }, []);
 
   const handleOtpChange = (index: number, value: string) => {
     const sanitizedValue = value.replace(/\D/g, '');
@@ -335,12 +385,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   </button>
                 </form>
               </div>
+            ) : step === 'enrol' && enrolmentToken ? (
+              <TotpEnrolment enrolmentToken={enrolmentToken} onDone={onLogin} onExpired={handleEnrolmentExpired} />
             ) : (
               <div className="space-y-10 animate-in fade-in slide-in-from-right duration-500 max-w-xl">
                 <div className="space-y-4">
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Double Facteur</div>
                   <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">Code MFA</h1>
-                  <p className="text-slate-500 text-lg font-medium leading-relaxed">Saisissez le code de sécurité reçu sur votre mobile.</p>
+                  <p className="text-slate-500 text-lg font-medium leading-relaxed">{otpPrompt(method)}</p>
                   {error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>}
                 </div>
 
@@ -356,6 +408,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                       {loading ? "Validation..." : <span className="flex items-center gap-3 italic relative z-10">Confirmer l'identité <span className="material-symbols-outlined group-hover:scale-125 transition-transform font-bold">verified_user</span></span>}
                       <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                     </button>
+                    {!isAppCode(method) && (
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resendLeft > 0 || loading}
+                        className="w-full text-xs font-bold text-rdpc-blue hover:underline disabled:text-slate-500 disabled:no-underline"
+                      >
+                        {resendLeft > 0 ? `Renvoyer le code (${resendLeft} s)` : 'Renvoyer le code'}
+                      </button>
+                    )}
+                    {resendNotice && <p role="status" className="text-center text-xs font-bold text-green-600">{resendNotice}</p>}
                     <button type="button" onClick={() => setStep('login')} className="w-full text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rdpc-blue transition-colors">Utiliser une autre méthode</button>
                   </div>
                 </form>
