@@ -94,6 +94,28 @@ Le calendrier :
 
 > **Phrase d'accord** : « Accord O du JJ/MM : après le 30, GED237 adopte `reusable-release.yml` d'appfactory, épinglé sur `0523510a` (v1.4.0), en mode manifest avec une graine à `1.0.0-rc.1`. Les permissions sont `contents`, `pull-requests` et `issues` en écriture, sans PAT : la PR de release est fermée puis rouverte pour lancer la CI, et `release-integrity` est chaîné par `workflow_dispatch`. rc.1 reste posé à la main le 24, et toute release suivante passe uniquement par Release Please. Coût ≈ 1 h-s, porté par B ou Q, après une exécution à blanc. »
 
+## 8. Décisions de O du 17/11
+
+1. **Adopt après le 30**, confié à B ou Q pour ≈ 1 h-s, à affecter le 1er décembre.
+2. **Pas de PAT.** La PR de release est fermée puis rouverte à la main pour lancer la CI. O ouvre l'issue appfactory, pour qu'une App soit acceptée comme jeton, après le 30.
+3. **`release-integrity` est chaîné** par un job `needs: release`, comme au § 3.
+4. **L'exécution à blanc en Docker est obligatoire** avant l'activation.
+
+## 9. Complément : si une rc.2 est posée
+
+`plan-fusion-post-rc1.md` (option A, retenue par O) prévoit qu'une rc.2 éventuelle soit posée au plus tard le 27. Un correctif tardif passerait alors par la branche `release/v1.0.0`, créée depuis le dernier tag rc. Il faut donc adapter la mise en place à la date d'activation, sans changer la recommandation :
+
+- **La graine du manifest suit la dernière rc publiée.** Si rc.2 existe, on met `{".": "1.0.0-rc.2"}` au lieu de `1.0.0-rc.1`. Sinon, Release Please calculerait la version suivante à partir d'une version périmée.
+- **Si le tag rc.2 est posé sur `release/v1.0.0`, et non sur `main`**, son commit ne fait pas partie de l'historique de `main`. Release Please, qui ne lit que `main` (`target-branch`), ne pourrait pas s'en servir pour délimiter le changelog.
+  - Dans ce cas, on fixe `"last-release-sha"` sur le dernier commit de `main` qui figure dans la rc : `git merge-base origin/main v1.0.0-rc.2`.
+  - Les cherry-picks de `release/v1.0.0` doivent avoir été reportés sur `main`. Sinon, ils manquent à la `v1.0.0`.
+- **Release Please ne gère que `main`.** La branche `release/v1.0.0` reste manuelle jusqu'à sa fermeture, après la `v1.0.0`. On n'y fait tourner aucune deuxième instance de Release Please.
+- **L'exécution à blanc** (point 4 du § 8) vérifie les deux cas :
+  - le changelog commence après la dernière rc ;
+  - la PR propose bien `1.0.0`.
+
+> Accord O du 17/11 : décisions du § 8. L'adaptation de la graine et de `last-release-sha` au § 9 se fait le 1er décembre, selon qu'une rc.2 existe ou non.
+
 ## Revue RAIDER (instruction)
 
 - **R (Reusable)** : la brique est reprise telle quelle, et toute la configuration est propre à GED237.
