@@ -16,7 +16,7 @@ export interface SecurityNotice {
 const STORAGE_KEY = 'security_notices';
 
 const ACTIONS: Record<SecurityEvent, string> = {
-  totp_enrolled: 'enregistrée',
+  totp_enrolled: 'ajoutée',
   totp_disabled: 'retirée',
   totp_reset: 'réinitialisée',
 };
@@ -41,7 +41,13 @@ export const securityNoticeText = (notice: SecurityNotice, timeZone?: string): s
   return `Votre application d'authentification a été ${action}${by}${when ? ` le ${when}` : ''}.`;
 };
 
-export const saveSecurityNotices = (notices: SecurityNotice[] | undefined): void => {
+/** Qui prévenir : un administrateur de plateforme pour un compte administrateur. */
+export const securityNoticeContact = (role: string | undefined): string =>
+  ['super_admin', 'tenant_admin'].includes((role ?? '').toLowerCase())
+    ? 'Pas vous ? Contactez un administrateur de plateforme.'
+    : 'Pas vous ? Contactez votre administrateur.';
+
+export const saveSecurityNotices =(notices: SecurityNotice[] | undefined): void => {
   try {
     if (notices && notices.length > 0) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(notices));
     else sessionStorage.removeItem(STORAGE_KEY);

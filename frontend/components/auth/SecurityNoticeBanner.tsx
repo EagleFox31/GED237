@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 
-import { clearSecurityNotices, readSecurityNotices, securityNoticeText } from './securityNotices';
+import { useAuthStore } from '../../stores/authStore';
+import {
+  clearSecurityNotices,
+  readSecurityNotices,
+  securityNoticeContact,
+  securityNoticeText,
+} from './securityNotices';
 
 /** Bandeau après la connexion : l'application d'authentification a changé depuis la dernière fois. */
 export const SecurityNoticeBanner: React.FC = () => {
@@ -9,6 +15,7 @@ export const SecurityNoticeBanner: React.FC = () => {
       .map((n) => securityNoticeText(n))
       .filter((t): t is string => Boolean(t)),
   );
+  const role = useAuthStore((s) => s.userProfile?.backendRole);
 
   if (lines.length === 0) return null;
 
@@ -24,7 +31,7 @@ export const SecurityNoticeBanner: React.FC = () => {
         {lines.map((line) => (
           <p key={line} className="font-bold">{line}</p>
         ))}
-        <p>Pas vous ? Contactez votre administrateur.</p>
+        <p>{securityNoticeContact(role)}</p>
       </div>
       <button
         type="button"

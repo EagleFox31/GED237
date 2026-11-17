@@ -7,22 +7,15 @@ import { HelpHint } from './HelpHint';
 import { isEnrolmentRequired } from '../services/resources/auth.api';
 import { TotpEnrolment } from './auth/TotpEnrolment';
 import { isAppCode, otpPrompt, resendErrorMessage, resendSecondsLeft } from './auth/otpRules';
-import { authErrorMessage } from './auth/authErrors';
+import { accountLockOf, authErrorMessage } from './auth/authErrors';
 
 /** Message français d'une erreur d'API sur cet écran (l'API répond en anglais). */
 const messageOf = (err: unknown, fallback: string) =>
   err instanceof ApiError ? authErrorMessage(err.status, err.raw.detail, fallback) : fallback;
-const LOCKED_FALLBACK = 'Compte verrouillé temporairement.';
 
 /** Verrou de compte (423) : message serveur et durée restante en secondes. */
-const lockoutOf = (err: unknown): { message: string; seconds: number } | null => {
-  if (!(err instanceof ApiError) || err.status !== 423) return null;
-  const retry = Number(err.raw.retry_after);
-  return {
-    message: err.raw.detail || LOCKED_FALLBACK,
-    seconds: Number.isFinite(retry) && retry >= 1 ? Math.ceil(retry) : 60,
-  };
-};
+const lockoutOf = (err: unknown): { message: string; seconds: number } | null =>
+  err instanceof ApiError ? accountLockOf(err.status, err.raw.detail, err.raw.retry_after) : null;
 
 /** « 14 min 59 s » ; « 45 s » sous la minute. */
 const formatLockDelay = (seconds: number) =>

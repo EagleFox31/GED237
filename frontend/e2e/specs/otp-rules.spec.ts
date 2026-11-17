@@ -10,8 +10,17 @@ import {
   resendErrorMessage,
   resendSecondsLeft,
 } from '../../components/auth/otpRules';
-import { SESSION_EXPIRED, TOO_MANY_TRIES, authErrorMessage, withRoleLabels } from '../../components/auth/authErrors';
-import { formatNoticeDate, securityNoticeText } from '../../components/auth/securityNotices';
+import {
+  LOCKED_FALLBACK,
+  LOGIN_FAILED,
+  SESSION_EXPIRED,
+  TOO_MANY_TRIES,
+  TOO_MANY_TRIES_LONGER,
+  accountLockOf,
+  authErrorMessage,
+  withRoleLabels,
+} from '../../components/auth/authErrors';
+import { formatNoticeDate, securityNoticeContact, securityNoticeText } from '../../components/auth/securityNotices';
 
 test.describe('Écrans de connexion : erreurs API en français', () => {
   test('401 et 404 connus traduits', () => {
@@ -19,12 +28,26 @@ test.describe('Écrans de connexion : erreurs API en français', () => {
     expect(authErrorMessage(401, 'Invalid OTP', 'x')).toBe('Code invalide');
     expect(authErrorMessage(401, 'Invalid or expired session', 'x')).toBe(SESSION_EXPIRED);
     expect(authErrorMessage(404, 'Invalid or expired enrolment', 'x')).toBe(SESSION_EXPIRED);
-    expect(authErrorMessage(404, 'User not found', 'x')).toBe('Compte introuvable.');
   });
 
-  test('429 : texte fixe, quel que soit le détail slowapi', () => {
+  test('404 compte inconnu : même texte qu’un mauvais identifiant', () => {
+    expect(authErrorMessage(404, 'User not found', 'x')).toBe(LOGIN_FAILED);
+    expect(authErrorMessage(401, 'Invalid credentials', 'x')).toBe(LOGIN_FAILED);
+  });
+
+  test('429 de débit : texte selon la fenêtre slowapi', () => {
     expect(authErrorMessage(429, 'Rate limit exceeded: 5 per 1 minute', 'x')).toBe(TOO_MANY_TRIES);
+    expect(authErrorMessage(429, 'Rate limit exceeded: 20 per 1 second', 'x')).toBe(TOO_MANY_TRIES);
     expect(authErrorMessage(429, undefined, 'x')).toBe(TOO_MANY_TRIES);
+    expect(authErrorMessage(429, 'Rate limit exceeded: 10 per 1 hour', 'x')).toBe(TOO_MANY_TRIES_LONGER);
+    expect(TOO_MANY_TRIES).toBe("Trop d'essais. Réessayez dans une minute.");
+  });
+
+  test('423 blocage du compte : message serveur et compte à rebours, distinct du 429', () => {
+    expect(accountLockOf(423, 'Compte bloqué 15 min', 899.2)).toEqual({ message: 'Compte bloqué 15 min', seconds: 900 });
+    expect(accountLockOf(423, undefined, undefined)).toEqual({ message: LOCKED_FALLBACK, seconds: 60 });
+    expect(accountLockOf(429, 'Rate limit exceeded: 5 per 1 minute', 60)).toBeNull();
+    expect(accountLockOf(401, 'Invalid OTP', undefined)).toBeNull();
   });
 
   test('422 : libellés de rôle à la place des codes', () => {
@@ -47,10 +70,17 @@ test.describe('Bandeau après connexion : changements de l’application', () =>
 
   test('enregistrée ou retirée par soi-même ; événement inconnu ignoré', () => {
     expect(securityNoticeText({ event: 'totp_enrolled', at: '2026-11-17T08:00:00', by_self: true }, 'UTC'))
-      .toBe("Votre application d'authentification a été enregistrée le 17/11 à 08:00.");
+      .toBe("Votre application d'authentification a été ajoutée le 17/11 à 08:00.");
     expect(securityNoticeText({ event: 'totp_disabled', at: '2026-11-17T08:00:00', by_self: false }, 'UTC'))
       .toBe("Votre application d'authentification a été retirée par un administrateur le 17/11 à 08:00.");
     expect(securityNoticeText({ event: 'password_changed', at: '2026-11-17T08:00:00', by_self: true }, 'UTC')).toBeNull();
+  });
+
+  test('qui prévenir : plateforme pour un administrateur', () => {
+    expect(securityNoticeContact('tenant_admin')).toBe('Pas vous ? Contactez un administrateur de plateforme.');
+    expect(securityNoticeContact('SUPER_ADMIN')).toBe('Pas vous ? Contactez un administrateur de plateforme.');
+    expect(securityNoticeContact('manager')).toBe('Pas vous ? Contactez votre administrateur.');
+    expect(securityNoticeContact(undefined)).toBe('Pas vous ? Contactez votre administrateur.');
   });
 
   test('date illisible : phrase sans date', () => {
