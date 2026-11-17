@@ -137,3 +137,4 @@ Avec 1 et 2, Q tombe à ≈ 21,25 h-s, et le 04/12 retrouve une marge d'environ 
 - B ajoute l'état OCR `failed` avec `ocr_error`, plus `low_confidence` (#276, ≈ 1 h-s).
 - B expose aussi `deleted_at`, `deleted_by` et le nom de la personne pour la corbeille (#181, 0,25 h-s, ou 0,15 avec #274).
 - B passe à **22,75 h-s**, chiffre fixé par O. Q ne change pas, le verdict non plus.
+- O a validé l'ajout de `deleted_at`, `deleted_by` et du nom dans la PR de #274 (0,15 h-s). Ces 0,15 h-s ne figuraient pas dans les 22,75 : **B passe à ≈ 22,9 h-s**.
