@@ -81,10 +81,16 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
  * @param fallback   Message métier affiché si le backend ne renvoie pas de
  *                   `detail` lisible (ex: "Lecture du document impossible")
  */
+export interface ApiCallOptions {
+    /** Statuts que l'appelant affiche lui-même : l'erreur est levée sans toast global. */
+    handledStatuses?: readonly number[];
+}
+
 export const apiCall = async <T>(
     path: string,
     init: RequestInit = {},
     fallback = 'Requête échouée',
+    options: ApiCallOptions = {},
 ): Promise<T> => {
     const isMultipart = init.body instanceof FormData;
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
@@ -94,7 +100,7 @@ export const apiCall = async <T>(
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     });
-    if (!response.ok) throw await buildApiError(response, fallback);
+    if (!response.ok) throw await buildApiError(response, fallback, options.handledStatuses);
     return response.json() as Promise<T>;
 };
 
