@@ -15,6 +15,8 @@ import { pushClientOperationError } from '../lib/errors';
 const CAN_CREATE_DOCUMENT = new Set(['super', 'tenant', 'manager', 'collab']);
 // Délai après la dernière frappe avant d'interroger le serveur.
 const SEARCH_DEBOUNCE_MS = 300;
+// Nombre de documents chargés (les plus récents) ; au-delà, passer par la recherche.
+const DOCUMENTS_LIMIT = 100;
 
 const Documents: React.FC = () => {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
@@ -64,7 +66,7 @@ const Documents: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getDocuments({ q: serverQuery, status: filterStatus });
+      const data = await api.getDocuments({ q: serverQuery, status: filterStatus, limit: DOCUMENTS_LIMIT });
       if (request === latestRequestRef.current) setDocs(data);
     } catch (err) {
       console.error('Failed to fetch documents:', err);
@@ -89,12 +91,22 @@ const Documents: React.FC = () => {
         if (!cancelled) setSelectedDoc(doc);
       })
       .catch(() => {
-        // Erreur HTTP déjà affichée par le bus d'erreurs ; la liste reste utilisable.
+        // Erreur HTTP déjà affichée par le bus d'erreurs ; on retire `open` de l'URL
+        // pour ne pas réessayer au rechargement. La liste reste utilisable.
+        if (cancelled) return;
+        setSearchParams(
+          (prev) => {
+            const nextParams = new URLSearchParams(prev);
+            nextParams.delete('open');
+            return nextParams;
+          },
+          { replace: true }
+        );
       });
     return () => {
       cancelled = true;
     };
-  }, [openId]);
+  }, [openId, setSearchParams]);
 
   const closeDetail = () => {
     setSelectedDoc(null);
@@ -237,7 +249,11 @@ const Documents: React.FC = () => {
       {docs.length > 0 && (
         <div className="flex items-center justify-center gap-4 py-8 opacity-40">
           <div className="h-px w-20 bg-slate-300"></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Fin de la liste • Archivage Sécurisé AES-256</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">
+            {docs.length >= DOCUMENTS_LIMIT
+              ? `${DOCUMENTS_LIMIT} documents les plus récents • Utilisez la recherche pour les autres`
+              : 'Fin de la liste • Archivage Sécurisé AES-256'}
+          </span>
           <div className="h-px w-20 bg-slate-300"></div>
         </div>
       )}

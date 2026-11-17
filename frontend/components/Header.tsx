@@ -9,6 +9,9 @@ import { Avatar } from './ui/Avatar';
 import { getStatusLabel } from '../types';
 
 /** Résultat de `GET /search` (SearchHitResponse côté serveur). */
+// Borne de `q` côté serveur pour GET /documents (au-delà : 422).
+const SEARCH_MAX_LENGTH = 120;
+
 interface SearchHit {
   document_id: string;
   title: string;
@@ -132,6 +135,10 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
 
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  // Requête qui a produit `searchResults` : Entrée n'ouvre un résultat que s'il
+  // correspond au texte saisi (pas de résultat périmé pendant le délai de frappe).
+  const [resultsQuery, setResultsQuery] = useState('');
+  const latestSearchRef = useRef(0);
   const [showResults, setShowResults] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -190,17 +197,23 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
     // d'appel API global à déclencher.
     if (isPageLocalSearch) return;
     const delayDebounceFn = setTimeout(async () => {
+      latestSearchRef.current += 1;
+      const request = latestSearchRef.current;
       if (searchQuery.length >= 2) {
         setIsSearching(true);
         try {
           const data = await api.searchDocuments(searchQuery);
+          if (request !== latestSearchRef.current) return;
           setSearchResults(data.hits || data.results || []);
+          setResultsQuery(searchQuery);
           setShowResults(true);
         } catch (error) {
+          if (request !== latestSearchRef.current) return;
           console.error("Search failed:", error);
           setSearchResults([]);
+          setResultsQuery('');
         } finally {
-          setIsSearching(false);
+          if (request === latestSearchRef.current) setIsSearching(false);
         }
       } else {
         setSearchResults([]);
@@ -269,13 +282,16 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                   if (!isPageLocalSearch && searchQuery.length >= 2) setShowResults(true);
                 }}
                 onKeyDown={(e) => {
-                  // Entrée : ouvre le premier résultat de la recherche globale.
+                  // Entrée : ouvre le premier résultat de la recherche globale, seulement
+                  // s'il correspond au texte saisi (sinon on attend les nouveaux résultats).
                   const first = searchResults[0];
-                  if (e.key === 'Enter' && !isPageLocalSearch && showResults && first) {
+                  const resultsAreCurrent = !isSearching && resultsQuery === searchQuery;
+                  if (e.key === 'Enter' && !isPageLocalSearch && showResults && first && resultsAreCurrent) {
                     e.preventDefault();
                     openSearchResult(first);
                   }
                 }}
+                maxLength={SEARCH_MAX_LENGTH}
                 placeholder={searchConfig.placeholder}
                 aria-label={searchConfig.placeholder}
                 data-global-search
