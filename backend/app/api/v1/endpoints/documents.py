@@ -933,6 +933,17 @@ async def resolve_manual_review(
             ) from exc
         if not await in_actor_unit_tree(db, current_user, target_folder_uuid):
             raise HTTPException(status_code=403, detail="Target outside your unit tree")
+        # The tree check passes every unit for the institution-wide roles: the
+        # target must still be an active unit of the caller's tenant (#242).
+        target_unit = await db.scalar(
+            select(OrgUnit.id).where(
+                OrgUnit.id == target_folder_uuid,
+                OrgUnit.tenant_id == current_user.tenant_id,
+                OrgUnit.is_active,
+            )
+        )
+        if target_unit is None:
+            raise HTTPException(status_code=422, detail="Target folder not found")
         document.org_unit_id = target_folder_uuid
         document.classification_target_org_unit_id = target_folder_uuid
 
