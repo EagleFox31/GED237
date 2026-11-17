@@ -7,6 +7,7 @@ from datetime import date, datetime
 import pytest
 from sqlalchemy import func, select, update
 
+from app.core.config import settings
 from app.models.notification import Notification
 from app.models.report_issue import ReportIssue
 from app.models.report_schedule import ReportRun, ReportSchedule
@@ -14,6 +15,8 @@ from app.models.tenant import Tenant
 from app.models.user import User
 from app.services.official_report import LOCAL_TZ
 from app.services.scheduled_reports import closed_period, run_due_schedules
+from app.workers.celery_app import celery_app
+from app.workers.tasks import run_scheduled_reports
 
 SCHEDULES = "/api/v1/reports/official/schedules"
 NOW = datetime(2026, 11, 17, 8, 0, tzinfo=LOCAL_TZ)
@@ -157,8 +160,36 @@ async def test_a_stopped_schedule_is_ignored(db_session, db_seed):
     assert await _count(db_session, ReportRun) == 0
 
 
+@pytest.fixture
+def enabled(monkeypatch):
+    monkeypatch.setattr(settings, "SCHEDULED_REPORTS_ENABLED", True)
+
+
 @pytest.mark.asyncio
-async def test_create_list_and_stop_a_schedule(admin_client, db_session):
+async def test_disabled_server_refuses_schedules_and_runs_nothing(
+    admin_client, db_session, db_seed
+):
+    assert settings.SCHEDULED_REPORTS_ENABLED is False  # default
+    assert "run-scheduled-reports" not in (celery_app.conf.beat_schedule or {})
+
+    refused = await admin_client.post(
+        SCHEDULES,
+        json={"name": "x", "frequency": "weekly", "report": {"kind": "evolution"}},
+    )
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == (
+        "Les rapports programmés sont désactivés sur ce serveur."
+    )
+    assert await _count(db_session, ReportSchedule) == 0
+
+    await _schedule(db_session, db_seed)  # left from a time it was on
+    assert run_scheduled_reports() is None
+    assert await _count(db_session, ReportRun) == 0
+    assert await _count(db_session, ReportIssue) == 0
+
+
+@pytest.mark.asyncio
+async def test_create_list_and_stop_a_schedule(admin_client, db_session, enabled):
     created = await admin_client.post(
         SCHEDULES,
         json={
@@ -193,3 +224,51 @@ async def test_unknown_frequency_or_foreign_schedule(client_as, db_session, db_s
         foreign = await client.delete(f"{SCHEDULES}/{schedule.id}")
     assert bad.status_code == 422
     assert foreign.status_code == 404
+
+
+async def _other_tenant(db_session) -> uuid.UUID:
+    tenant_id = uuid.uuid4()
+    db_session.add(
+        Tenant(
+            id=tenant_id,
+            name="Autre institution",
+            short_name="AUTRE",
+            domain=f"autre-{tenant_id}.gov.cm",
+            is_active=True,
+        )
+    )
+    await db_session.commit()
+    return tenant_id
+
+
+@pytest.mark.asyncio
+async def test_another_institution_neither_sees_nor_stops_it(
+    client_as, db_session, db_seed
+):
+    schedule = await _schedule(db_session, db_seed)
+    other = await _other_tenant(db_session)
+    async with client_as("tenant_admin", tenant_id=other) as client:
+        listed = await client.get(SCHEDULES)
+        stopped = await client.delete(f"{SCHEDULES}/{schedule.id}")
+    assert listed.status_code == 200 and listed.json() == []
+    assert stopped.status_code == 404
+    await db_session.refresh(schedule)
+    assert schedule.is_active is True
+
+
+@pytest.mark.asyncio
+async def test_a_schedule_for_another_institution_is_refused(db_session, db_seed):
+    other = await _other_tenant(db_session)
+    schedule = await _schedule(db_session, db_seed)
+    await db_session.execute(
+        update(ReportSchedule)
+        .where(ReportSchedule.id == schedule.id)
+        .values(tenant_id=other)
+    )
+    await db_session.commit()
+
+    result = await run_due_schedules(db_session, now=NOW)
+    assert (len(result.issued), len(result.failed)) == (0, 1)
+    run = (await db_session.execute(select(ReportRun))).scalar_one()
+    assert (run.status, run.error) == ("failed", "Institution du rapport invalide.")
+    assert await _count(db_session, ReportIssue) == 0

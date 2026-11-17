@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import authorize_or_403
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.report_schedule import ReportSchedule
@@ -287,9 +288,15 @@ async def create_report_schedule(
 ):
     """Schedule an official report, issued in the caller's name and scope.
 
-    The scope is checked now (403 if refused) and again at each issue.
+    The scope is checked now (403 if refused) and again at each issue. 409 while
+    the server does not run scheduled reports (SCHEDULED_REPORTS_ENABLED=false).
     """
     await authorize_or_403(current_user, "analytics.tenant", "read")
+    if not settings.SCHEDULED_REPORTS_ENABLED:
+        raise HTTPException(
+            status_code=409,
+            detail="Les rapports programmés sont désactivés sur ce serveur.",
+        )
     scope = await resolve_report_scope(
         current_user,
         tenant_id=payload.report.tenant_id,
