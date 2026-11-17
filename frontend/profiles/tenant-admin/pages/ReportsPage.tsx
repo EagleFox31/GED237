@@ -11,11 +11,12 @@ import { ReportGenerationModal, type ReportGenerationRequest } from './reports/R
 import { ReportsServiceActivityPanel } from './reports/ReportsServiceActivityPanel';
 import { ReportsSummaryPanel } from './reports/ReportsSummaryPanel';
 import { ReportsTableSection } from './reports/ReportsTableSection';
+import { ReportsQualityPanel } from './reports/ReportsQualityPanel';
 import { ReportsWorkflowPanel } from './reports/ReportsWorkflowPanel';
 import type { ReportsViewMode } from './reports/reportsViewModel';
 import { useReportsData } from './reports/useReportsData';
 import { useReportsEvolution } from './reports/useReportsEvolution';
-import { useReportsFilters } from './reports/useReportsFilters';
+import { useReportsFilters, type ReportsTab } from './reports/useReportsFilters';
 
 interface TabMeta {
   step: number;
@@ -25,7 +26,7 @@ interface TabMeta {
   empty: string;
 }
 
-const TAB_META: Record<ReportsViewMode, TabMeta> = {
+const TAB_META: Record<ReportsTab, TabMeta> = {
   synthese: {
     step: 1,
     label: 'Synthèse',
@@ -54,22 +55,31 @@ const TAB_META: Record<ReportsViewMode, TabMeta> = {
     accent: 'text-violet-600',
     empty: "Aucune activité documentaire n'est encore disponible pour cette période.",
   },
+  qualite: {
+    step: 5,
+    label: 'Qualité',
+    icon: 'fact_check',
+    accent: 'text-rose-600',
+    empty: 'Aucun document à contrôler.',
+  },
 };
 
-const TAB_ORDER: ReportsViewMode[] = ['synthese', 'workflows', 'services', 'documents'];
+const TAB_ORDER: ReportsTab[] = ['synthese', 'workflows', 'services', 'documents', 'qualite'];
 
 // Manager : vue limitée à son service, sans la synthèse ni les compteurs de l'institution.
-const UNIT_TAB_ORDER: ReportsViewMode[] = TAB_ORDER.filter((tab) => tab !== 'synthese');
+const UNIT_TAB_ORDER: ReportsTab[] = TAB_ORDER.filter((tab) => tab !== 'synthese');
 
-const TAB_HELP: Record<ReportsViewMode, string> = {
+const TAB_HELP: Record<ReportsTab, string> = {
   synthese: UI_TOOLTIPS.reports.tabSynthese,
   documents: UI_TOOLTIPS.reports.tabDocuments,
   workflows: UI_TOOLTIPS.reports.tabWorkflows,
   services: UI_TOOLTIPS.reports.tabServices,
+  qualite: UI_TOOLTIPS.reports.tabQualite,
 };
 
 const ReportsPage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [qualityRefreshKey, setQualityRefreshKey] = useState(0);
 
   const { filters, setViewMode } = useReportsFilters();
   const isUnitScope = useAuthStore((s) => s.userProfile?.id) === 'manager';
@@ -104,10 +114,13 @@ const ReportsPage: React.FC = () => {
   }, [activeTab, filters.viewMode, setViewMode]);
   const activeMeta = TAB_META[activeTab];
   const isRefreshing = isLoading || isEvolutionLoading;
+  // La qualité a ses propres données : pas d'export de table ni de rapport généré depuis cet onglet.
+  const reportView: ReportsViewMode = activeTab === 'qualite' ? 'synthese' : activeTab;
+  const inQualityView = activeTab === 'qualite';
 
   const currentRows = useMemo(
-    () => viewModel.rowsByMode[activeTab] ?? [],
-    [activeTab, viewModel.rowsByMode],
+    () => (inQualityView ? [] : (viewModel.rowsByMode[reportView] ?? [])),
+    [inQualityView, reportView, viewModel.rowsByMode],
   );
 
   const reportScopeOptions = useMemo(
@@ -163,12 +176,13 @@ const ReportsPage: React.FC = () => {
       exportReportsSeriesCsv(evolutionViewModel.points, selectedSeries);
       return;
     }
-    void exportReportsRowsExcel(currentRows, activeTab);
+    void exportReportsRowsExcel(currentRows, reportView);
   };
 
   const handleRefresh = () => {
     void reload();
     void reloadEvolution();
+    setQualityRefreshKey((k) => k + 1);
   };
 
   const handleTablistKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -214,6 +228,7 @@ const ReportsPage: React.FC = () => {
             </button>
             {!isUnitScope && (
               <>
+                {!inQualityView && (
                 <button
                   type="button"
                   onClick={handleExport}
@@ -223,6 +238,7 @@ const ReportsPage: React.FC = () => {
                   <span className="material-symbols-outlined text-[18px]" aria-hidden>download</span>
                   Exporter la vue
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsReportModalOpen(true)}
@@ -346,7 +362,9 @@ const ReportsPage: React.FC = () => {
                 </>
               )}
 
-              {activeTab !== 'synthese' && !isUnitScope ? (
+              {inQualityView && <ReportsQualityPanel refreshKey={qualityRefreshKey} />}
+
+              {activeTab !== 'synthese' && !inQualityView && !isUnitScope ? (
                 isLoading ? (
                   <div className="rounded-[2rem] border border-slate-100 bg-white shadow-sm">
                     <div className="flex items-center justify-center py-20">
@@ -358,7 +376,7 @@ const ReportsPage: React.FC = () => {
                     <Empty icon="monitoring" msg={activeMeta.empty} />
                   </div>
                 ) : (
-                  <ReportsTableSection rows={currentRows} viewMode={activeTab} loading={isLoading} />
+                  <ReportsTableSection rows={currentRows} viewMode={reportView} loading={isLoading} />
                 )
               ) : null}
             </div>
@@ -368,7 +386,7 @@ const ReportsPage: React.FC = () => {
 
       <ReportGenerationModal
         open={isReportModalOpen}
-        defaultViewMode={activeTab}
+        defaultViewMode={reportView}
         defaultPeriodLabel={defaultReportPeriodLabel}
         scopeOptions={reportScopeOptions}
         onClose={() => setIsReportModalOpen(false)}

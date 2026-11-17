@@ -36,5 +36,7 @@ export const UI_TOOLTIPS = {
       "Lecture du traitement des documents : validations, signatures, lenteurs visibles, retours et blocages estimés.",
     tabServices:
       "Lecture comparative par service : charge visible, retards estimés et activité récente des agents.",
+    tabQualite:
+      "Les documents incomplets (catégorie, année, texte…). Cliquez un indicateur pour les voir, ou créez une alerte.",
   },
 } as const;

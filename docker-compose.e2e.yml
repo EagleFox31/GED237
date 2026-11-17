@@ -85,6 +85,8 @@ services:
       AUTH_LOGIN_RATE_LIMIT: 300/minute
       AUTH_OTP_RATE_LIMIT: 300/minute
       AUTH_REFRESH_RATE_LIMIT: 300/minute
+      # Quality alerts (#183): the UAT creates and stops one; the 409 refusal is forced by a route stub.
+      QUALITY_ALERTS_ENABLED: "true"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
       interval: 5s

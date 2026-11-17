@@ -2,8 +2,11 @@ import { useState } from 'react';
 
 import type { ReportsViewMode } from './reportsViewModel';
 
+/** Onglets de la page : les vues du modèle de rapports, plus la qualité documentaire (données propres). */
+export type ReportsTab = ReportsViewMode | 'qualite';
+
 export interface ReportsFiltersState {
-  viewMode: ReportsViewMode;
+  viewMode: ReportsTab;
 }
 
 export function useReportsFilters() {
@@ -11,7 +14,7 @@ export function useReportsFilters() {
     viewMode: 'synthese',
   });
 
-  const setViewMode = (viewMode: ReportsViewMode) => {
+  const setViewMode = (viewMode: ReportsTab) => {
     setFilters((current) => ({ ...current, viewMode }));
   };
 
