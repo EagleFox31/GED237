@@ -194,7 +194,8 @@ async def test_disabled_server_refuses_alerts_and_evaluates_nothing(
     assert "evaluate-quality-alerts" not in (celery_app.conf.beat_schedule or {})
 
     refused = await admin_client.post(
-        ALERTS, json={"indicator": "no_text", "measure": "count", "threshold": 1}
+        ALERTS,
+        json={"name": "x", "indicator": "no_text", "measure": "count", "threshold": 1},
     )
     assert refused.status_code == 409
     assert refused.json()["detail"] == (
