@@ -39,8 +39,8 @@ async def _duplicates(client: AsyncClient) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_existing_keys_unchanged_and_zero_by_default(auth_client: AsyncClient):
-    data = (await auth_client.get(TENANT_URL)).json()
+async def test_existing_keys_unchanged_and_zero_by_default(admin_client: AsyncClient):
+    data = (await admin_client.get(TENANT_URL)).json()
     assert {"users", "documents", "workflows"} <= data.keys()
     assert data["duplicates"] == {
         "refused": 0,
@@ -50,7 +50,7 @@ async def test_existing_keys_unchanged_and_zero_by_default(auth_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_refused_upload_is_counted(auth_client: AsyncClient, db_seed):
+async def test_refused_upload_is_counted(auth_client: AsyncClient, client_as, db_seed):
     content = b"kpi duplicate content"
     for name in ("first.txt", "second.txt"):
         response = await auth_client.post(
@@ -59,7 +59,10 @@ async def test_refused_upload_is_counted(auth_client: AsyncClient, db_seed):
             data={"title": name, "document_category_id": str(db_seed["category_id"])},
         )
     assert response.status_code == 409
-    assert await _duplicates(auth_client) == {
+    # Institution-wide metrics are read by an administrator, not by the uploader.
+    async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as admin:
+        duplicates = await _duplicates(admin)
+    assert duplicates == {
         "refused": 1,
         "refused_upload": 1,
         "refused_import": 0,
@@ -68,7 +71,7 @@ async def test_refused_upload_is_counted(auth_client: AsyncClient, db_seed):
 
 @pytest.mark.asyncio
 async def test_committed_import_duplicates_are_counted(
-    auth_client: AsyncClient, db_seed, test_engine
+    admin_client: AsyncClient, db_seed, test_engine
 ):
     await _add(
         test_engine,
@@ -79,7 +82,7 @@ async def test_committed_import_duplicates_are_counted(
         _job(db_seed, "cancelled", 4),
         _job(db_seed, "draft", 3),
     )
-    assert await _duplicates(auth_client) == {
+    assert await _duplicates(admin_client) == {
         "refused": 3,
         "refused_upload": 0,
         "refused_import": 3,
@@ -87,7 +90,7 @@ async def test_committed_import_duplicates_are_counted(
 
 
 @pytest.mark.asyncio
-async def test_other_tenant_is_not_counted(auth_client: AsyncClient, test_engine):
+async def test_other_tenant_is_not_counted(admin_client: AsyncClient, test_engine):
     await _add(
         test_engine,
         AuditLog(
@@ -97,7 +100,7 @@ async def test_other_tenant_is_not_counted(auth_client: AsyncClient, test_engine
             action="dup_detected",
         ),
     )
-    assert await _duplicates(auth_client) == {
+    assert await _duplicates(admin_client) == {
         "refused": 0,
         "refused_upload": 0,
         "refused_import": 0,
