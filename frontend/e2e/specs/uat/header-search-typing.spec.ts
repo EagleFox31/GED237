@@ -30,4 +30,32 @@ test.describe('Recherche du bandeau — saisie portée par l’URL', () => {
     await page.goto('spaces?q=note');
     await expect(search).toHaveValue('note');
   });
+
+  test('lettre tapée puis effacée avant le rendu, puis retour arrière : le champ suit l’URL', async ({ page, loginAs }) => {
+    await loginAs('tenant_admin');
+    await page.goto('spaces');
+    const search = page.locator('[data-global-search]');
+    await expect(search).toHaveValue('');
+
+    // Deux saisies dans la même tâche : React et le routeur les regroupent, l'URL ne change pas.
+    await search.evaluate((el: HTMLInputElement) => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      for (const value of ['x', '']) {
+        setValue.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+    await expect(search).toHaveValue('');
+    await expect(page).not.toHaveURL(/[?&]q=/);
+
+    // Retour arrière dans l'application (sans rechargement) vers une entrée ?q=note.
+    await page.evaluate(() => {
+      const base = window.location.pathname;
+      window.history.pushState(window.history.state, '', `${base}?q=note`);
+      window.history.pushState(window.history.state, '', `${base}?q=autre`);
+    });
+    await page.goBack();
+    await expect(page).toHaveURL(/[?&]q=note(&|$)/);
+    await expect(search).toHaveValue('note');
+  });
 });

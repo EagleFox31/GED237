@@ -101,7 +101,9 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const setSearchQuery = (next: string) => {
     if (isPageLocalSearch) {
       setPageDraft(next);
-      pendingUrlQueryRef.current = next;
+      // Valeur déjà dans l'URL (lettre tapée puis effacée avant le rendu) : l'URL ne
+      // changera pas et l'effet ne repassera pas ; rien n'est donc en attente.
+      pendingUrlQueryRef.current = next === urlQuery ? null : next;
       // `replace: true` pour ne pas polluer l'historique du navigateur à
       // chaque frappe — on garde une seule entrée pour la session de filtrage.
       setSearchParams(
