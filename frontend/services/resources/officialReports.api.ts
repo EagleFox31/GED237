@@ -107,7 +107,8 @@ export const officialReportsApi = {
     });
     // Onglet secondaire lu à l'ouverture du modal : un refus (403) ou une panne (5xx) le masquent
     // simplement, sans toast d'erreur sur l'émission qui, elle, fonctionne.
-    if (!response.ok) return { items: [], enabledHeader: null };
+    if (response.status === 403 || response.status >= 500) return { items: [], enabledHeader: null };
+    if (!response.ok) throw await buildApiError(response, 'Lecture des rapports programmés impossible');
     return {
       items: (await response.json()) as OfficialReportSchedule[],
       enabledHeader: response.headers.get('X-Scheduled-Reports-Enabled'),
