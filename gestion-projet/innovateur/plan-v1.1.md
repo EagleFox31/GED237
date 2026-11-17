@@ -130,3 +130,5 @@ B et F tiennent sans peine du 24/11 au 04/12. **Q reste le goulot** : 24,25 h-s 
 2. Pour la question 13 a), décaler le lecteur désigné hors circuit en V1.2 (gain ≈ 3 h-s, dont Q 0,5). On garde en V1.1 l'accès par l'étape de workflow, qui règle le cas « accès refusé » de la question 6.
 
 Avec 1 et 2, Q tombe à ≈ 21,25 h-s, et le 04/12 retrouve une marge d'environ 0,75 h-s.
+
+**Décision de O sur #274 (17/11 au soir)** : B ajoute les champs de verrou à `DocumentRead`, pour 0,5 h-s. F ne fait que l'écran, et son chiffre pour #274 passe de 2 à 1,5. Les totaux deviennent B 21,75 et F 16,25. Q et le total ne changent pas, le verdict non plus. O pose au PO les deux choix : la sortie 3, et la question 13 a) en V1.2.
