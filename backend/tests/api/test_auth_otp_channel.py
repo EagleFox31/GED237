@@ -12,7 +12,12 @@ from pydantic import ValidationError
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.config import OTP_CHANNEL_NAMES, Settings, settings
+from app.core.config import (
+    OTP_CHANNEL_NAMES,
+    Settings,
+    refuse_unsafe_production,
+    settings,
+)
 from app.core.rate_limit import limiter
 from app.core.redis import get_redis
 from app.models.user import User
@@ -125,6 +130,23 @@ def test_default_channel_sends_nothing_and_unknown_channels_are_refused():
     assert otp_delivery.get_channel("email").echoes_code is False
     with pytest.raises(ValidationError):
         Settings(AUTH_OTP_CHANNEL="pigeon")
+
+
+@pytest.mark.parametrize("channel", OTP_CHANNEL_NAMES)
+def test_production_refuses_to_start_on_a_channel_that_sends_no_code(channel):
+    # Checked against each channel's own ``sends``: a channel added later that
+    # sends nothing must be refused in production too.
+    production = Settings(
+        ENVIRONMENT="production", SECRET_KEY="k" * 40, AUTH_OTP_CHANNEL=channel
+    )
+    if otp_delivery.get_channel(channel).sends:
+        refuse_unsafe_production(production)
+    else:
+        with pytest.raises(RuntimeError, match="nobody could sign in"):
+            refuse_unsafe_production(production)
+    refuse_unsafe_production(
+        Settings(ENVIRONMENT="development", AUTH_OTP_CHANNEL=channel)
+    )
 
 
 def test_stored_value_is_bound_to_the_session_and_old_plain_values_still_match():

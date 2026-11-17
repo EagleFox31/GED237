@@ -246,10 +246,8 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
-@lru_cache()
-def get_settings() -> Settings:
-    """Get cached settings instance"""
-    s = Settings()
+def refuse_unsafe_production(s: Settings) -> None:
+    """Stop a production start that would be insecure or let nobody sign in."""
     if (
         s.ENVIRONMENT == "production"
         and s.SECRET_KEY == "dev-secret-key-change-this-in-production"  # nosec B105 - explicit production guard against unchanged dev default
@@ -257,6 +255,21 @@ def get_settings() -> Settings:
         raise RuntimeError(
             "SECRET_KEY must be changed in production! Set a strong random key via the SECRET_KEY environment variable."
         )
+    if s.ENVIRONMENT == "production" and s.AUTH_OTP_CHANNEL == "dev_response":
+        # dev_response sends no code and echoes it only in development: in
+        # production nobody could complete the second factor.
+        raise RuntimeError(
+            "AUTH_OTP_CHANNEL=dev_response sends no login code: in production "
+            "nobody could sign in. Set AUTH_OTP_CHANNEL to a channel that sends "
+            "the code (email) and configure it."
+        )
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Get cached settings instance"""
+    s = Settings()
+    refuse_unsafe_production(s)
     return s
 
 
