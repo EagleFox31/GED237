@@ -143,3 +143,36 @@ async def test_every_csv_role_is_enforced_by_sql_after_sync(sql_store):
             )
         }
     assert get_known_roles_from_csv() <= sql_roles
+
+
+def _rows(engine) -> dict[int, tuple]:
+    with engine.connect() as conn:
+        return {
+            row[0]: tuple(row[1:])
+            for row in conn.execute(
+                text("SELECT id, ptype, v0, v1, v2, v3, v4, v5 FROM casbin_rule")
+            )
+        }
+
+
+@pytest.mark.asyncio
+async def test_a_first_sync_only_appends_rows_and_never_rewrites_the_table(sql_store):
+    await bootstrap_sql_policies_from_csv(force=True)
+    assert await add_sql_policy(API_RULE)
+    with sql_store.begin() as conn:
+        conn.execute(
+            text(
+                "DELETE FROM casbin_rule WHERE id IN (SELECT id FROM casbin_rule "
+                "WHERE ptype='p' AND v0 <> 'auditor' ORDER BY id LIMIT 2)"
+            )
+        )
+    await reload_enforcer()
+    before = _rows(sql_store)
+
+    assert await sync_sql_policies_from_csv() == 2
+
+    after = _rows(sql_store)
+    # Existing rows keep their id and values: no delete-and-rewrite.
+    assert {i: after[i] for i in before} == before
+    added = sorted(set(after) - set(before))
+    assert len(added) == 2 and added[0] > max(before)

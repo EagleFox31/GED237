@@ -407,8 +407,9 @@ async def sync_sql_policies_from_csv(*, dry_run: bool = False) -> int:
     for rule in missing_g:
         if await _maybe_await(sql_e.add_grouping_policy(*rule)):
             inserted += 1
+    # auto_save (on by default) already inserted each row. No save_policy():
+    # with this adapter it deletes and rewrites the whole table (#236).
     if inserted:
-        await _maybe_await(sql_e.save_policy())
         global _policy_version_local
         _policy_version_local = _bump_policy_version(sql_e)
     logger.info("[Casbin] Sync CSV -> SQL done (%d rules inserted).", inserted)
