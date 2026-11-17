@@ -139,6 +139,8 @@ services:
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       # Read here by POST /reports/schedules (409 when off): same value as the worker.
       SCHEDULED_REPORTS_ENABLED: ${SCHEDULED_REPORTS_ENABLED:-false}
+      # Read when the api loads the Celery app to queue tasks: same as the worker.
+      SCHEDULED_REPORTS_INTERVAL_SECONDS: ${SCHEDULED_REPORTS_INTERVAL_SECONDS:-3600}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
