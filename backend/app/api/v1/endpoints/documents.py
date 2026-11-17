@@ -819,7 +819,7 @@ async def list_needs_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "review")
     service = ClassificationReviewService(db)
     documents = await service.list_legacy_needs_review_documents(
         tenant_id=current_user.tenant_id
@@ -1316,7 +1316,7 @@ async def update_document(
                 status_code=400,
                 detail="Document status transitions must go through workflow endpoints",
             )
-        await authorize_or_403(current_user, "documents", "manage")
+        await authorize_or_403(current_user, "documents", "archive")
         if document.status not in ARCHIVABLE_SOURCE_STATUSES:
             raise HTTPException(
                 status_code=409,
