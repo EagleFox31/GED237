@@ -18,6 +18,8 @@ FPR=7776361468B5DF0CFF903723A00188980F856DF1
 
 ## 2. SHA de main, vert
 
+Raccourci : `bash scripts/tag_preflight.sh $TAG` enchaîne les contrôles de ce paragraphe et celui de la présence des notes (§ 3), en lecture seule, avec une ligne `OK` ou `KO` par contrôle et un arrêt au premier `KO`. La dernière ligne `PRÊT : … peut être posé sur <SHA>` donne le SHA à noter. Les cases ci-dessous restent la référence en cas de `KO`.
+
 - [ ] `SHA=$(git rev-parse origin/main) && echo $SHA`. Noter le SHA ici : `________`.
 - [ ] Aucun run en échec ni en cours sur ce SHA :
   `gh run list -c $SHA --json workflowName,status,conclusion -q '.[]|"\(.workflowName) \(.status) \(.conclusion)"'`
