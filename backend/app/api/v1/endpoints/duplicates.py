@@ -73,7 +73,10 @@ async def resolve_duplicate_group(
     if missing:
         raise HTTPException(
             status_code=404,
-            detail={"error": "document_not_found", "document_ids": missing},
+            detail={
+                "error": "document_not_found",
+                "message": f"{len(missing)} document(s) introuvable(s).",
+            },
         )
     kept, checksum = found[payload.keep_id]
     if kept.deleted_at is not None:
@@ -92,8 +95,7 @@ async def resolve_duplicate_group(
             status_code=409,
             detail={
                 "error": "not_duplicate",
-                "message": "Ces documents n'ont pas le même contenu que celui gardé.",
-                "document_ids": different,
+                "message": f"{len(different)} document(s) n'ont pas le même contenu que celui gardé.",
             },
         )
 

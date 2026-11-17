@@ -163,8 +163,7 @@ async def test_different_content_is_refused_and_nothing_moves(
         },
     )
     assert response.status_code == 409
-    assert response.json()["detail"]["error"] == "not_duplicate"
-    assert response.json()["detail"]["document_ids"] == [str(groups["b"][0].id)]
+    assert response.json()["error_code"] == "NOT_DUPLICATE"
     assert not await _is_trashed(db_session, other)
     assert await _trash_audits(db_session) == 0
 
@@ -181,7 +180,7 @@ async def test_kept_document_must_be_active_and_known(
         },
     )
     assert trashed_keep.status_code == 409
-    assert trashed_keep.json()["detail"]["error"] == "kept_document_trashed"
+    assert trashed_keep.json()["error_code"] == "KEPT_DOCUMENT_TRASHED"
 
     unknown = uuid.uuid4()
     missing = await admin_client.post(
@@ -189,7 +188,7 @@ async def test_kept_document_must_be_active_and_known(
         json={"keep_id": str(groups["a"][0].id), "trash_ids": [str(unknown)]},
     )
     assert missing.status_code == 404
-    assert missing.json()["detail"]["document_ids"] == [str(unknown)]
+    assert missing.json()["error_code"] == "DOCUMENT_NOT_FOUND"
     assert await _trash_audits(db_session) == 0
 
 
