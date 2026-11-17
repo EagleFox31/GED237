@@ -48,6 +48,13 @@ export const renamedTitle = (input: string | null, current: string): string | nu
   return title;
 };
 
+/**
+ * Élément qui reprend le focus après le retrait de l'élément `removedIndex` :
+ * celui qui prend sa place, ou le dernier si c'était le dernier ; -1 s'il ne reste rien.
+ */
+export const focusIndexAfterRemoval = (removedIndex: number, remaining: number): number =>
+  remaining <= 0 ? -1 : Math.min(Math.max(removedIndex, 0), remaining - 1);
+
 export interface ItemBox {
   top: number;
   left: number;

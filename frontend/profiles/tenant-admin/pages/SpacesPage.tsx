@@ -9,6 +9,7 @@ import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import {
   clampToViewport,
+  focusIndexAfterRemoval,
   isArrowKey,
   isEditableTarget,
   isRenameKey,
@@ -217,6 +218,8 @@ const SpacesPage: React.FC = () => {
   const previewReturnFocusRef = useRef<HTMLElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuReturnFocusRef = useRef<HTMLElement | null>(null);
+  // Position de l'élément mis à la corbeille au clavier : son voisin reprend le focus après rechargement.
+  const removedFocusIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -376,6 +379,18 @@ const SpacesPage: React.FC = () => {
     );
   }, [contextMenu]);
 
+  // Après une mise à la corbeille au clavier, le focus ne doit pas se perdre avec l'élément retiré.
+  useLayoutEffect(() => {
+    const removedIndex = removedFocusIndexRef.current;
+    if (removedIndex === null) return;
+    removedFocusIndexRef.current = null;
+    const items = Array.from(
+      itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
+    );
+    const next = items[focusIndexAfterRemoval(removedIndex, items.length)] ?? itemsRegionRef.current;
+    next?.focus();
+  }, [documents]);
+
   useEffect(() => {
     if (!contextMenu) {
       return;
@@ -519,8 +534,16 @@ const SpacesPage: React.FC = () => {
       const doc = id ? visibleDocuments.find((d) => d.id === id) : undefined;
       if (!doc) return;
       event.preventDefault();
-      if (isRenameKey(event)) handleRename(doc).catch(() => undefined);
-      else if (window.confirm(trashConfirmMessage(doc.title))) handleTrash(doc).catch(() => undefined);
+      if (isRenameKey(event)) {
+        handleRename(doc).catch(() => undefined);
+        return;
+      }
+      if (!window.confirm(trashConfirmMessage(doc.title))) return;
+      const items = Array.from(
+        itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
+      );
+      removedFocusIndexRef.current = items.indexOf(event.target as HTMLElement);
+      handleTrash(doc).catch(() => undefined);
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -609,6 +632,7 @@ const SpacesPage: React.FC = () => {
       await api.deleteDocument(doc.id);
       loadDocuments();
     } catch {
+      removedFocusIndexRef.current = null;
       /* message déjà affiché par le bus global */
     }
   };
