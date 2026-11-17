@@ -138,3 +138,7 @@ Avec 1 et 2, Q tombe à ≈ 21,25 h-s, et le 04/12 retrouve une marge d'environ 
 - B expose aussi `deleted_at`, `deleted_by` et le nom de la personne pour la corbeille (#181, 0,25 h-s, ou 0,15 avec #274).
 - B passe à **22,75 h-s**, chiffre fixé par O. Q ne change pas, le verdict non plus.
 - O a validé l'ajout de `deleted_at`, `deleted_by` et du nom dans la PR de #274 (0,15 h-s). Ces 0,15 h-s ne figuraient pas dans les 22,75 : **B passe à ≈ 22,9 h-s**.
+
+**« Mon équipe » (#277, décision de O du 17/11)** : le manager voit sa chaîne et ses N-1, comme le PO l'attend. Coût : 1,0 h-s, soit B 0,5, F 0,25 et Q 0,25, pile au seuil de O. **Pris en V1.1.** Nouveaux totaux : B ≈ 23,4, F ≈ 16,5, Q ≈ 24,5.
+
+Si le PO reporte 13 a), le gain de ≈ 3 h-s (dont Q 0,5) couvre largement ce coût. Si le PO garde 13 a), Q passe de 24,25 à 24,5. Le verdict ne change pas : avec la sortie 3, le 04/12 tient de justesse (marge de Q nulle) ; sans elle, on entame ≈ 2,5 h-s de marge.

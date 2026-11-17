@@ -100,7 +100,7 @@ Un bloc **Texte reconnu** dans l'onglet « Détails & Aperçu », sous l'aperçu
 | `completed` avec un texte vide | « Aucun texte lisible n'a été trouvé dans ce fichier. » |
 | `failed` (ajouté par B en V1.1, avec `ocr_error`) | Message selon la raison, voir le tableau suivant. Le document reste consultable dans tous les cas. |
 
-| `ocr_error` (codes à confirmer par B) | Message affiché |
+| `ocr_error` (codes confirmés par B le 17/11) | Message affiché |
 |---|---|
 | fichier introuvable (`file_not_found`) | « Le texte n'a pas pu être lu : le fichier est introuvable. Prévenez votre administrateur. » |
 | format non pris en charge (`unsupported_format`) | « Ce type de fichier ne permet pas de lire le texte. » |
