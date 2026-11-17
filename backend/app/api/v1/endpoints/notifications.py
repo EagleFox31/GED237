@@ -1,4 +1,4 @@
-from typing import Any, List, Dict
+from typing import Any
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -8,36 +8,15 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user, get_current_user_ws
 from app.models.user import User
 from app.models.notification import Notification
+from app.services.notifications.realtime import (
+    ConnectionManager,
+    manager,
+    serialize_notification,
+)
+
+__all__ = ["ConnectionManager", "manager", "router"]
 
 router = APIRouter()
-
-
-# Simple In-Memory Connection Manager for WebSockets
-class ConnectionManager:
-    def __init__(self):
-        # Maps user_id strings to a list of active WebSockets
-        self.active_connections: Dict[str, List[WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, user_id: str):
-        await websocket.accept()
-        if user_id not in self.active_connections:
-            self.active_connections[user_id] = []
-        self.active_connections[user_id].append(websocket)
-
-    def disconnect(self, websocket: WebSocket, user_id: str):
-        if user_id in self.active_connections:
-            if websocket in self.active_connections[user_id]:
-                self.active_connections[user_id].remove(websocket)
-            if len(self.active_connections[user_id]) == 0:
-                del self.active_connections[user_id]
-
-    async def send_personal_message(self, message: dict, user_id: str):
-        if user_id in self.active_connections:
-            for connection in self.active_connections[user_id]:
-                await connection.send_json(message)
-
-
-manager = ConnectionManager()
 
 
 @router.websocket("/ws")
@@ -60,6 +39,9 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
             # We just keep connection open, optionally reading ping/pong
             await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    finally:
+        # Also on an abrupt close, so no dead socket stays registered.
         manager.disconnect(websocket, user_id)
 
 
@@ -83,19 +65,8 @@ async def get_notifications(
     result = await db.execute(stmt)
     notifications = result.scalars().all()
 
-    # We return dictionaries to avoid Pydantic Model creation for simplicity here,
-    # or you could define a Document schema
-    return [
-        {
-            "id": str(n.id),
-            "event_type": n.event_type,
-            "message": n.message,
-            "is_read": n.is_read,
-            "meta_data": n.meta_data,
-            "created_at": n.created_at.isoformat(),
-        }
-        for n in notifications
-    ]
+    # Same shape as the messages pushed on the WebSocket.
+    return [serialize_notification(n) for n in notifications]
 
 
 @router.put("/{notification_id}/read")
