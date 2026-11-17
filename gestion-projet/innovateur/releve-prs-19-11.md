@@ -17,7 +17,7 @@
 3. Contrôler les points de vigilance du § 3, puis consigner les écarts au § 4.
 4. Faire un commit local et envoyer à O un résumé de 3 lignes : ce qui est fusionné, ce qui est prêt pour le 20, ce qui est bloqué.
 
-## 2. Tableau (état du 2026-11-17 12:31, main = b701314)
+## 2. Tableau (état du 2026-11-17 12:35, main = b701314)
 
 Hors tableau : **#206** (déclencheurs `release/**` dans `ci.yml`), fusionnée le 17/11 à 11:09 UTC (e871532). Le préalable « pas de coupe avant la PR ci.yml de Q » est donc levé.
 
@@ -50,24 +50,25 @@ CI : V = checks verts, R = rouges, A = en attente, S = sautés. « Ordre » est 
 | 23 | #190 | étape 4 (F) | feat(front): file de validation unifiée à onglets (#153) | OPEN (brouillon) | `feat/post-rc1-trash-ui` | aucun check | `0cdad27` | non | main, via #181 | #181, #153 |
 | 24 (écart E) | #196 | étape 5, après le PO du 23 (B) | fix(reports): sub-unit for unit-scoped roles, institution-wi | OPEN (brouillon) | `main` | V8 R0 A0 S4 | `e760d79` | non | main | accord PO |
 | 25 (écart E) | #203 | étape 5, après le PO du 23 (B) | fix(scope): unit_admin reads its unit and sub-units, one sub | OPEN (brouillon) | `main` | V8 R0 A0 S4 | `3dc5300` | oui avec remarques (l. 870) | main | #196, accord PO |
+| 25 bis | #213 | étape 5, après le PO (B), correctif de sécurité #202 | fix(scope): unit_admin opens and changes documents only in i | OPEN (brouillon) | `feat/post-rc1-195-unit-admin-scope` | aucun check | `0cf3fa2` | non | main, via #203 | #203, accord PO |
 | 26 | #171 | étape 5, après le PO du 23 (B) | feat(documents): vue doublons, garder un document et mettre  | OPEN (brouillon) | `main` | V8 R0 A0 S4 | `13c5aee` | oui avec remarques (l. 894) | main | accord PO |
 | 27 | #199 | étape 5, après le PO du 23 (F) | feat(front): duplicates screen (#171) | OPEN (brouillon) | `feat/post-rc1-trash-ui` | aucun check | `3db25d5` | non | main, via #181 | #182, #171, accord PO |
 
-**Ordre** (§ 8.6 du plan ; décidé par O le 17/11, sauf les points marqués « proposé ») :
-1. #179, #153, #155 (proposé) ;
+**Ordre** (§ 8.6 du plan ; accepté par O le 17/11, commit 1152a1a) :
+1. #179, #153, #155 ;
 2. chaîne des migrations #197 → #162 → #180 → #183 → #154 → #193 → #186 → #165 → #192. #161 est fermée, remplacée par #197 ;
-3. #209 après #180, #194 après #183 (proposé), #205 après #165 ;
-4. #152 → #181 → #184 → #211 → #182 → #190 (#190 proposé). #179 avant #184, #153 avant #190 ;
-5. après l'accord écrit du PO du 23 : #196 → #203 (proposé, écart E), #171 → #199 (décision D).
+3. #209 après #180, #194 après #183, #205 après #165 ;
+4. #152 → #181 → #184 → #211 → #182 → #190. #179 avant #184, #153 avant #190 ;
+5. après l'accord écrit du PO : #196 → #203 → #213 (écart E ; #213, correctif de sécurité #202, peut remonter si le PO tranche la question manager/lecteur avant le 23), #171 → #199 (décision D).
 
 **Règle de chaînage (O)** : après chaque fusion de la chaîne, l'auteur de la PR suivante repose son `down_revision` sur la nouvelle tête de `main`. Aucune PR à migration en file sans `alembic heads` à une seule tête. Garde-fou : `test_schema_check.py` l. 34-35, sur l'état combiné, car la règle de `main` exige une branche à jour (`strict`).
 
-**Écarts** (§ 8.6 du plan) : A à D tranchés par O le 17/11. E (#203 embarque #196 ; leur portée attend le PO) est à trancher.
+**Écarts** (§ 8.6 du plan) : A à E tranchés par O le 17/11.
 
 Empilements vérifiés le 17/11 (`git merge-base --is-ancestor`, commit par commit) :
 - #161 ⊂ #197 ; #162 (1 sur 2) ⊂ #180 ; #180 ⊂ #183 ⊂ #194 ; #180 ⊂ #209 ; #154 ⊂ #193 ; #165 ⊂ #205 ;
 - #181 ⊂ #184, #182, #190 et #199 ; #184 ⊂ #182 ; #179 (1 sur 2) ⊂ #184 et #182 ; #153 ⊂ #190 ;
-- #196 (2 sur 2) ⊂ #203 ; #171 (2 sur 4) ⊂ #199.
+- #196 (2 sur 2) ⊂ #203 ⊂ #213 (6 sur 6) ; #171 (2 sur 4) ⊂ #199.
 
 ## 3. Points de vigilance à contrôler le 19
 
