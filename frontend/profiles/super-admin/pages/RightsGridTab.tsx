@@ -71,6 +71,10 @@ const RightsGridTab: React.FC = () => {
     const rule = { v0: role, v1: resource, v2: action };
     const key = policyKey(role, resource, action);
     if (pending.has(key)) return;
+    // Un retrait s'applique tout de suite à tous les agents du rôle : on le fait confirmer.
+    if (!grant && !window.confirm(`Retirer « ${actionLabel(action)} » à tous les agents du rôle ${roleLabel(role)} ?`)) {
+      return;
+    }
     setPending((prev) => new Set(prev).add(key));
     setChangeError(null);
     try {
@@ -78,7 +82,10 @@ const RightsGridTab: React.FC = () => {
       else await api.deleteAuthzPolicy(rule);
       setPolicies((prev) => applyChange(prev, rule, grant));
     } catch (err) {
-      setChangeError(rightsChangeError(statusOf(err)));
+      const status = statusOf(err);
+      setChangeError(rightsChangeError(status));
+      // 409 : l'installation est repassée en réglage par fichier ; on relit la grille, qui passe en lecture.
+      if (status === 409) await fetchData();
     } finally {
       setPending((prev) => {
         const next = new Set(prev);
