@@ -46,7 +46,7 @@ L'ordre est celui de `deroule-demo.md` (P1, P2, P3, P6, P4, P5, P8, P7) ; ne pas
 | P3 | le simulateur est un onglet de `/rules` (menu « Traitement des documents ») | inchangé |
 | P6 | `/needs-review` redirige vers `/classification-reviews` (menu « Ma bannette ») | l'adresse affichée change, l'écran est le même |
 | P4 | `/spaces` s'appelle « Explorateur documentaire » dans le menu ; clic droit sur un document et double-clic disponibles ; clavier et clic droit étendu (lots L1 et L2) seulement si leurs PR sont fusionnées le 19 | ne montrer un raccourci clavier que s'il figure au relevé du 19 |
-| P8 | les données du circuit de validation viennent de #127 (non fusionnée le 17/11) | sans #127, P8 se joue en repli (visa seul ou capture) |
+| P8 | les données du circuit de validation viennent de #127 (fusionnée en 22457a7) | P8 se joue normalement ; repli en visa seul ou capture si le jeu de données manque après la restauration (à confirmer au rejeu du 20) |
 | Tous | aides contextuelles `HelpHint` et tuile des doublons livrées (#99, f89fce8) | une icône d'aide peut être ouverte pour répondre à une question, sans y passer plus de 10 s |
 
 ## 3. Plan B général (HTTPS)
