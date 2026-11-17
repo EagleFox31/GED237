@@ -27,7 +27,7 @@ const TABS: Tab[] = [
 const SHARED_FILTERS: { id: SharedReason | 'all'; label: string }[] = [
   { id: 'all', label: 'Tous' },
   { id: 'assigned', label: 'À traiter' },
-  { id: 'visible', label: 'Visibles' },
+  { id: 'visible', label: 'À consulter' },
 ];
 
 const isList = (value: string | null): value is MyDocumentsList =>
@@ -73,6 +73,11 @@ const MyDocumentsPage: React.FC = () => {
   }, [tab, reason]);
 
   useEffect(() => {
+    // Autre onglet ou autre filtre : rien de la liste précédente (lignes, total, erreur) ne reste affiché.
+    setItems([]);
+    setTotal(0);
+    setLoadError(false);
+    setTrackingOff(false);
     load();
   }, [load]);
 
@@ -158,7 +163,7 @@ const MyDocumentsPage: React.FC = () => {
           </span>
         )}
         {tab === 'recent' && trackingOff && (
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Suivi désactivé</span>
+          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Historique désactivé</span>
         )}
         {tab === 'shared' && (
           <div role="group" aria-label="Filtre" className="flex gap-1">
@@ -194,9 +199,11 @@ const MyDocumentsPage: React.FC = () => {
           <button
             type="button"
             onClick={() => load()}
-            className="mt-3 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+            disabled={loading}
+            aria-busy={loading}
+            className="mt-3 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
           >
-            Réessayer
+            {loading ? 'Chargement…' : 'Réessayer'}
           </button>
         </div>
       )}

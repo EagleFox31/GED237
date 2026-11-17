@@ -45,7 +45,7 @@ test.describe('Favoris & récents', () => {
     await page.goto('my-documents?tab=recent');
     await expect(page.getByRole('tab', { name: 'Récents' })).toHaveAttribute('aria-selected', 'true');
     // Le suivi des ouvertures est désactivé par défaut côté serveur (X-Recent-Tracking-Enabled: false).
-    await expect(page.getByText('Suivi désactivé', { exact: true })).toBeVisible();
+    await expect(page.getByText('Historique désactivé', { exact: true })).toBeVisible();
     await expect(page.getByText('Les documents ouverts ne sont pas mémorisés.')).toBeVisible();
 
     await page.getByRole('tab', { name: 'Partagés avec moi' }).click();
@@ -67,7 +67,7 @@ test.describe('Favoris & récents', () => {
     await loginAs('manager');
     await page.goto('my-documents?tab=recent');
     await expect(page.getByText('Aucun document ouvert récemment.')).toBeVisible();
-    await expect(page.getByText('Suivi désactivé', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Historique désactivé', { exact: true })).toHaveCount(0);
   });
 
   test('liste indisponible : message et « Réessayer », pas de liste vide', async ({ page, loginAs }) => {
@@ -81,6 +81,11 @@ test.describe('Favoris & récents', () => {
     await page.goto('my-documents');
     await expect(page.getByText('Liste indisponible pour le moment.')).toBeVisible();
     await expect(page.getByText('Aucun favori')).toHaveCount(0);
+    // L'erreur appartient à l'onglet en échec : elle ne suit pas l'utilisateur sur un autre onglet.
+    await page.getByRole('tab', { name: 'Récents' }).click();
+    await expect(page.getByText('Liste indisponible pour le moment.')).toHaveCount(0);
+    await page.getByRole('tab', { name: 'Favoris' }).click();
+    await expect(page.getByText('Liste indisponible pour le moment.')).toBeVisible();
     fail = false;
     await page.getByRole('button', { name: 'Réessayer' }).click();
     await expect(page.getByText('Liste indisponible pour le moment.')).toHaveCount(0);
