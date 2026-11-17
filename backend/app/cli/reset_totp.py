@@ -9,7 +9,9 @@ Run after an in-person check, in the api container:
 
 ``--operator`` is the matricule of the active super_admin who checked the holder
 in person (``--operator-institution`` when not the holder's institution); any
-other account is refused. Without ``--apply`` it only shows what it would do.
+other account is refused. The operator is the holder only as a break-glass:
+when no other active super_admin exists (otherwise that one resets the holder
+in the application); the audit entry then says ``self: true``. Without ``--apply`` it only shows what it would do.
 With ``--apply`` it removes the app, writes the audit entry in the operator's
 name (``via: ops-script``) and e-mails the holder.
 """
@@ -19,7 +21,7 @@ import asyncio
 import sys
 from typing import Optional, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -74,6 +76,20 @@ async def _operator(db: AsyncSession, args: argparse.Namespace) -> Optional[User
     return found.scalar_one_or_none()
 
 
+async def _other_active_super_admins(db: AsyncSession, holder: User) -> int:
+    found = await db.execute(
+        select(func.count())
+        .select_from(User)
+        .join(User.role)
+        .where(
+            User.id != holder.id,
+            User.is_active.is_(True),
+            Role.code == totp.SUPER_ADMIN,
+        )
+    )
+    return int(found.scalar_one())
+
+
 async def run(db: AsyncSession, args: argparse.Namespace, out=print) -> int:
     """0: done or nothing to do; 1: account not found; 2: operator refused."""
     operator = await _operator(db, args)
@@ -97,6 +113,18 @@ async def run(db: AsyncSession, args: argparse.Namespace, out=print) -> int:
     if user is None:
         out(f"Account not found: {args.matricule} ({tenant.name})")
         return 1
+    if operator.id == user.id:
+        others = await _other_active_super_admins(db, user)
+        if others:
+            out(
+                f"Operator refused: {args.operator} is the holder and {others} other "
+                "active super_admin(s) can reset this account in the application"
+            )
+            return 2
+        out(
+            "Break-glass: the operator is the holder and the only active "
+            "super_admin; the audit entry records a self reset."
+        )
     record = await totp.get_record(db, user.id)
     role = user.role.code if user.role else "?"
     state = (
