@@ -2,7 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
-import { takePostLoginDestination } from './services';
+import { takePostLoginDestination, accountKeyOf } from './services';
 import { pushClientOperationError } from './lib/errors';
 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -193,7 +193,7 @@ const AppLayout: React.FC = () => {
       return;
     }
     // Session expirée en cours de travail : retour à la page quittée (même compte uniquement).
-    if (resumedRef.current === undefined) resumedRef.current = takePostLoginDestination(userProfile?.id);
+    if (resumedRef.current === undefined) resumedRef.current = takePostLoginDestination(accountKeyOf(userProfile));
     const target = userProfile?.mustChangePassword
       ? '/change-password'
       : resumedRef.current ?? defaultRouteForProfile(userProfile?.id);
