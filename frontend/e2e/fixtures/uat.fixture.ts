@@ -194,7 +194,13 @@ export class UatApi {
   }
 
   /** Creates an account in the admin's tenant (throwaway accounts for destructive journeys such as the OTP lock). */
-  async createUser(input: { matricule: string; password: string; roleCode: string; tenantId: string }): Promise<{ id: string }> {
+  async createUser(input: {
+    matricule: string;
+    password: string;
+    roleCode: string;
+    tenantId: string;
+    reportsToUserId?: string;
+  }): Promise<{ id: string }> {
     const created = await ok<{ user: { id: string } }>(
       await this.request.post(`${API_URL}/users/`, {
         headers: this.headers,
@@ -205,6 +211,7 @@ export class UatApi {
           tenant_id: input.tenantId,
           first_name: 'Recette',
           last_name: input.matricule,
+          ...(input.reportsToUserId && { reports_to_user_id: input.reportsToUserId }),
         },
       }),
       `create user ${input.matricule}`,

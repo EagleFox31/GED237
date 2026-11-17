@@ -10,6 +10,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
+import { ReportingBlock } from '../../../../components/ReportingBlock';
 import { api } from '../../../../services/api';
 import { useAuthStore } from '../../../../stores/authStore';
 
@@ -137,6 +138,7 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
   const [working, setWorking] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hierarchyVersion, setHierarchyVersion] = useState(0);
   // Mini-dialogue dédié à l'affichage one-shot du mot de passe temporaire
   // (création OU réinitialisation). Distinct du formulaire d'édition pour ne
   // pas embrouiller l'admin avec un form complet quand seul le mdp compte.
@@ -332,6 +334,7 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
           reports_to_user_id: form.reports_to_user_id || null,
         });
         showToast({ tone: 'success', message: 'Agent mis à jour.' });
+        setHierarchyVersion((v) => v + 1);
         await loadData();
         closeModal();
       } else {
@@ -688,6 +691,17 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dernière connexion</p>
                 <p className="mt-1 text-sm font-bold text-slate-800">{formatDate(selectedAgent.last_login)}</p>
               </div>
+            </div>
+
+            {/* Rattachement (#277) : chargé à l'ouverture de la fiche, rechargé après un enregistrement. */}
+            <div className="rounded-2xl bg-slate-50 px-4 py-4 border border-slate-100 mb-6">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Rattachement</p>
+              <ReportingBlock
+                userId={selectedAgent.id}
+                variant="agent"
+                onOpenUser={setSelectedId}
+                reloadKey={hierarchyVersion}
+              />
             </div>
 
             {/* Actions admin */}

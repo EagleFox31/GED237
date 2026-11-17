@@ -38,6 +38,8 @@ import SpacesPage from './profiles/tenant-admin/pages/SpacesPage';
 import ClassificationReviewPage from './profiles/tenant-admin/pages/ClassificationReviewPage';
 import ReportsPage from './profiles/tenant-admin/pages/ReportsPage';
 import LocalLibraryPage from './profiles/tenant-admin/pages/LocalLibraryPage';
+import MyTeamPage from './components/MyTeamPage';
+import { useProfileRefresh } from './hooks/useProfileRefresh';
 
 // Route → activeTab mapping (pour la compatibilité Sidebar/Header)
 const ROUTE_TO_TAB: Record<string, string> = {
@@ -60,6 +62,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/pending-assignments': 'pending_assignments',
   '/ingestion': 'ingestion',
   '/local-library': 'local_library',
+  '/my-team': 'my_team',
   '/audit': 'audit_central',
   '/reports': 'reports',
 };
@@ -82,6 +85,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'pending_assignments': '/pending-assignments',
   'ingestion': '/ingestion',
   'local_library': '/local-library',
+  'my_team': '/my-team',
   'audit_central': '/audit',
   'reports': '/reports',
 };
@@ -175,6 +179,8 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userProfile, layoutMode, setLayoutMode, justLoggedIn, consumeJustLoggedIn } = useAuthStore();
+  // Nom ou rôle changé par un administrateur : relu au retour sur l'onglet (#277).
+  useProfileRefresh();
 
   // Tiroir de navigation (écrans < 768 px) : refermé après chaque navigation.
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -272,6 +278,7 @@ const AppLayout: React.FC = () => {
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />
             <Route path="/ingestion" element={<DirectoryIngestion />} />
             <Route path="/local-library" element={<LocalLibraryPage />} />
+            <Route path="/my-team" element={<MyTeamPage />} />
             <Route path="/audit" element={<AuditLogs />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/change-password" element={<ChangePassword />} />

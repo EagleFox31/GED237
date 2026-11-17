@@ -15,6 +15,8 @@ export interface UserProfile {
   tenantId?: string;
   orgUnitId?: string;
   mustChangePassword?: boolean;
+  /** Identifiant serveur de la personne (`id` vaut le code de profil, pas cet identifiant). */
+  userId?: string;
 }
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -91,6 +93,7 @@ const normalizeBackendUser = (user: BackendUser): UserProfile => {
     tenantId: user.tenant_id,
     orgUnitId: user.org_unit_id || undefined,
     mustChangePassword: user.must_change_password || false,
+    userId: user.id,
   };
 };
 
@@ -118,6 +121,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
+      userId: candidate.userId?.toString(),
     };
   }
 
@@ -137,6 +141,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
+      userId: candidate.userId?.toString(),
     };
   }
 
@@ -171,6 +176,8 @@ interface AuthState {
   setLayoutMode: (mode: 'sidebar' | 'topbar') => void;
   clearMustChangePassword: () => void;
   consumeJustLoggedIn: () => void;
+  /** Remplace le profil par la réponse de GET /users/me (nom ou rôle changé depuis la connexion). */
+  refreshProfile: (user: BackendUser) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -209,6 +216,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   }),
 
   consumeJustLoggedIn: () => set({ justLoggedIn: false }),
+
+  refreshProfile: (user) => set((state) => {
+    // Déconnecté entre-temps : une réponse tardive ne doit pas recréer de profil.
+    if (!state.isLoggedIn) return state;
+    const profile = normalizeBackendUser(user);
+    sessionStorage.setItem('user_profile', JSON.stringify(profile));
+    return { userProfile: profile };
+  }),
 }));
 
 export const mapBackendUserToProfile = normalizeBackendUser;

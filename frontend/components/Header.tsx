@@ -432,6 +432,18 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 </div>
                 <button
                   type="button"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onTabChange?.('my_team');
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  role="menuitem"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">groups</span>
+                  <span>Mon équipe</span>
+                </button>
+                <button
+                  type="button"
                   onClick={async () => {
                     setShowUserMenu(false);
                     await logout();
