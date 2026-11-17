@@ -102,6 +102,7 @@ def _document_load_options():
         selectinload(Document.classification_domain),
         selectinload(Document.classification_activity),
         selectinload(Document.owner),
+        selectinload(Document.locked_by_user),
     )
 
 
@@ -442,6 +443,14 @@ def _derive_file_type(
     return None
 
 
+def _user_name_in_tenant(user: Optional[User], tenant_id: UUID) -> Optional[str]:
+    """Display name of a user referenced by a document; None when the account is gone or
+    belongs to another tenant, so the id alone is sent and a name never leaks across tenants."""
+    if user is None or user.tenant_id != tenant_id:
+        return None
+    return user.full_name or user.matricule
+
+
 def _serialize_document(document: Document) -> DocumentRead:
     owner_name: Optional[str] = None
     if document.owner:
@@ -481,6 +490,12 @@ def _serialize_document(document: Document) -> DocumentRead:
         updated_at=document.updated_at,
         owner_name=owner_name,
         current_version_number=document.current_version_number,
+        locked_by_user_id=document.locked_by_user_id,
+        locked_by_name=_user_name_in_tenant(
+            document.locked_by_user, document.tenant_id
+        ),
+        locked_at=document.locked_at,
+        lock_expires_at=document.lock_expires_at,
     )
 
 

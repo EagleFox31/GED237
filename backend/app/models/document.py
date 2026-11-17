@@ -149,6 +149,10 @@ class Document(Base, UUIDMixin, TimestampMixin):
     classification_target_user = relationship(
         "User", foreign_keys=[classification_target_user_id]
     )
+    # Who holds the edit lock (#274); read-only, the lock routes set locked_by_user_id.
+    locked_by_user = relationship(
+        "User", foreign_keys=[locked_by_user_id], viewonly=True
+    )
     workflow_steps = relationship(
         "WorkflowStep", back_populates="document", cascade="all, delete-orphan"
     )

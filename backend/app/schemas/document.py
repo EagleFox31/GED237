@@ -68,6 +68,11 @@ class DocumentRead(DocumentBase):
     updated_at: datetime
     owner_name: Optional[str] = None
     current_version_number: Optional[str] = None
+    # Edit lock (#274): set while someone edits; lock_expires_at in the past means free.
+    locked_by_user_id: Optional[UUID] = None
+    locked_by_name: Optional[str] = None
+    locked_at: Optional[datetime] = None
+    lock_expires_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
