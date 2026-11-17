@@ -16,8 +16,13 @@ the --dry-run list first.
 
 import argparse
 import asyncio
+import os
+import sys
 
-from app.core.authz.casbin_enforcer import (
+# Run as `python scripts/bootstrap_authz_sql.py` from backend/ (the migrate container does).
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from app.core.authz.casbin_enforcer import (  # noqa: E402
     bootstrap_sql_policies_from_csv,
     csv_sql_policy_drift,
     sync_sql_policies_from_csv,

@@ -63,7 +63,9 @@ services:
     memswap_limit: 512m
     cpus: 1.0
     logging: *default-logging
-    command: alembic upgrade head
+    # Schema, then the SQL rights store: filled from policy.csv when empty, left
+    # alone otherwise, so a right removed through the admin API stays removed.
+    command: sh -c "alembic upgrade head && python scripts/bootstrap_authz_sql.py"
     environment:
       DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:-changeme}@postgres/edossier
       REDIS_URL: redis://redis:6379/0
@@ -132,6 +134,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      # Rights read from the SQL store (V1.1); set AUTHZ_BACKEND=csv to go back to policy.csv.
+      AUTHZ_BACKEND: ${AUTHZ_BACKEND:-sql}
       STORAGE_PATH: /var/storage_data
       INGEST_ALLOWED_ROOTS: /data/ingest
       # Watched folders: read here only for GET /documents/ingest-watch/status.
@@ -184,6 +188,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       STORAGE_PATH: /var/storage_data
+      AUTHZ_BACKEND: ${AUTHZ_BACKEND:-sql}
       INGEST_ALLOWED_ROOTS: /data/ingest
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
