@@ -96,4 +96,37 @@ Les sorties 1 à 3 rendent ≈ 7,75 h-s, dont 4 h-s de Q : la marge revient sans
   F passe de 14,75 à 15,75 h-s. Ordre prévu par F : #249 → #276 → #275 → #274.
 - **Chiffres de B** : `En attente` (API de #280, #254).
 
-Recalcul provisoire : total ≈ 58,75 h-s (B 20,25, F 15,75, Q 23,75). Q dépasse encore de ≈ 1,75 h-s les ≈ 22 h-s disponibles hors marge. **Si le PO accepte la sortie 3, Q tombe à ≈ 21,25 h-s et le 04/12 tient avec sa marge.** Sinon, le 04/12 tient en entamant ≈ 1,75 h-s de marge sur 6,8. Le recalcul définitif se fait aux chiffres de B.
+Recalcul provisoire : total ≈ 58,75 h-s (B 18,75, F 15,75, Q 23,75, I 0,5 ; B corrigé le 17/11, voir § suivant). Q dépasse encore de ≈ 1,75 h-s les ≈ 22 h-s disponibles hors marge. **Si le PO accepte la sortie 3, Q tombe à ≈ 21,25 h-s et le 04/12 tient avec sa marge.** Sinon, le 04/12 tient en entamant ≈ 1,75 h-s de marge sur 6,8. Le recalcul définitif se fait aux chiffres de B.
+
+### Chiffres de B et recalcul définitif (17/11 au soir)
+
+**Correction** : le recalcul provisoire affichait B 20,25. C'était une erreur de report : après les sorties 1 et 2, B était à 18,75. Le total de 58,75 était juste.
+
+Chiffres de B, en h-s, vérifiés sur `main` f8f1d75 :
+- **Lot 8a** (réglages en base) : 3,5 au lieu de 3. Fonctions activées et serveur e-mail (0,5) branchés seulement après la fusion de #230 et #154. Le mot de passe du serveur e-mail reste sur le serveur.
+- **Lot 8b** (grille rôles × actions) : 1,5 au lieu de 1. Il s'appuie sur la table `casbin_rule` et `/authz/policies`, après #228 (lot 3).
+- **#274 à #278** : les routes existent. Seule exception, #274 : `DocumentRead` n'expose pas `locked_by_user_id`, `locked_at` ni `lock_expires_at`, et il faut aussi le nom de la personne (0,5). F compte déjà ces champs dans ses 2 h-s. **On ne les compte qu'une fois.** O désigne qui les fait.
+- **#254**, si le PO répond A et A à la question 13 (choix par défaut) : 3 au lieu de 1,5.
+  - 1,5 : l'étape de workflow assignée ouvre la lecture, et l'accès reste après la fin de l'étape.
+  - 1,5 : lecteur désigné hors circuit, avec une nouvelle table et sa migration.
+  - L'écran de désignation (F ≈ 1) et la relecture de la migration (Q ≈ 0,5) sont `Déduit`. F doit confirmer son chiffre.
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Provisoire (après sorties 1 et 2, chiffres de F) | 18,75 | 15,75 | 23,75 | 0,5 | 58,75 |
+| Lot 8, chiffres de B | + 1 | — | — | — | + 1 |
+| #254 avec A et A | + 1,5 | + 1 | + 0,5 | — | + 3 |
+| **Total** | **21,25** | **16,75** | **24,25** | **0,5** | **≈ 62,75** |
+
+B et F tiennent sans peine du 24/11 au 04/12. **Q reste le goulot** : 24,25 h-s pour ≈ 22 h-s disponibles hors marge.
+
+**Verdict** :
+- **Si le PO accepte la sortie 3** (#183 et #194, Q − 2,5), Q tombe à ≈ 21,75 h-s. Le 04/12 tient, mais avec une marge très faible, ≈ 0,25 h-s.
+- **Sinon**, le 04/12 ne tient qu'en entamant ≈ 2,25 h-s de la marge de Q.
+- **Chemin critique inchangé** : le lot 8a attend #154 et #230, le lot 8b attend #228, et #278 attend #203.
+
+**Recommandation** : présenter au PO les deux choix ensemble.
+1. Accepter la sortie 3.
+2. Pour la question 13 a), décaler le lecteur désigné hors circuit en V1.2 (gain ≈ 3 h-s, dont Q 0,5). On garde en V1.1 l'accès par l'étape de workflow, qui règle le cas « accès refusé » de la question 6.
+
+Avec 1 et 2, Q tombe à ≈ 21,25 h-s, et le 04/12 retrouve une marge d'environ 0,75 h-s.
