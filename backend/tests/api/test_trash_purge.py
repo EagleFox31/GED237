@@ -1,6 +1,8 @@
 """Trash: DELETE moves to the trash, purge is trash-only, bulk and retention purges."""
 
 import io
+import pathlib
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -545,3 +547,46 @@ async def test_tenant_admin_of_another_institution_purges_nothing(
     assert purge.status_code == 404
     assert empty.json()["purged"] == 0
     assert await _document_row(test_engine, document_id) is not None
+
+
+# --- Every deletion is audited (#185) ----------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_every_deletion_leaves_an_audit_entry(
+    admin_client: AsyncClient, db_seed, test_engine
+):
+    """DELETE and POST /trash move to the trash, the purge and the emptying delete
+    for good: each step leaves its own audit row, and nothing is gone unaudited."""
+    via_delete = await _upload(admin_client, db_seed, "audit-delete.txt")
+    via_trash = await _upload(admin_client, db_seed, "audit-trash.txt")
+
+    assert (await admin_client.delete(f"{DOCS}/{via_delete}")).status_code == 204
+    assert (await admin_client.post(f"{DOCS}/{via_trash}/trash")).status_code == 200
+    for document_id in (via_delete, via_trash):
+        assert await _document_row(test_engine, document_id) is not None
+        assert len(await _audit_rows(test_engine, document_id, "document_trashed")) == 1
+
+    purged = await admin_client.delete(f"{DOCS}/{via_delete}/purge")
+    emptied = await admin_client.post(
+        f"{DOCS}/trash/empty", json={"document_ids": [via_trash]}
+    )
+    assert (purged.status_code, emptied.status_code) == (200, 200)
+    for document_id in (via_delete, via_trash):
+        assert await _document_row(test_engine, document_id) is None
+        assert len(await _audit_rows(test_engine, document_id, "document_purged")) == 1
+
+
+def test_documents_are_only_deleted_by_the_trash_service():
+    """Guardrail for #185: a document row is deleted in one place only,
+    ``trash_service``, which writes the audit row in the same transaction."""
+    app_dir = pathlib.Path(trash_service.__file__).resolve().parents[1]
+    pattern = re.compile(r"delete\(\s*Document\b|\.delete\(\s*(document|doc)\s*\)")
+    offenders = [
+        f"{path.relative_to(app_dir)}:{number}"
+        for path in app_dir.rglob("*.py")
+        if path.name != "trash_service.py"
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if pattern.search(line)
+    ]
+    assert offenders == []
