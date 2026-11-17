@@ -66,11 +66,49 @@ class Settings(BaseSettings):
     # Minimum delay between two sendings of a code for the same login session.
     AUTH_OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=30, ge=0)
     # Authenticator app (RFC 6238, services/totp.py), off by default. When on, an
-    # account with a confirmed app gives its app code; the others, and anyone who
-    # asks for a new code, fall back to AUTH_OTP_CHANNEL.
+    # account with a confirmed app gives its app code, with no e-mail fallback
+    # (DEC-2026-004); the others keep AUTH_OTP_CHANNEL.
     AUTH_TOTP_ENABLED: bool = False
     # Name shown in the authenticator app.
     AUTH_TOTP_ISSUER: str = "E-Dossier"
+    # Roles that must use the app (comma-separated role codes). Such an account
+    # without an app is led to enrolment after the password, before any token.
+    AUTH_TOTP_REQUIRED_ROLES: str = "tenant_admin,super_admin"
+    # Fernet keys for the stored app secrets, comma-separated: the first encrypts,
+    # all decrypt (rotation: put the new key first, keep the old one until every
+    # account has logged in once). Empty: a key derived from SECRET_KEY, for
+    # development only; required in production when the app is enabled.
+    TOTP_ENCRYPTION_KEYS: str = ""
+
+    @property
+    def totp_required_roles(self) -> frozenset[str]:
+        return frozenset(
+            code.strip().lower()
+            for code in self.AUTH_TOTP_REQUIRED_ROLES.split(",")
+            if code.strip()
+        )
+
+    @property
+    def totp_encryption_keys(self) -> list[str]:
+        return [
+            key.strip() for key in self.TOTP_ENCRYPTION_KEYS.split(",") if key.strip()
+        ]
+
+    @field_validator("TOTP_ENCRYPTION_KEYS")
+    @classmethod
+    def validate_totp_keys(cls, v: str) -> str:
+        from cryptography.fernet import Fernet
+
+        for index, key in enumerate(k.strip() for k in v.split(",") if k.strip()):
+            try:
+                Fernet(key)
+            except (ValueError, TypeError) as exc:
+                # The key itself is never echoed.
+                raise ValueError(
+                    f"TOTP_ENCRYPTION_KEYS: key #{index + 1} is not a Fernet key "
+                    "(32 url-safe base64 bytes)"
+                ) from exc
+        return v
 
     @field_validator("AUTH_OTP_CHANNEL", mode="before")
     @classmethod
@@ -244,6 +282,8 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        # A refused value (key, password) is never echoed in the startup error.
+        hide_input_in_errors = True
 
 
 @lru_cache()
@@ -256,6 +296,14 @@ def get_settings() -> Settings:
     ):
         raise RuntimeError(
             "SECRET_KEY must be changed in production! Set a strong random key via the SECRET_KEY environment variable."
+        )
+    if (
+        s.ENVIRONMENT == "production"
+        and s.AUTH_TOTP_ENABLED
+        and not s.totp_encryption_keys
+    ):
+        raise RuntimeError(
+            "TOTP_ENCRYPTION_KEYS must be set in production when AUTH_TOTP_ENABLED is on."
         )
     return s
 

@@ -188,6 +188,19 @@ class OtpResendTooSoonError(AppError):
         )
 
 
+class TotpResendUnavailableError(AppError):
+    """The code comes from the holder's app: nothing is sent by e-mail (DEC-2026-004)."""
+
+    status_code = 409
+    default_error_code = "OTP_RESEND_UNAVAILABLE"
+    default_severity = Severity.warning
+    default_retryable = False
+    default_user_message = (
+        "Le code vient de votre application d'authentification. "
+        "Application perdue : demandez une réinitialisation à votre administrateur."
+    )
+
+
 class AuthorizationError(AppError):
     """Utilisateur identifié mais non autorisé pour cette action."""
 

@@ -20,12 +20,20 @@ from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import quote, urlencode
 
-from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import or_, select, update
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
+from fastapi import Request
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.role import Role
+from app.models.user import User
 from app.models.user_totp import UserTotp
+from app.services import otp_delivery
+from app.services.audit_trail import audit_entry
+
+SUPER_ADMIN = "super_admin"
+TENANT_ADMIN = "tenant_admin"
 
 STEP_SECONDS = 30
 DIGITS = 6
@@ -86,10 +94,17 @@ def provisioning_uri(secret: str, account: str) -> str:
     return f"otpauth://totp/{quote(issuer)}:{quote(account)}?{query}"
 
 
-def _fernet() -> Fernet:
+def _fernet() -> MultiFernet:
+    """TOTP_ENCRYPTION_KEYS (first encrypts, all decrypt), kept apart from SECRET_KEY.
+
+    Unset: a key derived from SECRET_KEY, for development and tests only
+    (get_settings refuses it in production when the app is enabled)."""
+    keys = settings.totp_encryption_keys
+    if keys:
+        return MultiFernet([Fernet(key) for key in keys])
     # Derived, not reused: SECRET_KEY also signs the tokens.
     derived = hashlib.sha256(f"totp-secret:{settings.SECRET_KEY}".encode()).digest()
-    return Fernet(base64.urlsafe_b64encode(derived))
+    return MultiFernet([Fernet(base64.urlsafe_b64encode(derived))])
 
 
 def encrypt_secret(secret: str) -> str:
@@ -97,7 +112,7 @@ def encrypt_secret(secret: str) -> str:
 
 
 def decrypt_secret(token: str) -> Optional[str]:
-    """None when SECRET_KEY changed since enrolment: the app must be enrolled again."""
+    """None when no configured key opens it: the app must be enrolled again."""
     try:
         return _fernet().decrypt(token.encode()).decode()
     except InvalidToken:
@@ -135,7 +150,9 @@ async def consume(
     step = matching_step(secret, code) if secret else None
     if step is None:
         return False
-    values = {"last_used_step": step}
+    # Re-encrypted under the first key: a rotation completes as accounts log in.
+    rotated = _fernet().rotate(record.secret_encrypted.encode()).decode()
+    values = {"last_used_step": step, "secret_encrypted": rotated}
     if confirming:
         values["confirmed_at"] = datetime.now(timezone.utc)
     # Compare-and-set: two requests with the same code, only one moves the step.
@@ -152,3 +169,101 @@ async def consume(
     accepted = moved.scalar_one_or_none() is not None
     await db.commit()
     return accepted
+
+
+def required_for(role_code: Optional[str]) -> bool:
+    """The role must use the app (DEC-2026-004): never while the app is off."""
+    return (
+        settings.AUTH_TOTP_ENABLED and (role_code or "") in settings.totp_required_roles
+    )
+
+
+async def begin_enrolment(db: AsyncSession, user: User) -> tuple[str, str]:
+    """New secret for ``user``, unconfirmed until a first code. Returns the secret
+    and its otpauth link. ValueError when an app is already confirmed."""
+    record = await get_record(db, user.id)
+    if record is not None and record.confirmed_at is not None:
+        raise ValueError("app already confirmed")
+    secret = generate_secret()
+    if record is None:
+        record = UserTotp(user_id=user.id, tenant_id=user.tenant_id)
+        db.add(record)
+    record.secret_encrypted = encrypt_secret(secret)
+    record.last_used_step = None
+    await db.commit()
+    return secret, provisioning_uri(secret, user.email or user.matricule)
+
+
+def reset_allowed(
+    *,
+    actor_id: uuid.UUID,
+    actor_role: Optional[str],
+    actor_tenant: Optional[uuid.UUID],
+    target_id: uuid.UUID,
+    target_role: Optional[str],
+    target_tenant: Optional[uuid.UUID],
+) -> bool:
+    """Who may reset whose app (DEC-2026-004): a superior, never oneself.
+
+    An agent by a tenant_admin of the same institution; a tenant_admin by a
+    super_admin; a super_admin by ANOTHER super_admin."""
+    if str(actor_id) == str(target_id):
+        return False
+    if actor_role == SUPER_ADMIN:
+        return True
+    if actor_role == TENANT_ADMIN:
+        return str(actor_tenant) == str(target_tenant) and target_role not in (
+            TENANT_ADMIN,
+            SUPER_ADMIN,
+        )
+    return False
+
+
+async def reset(
+    db: AsyncSession,
+    target: User,
+    *,
+    actor: Optional[User],
+    operator: Optional[str] = None,
+    request: Optional[Request] = None,
+) -> bool:
+    """Remove ``target``'s app after an in-person check. False: nothing to reset.
+
+    ``actor`` is the superior who did it; None for the ops script, which names
+    its ``operator``. Audited, then the holder is told by e-mail."""
+    record = await get_record(db, target.id)
+    if record is None:
+        return False
+    await db.delete(record)
+    by = actor.matricule if actor is not None else f"ops:{operator}"
+    db.add(
+        audit_entry(
+            tenant_id=target.tenant_id,
+            user_id=actor.id if actor is not None else None,
+            table_name="users",
+            record_id=target.id,
+            action="totp_reset",
+            details={"name": target.full_name, "matricule": target.matricule, "by": by},
+            request=request,
+        )
+    )
+    await db.commit()
+    await otp_delivery.notify_totp_event(target, "reset")
+    return True
+
+
+async def count_super_admins_with_app(db: AsyncSession) -> int:
+    """Active super_admin accounts with a confirmed app: fewer than two leaves
+    nobody to reset the last one but the ops script."""
+    found = await db.execute(
+        select(func.count())
+        .select_from(UserTotp)
+        .join(User, User.id == UserTotp.user_id)
+        .join(Role, Role.id == User.role_id)
+        .where(
+            Role.code == SUPER_ADMIN,
+            User.is_active.is_(True),
+            UserTotp.confirmed_at.is_not(None),
+        )
+    )
+    return int(found.scalar_one())

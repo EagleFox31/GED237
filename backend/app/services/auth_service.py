@@ -15,6 +15,7 @@ from app.core.errors.domain import (
     OtpContactMissingError,
     OtpDeliveryError,
     OtpResendTooSoonError,
+    TotpResendUnavailableError,
 )
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.redis import get_redis
@@ -35,6 +36,11 @@ from app.services.audit_trail import audit_entry
 # Never equal to a stored code: those are hashes with a prefix.
 TOTP_PENDING = "totp"
 METHOD_TOTP = "totp"
+# Login of a role that must use the app, password and e-mail code checked, but
+# no app yet: an opaque key that opens enrolment only, never an API route.
+ENROL_PREFIX = "totp_enrol:"
+TOTP_ENROLMENT_SECONDS = 600
+ENROLMENT_REQUIRED = "totp_enrolment_required"
 
 
 class AuthService:
@@ -116,8 +122,8 @@ class AuthService:
 
         session_token = secrets.token_urlsafe(32)
         if await totp.is_active_for(db, user.id):
-            # Nothing is sent: the code comes from the user's app. "Resend"
-            # falls back to AUTH_OTP_CHANNEL (lost or flat phone).
+            # Nothing is sent: the code comes from the user's app, with no e-mail
+            # fallback (DEC-2026-004). Lost phone: reset by a superior.
             await redis.setex(
                 f"otp:{session_token}", self.OTP_EXPIRY_SECONDS, TOTP_PENDING
             )
@@ -166,6 +172,11 @@ class AuthService:
         user = await db.get(User, user_id)
         if user is None or not user.is_active:
             raise AuthenticationError("Invalid or expired session")
+
+        if await redis.get(f"otp:{session_token}") == TOTP_PENDING:
+            raise TotpResendUnavailableError(
+                technical_detail="resend on an app session"
+            )
 
         cooldown = settings.AUTH_OTP_RESEND_COOLDOWN_SECONDS
         resend_key = f"otp_resend:{session_token}"
@@ -319,7 +330,13 @@ class AuthService:
                     db, pending_user, "code de verification incorrect", request
                 )
             await self._record_otp_failure(
-                db, redis, user_id, otp_key, session_key, request
+                db,
+                redis,
+                user_id,
+                otp_key,
+                session_key,
+                request,
+                holder_notice=stored_otp == TOTP_PENDING,
             )
             raise AuthenticationError("Invalid OTP")
         await redis.delete(f"otp_fail:{user_id}")
@@ -332,6 +349,16 @@ class AuthService:
         result = await db.execute(select(Role).where(Role.id == user.role_id))
         role = result.scalar_one()
 
+        # The login session ends here either way: tokens, or enrolment only.
+        await redis.delete(otp_key, session_key, f"otp_resend:{session_token}")
+        if totp.required_for(role.code) and not await totp.is_active_for(db, user.id):
+            return await self._open_enrolment(db, redis, user, request)
+        return await self._issue_tokens(db, user, role, request)
+
+    async def _issue_tokens(
+        self, db: AsyncSession, user: User, role: Role, request: Optional[Request]
+    ) -> Dict[str, Any]:
+        """Second factor checked: the login is recorded and the tokens issued."""
         user.last_login = datetime.utcnow()
         # Logged when the tokens are issued, i.e. once the second factor is checked.
         db.add(
@@ -355,8 +382,6 @@ class AuthService:
         }
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
-
-        await redis.delete(otp_key, session_key, f"otp_resend:{session_token}")
 
         return {
             "access_token": access_token,
@@ -390,6 +415,88 @@ class AuthService:
             lock_seconds=lock_seconds,
         )
 
+    async def _open_enrolment(
+        self, db: AsyncSession, redis, user: User, request: Optional[Request]
+    ) -> Dict[str, Any]:
+        """The role must use the app and none is confirmed: enrolment, no token."""
+        token = secrets.token_urlsafe(32)
+        await redis.setex(
+            f"{ENROL_PREFIX}{token}", TOTP_ENROLMENT_SECONDS, str(user.id)
+        )
+        db.add(
+            audit_entry(
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+                table_name="users",
+                record_id=user.id,
+                action="totp_enrolment_required",
+                details={"name": user.full_name, "matricule": user.matricule},
+                request=request,
+            )
+        )
+        await db.commit()
+        return {
+            "status": ENROLMENT_REQUIRED,
+            "enrolment_token": token,
+            "expires_in": TOTP_ENROLMENT_SECONDS,
+            "message": "Register an authenticator app to finish signing in",
+        }
+
+    async def _enrolment_user(self, db: AsyncSession, redis, token: str) -> tuple:
+        user_id_str = await redis.get(f"{ENROL_PREFIX}{token}")
+        if not user_id_str:
+            raise AuthenticationError("Invalid or expired enrolment")
+        user_id = UUID(user_id_str)
+        await self._raise_if_locked(redis, user_id)
+        user = await db.get(User, user_id)
+        if user is None or not user.is_active:
+            raise AuthenticationError("Invalid or expired enrolment")
+        role = (
+            await db.execute(select(Role).where(Role.id == user.role_id))
+        ).scalar_one()
+        return user, role
+
+    async def start_enrolment(self, db: AsyncSession, token: str) -> Dict[str, str]:
+        """Secret for the forced enrolment. The token already proves the password
+        and the e-mail code, both checked less than TOTP_ENROLMENT_SECONDS ago."""
+        redis = await get_redis()
+        user, _ = await self._enrolment_user(db, redis, token)
+        try:
+            secret, uri = await totp.begin_enrolment(db, user)
+        except ValueError as exc:
+            # Confirmed meanwhile (another tab): the normal login now applies.
+            raise AuthenticationError("Invalid or expired enrolment") from exc
+        return {"secret": secret, "otpauth_uri": uri}
+
+    async def confirm_enrolment(
+        self,
+        db: AsyncSession,
+        token: str,
+        code: str,
+        request: Optional[Request] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """First app code: the app is confirmed and the login ends with tokens.
+        None when the code is wrong (the token stays valid until it expires)."""
+        redis = await get_redis()
+        user, role = await self._enrolment_user(db, redis, token)
+        if not await totp.consume(db, user.id, code, confirming=True):
+            return None
+        await redis.delete(f"{ENROL_PREFIX}{token}")
+        db.add(
+            audit_entry(
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+                table_name="users",
+                record_id=user.id,
+                action="totp_enrolled",
+                details={"name": user.full_name, "matricule": user.matricule},
+                request=request,
+            )
+        )
+        await db.commit()
+        await otp_delivery.notify_totp_event(user, "enrolled")
+        return await self._issue_tokens(db, user, role, request)
+
     async def _record_otp_failure(
         self,
         db: AsyncSession,
@@ -398,8 +505,11 @@ class AuthService:
         otp_key: str,
         session_key: str,
         request: Optional[Request] = None,
+        *,
+        holder_notice: bool = False,
     ) -> None:
-        """Count a wrong OTP; at the limit, lock the account, end the session and audit it."""
+        """Count a wrong OTP; at the limit, lock the account, end the session and audit it.
+        ``holder_notice``: wrong app codes, the holder is told by e-mail."""
         max_failures = settings.AUTH_OTP_MAX_FAILURES
         lock_seconds = settings.AUTH_LOCKOUT_SECONDS
         fail_key = f"otp_fail:{user_id}"
@@ -428,6 +538,8 @@ class AuthService:
                     )
                 )
                 await db.commit()
+                if holder_notice:
+                    await otp_delivery.notify_totp_event(user, "locked")
         await self._raise_if_locked(redis, user_id)
 
     async def refresh_access_token(self, refresh_token: str) -> Dict[str, str]:

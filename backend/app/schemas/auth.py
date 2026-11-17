@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Literal, Optional
 
 # ASCII only: "\d" also matches other scripts' digits, which the code checks
 # cannot compare (they raised a 500 instead of a refusal).
@@ -38,6 +38,11 @@ class TotpStatus(BaseModel):
 
     available: bool  # AUTH_TOTP_ENABLED on this server
     enrolled: bool  # app confirmed: the login asks for its code
+    # The role must use the app (DEC-2026-004): removing it is refused.
+    required: bool = False
+    # For a super_admin only: active super_admin accounts with a confirmed app.
+    # Fewer than two: nobody but the ops script can reset the last one.
+    super_admins_with_app: Optional[int] = None
 
 
 class TotpEnrollResponse(BaseModel):
@@ -58,16 +63,29 @@ class TotpCodeRequest(BaseModel):
 
 
 class TotpDisableRequest(BaseModel):
-    """Password and a second factor: the app code, or a code from /totp/disable-code."""
+    """Password and the app code: a stolen password alone must not remove it."""
 
     current_password: str = Field(..., min_length=1)
     code: str = Field(..., min_length=6, max_length=6, pattern=SIX_DIGITS)
 
 
-class TotpDisableCodeResponse(BaseModel):
-    method: str  # channel the code went by
+class TotpEnrolmentRequired(BaseModel):
+    """verify-otp for a role that must use the app and has none: no token yet,
+    the screen shows the enrolment only (POST /auth/totp/enrolment/start)."""
+
+    status: Literal["totp_enrolment_required"]
+    enrolment_token: str
     expires_in: int
-    otp: Optional[str] = None  # Only in development
+    message: str
+
+
+class TotpEnrolmentStartRequest(BaseModel):
+    enrolment_token: str = Field(..., min_length=1, max_length=128)
+
+
+class TotpEnrolmentConfirmRequest(BaseModel):
+    enrolment_token: str = Field(..., min_length=1, max_length=128)
+    code: str = Field(..., min_length=6, max_length=6, pattern=SIX_DIGITS)
 
 
 class OTPVerifyRequest(BaseModel):

@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -8,9 +9,9 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.errors.domain import (
     AccountLockedError,
-    OtpContactMissingError,
     OtpDeliveryError,
     OtpResendTooSoonError,
+    TotpResendUnavailableError,
 )
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.rate_limit import limiter
@@ -24,18 +25,18 @@ from app.schemas.auth import (
     RefreshTokenResponse,
     TokenResponse,
     TotpCodeRequest,
-    TotpDisableCodeResponse,
     TotpDisableRequest,
+    TotpEnrolmentConfirmRequest,
+    TotpEnrolmentRequired,
+    TotpEnrolmentStartRequest,
     TotpEnrollRequest,
     TotpEnrollResponse,
     TotpStatus,
 )
 from app.services.auth_service import AuthService
 from app.core.dependencies import get_current_user
-from app.core.redis import get_redis
-from app.core.security import generate_otp, hash_password, verify_password
+from app.core.security import hash_password, verify_password
 from app.models.user import User
-from app.models.user_totp import UserTotp
 from app.services import otp_delivery, totp
 from app.services.audit_trail import audit_entry
 from app.schemas.user import ChangePasswordRequest
@@ -100,7 +101,12 @@ async def resend_otp(
             db=db, session_token=payload.session_token, request=request
         )
         return LoginResponse(**result)
-    except (AccountLockedError, OtpDeliveryError, OtpResendTooSoonError):
+    except (
+        AccountLockedError,
+        OtpDeliveryError,
+        OtpResendTooSoonError,
+        TotpResendUnavailableError,
+    ):
         raise
     except AuthenticationError as exc:
         raise HTTPException(
@@ -115,14 +121,17 @@ async def resend_otp(
         ) from exc
 
 
-@router.post("/verify-otp", response_model=TokenResponse)
+@router.post("/verify-otp", response_model=Union[TokenResponse, TotpEnrolmentRequired])
 @limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
 async def verify_otp(
     request: Request,
     otp_data: OTPVerifyRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Step 2: Verify OTP and get JWT tokens."""
+    """Step 2: Verify OTP and get JWT tokens.
+
+    A role that must use the app and has none gets no token: an enrolment token
+    instead (status "totp_enrolment_required"), for /totp/enrolment/start."""
     try:
         result = await auth_service.verify_otp(
             db=db,
@@ -130,6 +139,8 @@ async def verify_otp(
             otp=otp_data.otp,
             request=request,
         )
+        if "enrolment_token" in result:
+            return TotpEnrolmentRequired(**result)
         return TokenResponse(**result)
     except AccountLockedError:
         raise
@@ -214,7 +225,7 @@ async def logout(
         ) from exc
 
 
-# --- Authenticator app (TOTP, post-rc1 lot 4) --------------------------------
+# --- Authenticator app (TOTP, post-rc1 lot 4, DEC-2026-004) ------------------
 
 TOTP_OFF = "L'application d'authentification n'est pas activée sur ce serveur."
 
@@ -222,6 +233,10 @@ TOTP_OFF = "L'application d'authentification n'est pas activée sur ce serveur."
 def _require_totp_enabled() -> None:
     if not settings.AUTH_TOTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=TOTP_OFF)
+
+
+def _role_code(user: User):
+    return user.role.code if user.role else None
 
 
 async def _audit_totp(db: AsyncSession, user: User, action: str, request: Request):
@@ -245,9 +260,15 @@ async def totp_status(
     db: AsyncSession = Depends(get_db),
 ):
     record = await totp.get_record(db, current_user.id)
+    role = _role_code(current_user)
+    super_admins = None
+    if settings.AUTH_TOTP_ENABLED and role == totp.SUPER_ADMIN:
+        super_admins = await totp.count_super_admins_with_app(db)
     return TotpStatus(
         available=settings.AUTH_TOTP_ENABLED,
         enrolled=record is not None and record.confirmed_at is not None,
+        required=totp.required_for(role),
+        super_admins_with_app=super_admins,
     )
 
 
@@ -267,23 +288,14 @@ async def totp_enroll(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Mot de passe actuel incorrect",
         )
-    record = await totp.get_record(db, current_user.id)
-    if record is not None and record.confirmed_at is not None:
+    try:
+        secret, uri = await totp.begin_enrolment(db, current_user)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Une application est déjà enregistrée. Retirez-la d'abord.",
-        )
-    secret = totp.generate_secret()
-    if record is None:
-        record = UserTotp(user_id=current_user.id, tenant_id=current_user.tenant_id)
-        db.add(record)
-    record.secret_encrypted = totp.encrypt_secret(secret)
-    record.last_used_step = None
-    await db.commit()
-    account = current_user.email or current_user.matricule
-    return TotpEnrollResponse(
-        secret=secret, otpauth_uri=totp.provisioning_uri(secret, account)
-    )
+        ) from exc
+    return TotpEnrollResponse(secret=secret, otpauth_uri=uri)
 
 
 @router.post("/totp/confirm", status_code=status.HTTP_204_NO_CONTENT)
@@ -301,49 +313,55 @@ async def totp_confirm(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Code incorrect"
         )
     await _audit_totp(db, current_user, "totp_enrolled", request)
-    await otp_delivery.notify_totp_change(current_user, enrolled=True)
+    await otp_delivery.notify_totp_event(current_user, "enrolled")
     return None
 
 
-TOTP_DISABLE_CODE_SECONDS = 300
-
-
-def _disable_key(user_id) -> str:
-    return f"totp_disable:{user_id}"
-
-
-@router.post("/totp/disable-code", response_model=TotpDisableCodeResponse)
+@router.post("/totp/enrolment/start", response_model=TotpEnrollResponse)
 @limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
-async def totp_disable_code(
+async def totp_enrolment_start(
+    payload: TotpEnrolmentStartRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Code by the fallback channel, for removing the app without the phone."""
-    code = generate_otp(6)
-    channel = otp_delivery.get_channel()
-    result = await channel.deliver(
-        current_user, code, expires_in=TOTP_DISABLE_CODE_SECONDS
-    )
-    if not result.delivered:
-        if result.reason == otp_delivery.REASON_NO_CONTACT:
-            raise OtpContactMissingError(
-                technical_detail=f"no contact for channel {channel.name}"
-            )
-        raise OtpDeliveryError(
-            technical_detail=f"channel {channel.name}: {result.reason}"
+    """Forced enrolment (role that must use the app): secret for the app.
+    No access token exists yet: the enrolment token from verify-otp is the proof."""
+    _require_totp_enabled()
+    try:
+        result = await auth_service.start_enrolment(db, payload.enrolment_token)
+    except AccountLockedError:
+        raise
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc
+    return TotpEnrollResponse(**result)
+
+
+@router.post("/totp/enrolment/confirm", response_model=TokenResponse)
+@limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
+async def totp_enrolment_confirm(
+    payload: TotpEnrolmentConfirmRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """First app code of a forced enrolment: the login ends with the tokens."""
+    _require_totp_enabled()
+    try:
+        result = await auth_service.confirm_enrolment(
+            db, payload.enrolment_token, payload.code, request=request
         )
-    redis = await get_redis()
-    await redis.setex(
-        _disable_key(current_user.id),
-        TOTP_DISABLE_CODE_SECONDS,
-        otp_delivery.hash_code(_disable_key(current_user.id), code),
-    )
-    response = TotpDisableCodeResponse(
-        method=channel.name, expires_in=TOTP_DISABLE_CODE_SECONDS
-    )
-    if settings.ENVIRONMENT == "development" and channel.echoes_code:
-        response.otp = code
-    return response
+    except AccountLockedError:
+        raise
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Code incorrect"
+        )
+    return TokenResponse(**result)
 
 
 @router.post("/totp/disable", status_code=status.HTTP_204_NO_CONTENT)
@@ -354,26 +372,29 @@ async def totp_disable(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove the app: password AND a second factor (app code, or a code from
-    /totp/disable-code). A stolen password alone must not switch it off."""
+    """Remove the app: password AND the app code. A stolen password alone must not
+    switch it off. Refused for a role that must use it: a lost phone is reset by
+    a superior (POST /users/{id}/totp/reset)."""
+    # Before the password: the refusal tells nothing about it.
+    if totp.required_for(_role_code(current_user)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Obligatoire pour votre rôle. Téléphone perdu : demandez une "
+            "réinitialisation à un administrateur.",
+        )
     if not verify_password(payload.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Mot de passe actuel incorrect",
         )
-    redis = await get_redis()
-    key = _disable_key(current_user.id)
-    stored = await redis.get(key)
-    by_fallback = bool(stored) and otp_delivery.code_matches(stored, key, payload.code)
-    if not by_fallback and not await totp.consume(db, current_user.id, payload.code):
+    if not await totp.consume(db, current_user.id, payload.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Code incorrect"
         )
-    await redis.delete(key)
     record = await totp.get_record(db, current_user.id)
     if record is not None:
         await db.delete(record)
         await db.commit()
         await _audit_totp(db, current_user, "totp_disabled", request)
-        await otp_delivery.notify_totp_change(current_user, enrolled=False)
+        await otp_delivery.notify_totp_event(current_user, "disabled")
     return None
