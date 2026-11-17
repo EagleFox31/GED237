@@ -1,9 +1,11 @@
 import type { APIRequestContext } from '@playwright/test';
-import { test, expect, API_URL } from '../../fixtures/uat.fixture';
+import { test, expect, API_URL, apiLogin, UatApi } from '../../fixtures/uat.fixture';
 
 /**
  * Post-rc1 L2 (#152): DELETE /documents/{id} moves to the trash; permanent deletion only from the trash.
- * API only, real backend. Each test uploads its own document (runId), so the spec replays on any database.
+ * API only, real backend. Purge needs `documents manage` (policy.csv: super_admin only) and looks the
+ * document up in the caller's tenant, so the purging account uploads its own documents. Each test uploads
+ * its own document (runId), so the spec replays on any database.
  */
 test.describe('Corbeille : suppression, restauration, purge', () => {
   const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
@@ -14,35 +16,48 @@ test.describe('Corbeille : suppression, restauration, purge', () => {
     return ((await res.json()) as { id: string }[]).map((d) => d.id);
   };
 
-  test('purge refusée (409) sur un document qui n’est pas dans la corbeille', async ({ request, adminApi, adminToken, runId }) => {
-    const doc = await adminApi.uploadDocument(`actif-${runId}.txt`, `Actif ${runId}`, `Contenu ${runId}`);
+  test('purge refusée sans le droit (403) et sur un document qui n’est pas dans la corbeille (409)', async ({
+    request,
+    adminApi,
+    adminToken,
+    runId,
+  }) => {
+    // Institution admin: may trash, may not purge.
+    const own = await adminApi.uploadDocument(`admin-${runId}.txt`, `Admin ${runId}`, `Contenu admin ${runId}`);
+    expect((await request.delete(`${API_URL}/documents/${own.id}`, { headers: auth(adminToken) })).status()).toBe(204);
+    expect((await request.delete(`${API_URL}/documents/${own.id}/purge`, { headers: auth(adminToken) })).status()).toBe(403);
+    expect(await trashedIds(request, adminToken)).toContain(own.id);
 
-    const purge = await request.delete(`${API_URL}/documents/${doc.id}/purge`, { headers: auth(adminToken) });
+    const token = await apiLogin(request, 'super_admin');
+    const doc = await new UatApi(request, token).uploadDocument(`actif-${runId}.txt`, `Actif ${runId}`, `Contenu ${runId}`);
+    const purge = await request.delete(`${API_URL}/documents/${doc.id}/purge`, { headers: auth(token) });
     expect(purge.status()).toBe(409);
     expect((await purge.json()).detail.error).toBe('document_not_in_trash');
 
     // Still there, still active.
-    expect((await request.get(`${API_URL}/documents/${doc.id}`, { headers: auth(adminToken) })).status()).toBe(200);
-    expect(await trashedIds(request, adminToken)).not.toContain(doc.id);
+    expect((await request.get(`${API_URL}/documents/${doc.id}`, { headers: auth(token) })).status()).toBe(200);
+    expect(await trashedIds(request, token)).not.toContain(doc.id);
   });
 
-  test('DELETE met à la corbeille, restauration, puis purge définitive', async ({ request, adminApi, adminToken, runId }) => {
-    const doc = await adminApi.uploadDocument(`cycle-${runId}.txt`, `Cycle ${runId}`, `Contenu ${runId}`);
+  test('DELETE met à la corbeille, restauration, puis purge définitive', async ({ request, runId }) => {
+    const token = await apiLogin(request, 'super_admin');
+    const doc = await new UatApi(request, token).uploadDocument(`cycle-${runId}.txt`, `Cycle ${runId}`, `Contenu ${runId}`);
+    const call = (method: 'delete' | 'post', path: string) =>
+      request[method](`${API_URL}/documents/${doc.id}${path}`, { headers: auth(token) });
 
     // DELETE keeps its 204 contract but only trashes the document.
-    expect((await request.delete(`${API_URL}/documents/${doc.id}`, { headers: auth(adminToken) })).status()).toBe(204);
-    expect(await trashedIds(request, adminToken)).toContain(doc.id);
+    expect((await call('delete', '')).status()).toBe(204);
+    expect(await trashedIds(request, token)).toContain(doc.id);
     // Idempotent: a second DELETE on a trashed document is still 204.
-    expect((await request.delete(`${API_URL}/documents/${doc.id}`, { headers: auth(adminToken) })).status()).toBe(204);
+    expect((await call('delete', '')).status()).toBe(204);
 
-    expect((await request.post(`${API_URL}/documents/${doc.id}/restore`, { headers: auth(adminToken) })).status()).toBe(200);
-    expect(await trashedIds(request, adminToken)).not.toContain(doc.id);
-    expect((await request.delete(`${API_URL}/documents/${doc.id}/purge`, { headers: auth(adminToken) })).status()).toBe(409);
+    expect((await call('post', '/restore')).status()).toBe(200);
+    expect(await trashedIds(request, token)).not.toContain(doc.id);
+    expect((await call('delete', '/purge')).status()).toBe(409);
 
-    expect((await request.delete(`${API_URL}/documents/${doc.id}`, { headers: auth(adminToken) })).status()).toBe(204);
-    const purge = await request.delete(`${API_URL}/documents/${doc.id}/purge`, { headers: auth(adminToken) });
-    expect(purge.status()).toBe(200);
-    expect(await trashedIds(request, adminToken)).not.toContain(doc.id);
-    expect((await request.get(`${API_URL}/documents/${doc.id}`, { headers: auth(adminToken) })).status()).toBe(404);
+    expect((await call('delete', '')).status()).toBe(204);
+    expect((await call('delete', '/purge')).status()).toBe(200);
+    expect(await trashedIds(request, token)).not.toContain(doc.id);
+    expect((await request.get(`${API_URL}/documents/${doc.id}`, { headers: auth(token) })).status()).toBe(404);
   });
 });
