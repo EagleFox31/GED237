@@ -95,6 +95,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           ...(userProfile?.id === 'manager'
             ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
             : []),
+          // Auditeur : journal d'audit (la page et la route /audit existent déjà).
+          ...(userProfile?.id === 'audit'
+            ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
+            : []),
         ].map(item => (
           <button
             key={item.id}
