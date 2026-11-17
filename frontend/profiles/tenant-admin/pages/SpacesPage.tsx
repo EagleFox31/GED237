@@ -557,6 +557,16 @@ const SpacesPage: React.FC = () => {
     });
   };
 
+  const handleTrash = async (doc: Document) => {
+    setContextMenu(null);
+    try {
+      await api.deleteDocument(doc.id);
+      loadDocuments();
+    } catch {
+      /* message déjà affiché par le bus global */
+    }
+  };
+
   const handleCopyPath = async (path: string) => {
     if (!path) return;
     try {
@@ -1146,6 +1156,15 @@ const SpacesPage: React.FC = () => {
               >
                 <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => void handleTrash(contextMenu.document)}
+                className={MENU_ITEM}
+              >
+                <span className="material-symbols-outlined text-base text-slate-400">delete</span>
+                Mettre à la corbeille
               </button>
             </>
           )}

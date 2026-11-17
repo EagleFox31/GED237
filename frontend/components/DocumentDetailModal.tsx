@@ -7,9 +7,24 @@ import { api } from '../services/api';
 interface DocumentDetailModalProps {
   document: Document;
   onClose: () => void;
+  /** Fourni par la liste appelante : affiche « Mettre à la corbeille » et rafraîchit après succès. */
+  onTrashed?: () => void;
 }
 
-const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onClose }) => {
+const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onClose, onTrashed }) => {
+  const [trashing, setTrashing] = useState(false);
+  const handleTrash = async () => {
+    setTrashing(true);
+    try {
+      await api.deleteDocument(document.id);
+      onTrashed?.();
+      onClose();
+    } catch {
+      /* message déjà affiché par le bus global */
+    } finally {
+      setTrashing(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState<'info' | 'workflow' | 'history'>('info');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [stepsLoading, setStepsLoading] = useState(false);
@@ -379,6 +394,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
 
         {/* Footer actions */}
         <div className="p-6 bg-slate-100/50 border-t border-slate-200/50 flex justify-end gap-3">
+          {onTrashed && (
+            <button
+              type="button"
+              onClick={() => void handleTrash()}
+              disabled={trashing}
+              className="mr-auto inline-flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-600 hover:text-red-700 disabled:opacity-50 transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden>delete</span>
+              Mettre à la corbeille
+            </button>
+          )}
           <button onClick={onClose} className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-all">Fermer</button>
         </div>
       </div>

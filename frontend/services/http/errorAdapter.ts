@@ -17,10 +17,20 @@ export type { ApiError };
  * global (sauf 401 déjà géré par le refresh interceptor), et la retourne pour
  * que le call site puisse aussi la gérer localement.
  */
-export const buildApiError = async (response: Response, fallback: string): Promise<ApiError> => {
+/** Message court à afficher pour un code HTTP donné, à la place du détail technique du serveur. */
+export type StatusMessages = Partial<Record<number, string>>;
+
+export const buildApiError = async (
+    response: Response,
+    fallback: string,
+    statusMessages?: StatusMessages,
+): Promise<ApiError> => {
     let apiErr = await apiErrorFromResponse(response);
-    // Si le backend n'a pas renvoyé de detail lisible, utiliser le fallback métier.
-    if (!apiErr.userMessage || apiErr.userMessage === 'Erreur.') {
+    const override = statusMessages?.[apiErr.status];
+    if (override) {
+        apiErr = new ApiError({ ...apiErr.raw, detail: override });
+    } else if (!apiErr.userMessage || apiErr.userMessage === 'Erreur.') {
+        // Si le backend n'a pas renvoyé de detail lisible, utiliser le fallback métier.
         apiErr = new ApiError({ ...apiErr.raw, detail: fallback });
     }
     // Les 401 sont gérés par fetchWithRefresh (refresh ou logout) :

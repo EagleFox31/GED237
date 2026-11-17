@@ -11,6 +11,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import Documents from './components/Documents';
+import TrashPage from './components/TrashPage';
 import WorkflowTasks from './components/WorkflowTasks';
 import LoginPage from './components/LoginPage';
 import ChangePassword from './components/ChangePassword';
@@ -62,6 +63,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/local-library': 'local_library',
   '/audit': 'audit_central',
   '/reports': 'reports',
+  '/trash': 'trash',
 };
 
 const TAB_TO_ROUTE: Record<string, string> = {
@@ -84,6 +86,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'local_library': '/local-library',
   'audit_central': '/audit',
   'reports': '/reports',
+  'trash': '/trash',
 };
 
 const DEFAULT_ROUTE_BY_PROFILE: Record<string, string> = {
@@ -274,6 +277,7 @@ const AppLayout: React.FC = () => {
             <Route path="/local-library" element={<LocalLibraryPage />} />
             <Route path="/audit" element={<AuditLogs />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/trash" element={<TrashPage />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
