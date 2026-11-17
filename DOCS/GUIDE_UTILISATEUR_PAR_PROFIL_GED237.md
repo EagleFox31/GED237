@@ -39,8 +39,17 @@ Bon à savoir :
 - **Le menu** est à gauche. L'administrateur peut le placer en haut (« Paramètres », « Menu Supérieur »).
 - **La barre de recherche** est en haut de l'écran.
   - Sur « Mes Documents », « Explorateur documentaire », « Agents & Rôles » et « À distribuer », elle cherche dans la page ouverte.
-  - Ailleurs, elle cherche dans tous vos documents, y compris le texte des fichiers scannés. Les résultats s'affichent sous la barre.
+  - Ailleurs, elle cherche dans les documents que votre profil peut voir (voir ci-dessous), y compris le texte des fichiers scannés. Les résultats s'affichent sous la barre.
 - **Retirer un document** : il n'y a pas de bouton pour cela dans cette version. Signalez le document à l'administrateur de votre institution.
+
+## Ce que vous voyez
+
+Chaque profil ne voit que ce qui le concerne. C'est voulu : l'administrateur prépare, chacun travaille sur sa part.
+
+- **Collaborateur** : vos propres documents seulement, dans « Mes Documents » comme dans la recherche.
+- **Responsable et Lecteur** : les documents de votre service.
+- **Admin Institution et Auditeur** : toute l'institution.
+- **Importer pour d'autres agents** (« Import en masse »), l'« Explorateur documentaire » et « Ma bannette » : réservés à l'administrateur. Le Responsable et le Collaborateur n'importent que leurs propres fichiers.
 
 ---
 
@@ -78,7 +87,7 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
 
 ### Vos 3 gestes
 
-1. **« Ma bannette »** : corrigez le rangement des documents que l'application n'a pas su ranger seule (domaine, activité, année, destination).
+1. **« Ma bannette »** : corrigez le rangement des documents que l'application n'a pas su ranger seule (domaine, activité, année, destination), puis cliquez sur « Classer et relancer ».
 2. **« À distribuer »** : pour chaque document sans destinataire, choisissez l'agent qui le traite.
 3. **« Tableau de bord »** : repérez les alertes du jour.
 
@@ -260,9 +269,9 @@ La page s'appelle « Tâches & Validations ». Elle liste les étapes qui vous a
 L'entrée s'appelle « Ranger / Importer », ou « Import en masse » pour les administrateurs. Deux choix :
 
 - **« Ranger sur mon poste »** : l'application range les fichiers dans un dossier de votre ordinateur. Rien n'entre dans E-Dossier. Tous les profils peuvent s'en servir.
-- **« Importer dans le Serveur de l'Application »** : les fichiers entrent dans E-Dossier. Réservé à l'Admin Institution, au Responsable et au Collaborateur.
+- **« Importer dans le Serveur de l'Application »** : les fichiers entrent dans E-Dossier. Réservé à l'Admin Institution, au Responsable et au Collaborateur. Le Responsable et le Collaborateur n'importent que leurs propres fichiers, à leur nom.
 
-L'import se fait en deux temps : l'application analyse les fichiers et propose un rangement ; vous vérifiez, puis vous importez.
+L'import se fait en deux temps : l'application analyse les fichiers et propose un rangement ; vous vérifiez, puis vous cliquez sur « Importer les documents ».
 
 - **« Juste les ranger »** : pour des archives. Aucun circuit ne démarre.
 - **« Les ranger et lancer le circuit »** : pour des documents qui doivent encore être validés.
