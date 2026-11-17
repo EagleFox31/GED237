@@ -50,6 +50,7 @@ E-Dossier range, retrouve et fait valider les documents de votre institution. Ce
 - **Code de connexion** : en démonstration, il s'affiche directement à l'écran. Son envoi par e-mail arrive dans la version suivante.
 - **Mot de passe oublié** : le lien « Oublié ? » ne fait encore rien. Demandez un nouveau mot de passe à votre administrateur.
 - **Corbeille** : elle n'a pas encore d'écran. Pour récupérer un document supprimé, adressez-vous à votre administrateur. Les documents en corbeille comptent encore dans les statistiques de l'institution (#218).
+- **Archivage et documents à revoir** : dans cette version, l'archivage d'un document et la liste des documents à revoir sont réservés à l'administrateur de la plateforme. L'administrateur de l'institution les aura en V1.1.
 - **Conservation** : aucun document n'est supprimé automatiquement au bout d'une durée ; c'est l'administrateur qui vide la corbeille.
 - **Documents numérisés** : la lecture du texte d'un scan reste simple. Un scan de mauvaise qualité peut échapper à la recherche ; cherchez alors par titre ou par dossier.
 - **Autre poste que celui de la démonstration** : le navigateur peut afficher un avertissement de sécurité tant que le poste n'a pas été préparé par l'équipe technique.
