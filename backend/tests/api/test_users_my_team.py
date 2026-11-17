@@ -17,7 +17,7 @@ async def _add_user(
 ):
     user = User(
         id=uuid.uuid4(),
-        email=f"{name}-{uuid.uuid4().hex[:6]}@team.test",
+        email=f"{name}-{uuid.uuid4().hex[:6]}@example.com",
         password_hash="x",
         first_name=name.title(),
         last_name="Equipe",
