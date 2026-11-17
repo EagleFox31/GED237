@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { Empty } from '../../../components/ui/Empty';
 import { useAuthStore } from '../../../stores/authStore';
@@ -98,6 +98,10 @@ const ReportsPage: React.FC = () => {
   } = useReportsEvolution();
 
   const activeTab = tabOrder.includes(filters.viewMode) ? filters.viewMode : tabOrder[0]!;
+  // Garde l'état des filtres cohérent avec l'onglet affiché (ex. Synthèse demandée par un Manager).
+  useEffect(() => {
+    if (activeTab !== filters.viewMode) setViewMode(activeTab);
+  }, [activeTab, filters.viewMode, setViewMode]);
   const activeMeta = TAB_META[activeTab];
   const isRefreshing = isLoading || isEvolutionLoading;
 
@@ -209,26 +213,26 @@ const ReportsPage: React.FC = () => {
               Actualiser
             </button>
             {!isUnitScope && (
-            <>
-            <button
-              type="button"
-              onClick={handleExport}
-              title={UI_TOOLTIPS.reports.exportTable}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="material-symbols-outlined text-[18px]" aria-hidden>download</span>
-              Exporter la vue
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsReportModalOpen(true)}
-              title={UI_TOOLTIPS.reports.generateReport}
-              className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition-colors hover:bg-black"
-            >
-              <span className="material-symbols-outlined text-[18px]" aria-hidden>description</span>
-              Générer un rapport
-            </button>
-            </>
+              <>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  title={UI_TOOLTIPS.reports.exportTable}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden>download</span>
+                  Exporter la vue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsReportModalOpen(true)}
+                  title={UI_TOOLTIPS.reports.generateReport}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition-colors hover:bg-black"
+                >
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden>description</span>
+                  Générer un rapport
+                </button>
+              </>
             )}
           </div>
         </div>

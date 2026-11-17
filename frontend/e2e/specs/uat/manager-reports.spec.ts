@@ -17,18 +17,22 @@ test.describe('Rapports — profil Manager', () => {
     });
 
     await loginAs('manager');
-    const services = page.waitForResponse((r) => r.url().includes('/reports/service-activity') && r.ok());
+    // Attente explicite des 3 panneaux /reports/* (pas de 'networkidle', LESSON-2026-025).
+    const reports = ['document-activity', 'workflow-activity', 'service-activity'].map((name) =>
+      page.waitForResponse((r) => r.url().includes(`/reports/${name}`) && r.ok()),
+    );
     await page.getByRole('button', { name: 'Rapports' }).click();
     await expect(page).toHaveURL(/\/reports/);
-    await services;
+    await Promise.all(reports);
 
     await expect(page.getByRole('tablist')).toBeVisible();
     await expect(page.getByRole('tab', { name: /Synthèse/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Générer un rapport/ })).toHaveCount(0);
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('tabpanel')).toBeVisible();
     expect(tenantWideCalls).toEqual([]);
   });
 
+  // Seed MINFI : MGR001 est rattaché à une seule direction, l'administrateur voit toute l'institution.
   test('portée : le Manager ne voit que son service et ses sous-services', async ({ request }) => {
     const get = async (role: 'manager' | 'tenant_admin') => {
       const token = await apiLogin(request, role);
