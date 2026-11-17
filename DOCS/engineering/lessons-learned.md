@@ -584,3 +584,17 @@ première requête utilisateur.
 **Résolution** — Entrée retirée : aucune page de recherche n'existe. La recherche plein texte passe par le bandeau, et le filtre par l'Explorateur documentaire. Ensuite, la version durcie de GUARD-07 a trouvé un 2e lien mort, « Accès & Permissions » (`security_config`). La 1re version l'avait laissé passer. L'entrée est retirée elle aussi : `/authz` est réservé au super admin, et les rôles et permissions sont gérés dans « Agents & Rôles ».
 **Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
 **Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
+
+### LESSON-2026-043 — Drapeau transmis au seul worker : la route de l'API restait fermée
+
+- **Date :** 2026-11-17
+- **Catégorie :** config / compose / testing
+- **Statut :** prevention-added
+- **Liens :** `docker-compose.yml` (environnements `api` et `worker`), `backend/app/api/v1/endpoints/reports.py` (`SCHEDULED_REPORTS_ENABLED`), `backend/app/api/v1/endpoints/quality.py` (`QUALITY_ALERTS_ENABLED`, #183), `backend/tests/test_compose_shared_settings.py`
+
+**Contexte** — L'api et le worker exécutent le même code, mais chacun reçoit son propre bloc `environment` dans `docker-compose.yml`. Les lots 9 (rapports programmés, #180) et alertes qualité (#183) sont désactivés par défaut. Ils s'activent par un drapeau lu par le worker (tâche planifiée) et par l'api (la route refuse par 409 quand le drapeau est faux).
+**Échec / near miss** — Dans les deux PR, le drapeau et son intervalle n'étaient transmis qu'au worker. En activant la fonction dans `.env`, le worker tournait, mais l'api gardait la valeur par défaut `false` : `POST /reports/schedules` et `POST /analytics/quality/alerts` répondaient toujours 409. La relecture QA l'a trouvé, pas les tests. La même erreur s'est répétée d'une PR à l'autre.
+**Cause racine** — Les deux environnements sont deux listes séparées, sans contrôle qui les relie. Les tests de l'API modifient `settings` directement et ne passent jamais par le compose.
+**Résolution** — `SCHEDULED_REPORTS_ENABLED` est transmis aussi à l'api, avec la même valeur par défaut (#180). Même correction pour `QUALITY_ALERTS_ENABLED` dans #183.
+**Prévention** — `test_compose_shared_settings.py` (pytest backend, CI des PR) déduit du code les réglages lus à la fois sous `app/workers/` et ailleurs sous `app/` (`settings.NOM`). Il échoue si l'un d'eux est transmis à un seul des deux services, ou avec des valeurs différentes. Un nouveau drapeau partagé est contrôlé sans modifier le test.
+**Leçon généralisée** — Quand deux processus partagent un code mais pas leur configuration, la liste de ce qu'ils doivent recevoir en commun se déduit du code, pas d'une liste tenue à la main. Une erreur répétée appelle un contrôle automatique plutôt qu'un point de relecture.
