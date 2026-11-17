@@ -7,6 +7,9 @@ test.describe('Corbeille : actions définitives possibles', () => {
     expect(isPurgeProtected({ status: 'archived' })).toBe(true);
     expect(isPurgeProtected({ status: 'draft' })).toBe(false);
     expect(isPurgeProtected({ status: 'validated' })).toBe(false);
+    for (const status of ['in_review', 'rejected', 'returned'] as const) {
+      expect(isPurgeProtected({ status }), status).toBe(false);
+    }
   });
 
   test('« Vider » masqué quand il ne reste que des documents protégés', () => {

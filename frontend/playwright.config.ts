@@ -78,7 +78,18 @@ export default defineConfig({
       // Each spec seeds its own data through the API, so specs are order-independent and replayable.
       name: 'uat',
       testMatch: /specs[\\/]uat[\\/].*\.spec\.ts/,
+      testIgnore: /specs[\\/]uat[\\/]trash-empty\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // Specs that change tenant-wide state (« Vider » purges the whole trash): alone, after seed and uat,
+      // so no other test sees the trash emptied. Not after `demo`: it needs the demo profile, absent from the nightly.
+      // Never on a demo stack (it would purge the demo trash for good): the spec skips itself when the e2e seed is absent.
+      name: 'uat-destructive',
+      testMatch: /specs[\\/]uat[\\/]trash-empty\.spec\.ts/,
+      fullyParallel: false,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['seed', 'uat'],
     },
   ],
   webServer: {

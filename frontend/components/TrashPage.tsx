@@ -84,13 +84,17 @@ const TrashPage: React.FC = () => {
       run: async () => {
         // Le serveur purge par lots : on rappelle tant qu'il en reste. `remaining` ne compte que
         // ce qu'un nouvel appel purgerait (signés et archivés exclus) ; un lot vide arrête aussi.
-        for (let guard = 0; guard < 100; guard += 1) {
-          // Séquentiel voulu : chaque appel dépend du reste laissé par le précédent.
-          // eslint-disable-next-line no-await-in-loop
-          const { purged, remaining } = await api.emptyTrash();
-          if (remaining <= 0 || purged === 0) break;
+        try {
+          for (let guard = 0; guard < 100; guard += 1) {
+            // Séquentiel voulu : chaque appel dépend du reste laissé par le précédent.
+            // eslint-disable-next-line no-await-in-loop
+            const { purged, remaining } = await api.emptyTrash();
+            if (remaining <= 0 || purged === 0) break;
+          }
+        } finally {
+          // Lot en échec : les lots précédents sont déjà effacés, la liste doit le montrer.
+          await load();
         }
-        await load();
       },
     });
 

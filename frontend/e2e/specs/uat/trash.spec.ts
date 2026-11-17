@@ -1,6 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 
 import { test, expect, API_URL, apiLogin } from '../../fixtures/uat.fixture';
+import { trash, upload } from './trashApi';
 
 /**
  * Corbeille : mise à la corbeille depuis l'explorateur, restauration, suppression définitive.
@@ -15,26 +16,7 @@ async function canPurge(request: APIRequestContext, token: string): Promise<bool
   return ((await res.json()) as Record<string, boolean>)['documents:purge'] === true;
 }
 
-async function upload(request: APIRequestContext, token: string, runId: string, title: string) {
-  const res = await request.post(`${API_URL}/documents/upload`, {
-    headers: { Authorization: `Bearer ${token}` },
-    multipart: {
-      title,
-      file: { name: `corbeille-${runId}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`Corbeille ${title}`, 'utf-8') },
-    },
-  });
-  expect(res.ok(), `upload ${title}`).toBeTruthy();
-  return (await res.json()) as { id: string };
-}
-
-async function trash(request: APIRequestContext, token: string, id: string) {
-  const res = await request.delete(`${API_URL}/documents/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-  expect(res.ok(), `trash ${id}`).toBeTruthy();
-}
-
-// « Vider » purge toute la corbeille du tenant : les tests de ce fichier ne doivent pas se croiser.
-test.describe.configure({ mode: 'serial' });
-
+// « Vider » (purge de tout le tenant) vit dans trash-empty.spec.ts, projet `uat-destructive`.
 test.describe('Corbeille', () => {
   test('explorateur → corbeille → restauration', async ({ page, loginAs, adminApi, runId }) => {
     const title = `Corbeille restaurée ${runId}`;
@@ -98,28 +80,6 @@ test.describe('Corbeille', () => {
 
     await page.getByRole('button', { name: `Restaurer ${title}` }).click();
     await expect(page.getByRole('button', { name: `Restaurer ${title}` })).toHaveCount(0);
-  });
-
-  test('administrateur : « Vider » efface la corbeille et relit la liste', async ({ page, loginAs, request, adminToken, runId }) => {
-    const headers = { Authorization: `Bearer ${adminToken}` };
-    const loose = `Corbeille à vider ${runId}`;
-    const looseDoc = await upload(request, adminToken, runId, loose);
-    await trash(request, adminToken, looseDoc.id);
-
-    await loginAs('tenant_admin');
-    await page.getByRole('button', { name: 'Corbeille', exact: true }).click();
-    const list = page.getByRole('list', { name: 'Documents dans la corbeille' });
-    await expect(list.getByText(loose)).toBeVisible();
-
-    await page.getByRole('button', { name: 'Vider la corbeille' }).click();
-    const dialog = page.getByRole('alertdialog');
-    await expect(dialog).toContainText('sauf ceux signés ou archivés');
-    await dialog.getByRole('button', { name: 'Vider' }).click();
-
-    // Liste relue après la purge : plus rien à effacer, donc plus de « Vider ».
-    await expect(list.getByText(loose)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toHaveCount(0);
-    expect((await request.get(`${API_URL}/documents/${looseDoc.id}`, { headers })).status()).toBe(404);
   });
 
   /**
