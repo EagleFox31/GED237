@@ -48,6 +48,9 @@ const MyDocumentsPage: React.FC = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [opened, setOpened] = useState<Document | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  /** Récents : le serveur ne garde pas l'historique d'ouverture (X-Recent-Tracking-Enabled: false). */
+  const [trackingOff, setTrackingOff] = useState(false);
   const requestSeq = useRef(0);
 
   const load = useCallback(async (append = false, skip = 0) => {
@@ -59,8 +62,11 @@ const MyDocumentsPage: React.FC = () => {
       if (seq !== requestSeq.current) return;
       setItems((current) => (append ? [...current, ...page.items] : page.items));
       setTotal(page.total);
+      setTrackingOff(tab === 'recent' && page.trackingEnabled === false);
+      setLoadError(false);
     } catch {
-      /* erreur déjà affichée par le bus global */
+      // Détail affiché par le bus global ; sans liste, pas de faux « aucun document ».
+      if (seq === requestSeq.current && !append) setLoadError(true);
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
@@ -146,9 +152,14 @@ const MyDocumentsPage: React.FC = () => {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span data-testid="my-documents-count" className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-          {total}
-        </span>
+        {!loadError && (
+          <span data-testid="my-documents-count" className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+            {total}
+          </span>
+        )}
+        {tab === 'recent' && trackingOff && (
+          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Suivi désactivé</span>
+        )}
         {tab === 'shared' && (
           <div role="group" aria-label="Filtre" className="flex gap-1">
             {SHARED_FILTERS.map((f) => (
@@ -177,12 +188,27 @@ const MyDocumentsPage: React.FC = () => {
         )}
       </div>
 
-      {!loading && items.length === 0 ? (
+      {loadError && (
+        <div role="alert" className="rounded-[2rem] border border-red-100 bg-red-50 p-6 text-center">
+          <p className="text-sm font-bold text-red-700">Liste indisponible pour le moment.</p>
+          <button
+            type="button"
+            onClick={() => load()}
+            className="mt-3 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
+      {!loadError && !loading && items.length === 0 && (
         <div className="rounded-[2rem] border border-slate-100 bg-white p-10 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-300" aria-hidden>star</span>
-          <p className="mt-2 text-sm font-medium text-slate-500">{current.empty}</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">
+            {tab === 'recent' && trackingOff ? 'Les documents ouverts ne sont pas mémorisés.' : current.empty}
+          </p>
         </div>
-      ) : (
+      )}
+      {!loadError && (loading || items.length > 0) && (
         <ul aria-label={current.label} className="divide-y divide-slate-100 rounded-[2rem] border border-slate-100 bg-white">
           {items.map((doc) => {
             const when = doc.marked_at ?? doc.updated_at;
@@ -226,7 +252,7 @@ const MyDocumentsPage: React.FC = () => {
         </ul>
       )}
 
-      {items.length < total && (
+      {!loadError && items.length < total && (
         <div className="mt-4 text-center">
           <button
             type="button"

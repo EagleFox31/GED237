@@ -31,7 +31,20 @@ export interface MyDocumentsPage {
   items: MyDocument[];
   /** Nombre total de lignes (en-tête X-Total-Count). */
   total: number;
+  /**
+   * Récents seulement (en-tête X-Recent-Tracking-Enabled) : `false` quand le serveur ne garde
+   * pas l'historique d'ouverture ; `null` si l'en-tête est absent (autres listes, ancien serveur).
+   */
+  trackingEnabled: boolean | null;
 }
+
+/** `"true"` / `"false"` → booléen ; toute autre valeur (ou en-tête absent) → `null`. */
+export const parseTrackingHeader = (value: string | null): boolean | null => {
+  const v = (value ?? '').trim().toLowerCase();
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  return null;
+};
 
 const FAILURE: Record<MyDocumentsList, string> = {
   favorites: 'Récupération des favoris impossible',
@@ -55,7 +68,11 @@ export const myDocumentsApi = {
     const items = (await response.json()) as MyDocument[];
     const header = response.headers.get('X-Total-Count');
     const total = header === null ? NaN : Number(header);
-    return { items, total: Number.isInteger(total) && total >= 0 ? total : items.length };
+    return {
+      items,
+      total: Number.isInteger(total) && total >= 0 ? total : items.length,
+      trackingEnabled: parseTrackingHeader(response.headers.get('X-Recent-Tracking-Enabled')),
+    };
   },
 
   /** Idempotent côté serveur (204), comme le retrait. */

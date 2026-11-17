@@ -44,8 +44,9 @@ test.describe('Favoris & récents', () => {
     await loginAs('manager');
     await page.goto('my-documents?tab=recent');
     await expect(page.getByRole('tab', { name: 'Récents' })).toHaveAttribute('aria-selected', 'true');
-    // Le suivi des ouvertures est désactivé par défaut côté serveur.
-    await expect(page.getByText('Aucun document ouvert récemment.')).toBeVisible();
+    // Le suivi des ouvertures est désactivé par défaut côté serveur (X-Recent-Tracking-Enabled: false).
+    await expect(page.getByText('Suivi désactivé', { exact: true })).toBeVisible();
+    await expect(page.getByText('Les documents ouverts ne sont pas mémorisés.')).toBeVisible();
 
     await page.getByRole('tab', { name: 'Partagés avec moi' }).click();
     await expect(page).toHaveURL(/tab=shared/);
@@ -53,6 +54,37 @@ test.describe('Favoris & récents', () => {
     await page.getByRole('button', { name: 'À traiter' }).click();
     await assigned;
     await expect(page.getByRole('button', { name: 'À traiter' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('suivi actif : liste vide ordinaire, sans badge', async ({ page, loginAs }) => {
+    await page.route('**/me/recent?*', async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        headers: { ...response.headers(), 'x-recent-tracking-enabled': 'true' },
+      });
+    });
+    await loginAs('manager');
+    await page.goto('my-documents?tab=recent');
+    await expect(page.getByText('Aucun document ouvert récemment.')).toBeVisible();
+    await expect(page.getByText('Suivi désactivé', { exact: true })).toHaveCount(0);
+  });
+
+  test('liste indisponible : message et « Réessayer », pas de liste vide', async ({ page, loginAs }) => {
+    let fail = true;
+    await page.route('**/me/favorites?*', (route) =>
+      fail
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Service indisponible' }) })
+        : route.continue(),
+    );
+    await loginAs('manager');
+    await page.goto('my-documents');
+    await expect(page.getByText('Liste indisponible pour le moment.')).toBeVisible();
+    await expect(page.getByText('Aucun favori')).toHaveCount(0);
+    fail = false;
+    await page.getByRole('button', { name: 'Réessayer' }).click();
+    await expect(page.getByText('Liste indisponible pour le moment.')).toHaveCount(0);
+    await expect(page.getByTestId('my-documents-count')).toBeVisible();
   });
 
   test('un refus du serveur est affiché tel quel et le favori reste', async ({ page, loginAs, request, adminToken, runId }) => {
