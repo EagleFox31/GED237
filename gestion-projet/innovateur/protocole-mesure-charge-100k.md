@@ -4,9 +4,9 @@
 - **Exigence** : « traitement de 100k fichiers en < 20 minutes » (Expression de besoin § 5, item 8 du CDC, `absent` à ce jour). Recherche < 2 s (item 14).
 - **Cadre** : ce PC, Docker seulement, pile e2e isolée (`docker-compose.e2e.yml`), plafonds de mémoire et de CPU sur chaque conteneur, aucune nouvelle dépendance (gel jusqu'au 30/11). `Vérifié` = lu dans `main` ; `Proposé` = à valider par O ou le PO avant l'exécution.
 
-## 0. Définition à valider avant l'exécution (`Proposé`)
+## 0. Définition retenue (**décision PO du 17/11**, relayée par O)
 
-« Traitement » = **import + classement** (mode `process` de `POST /documents/ingest-directory`), **sans OCR**. Raison : à 3,2 s par page (mesure du 10/11), l'OCR de 100 000 pages demanderait ≈ 89 h sur un worker ; aucun poste unique ne tient 20 min. L'OCR est mesuré à part (M5) et son débit est **dit** au jury, pas caché. Si le PO veut l'OCR dans les 20 min, l'item 8 ne peut pas être `fait` sur ce matériel : le dire avant d'exécuter.
+« Traitement » = **import + classement** (mode `process` de `POST /documents/ingest-directory`), **sans OCR**. L'OCR est mesuré à part sur 1 000 pages (M5) et son débit est **dit** au jury, pas caché. Raison : à 3,2 s par page (mesure du 10/11), l'OCR de 100 000 pages demanderait ≈ 89 h sur un worker ; aucun poste unique ne tient 20 min.
 
 ## 1. Préparation (contrôles bloquants)
 
@@ -36,8 +36,8 @@ Même méthode de centile que `scripts/measure_c3.py` (`Vérifié` : rang le plu
 | M1 | **Import et classement** des 100 000 fichiers | les 10 lots à la suite, mode `process`, depuis le conteneur de mesure sur le réseau de la pile (pas par le proxy : pas de coupure de requête longue) | durée totale, de la première requête à la fin du dernier lot ; débit (fichiers/s) ; documents en base | **≤ 20 min** (≥ 84 fichiers/s), documents en base = 100 000 − doublons refusés, 0 erreur non expliquée |
 | M1 bis | Même import en mode `archive` | sur une pile remise à zéro | durée, débit | information seulement |
 | M2 | **Recherche** sur la base pleine | `measure_c3.py` avec un fichier figé de 30 requêtes, 3 passages (premier à froid gardé) | p50 et p95 du temps de bout en bout | **p95 < 2 s** (item 14) |
-| M3 | **Liste** | `GET /documents/` pages 1, 50 et dernière ; `GET /documents/tree` ; 30 appels chacun | p50, p95 | `Proposé` : p95 < 2 s |
-| M4 | **Téléversement unitaire** | 30 envois de 1 Mo par `POST /documents/` **pendant** M1 (lot 5), puis 30 après | p50, p95, échecs | `Proposé` : p95 < 5 s pendant l'import, 0 échec |
+| M3 | **Liste** | `GET /documents/` pages 1, 50 et dernière ; `GET /documents/tree` ; 30 appels chacun | p50, p95 | `Proposé`, retenu jusqu'à la mesure (O, 17/11) : p95 < 2 s |
+| M4 | **Téléversement unitaire** | 30 envois de 1 Mo par `POST /documents/` **pendant** M1 (lot 5), puis 30 après | p50, p95, échecs | `Proposé`, retenu jusqu'à la mesure (O, 17/11) : p95 < 5 s pendant l'import, 0 échec |
 | M5 | **OCR** | 1 000 pages scannées du jeu, worker OCR de la pile principale arrêté ailleurs, profil OCR plafonné | pages par minute, s/page p50 et p95, pic de mémoire du worker | pas de seuil CDC ; comparer à 3,2 s/page (10/11) et noter le temps estimé pour 100 000 pages |
 | M6 | **Classement correct** | échantillon de 1 000 fichiers du manifeste, avec `measure_c2.py` | taux de classement | ≥ 95 % (item 2) |
 
