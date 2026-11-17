@@ -38,7 +38,8 @@ test.describe('Copie officielle', () => {
     await page.getByRole('button', { name: 'Copie officielle' }).click();
     const dialog = page.getByRole('dialog', { name: 'Copie officielle' });
 
-    // SCHEDULED_REPORTS_ENABLED vaut false par défaut : le serveur l'annonce, l'onglet n'apparaît pas.
+    // La pile e2e laisse SCHEDULED_REPORTS_ENABLED à false (défaut) : GET /schedules répond
+    // `X-Scheduled-Reports-Enabled: false`, donc l'onglet « Programmés » n'apparaît pas.
     const tabs = dialog.getByRole('tab');
     await expect(tabs).toHaveText(['Émettre', 'Registre']);
 

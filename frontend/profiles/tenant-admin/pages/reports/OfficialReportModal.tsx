@@ -77,6 +77,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   const [frequency, setFrequency] = useState<ReportFrequency>('monthly');
 
   const busyRef = useRef(false);
+  const issuesSeq = useRef(0);
   const tabRefs = useRef<Partial<Record<OfficialSection, HTMLButtonElement | null>>>({});
   const sections = visibleSections(schedulingEnabled);
 
@@ -88,14 +89,18 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   });
 
   const loadIssues = useCallback(async (append = false, skip = 0) => {
+    // Seule la dernière demande compte : une réponse plus ancienne arrivée après est ignorée.
+    issuesSeq.current += 1;
+    const seq = issuesSeq.current;
     setRegisterLoad('loading');
     try {
       const page = await officialReportsApi.listIssues(skip, PAGE_SIZE);
+      if (seq !== issuesSeq.current) return;
       setIssues((current) => (append ? [...current, ...page.items] : page.items));
       setIssuesTotal(page.total);
       setRegisterLoad('ready');
     } catch (error) {
-      setRegisterLoad(registerLoadFromError(error));
+      if (seq === issuesSeq.current) setRegisterLoad(registerLoadFromError(error));
     }
   }, []);
 
@@ -133,8 +138,8 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   }, [requestClose]);
 
   const selectSection = (next: OfficialSection, focus = false) => {
+    // Le numéro de la dernière copie reste affiché d'un onglet à l'autre.
     setSection(next);
-    setNotice('');
     if (focus) tabRefs.current[next]?.focus();
   };
 

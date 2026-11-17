@@ -105,6 +105,8 @@ export const officialReportsApi = {
     const response = await fetchWithRefresh(`${API_URL}/reports/official/schedules`, {
       headers: getHeaders(false),
     });
+    // Rôle sans droit sur la programmation : rien à signaler, l'onglet reste simplement masqué.
+    if (response.status === 403) return { items: [], enabledHeader: null };
     if (!response.ok) throw await buildApiError(response, 'Lecture des rapports programmés impossible');
     return {
       items: (await response.json()) as OfficialReportSchedule[],
