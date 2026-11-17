@@ -255,3 +255,83 @@ async def test_reading_a_document_by_id_follows_the_listing_scope(
                     readable[suffix].add(key)
 
     assert readable == {suffix: active for suffix in BY_ID}
+
+
+# Changes by id (#202): unit_admin changes only what it may read. The
+# institution-wide roles keep the whole institution.
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role,unit,reach",
+    [
+        ("tenant_admin", "a", WIDE),
+        ("unit_admin", "a", {"a", "a1", "a2"}),
+        ("unit_admin", "a1", {"a1", "a2"}),
+    ],
+    ids=["tenant_admin@a", "unit_admin@a", "unit_admin@a1"],
+)
+async def test_changing_a_document_by_id_follows_the_listing_scope(
+    client_as, db_seed, tree, role, unit, reach
+):
+    ids = tree["ids"]
+    changed = {"patch": set(), "lock": set(), "trash": set(), "restore": set()}
+    workflow = {}
+    async with client_as(
+        role, tenant_id=db_seed["tenant_id"], org_unit_id=tree["units"][unit]
+    ) as client:
+        for key in sorted(WIDE):
+            url = f"{DOCUMENTS}{ids[key]}"
+            # Before the trash: not an archived document, so 400 when allowed and
+            # 403 when out of reach.
+            workflow[key] = (await client.post(f"{url}/start-workflow")).status_code
+            calls = {
+                "patch": await client.patch(url, json={"title": f"Renomme {key}"}),
+                "lock": await client.post(f"{url}/lock"),
+                "trash": await client.post(f"{url}/trash"),
+            }
+            for name, response in calls.items():
+                assert response.status_code in (200, 403), (key, name, response.text)
+                if response.status_code == 200:
+                    changed[name].add(key)
+        for key in ("a1_trash", "b_trash"):
+            response = await client.post(f"{DOCUMENTS}{ids[key]}/restore")
+            assert response.status_code in (200, 403), (key, response.text)
+            if response.status_code == 200:
+                changed["restore"].add(key)
+
+    assert changed == {
+        "patch": reach,
+        "lock": reach,
+        "trash": reach,
+        "restore": {k for k in ("a1_trash", "b_trash") if k.split("_")[0] in reach},
+    }
+    assert {key for key, code in workflow.items() if code != 403} == reach
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_cannot_send_a_document_out_of_its_tree(
+    client_as, db_seed, tree
+):
+    units, ids = tree["units"], tree["ids"]
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a1"]
+    ) as client:
+        up = await client.patch(
+            f"{DOCUMENTS}{ids['a2']}",
+            json={"classification_target_org_unit_id": str(units["a"])},
+        )
+        to_someone_outside = await client.patch(
+            f"{DOCUMENTS}{ids['a2']}",
+            json={
+                "classification_scope": "person",
+                "classification_target_user_id": str(tree["collaborator"]),
+            },
+        )
+        down = await client.patch(
+            f"{DOCUMENTS}{ids['a1']}",
+            json={"classification_target_org_unit_id": str(units["a2"])},
+        )
+
+    assert up.status_code == 403, up.text
+    assert to_someone_outside.status_code == 403, to_someone_outside.text
+    assert down.status_code == 200, down.text
+    assert down.json()["org_unit_id"] == str(units["a2"])
