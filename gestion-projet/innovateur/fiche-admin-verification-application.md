@@ -2,7 +2,7 @@
 
 - **Pour** : les administrateurs d'institution (`tenant_admin`) et de plateforme (`super_admin`). Elle sert pour #193 et pour les écrans de F.
 - **Règles** : DEC-2026-004, option (d), décidée par le PO le 17/11. Le contrat est celui de la PR #193 (tête 3d0e4a7 au 17/11 ; a744d07 relue en lecture seule) : code à 6 chiffres renouvelé toutes les 30 s, émetteur affiché « E-Dossier ».
-- **Libellés** : ceux des écrans de F, confirmés le 17/11 (commit 97a5d3e de `feat/post-rc1-totp-ui`). F confirme à l'ouverture de sa PR si l'un d'eux change.
+- **Libellés** : ceux des écrans de F, confirmés le 17/11 (commit 97a5d3e de `feat/post-rc1-totp-ui` ; messages 409 et 503 de la connexion : #219, 5f2f6c2). F confirme à l'ouverture de sa PR si l'un d'eux change.
 - **Hors fiche** : la clé du serveur et le script d'exploitation, qui relèvent de l'installation (`protocole-installation-site.md`).
 
 ---
@@ -20,6 +20,7 @@ Votre compte d'administrateur donne accès à toute l'institution. Pour le prot�
 ### 2. Relier l'application à votre compte (une fois, 3 minutes)
 
 1. Connectez-vous comme d'habitude : identifiant, mot de passe, puis le code reçu par e-mail.
+   - L'écran affiche « Le code n'a pas pu être envoyé. Réessayez dans quelques minutes. » ? Patientez, puis reconnectez-vous.
 2. L'écran « Protégez votre compte » s'affiche. Vous ne pouvez pas aller plus loin sans cette étape.
 3. Dans l'application, touchez **+**, puis **Scanner un code QR**, et visez le carré affiché à l'écran.
    - Le scan ne marche pas ? Touchez **Saisir la clé à la main** et recopiez la clé dans l'application.
@@ -55,7 +56,7 @@ Vous êtes administrateur d'institution ? C'est vous qui réinitialisez l'applic
 
 ### 5. Pourquoi votre compte doit avoir une adresse e-mail
 
-- **Pour la première connexion** : le code e-mail vous mène à l'écran de la partie 2. Sans adresse, vous ne pourriez jamais l'atteindre. L'application refuse donc de créer ou de modifier un compte administrateur sans adresse e-mail.
+- **Pour la première connexion** : le code e-mail vous mène à l'écran de la partie 2. Sans adresse, vous ne pourriez jamais l'atteindre : l'écran affiche « Aucune adresse e-mail n'est enregistrée pour votre compte. Contactez votre administrateur. » L'application refuse donc de créer ou de modifier un compte administrateur sans adresse e-mail.
 - **Pour vous prévenir** : chaque ajout, retrait ou réinitialisation de l'application vous est signalé par e-mail. Si vous recevez un tel e-mail sans avoir rien fait, prévenez tout de suite un administrateur de plateforme.
 
 L'e-mail sert à vous informer. Il ne remplace jamais le code de l'application pour vous connecter.
