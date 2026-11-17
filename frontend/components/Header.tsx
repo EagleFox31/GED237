@@ -224,6 +224,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 }}
                 placeholder={searchConfig.placeholder}
                 aria-label={searchConfig.placeholder}
+                data-global-search
                 className="block w-full pl-12 pr-4 py-2.5 bg-slate-100/50 border border-transparent rounded-2xl focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-200 transition-all outline-none text-[13px] font-medium"
               />
             </div>
