@@ -48,6 +48,7 @@ E-Dossier range, retrouve et fait valider les documents de votre institution. Ce
 
 - **Administrateur d'un service** : ses documents et sa recherche couvrent toute l'institution, et pas seulement son service. Ses rapports, eux, se limitent à son service. Corrigé dans la version suivante (#215).
 - **Code de connexion** : en démonstration, il s'affiche directement à l'écran. Son envoi par e-mail arrive dans la version suivante.
+- **Réglage du serveur** : en rc.1, laissez ENVIRONMENT=development : le code de connexion s'affiche à l'écran. Avec production, il n'est ni affiché ni envoyé et personne ne peut se connecter. L'envoi par e-mail arrive en V1.1.
 - **Mot de passe oublié** : le lien « Oublié ? » ne fait encore rien. Demandez un nouveau mot de passe à votre administrateur.
 - **Corbeille** : elle n'a pas encore d'écran. Pour récupérer un document supprimé, adressez-vous à votre administrateur. Les documents en corbeille comptent encore dans les statistiques de l'institution (#218).
 - **Archivage et documents à revoir** : dans cette version, l'archivage d'un document et la liste des documents à revoir sont réservés à l'administrateur de la plateforme. L'administrateur de l'institution les aura en V1.1.
