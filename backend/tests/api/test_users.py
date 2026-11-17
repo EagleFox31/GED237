@@ -396,3 +396,38 @@ async def test_an_email_already_used_is_refused_on_update(
         )
     assert response.status_code == 409
     assert response.json()["error_code"] == "USER_EMAIL_TAKEN"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["role_id", "is_active", "password"])
+async def test_an_explicit_null_on_a_required_field_is_a_422_not_a_500(
+    client_as, db_session, db_seed, field
+):
+    await _privileged_roles(db_session)
+    async with client_as("super_admin", tenant_id=db_seed["tenant_id"]) as client:
+        response = await client.patch(
+            f"{USERS}/{db_seed['user_id']}", json={field: None}
+        )
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["error_code"] == "VALIDATION_ERROR"
+    assert [e["field"] for e in body["errors"]] == [f"body.{field}"]
+    assert "omettez le champ" in body["errors"][0]["message"]
+    user = await db_session.get(User, db_seed["user_id"])
+    await db_session.refresh(user)
+    assert user.role_id == db_seed["role_id"] and user.is_active
+
+
+@pytest.mark.asyncio
+async def test_an_unknown_role_is_a_422_even_for_a_super_admin(
+    client_as, db_session, db_seed
+):
+    await _privileged_roles(db_session)
+    async with client_as("super_admin", tenant_id=db_seed["tenant_id"]) as client:
+        response = await client.patch(
+            f"{USERS}/{db_seed['user_id']}", json={"role_id": 999}
+        )
+    assert response.status_code == 422, response.text
+    user = await db_session.get(User, db_seed["user_id"])
+    await db_session.refresh(user)
+    assert user.role_id == db_seed["role_id"]

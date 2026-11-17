@@ -88,14 +88,16 @@ async def _assert_role_grantable(
     role (001_initial_schema). Without this check a tenant_admin could make
     anyone, themselves included, super_admin of every institution.
     """
-    caller_code = current_user.role.code if current_user.role else None
-    if caller_code == "super_admin":
-        return
     from app.models.role import Role
 
+    # Checked for every caller, super_admin included: an unknown role would
+    # otherwise fail on the foreign key at commit, as a 500.
     target = await db.get(Role, role_id) if role_id is not None else None
     if target is None:
         raise HTTPException(status_code=422, detail=f"Unknown role_id: {role_id}")
+    caller_code = current_user.role.code if current_user.role else None
+    if caller_code == "super_admin":
+        return
     caller = (
         await db.execute(select(Role).where(Role.code == caller_code))
     ).scalar_one_or_none()
