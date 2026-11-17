@@ -19,17 +19,18 @@ Postes : une fenêtre **A** (`MINFI001`, administrateur de l'institution), conne
 | 4:45–6:15 | 1:30 | **2. Le rangement** | A | « Explorateur documentaire » (`/spaces`) : DAF → domaine → activité → année ; ouvrir un document importé | l'arborescence **service > domaine > activité > année** remplie par l'import ; un fichier sans date part dans « A classer/‹année› » (`À vérifier`, § 5 n° 4). Si l'on demande « et par année d'abord ? » : « On range d'abord par métier, parce que c'est ainsi qu'on cherche un dossier ; l'année est le dernier niveau, et le filtre « Toutes les années » permet de choisir une année. » **E24** : le statut s'affiche « A verifier », sans accent | « Pourquoi là ? Parce qu'une règle le dit. » |
 | 6:15–7:45 | 1:30 | **3. Les règles** | A | « Plan de classement » (`/classement`) → « Règles de classement » : une règle avec critère de **contenu** ou d'**année** ; puis « Simulateur » sur une règle inactive | la règle en clair ; la simulation montre avant/après **sans rien déplacer** | « Ce qu'aucune règle ne sait classer attend un humain. » |
 | 7:45–8:45 | 1:00 | **4. La bannette** | A | « Ma bannette » (`/classification-reviews`, page « Revue de classement ») : un fichier « à revoir » de l'import ; « Domaine », « Activité », « Année », puis « Classer et relancer » | le fichier quitte la bannette et rejoint l'arbre | « Maintenant, retrouvons-le. » |
-| 8:45–10:15 | 1:30 | **5. Recherche et droits** | E puis C | dans E (arrivée sur « Tâches & Validations »), barre de recherche du bandeau ; dans C, cliquer d'abord « Tableau de Bord », puis le même mot-clé | deux listes différentes pour la même requête : DAF pour E, DSI pour C ; un document mis en corbeille n'apparaît pas ; le menu de C n'a ni « Rapports », ni « Plan de classement », ni « Import en masse » | « Et qui a fait quoi ? » |
-| 10:15–11:30 | 1:15 | **6. Historique** | A puis D | fiche d'un document versionné → onglet « Historique des Versions » ; puis D, qui arrive sur la page « Registre Des Actions » (`/audit`) : filtre de la colonne « Effectuée par » sur l'administrateur → « Exporter (CSV) ». **E25** : D n'a pas d'entrée « Audit » dans son menu ; ne pas quitter la page | les versions ; dans le journal, l'import, la revue et les consultations de la séance ; l'export, lui-même tracé | « Et pour le chef de service ? » |
-| 11:30–12:45 | 1:15 | **7. Rapports** | E | menu « Rapports » (`/reports`) : « Traitement & délais », puis « Services » (le manager n'a pas l'onglet « Synthèse ») | les chiffres **de la DAF seulement** (#175, #188) : volumes, non classés, à revoir | « Voilà ce qui marche. Voici ce qui manque. » |
-| 12:45–13:30 | 0:45 | **Ce qui manque** | — | une phrase par écart, avec sa date ou son appui (§ 1 bis) | — | « Vos questions. » |
-| 13:30–18:00 | 4:30 | **Questions** | — | `plan-presentation.md` § 4 | — | — |
+| 8:45–10:15 | 1:30 | **5. Recherche et droits** | E puis C | dans E (arrivée sur « Tâches & Validations »), barre de recherche du bandeau : « courrier » ; dans C, cliquer d'abord « Tableau de Bord », puis le même mot-clé. « courrier » est le seul nom de famille de documents présent à la fois à la DAF et à la DSI (`demo_dataset.py`, famille « courrier » : DAF 20, DSI 18, dont environ un sur quatre porte le mot) ; nombres de résultats `À vérifier` par Q (§ 5 n° 8). « facture » ne convient pas : 20 résultats pour E, 0 pour C (#256, écart 10) | deux listes différentes pour la même requête : DAF pour E, DSI pour C ; un document mis en corbeille n'apparaît pas ; le menu de C n'a ni « Rapports », ni « Plan de classement », ni « Import en masse » | « Et qui a fait quoi ? » |
+| 10:15–11:30 | 1:15 | **6. Historique** | A puis D | fiche d'un document versionné → onglet « Historique des Versions » ; puis D, menu « Audit » (`/audit`, depuis #233), page « Registre Des Actions » : filtre de la colonne « Effectuée par » sur l'administrateur → « Exporter (CSV) ». L'aller-retour par le menu et l'export marchent (répétition du 17/11, #256 écart 11) | les versions ; dans le journal, l'import, la revue et les consultations de la séance ; l'export, lui-même tracé | « Et pour le chef de service ? » |
+| 11:30–12:45 | 1:15 | **7. Rapports** | E | menu « Rapports » (`/reports`) : « Traitement & délais », puis « Services » (le manager n'a pas l'onglet « Synthèse ») | les chiffres **de la DAF seulement** (#175, #188) : volumes, non classés, à revoir | « Et quand un dossier est clos ? » |
+| 12:45–13:30 | 0:45 | **8. Archivage** | A | ouvrir la fiche d'un document **validé** de la DAF (identifiant relevé par Q, § 5 n° 21) → « Archiver » → « Archiver ce document ? » → « Oui, archiver » ; puis « Mes documents », filtre « Archivé ». **Dépend de #256 écart 9** : le chemin jusqu'au bouton est `À vérifier` après le correctif de F (aujourd'hui, l'aperçu de l'explorateur n'a pas le bouton et « Mes documents » ne charge que 100 documents). Sans correctif avant la coupe, l'étape est retirée et ses 0:45 vont aux questions | le badge « Archivé » ; le document reste consultable ; seul un document validé ou signé s'archive, et seul l'administrateur de l'institution le fait (#231, #239) | « Voilà ce qui marche. Voici ce qui manque. » |
+| 13:30–14:15 | 0:45 | **Ce qui manque** | — | une phrase par écart, avec sa date ou son appui (§ 1 bis) | — | « Vos questions. » |
+| 14:15–18:00 | 3:45 | **Questions** | — | `plan-presentation.md` § 4 | — | — |
 
-Total : 18:00, dont 11:45 de direct (de 1:00 à 12:45, connexion comprise). Marge : 2:00 avant la fin du créneau. Les durées comptent 10 s par changement de fenêtre.
+Total : 18:00, dont 12:30 de direct (de 1:00 à 13:30, connexion comprise). Marge : 2:00 avant la fin du créneau. Les durées comptent 10 s par changement de fenêtre.
 
 Si l'import dépasse 4:00 : l'étape 3 se réduit au « Simulateur » (0:45) et l'étape 6 au journal, sans export (0:45). Les questions absorbent le reste. On ne prend jamais sur la marge de 2:00.
 
-### 1 bis. Ce qui manque, dit au bloc 12:45 (taux CDC du relevé du 19, sur #104)
+### 1 bis. Ce qui manque, dit au bloc 13:30 (taux CDC du relevé du 19, sur #104)
 
 - **Mesure de charge** (100 000 fichiers en moins de 20 min, item 8) : non mesurée ; décision PO du 17/11, mesure après le 24/11.
 - **Vue « doublons »** (item 19) : les doublons sont refusés à l'import et comptés au tableau de bord (tuile « Doublons refusés », `Vérifié`) ; la vue de choix arrive après la version.
@@ -70,7 +71,6 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 | Répartition différente de celle annoncée | autres nombres de classés, à revoir ou doublons | lire les nombres affichés sans les commenter ; la répétition fige les chiffres attendus (§ 5 n° 3) |
 | Bannette vide (tout est classé) | liste vide | ouvrir un des 51 « à revoir » du jeu |
 | Le jury remarque « A verifier » sans accent (E24) | question sur l'orthographe | « Écart connu, noté en recette. » Ne pas s'y attarder |
-| L'auditeur quitte sa page d'arrivée (E25) | plus d'entrée « Audit » dans son menu | cliquer « Tableau de Bord » : sa page est « Registre Des Actions » |
 | Rapports vides ou erreur côté manager | aucun chiffre, refus | montrer la même page dans A (admin, tout l'établissement), en disant que le manager ne voit que la DAF |
 | Journal filtré vide | aucune ligne | retirer le filtre de la colonne « Effectuée par », trier par « Date et heure » |
 | Pile Docker ou poste en panne | plus de réponse | poste de secours prêt, avec la même pile et le même jeu (`checklist-demo.md` § B) ; sinon captures pour tout le reste |
@@ -89,7 +89,7 @@ Le risque du menu admin « Recherche » (page introuvable sur c216141) est levé
 | 5 | L'import de `MINFI001` vers « Service » DAF range bien côté serveur et alimente « Ma bannette » | Q | rejeu de l'étape 1 avec `MINFI001` |
 | 6 | Le filtre « Toutes les années » de l'explorateur filtre bien un dossier de la DAF | F | capture |
 | 7 | Au moins une règle active du jeu utilise un critère de contenu ou d'année ; une règle inactive donne une simulation non vide | B | nom des règles retenues |
-| 8 | Mot-clé présent dans la DAF et la DSI ; un document de la corbeille le contient ; résultats différents entre E et C | Q | mot-clé et nombres de résultats |
+| 8 | Mot-clé « courrier » (§ 1, étape 5) : résultats non vides pour E (DAF) et pour C (DSI), listes différentes ; un document de la corbeille le contient, sinon le dire sans le montrer | Q | nombres de résultats pour E et pour C |
 | 9 | Menus de `READ001` et `MGR001` conformes au § 3 | F | captures |
 | 10 | Un document versionné du jeu, avec son onglet « Historique des Versions » rempli | Q | identifiant du document |
 | 11 | Journal : lignes d'import, de revue et de consultation de `MINFI001` du jour, visibles par `AUDIT001` ; l'export CSV s'ouvre dans le tableur | Q | fichier exporté |
@@ -102,6 +102,7 @@ Le risque du menu admin « Recherche » (page introuvable sur c216141) est levé
 | 18 | Un document de la DAF est en attente chez `MGR001` après la remise à zéro (jeu P8), et la validation comme le rejet motivé fonctionnent | Q | identifiant du document, capture de la tâche en attente |
 | 19 | Diapositive d'ouverture (le problème des dossiers en vrac, la promesse en une phrase) | O la fournit, P la valide | fichier de la diapositive, validation de P |
 | 20 | Deux sessions simultanées de `MINFI001` (A en direct, B préconnectée) restent ouvertes toutes les deux | Q | constat noté |
+| 21 | *(si #256 écart 9 est corrigé avant la coupe)* Un document **validé** de la DAF après la remise à zéro, différent de celui en attente chez `MGR001` ; chemin de A jusqu'au bouton « Archiver » ; l'archivage passe et le filtre « Archivé » le retrouve | Q, F (chemin) | identifiant du document, chemin cliqué, capture du badge |
 
 ## 6. Décisions de O du 17/11 (sur la première version de ce § 6)
 
@@ -133,7 +134,7 @@ Demande de O du 17/11. Chaque ligne cite le texte de la version c216141 (numéro
 
 - **E23** (« Gérer les Permissions » sans action, tableau de bord de l'admin d'unité) : aucune étape touchée, car il n'y a pas de profil admin d'unité dans la démo.
 - **E24** (accents) : étape 2, statut « A verifier » dans l'« Explorateur documentaire ». « Parametres » (menu du super admin) n'apparaît pas, car `SUPER001` n'est pas utilisé.
-- **E25** (menu de l'auditeur) : étape 6, fenêtre D. Elle reste sur sa page d'arrivée, avec un plan B au § 4.
+- **E25** (menu de l'auditeur) : corrigé par #233, dans la rc.1 (réponse du PO du 17/11, question 7). Étape 6 mise à jour le 17/11 : D passe par son menu « Audit ». Le plan B du § 4 est retiré.
 
 Si le PO fait corriger E24 ou E25 sur la release, appliquer la version « corrigé » ci-dessous (question Q6 de O au PO), après avoir relu le libellé dans le code de `release/v1.0.0`.
 
