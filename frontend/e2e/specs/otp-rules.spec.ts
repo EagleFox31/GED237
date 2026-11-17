@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   RESEND_COOLDOWN_SECONDS,
+  canResetApp,
   groupSecret,
   isAppCode,
   isEmailRequiredError,
@@ -10,6 +11,7 @@ import {
   resendSecondsLeft,
 } from '../../components/auth/otpRules';
 import { SESSION_EXPIRED, TOO_MANY_TRIES, authErrorMessage, withRoleLabels } from '../../components/auth/authErrors';
+import { formatNoticeDate, securityNoticeText } from '../../components/auth/securityNotices';
 
 test.describe('Écrans de connexion : erreurs API en français', () => {
   test('401 et 404 connus traduits', () => {
@@ -34,6 +36,27 @@ test.describe('Écrans de connexion : erreurs API en français', () => {
   test('détail inconnu ou absent : message de repli', () => {
     expect(authErrorMessage(500, 'An error occurred during login: boom', 'Repli')).toBe('Repli');
     expect(authErrorMessage(400, undefined, 'Repli')).toBe('Repli');
+  });
+});
+
+test.describe('Bandeau après connexion : changements de l’application', () => {
+  test('réinitialisation par un administrateur, heure UTC convertie', () => {
+    const text = securityNoticeText({ event: 'totp_reset', at: '2026-11-17T14:02:11.123456', by_self: false }, 'Africa/Douala');
+    expect(text).toBe("Votre application d'authentification a été réinitialisée par un administrateur le 17/11 à 15:02.");
+  });
+
+  test('enregistrée ou retirée par soi-même ; événement inconnu ignoré', () => {
+    expect(securityNoticeText({ event: 'totp_enrolled', at: '2026-11-17T08:00:00', by_self: true }, 'UTC'))
+      .toBe("Votre application d'authentification a été enregistrée le 17/11 à 08:00.");
+    expect(securityNoticeText({ event: 'totp_disabled', at: '2026-11-17T08:00:00', by_self: false }, 'UTC'))
+      .toBe("Votre application d'authentification a été retirée par un administrateur le 17/11 à 08:00.");
+    expect(securityNoticeText({ event: 'password_changed', at: '2026-11-17T08:00:00', by_self: true }, 'UTC')).toBeNull();
+  });
+
+  test('date illisible : phrase sans date', () => {
+    expect(formatNoticeDate('pas une date', 'UTC')).toBe('');
+    expect(securityNoticeText({ event: 'totp_reset', at: 'x', by_self: false }, 'UTC'))
+      .toBe("Votre application d'authentification a été réinitialisée par un administrateur.");
   });
 });
 
@@ -69,6 +92,19 @@ test.describe('Écran de code : règles', () => {
     expect(isEmailRequiredError(422, 'Hierarchy cycle detected')).toBe(false);
     expect(isEmailRequiredError(400, detail)).toBe(false);
     expect(isEmailRequiredError(undefined, undefined)).toBe(false);
+  });
+
+  test('réinitialisation : un supérieur, jamais soi-même', () => {
+    expect(canResetApp('super_admin', 'tenant_admin', false)).toBe(true);
+    expect(canResetApp('super_admin', 'super_admin', false)).toBe(true);
+    expect(canResetApp('super_admin', 'super_admin', true)).toBe(false);
+    expect(canResetApp('super_admin', 'manager', false)).toBe(false);
+    expect(canResetApp('tenant_admin', 'manager', false)).toBe(true);
+    expect(canResetApp('TENANT_ADMIN', 'reader', false)).toBe(true);
+    expect(canResetApp('tenant_admin', 'tenant_admin', false)).toBe(false);
+    expect(canResetApp('tenant_admin', 'manager', true)).toBe(false);
+    expect(canResetApp('manager', 'reader', false)).toBe(false);
+    expect(canResetApp(undefined, 'reader', false)).toBe(false);
   });
 
   test('clé lisible et code à 6 chiffres', () => {

@@ -37,5 +37,21 @@ export const groupSecret = (secret: string): string =>
 export const isEmailRequiredError = (status: number | undefined, message: string | undefined): boolean =>
   status === 422 && /adresse e-mail/i.test(message ?? '');
 
+const ADMIN_ROLES = ['super_admin', 'tenant_admin'];
+
+/**
+ * Qui peut réinitialiser l'application de qui (DEC-2026-004, même règle que le serveur) :
+ * jamais soi-même ; un super_admin, les comptes super_admin et tenant_admin ; un tenant_admin,
+ * les agents de son institution (l'écran ne montre que ceux-là). Sinon le serveur répond 403.
+ */
+export const canResetApp = (actorRole: string | undefined, targetRole: string | undefined, isSelf: boolean): boolean => {
+  if (isSelf) return false;
+  const actor = (actorRole ?? '').toLowerCase();
+  const targetIsAdmin = ADMIN_ROLES.includes((targetRole ?? '').toLowerCase());
+  if (actor === 'super_admin') return targetIsAdmin;
+  if (actor === 'tenant_admin') return !targetIsAdmin;
+  return false;
+};
+
 /** Code de l'application : exactement 6 chiffres. */
 export const isSixDigits = (code: string): boolean => /^\d{6}$/.test(code);

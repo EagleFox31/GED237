@@ -12,7 +12,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { api } from '../../../../services/api';
 import { ApiError } from '../../../../lib/errors';
-import { isEmailRequiredError } from '../../../../components/auth/otpRules';
+import { canResetApp, isEmailRequiredError } from '../../../../components/auth/otpRules';
 import { useAuthStore } from '../../../../stores/authStore';
 
 interface AgentsListTabProps {
@@ -718,7 +718,7 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
                 <span className="material-symbols-outlined text-[16px]">lock_reset</span>
                 Réinitialiser le mot de passe
               </button>
-              {!isSelf && (
+              {canResetApp(userProfile?.backendRole, selectedAgent.role, isSelf) && (
                 <button
                   type="button"
                   onClick={() => handleResetTotp(selectedAgent)}

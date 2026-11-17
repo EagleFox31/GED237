@@ -8,6 +8,7 @@ import { apiCall, fetchWithRefresh } from '../http/client';
 import { clearAuthSession, getHeaders } from '../http/session';
 import { buildApiError } from '../http/errorAdapter';
 import { apiErrorFromResponse } from '../../lib/errors';
+import type { SecurityNotice } from '../../components/auth/securityNotices';
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,8 @@ export interface AuthSession {
     refresh_token: string;
     token_type?: string;
     user: BackendUser;
+    /** Changements de l'application depuis la connexion précédente, donnés une seule fois. */
+    security_notices?: SecurityNotice[];
 }
 
 export type OtpVerifyResult = AuthSession | TotpEnrolmentRequired;

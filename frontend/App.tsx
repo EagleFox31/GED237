@@ -1,5 +1,5 @@
 // frontend/App.tsx
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { takePostLoginDestination, accountKeyOf } from './services';
@@ -13,6 +13,9 @@ import Dashboard from './components/Dashboard';
 import Documents from './components/Documents';
 import WorkflowTasks from './components/WorkflowTasks';
 import LoginPage from './components/LoginPage';
+import { SecurityNoticeBanner } from './components/auth/SecurityNoticeBanner';
+import { saveSecurityNotices } from './components/auth/securityNotices';
+import type { AuthSession } from './services/resources/auth.api';
 import ChangePassword from './components/ChangePassword';
 
 // Pages par profil
@@ -250,6 +253,7 @@ const AppLayout: React.FC = () => {
           onOpenSettings={() => navigate('/settings/display')}
           onOpenMenu={() => setMenuOpen(true)}
         />
+        <SecurityNoticeBanner />
         <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -292,10 +296,14 @@ const AppLayout: React.FC = () => {
 
 const App: React.FC = () => {
   const { isLoggedIn, login } = useAuthStore();
+  const handleLogin = useCallback((session: AuthSession) => {
+    saveSecurityNotices(session.security_notices);
+    login(session);
+  }, [login]);
 
   return (
     <ErrorBoundary>
-      {isLoggedIn ? <AppLayout /> : <LoginPage onLogin={login} />}
+      {isLoggedIn ? <AppLayout /> : <LoginPage onLogin={handleLogin} />}
       <ErrorOverlay />
     </ErrorBoundary>
   );
