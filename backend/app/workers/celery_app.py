@@ -38,3 +38,15 @@ if settings.INGEST_WATCH_FOLDERS and settings.INGEST_WATCH_INTERVAL_SECONDS > 0:
             "schedule": float(settings.INGEST_WATCH_INTERVAL_SECONDS),
         }
     }
+
+# Scheduled backup (post-rc1 lot 13): off by default. Merged with the schedule above.
+if settings.SCHEDULED_BACKUP_ENABLED:
+    from celery.schedules import crontab
+
+    celery_app.conf.beat_schedule = {
+        **(celery_app.conf.beat_schedule or {}),
+        "scheduled-backup": {
+            "task": "app.workers.tasks.run_scheduled_backup",
+            "schedule": crontab(hour=settings.SCHEDULED_BACKUP_HOUR, minute=0),
+        },
+    }

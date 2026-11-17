@@ -186,3 +186,18 @@ def watch_ingest_folders():
         asyncio.set_event_loop(loop)
     loop.run_until_complete(_run())
     return None
+
+
+@celery_app.task(name="app.workers.tasks.run_scheduled_backup")
+def run_scheduled_backup():
+    """Beat task (post-rc1 lot 13): today's backup, once. Off by default."""
+    from app.services.scheduled_backup import run_scheduled_backup as _run
+
+    if not settings.SCHEDULED_BACKUP_ENABLED:
+        return None
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(_run(AsyncSessionLocal))

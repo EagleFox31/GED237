@@ -570,3 +570,21 @@ première requête utilisateur.
 **Résolution** — L'autostash a été retrouvé (`git fsck --no-reflog`, commit « WIP on main »). Chaque fichier a été rétabli dans l'état de l'autostash, puis les entrées ajoutées entre-temps par les autres sessions y ont été remises. Contrôle : uniquement des ajouts par rapport à `HEAD`, et `HEAD` inchangé. Une deuxième session a vérifié.
 **Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
 **Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
+
+### LESSON-2026-038 — Client pg_dump plus récent que le serveur : sauvegarde planifiée non restaurable
+
+- **Date :** 2026-11-17
+- **Catégorie :** exploitation / sauvegarde
+- **Statut :** guarded
+- **Liens :** `backend/app/services/scheduled_backup.py` (`check_pg_dump_matches`), `backend/tests/api/test_scheduled_backup.py`, `ops/restore.sh`, `backend/Dockerfile`
+
+**Contexte** — Lot 13 (sauvegarde planifiée), conçu pour tourner dans le worker. `ops/backup.sh` lance `pg_dump` dans le conteneur `postgres:15-alpine` ; le worker part de `python:3.11-slim`.
+**Échec / near miss** — Relevé en conception, avant toute fusion. L'image du worker (Debian 13) fournit `pg_dump 17.11`, alors que le serveur est en 15. Avec des conteneurs jetables, une archive de 17.11 :
+- est refusée par `pg_restore` 15 : `pg_restore: error: unsupported version (1.16) in file header` ;
+- échoue aussi avec `pg_restore` 17 vers le serveur 15 : `ERROR: unrecognized configuration parameter "transaction_timeout"` (`SET transaction_timeout = 0;`), et rien n'est restauré avec `--exit-on-error`.
+
+Une sauvegarde aurait donc été écrite chaque nuit, avec ses sommes de contrôle, sans pouvoir être restaurée.
+**Cause racine** — La version de l'outil de sauvegarde vient de l'image de base de l'application, pas de celle du serveur. Le changement de version Debian de `python:3.11-slim` a fait monter `postgresql-client` sans que rien ne le signale.
+**Résolution** — Avant chaque sauvegarde planifiée, les versions majeures du client et du serveur sont comparées. Si elles diffèrent, la sauvegarde échoue avec un message explicite, et l'alerte de sauvegarde ainsi que la notification au super-admin sont déclenchées. Le chemin du client se règle par `SCHEDULED_BACKUP_PG_DUMP`. Le job est désactivé par défaut. L'installation du client 15 (PGDG) dans le worker est prévue après le 30/11.
+**Prévention** — Deux tests : `test_version_guard_refuses_a_different_major` et `test_version_guard_fails_the_run_before_any_dump` (le dossier partiel est supprimé, l'échec est enregistré).
+**Leçon généralisée** — Un outil de sauvegarde doit avoir la version de la cible de restauration, et cette condition doit être vérifiée à l'exécution, pas supposée. Une sauvegarde ne vaut que par une restauration prouvée avec l'outil réel de la procédure.
