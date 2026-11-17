@@ -7,6 +7,11 @@ from fastapi import UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.classification_reasons import (
+    DUPLICATE_IN_IMPORT_MESSAGE,
+    DUPLICATE_IN_TENANT_MESSAGE,
+    UNSUPPORTED_IMPORT_FORMAT_MESSAGE,
+)
 from app.core.errors.domain import FileTooLargeError
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
@@ -83,7 +88,7 @@ class ImportAnalysisService:
 
                 if extension not in SUPPORTED_EXTENSIONS:
                     item.status = "ignored"
-                    item.error_message = "Format non supporte par l'import de masse."
+                    item.error_message = UNSUPPORTED_IMPORT_FORMAT_MESSAGE
                     job.ignored_files += 1
                     continue
 
@@ -111,18 +116,14 @@ class ImportAnalysisService:
                     checksum=item.checksum_sha256, tenant_id=job.tenant_id
                 ):
                     item.status = "duplicate"
-                    item.error_message = (
-                        "Un fichier identique existe deja dans ce tenant."
-                    )
+                    item.error_message = DUPLICATE_IN_TENANT_MESSAGE
                     if item.staging_file_path:
                         self.storage_service.delete_file(item.staging_file_path)
                     job.duplicate_files += 1
                     continue
                 if item.checksum_sha256 in seen_checksums:
                     item.status = "duplicate"
-                    item.error_message = (
-                        "Ce fichier est present plusieurs fois dans le meme batch."
-                    )
+                    item.error_message = DUPLICATE_IN_IMPORT_MESSAGE
                     if item.staging_file_path:
                         self.storage_service.delete_file(item.staging_file_path)
                     job.duplicate_files += 1

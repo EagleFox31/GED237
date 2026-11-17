@@ -11,6 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.authz import can_perform, ctx_from_resource
+from app.core.classification_reasons import (
+    DUPLICATE_IN_TENANT_MESSAGE,
+    REVIEW_AMBIGUOUS,
+    REVIEW_NO_RULE_DOCUMENT,
+    REVIEW_NO_RULE_IMPORT_ITEM,
+)
 from app.models.audit import AuditLog
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
@@ -386,7 +392,7 @@ class ClassificationReviewService:
         ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Un fichier identique existe deja dans ce tenant.",
+                detail=DUPLICATE_IN_TENANT_MESSAGE,
             )
         if not self.storage_service.copy_file(
             item.staging_file_path, final_relative_path
@@ -631,8 +637,8 @@ class ClassificationReviewService:
             if sys_report and sys_report.get("arbitration_reason"):
                 return sys_report["arbitration_reason"]
         if document.classification_status == "needs_review":
-            return "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
-        return "Aucune regle deterministe n a permis de classer ce document."
+            return REVIEW_AMBIGUOUS
+        return REVIEW_NO_RULE_DOCUMENT
 
     async def _get_review_or_404(
         self,
@@ -880,7 +886,7 @@ class ClassificationReviewService:
                 status_code=status.HTTP_423_LOCKED,
                 detail={
                     "error": "document_locked",
-                    "message": "Ce document est verrouille par un autre utilisateur.",
+                    "message": "Ce document est verrouillé par un autre utilisateur.",
                     "locked_by": str(document.locked_by_user_id),
                     "lock_expires_at": document.lock_expires_at.isoformat(),
                 },
@@ -971,8 +977,8 @@ class ClassificationReviewService:
         if item.error_message:
             return item.error_message
         if item.status == "needs_review":
-            return "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
-        return "Aucune regle deterministe n a permis de classer ce fichier du batch."
+            return REVIEW_AMBIGUOUS
+        return REVIEW_NO_RULE_IMPORT_ITEM
 
     @staticmethod
     def _build_dispatch_payload(document: Document) -> dict:
