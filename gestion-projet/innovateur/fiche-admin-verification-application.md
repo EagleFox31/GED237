@@ -1,7 +1,7 @@
 # Fiche admin : activer la vérification par application
 
 - **Pour** : les administrateurs d'institution (`tenant_admin`) et de plateforme (`super_admin`). Elle sert pour #193 et pour les écrans de F.
-- **Règles** : DEC-2026-004, option (d), décidée par le PO le 17/11. Le contrat est celui de la PR #193 (f2cc377) : code à 6 chiffres renouvelé toutes les 30 s, émetteur affiché « E-Dossier ».
+- **Règles** : DEC-2026-004, option (d), décidée par le PO le 17/11. Le contrat est celui de la PR #193 (a744d07, relue le 17/11 en lecture seule) : code à 6 chiffres renouvelé toutes les 30 s, émetteur affiché « E-Dossier ».
 - **Libellés** : ceux des écrans de F (message du 17/11). F confirme à l'ouverture de sa PR si l'un d'eux change.
 - **Hors fiche** : la clé du serveur et le script d'exploitation, qui relèvent de l'installation (`protocole-installation-site.md`).
 
@@ -23,11 +23,12 @@ Votre compte d'administrateur donne accès à toute l'institution. Pour le prot�
 2. L'écran « Protégez votre compte » s'affiche. Vous ne pouvez pas aller plus loin sans cette étape.
 3. Dans l'application, touchez **+**, puis **Scanner un code QR**, et visez le carré affiché à l'écran.
    - Le scan ne marche pas ? Touchez **Saisir la clé à la main** et recopiez la clé dans l'application.
+   - La page s'est rechargée ? Un nouveau carré s'affiche. Supprimez la ligne « E-Dossier » déjà créée dans l'application, puis scannez de nouveau.
 4. L'application affiche une ligne « E-Dossier » avec un code à 6 chiffres.
 5. Tapez ce code dans le champ **Code à 6 chiffres**, puis touchez **Valider**.
 6. C'est fait : vous arrivez dans E-Dossier. Un e-mail vous confirme l'ajout de l'application.
 
-Code refusé ? Attendez le code suivant et recommencez. Une erreur ne bloque pas le compte. Au bout de 10 minutes, l'écran expire : reconnectez-vous et reprenez à l'étape 1.
+Code refusé ? Attendez le code suivant et recommencez. Une erreur ne bloque pas le compte. Après 5 essais en une minute, patientez une minute. Au bout de 10 minutes, l'écran expire : reconnectez-vous et reprenez à l'étape 1.
 
 ### 3. Se connecter ensuite (chaque jour)
 
@@ -35,7 +36,9 @@ Code refusé ? Attendez le code suivant et recommencez. Une erreur ne bloque pas
 2. Ouvrez l'application et tapez le code « E-Dossier » affiché.
 
 Aucun code n'arrive par e-mail, et le bouton « Renvoyer le code » n'existe pas pour votre compte : c'est normal.
+Un code ne sert qu'une fois. Si vous vous reconnectez aussitôt, attendez le code suivant.
 Le code est toujours refusé ? Vérifiez que l'heure de votre téléphone est réglée sur **automatique**.
+Après 3 codes faux, votre compte est bloqué 15 minutes, même avec le bon mot de passe. L'écran affiche le temps restant et vous recevez un e-mail. Si ce n'est pas vous, prévenez un administrateur de plateforme.
 
 ### 4. Téléphone perdu, volé ou changé sans sauvegarde
 
@@ -45,7 +48,7 @@ Vous ne pouvez pas vous dépanner seul, et l'e-mail ne remplace pas l'applicatio
    - vous êtes administrateur d'institution : un administrateur de plateforme ;
    - vous êtes administrateur de plateforme : un **autre** administrateur de plateforme.
 2. Avant de réinitialiser, le niveau supérieur vérifie votre carte professionnelle (ou une pièce d'identité). Il touche ensuite **Réinitialiser l'application d'authentification** dans votre fiche.
-3. **Toutes vos sessions sont fermées aussitôt**, sur tous les appareils, y compris le téléphone perdu. Vous recevez un e-mail qui le confirme.
+3. **Toutes vos sessions sont fermées aussitôt**, sur tous les appareils, y compris le téléphone perdu. Vous recevez un e-mail qui signale la réinitialisation.
 4. Sur place, reconnectez-vous et refaites la partie 2 avec votre nouveau téléphone.
 
 Vous gérez des agents ? Leur réinitialisation suit la même règle : vérifiez **en personne** sa carte professionnelle (ou une pièce d'identité), jamais par téléphone ni par e-mail. Prévenez l'agent que toutes ses sessions vont se fermer.
