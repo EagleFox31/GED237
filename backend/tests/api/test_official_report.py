@@ -2,12 +2,14 @@
 
 import asyncio
 import hashlib
+import io
 import uuid
 from datetime import datetime
 from urllib.parse import unquote
 
 import pytest
 from httpx import AsyncClient
+from pypdf import PdfReader
 from sqlalchemy import func, select, update
 
 from app.models.audit import AuditLog
@@ -84,6 +86,31 @@ async def test_html_copy_is_self_contained(admin_client: AsyncClient):
     assert page.startswith("<!doctype html>")
     assert "TESTMIN" in page
     assert "http://" not in page and "https://" not in page
+
+
+@pytest.mark.asyncio
+async def test_pdf_copy_is_numbered_and_reprinted_as_is(
+    admin_client: AsyncClient, db_session
+):
+    response = await admin_client.post(
+        OFFICIAL, json={"kind": "document-activity", "format": "pdf"}
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"].endswith('.pdf"')
+    number = unquote(response.headers["x-report-number"])
+    text = "\n".join(
+        page.extract_text() for page in PdfReader(io.BytesIO(response.content)).pages
+    )
+    assert number in text and "TESTMIN" in text
+
+    issue_id = await db_session.scalar(
+        select(ReportIssue.id).where(ReportIssue.format == "pdf")
+    )
+    reprint = await admin_client.get(f"{OFFICIAL}/issues/{issue_id}/file")
+    assert reprint.status_code == 200
+    assert reprint.content == response.content
+    assert reprint.headers["content-type"] == "application/pdf"
 
 
 @pytest.mark.asyncio
@@ -183,7 +210,7 @@ async def test_reader_cannot_issue_nor_list(client_as, db_seed):
     "payload",
     [
         {"kind": "unknown"},
-        {"kind": "evolution", "format": "pdf"},
+        {"kind": "evolution", "format": "docx"},
         {"kind": "evolution", "unexpected": 1},
         {},
     ],
