@@ -9,6 +9,7 @@ from sqlalchemy import func, select, update
 
 from app.core.config import settings
 from app.models.notification import Notification
+from app.models.role import Role
 from app.models.report_issue import ReportIssue
 from app.models.report_schedule import ReportRun, ReportSchedule
 from app.models.tenant import Tenant
@@ -55,7 +56,14 @@ def test_closed_period(frequency, today, key, start, end):
     assert (period.key, period.date_from, period.date_to) == (key, start, end)
 
 
-async def _schedule(db_session, db_seed, *, kind="evolution", active=True):
+async def _schedule(
+    db_session, db_seed, *, kind="evolution", active=True, role="tenant_admin"
+):
+    # The seeded user is a collaborator, who gets no report (#188): the creator
+    # of a schedule is an administrator unless a test says otherwise.
+    await db_session.execute(
+        update(Role).where(Role.id == db_seed["role_id"]).values(code=role)
+    )
     schedule = ReportSchedule(
         id=uuid.uuid4(),
         tenant_id=db_seed["tenant_id"],
@@ -137,6 +145,18 @@ async def test_a_refusal_is_recorded_and_notified_once(db_session, db_seed):
     second = await run_due_schedules(db_session, now=NOW)
     assert second.skipped == 1
     assert await _count(db_session, Notification) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_creator_who_lost_report_rights_gets_a_failed_run(db_session, db_seed):
+    await _schedule(db_session, db_seed, role="collaborator")
+
+    result = await run_due_schedules(db_session, now=NOW)
+
+    assert (len(result.issued), len(result.failed)) == (0, 1)
+    run = (await db_session.execute(select(ReportRun))).scalar_one()
+    assert run.status == "failed" and "profil" in run.error
+    assert await _count(db_session, ReportIssue) == 0
 
 
 @pytest.mark.asyncio
