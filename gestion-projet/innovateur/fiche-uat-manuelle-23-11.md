@@ -18,8 +18,8 @@
 | 1 | Connectez-vous avec un **mauvais** mot de passe | « Échec de connexion. Vérifiez vos identifiants. », sans dire ce qui est faux | ☐ | ☐ | SC-AUTH-01 |
 | 2 | Connectez-vous normalement | votre accueil en moins de 5 secondes, au nom du MINFI | ☐ | ☐ | SC-AUTH-01 |
 | 3 | « Mes Documents » → « Nouveau Document » : titre, catégorie, un PDF | le document apparaît en **Brouillon** | ☐ | ☐ | SC-RED-01 |
-| 4 | Recommencez avec un fichier de plus de 100 Mo | un message qui donne la limite ; rien n'est déposé | ☐ | ☐ | SC-RED-01 ⚠ |
-| 5 | Sur votre brouillon : « Soumettre » → « Soumettre au visa » vers `MGR001` | le statut change : le document part en validation | ☐ | ☐ | SC-VAL-01 ⚠ |
+| 4 | Recommencez avec un fichier de plus de 100 Mo | un message qui donne la limite ; rien n'est déposé | ☐ | ☐ | SC-RED-01 ⚠ (le refus est testé, pas le message) |
+| 5 | Sur votre brouillon : « Soumettre » → « Soumettre au visa » vers `MGR001` | le statut change : le document part en validation | ☐ | ☐ | SC-VAL-01 (test de nuit) |
 | 6 | Cherchez un mot présent dans vos documents | les documents attendus ; un clic ouvre la fiche | ☐ | ☐ | SC-LEC-01 |
 | 7 | Déconnectez-vous, puis bouton « Précédent » du navigateur | vous restez sur l'écran de connexion | ☐ | ☐ | SC-AUTH-03 |
 
@@ -30,7 +30,7 @@
 | 1 | Ouvrez « Tâches & Suivi » | le document soumis par l'agent ; aucun bouton pour changer son contenu | ☐ | ☐ | SC-VAL-01 |
 | 2 | « Valider » ce document | il passe à l'étape suivante, ou à « Validé » | ☐ | ☐ | SC-VAL-02 |
 | 3 | Sur un autre document : « Rejeter » sans motif, puis avec un motif | sans motif : impossible ; avec motif : **Rejeté** | ☐ | ☐ | SC-VAL-03 |
-| 4 | Cherchez le mot-clé du jeu de démo | 3 résultats en moins de 2 secondes | ☐ | ☐ | SC-LEC-01 (durée ⚠) |
+| 4 | Cherchez le mot-clé du jeu de démo | 3 résultats en moins de 2 secondes | ☐ | ☐ | SC-LEC-01 (durée ⚠, mesurée par Q avant le 23) |
 | 5 | Filtrez par domaine, puis activité, puis année ; puis « Réinitialiser » | la liste et le compteur suivent chaque choix ; tout revient à zéro | ☐ | ☐ | SC-ESP-01 |
 | 6 | Ouvrez une fiche → « Télécharger » | les informations du document ; le fichier reçu est l'original | ☐ | ☐ | SC-LEC-02 |
 | 7 | Ouvrez « Rapports » | les chiffres de votre direction seulement, pas ceux des autres | ☐ | ☐ | rapports |
@@ -41,11 +41,11 @@
 |---|---|---|---|---|---|
 | 1 | « Import en masse » → dossier `live` → « Vérifier le classement » → « Importer les documents » | un compte rendu : importés, doublons (2), à revoir (2), en moins d'une minute | ☐ | ☐ | SC-ADM-08 |
 | 2 | Refaites exactement le même import | rien de nouveau : tout est signalé en doublon | ☐ | ☐ | SC-ADM-08 ⚠ |
-| 3 | « Explorateur documentaire » : direction → domaine → activité → année | les documents importés sont rangés au bon endroit | ☐ | ☐ | SC-E2E-01 ⚠ (mesure) |
-| 4 | « Règles de classement » : créez une règle, puis lancez le « Simulateur » | la liste des documents et de leur nouvelle place ; **aucun document n'a bougé** | ☐ | ☐ | SC-ADM-05, 06 ⚠ |
+| 3 | « Explorateur documentaire » : direction → domaine → activité → année | les documents importés sont rangés au bon endroit | ☐ | ☐ | SC-E2E-01 (taux testé : 357/357) |
+| 4 | « Règles de classement » : créez une règle, puis lancez le « Simulateur » | la liste des documents et de leur nouvelle place ; **aucun document n'a bougé** | ☐ | ☐ | SC-ADM-05, 06 ⚠ (« rien ne bouge » non testé) |
 | 5 | « Ma bannette » : classez un document à revoir → « Classer et relancer » | il quitte la file et apparaît à sa place | ☐ | ☐ | SC-ADM-07 |
-| 6 | Cherchez un mot présent **seulement** dans les documents du MINESUP | aucun résultat, aucun titre du MINESUP | ☐ | ☐ | SC-SEC-02 ⚠ |
-| 7 | Rechargez la page (F5) | même page, toujours connecté | ☐ | ☐ | ⚠ |
+| 6 | Cherchez un mot présent **seulement** dans les documents du MINESUP | aucun résultat, aucun titre du MINESUP | ☐ | ☐ | SC-SEC-02 (testé côté serveur) |
+| 7 | Rechargez la page (F5) | même page, toujours connecté | ☐ | ☐ | GUARD-06 |
 
 ## 4. Auditeur — `AUDIT001`
 
