@@ -17,15 +17,20 @@ export type { ApiError };
  * global (sauf 401 déjà géré par le refresh interceptor), et la retourne pour
  * que le call site puisse aussi la gérer localement.
  */
-export const buildApiError = async (response: Response, fallback: string): Promise<ApiError> => {
+export const buildApiError = async (
+    response: Response,
+    fallback: string,
+    handledStatuses: readonly number[] = [],
+): Promise<ApiError> => {
     let apiErr = await apiErrorFromResponse(response);
     // Si le backend n'a pas renvoyé de detail lisible, utiliser le fallback métier.
     if (!apiErr.userMessage || apiErr.userMessage === 'Erreur.') {
         apiErr = new ApiError({ ...apiErr.raw, detail: fallback });
     }
     // Les 401 sont gérés par fetchWithRefresh (refresh ou logout) :
-    // pas de toast intermédiaire redondant.
-    if (apiErr.status !== 401) {
+    // pas de toast intermédiaire redondant. Les statuts « handled » sont
+    // affichés par l'appelant avec son propre message : pas de toast non plus.
+    if (apiErr.status !== 401 && !handledStatuses.includes(apiErr.status)) {
         pushApiError(apiErr);
     }
     return apiErr;

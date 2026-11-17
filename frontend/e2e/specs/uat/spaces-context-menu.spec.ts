@@ -9,7 +9,7 @@ test.describe('Explorateur — clic droit étendu', () => {
     await loginAs('tenant_admin');
     await page.goto('spaces');
 
-    const folder = page.getByRole('button', { name: /Direction des Affaires Financieres/ }).first();
+    const folder = page.getByRole('button', { name: /Direction des Affaires Financi[eè]res/ }).first();
     await folder.click({ button: 'right' });
     const menu = page.getByRole('menu');
     await expect(menu.getByRole('menuitem', { name: 'Copier le chemin' })).toBeVisible();

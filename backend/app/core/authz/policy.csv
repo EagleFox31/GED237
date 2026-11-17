@@ -55,6 +55,10 @@ p, tenant_admin, documents, create
 p, tenant_admin, documents, read
 p, tenant_admin, documents, update
 p, tenant_admin, documents, delete
+# Archiver un document validé ou signé, voir la file « à reclasser » (#228).
+# Pas manage : il permettrait aussi de passer outre les verrous.
+p, tenant_admin, documents, archive
+p, tenant_admin, documents, review
 p, tenant_admin, spaces, read
 p, tenant_admin, classification_rules, manage
 p, tenant_admin, classification_reviews, manage

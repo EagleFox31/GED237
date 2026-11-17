@@ -35,6 +35,8 @@ _ALLOWED_ACTIONS = frozenset(
         "assign",
         "resolve_review",
         "simulate",
+        "archive",
+        "review",
     }
 )
 
