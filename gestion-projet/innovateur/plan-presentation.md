@@ -63,6 +63,8 @@ Ordre de passage en séance (séquence « ce que la V1 ne fait pas encore », 1 
 
 ## 4. Questions probables du jury et réponses
 
+> **Remplacé le 17/11/2026 par [`questions-jury-30-11.md`](questions-jury-30-11.md)** (décision de O). Le tableau ci-dessous, du 9/11, est conservé pour mémoire : il annonce en V1.1 le verrou du compte et l'export du journal, qui sont dans la rc.1.
+
 | Question | Réponse | Appui |
 |---|---|---|
 | Êtes-vous conformes à ISO 15489 / MoReq ? | « Alignés sur les principes et le vocabulaire (capture, classement, accès, traçabilité) ; pas de certification, aucune administration camerounaise n'a formalisé l'adoption de ces normes à notre connaissance. » | `sources/ged-normes.md` |
