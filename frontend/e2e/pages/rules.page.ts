@@ -140,7 +140,8 @@ export class RulesPage {
 
   async toggleFirstRuleActive() {
     await this.openRulesTab();
-    const toggle = this.ruleCards.first().locator('.rounded-full.flex.items-center');
+    // `div` : l'interrupteur ; le bouton de suppression de la carte porte aussi ces classes.
+    const toggle = this.ruleCards.first().locator('div.rounded-full.flex.items-center');
     await toggle.click();
   }
 
