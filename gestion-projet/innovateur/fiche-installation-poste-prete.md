@@ -13,7 +13,7 @@ Une page, tirée de `DOCS/exploitation/installation.md` (§ 1 à 9), `sauvegarde
 | Réseau | Internet au premier `build` seulement ; **sans Internet**, apporter les images sur clé (§ 2 b) | — |
 | Port | `8080` libre (sinon `APP_PORT`) ; `8443` pour le HTTPS | — |
 
-Apporter sur clé : la sauvegarde de démo `ged237-<horodatage>/` (4 fichiers) et, si besoin, le dossier d'images (`images.tar.gz`, `IMAGES.txt`, `SHA256SUMS`).
+Apporter sur clé : la sauvegarde de démo, **celle de la restauration n° 2 du 21/11**, la seule dont la restauration est vérifiée (décision de O du 17/11). Dossier `ged237-<à compléter le 21>/` (4 fichiers) ; empreinte de `db.dump` (`SHA256SUMS`) : `<à compléter le 21>`. Apporter aussi, si besoin, le dossier d'images (`images.tar.gz`, `IMAGES.txt`, `SHA256SUMS`).
 
 ## 2. Installer depuis le tag
 
