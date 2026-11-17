@@ -67,25 +67,25 @@ git log --first-parent --format='%h %cI %s' "$REF..$CUT"
 gh pr list --state merged --base main --limit 100 --search "merged:2026-11-17T02:01:32Z..$CUT_Z" \
   --json number,mergedAt,mergeCommit,title --jq 'sort_by(.mergedAt)[] | "#\(.number) \(.mergedAt) \(.mergeCommit.oid[0:7]) \(.title)"'
 # État des PR rc.1 du § 4.2 (#188 = portée des rapports, B, issue #187)
-for n in 174 175 121 104 188; do gh pr view "$n" --json number,state,isDraft,mergeCommit \
+for n in 174 175 208 121 104 188; do gh pr view "$n" --json number,state,isDraft,mergeCommit \
   --jq '"#\(.number) \(.state) draft=\(.isDraft) \(.mergeCommit.oid // "-" | .[0:7])"'; done
 # Contrôle : aucune PR post-rc1 ni Dependabot fusionnée (sortie attendue : la phrase finale seule)
-for n in 147 152 153 154 155 159 161 162 165 166 168 169 170 171 172 179 180 181 182 183 29 30 110 111 112 113 141; do
+for n in 147 152 153 154 155 159 162 165 166 168 169 170 171 172 179 180 181 182 183 184 186 190 192 193 194 196 197 199 203 205 209 211 213 29 30 110 111 112 113 141; do
   gh pr view "$n" --json number,state --jq 'select(.state != "OPEN") | "#\(.number) \(.state)"'; done; echo "contrôle post-rc1 terminé"
 # Nouvelles PR ouvertes depuis le 17/11 à classer dans le § 4.2
 gh pr list --state open --limit 100 --search "created:>2026-11-17T08:50:00Z" --json number,isDraft,title --jq '.[] | "#\(.number) draft=\(.isDraft) \(.title)"'
 ```
 
-### 4.2 PR rc.1 et post-rc1 (relevé du 17/11, `main` 0503181)
+### 4.2 PR rc.1 et post-rc1 (relevé du 17/11, `main` 0503181, mis à jour le 17/11 à 12:49 sur `main` b701314)
 
 | Classe | PR | Attendu à 18:00 | État à 18:00 (MERGED SHA / OPEN) | Effet sur le taux CDC |
 |---|---|---|---|---|
-| rc.1, prêtes | #174 (recherche du bandeau, #163) ; #175 (menu Rapports du Manager, limité à son service) | MERGED, sinon V1.1 | `…` | 0 : aucun des 32 items (`Déduit`) |
+| rc.1, prêtes | #174 (recherche du bandeau, #163) ; #175 (menu Rapports du Manager, limité à son service) ; #208 (dernier `fixme` OTP) | MERGED, sinon V1.1 | `…` (déjà MERGED le 17 : #174 8e992c0, #175 74620fe, #188 c216141, #208 b701314) | 0 : aucun des 32 items (`Déduit`) |
 | rc.1, B (décision PO du 17/11) | **#188** (B, issue sécurité #187) : `unit_admin` limité à son périmètre et `collaborator` en 403 sur `/reports/*`, signaux `imports_needing_review` et `local_organize_*` limités au périmètre du Manager (spec L12 § 2, #166) | MERGED, sinon V1.1 | `…` | 0 : aucun des 32 items (`Déduit`) ; si V1.1, phrase « Limites connues » : « Dans les rapports, l'admin de service et le collaborateur voient les chiffres de tout l'établissement ; deux signaux du Manager comptent aussi les autres services. » |
 | rc.1, dernière fusion | #121 (version 1.0.0-rc.1 du frontend) | OPEN : elle fusionne juste avant le tag du 24 | `…` | 0 |
 | rc.1, docs | #104 (cette PR) | OPEN, brouillon ; passe en prêt **après** cette passe | `…` | 0 |
 | Déjà fusionnées depuis `b64144f` | #146, #128, #130, #131, #132, #142, #144, #143, #156, #158, #160, #164, #173, #178, #177 | MERGED | (sortie du delta § 4.1) | 0 : relevé préliminaire § 4 ; #177 (compteurs limités à ce que l'appelant peut lister) ne déplace aucun item (`Déduit`) |
-| Post-rc1, brouillons | lots L1 à L9 : #147, #152, #153, #154, #155, #159, #161, #162, #165, #180, #183 ; produit : #171 (vue doublons), #179, #181 ; e2e : #168, #169, #170, #172, #182 ; docs : #166 | OPEN | `…` | 0 pour rc.1. #171 fera passer l'item 19 de `partiel` à `fait` (+0,5) dans une version ultérieure, pas dans rc.1 |
+| Post-rc1, brouillons | lots : #147, #152, #153, #154, #155, #159, #162, #165, #180, #183, #186, #192, #193, #196, #197, #203, #213 ; écrans : #181, #184, #190, #194, #199, #205, #209, #211 ; produit : #171 (vue doublons), #179 ; e2e : #168, #169, #170, #172, #182 ; docs : #166. #161 est fermée, remplacée par #197 (ordre de fusion : `plan-fusion-post-rc1.md` § 8.6, commit 1152a1a de la branche `docs/scenario-demo-30-11`) | OPEN | `…` | 0 pour rc.1. #171 fera passer l'item 19 de `partiel` à `fait` (+0,5) dans une version ultérieure, pas dans rc.1 |
 | Gelées (dépendances, jusqu'au 30/11) | #29, #30, #110, #111, #112, #113, #141 | OPEN | `…` | 0 |
 
 Une PR post-rc1 ou gelée trouvée MERGED = anomalie à signaler à O le soir même, pas une entrée du taux.

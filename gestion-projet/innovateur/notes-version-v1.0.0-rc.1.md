@@ -1,10 +1,4 @@
-# Notes de version — v1.0.0-rc.1 (brouillon vivant, tag prévu le mar 24/11)
-
-- **Pour** : O (relit, publie avec le tag), le PO, les utilisateurs du ministère pilote. Brouillon de l'innovateur ouvert le 2026-11-10 sur `main` d34d51b ; **mis à jour à chaque fusion** jusqu'à la coupure du mer 19/11 18:00, puis figé au gel du 24. Mis à jour le 16/11 sur `main` ca9953b ; porté par la PR #104 (brouillon, prête le 19/11 18:00).
-- **Format** (reuse-first, `Vérifié` 10/11) : le dépôt n'a ni `CHANGELOG.md`, ni tag, ni Release Please ; `release-integrity.yml` se déclenche à la publication d'une release GitHub (SBOM, manifeste, signature). Choix : **Keep a Changelog 1.1.0** (`## [1.0.0-rc.1] - 2026-11-24`, sections par type), compatible avec une adoption ultérieure de `reusable-release.yml` (appfactory) ; sections en français pour l'utilisateur final. Le texte ci-dessous est le corps de la release GitHub ; décision O du 10/11 : il **devient aussi `CHANGELOG.md` à la racine** (même contenu, tenu en miroir ici jusqu'au commit du 19 au soir).
-- **Périmètre** : aucun tag antérieur, donc toutes les PR fusionnées depuis le 28/10 (#1 à #75, `gh pr list --state merged`). Une ligne par élément, formulée pour l'utilisateur ; les PR de dépendances et d'outillage sont regroupées.
-
----
+# Notes de version — v1.0.0-rc.1
 
 ## [1.0.0-rc.1] - 2026-11-24
 
@@ -14,8 +8,8 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 
 - Connexion en deux temps (mot de passe puis code à usage unique) avec limitation des tentatives par compte et par adresse (#44, #73).
 - Import d'un répertoire entier avec détection des doublons et classement automatique par règles (type, origine, nom de fichier, format) ; chemins d'import limités aux racines autorisées par l'administrateur (#2, #53).
-- Règles de classement : création, simulation avant activation, lecture de l'année dans les noms de fichiers (#2, #76 — *en attente de fusion*).
-- Espaces par service : arborescence service → domaine → activité → année, filtres et pagination côté serveur (#38 ; écran #78 — *en attente de fusion*).
+- Règles de classement : création, simulation avant activation, lecture de l'année dans les noms de fichiers (#2, #76 30e63ec).
+- Espaces par service : arborescence service → domaine → activité → année, filtres et pagination côté serveur (#38 ; écran #78 75f3fb6).
 - Recherche plein texte limitée au périmètre de lecture de l'utilisateur ; la corbeille est exclue des résultats (#42).
 - Revue manuelle des documents que les règles ne savent pas classer (#2).
 - Cycle de validation : soumission à un valideur, visa ou rejet motivé, suivi des tâches en attente (#51, #66).
@@ -30,8 +24,8 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Journal d'audit : export CSV plafonné à 50 000 lignes (#80 dc4daae, #87 c6724ea) ; traçage des connexions, dépôts et imports (#98 351c82c).
 - Verrou du compte pendant 15 minutes après trois codes OTP erronés, avec compte à rebours à l'écran (#83 64ade05, #88 6669f2c).
 - Retour à la page quittée après une reconnexion (#97 42397a3) ; version de l'application dans la barre latérale (#94 7bea1c0) ; barre latérale repliée sous 768 px (#93 6516d29).
-- Dossiers surveillés importés automatiquement par le worker (#101 3cc6e15) ; écran d'état de la surveillance : **en attente de fusion** (#100).
-- Manuel d'installation (#105 b6e0004, corrigé par #107 7fa1ab8) ; sonde de disponibilité `scripts/probe_c6.sh` (#106 ca9953b) ; accès HTTPS local : **en attente de fusion** (#109).
+- Dossiers surveillés importés automatiquement par le worker (#101 3cc6e15) ; écran d'état de la surveillance (#100 187b7f7).
+- Manuel d'installation (#105 b6e0004, corrigé par #107 7fa1ab8) ; sonde de disponibilité `scripts/probe_c6.sh` (#106 ca9953b) ; accès HTTPS local (#109 e1480c8).
 
 ### Corrections
 
