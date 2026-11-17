@@ -1,8 +1,9 @@
 # backend/app/api/v1/endpoints/analytics.py
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 
+from app.api.v1.endpoints.documents import TENANT_WIDE_READ_ROLES, _role_code
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
@@ -17,8 +18,11 @@ async def get_tenant_analytics(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Métriques agrégées du tenant courant. Accessible aux managers et admins."""
+    """Métriques agrégées de toute l'institution : rôles d'administration et
+    auditeur. Le manager a /analytics/manager, limité à son unité."""
     await authorize_or_403(current_user, "analytics.tenant", "read")
+    if _role_code(current_user) not in TENANT_WIDE_READ_ROLES:
+        raise HTTPException(status_code=403, detail="Privileges insuffisants")
     facade = DashboardFacade(db)
     return await facade.get_tenant_metrics(str(current_user.tenant_id))
 
