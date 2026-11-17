@@ -1,4 +1,4 @@
-# Ticket à créer : réglages à l'écran et écran des droits (V1.1)
+# Ticket #280 : réglages à l'écran et écran des droits (V1.1)
 
 Texte prêt à copier dans un ticket GitHub. Décision du PO du 17/11, question 12 de `fiche-decisions-po-19-11.md`, option C. Lot 8 de `plan-v1.1.md`.
 
