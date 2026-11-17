@@ -3,14 +3,18 @@
 - **Pour** B (API), F (écrans) et Q (recette). Innovateur, 17/11/2026. Lot 8 de `plan-v1.1.md`, décision du PO du 17/11 (question 12, choix C).
 - **Base** : `main` f8f1d75, vérifiée le 17/11. Le ticket est `ticket-v1.1-reglages-ecran.md` ; cette spec fixe les écrans, les messages et la recette.
 - **Règles communes** : celles de `specs-fiche-document-274-276.md`. Jamais le texte brut du serveur, un message par code HTTP, textes courts avec accents.
-- **Qui** : l'administrateur de la plateforme (super admin) seul, pour 8a comme pour 8b. Aucun nouveau droit pour un autre rôle.
+- **Qui** (décision de O, 17/11) :
+  - 8a : l'administrateur de la plateforme (super admin) seul ;
+  - 8b : le super admin seul modifie la grille. L'administrateur d'institution la voit **en lecture seule**, car les droits sont communs à toutes les institutions.
+  - Aucun droit d'écriture nouveau pour un autre rôle.
+- **Confirmé par B (17/11)** : bornes de 8a, audit des changements de droits, lot 13 et passage en `sql` en V1.1.
 - **Ordre** : 8a attend #230 (fonctions) et #154 (serveur e-mail) pour ces deux réglages seulement ; le reste de 8a peut partir avant. 8b attend #228 (lot 3) et #235 → #238 (lot 13).
 
 ## Lot 8a — Réglages à l'écran
 
 ### Réglages visés (relevés sur `main`, `backend/app/core/config.py`)
 
-| Réglage à l'écran | Variable du serveur (défaut) | Bornes proposées (`Déduit`, B confirme) | Prise d'effet |
+| Réglage à l'écran | Variable du serveur (défaut) | Bornes (confirmées par B) | Prise d'effet |
 |---|---|---|---|
 | **Durée d'une session sans activité** | `ACCESS_TOKEN_EXPIRE_MINUTES` (30 min) | 5 à 240 min | connexions suivantes |
 | **Rester connecté au plus** | `REFRESH_TOKEN_EXPIRE_DAYS` (7 jours) | 1 à 30 jours | connexions suivantes |
@@ -79,15 +83,18 @@ Ligne d'aide en tête de page, derrière l'icône « ? » : « Les mots de passe
 
 - Routes `GET`, `POST` et `DELETE /authz/policies`, et `GET /authz/roles` (`backend/app/api/v1/endpoints/authz.py`) : **super admin seul** (403 sinon).
 - **Elles répondent 409 tant que `AUTHZ_BACKEND` vaut `csv`**, ce qui est le défaut (`config.py`, l. 108). Il faut `sql` (ou `shadow`) pour que la grille écrive.
-  - **Décision à prendre par O avec B** : passer la pile de démo et la prod en `sql`, ce que #235 → #238 (lot 13) prépare en synchronisant `policy.csv` et la table `casbin_rule`. Sans cela, la grille reste en lecture seule.
+  - **Décidé (O et B, 17/11)** : la pile de démo et la prod passent en `sql` en V1.1, après #235 → #238 (lot 13), qui synchronise `policy.csv` et la table `casbin_rule`. Tant que le serveur reste en `csv`, la grille est en lecture seule (repli validé par O).
+- **Lecture par l'administrateur d'institution** : sur `main`, `GET /authz/policies` est réservé au super admin. B l'ouvre en lecture à l'administrateur d'institution ; `POST` et `DELETE` restent au super admin seul.
 - Le vocabulaire est figé (`policy.csv`) : une ressource ou une action inconnue renvoie 422.
 - Une règle `manage` vaut toutes les actions sur la ressource (matcher de `model.conf`). Sur `main`, 21 règles sur 80 sont des `manage`.
 - **Les droits sont les mêmes pour toutes les institutions** : il n'y a pas de domaine par institution dans les règles. Cocher une case change le droit de ce rôle partout.
-- Les changements sont écrits dans les journaux techniques (`[AUTHZ_POLICY_MUTATION]`), **pas au journal d'audit** : B l'ajoute.
+- Les changements sont écrits dans les journaux techniques (`[AUTHZ_POLICY_MUTATION]`), **pas au journal d'audit** : B l'ajoute (confirmé).
 
 ### Ce que voit le super admin
 
 **Où** : l'onglet « Gestion AuthZ » est renommé **Droits des rôles**. La liste brute des règles passe sous un lien **Vue technique**, replié.
+
+**Administrateur d'institution** : il a l'onglet **Droits des rôles** dans son espace, en lecture seule : cases grisées, sans **Vue technique**. Ligne de tête : « Ces droits s'appliquent à toutes les institutions. Seul l'administrateur de la plateforme peut les modifier. »
 
 - **Choix du rôle** en haut, avec le nom en clair (`ROLE_HUMAN_LABEL`) : Administrateur d'institution, Administrateur d'unité, Manager, Collaborateur, Lecteur, Auditeur.
 - **Une ligne par ressource**, avec un libellé en français ; **une colonne par action**. Seules les cases qui ont un sens pour la ressource sont proposées : les autres sont vides, sans case.
@@ -158,7 +165,7 @@ Ligne d'aide en tête de page, derrière l'icône « ? » : « Les mots de passe
 5. Le rôle Administrateur de la plateforme est en lecture seule à l'écran.
 6. Avec `AUTHZ_BACKEND=csv`, la grille s'affiche en lecture seule, sans erreur technique.
 7. Aucun code brut (`read_own`, `gedrules.rules`) n'est visible hors de la **Vue technique**.
-8. Un administrateur d'institution n'a ni l'onglet ni l'accès par l'API (403).
+8. Un administrateur d'institution voit la grille en lecture seule, avec la ligne de tête. Un `POST` ou `DELETE /authz/policies` de sa part, par appel direct, renvoie 403.
 
 ## Guide et notes de version
 
