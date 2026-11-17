@@ -571,7 +571,7 @@ première requête utilisateur.
 **Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
 **Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
 
-### LESSON-2026-038 — Client pg_dump plus récent que le serveur : sauvegarde planifiée non restaurable
+### LESSON-2026-039 — Client pg_dump plus récent que le serveur : sauvegarde planifiée non restaurable
 
 - **Date :** 2026-11-17
 - **Catégorie :** exploitation / sauvegarde
