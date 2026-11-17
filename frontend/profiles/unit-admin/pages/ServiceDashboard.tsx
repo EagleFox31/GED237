@@ -1,25 +1,33 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../../../services/api';
 import { TenantMetrics } from '../../../types';
+import { serviceIndicators } from './serviceIndicators';
 
 const ServiceDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
+    try {
+      const data: TenantMetrics = await api.getTenantAnalytics();
+      setMetrics(data);
+    } catch (err) {
+      console.error('Failed to fetch service dashboard:', err);
+      setLoadError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await api.getTenantAnalytics();
-        setMetrics(data);
-      } catch (err) {
-        console.error('Failed to fetch service dashboard:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  const rows = metrics ? serviceIndicators(metrics) : [];
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700">
@@ -33,22 +41,32 @@ const ServiceDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="glass p-8 rounded-[2.5rem] bg-white border-white">
-          <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 italic">Indicateurs du Service</h3>
-          <div className="space-y-4">
-            {[
-              { label: "Documents", count: isLoading ? '...' : metrics?.documents?.total ?? 0, icon: "description" },
-              { label: "Workflows en attente", count: isLoading ? '...' : metrics?.workflows?.pending ?? 0, icon: "pending_actions" },
-              { label: "Workflows complétés", count: isLoading ? '...' : metrics?.workflows?.completed ?? 0, icon: "task_alt" },
-            ].map((stat, i) => (
-              <div key={i} className="flex justify-between items-center p-4 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer group border border-transparent hover:border-slate-100">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-slate-400">{stat.icon}</span>
-                  <span className="text-sm font-black text-slate-700 group-hover:text-blue-600">{stat.label}</span>
-                </div>
-                <span className="text-lg font-black text-slate-800">{stat.count}</span>
-              </div>
-            ))}
-          </div>
+          <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-1 italic">Indicateurs du Service</h3>
+          <p className="text-xs text-slate-500 mb-6">Votre service et ses sous-services.</p>
+          {loadError ? (
+            <div role="alert" className="p-4 rounded-2xl bg-red-50 text-red-700 text-sm font-medium flex items-center justify-between gap-3">
+              <span>Chiffres indisponibles pour le moment.</span>
+              <button
+                type="button"
+                onClick={() => { fetchData(); }}
+                className="px-3 py-1.5 rounded-xl bg-white border border-red-200 text-xs font-black"
+              >
+                Réessayer
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-4" aria-label="Indicateurs du service" aria-busy={isLoading}>
+              {(isLoading && !metrics ? serviceIndicators({} as TenantMetrics) : rows).map((stat) => (
+                <li key={stat.label} className="flex justify-between items-center p-4 rounded-2xl border border-transparent">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-slate-400">{stat.icon}</span>
+                    <span className="text-sm font-black text-slate-700">{stat.label}</span>
+                  </div>
+                  <span className="text-lg font-black text-slate-800">{isLoading ? '...' : stat.value}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="glass p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-600 to-blue-800 text-white relative overflow-hidden">
