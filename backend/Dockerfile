@@ -20,9 +20,18 @@ COPY requirements.txt .
 # the default Linux wheels pull large CUDA libraries that are unused in this
 # CPU container and can exhaust GitHub-hosted runner disk space during Trivy
 # image export/scanning. Keep the versions aligned with requirements.txt.
-RUN pip install --no-cache-dir \
-      --index-url https://download.pytorch.org/whl/cpu \
-      torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
+# Up to 3 attempts: a wheel truncated in transit (torch is ~180 MB) fails pip's
+# sha256 check against the index ("THESE PACKAGES DO NOT MATCH THE HASHES"), and
+# a new download is safe because pip installs nothing from a rejected file.
+# TORCH_INDEX_URL can point to a mirror (docker build --build-arg).
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+RUN for attempt in 1 2 3; do \
+      pip install --no-cache-dir --timeout 60 \
+        --index-url "$TORCH_INDEX_URL" \
+        torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 && break; \
+      if [ "$attempt" = 3 ]; then exit 1; fi; \
+      echo "torch install failed (attempt $attempt/3), retrying" >&2; sleep 10; \
+    done \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
