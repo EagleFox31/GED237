@@ -31,6 +31,12 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Codes de rôle en minuscules, jeu de référence convergent entre le seed et le service de démonstration (#50).
 - Validation d'import : la file de traitement ne bloque plus la réponse quand le stockage des résultats est injoignable (#75).
 - Interface : contraste, libellés de l'Atelier, message clair en cas de trop nombreuses tentatives de connexion, accessibilité des modales et du lecteur (#45, #73).
+- Rapports : les signaux `imports_needing_review` et `local_organize_*` sont limités au périmètre de l'appelant (#188).
+- Compteurs `/documents/stats` et `/workflows/stats` limités aux documents que l'appelant peut lister (#177, #176).
+
+### Droits retirés
+
+- Rapports : `unit_admin` limité à son périmètre ; `collaborator` reçoit un refus (403) sur `/reports/*` (#188, #187).
 
 ### Recette et CI
 
