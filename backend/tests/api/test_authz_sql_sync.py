@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, text
 
 from app.core.authz.casbin_enforcer import (
     add_sql_policy,
+    remove_sql_policy,
     bootstrap_sql_policies_from_csv,
     csv_sql_policy_drift,
     enforce_permission,
@@ -176,3 +177,70 @@ async def test_a_first_sync_only_appends_rows_and_never_rewrites_the_table(sql_s
     assert {i: after[i] for i in before} == before
     added = sorted(set(after) - set(before))
     assert len(added) == 2 and added[0] > max(before)
+
+
+# --- #236: bootstrap and admin API write row by row --------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_second_forced_bootstrap_writes_nothing(sql_store):
+    assert await bootstrap_sql_policies_from_csv(force=True) > 0
+    rows, version = _rows(sql_store), _state(sql_store)
+
+    assert await bootstrap_sql_policies_from_csv(force=True) == 0
+
+    assert _rows(sql_store) == rows and _state(sql_store) == version
+
+
+@pytest.mark.asyncio
+async def test_a_forced_bootstrap_only_touches_the_rows_that_differ(sql_store):
+    await bootstrap_sql_policies_from_csv(force=True)
+    with sql_store.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO casbin_rule (ptype, v0, v1, v2) "
+                "VALUES ('p', 'collaborator', '__old_resource__', 'legacy')"
+            )
+        )
+        stale_id = conn.execute(text("SELECT MAX(id) FROM casbin_rule")).scalar_one()
+    before = _rows(sql_store)
+
+    assert await bootstrap_sql_policies_from_csv(force=True) == 0
+
+    after = _rows(sql_store)
+    # force still aligns SQL on the CSV, by deleting the one stale row only.
+    assert after == {i: v for i, v in before.items() if i != stale_id}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("api_write", ["add", "remove"])
+async def test_an_api_write_keeps_a_rule_written_meanwhile_by_another_worker(
+    sql_store, api_write
+):
+    await bootstrap_sql_policies_from_csv(force=True)
+    assert await add_sql_policy(["auditor", "__to_remove__", "read"])
+    # Another API worker adds a rule: this process's policy is now stale.
+    with sql_store.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO casbin_rule (ptype, v0, v1, v2) "
+                "VALUES ('p', 'auditor', '__other_worker__', 'read')"
+            )
+        )
+    before = _rows(sql_store)
+
+    if api_write == "add":
+        assert await add_sql_policy(API_RULE)
+    else:
+        assert await remove_sql_policy(["auditor", "__to_remove__", "read"])
+
+    after = _rows(sql_store)
+    gone = (
+        {i for i, v in before.items() if v[2] == "__to_remove__"}
+        if api_write == "remove"
+        else set()
+    )
+    kept = {i: v for i, v in before.items() if i not in gone}
+    # Every other row, the other worker's included, keeps its id and values.
+    assert {i: after[i] for i in kept} == kept
+    assert len(after) == len(before) + (1 if api_write == "add" else -1)
