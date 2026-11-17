@@ -67,7 +67,7 @@ Vous ouvrez les institutions sur la plateforme. Vous ne gérez pas leur travail 
 
 ### Votre menu
 
-« Dashboard Global », « Institutions », « Utilisateurs », « Gestion AuthZ », « Documents », « Workflows », « Import en masse », « Bibliothèque locale », « Audit », « Parametres ».
+« Dashboard Global », « Institutions », « Utilisateurs », « Gestion AuthZ », « Documents », « Workflows », « Import en masse », « Bibliothèque locale », « Audit », « Paramètres ».
 
 - « Gestion AuthZ » : les règles d'accès communes à toutes les institutions. Ce ne sont pas les circuits de validation.
 - « Workflows » : les circuits de validation.
@@ -106,7 +106,7 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
 
 ### Les autres pages
 
-- **« Explorateur documentaire »** : les documents rangés, par service. Un document marqué « A verifier » se corrige dans « Ma bannette ».
+- **« Explorateur documentaire »** : les documents rangés, par service. Un document marqué « À vérifier » se corrige dans « Ma bannette ».
 - **« Audit & Traçabilité »** : le journal des actions. Voir [7. Auditeur](#7-auditeur).
 - **« Rapports & Statistiques »** : les chiffres de toute l'institution.
   - Onglets « Synthèse », « Activité documentaire », « Traitement & délais », « Services ».
@@ -123,7 +123,7 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
   - « À distribuer » : elle ne sait pas **à qui le confier**.
 - Un document peut être bien rangé mais sans destinataire, ou l'inverse. Vérifiez les deux.
 - Traitez « Ma bannette » vite : un document mal rangé est difficile à retrouver.
-- **Archiver un document** : réservé à l'administrateur de la plateforme dans cette version, comme la liste générale des documents à revoir. L'Admin Institution les aura dans la version suivante. Dans « Mes Documents », le filtre « Archivé » montre les documents déjà archivés.
+- **Archiver un document** : ouvrez le document, cliquez sur « Archiver », puis sur « Oui, archiver ». Seul un document validé ou signé peut être archivé ; son badge passe à « Archivé ». Dans « Mes Documents », le filtre « Archivé » retrouve les documents archivés.
 
 ---
 
@@ -145,7 +145,6 @@ Vous suivez l'activité de votre service.
 
 ### Bon à savoir
 
-- Le bouton « Gérer les Permissions » ne fait rien dans cette version. Pour un droit d'accès, demandez à l'Admin Institution.
 - Vous ne créez pas de document. Dans « Ranger / Importer », seul « Ranger sur mon poste » vous concerne.
 - Un problème de rangement, de circuit ou d'import concerne toute l'institution : signalez-le à l'Admin Institution.
 
@@ -231,7 +230,7 @@ Vous consultez les documents. Vous ne les modifiez pas.
 
 Vous vérifiez qui a fait quoi, et quand.
 
-**À la connexion, vous arrivez sur la page « Registre Des Actions ». Pour y revenir, cliquez sur « Tableau de Bord ».**
+**À la connexion, vous arrivez sur la page « Registre Des Actions ». Pour y revenir, cliquez sur « Tableau de Bord » ou sur « Audit ».**
 
 ### Vos 3 gestes
 
@@ -241,7 +240,7 @@ Vous vérifiez qui a fait quoi, et quand.
 
 ### Votre menu
 
-« Tableau de Bord », « Mes Documents », « Tâches & Suivi », « Ranger / Importer », « Bibliothèque locale ».
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi », « Ranger / Importer », « Bibliothèque locale », « Audit ».
 
 ### Bon à savoir
 
