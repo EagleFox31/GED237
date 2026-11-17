@@ -142,3 +142,27 @@ Avec 1 et 2, Q tombe à ≈ 21,25 h-s, et le 04/12 retrouve une marge d'environ 
 **« Mon équipe » (#277, décision de O du 17/11)** : le manager voit sa chaîne et ses N-1, comme le PO l'attend. Coût : 1,0 h-s, soit B 0,5, F 0,25 et Q 0,25, pile au seuil de O. **Pris en V1.1.** Nouveaux totaux : B ≈ 23,4, F ≈ 16,5, Q ≈ 24,5.
 
 Si le PO reporte 13 a), le gain de ≈ 3 h-s (dont Q 0,5) couvre largement ce coût. Si le PO garde 13 a), Q passe de 24,25 à 24,5. Le verdict ne change pas : avec la sortie 3, le 04/12 tient de justesse (marge de Q nulle) ; sans elle, on entame ≈ 2,5 h-s de marge.
+
+### Réponse du PO et charge finale (17/11, tard)
+
+Le PO a répondu « 1 V1.2, 2 V1.2, 15 oui » (transmis par O) :
+- **Sortie 3 en V1.2** : les alertes de qualité #183 et #194. Gain ≈ 3,5 h-s, soit Q 2,5 et B 1 (rebasages, `Déduit`).
+- **13 a) en V1.2** : le lecteur désigné hors circuit (#254, nouvelle table et sa migration). Gain ≈ 3 h-s : B 1,5, F 1 (écran de désignation), Q 0,5. **Reste en V1.1** : l'accès par l'étape de circuit (#254, B 1,5), qui règle le cas « accès refusé » de la question 6.
+- **15** : l'essai d'installation sans Internet du 25/11 vaut preuve pour l'item 28.
+- Étiquette `v1.2` posée par O sur #183, #194, #254 (partie 13 a), #265, #279, #281 et les versions majeures de Dependabot.
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Avant la réponse (avec « Mon équipe ») | 23,4 | 16,5 | 24,5 | 0,5 | ≈ 64,9 |
+| Sortie 3 (#183, #194) | − 1 | — | − 2,5 | — | − 3,5 |
+| 13 a) (lecteur hors circuit) | − 1,5 | − 1 | − 0,5 | — | − 3 |
+| **Total V1.1** | **≈ 20,9** | **≈ 15,5** | **≈ 21,5** | **0,5** | **≈ 58,4** |
+
+**Verdict** :
+- Q : 21,5 h-s pour ≈ 22 h-s disponibles hors marge. Il reste ≈ 0,5 h-s avant d'entamer la marge de 6,8 h-s, qui reste entière. **Le 04/12 tient.**
+- B et F gardent une marge large, de ≈ 4 à 5 h-s chacun sur la période.
+- **Ce qui reste fragile** :
+  - le chemin critique (8a attend #154 et #230 ; 8b attend #228 et le lot 13, puis le passage en `sql`) ;
+  - la relecture par Q des grosses PR de la chaîne.
+  Un dépassement de plus de 0,5 h-s chez Q entame la marge. On n'ajoute plus rien en V1.1 sans en sortir autant.
+- **Prochaine sortie si besoin** : #278 (sortie 4, Q 0,5). Le lot 8b ne sort qu'avec l'accord du PO.
