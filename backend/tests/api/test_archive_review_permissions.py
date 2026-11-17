@@ -145,3 +145,14 @@ async def test_lower_roles_cannot_read_the_needs_review_queue(client_as, db_seed
         response = await client.get(f"{DOCUMENTS}/needs-review")
     assert response.status_code == 403
     assert "'review'" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_the_tenant_admin_is_not_given_manage_on_documents():
+    # manage would also bypass document locks: archive and review are granted
+    # one by one. Guards against a later "simplification" of the policy.
+    from app.core.authz.casbin_enforcer import enforce_permission
+
+    assert not await enforce_permission("tenant_admin", "documents", "manage")
+    assert await enforce_permission("tenant_admin", "documents", "archive")
+    assert await enforce_permission("tenant_admin", "documents", "review")
