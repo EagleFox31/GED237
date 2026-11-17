@@ -187,3 +187,5 @@ Chemin : `/imports`, « Juste les ranger », service MINFI-DAF, dossier `live` d
 | Recherche (fiche UAT, geste 7) | 45 requêtes (3 termes, pour `MINFI001`, `MGR001` et `READ001`, 5 fois chacune). p95 de 20 ms, maximum de 24 ms. | Très en dessous des 2 s exigées. Couvert. |
 
 **Bordereaux P8 dans la bannette (recommandation à O)** : on ne change pas le jeu P8 avant le tag. Les bordereaux arrivent par le circuit de validation, pas par une règle de classement ; leur présence parmi les « à revoir » est donc cohérente. Le présentateur les évite à l'étape 4. Si le PO veut une bannette sans eux, la surcouche P8 peut les classer directement, en V1.1 (≈ 0,25 h-s pour B, `Déduit`).
+
+**Durées (Q, 17/11, sur la pile de test)** : l'analyse des 30 fichiers par l'API (`/imports/analyze`) prend 0,3 s, et l'import répond sans délai perceptible. Ces temps ne comptent ni l'envoi des fichiers depuis le navigateur ni les clics : les 3:00 de l'étape 1 dépendent surtout des gestes à l'écran. Q mesurera l'analyse et l'import de bout en bout, dans l'écran, sur sa prochaine pile de démo (après l'OCR de B).
