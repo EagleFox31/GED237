@@ -24,6 +24,8 @@ FPR=7776361468B5DF0CFF903723A00188980F856DF1
   Attendu : toutes les lignes en `completed success` (ou `skipped`), au minimum CI et Security.
 - [ ] Le dernier run `E2E UAT nightly` sur main est vert (`gh run list -w e2e-uat-nightly.yml -b main -L 1`). Sinon, le lancer : `gh workflow run e2e-uat-nightly.yml --ref main`.
 - [ ] Le tag n'existe pas encore : `git ls-remote --tags origin $TAG` ne renvoie rien.
+- [ ] Le garde-fou « interface sans Internet » (#146) est passé sur ce SHA : le job `Frontend CI / Build` est vert. Contrôle direct, sans Docker, sur le dist de ce SHA :
+  `gh run download $(gh run list -c $SHA -w ci.yml --json databaseId -q '.[0].databaseId') -n frontend-build -D /tmp/fb/dist && bash scripts/check_offline_frontend.sh /tmp/fb` (à lancer depuis un clone au SHA) affiche `OK : aucune URL externe`. Sinon : **Stop**, l'interface dépend d'Internet (salle de démonstration sans réseau).
 
 **Stop** si une case est rouge : pas de tag sur un SHA non vert.
 
