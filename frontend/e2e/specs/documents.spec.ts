@@ -599,3 +599,94 @@ test.describe('header search → document → archive (#256)', () => {
     await expect(docsPage.documentHeading(title)).toBeVisible({ timeout: 10_000 });
   });
 });
+
+test.describe('fiche → texte reconnu (#276)', () => {
+  /**
+   * SCENARIO 19: le bloc « Texte reconnu » est replié et ne charge le texte qu'au dépliage
+   *
+   *   GIVEN  un document texte déposé (pas de lecture de texte pour ce type)
+   *   WHEN   l'admin ouvre sa fiche
+   *   THEN   le bloc « Texte reconnu » est replié et GET /ocr n'est pas appelé
+   *   WHEN   il le déplie
+   *   THEN   l'écran suit l'état renvoyé par GET /documents/{id}/ocr
+   */
+  test('Given doc, When fiche puis dépliage Texte reconnu, Then chargé au dépliage et conforme à l\'état', async ({ page, request, loginAs }) => {
+    const runId = runIdOf(test.info());
+    const title = `Texte reconnu 276 ${runId}`;
+    const detail = new DocumentDetailModal(page);
+    const ocrCalls: string[] = [];
+    page.on('request', (r) => {
+      if (r.url().includes('/ocr')) ocrCalls.push(r.url());
+    });
+
+    // GIVEN
+    await loginAs('tenant_admin');
+    const admin = await sessionApi(page, request);
+    const doc = await admin.uploadDocument(`ocr-text-${runId}.txt`, title, `Texte reconnu ${runId}`);
+
+    // WHEN
+    await page.goto(`documents?open=${doc.id}`);
+    await detail.expectOpenOn(title);
+
+    // THEN — folded, nothing fetched
+    await expect(detail.recognizedTextToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(ocrCalls).toEqual([]);
+
+    // WHEN
+    const ocr = await detail.expandRecognizedText(doc.id);
+
+    // THEN
+    const firstLine = ocr.ocr_content?.trim().split('\n')[0] ?? '';
+    if (ocr.ocr_status === 'completed' && firstLine) {
+      await expect(detail.recognizedText).toContainText(firstLine);
+    } else if (ocr.ocr_status === 'processing') {
+      await expect(page.getByText('Lecture du texte en cours. Revenez dans quelques minutes.')).toBeVisible();
+    } else {
+      await expect(page.getByText('Pas de texte reconnu pour ce type de fichier.')).toBeVisible();
+    }
+    await expect(page.getByRole('heading', { name: 'Une erreur est survenue' })).toHaveCount(0);
+  });
+
+  /**
+   * SCENARIO 20: texte lu → affiché tel quel, copiable, lecture incertaine signalée
+   *
+   *   GIVEN  un document dont l'API renvoie un texte lu jugé incertain par le serveur (low_confidence)
+   *          (réponse /ocr remplacée : la pile e2e ne garantit pas la lecture d'un scan)
+   *   WHEN   l'admin déplie « Texte reconnu » puis clique « Copier »
+   *   THEN   le texte est affiché avec ses retours à la ligne, l'aide « Lecture incertaine » est visible,
+   *          « Texte copié. » s'affiche et le presse-papiers contient le texte
+   */
+  test('Given texte lu incertain, When dépliage puis Copier, Then texte affiché, signalé et copié', async ({ page, request, loginAs, context }) => {
+    const runId = runIdOf(test.info());
+    const title = `Texte lu 276 ${runId}`;
+    const recognized = `République du Cameroun\nArrêté n° ${runId}`;
+    const detail = new DocumentDetailModal(page);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    // GIVEN
+    await loginAs('tenant_admin');
+    const admin = await sessionApi(page, request);
+    const doc = await admin.uploadDocument(`ocr-read-${runId}.txt`, title, `Texte lu ${runId}`);
+    await page.route(`**/documents/${doc.id}/ocr`, (route) =>
+      route.fulfill({
+        json: { document_id: doc.id, ocr_content: recognized, ocr_confidence: 0.45, low_confidence: true, ocr_status: 'completed' },
+      }),
+    );
+
+    // WHEN
+    await page.goto(`documents?open=${doc.id}`);
+    await detail.expectOpenOn(title);
+    await detail.expandRecognizedText(doc.id);
+
+    // THEN
+    await expect(detail.recognizedText).toHaveText(recognized);
+    await expect(page.getByText("Lecture incertaine : vérifiez sur l'original.")).toBeVisible();
+
+    // WHEN
+    await detail.copyTextButton.click();
+
+    // THEN
+    await expect(page.getByText('Texte copié.')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(recognized);
+  });
+});

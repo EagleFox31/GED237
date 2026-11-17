@@ -5,6 +5,14 @@ import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, f
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
+import RecognizedText from './RecognizedText';
+
+const DETAIL_TABS = [
+  { id: 'info', label: 'Détails & Aperçu', icon: Icons.Dashboard },
+  { id: 'workflow', label: 'Circuit de Validation', icon: Icons.CheckCircle },
+  { id: 'history', label: 'Historique des Versions', icon: Icons.History },
+] as const;
+type DetailTab = (typeof DETAIL_TABS)[number]['id'];
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -25,7 +33,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'workflow' | 'history'>('info');
+  const [activeTab, setActiveTab] = useState<DetailTab>('info');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [stepsLoading, setStepsLoading] = useState(false);
   const [workflowActions, setWorkflowActions] = useState<any[]>([]);
@@ -190,14 +198,11 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
 
         {/* Tabs */}
         <div className="px-8 pt-4 flex gap-8 border-b border-slate-200/50 bg-white/30">
-          {[
-            { id: 'info', label: 'Détails & Aperçu', icon: Icons.Dashboard },
-            { id: 'workflow', label: 'Circuit de Validation', icon: Icons.CheckCircle },
-            { id: 'history', label: 'Historique des Versions', icon: Icons.History },
-          ].map(tab => (
+          {DETAIL_TABS.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
               className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${
                 activeTab === tab.id ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
               }`}
@@ -263,10 +268,13 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <Icons.Flame className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 rotate-12" />
                 </div>
               </div>
-              <div className="glass rounded-3xl border-white bg-slate-200/50 flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
-                <Icons.Documents className="w-16 h-16 opacity-20 mb-4" />
-                <p className="text-sm font-bold">Aperçu non disponible en mode sécurisé</p>
-                <button className="mt-4 px-6 py-3 bg-white text-slate-600 rounded-2xl text-xs font-bold shadow-sm hover:shadow-md transition-all">Générer un aperçu temporaire</button>
+              <div className="space-y-6">
+                <div className="glass rounded-3xl border-white bg-slate-200/50 flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
+                  <Icons.Documents className="w-16 h-16 opacity-20 mb-4" />
+                  <p className="text-sm font-bold">Aperçu non disponible en mode sécurisé</p>
+                  <button className="mt-4 px-6 py-3 bg-white text-slate-600 rounded-2xl text-xs font-bold shadow-sm hover:shadow-md transition-all">Générer un aperçu temporaire</button>
+                </div>
+                <RecognizedText documentId={document.id} uploadedAt={document.created_at} />
               </div>
             </div>
           )}

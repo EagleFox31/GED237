@@ -28,6 +28,21 @@ export interface IngestWatchStatus {
 
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
 
+/**
+ * GET /documents/{id}/ocr. `failed`, `ocr_error` et `low_confidence` arrivent du backend en V1.1 :
+ * facultatifs ici pour rester compatibles avec un serveur qui ne les renvoie pas encore.
+ */
+export interface DocumentOcr {
+    document_id: string;
+    ocr_content: string | null;
+    ocr_confidence: number | null;
+    ocr_status: 'completed' | 'processing' | 'not_processed' | 'failed';
+    /** Raison technique de l'échec : jamais affichée telle quelle. */
+    ocr_error?: string | null;
+    /** Lecture jugée faible par le serveur (seuil côté serveur). */
+    low_confidence?: boolean;
+}
+
 export interface ResolveReviewPayload {
     target_folder_id: string;
     document_category_id?: string;
@@ -111,6 +126,11 @@ export const documentsApi = {
 
     getDocumentVersions: (id: string): Promise<any[]> =>
         apiCall<any[]>(`/documents/${id}/versions`, {}, 'Récupération des versions impossible'),
+
+    // ── Texte reconnu (OCR) ───────────────────────────────────────────────
+
+    getDocumentOcr: (id: string): Promise<DocumentOcr> =>
+        apiCall<DocumentOcr>(`/documents/${id}/ocr`, {}, 'Lecture du texte impossible'),
 
     // ── Stats ─────────────────────────────────────────────────────────────
 

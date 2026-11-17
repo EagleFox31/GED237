@@ -80,6 +80,7 @@ export const api = {
     updateDocument: documentsApi.updateDocument,
     deleteDocument: documentsApi.deleteDocument,
     getDocumentVersions: documentsApi.getDocumentVersions,
+    getDocumentOcr: documentsApi.getDocumentOcr,
     getDocumentStats: documentsApi.getDocumentStats,
     getWorkspaceDocuments: documentsApi.getWorkspaceDocuments,
     getNeedsReviewDocuments: documentsApi.getNeedsReviewDocuments,
