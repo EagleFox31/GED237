@@ -1,4 +1,6 @@
-# Fiche — installer la rc.1 sur le poste prêté (25 ou 26/11)
+# Fiche — installer la rc.1 sans Internet sur une machine simulée sans réseau (Q, 25/11)
+
+**Décision du PO du 17/11** : pas de poste prêté. Q fait l'essai le mercredi 25/11 sur une machine simulée sans réseau : Ubuntu 24.04 neuf, 8 Go de mémoire, 10 Go de disque libres, réseau coupé (VM sans carte réseau) avant l'étape 2. Docker est installé avant la coupure, car il ne vient pas de la clé. Tout ce qui suit vient de la clé.
 
 Une page, tirée de `DOCS/exploitation/installation.md` (§ 1 à 9), `sauvegarde-restauration.md`, `https-local.md` et du « Retour arrière » des notes rc.1. Pas de secret ici : seulement des noms de variables. Les mots de passe des comptes sont ceux du jeu de démo et ne figurent pas ici.
 
@@ -6,21 +8,22 @@ Une page, tirée de `DOCS/exploitation/installation.md` (§ 1 à 9), `sauvegarde
 
 | Élément | Minimum | Contrôle |
 |---|---|---|
-| Système | Windows 11 avec WSL 2 (ou Linux, macOS) ; scripts `ops/*.sh` lancés en Git Bash | `wsl --status` |
+| Système | Ubuntu 24.04 neuf (VM) | `lsb_release -d` |
+| Outils | `bash`, `sha256sum`, `tar` | `command -v bash sha256sum tar` |
 | Docker | Engine ≥ 24 et `docker compose` v2 | `docker compose version` |
-| Mémoire | 8 Go de RAM libres | gestionnaire des tâches |
-| Disque | 10 Go libres, plus la sauvegarde de démo | `df -h` ou Explorateur |
-| Réseau | Internet au premier `build` seulement ; **sans Internet**, apporter les images sur clé (§ 2 b) | — |
+| Mémoire | 8 Go de RAM libres | `free -m` |
+| Disque | 10 Go libres, plus la sauvegarde de démo | `df -h` |
+| Réseau | **aucun** : le code et les images viennent de la clé (§ 2 a et b) | `ip route` sans route par défaut |
 | Port | `8080` libre (sinon `APP_PORT`) ; `8443` pour le HTTPS | — |
 
-Apporter sur clé : la sauvegarde de démo, **celle de la restauration n° 2 du 21/11**, la seule dont la restauration est vérifiée (décision de O du 17/11). Dossier `ged237-<à compléter le 21>/` (4 fichiers) ; empreinte de `db.dump` (`SHA256SUMS`) : `<à compléter le 21>`. Apporter aussi, si besoin, le dossier d'images (`images.tar.gz`, `IMAGES.txt`, `SHA256SUMS`).
+Apporter sur clé : la sauvegarde de démo, **celle de la restauration n° 2 du 21/11**, la seule dont la restauration est vérifiée (décision de O du 17/11). Dossier `ged237-<à compléter le 21>/` (4 fichiers) ; empreinte de `db.dump` (`SHA256SUMS`) : `<à compléter le 21>`. Apporter aussi l'archive du code au tag (`ged237-code-v1.0.0-rc.1.tar.gz` et son `.sha256`, `installation.md` § 9) et le dossier d'images (`images.tar.gz`, `IMAGES.txt`, `SHA256SUMS`).
 
 ## 2. Installer depuis le tag
 
-a. `git clone https://github.com/EagleFox31/GED237.git`, `cd GED237`, `git checkout v1.0.0-rc.1`. Garder le nom de dossier `GED237` : il donne le nom des volumes et des images.
-b. Sans Internet : `bash scripts/images_import.sh <clé>/ged237-images`, puis `docker compose config --images` doit lister exactement `IMAGES.txt`.
+a. Pas de clone : `sha256sum -c ged237-code-v1.0.0-rc.1.tar.gz.sha256` (sur la clé) doit afficher « OK », puis `tar -xzf <clé>/ged237-code-v1.0.0-rc.1.tar.gz -C ~` et `cd ~/GED237`. Garder le nom de dossier `GED237` : il donne le nom des volumes et des images.
+b. `bash scripts/images_import.sh <clé>/ged237-images`, puis `docker compose config --images` doit lister exactement `IMAGES.txt`.
 c. `cp .env.example .env`, puis renseigner `DB_PASSWORD` et `SECRET_KEY` (`openssl rand -hex 32`) **avant** le premier démarrage, et `APP_VERSION=1.0.0-rc.1`. Ne jamais copier `.env` ailleurs que sur ce poste.
-d. Démarrer : `docker compose up -d --build` (sans `--build` si les images viennent de la clé).
+d. Démarrer : `docker compose up -d --pull never`, sans `--build` : s'il manque une image, l'échec est immédiat et nomme l'image.
 e. `docker compose ps` : `api`, `postgres` et `redis` sont `healthy` ; `migrate` et `seed` sont `Exited (0)`.
 f. `docker compose exec api printenv ENVIRONMENT` doit donner `development`. En rc.1, ne pas le changer : avec `production`, le code de connexion n'est ni affiché ni envoyé et personne ne peut se connecter (l'envoi par e-mail arrive en V1.1).
 
