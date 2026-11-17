@@ -410,6 +410,71 @@ def _audit_document_action(
     )
 
 
+CLASSIFICATION_FIELDS = (
+    "classification_domain_id",
+    "classification_activity_id",
+    "classification_year",
+    "classification_scope",
+    "classification_target_org_unit_id",
+    "classification_target_user_id",
+    "classification_status",
+)
+
+
+def _audit_value(value: Any) -> Any:
+    return str(value) if isinstance(value, UUID) else value
+
+
+def _patch_audit_snapshot(document: Document) -> Dict[str, Any]:
+    """Values PATCH /documents/{id} audits, read before the update is applied."""
+    return {
+        field: getattr(document, field) for field in ("title", *CLASSIFICATION_FIELDS)
+    }
+
+
+def _patch_audit_rows(
+    *,
+    user: User,
+    document: Document,
+    before: Dict[str, Any],
+    request: Optional[Request] = None,
+) -> List[AuditLog]:
+    """One row per kind of effective change; a PATCH that changes nothing writes none.
+
+    Only codes and ids are stored: the French labels are computed when the journal is read.
+    """
+    rows: List[AuditLog] = []
+    if document.title != before["title"]:
+        rows.append(
+            _audit_document_action(
+                user=user,
+                document_id=document.id,
+                action="document_renamed",
+                details={"old_title": before["title"], "new_title": document.title},
+                request=request,
+            )
+        )
+    changes = {
+        field: {
+            "old": _audit_value(before[field]),
+            "new": _audit_value(getattr(document, field)),
+        }
+        for field in CLASSIFICATION_FIELDS
+        if getattr(document, field) != before[field]
+    }
+    if changes:
+        rows.append(
+            _audit_document_action(
+                user=user,
+                document_id=document.id,
+                action="classification_updated",
+                details={"changes": changes},
+                request=request,
+            )
+        )
+    return rows
+
+
 def _serialize_audit_log(audit_log: AuditLog) -> Dict[str, Any]:
     return {
         "id": str(audit_log.id),
@@ -1287,6 +1352,7 @@ async def delete_document(
 async def update_document(
     document_id: UUID,
     document_in: DocumentUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1299,6 +1365,7 @@ async def update_document(
         raise HTTPException(status_code=400, detail="Cannot update a document in trash")
     await _ensure_not_locked_for_write(document, current_user)
 
+    audit_before = _patch_audit_snapshot(document)
     update_data = document_in.model_dump(exclude_unset=True)
     if "document_category_id" in update_data:
         new_cat_id = update_data["document_category_id"]
@@ -1309,17 +1376,7 @@ async def update_document(
             await authorize_or_403(current_user, "documents", "manage")
     requested_status = update_data.pop("status", None)
     classification_update = {
-        key: update_data.pop(key)
-        for key in (
-            "classification_domain_id",
-            "classification_activity_id",
-            "classification_year",
-            "classification_scope",
-            "classification_target_org_unit_id",
-            "classification_target_user_id",
-            "classification_status",
-        )
-        if key in update_data
+        key: update_data.pop(key) for key in CLASSIFICATION_FIELDS if key in update_data
     }
 
     if requested_status is not None:
@@ -1487,6 +1544,11 @@ async def update_document(
         setattr(document, field, value)
 
     db.add(document)
+    db.add_all(
+        _patch_audit_rows(
+            user=current_user, document=document, before=audit_before, request=request
+        )
+    )
     await db.commit()
     # Reload with relationships
     return await _get_document_or_404(db, current_user.tenant_id, document.id)

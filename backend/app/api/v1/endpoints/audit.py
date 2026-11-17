@@ -56,6 +56,8 @@ ACTION_LABELS = {
     "document_trashed": "Mise à la corbeille",
     "document_restored": "Restauration depuis la corbeille",
     "document_purged": "Suppression définitive",
+    "document_renamed": "Document renommé",
+    "classification_updated": "Classement modifié",
     "version_uploaded": "Nouvelle version",
     "workflow_started_a_posteriori": "Circuit déclenché a posteriori",
     "local_organize": "Rangement local sur poste",

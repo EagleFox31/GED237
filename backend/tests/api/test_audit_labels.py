@@ -24,6 +24,8 @@ ACCENTED_LABELS = {
     "unlock": "Déverrouillage",
     "document_trashed": "Mise à la corbeille",
     "document_purged": "Suppression définitive",
+    "document_renamed": "Document renommé",
+    "classification_updated": "Classement modifié",
     "workflow_started_a_posteriori": "Circuit déclenché a posteriori",
     "local_snap_put": "Bibliothèque locale (sync)",
     "dup_detected": "Doublon refusé",
