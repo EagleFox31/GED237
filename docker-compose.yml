@@ -149,6 +149,8 @@ services:
       AUTH_LOCKOUT_SECONDS: "900"
       # Authenticator app (DEC-2026-004), off unless set in .env. Keys: see backend/.env.example.
       AUTH_TOTP_ENABLED: ${AUTH_TOTP_ENABLED:-false}
+      AUTH_TOTP_ISSUER: ${AUTH_TOTP_ISSUER:-E-Dossier}
+      AUTH_TOTP_REQUIRED_ROLES: ${AUTH_TOTP_REQUIRED_ROLES:-tenant_admin,super_admin}
       TOTP_ENCRYPTION_KEYS: ${TOTP_ENCRYPTION_KEYS:-}
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
