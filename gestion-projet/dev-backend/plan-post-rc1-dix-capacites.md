@@ -28,11 +28,11 @@ Règles communes : chaque requête porte `tenant_id` et `deleted_at` ; `limit` �
 | Lot | Contenu | Migration | Réglages (défaut) | Risque | Fusion au plus tôt | h-s |
 |---|---|---|---|---|---|---|
 | L1 Sondes de santé | `GET /health/ready` : base (`SELECT 1`), schéma à head, Redis (`PING`), Celery (`ping`). 503 si base, schéma ou Redis échoue ; Celery absent → 200 `degraded`. Aucun détail d'erreur dans la réponse. `/health` inchangé. | non | `HEALTH_CHECK_TIMEOUT_SECONDS=2`, `HEALTH_READY_REQUIRE_CELERY=false` | très faible | 25/11 | 1,5 |
-| L2 Corbeille | `services/trash_service.py` (audit, suppression, `commit`, puis fichiers ; contrôle du verrou). `DELETE /{id}` audité. `POST /documents/trash/empty`. `X-Total-Count` sur `/trash`. Tâche `purge_expired_trash` (verrou Redis, lots `SKIP LOCKED`). Registre fusionné des plannings beat. | non | `TRASH_RETENTION_DAYS=0`, `TRASH_PURGE_BATCH=200`, `TRASH_PURGE_REQUIRES_TRASHED=false` | faible | 25–26/11 | 3,5 |
+| L2 Corbeille | `services/trash_service.py` (audit, suppression, `commit`, puis fichiers ; contrôle du verrou). `DELETE /{id}` audité. `POST /documents/trash/empty`. `X-Total-Count` sur `/trash`. Tâche `purge_expired_trash` (verrou Redis, lots `SKIP LOCKED`). Registre fusionné des plannings beat. | non | `TRASH_RETENTION_DAYS=0`, `TRASH_PURGE_BATCH=200` | faible | 25–26/11 | 3,5 |
 | L3 Validation | `services/workflow_inbox.py` partagé par `/pending` et `/pending-assignments` ; tri stable ; `exclude_trashed`. `GET /workflows/inbox?scope=mine\|unit\|unassigned`. | non | `WORKFLOW_PENDING_EXCLUDE_TRASHED=false`, `WORKFLOW_INBOX_ENABLED=false` | faible | 26/11 | 2,5 |
-| L4 Canal OTP | Port `services/otp_delivery/` (`dev_response` = existant, `email` via Resend). Code stocké en HMAC. Audit `otp_sent` / `otp_send_failed`. `POST /auth/resend-otp`. TOTP après décision T08. | non | `AUTH_OTP_CHANNEL=dev_response`, `AUTH_OTP_RESEND_COOLDOWN_SECONDS=30` | élevé (connexion) | 26–27/11 | 3 + 3 (TOTP) |
+| L4 Canal OTP | Port `services/otp_delivery.py` (`dev_response` = existant, `email` via Resend). Code stocké en HMAC. Audit `otp_sent` / `otp_send_failed`. `POST /auth/resend-otp`. TOTP après décision T08. | non | `AUTH_OTP_CHANNEL=dev_response`, `AUTH_OTP_RESEND_COOLDOWN_SECONDS=30` | élevé (connexion) | 26–27/11 | 3 + 3 (TOTP) |
 | L5 Rapport officiel | `services/reports_scope.py` (portée partagée par les 4 routes). `GET /reports/official?kind=…&format=csv\|html`, en-tête, empreinte SHA-256, audit `report_generated`. PDF (reportlab) après le 30/11. | non | — | moyen | 27/11 (PDF : après le 30) | 3 + 2 |
-| L6 Notifications | `services/notifications/broadcast.py` : `off`, `local`, `redis` (pub/sub, abonné lancé au démarrage). Publication après `commit`, sans faire échouer l'opération. WebSocket : refus d'un jeton non-access ou révoqué. | non | `NOTIFICATIONS_PUSH_BACKEND=off` | moyen | 27/11 ou après le 30 | 3,5 |
+| L6 Notifications | `services/notifications/realtime.py` : `off`, `local`, `redis` (pub/sub, abonné lancé au démarrage). Publication après `commit`, sans faire échouer l'opération. WebSocket : refus d'un jeton non-access ou révoqué. | non | `NOTIFICATIONS_BROADCAST_MODE=off` | moyen | 27/11 ou après le 30 | 3,5 |
 | L7 Favoris, récents | Tables `document_favorites`, `document_recent_access`. Routeur `/me/favorites`, `/me/recent`. « Partagés » par ACL : après décision (5 h-s). | oui | `RECENT_DOCUMENTS_TRACKING_ENABLED=false`, `RECENT_DOCUMENTS_MAX_PER_USER=50` | faible | après le 30/11 | 3 |
 | L8 Qualité | `GET /analytics/quality` et `/analytics/quality/documents?indicator=…`. | non | — | faible | après le 30/11 | 2,5 |
 | L9 Rapports planifiés, alertes | Tables `report_schedules`, `report_runs` (`UNIQUE(schedule_id, period_key)`), `alert_rules`, `alert_events` (`UNIQUE(rule_id, window_key)`). Tâches de distribution et d'évaluation. Routes `/report-schedules`, `/alert-rules`. Dépend de L5 et L8. | oui | `SCHEDULED_REPORTS_ENABLED=false`, `ALERTS_ENABLED=false` | élevé | après le 30/11 | 9 |
@@ -57,7 +57,7 @@ Total hors TOTP, PDF, partage par ACL et archivage : 31,5 h-s.
 
 - Le registre des plannings beat (L2) doit laisser `watch-ingest-folders` identique : test dédié.
 - L2 : relire `test_documents_extended_coverage.py:115` avant de toucher la purge.
-- L4 : les connexions en cours au déploiement échouent une fois (format Redis changé, fenêtre de 5 minutes) ; l'e2e de connexion reste sur `dev_response`.
+- L4 : une connexion commencée avant le déploiement se termine normalement (l'ancien format Redis est encore lu) ; l'e2e de connexion reste sur `dev_response`.
 - L6 : `httpx.ASGITransport` ne lance pas le cycle de vie de l'application ; tester l'abonné directement.
 - Défauts constatés à consigner dans `DOCS/engineering/lessons-learned.md` quand le lot les corrige : purge des fichiers avant `commit` ; WebSocket jamais alimenté.
 
@@ -70,3 +70,22 @@ Total hors TOTP, PDF, partage par ACL et archivage : 31,5 h-s.
 - Décision 6 (rapport officiel) : **validée** : numéro d'ordre `N° 0001/2026/<sigle de l'institution>`, par institution, remis à zéro chaque année, avec registre des exemplaires émis (une table, donc après le 30/11).
 - Décisions 7, 8, 9 : **validées**.
 - Décision 10 (archivage légal) : cadre validé, aucun code sans décision écrite sur les durées et le sort final.
+
+## 6. État des lots et règle de fusion (17/11)
+
+| Lot | PR | Ce qui change même avec les réglages par défaut | Passe de recette ciblée avant fusion |
+|---|---|---|---|
+| L1 | #147 | Rien : une route en plus, `/health` inchangé. | Aucune. |
+| L2 | #152 | `DELETE /documents/{id}` met en corbeille ; la purge refuse un document actif. | Écran de suppression et corbeille (QA et frontend). |
+| L3 | #153 | `/workflows/pending` et `/pending-assignments` passent par un service commun (réponse testée identique). | Chemin de validation de bout en bout (QA). |
+| L4 | #154 | Le code de vérification est stocké haché dans Redis. | Connexion complète, code faux, verrouillage (QA). |
+| L6 | #155 | Le WebSocket refuse un jeton de rafraîchissement ou révoqué. | Cloche de notifications et WebSocket, avant et après déconnexion (QA et frontend). |
+
+**Règle (orchestrateur, 17/11)** : après le tag du 24/11, seule L1 fusionne sans passe ciblée. L2, L3, L4 et L6 ne fusionnent pas entre le 24/11 et la démonstration du 30/11 sans leur passe ciblée et un accord écrit du PO. Les dates « fusion au plus tôt » du tableau des lots sont des dates techniques, pas un engagement.
+
+## 7. L5 Rapport officiel : découpage (aucun code avant le 30/11)
+
+- **A (3 h-s, sans migration)** : `services/reports_scope.py` reprend la portée aujourd'hui copiée quatre fois dans `endpoints/reports.py`. `GET /reports/official?kind=evolution|document-activity|workflow-activity|service-activity&format=csv|html`, mêmes filtres et même droit que les routes existantes. En-tête (institution, unité, période, auteur, date), empreinte SHA-256 du fichier livré, audit `report_generated`. CSV au format de l'export du journal d'audit.
+- **B (2 h-s, migration additive)** : numéro `N° 0001/2026/<sigle>`. Tables `report_counters` (institution, année) et `report_issues` (numéro, type, filtres, empreinte, auteur, date) ; numéro pris sous verrou de ligne. Route de liste du registre.
+- **C (2 h-s)** : PDF (reportlab, dépendance nouvelle).
+- **À décider par le PO avant B** : (a) un nouveau numéro à chaque génération, même pour un rapport identique (proposé : oui) ; (b) institution sans sigle (`tenants.short_name` vide) : refus avec message pour l'administrateur (proposé) ou numéro sans sigle.
