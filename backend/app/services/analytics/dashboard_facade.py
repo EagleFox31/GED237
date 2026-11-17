@@ -190,7 +190,7 @@ class DashboardFacade:
         stmt_global_docs = select(
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
-        )
+        ).where(Document.deleted_at.is_(None))  # recycle bin left out (#218)
         global_doc_res = (await self.db.execute(stmt_global_docs)).first()
 
         total_docs = global_doc_res.total_docs if global_doc_res else 0

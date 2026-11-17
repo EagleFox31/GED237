@@ -76,7 +76,7 @@ async def test_institution_roles_keep_tenant_wide_counters(
         analytics = await client.get(TENANT_ANALYTICS)
     assert (documents["total"], documents["trashed"]) == (5, 1)
     assert set(documents) == {"tenant_id", "total", "trashed", "by_status"}
-    assert workflows.json()["active_workflow_steps"] == 6
+    assert workflows.json()["active_workflow_steps"] == 5  # recycle bin left out
     assert analytics.status_code == 200
     institution = analytics.json()
     assert (institution["documents"]["total"], institution["workflows"]["pending"]) == (
@@ -97,7 +97,7 @@ async def test_unit_admin_counts_its_tree_in_every_counter(
         workflows = (await client.get(WORKFLOW_STATS)).json()
         analytics = await client.get(TENANT_ANALYTICS)
     assert (documents["total"], documents["trashed"]) == (2, 1)
-    assert workflows["active_workflow_steps"] == 3
+    assert workflows["active_workflow_steps"] == 2  # recycle bin left out
     assert analytics.status_code == 200
     tree = analytics.json()
     # Same keys as the institution figures, counted in the unit tree, recycle bin
@@ -117,7 +117,7 @@ async def test_unit_roles_only_count_their_unit(client_as, db_seed, other_unit, 
         workflows = (await client.get(WORKFLOW_STATS)).json()
         analytics = await client.get(TENANT_ANALYTICS)
     assert (documents["total"], documents["trashed"]) == (2, 1)
-    assert workflows["active_workflow_steps"] == 3
+    assert workflows["active_workflow_steps"] == 2  # recycle bin left out
     assert analytics.status_code == 403
 
 
@@ -146,3 +146,5 @@ async def test_super_admin_still_targets_a_tenant(admin_client, db_seed, other_u
         DOCUMENT_STATS, params={"tenant_id": str(db_seed["tenant_id"])}
     )
     assert (response.json()["total"], response.json()["trashed"]) == (5, 1)
+    platform = (await admin_client.get("/api/v1/analytics/platform")).json()
+    assert platform["platform"]["total_documents"] == 5  # recycle bin left out

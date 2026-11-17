@@ -52,6 +52,7 @@ async def get_workflow_stats(
 ):
     """
     Compteur de workflow steps actifs (current + pending) pour un tenant.
+    Les documents en corbeille ne comptent pas (#218).
     - super_admin : peut passer ?tenant_id= pour cibler un tenant.
     - autres roles : scope au tenant courant, limite aux documents qu'ils peuvent
       lister (unite pour manager et lecteur).
@@ -66,6 +67,7 @@ async def get_workflow_stats(
         .join(Document, Document.id == WorkflowStep.document_id)
         .where(
             Document.tenant_id == effective_tenant,
+            Document.deleted_at.is_(None),
             WorkflowStep.status.in_(["current", "pending"]),
             *scope,
         )
@@ -77,6 +79,7 @@ async def get_workflow_stats(
         .join(Document, Document.id == WorkflowStep.document_id)
         .where(
             Document.tenant_id == effective_tenant,
+            Document.deleted_at.is_(None),
             WorkflowStep.status == "completed",
             *scope,
         )
