@@ -26,6 +26,8 @@ class DashboardFacade:
     async def get_tenant_metrics(self, tenant_id: str) -> Dict[str, Any]:
         """
         Get KPIs for a specific tenant (ministry).
+        Documents in the recycle bin are left out, as in get_manager_metrics:
+        they are no longer among the institution files (#218, #256).
         """
         # 1. User Statistics
         stmt_users = select(func.count(User.id)).where(User.tenant_id == tenant_id)
@@ -35,7 +37,7 @@ class DashboardFacade:
         stmt_docs = select(
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
-        ).where(Document.tenant_id == tenant_id)
+        ).where(Document.tenant_id == tenant_id, Document.deleted_at.is_(None))
 
         doc_res = (await self.db.execute(stmt_docs)).first()
         docs_count = doc_res.total_docs if doc_res else 0
@@ -59,7 +61,7 @@ class DashboardFacade:
                 .label("rejected"),
             )
             .join(Document, Document.id == WorkflowStep.document_id)
-            .where(Document.tenant_id == tenant_id)
+            .where(Document.tenant_id == tenant_id, Document.deleted_at.is_(None))
         )
 
         wf_res = (await self.db.execute(stmt_workflows)).first()
@@ -175,7 +177,7 @@ class DashboardFacade:
         stmt_global_docs = select(
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
-        )
+        ).where(Document.deleted_at.is_(None))
         global_doc_res = (await self.db.execute(stmt_global_docs)).first()
 
         total_docs = global_doc_res.total_docs if global_doc_res else 0
