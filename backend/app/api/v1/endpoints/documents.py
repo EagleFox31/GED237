@@ -1241,7 +1241,7 @@ async def delete_document(
 ):
     """Move the document to the trash. Nothing is deleted for good here.
 
-    Permanent deletion goes through the trash purge (``documents manage``).
+    Permanent deletion goes through the trash purge (``documents purge``).
     """
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
     if not (
@@ -1657,7 +1657,7 @@ async def purge_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "purge")
 
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
     if document.deleted_at is None:
@@ -1692,7 +1692,7 @@ async def empty_trash(
     (``remaining`` tells whether to call again). Identifiers of another
     institution, or of documents that are not in the trash, are ignored.
     """
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "purge")
 
     payload = payload or TrashEmptyRequest()
     deleted_before = None

@@ -55,6 +55,8 @@ p, tenant_admin, documents, create
 p, tenant_admin, documents, read
 p, tenant_admin, documents, update
 p, tenant_admin, documents, delete
+# Purge définitive et vidage de la corbeille de sa propre institution (routes bornées au tenant)
+p, tenant_admin, documents, purge
 p, tenant_admin, spaces, read
 p, tenant_admin, classification_rules, manage
 p, tenant_admin, classification_reviews, manage
