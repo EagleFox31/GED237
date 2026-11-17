@@ -213,3 +213,31 @@ def run_scheduled_reports():
         asyncio.set_event_loop(loop)
     loop.run_until_complete(_run())
     return None
+
+
+@celery_app.task(name="app.workers.tasks.evaluate_quality_alerts")
+def evaluate_quality_alerts():
+    """Beat task (lot 9): one pass over the quality alert rules."""
+    from app.services.quality_alerts import evaluate_rules
+
+    if not settings.QUALITY_ALERTS_ENABLED:
+        return None
+
+    async def _run():
+        async with AsyncSessionLocal() as session:
+            result = await evaluate_rules(session)
+        logger.info(
+            "[QualityAlerts] opened=%d cleared=%d unchanged=%d refused=%d",
+            len(result.opened),
+            len(result.cleared),
+            result.unchanged,
+            len(result.refused),
+        )
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.run_until_complete(_run())
+    return None

@@ -85,6 +85,10 @@ class Settings(BaseSettings):
     # worker beat checks every interval for schedules whose period has closed.
     SCHEDULED_REPORTS_ENABLED: bool = False
     SCHEDULED_REPORTS_INTERVAL_SECONDS: int = 3600
+    # Alerts on the documentary quality indicators (post-rc1 lot 9): off by default.
+    # When on, the worker beat evaluates every active rule at each interval.
+    QUALITY_ALERTS_ENABLED: bool = False
+    QUALITY_ALERTS_INTERVAL_SECONDS: int = 3600
     # Folders imported by hand (demo live import): a watched folder that is, contains or
     # sits inside one of them is ignored, so the worker never empties it. Same format
     # as INGEST_ALLOWED_ROOTS.

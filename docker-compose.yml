@@ -190,6 +190,9 @@ services:
       # Scheduled official reports (off by default).
       SCHEDULED_REPORTS_ENABLED: ${SCHEDULED_REPORTS_ENABLED:-false}
       SCHEDULED_REPORTS_INTERVAL_SECONDS: ${SCHEDULED_REPORTS_INTERVAL_SECONDS:-3600}
+      # Quality alerts (off by default).
+      QUALITY_ALERTS_ENABLED: ${QUALITY_ALERTS_ENABLED:-false}
+      QUALITY_ALERTS_INTERVAL_SECONDS: ${QUALITY_ALERTS_INTERVAL_SECONDS:-3600}
       # Demo live import folder: never watched, even through a parent folder.
       INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
     depends_on:

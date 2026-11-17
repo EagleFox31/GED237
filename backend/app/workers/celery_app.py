@@ -51,3 +51,13 @@ if (
             "schedule": float(settings.SCHEDULED_REPORTS_INTERVAL_SECONDS),
         },
     }
+
+# Quality alerts (post-rc1 lot 9): off unless QUALITY_ALERTS_ENABLED.
+if settings.QUALITY_ALERTS_ENABLED and settings.QUALITY_ALERTS_INTERVAL_SECONDS > 0:
+    celery_app.conf.beat_schedule = {
+        **(celery_app.conf.beat_schedule or {}),
+        "evaluate-quality-alerts": {
+            "task": "app.workers.tasks.evaluate_quality_alerts",
+            "schedule": float(settings.QUALITY_ALERTS_INTERVAL_SECONDS),
+        },
+    }
