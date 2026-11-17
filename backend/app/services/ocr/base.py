@@ -8,6 +8,18 @@ from typing import Optional
 from PIL import Image
 
 
+# Below this average confidence (0 to 1) a reading is uncertain and worth a manual check.
+# Single source: the worker warning and the low_confidence flag of GET /documents/{id}/ocr (#276).
+LOW_CONFIDENCE_THRESHOLD = 0.7
+
+
+def is_low_confidence(confidence: Optional[float]) -> Optional[bool]:
+    """None when no confidence is known (no reading yet)."""
+    if confidence is None:
+        return None
+    return confidence < LOW_CONFIDENCE_THRESHOLD
+
+
 @dataclass
 class OCRResult:
     """OCR result with metadata"""
@@ -21,13 +33,13 @@ class OCRResult:
 
     @property
     def is_reliable(self) -> bool:
-        """Check if result is reliable (>70% confidence)"""
-        return self.confidence >= 0.7
+        """Check if result is reliable (confidence at or above LOW_CONFIDENCE_THRESHOLD)"""
+        return self.confidence >= LOW_CONFIDENCE_THRESHOLD
 
     @property
     def needs_review(self) -> bool:
         """Check if manual review is recommended"""
-        return self.confidence < 0.7
+        return self.confidence < LOW_CONFIDENCE_THRESHOLD
 
 
 class OCREngine(ABC):

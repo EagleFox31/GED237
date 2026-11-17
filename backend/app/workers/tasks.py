@@ -14,6 +14,7 @@ from sqlalchemy.sql import func
 from app.workers.celery_app import celery_app
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
+from app.services.ocr.base import is_low_confidence
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,48 @@ async_engine = create_async_engine(
 AsyncSessionLocal = sessionmaker(
     async_engine, class_=AsyncSession, expire_on_commit=False
 )
+
+# Why a reading failed (#276), sent as-is by GET /documents/{id}/ocr: a contract with the
+# document page, which turns each code into its own message.
+OCR_FILE_NOT_FOUND = "file_not_found"
+OCR_UNSUPPORTED_FORMAT = "unsupported_format"
+OCR_NO_TEXT = "no_text"
+OCR_ENGINE_ERROR = "engine_error"
+OCR_FAILURE_KEYS = ("ocr_status", "ocr_error")
+
+
+def _run_sync(coro):
+    """Run a coroutine from the synchronous Celery task."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError("closed loop")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+
+async def mark_document_ocr_failed(document_id: str, reason: str) -> None:
+    """Record that the reading failed, so the document stops showing as in progress."""
+    async with AsyncSessionLocal() as session:
+        document = await session.get(Document, document_id)
+        if document:
+            document.extra_data = {
+                **(document.extra_data or {}),
+                "ocr_status": "failed",
+                "ocr_error": reason,
+            }
+            await session.commit()
+
+
+def _record_failure(document_id: str, reason: str) -> bool:
+    """Write the failure; a database error here is logged, never raised from the task."""
+    try:
+        _run_sync(mark_document_ocr_failed(document_id, reason))
+    except Exception:
+        logger.exception("Could not record the OCR failure of document %s", document_id)
+    return False
 
 
 async def update_document_ocr(
@@ -46,8 +89,14 @@ async def update_document_ocr(
 
             # Store OCR metadata in extra_data. A new dict, not an in-place change: the
             # JSONB column is not change-tracked, so mutating it would never be written.
+            # A successful reading clears a failure left by an earlier attempt.
+            previous = {
+                key: value
+                for key, value in (document.extra_data or {}).items()
+                if key not in OCR_FAILURE_KEYS
+            }
             document.extra_data = {
-                **(document.extra_data or {}),
+                **previous,
                 "ocr_confidence": confidence,
                 "ocr_engine": engine_used,
             }
@@ -87,18 +136,19 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
 
     if not os.path.exists(full_path):
         print(f"❌ File not found for OCR: {full_path}")
-        return False
-
-    # 2. Initialize OCR Strategy lazily so API/tests don't import heavy OCR deps at startup
-    from app.services.ocr import OCRStrategy
-
-    strategy = OCRStrategy()
+        return _record_failure(document_id, OCR_FILE_NOT_FOUND)
 
     extracted_text = ""
     confidence = 0.0
     engine_used = "none"
 
     try:
+        # 2. Initialize OCR Strategy lazily so API/tests don't import heavy OCR deps at
+        # startup; inside the try, so an engine that cannot load is an engine_error.
+        from app.services.ocr import OCRStrategy
+
+        strategy = OCRStrategy()
+
         # 3. Process based on file type
         if file_type == "application/pdf":
             # PDF: Try native extraction first
@@ -119,18 +169,11 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
 
         else:
             print(f"❌ Unsupported file type for OCR: {file_type}")
-            return False
+            return _record_failure(document_id, OCR_UNSUPPORTED_FORMAT)
 
         # 4. Update database if text was extracted
         if extracted_text and extracted_text.strip():
-            # Run async database update
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            loop.run_until_complete(
+            _run_sync(
                 update_document_ocr(
                     document_id, extracted_text, confidence, engine_used
                 )
@@ -143,21 +186,21 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
             print(f"  Confidence: {confidence:.2%}")
 
             # Warn if confidence is low
-            if confidence < 0.7:
+            if is_low_confidence(confidence):
                 print("  ⚠️ WARNING: Low confidence. Manual review recommended.")
 
             return True
 
         else:
             print(f"❌ No text extracted for {document_id}")
-            return False
+            return _record_failure(document_id, OCR_NO_TEXT)
 
     except Exception as e:
         print(f"❌ OCR processing failed for {document_id}: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        return _record_failure(document_id, OCR_ENGINE_ERROR)
 
 
 @celery_app.task(name="app.workers.tasks.watch_ingest_folders")
