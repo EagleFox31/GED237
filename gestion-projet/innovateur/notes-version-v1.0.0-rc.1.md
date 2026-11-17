@@ -26,6 +26,11 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Retour à la page quittée après une reconnexion (#97 42397a3) ; version de l'application dans la barre latérale (#94 7bea1c0) ; barre latérale repliée sous 768 px (#93 6516d29).
 - Dossiers surveillés importés automatiquement par le worker (#101 3cc6e15) ; écran d'état de la surveillance (#100 187b7f7).
 - Manuel d'installation (#105 b6e0004, corrigé par #107 7fa1ab8) ; sonde de disponibilité `scripts/probe_c6.sh` (#106 ca9953b) ; accès HTTPS local (#109 e1480c8).
+- Explorateur des espaces : raccourcis clavier et clic droit étendu (#164, #173).
+- Archivage : bouton « Archiver » sur un document validé ou signé, pour l'administrateur de l'institution, qui traite aussi la revue de classement (#231, #246).
+- Menu « Rapports » du Manager limité à son service (#175).
+- Fonctionnement sans Internet : polices, styles et avatars servis par l'application (#116, #122, #126) ; export et import des images de la pile pour une installation hors ligne (#144).
+- Jeu de démonstration : un circuit de validation et deux bordereaux de la DAF (#127).
 
 ### Corrections
 
@@ -34,6 +39,15 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Codes de rôle en minuscules, jeu de référence convergent entre le seed et le service de démonstration (#50).
 - Validation d'import : la file de traitement ne bloque plus la réponse quand le stockage des résultats est injoignable (#75).
 - Interface : contraste, libellés de l'Atelier, message clair en cas de trop nombreuses tentatives de connexion, accessibilité des modales et du lecteur (#45, #73).
+- Rapports : les signaux `imports_needing_review` et `local_organize_*` sont limités au périmètre de l'appelant (#188).
+- Compteurs `/documents/stats` et `/workflows/stats` limités aux documents que l'appelant peut lister (#177, #176).
+- Tableau de bord de l'institution : les documents en corbeille ne sont plus comptés (#260).
+- Reprise de la page quittée après reconnexion, liée au compte et non au profil (#123, #140).
+- Recherche : aucune touche perdue dans la barre d'en-tête (#174) ; ses résultats s'ouvrent, et « Mes documents » cherche sur le serveur (#258).
+- Libellés en français accentué : interface, messages du serveur, jeu de démonstration, journal d'audit, motifs de revue (#233, #257, #260, #269, #287).
+- Écrans des droits et de la revue de classement : plus de texte brut du serveur ni de code technique à l'écran (#286).
+- Menus : l'entrée d'administration qui ouvrait une page introuvable est retirée ; le bouton des permissions répond ; l'auditeur a son entrée « Audit » (#198, #233).
+- Exploitation : l'interface redémarre après un redémarrage du serveur (#200) ; `/health` et la documentation de l'API derrière un proxy (#120) ; installation du moteur OCR relancée en cas d'échec réseau (#129).
 
 ### Sécurité
 
@@ -50,10 +64,16 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - CI proportionnée aux fichiers modifiés (impact-aware), lint et analyse de sécurité bloquants, vérification de l'intégrité des releases (#4, #17, #19, #20, #22).
 - Exercice de restauration n° 1 consigné (#61).
 - Scénarios préparés pour les cinq lots réouverts (#67, #71).
+- Recette UAT nocturne sur un workflow Playwright réutilisable (#130) ; verrou OTP et lots V1.1 joués pour de vrai (#208) ; specs alignés sur l'interface actuelle, données du circuit isolées des compteurs de démonstration (#89, #91, #102, #108, #289, #291).
+- Contrôles de CI : aucune URL externe chargée par le navigateur (#146), specs purs exécutés (#143), branches `release/**` couvertes (#206), contrôles en lecture seule avant le tag (`tag_preflight.sh`, #156).
+- Capture visuelle versionnée avec garde d'écran (#249) ; substitut Redis unique pour les tests (#118) ; pile allégée et synthèse par demi-journée pour la sonde de disponibilité (#117, #142).
 
 ### Documentation
 
 - Guide de test fonctionnel, exploitation (sauvegarde, données de démonstration), passations par rôle, dossiers de décision et fiches de lots (#3, #15, #24, #34, #36, #40, #43, #49, #57, #68, #72).
+- Guides utilisateur et d'installation alignés sur la rc.1 (#292) ; installation : navigateur sans Internet, lien vers l'accès HTTPS local (#114, #115, #139) ; clé publique et vérification de la signature (#124).
+- Plan et contrôles du tag rc.1 (#131, #158, #160, #226) ; recette : plan et checklists du 20 au 23/11, fiche UAT du 23/11, essai d'installation sans Internet du 25/11, checklist de démonstration (#90, #96, #119, #128, #217, #244).
+- Mémoire d'échecs du projet (#103, #125, #132, #178).
 
 ### Dépendances et outillage
 
@@ -72,7 +92,7 @@ Relevé des `fixme` encore ouverts dans `frontend/e2e/specs` (main 7ecde2b, 10/1
 | SC-V11-02 (`v11-lots`) | Export puis import des règles de classement, rejouable sans doublon. | **corrigé** (#79 96ea1fc + #84 a137d8d) |
 | SC-V11-03 (`v11-lots`) | Export CSV du journal d'audit, plafonné à 50 000 lignes (au-delà, affiner la période ou les filtres) ; verrou après 3 codes erronés. | **corrigé** (#80 dc4daae + #87 c6724ea ; #83 64ade05) |
 | SC-V11-04 (`v11-lots`) | Les règles ne lisent ni le texte OCR ni la date du document : classement par nom de fichier et dossier seulement. | **corrigé** (#92 aa1ff60 + #95 fa26e17). Limites de #92 (restent en V1.0) : un fichier passé par la file de revue d'import que rien ne classe à l'analyse ne crée pas de document, donc il n'est pas reclassé après OCR (seuls l'ingestion de dossier et le dépôt le sont) ; à l'ingestion, les règles sont évaluées avec la portée « service » : une règle à portée « utilisateur » ne s'applique jamais à un document ingéré ; les documents classés avant cette version ne sont pas reclassés. |
-| SC-V11-05 (`v11-lots`) | Aucun dossier n'est surveillé en continu : l'import se lance à la main depuis l'écran Ingestion. | **moteur corrigé** (#101 3cc6e15) ; écran d'état en attente (#100), **bascule en V1.1 le 19 à 18:00 si non fusionnée** |
+| SC-V11-05 (`v11-lots`) | Aucun dossier n'est surveillé en continu : l'import se lance à la main depuis l'écran Ingestion. | **corrigé** (#101 3cc6e15 + #100 187b7f7) |
 
 Hors tableau : `demo-counters` (`AWAITING_D1`) est une activation de test, levée par #82 (recette, pas une limite produit) ; `validation-cycle` est déjà actif (`AWAITING_VALIDATION_UI = false`).
 
@@ -81,16 +101,17 @@ Limites hors `fixme` :
 - Cycle de vie manuel : corbeille, restauration et purge par l'administrateur ; pas de durée de conservation automatique.
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
 - L'Admin Service : ses documents et sa recherche couvrent toute l'institution ; ses rapports, seulement son service. Le limiter à son service partout est prévu en V1.1 (#215).
-- Les documents mis à la corbeille sont encore comptés dans les statistiques de l'institution ; corrigé en V1.1 (#218).
+- Les documents mis à la corbeille ne sont plus comptés au tableau de bord de l'institution (#260), mais le compteur des circuits de validation les compte encore ; corrigé en V1.1 (#220).
 - Renommer ou reclasser un document ne laisse pas encore de trace dans le journal d'audit. Correction prévue en V1.1 (#250).
 - Écran « Gestion AuthZ », onglet des règles : il ne montre pas les droits et indique qu'ils ne sont pas modifiables sur cette installation. Le serveur garde les droits dans un fichier (`AUTHZ_BACKEND=csv`) ; c'est la personne qui installe qui les règle. En V1.1, la grille s'affiche en lecture seule tant que le serveur reste dans ce mode, puis devient modifiable par le seul super admin quand il passe en base de données.
 - Reporté en V1.2 (décision du 17/11) : désigner un lecteur d'un autre service sans lancer de circuit ; alertes de qualité et onglet « Qualité » des rapports ; accès public en HTTPS sur un serveur distant.
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
 - Lots non fusionnés au 19/11 18:00 : relevé O reporté ici le 19 au soir ; phrases d'écart dans `plan-presentation.md` § 3.
+
 ### Écarts d'exploitation connus
 
-- **HTTPS (item CDC 27)** : l'accès chiffré `https://localhost:8443` utilise un certificat local (mkcert) installé sur le poste de démonstration ; aucun certificat public (pas de nom de domaine, démonstration sur place). Un autre poste affiche un avertissement tant que `mkcert -install` n'y a pas été lancé. Le HTTP sur le port 8080 reste disponible. Livré par #109 ; décision du PO du 16/11 : la démonstration se fait en HTTPS. *Si #109 n'est pas fusionnée le 19 à 18:00 : « accès HTTP seulement ».*
+- **HTTPS (item CDC 27)** : l'accès chiffré `https://localhost:8443` utilise un certificat local (mkcert) installé sur le poste de démonstration ; aucun certificat public (pas de nom de domaine, démonstration sur place). Un autre poste affiche un avertissement tant que `mkcert -install` n'y a pas été lancé. Le HTTP sur le port 8080 reste disponible. Livré par #109 ; décision du PO du 16/11 : la démonstration se fait en HTTPS.
 - **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; la valeur retenue est celle des relevés du `c6.tsv` : **à renseigner le 19 au soir (≥ 6 relevés verts) puis le 21 (10 sur 10)**, sans arrondi.
 - **Déploiement sur serveur distant (item CDC 28)** : non livré dans la rc.1, décision du PO du 9/11 (démonstration sur place, mêmes conteneurs). La preuve d'installation retenue est l'essai d'installation sans Internet du 25/11. La mise en service sur le serveur distant vient en V1.1, avec un accès par VPN seulement (#288) ; l'accès public en HTTPS suit en V1.2.
 - **Volumétrie (item CDC 8)** : 420 documents mesurés ; les 100 000 fichiers du cahier des charges sont mesurés en décembre.
@@ -124,7 +145,7 @@ On ne « descend » pas les migrations à la main : deux migrations de réparati
 
 ## Suivi des fusions à reporter ici (à tenir jusqu'au 19/11 18:00)
 
-Au 16/11 (`main` ca9953b) : tout est fusionné, sauf #99, #100 et #109 ; état de référence : `plans/releve-coupure-19-11.md`. Le tableau ci-dessous est l'état du 10/11, conservé pour mémoire.
+Au 17/11 au soir (`main` 2f15b6e) : toutes les PR prévues avant le gel sont fusionnées, dont #99, #100 et #109 ; état de référence : `plans/releve-coupure-19-11.md`. Le tableau ci-dessous est l'état du 10/11, conservé pour mémoire.
 
 | PR | Lot / sujet | Ligne cible | État au 10/11 |
 |---|---|---|---|
