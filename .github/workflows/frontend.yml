@@ -46,6 +46,11 @@ jobs:
           cd frontend
           npm run lint
 
+      - name: Run unit specs
+        run: |
+          cd frontend
+          npm run test:unit
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -72,6 +77,11 @@ jobs:
         run: |
           cd frontend
           npm run build
+
+      - name: Guard - no external URL for the browser (offline UI)
+        run: |
+          bash scripts/test_check_offline_frontend.sh
+          bash scripts/check_offline_frontend.sh frontend
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

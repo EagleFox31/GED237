@@ -1,0 +1,30 @@
+name: E2E UAT nightly
+
+# Full acceptance suite (Playwright project `uat`) every night and on demand.
+# Not triggered by pull requests or pushes: it never blocks a merge. The `seed` project runs
+# first so a missing seed fails with its own message instead of unrelated UI timeouts.
+# The schedule only runs on the default branch: on a release branch, dispatch it by hand
+# (gh workflow run e2e-uat-nightly.yml --ref release/v1.0.0).
+
+on:
+  schedule:
+    # 01:30 UTC = 02:30 in Douala (WAT).
+    - cron: "30 1 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-uat-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  uat:
+    name: E2E UAT
+    uses: ./.github/workflows/e2e-playwright.yml
+    with:
+      playwright_args: --project=seed --project=uat
+      report_name: e2e-uat-report
+      timeout_minutes: 60
+      retention_days: 14
