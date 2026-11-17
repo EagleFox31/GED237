@@ -28,6 +28,14 @@ class WorkflowActionPolicy:
         *,
         db: Optional[AsyncSession] = None,
     ):
+        # 0. A unit-bounded role (unit_admin) does not see a step outside its unit
+        # tree unless it is assigned to it (#215): answered like a missing step,
+        # before the state or the rights reveal anything about it.
+        if step.assigned_to != actor.id and not await in_actor_unit_tree(
+            db, actor, document.org_unit_id
+        ):
+            raise HTTPException(status_code=404, detail="Workflow step not found")
+
         # 1. Vérification de l'état du step
         if step.status != "current":
             raise HTTPException(
@@ -35,10 +43,8 @@ class WorkflowActionPolicy:
             )
 
         # 2. Vérification des droits (Assigné ou utilisateur avec capacité manage via Casbin)
-        # A unit-bounded manager (unit_admin) acts only inside its unit tree (#215).
-        if step.assigned_to != actor.id and not (
-            await can_perform(actor, "workflows", "manage", ctx_from_resource(document))
-            and await in_actor_unit_tree(db, actor, document.org_unit_id)
+        if step.assigned_to != actor.id and not await can_perform(
+            actor, "workflows", "manage", ctx_from_resource(document)
         ):
             raise HTTPException(
                 status_code=403, detail="You are not assigned to this step"

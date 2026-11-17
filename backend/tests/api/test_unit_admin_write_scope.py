@@ -23,6 +23,8 @@ from app.models.classification_review import ClassificationReview
 from app.models.document import Document
 from app.models.import_job import ImportJob
 from app.models.import_job_item import ImportJobItem
+from app.models.tenant import Tenant
+from app.models.user import User
 from app.models.workflow import WorkflowStep
 from app.services.classification_review_service import ClassificationReviewService
 from app.services.reports_scope import in_actor_unit_tree
@@ -269,16 +271,32 @@ def _action():
 async def test_a_unit_admin_validates_only_steps_of_its_tree(
     client_as, db_seed, scoped, db_session
 ):
-    steps = scoped["steps"]
+    steps, pending = scoped["steps"], scoped["pending"]
     async with _as(client_as, db_seed, scoped, "unit_admin", "a") as client:
         outside = await client.post(
             f"{WORKFLOWS}/step/{steps['b']}/actions", json=_action()
         )
+        # Not current either: the state must not leak before the tree check.
+        outside_pending = await client.post(
+            f"{WORKFLOWS}/step/{pending['b']}/actions", json=_action()
+        )
         inside = await client.post(
             f"{WORKFLOWS}/step/{steps['a1']}/actions", json=_action()
         )
-    assert outside.status_code == 403
-    assert outside.json()["detail"] == "You are not assigned to this step"
+    async with _as(client_as, db_seed, scoped, "unit_admin", "b") as client:
+        counter = await client.post(
+            f"{WORKFLOWS}/step/{steps['a1']}/actions", json=_action()
+        )
+    # manager has no workflows/manage and no tree bound: unchanged answer.
+    async with _as(client_as, db_seed, scoped, "manager", "b") as client:
+        manager = await client.post(
+            f"{WORKFLOWS}/step/{steps['b']}/actions", json=_action()
+        )
+    assert outside.status_code == 404, outside.text
+    assert outside_pending.status_code == 404, outside_pending.text
+    assert counter.status_code == 404, counter.text
+    assert manager.status_code == 403
+    assert manager.json()["detail"] == "You are not assigned to this step"
     # Past the rights check: refused further on, on the (random) version.
     assert inside.status_code == 400, inside.text
 
@@ -363,3 +381,100 @@ async def test_the_tree_check_fails_closed_for_a_unit_admin(db_session, db_seed)
 
     other = SimpleNamespace(role=SimpleNamespace(code="tenant_admin"), org_unit_id=None)
     assert await in_actor_unit_tree(None, other, None)
+
+
+@pytest.mark.asyncio
+async def test_a_unit_admin_starts_a_workflow_only_in_its_tree(
+    client_as, db_seed, scoped
+):
+    ids = scoped["ids"]
+    async with _as(client_as, db_seed, scoped, "unit_admin", "a") as client:
+        outside = await client.post(f"{DOCUMENTS}/{ids['b']}/start-workflow")
+        inside = await client.post(f"{DOCUMENTS}/{ids['a1']}/start-workflow")
+    async with _as(client_as, db_seed, scoped, "unit_admin", "b") as client:
+        counter = await client.post(f"{DOCUMENTS}/{ids['a1']}/start-workflow")
+    async with _as(client_as, db_seed, scoped, "tenant_admin", "a") as client:
+        wide = await client.post(f"{DOCUMENTS}/{ids['b']}/start-workflow")
+
+    assert outside.status_code == 404, outside.text
+    assert counter.status_code == 404, counter.text
+    # Past the tree check: these documents are not archives, hence 400.
+    assert inside.status_code == 400, inside.text
+    assert wide.status_code == 400, wide.text
+
+
+@pytest.mark.asyncio
+async def test_a_unit_admin_assigns_anyone_of_the_institution(
+    client_as, db_session, db_seed, scoped
+):
+    """Decided by O (#215): a step of the tree may go to a person of another
+    unit (validation by another service), never to another institution."""
+    other_tenant = uuid.uuid4()
+    stranger = uuid.uuid4()
+    seeded = await db_session.get(User, db_seed["user_id"])
+    db_session.add(
+        Tenant(
+            id=other_tenant,
+            name="Autre institution",
+            short_name="AUTRE",
+            domain=f"autre-{other_tenant}.gov.cm",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        User(
+            id=stranger,
+            tenant_id=other_tenant,
+            role_id=seeded.role_id,
+            matricule=f"EXT-{stranger.hex[:8]}",
+            email=f"{stranger.hex[:8]}@example.test",
+            first_name="Agent",
+            last_name="Externe",
+            password_hash="unused",
+            is_active=True,
+        )
+    )
+    await db_session.commit()
+
+    url = f"{WORKFLOWS}/steps/{scoped['pending']['a1']}/assign"
+    async with _as(
+        client_as, db_seed, scoped, "unit_admin", "a", id=db_seed["user_id"]
+    ) as client:
+        foreign = await client.post(url, json={"assigned_to": str(stranger)})
+        other_unit = await client.post(
+            url, json={"assigned_to": str(scoped["collaborator"])}
+        )
+    assert foreign.status_code == 400, foreign.text
+    assert other_unit.status_code == 200, other_unit.text
+
+
+@pytest.mark.asyncio
+async def test_a_unit_admin_defines_steps_in_its_tree(client_as, db_seed, scoped):
+    ids = scoped["ids"]
+    async with _as(
+        client_as, db_seed, scoped, "unit_admin", "a", id=db_seed["user_id"]
+    ) as client:
+        response = await client.post(
+            f"{WORKFLOWS}/document/{ids['a2']}/steps",
+            json=[{"document_id": str(ids["a2"]), "step_order": 3, "label": "Visa"}],
+        )
+    # Past the tree and rights checks: refused only because the fixture
+    # document already runs a workflow.
+    assert response.status_code == 409, response.text
+    assert "active workflow" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_a_unit_admin_without_a_unit_sees_nothing(client_as, db_seed, scoped):
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=None
+    ) as client:
+        reviews = await client.get(REVIEWS)
+        pending = await client.get(f"{WORKFLOWS}/pending-assignments")
+        step = await client.post(
+            f"{WORKFLOWS}/step/{scoped['steps']['a1']}/actions", json=_action()
+        )
+    assert (reviews.status_code, reviews.json()) == (200, [])
+    assert (pending.status_code, pending.json()) == (200, [])
+    assert step.status_code == 404, step.text
