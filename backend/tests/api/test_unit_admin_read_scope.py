@@ -35,11 +35,13 @@ SERVICES = "/api/v1/reports/service-activity"
 NEEDLE = "perimetre"
 
 WIDE = {"a", "a1", "a2", "b", "own"}
+# Institution-wide roles read every batch of the institution, whoever created it.
+ALL_JOBS = {"job_a1", "job_b", "job_own"}
 # role, unit of the caller, active documents seen, trashed seen, imports readable
 MATRIX = [
-    ("super_admin", "a", WIDE, {"a1_trash", "b_trash"}, {"job_a1", "job_b"}),
-    ("tenant_admin", "a", WIDE, {"a1_trash", "b_trash"}, {"job_a1", "job_b"}),
-    ("auditor", "a", WIDE, {"a1_trash", "b_trash"}, {"job_a1", "job_b"}),
+    ("super_admin", "a", WIDE, {"a1_trash", "b_trash"}, ALL_JOBS),
+    ("tenant_admin", "a", WIDE, {"a1_trash", "b_trash"}, ALL_JOBS),
+    ("auditor", "a", WIDE, {"a1_trash", "b_trash"}, ALL_JOBS),
     ("unit_admin", "a", {"a", "a1", "a2"}, {"a1_trash"}, {"job_a1"}),
     ("unit_admin", "a1", {"a1", "a2"}, {"a1_trash"}, {"job_a1"}),
     ("manager", "a", {"a"}, set(), set()),
