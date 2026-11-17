@@ -15,7 +15,7 @@ import {
     clearAuthSession,
     isAuthEndpoint,
 } from './session';
-import { buildApiError, buildNetworkError } from './errorAdapter';
+import { buildApiError, buildNetworkError, type StatusMessages } from './errorAdapter';
 
 export { getHeaders };
 
@@ -85,6 +85,7 @@ export const apiCall = async <T>(
     path: string,
     init: RequestInit = {},
     fallback = 'Requête échouée',
+    statusMessages?: StatusMessages,
 ): Promise<T> => {
     const isMultipart = init.body instanceof FormData;
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
@@ -94,7 +95,7 @@ export const apiCall = async <T>(
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     });
-    if (!response.ok) throw await buildApiError(response, fallback);
+    if (!response.ok) throw await buildApiError(response, fallback, statusMessages);
     return response.json() as Promise<T>;
 };
 
@@ -106,6 +107,7 @@ export const apiCallVoid = async (
     path: string,
     init: RequestInit = {},
     fallback = 'Requête échouée',
+    statusMessages?: StatusMessages,
 ): Promise<void> => {
     const isMultipart = init.body instanceof FormData;
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
@@ -115,7 +117,7 @@ export const apiCallVoid = async (
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     });
-    if (!response.ok) throw await buildApiError(response, fallback);
+    if (!response.ok) throw await buildApiError(response, fallback, statusMessages);
 };
 
 /**

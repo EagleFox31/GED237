@@ -216,6 +216,7 @@ const Documents: React.FC = () => {
         <DocumentDetailModal
           document={selectedDoc}
           onClose={() => setSelectedDoc(null)}
+          onTrashed={() => setDocs((current) => current.filter((d) => d.id !== selectedDoc.id))}
         />
       )}
 
