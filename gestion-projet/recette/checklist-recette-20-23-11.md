@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | 1.1 | Pile neuve depuis `main` : `git clone` propre, `docker compose up -d --build`, attendre `/health` 200 | manuel d'installation `DOCS/exploitation/installation.md` | durées notées | 5 Go |
 | 1.2 | Jeu D1 : `e2e_reset.sh demo` | `sh backend/scripts/e2e_reset.sh demo` (voir `DOCS/exploitation/donnees-demo.md`) | compteurs | — |
-| 1.3 | **Restauration n° 2** sur le poste de secours **(#104)** | `bash ops/backup.sh` ; `bash ops/restore.sh backups/ged237-<horodatage> --wipe` ; `alembic current` ; `/health` (version attendue) | `restauration-2026-11-20.txt` | 5 Go |
+| 1.3 | **Restauration n° 2** sur le poste de secours **(#104)** — **déplacée au 21/11, 09:00–10:00** (repli le 22, même créneau), voir 4.0 | `bash ops/backup.sh` ; `bash ops/restore.sh backups/ged237-<horodatage> --wipe` ; `alembic current` ; `/health` (version attendue) | `restauration-2026-11-21.txt` | 5 Go |
 | 1.4 | Procédure « Retour arrière » des notes rc.1 jouée par la ligne 1.3 **(#104)** | mêmes commandes | mention dans 1.3 | — |
 | 1.5 | **HTTPS** : mkcert (`DOCS/exploitation/https-local.md`), puis `sh scripts/prove_tls.sh` vert (`OK: HTTPS …`, code 0) | idem | sortie datée `recette/https-2026-11-20.txt` | 5 Go |
 | 1.6 | Redirection : `curl -skI https://localhost:8443/api/v1/categories` → 307 dont `Location` garde `https` et `:8443` | idem | même fichier | — |
@@ -61,9 +61,13 @@
 
 | # | Ligne | Qui | Preuve |
 |---|---|---|---|
+| 4.0 | 21/11, 09:00–10:00 (repli le 22) : restauration n° 2 (ligne 1.3), sur une pile dédiée de la rc, jamais celle de la sonde C6 | Q | `restauration-2026-11-21.txt` |
 | 4.1 | Run 3 **seulement si** un correctif a été fusionné le 21 après le run 2 | Q | rapport |
 | 4.2 | Relevé 18:00 : les 8 critères du plan § 2 cochés un par un, preuve par critère | Q | tableau ci-dessous |
 | 4.3 | Message daté Q → O : GO ou NO-GO argumenté | Q | message + passation |
+| 4.4 | 23/11, avant la séance — Prépa 1 : rapport du jour, jeu remis à zéro, dossier `live` présent ; compte jetable du verrou créé (`VERROU-23`, rôle reader), jamais un compte de la démo | Q | rapport + compteurs |
+| 4.5 | Prépa 2 : MINFI002 soumet un document au visa de MGR001 | Q | capture de la corbeille de visa |
+| 4.6 | UAT manuelle du 23 selon la [fiche de passage](../innovateur/fiche-uat-manuelle-23-11.md) **(docs/scenario-demo-30-11)** : ★ indispensables (≈ 65 min), verrou après 3 codes faux en dernier sur `VERROU-23`. Q fournit à O pour le § 6 : SC-AUTH-03 (API), SC-ESP-01 (API), Corbeille exclue, SC-RED-04, SC-RED-05/06 ; constat SC-RED-01 (manager) | O, Q | fiche § 6 |
 
 ### Relevé des critères (dim 23, 18:00)
 
@@ -73,7 +77,7 @@
 | 2. smoke + uat verts sur 2 runs consécutifs, sans `skip` ajouté | rapports runs 1+2 (ou 2+3) | [ ] |
 | 3. Reset D1 identique (compteurs + SHA-256) | `compteurs-*.txt` | [ ] |
 | 4. C2 ≥ 95 %, C3 p95 ≤ 2 000 ms | `c2-*`, `c3-2026-11-20.txt` | [ ] |
-| 5. Restauration n° 2 prouvée ; `prove_tls.sh` vert et 8 parcours HTTPS (sinon repli HTTP, item 27 `partiel`) | `restauration-2026-11-20.txt`, `https-2026-11-20.txt` | [ ] |
+| 5. Restauration n° 2 prouvée ; `prove_tls.sh` vert et 8 parcours HTTPS (sinon repli HTTP, item 27 `partiel`) | `restauration-2026-11-21.txt`, `https-2026-11-20.txt` | [ ] |
 | 6. H-30 rejouée sans incident | `h30-2026-11-21.md` | [ ] |
 | 7. Heure PO faite | verdicts dans `matrice-recette.md` | [ ] |
 | 8. CHANGELOG « Limites connues » complété avec le relevé du 19 | PR docs du 19 au soir | [ ] |
