@@ -197,8 +197,8 @@ Il n'y a plus de journée « sans fusion » le 29 : la démo ne dépend plus de 
 ### 8.3 Règles levées, et celles qui restent
 
 - **Levée sur `main`** : « aucune migration avant le 30 » (§ 5) et le gel des dépendances pour les PR post-rc1, dont #197 et `reportlab`. Les deux gels ne valent plus que pour `release/v1.0.0`.
-- **Accord écrit du PO pour L2, L3, L4 et L6** (§ 4) : il protégeait la démo, qui est désormais sur la release. Je propose de le remplacer par la seule passe ciblée verte. **Décision O.** Les accords de fond du § 8.2 (doublons et portée) restent nécessaires.
-- **PR Dependabot** (#29, #30, #110 à #113, #141) : la levée du gel les rend possibles sur `main`. Je recommande de les garder après le 30, car Q est pris par la recette. **Décision O.**
+- **Accord écrit du PO pour L2, L3, L4 et L6** (§ 4) : il protégeait la démo, qui est désormais sur la release. **Décision O du 17/11** : pas de nouvel accord du PO, son « go dès que possible » couvre L2 à L6 sur `main`. On garde seulement la passe ciblée verte. Les accords de fond du § 8.2 (doublons et portée) restent nécessaires.
+- **PR Dependabot** (#29, #30, #110 à #113, #141) : la levée du gel les rend possibles sur `main`. **Décision O du 17/11** : après le 30.
 - **Restent** : les passes ciblées (§ 4), la chaîne alembic (§ 2), les reciblages (§ 3) et « la PR fusionnée en second adapte les tests de portée » (§ 7).
 
 ### 8.4 Base de recette et base de développement (nouveau risque)
@@ -211,8 +211,9 @@ Dès le 19, `main` peut porter des migrations que la release n'a pas. Si une bas
 ### 8.5 Points à régler avant le 20 (`Vérifié` le 17/11)
 
 1. **La branche `release/v1.0.0` ne sera pas protégée.** Le seul ruleset du dépôt, « AppFactory default branch governance », ne vise que `~DEFAULT_BRANCH`. Sans autre règle, n'importe qui peut pousser directement sur la release, la réécrire ou la supprimer, et une PR vers elle n'exige aucun check.
-   - Proposition : O ajoute, avant le 20, un ruleset sur `refs/heads/release/**` avec les mêmes règles (`deletion`, `non_fast_forward`, `pull_request`, `required_status_checks`). **Décision O.**
-   - À défaut, `ci_gate` doit être vert avant chaque fusion sur la release (check-list § 1).
+   - **Décision O du 17/11** : O crée un ruleset `release/**` séparé de celui d'AppFactory, juste après la coupure du 19, puis le relit. Ses règles : `deletion`, `non_fast_forward`, `pull_request` (0 approbation, fils résolus) et CI Gate strict avec `do_not_enforce_on_create`. Le contrôle correspondant est l'étape E1 bis-2 de la check-list.
+   - `ci_gate` doit de toute façon être vert avant chaque fusion sur la release.
+2 bis. **Décision O** : O ne coupe pas la release tant que la PR `ci.yml` de Q (`release/**` dans `push` et `pull_request`) n'est pas fusionnée sur `main`.
 2. **`ci.yml` ne se déclenche que sur `main` et `develop`** (`push` et `pull_request`). Q y ajoute `release/**` avant le gel, comme décidé par O, **dans les deux déclencheurs**. Cet ajout doit être fusionné sur `main` **avant la coupure** pour se retrouver sur la release.
 3. **La recette nocturne planifiée ne tourne que sur la branche par défaut** (cron de `e2e-uat-nightly.yml`). Sur la release, elle se lance à la main par `gh workflow run e2e-uat-nightly.yml --ref release/v1.0.0` (check-list § 1, E3 bis, et § 2).
 4. **#121 et la PR des notes de B ont `main` pour base** (`Vérifié` pour #121). Leurs auteurs les reciblent juste après la coupure, avec `gh pr edit <n> --base release/v1.0.0`, puis les rebasent sur la release.

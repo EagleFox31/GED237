@@ -128,7 +128,12 @@ Avec l'option A, la ligne « Passage à 1.0.0 » et la graine `1.0.0-rc.1` du §
   - la PR propose `1.1.0` avec l'option A, ou `1.0.0` avec l'option B ;
   - aucun commit d'avant la coupure n'apparaît.
 
-> Accord O du 17/11 : décisions du § 8. Le § 9 s'applique : `last-release-sha` = point de coupure `$M`, obligatoire. Version de la première release de `main` : option ___ (A recommandée : `v1.0.0` posée à la main sur `release/v1.0.0`, puis `v1.1.0` de `main` par Release Please).
+**Décision O du 17/11 : option A.**
+- `v1.0.0` est la promotion de la dernière rc sur `release/v1.0.0`, posée à la main par O.
+- `main` est amorcé à `1.0.0`, avec `last-release-sha` = `$M`.
+- La première release automatique de `main` sera `v1.1.0`.
+
+> Accord O du 17/11 : décisions du § 8. Le § 9 s'applique : `last-release-sha` = point de coupure `$M`, obligatoire. Version de la première release de `main` : option A (`v1.0.0` posée à la main sur `release/v1.0.0`, puis `v1.1.0` sur `main` par Release Please).
 
 ## Revue RAIDER (instruction)
 
