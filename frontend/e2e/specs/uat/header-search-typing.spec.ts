@@ -1,0 +1,33 @@
+import { test, expect } from '../../fixtures/uat.fixture';
+
+/**
+ * Recherche du bandeau portée par l'URL (?q=) sur /spaces : aucune touche perdue en frappe rapide (#163),
+ * et l'URL reste la source quand elle change d'ailleurs (lien direct, retour arrière du navigateur).
+ */
+test.describe('Recherche du bandeau — saisie portée par l’URL', () => {
+  test('frappe rapide : aucune touche perdue, URL à jour', async ({ page, loginAs }) => {
+    await loginAs('tenant_admin');
+    await page.goto('spaces');
+    const search = page.locator('[data-global-search]');
+
+    await search.click();
+    await page.keyboard.type('budget2026');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
+    await expect(search).toHaveValue('budget20');
+    await expect(page).toHaveURL(/[?&]q=budget20(&|$)/);
+
+    await search.fill('');
+    await expect(page).not.toHaveURL(/[?&]q=/);
+  });
+
+  test('lien direct et navigation : le champ suit l’URL', async ({ page, loginAs }) => {
+    await loginAs('tenant_admin');
+    await page.goto('spaces?q=courrier');
+    const search = page.locator('[data-global-search]');
+    await expect(search).toHaveValue('courrier');
+
+    await page.goto('spaces?q=note');
+    await expect(search).toHaveValue('note');
+  });
+});
