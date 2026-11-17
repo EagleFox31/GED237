@@ -594,7 +594,7 @@ async def test_password_alone_does_not_remove_the_app(
 
 @pytest.mark.asyncio
 async def test_app_code_and_password_remove_the_app(
-    auth_client: AsyncClient, clock, monkeypatch
+    auth_client: AsyncClient, clock, db_session, monkeypatch
 ):
     secret = await _enrol(auth_client, clock)
     clock.step = 1
@@ -606,10 +606,8 @@ async def test_app_code_and_password_remove_the_app(
     assert removed.status_code == 204
     assert (await auth_client.get(TOTP)).json()["enrolled"] is False
     assert (await _login(auth_client))["method"] == "dev_response"
-    logs = await auth_client.get(
-        "/api/v1/audit/logs", params={"action": "totp_disabled"}
-    )
-    assert len(logs.json()) == 1
+    # A collaborator cannot read the audit screen: read the table.
+    assert len(await _audit(db_session, "totp_disabled")) == 1
 
 
 @pytest.mark.asyncio
