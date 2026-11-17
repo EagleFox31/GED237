@@ -53,12 +53,14 @@ async def _other_tenant(db_session):
 
 
 def _caller(db_seed, role):
-    # The manager owns the seeded documents: the refusal cannot come from
-    # another unit or another owner.
-    fields = {"tenant_id": db_seed["tenant_id"], "org_unit_id": db_seed["org_unit_id"]}
-    if role == "manager":
-        fields["id"] = db_seed["user_id"]
-    return fields
+    # The caller is the seeded user, who owns the documents: the refusal cannot
+    # come from another unit or another owner, and the audit row (#250) has a
+    # real author.
+    return {
+        "id": db_seed["user_id"],
+        "tenant_id": db_seed["tenant_id"],
+        "org_unit_id": db_seed["org_unit_id"],
+    }
 
 
 @pytest.mark.asyncio

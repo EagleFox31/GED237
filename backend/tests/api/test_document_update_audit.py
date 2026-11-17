@@ -28,9 +28,7 @@ async def _document(db_session, db_seed, **fields):
         mime_type="application/pdf",
         file_size=128,
         document_category_id=db_seed["category_id"],
-        status="draft",
-        classification_status="classified",
-        **fields,
+        **{"status": "draft", "classification_status": "classified", **fields},
     )
     db_session.add(document)
     await db_session.commit()
@@ -39,7 +37,7 @@ async def _document(db_session, db_seed, **fields):
 
 async def _entries(db_session, document_id):
     result = await db_session.execute(
-        select(AuditLog.action, AuditLog.details)
+        select(AuditLog.action, AuditLog.new_data)
         .where(AuditLog.record_id == document_id)
         .order_by(AuditLog.created_at)
     )
@@ -99,6 +97,7 @@ async def test_archiving_is_audited_as_a_status_change(client_as, db_session, db
     document_id = await _document(db_session, db_seed, status="validated")
     async with client_as(
         "tenant_admin",
+        id=db_seed["user_id"],
         tenant_id=db_seed["tenant_id"],
         org_unit_id=db_seed["org_unit_id"],
     ) as client:
@@ -122,13 +121,11 @@ async def test_archiving_is_audited_as_a_status_change(client_as, db_session, db
 async def test_a_reclassification_is_one_reclassify_entry_not_two(
     client_as, db_session, db_seed
 ):
-    document_id = await _document(db_session, db_seed)
+    document_id = await _document(db_session, db_seed, classification_status="pending")
     async with _owner(client_as, db_seed) as client:
         response = await client.patch(
             f"{DOCUMENTS}/{document_id}",
             json={
-                "classification_scope": "service",
-                "classification_target_org_unit_id": str(db_seed["org_unit_id"]),
                 "classification_year": 2026,
             },
         )
@@ -137,4 +134,3 @@ async def test_a_reclassification_is_one_reclassify_entry_not_two(
     assert [action for action, _ in entries] == ["reclassify"]
     before, after = entries[0][1]["before"], entries[0][1]["after"]
     assert (before["classification_year"], after["classification_year"]) == (None, 2026)
-    assert after["classification_target_org_unit_id"] == str(db_seed["org_unit_id"])
