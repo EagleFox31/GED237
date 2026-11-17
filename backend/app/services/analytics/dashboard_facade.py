@@ -31,6 +31,8 @@ class DashboardFacade:
 
         ``units``: ids of the units counted (``unit_subtree_ids``); None, the
         whole institution. Same keys either way.
+        Documents in the recycle bin are left out, as in get_manager_metrics:
+        they are no longer among the institution files (#218).
         """
         # 1. User Statistics
         stmt_users = select(func.count(User.id)).where(User.tenant_id == tenant_id)
@@ -42,7 +44,7 @@ class DashboardFacade:
         stmt_docs = select(
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
-        ).where(Document.tenant_id == tenant_id)
+        ).where(Document.tenant_id == tenant_id, Document.deleted_at.is_(None))
         if units is not None:
             stmt_docs = stmt_docs.where(Document.org_unit_id.in_(units))
 
@@ -68,7 +70,7 @@ class DashboardFacade:
                 .label("rejected"),
             )
             .join(Document, Document.id == WorkflowStep.document_id)
-            .where(Document.tenant_id == tenant_id)
+            .where(Document.tenant_id == tenant_id, Document.deleted_at.is_(None))
         )
         if units is not None:
             stmt_workflows = stmt_workflows.where(Document.org_unit_id.in_(units))
