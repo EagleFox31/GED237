@@ -60,7 +60,16 @@ Le 28. #193 (TOTP) n'est pas concernée : elle passe après le 30, car elle port
 - Rien de visible avec le réglage par défaut (`AUTH_OTP_CHANNEL=dev_response`) : la connexion en deux temps reste la même.
 - Le code n'est plus gardé en clair côté serveur, et un nouveau service permet de renvoyer le code (pas plus d'une fois toutes les 30 secondes). Aucun bouton à l'écran dans cette PR.
 
-**Risque** : moyen. C'est le seul point d'entrée de l'application, et le changement de stockage du code n'a **pas** de réglage pour revenir en arrière. Une connexion commencée avant la mise à jour se termine quand même. Aucune migration.
+**Risque** : moyen. C'est le seul point d'entrée de l'application, et le changement de stockage du code n'a **pas** de réglage pour revenir en arrière. Aucune migration.
+
+**Connexions en cours au moment du déploiement** : elles aboutissent. La PR lit encore l'ancien format, le code gardé en clair, et son test « ancien format accepté » le couvre (corps de #154, `Vérifié` ; test non rejoué par moi). Un code vit 300 s (`OTP_EXPIRY_SECONDS`, `auth_service.py` l. 32) : cinq minutes après le déploiement, il ne reste plus aucun code à l'ancien format.
+
+**Retour arrière réel : annuler le commit** (`git revert` du commit de fusion de #154 sur `main`, puis redéploiement). Ce retour n'est **pas** symétrique :
+
+- Le code de `main` compare le code saisi au contenu de Redis, en clair (`secrets.compare_digest`, `auth_service.py` l. 171). Une empreinte `h1:…` laissée par #154 ne correspond donc jamais.
+- Une connexion commencée avant le retour arrière échoue donc avec « code incorrect », et l'échec est compté. Au troisième essai, le compte est verrouillé 15 minutes (`AUTH_OTP_MAX_FAILURES=3`, `AUTH_LOCKOUT_SECONDS=900`).
+- La parade, juste après le redéploiement : supprimer les clés `otp:*` de Redis. Les utilisateurs concernés voient alors « session expirée » et recommencent leur connexion, sans compter d'échec. Un compte déjà verrouillé se débloque par la procédure d'exploitation de l'administrateur.
+- Sinon, il faut attendre 5 minutes, sans pouvoir empêcher les verrouillages pendant ce temps.
 
 **Passes ciblées**
 
