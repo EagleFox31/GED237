@@ -62,6 +62,7 @@ export { usageApi }            from './resources/usage.api';
 // transport directement (ex: categories.api.ts, stores d'auth).
 export { fetchWithRefresh, apiCall, apiCallVoid, requestJson, getHeaders } from './http/client';
 export { clearAuthSession, persistAuthTokens, isAuthEndpoint, takePostLoginDestination } from './http/session';
+export { accountKeyOf } from './http/accountKey';
 export { buildApiError }                                                    from './http/errorAdapter';
 
 export const api = {

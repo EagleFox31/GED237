@@ -76,6 +76,7 @@
 - [ ] **O** — Seed vérifié : connexion `MGR001` réussie après le seed explicite (le compose ne seed pas ; `jeu-donnees-demo.md` § 2), puis déconnexion.
 - [ ] **Q** — Rapport Playwright du plan B ouvert dans un second onglet (local, `file://`), captures des 8 parcours vérifiées.
 - [ ] **O** — Téléphones en silencieux, notifications système coupées, Docker Desktop réduit (pas de fenêtre « mise à jour disponible »).
+- [ ] **O** — Images **construites la veille** (J-1) ou chargées depuis la clé USB : **pas de `docker compose build` ni de `--build` le jour J** (le build de l'image api télécharge ~180 Mo de wheels torch ; un téléchargement coupé échoue au contrôle de hash pip : incident du 17/11).
 - [ ] **O** — Point de reprise vérifié : `/health` = 200 sur les deux postes, même nombre de documents affiché sur `/spaces` DAF (poste de secours = restauration de la sauvegarde J-1).
 
 ### Pendant (P présente, O au clavier de secours)

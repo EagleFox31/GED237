@@ -5,6 +5,15 @@ import { api } from '../services/api';
 import { TenantMetrics } from '../types';
 import { HelpHint } from './HelpHint';
 
+
+type StatTone = 'blue' | 'red' | 'green' | 'slate';
+// Classes écrites en entier : Tailwind (compilé) ne génère pas une classe construite par concaténation.
+const STAT_TONE: Record<StatTone, { text: string; bar: string }> = {
+  blue: { text: 'text-rdpc-blue', bar: 'bg-rdpc-blue' },
+  red: { text: 'text-red-500', bar: 'bg-red-500' },
+  green: { text: 'text-green-600', bar: 'bg-green-600' },
+  slate: { text: 'text-slate-500', bar: 'bg-slate-500' },
+};
 const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -71,7 +80,7 @@ const Dashboard: React.FC = () => {
                   Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refuse ».
                 </HelpHint>
               ) : (
-                <span className={`material-symbols-outlined text-${stat.color === 'blue' ? 'rdpc-blue' : stat.color === 'red' ? 'red-500' : stat.color === 'green' ? 'green-600' : 'slate-500'} opacity-30`}>{stat.icon}</span>
+                <span className={`material-symbols-outlined ${STAT_TONE[stat.color as StatTone]?.text ?? STAT_TONE.slate.text} opacity-30`}>{stat.icon}</span>
               )}
             </div>
             <div className="flex items-end justify-between mt-5">
@@ -80,7 +89,7 @@ const Dashboard: React.FC = () => {
                 {stat.trend}
               </span>
             </div>
-            <div className={`absolute bottom-0 left-0 h-1 bg-${stat.color === 'blue' ? 'rdpc-blue' : stat.color === 'red' ? 'red-500' : stat.color === 'green' ? 'green-600' : 'slate-500'} w-0 group-hover:w-full transition-all duration-500`}></div>
+            <div className={`absolute bottom-0 left-0 h-1 ${STAT_TONE[stat.color as StatTone]?.bar ?? STAT_TONE.slate.bar} w-0 group-hover:w-full transition-all duration-500`}></div>
           </div>
         ))}
       </div>

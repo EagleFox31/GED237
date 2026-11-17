@@ -8,6 +8,7 @@
 // d'authentification côté client.
 
 import { isSafeInternalPath } from './safePath';
+import { accountKeyOf } from './accountKey';
 
 const APP_BASE_PATH = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 
@@ -38,22 +39,22 @@ const rememberDestination = (): void => {
         const { pathname, search, hash } = window.location;
         const inApp = APP_BASE_PATH && pathname.startsWith(APP_BASE_PATH) ? pathname.slice(APP_BASE_PATH.length) : pathname;
         if (!isSafeInternalPath(inApp) || inApp === '/login' || inApp === '/') return;
-        const profile = JSON.parse(sessionStorage.getItem('user_profile') || 'null');
-        if (!profile?.id) return;
-        sessionStorage.setItem(DESTINATION_KEY, JSON.stringify({ path: `${inApp}${search}${hash}`, userId: profile.id }));
+        const accountKey = accountKeyOf(JSON.parse(sessionStorage.getItem('user_profile') || 'null'));
+        if (!accountKey) return;
+        sessionStorage.setItem(DESTINATION_KEY, JSON.stringify({ path: `${inApp}${search}${hash}`, userId: accountKey }));
     } catch {
         // Stockage indisponible : on retombe sur la page d'accueil du profil.
     }
 };
 
 /** Retourne la page mémorisée (une seule fois) si elle appartient à cet utilisateur. */
-export const takePostLoginDestination = (userId: string | undefined): string | null => {
+export const takePostLoginDestination = (accountKey: string | undefined): string | null => {
     try {
         const raw = sessionStorage.getItem(DESTINATION_KEY);
         sessionStorage.removeItem(DESTINATION_KEY);
-        if (!raw || !userId) return null;
+        if (!raw || !accountKey) return null;
         const saved = JSON.parse(raw) as { path?: string; userId?: string };
-        return saved.userId === userId && isSafeInternalPath(saved.path) ? saved.path : null;
+        return saved.userId === accountKey && isSafeInternalPath(saved.path) ? saved.path : null;
     } catch {
         return null;
     }
