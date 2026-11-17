@@ -192,6 +192,13 @@ async def test_disabled_server_refuses_schedules_and_runs_nothing(
     assert settings.SCHEDULED_REPORTS_ENABLED is False  # default
     assert "run-scheduled-reports" not in (celery_app.conf.beat_schedule or {})
 
+    # The client reads the switch cross-origin to hide the feature.
+    origin = settings.ALLOWED_ORIGINS[0]
+    listed = await admin_client.get(SCHEDULES, headers={"Origin": origin})
+    assert listed.headers["X-Scheduled-Reports-Enabled"] == "false"
+    exposed = listed.headers["access-control-expose-headers"]
+    assert "X-Scheduled-Reports-Enabled" in exposed
+
     refused = await admin_client.post(
         SCHEDULES,
         json={"name": "x", "frequency": "weekly", "report": {"kind": "evolution"}},
@@ -225,6 +232,7 @@ async def test_create_list_and_stop_a_schedule(admin_client, db_session, enabled
 
     listed = await admin_client.get(SCHEDULES)
     assert [item["id"] for item in listed.json()] == [body["id"]]
+    assert listed.headers["X-Scheduled-Reports-Enabled"] == "true"
 
     stopped = await admin_client.delete(f"{SCHEDULES}/{body['id']}")
     assert stopped.status_code == 204
