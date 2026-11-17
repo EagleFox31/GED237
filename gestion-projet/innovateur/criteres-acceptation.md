@@ -9,6 +9,7 @@
 - **Base** : `main` 33b2425 (#188, #198, #200 fusionnées), relevée en lecture seule. L'état ligne par ligne et les preuves sont dans `matrice-recette.md` § 0.3.
 - **⚠ Avant le 15/11** : la colonne « Où on en est (09/11) » et les mentions « livré si fusionné le 19/11 » datent du 09 ou du 10/11. L'état à jour est le tableau 1 bis et les mentions « 17/11 » ajoutées dans les lignes.
 - **Limite rc.1, code de connexion** : le code n'est pas reçu. Il est pré-rempli à l'écran et le cadre « Espace Démo Interactif » est visible (mode `development`, `matrice-recette.md` § 0.1). C'est une limite annoncée pour la recette et la démo du 30 ; elle est levée après le 30 pour une installation en production.
+- **Récit de la démo du 30 (décision de O du 17/11)** : le narrateur est l'administrateur du ministère `MINFI001` ; le collaborateur `MINFI002` n'est plus joué en direct. Sur la rc.1 (relevé b701314), un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents ; l'import, l'explorateur et la bannette sont réservés à l'administrateur. C'est le cloisonnement voulu : « l'administrateur prépare, chacun ne voit que ce qui le concerne ». Les critères du collaborateur restent recettés du 20 au 23 (SC-AUTH-01, SC-RED-01). Lignes corrigées le 17/11 : SC-ADM-08, SC-RED-01, SC-ADM-06, P3 étape 7, SC-LEC-01, SC-AUD-01, SC-VAL-01, SC-VAL-02. Parcours minuté : `scenario-demo-30-11.md` (branche `docs/scenario-demo-30-11`).
 - **Hors rc.1** (PR gelées jusqu'après le 30) : corbeille à l'écran et annulation (#152, #181, #179, #182, #184), numérotation des rapports (#161), envoi du code par e-mail (#154), TOTP (#193). Les critères qui en dépendent ne sont **pas joués** pendant la recette. Liste complète : `matrice-recette.md` § 0.2.
 
 ## 1. Les sept critères de recette contractuels (cadrage § 8) traduits en mesures
@@ -57,18 +58,18 @@ Format : **Donnée** → **Action** → **Alors** (observable) ; *Exception du g
 | ID | Critère vérifiable | Preuve |
 |---|---|---|
 | SC-ADM-05 (partiel) | `/rules` liste au moins la règle de démo avec priorité et état **Active** avant l'import. | e2e |
-| SC-ADM-08 | Dossier de démo monté dans l'api (N fichiers dont 2 doublons et 2 hors règle) → « Importer » → compteurs **importés = N−2, doublons = 2, à revoir = 2**, en moins de 60 s pour ≤ 50 fichiers. *E (guide)* : chemin hors racine autorisée → 403 (`spec-limite-upload.md` § 5, après correctif B) ; fichier > limite → refus expliqué (413, `spec-limite-upload.md`). | e2e réel (montage à vérifier par Q) |
+| SC-ADM-08 | Dossier de démo monté dans l'api (N fichiers dont 2 doublons et 2 hors règle) → « Importer » (**17/11** : `MINFI001`, menu « Import en masse », bouton « Importer les documents » ; assistant réservé à l'administrateur) → compteurs **importés = N−2, doublons = 2, à revoir = 2**, en moins de 60 s pour ≤ 50 fichiers. *E (guide)* : chemin hors racine autorisée → 403 (`spec-limite-upload.md` § 5, après correctif B) ; fichier > limite → refus expliqué (413, `spec-limite-upload.md`). | e2e réel (montage à vérifier par Q) |
 | SC-E2E-01 (partie classement) | Les N−4 fichiers couverts par la règle apparaissent dans `/spaces` sous service → domaine → activité → année attendus ; `classification_status=classified`. **Critère C2 local** : ≥ 95 % des fichiers couverts. | e2e |
 | P2 étape 8 | Ré-import du même dossier → importés = 0, doublons = N, aucun document créé (compte `GET /documents` inchangé). | API ou manuelle |
-| SC-RED-01 | Collab dépose un PDF < 1 Mo avec titre et catégorie → le document existe en **Brouillon**, visible par son auteur, **et** par un autre collab du même service en lecture seule ; `POST /documents/upload` → 201 (SMK-04 ferme). *E1* : fichier > limite → message avec la limite. | e2e |
+| SC-RED-01 | Collab dépose un PDF < 1 Mo avec titre et catégorie → le document existe en **Brouillon**, visible par son auteur, **et** par un autre collab du même service en lecture seule ; `POST /documents/upload` → 201 (SMK-04 ferme). **17/11 (b701314)** : un collaborateur ne lit que ses propres documents (`documents read_own`, `search.py` l. 50-55). Critère corrigé : visible par son auteur, **pas** par un autre collab du même service. Visibilité d'un brouillon par le manager du service : `À vérifier` en recette. Hors démo en direct. *E1* : fichier > limite → message avec la limite. | e2e |
 
 ### P3 — Simulation de règle (SC-ADM-05/06)
 
 | ID | Critère vérifiable | Preuve |
 |---|---|---|
 | SC-ADM-05 | Règle « si nom contient X et type PDF alors domaine D, activité A » enregistrée → visible dans la liste, **inactive** par défaut. | e2e |
-| SC-ADM-06 (sens démo) | « Simuler » sur la règle inactive → tableau *document / destination actuelle / destination proposée* avec ≥ 1 ligne ; **aucun** document n'a bougé (`GET /spaces/documents` identique avant/après). | e2e + API |
-| P3 étape 7 | Activer puis « Relancer le workflow » sur un document à revoir → sa destination devient celle de la règle ; une entrée d'audit `document.reclassified` (ou équivalent) existe. | manuelle (ou `manual-review`) |
+| SC-ADM-06 (sens démo) | « Simuler » (**17/11** : étape « Simulateur » du « Plan de classement ») sur la règle inactive → tableau *document / destination actuelle / destination proposée* avec ≥ 1 ligne ; **aucun** document n'a bougé (`GET /spaces/documents` identique avant/après). | e2e + API |
+| P3 étape 7 | Activer puis « Relancer le workflow » (**17/11** : à l'écran, « Classer et relancer » dans « Ma bannette », par `MINFI001`) sur un document à revoir → sa destination devient celle de la règle ; une entrée d'audit `document.reclassified` (ou équivalent) existe. | manuelle (ou `manual-review`) |
 
 ### P4 — Espaces (SC-LEC-02, SC-ESP-01)
 
@@ -82,7 +83,7 @@ Format : **Donnée** → **Action** → **Alors** (observable) ; *Exception du g
 
 | ID | Critère vérifiable | Preuve |
 |---|---|---|
-| SC-LEC-01 | Collab DAF cherche un terme présent dans 3 documents DAF → 3 résultats, `took_ms` affiché **< 2 000** (C3), clic ouvre la fiche ; consultation tracée dans l'audit (post-condition du guide). | e2e |
+| SC-LEC-01 | ~~Collab DAF~~ **17/11 : manager DAF `MGR001`** (un collaborateur ne cherche que dans ses propres documents) cherche un terme présent dans 3 documents DAF → 3 résultats, `took_ms` affiché **< 2 000** (C3), clic ouvre la fiche ; consultation tracée dans l'audit (post-condition du guide). | e2e |
 | Corbeille exclue | Un des 3 documents mis en corbeille → la même recherche renvoie 2 résultats ; `GET /search` ne contient pas son id. **Mise en corbeille à l'écran : hors rc.1** ; seule l'exclusion côté API est prouvée. | API #42 |
 | SC-SEC-01 (sens démo : service) | Lecteur DSI cherche le même terme → **0** résultat DAF ; `GET /search` → 200 avec liste vide, **jamais** 500. | API #42 + e2e |
 | SC-SEC-02 (sens démo : tenant) | Depuis MINFI, un terme présent seulement dans MINESUP → 0 résultat ; `GET /documents/{id}` d'un document MINESUP → 404 ou 403, pas de fuite de titre. Guide SC-SEC-01 « aucune fuite d'information » = ce critère. | API |
@@ -98,7 +99,7 @@ Format : **Donnée** → **Action** → **Alors** (observable) ; *Exception du g
 
 | ID | Critère vérifiable | Preuve |
 |---|---|---|
-| SC-AUD-01 | AUDIT001 ouvre `/audit`, filtre agent = MINFI002 et jour = aujourd'hui → les actions des parcours P2, P5, P6 jouées ce jour apparaissent (dépôt, consultation, revue ; la mise en corbeille est hors rc.1), chacune avec horodatage, auteur, objet ; l'auditeur n'a aucun bouton d'écriture. Guide Go/No-Go : « la piste d'audit reflète fidèlement chaque action de chaque scénario » → **critère transverse** : chaque ligne des tables ci-dessus qui modifie un document produit une entrée. | e2e `uat/audit-trail` |
+| SC-AUD-01 | AUDIT001 ouvre `/audit`, filtre agent = MINFI002 et jour = aujourd'hui (**17/11** : page « Registre Des Actions », filtre de la colonne « Effectuée par » sur le nom de `MINFI001`, qui joue P2, P3 et P6 ; pas de filtre par date à l'écran, les entrées du jour sont en tête) → les actions des parcours P2, P5, P6 jouées ce jour apparaissent (dépôt, consultation, revue ; la mise en corbeille est hors rc.1), chacune avec horodatage, auteur, objet ; l'auditeur n'a aucun bouton d'écriture. Guide Go/No-Go : « la piste d'audit reflète fidèlement chaque action de chaque scénario » → **critère transverse** : chaque ligne des tables ci-dessus qui modifie un document produit une entrée. | e2e `uat/audit-trail` |
 | SC-ADM-09 (D3) | Connexion, dépôt, import génèrent chacun une entrée (3 lignes pour login + upload + ingest). | pytest B4 + e2e (`fixme` levé) |
 | SC-AUD-02 | **17/11 : livré** (#80, #87). AUDIT001 filtre `/audit` sur un agent → « Exporter (CSV) » → le fichier contient les événements du filtre, avec horodatage, auteur et objet. **Limite** : un utilisateur à la fois. ~~Non livré, V1.1 (D4, écart 8).~~ | e2e `uat/audit-export` (téléchargement d'un CSV UTF-8, séparateur `;`) ; contenu égal au filtre : **manuelle** |
 
@@ -106,8 +107,8 @@ Format : **Donnée** → **Action** → **Alors** (observable) ; *Exception du g
 
 | ID | Critère vérifiable | Preuve |
 |---|---|---|
-| SC-VAL-01 | MGR001 ouvre « En attente » → voit le document soumis par MINFI002 avec l'étape courante ; aucun bouton de modification du contenu. | e2e `uat/validation-cycle` |
-| SC-VAL-02 | « Viser » → statut passe à l'étape suivante (ou Validé/Signé selon le circuit `E2E-WF-VALID`), le rédacteur **ne peut plus modifier** (PUT → 403 ou 409), audit : décision + auteur (post-condition guide). | e2e + API |
+| SC-VAL-01 | MGR001 ouvre « En attente » (**17/11** : page « Tâches & Validations ») → voit le document soumis par MINFI002 (préparé avant la séance, pas en direct) avec l'étape courante ; aucun bouton de modification du contenu. | e2e `uat/validation-cycle` |
+| SC-VAL-02 | « Viser » (**17/11** : bouton « Valider ») → statut passe à l'étape suivante (ou Validé/Signé selon le circuit `E2E-WF-VALID`), le rédacteur **ne peut plus modifier** (PUT → 403 ou 409), audit : décision + auteur (post-condition guide). | e2e + API |
 | SC-VAL-03 | « Rejeter » avec motif obligatoire (vide → refus) → statut **Rejeté**, motif visible par le rédacteur, document figé (guide : « ne peut être ni modifié ni repris »). | e2e |
 | SC-VAL-04 | **Réduit le 09/11 (VAL-D3, « retour pour correction » → V1.1, écart 17)** : le rédacteur rouvre le document → statut **Visé** ou **Rejeté** et le **motif** visibles, aucune action de modification offerte ; notification « Lue » après ouverture (SC-NOT-01) **si** le composant existe, sinon critère réduit à la bannière/compteur. Le sens guide (statut À corriger, nouvelle version) devient critère V1.1. | e2e |
 | SC-RED-05/06 (API) | `DELETE /documents/{id}` → `deleted_at` posé, absent des listes et de la recherche, `POST .../restore` par l'admin du ministère → revient (guide : « récupérable par l'administrateur du ministère »). UI absente → **écart annoncé** ; écran Corbeille et annulation **hors rc.1** (#181, #179, #182, #184). | pytest |
@@ -126,6 +127,7 @@ Le guide impose (Partie 13) « tous les scénarios de la Partie 2 pour tous les 
 | Plateforme / Casbin | SC-PLAT-02..04 | super-admin seul ; démontrable si temps, non recetté |
 | Session prolongée | SC-AUTH-02 (sens guide) | refresh silencieux : non démontré en direct ; preuve = `fetchWithRefresh` dans le smoke `auth` si un test l'exerce (`À vérifier` F) |
 | Notifications | SC-NOT-01 | couvert partiellement par SC-VAL-04 |
+| Profil collaborateur (17/11) | SC-AUTH-01, SC-RED-01 | recettés du 20 au 23, pas joués en direct (narrateur `MINFI001`) ; au jury : « l'administrateur prépare, chacun ne voit que ce qui le concerne ; un agent n'importe pas en masse et ne cherche que dans ses documents » |
 
 ## 4. Ce que le PO lit le 14/11 et le 30/11
 
