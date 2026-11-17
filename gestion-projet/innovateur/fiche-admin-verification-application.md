@@ -51,7 +51,7 @@ Vous ne pouvez pas vous dépanner seul, et l'e-mail ne remplace pas l'applicatio
 3. **Toutes vos sessions sont fermées aussitôt**, sur tous les appareils, y compris le téléphone perdu. Vous recevez un e-mail qui signale la réinitialisation.
 4. Sur place, reconnectez-vous et refaites la partie 2 avec votre nouveau téléphone.
 
-Vous gérez des agents ? Leur réinitialisation suit la même règle : vérifiez **en personne** sa carte professionnelle (ou une pièce d'identité), jamais par téléphone ni par e-mail. Prévenez l'agent que toutes ses sessions vont se fermer.
+Vous êtes administrateur d'institution ? C'est vous qui réinitialisez l'application des agents de votre institution ; un administrateur de plateforme ne le fait pas à votre place. Même règle : vérifiez **en personne** sa carte professionnelle (ou une pièce d'identité), jamais par téléphone ni par e-mail. Prévenez l'agent que toutes ses sessions vont se fermer.
 
 ### 5. Pourquoi votre compte doit avoir une adresse e-mail
 
