@@ -77,6 +77,18 @@ Vous ouvrez les institutions sur la plateforme. Vous ne gérez pas leur travail 
 - Ouvrez une institution dans cet ordre : institution, premier administrateur, puis services et agents (par son Admin Institution). Certaines actions restent masquées tant qu'une étape manque.
 - Une institution ne doit jamais voir les documents d'une autre. Au moindre doute, consultez « Audit ».
 
+### Ce qui se règle où
+
+| À l'écran | Sur le serveur, par la personne qui installe |
+|---|---|
+| Institutions, leur organisation et leur premier administrateur (« Institutions ») | Mots de passe techniques et clé de sécurité |
+| Comptes (« Utilisateurs ») | Durée des sessions, nombre d'essais de connexion, taille maximale d'un envoi |
+| Règles d'accès (« Gestion AuthZ ») | Sauvegardes et restaurations |
+| Affichage du menu (« Paramètres ») | Adresse et port de l'application |
+| Côté Admin Institution : plan de classement, règles de rangement, modèles, espaces | — |
+
+Les mots de passe techniques ne passent jamais par l'écran. Les autres réglages du serveur passeront à l'écran dans la prochaine version, avec un écran des droits plus simple (rôles et actions à cocher). Détail des réglages du serveur : `DOCS/exploitation/installation.md` § 3.
+
 ---
 
 ## 2. Admin Institution
