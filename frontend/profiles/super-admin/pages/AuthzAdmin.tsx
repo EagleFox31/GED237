@@ -94,7 +94,7 @@ const PoliciesTab: React.FC = () => {
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Annuler</button>
-            <button type="button" onClick={handleAdd} className="px-5 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase hover:scale-105 transition-transform">Creer</button>
+            <button type="button" onClick={handleAdd} className="px-5 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase hover:scale-105 transition-transform">Créer</button>
           </div>
         </div>
       )}
@@ -274,7 +274,7 @@ const HealthTab: React.FC = () => {
         <span className={`material-symbols-outlined text-4xl ${health.degraded ? 'text-red-500' : 'text-green-500'}`}>
           {health.degraded ? 'error' : 'check_circle'}
         </span>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Etat</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">État</p>
         <p className={`text-2xl font-black uppercase ${health.degraded ? 'text-red-500' : 'text-green-600'}`}>
           {health.degraded ? 'Degrade' : 'Operationnel'}
         </p>
