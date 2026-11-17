@@ -1,4 +1,4 @@
-# Fiche de passage — UAT manuelle du 23/11 sur la release
+# Fiche de passage — UAT manuelle du lundi 23/11 sur la release
 
 - **Pour** : O, qui la déroule sur `release/v1.0.0` (rc.1), poste principal, jeu de démo remis à zéro.
 - **Source** : `criteres-acceptation.md` § 2 (version du 17/11, branche `docs/notes-version-rc1`), une ligne par critère, dans l'ordre de `scenario-demo-30-11.md`, groupées par compte de connexion. Libellés vérifiés sur b701314.
@@ -22,7 +22,7 @@
 
 | ID | Compte | Geste | Résultat attendu | OK / KO | Remarque |
 |---|---|---|---|---|---|
-| Prépa 1 | — | Jeu remis à zéro, dossier `live` présent sur le poste | rapport de Q du jour | | |
+| Prépa 1 | — | Jeu remis à zéro, dossier `live` présent sur le poste, compte `VERROU-23` créé | rapport de Q du jour (checklist § 4.4, PR #217) | | |
 | Prépa 2 | `MINFI002` (collaborateur DAF) | Avant la séance : un document déposé puis « Soumettre » → « Soumettre au visa » vers `MGR001` | il apparaît chez `MGR001` (sert à SC-VAL-01) | | |
 
 ## 1. `MINFI001` — Admin Institution MINFI (≈ 30 min)
@@ -84,7 +84,7 @@
 | ★ SC-VAL-04 | `MINFI002` | Ouvrir le document rejeté en SC-VAL-03 | statut **Rejeté** et motif visibles ; aucune action de modification | | |
 | ★ SC-AUTH-03 | `MINFI002` | Se déconnecter, puis bouton Précédent du navigateur | retour à la connexion ; l'application ne se rouvre pas | | |
 | ○ SC-AUTH-02 | `MINFI002` | Connexion avec un code modifié à la main | « Code invalide » ; nouvelle saisie possible | | |
-| ○ SC-AUTH-02 E3 | compte dédié, **pas** un compte de la démo | 3 codes faux | compte bloqué 15 min, compte à rebours à l'écran | | bloque le compte : à jouer en dernier |
+| ○ SC-AUTH-02 E3 | `VERROU-23` (lecteur jetable créé par Q avant la séance), **pas** un compte de la démo | 3 codes faux | compte bloqué 15 min, compte à rebours à l'écran | | bloque le compte : à jouer en dernier |
 
 ## 6. Prouvés par Q, pas rejoués à la main
 

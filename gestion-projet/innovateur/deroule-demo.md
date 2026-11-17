@@ -24,7 +24,7 @@ Direct = 13:00 (P1 1:30 + P2 2:30 + P3 1:30 + P6 1:00 + P4 1:30 + P5 2:00 + P8 2
 
 ## 1 bis. Moments conditionnels V1.1 (ajout daté du 10/11, DEC-002 révision du 10/11)
 
-Règle : un moment ci-dessous ne se joue **que si sa PR est fusionnée le mer 19/11 18:00** (coupure ferme) ; sinon il est retiré du déroulé et sa phrase d'écart reste au bloc 15:00–17:00. Chaque moment livré **retire une phrase** de ce bloc : le temps ajouté (≈ 1:50 au total) se prend d'abord sur Écarts (2:00 → 1:00 si les quatre sont livrés), puis sur le tampon ± 1. Aucun repli API pour ces moments : en cas d'incident, on passe et on dit la phrase d'écart. Chronométrage le 27/11 avec le reste (§ 5).
+Règle : un moment ci-dessous ne se joue **que si sa PR est fusionnée le jeu 19/11 18:00** (coupure ferme) ; sinon il est retiré du déroulé et sa phrase d'écart reste au bloc 15:00–17:00. Chaque moment livré **retire une phrase** de ce bloc : le temps ajouté (≈ 1:50 au total) se prend d'abord sur Écarts (2:00 → 1:00 si les quatre sont livrés), puis sur le tampon ± 1. Aucun repli API pour ces moments : en cas d'incident, on passe et on dit la phrase d'écart. Chronométrage le 27/11 avec le reste (§ 5).
 
 | Moment | Quand | Fenêtre / profil | Clics | Résultat attendu sur le jeu D1 | Conditionnel |
 |---|---|---|---|---|---|

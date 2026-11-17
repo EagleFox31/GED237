@@ -29,7 +29,7 @@ Fiche : `protocole-mesure-criteres-succes.md`.
 
 Fiche : `protocole-installation-site.md`.
 
-1. Pouvez-vous prêter un poste neuf (Ubuntu 24.04, 8 Go de mémoire et 10 Go de disque libres) le **mardi 25/11 de 09:00 à 13:00**, ou sinon le mercredi 26/11 aux mêmes heures ? Q installe, O chronomètre. Répondez par le créneau.
+1. Pouvez-vous prêter un poste neuf (Ubuntu 24.04, 8 Go de mémoire et 10 Go de disque libres) le **mercredi 25/11 de 09:00 à 13:00**, ou sinon le jeudi 26/11 aux mêmes heures ? Q installe, O chronomètre. Répondez par le créneau.
    - Sans réponse le 23 : l'essai sans Internet n'a pas lieu avant la démo du 30.
 2. L'installation sur ce poste et sur le PC Windows vaut-elle preuve, à la place d'un serveur en ligne, pour l'exigence 28 du cahier des charges ? **Oui.**
    - Sans réponse le 23 : l'exigence 28 reste impossible à vérifier.
