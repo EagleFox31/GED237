@@ -18,7 +18,6 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
       { id: 'dashboard', label: 'Tableau de bord', icon: 'dashboard', subItems: ['Vue générale', 'Alertes'] },
       { id: 'needs_review', label: 'Ma bannette', icon: 'inbox', subItems: ['Documents à revoir', 'En attente de ma signature'] },
       { id: 'pending_assignments', label: 'À distribuer', icon: 'assignment_ind', subItems: ['Documents sans destinataire'] },
-      { id: 'search_config', label: 'Recherche', icon: 'manage_search', subItems: ['Recherche plein texte', 'Recherche avancée'] },
     ]
   },
   {
@@ -41,7 +40,6 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
   {
     section: "Administration",
     items: [
-      { id: 'security_config', label: 'Accès & Permissions', icon: 'shield_lock', subItems: ["Politiques d'accès", 'Confidentialité', 'Archivage'] },
       { id: 'audit_central', label: 'Audit & Traçabilité', icon: 'analytics', subItems: ['Journal des actions', 'Historique documents'] },
       { id: 'reports', label: 'Rapports & Statistiques', icon: 'legend_toggle', subItems: ['Statistiques', 'Exports'] },
       { id: 'settings', label: 'Paramètres', icon: 'settings', subItems: ['Général', 'Notifications', 'Intégrations'] },
