@@ -9,7 +9,8 @@ export default defineConfig({
   testDir: './e2e/visual',
   testMatch: /\.visual\.ts$/,
   outputDir: 'e2e-out/visual/results',
-  snapshotPathTemplate: `${snapshotDir}/{arg}{ext}`,
+  // Une référence par OS : le rendu des polices diffère entre Windows, macOS et Linux.
+  snapshotPathTemplate: `${snapshotDir}/{platform}/{arg}{ext}`,
   workers: 1,
   reporter: 'list',
   use: {

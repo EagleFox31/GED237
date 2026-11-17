@@ -17,8 +17,14 @@ Avant chaque capture, `screen-guard.ts` fait échouer le test si :
 2. l'écran d'erreur (« Une erreur est survenue ») est affiché ;
 3. l'application a appelé une route absente de la maquette (réponse 404, listée dans l'échec).
 
-Le test « la garde refuse l'écran d'erreur » prouve la garde : il rejoue la réponse `{}` de l'incident,
-l'accueil plante, et la garde doit lever une erreur.
+La clause 3 est rejouée à la fin de chaque test, après la capture : un appel non prévu parti après le
+repère fait aussi échouer le test.
+
+Le groupe « la garde refuse » prouve chaque clause séparément, et vérifie que c'est bien elle qui refuse :
+
+1. réponse `{}` de l'incident : l'accueil plante, le repère manque ;
+2. repère mal choisi, visible sur l'écran d'erreur (« Recharger la page ») : l'écran d'erreur est détecté ;
+3. route des notifications retirée de la maquette (`mockApi(page, { omit })`) : l'appel non prévu est détecté.
 
 ## Maquette d'API
 
@@ -26,7 +32,8 @@ l'accueil plante, et la garde doit lever une erreur.
 `/health` et la socket des notifications.
 
 - Chaque réponse est typée avec `satisfies` sur le type du contrat (`types.ts`, `TenantPublic`,
-  `Notification`, `UserProfile`) : `tsc` refuse une maquette qui ne respecte plus le contrat.
+  `Notification`, `UserProfile`, `BackendUser`), et chaque entrée de `API_ROUTES` annonce ce type
+  (`apiRoute<T>(motif, corps)`) : `tsc` refuse une maquette qui ne respecte plus le contrat.
 - Jamais de `{}` générique : une liste vide s'écrit `[]` typé, un objet est rempli champ par champ.
 - La session tenant_admin est posée en `sessionStorage` (clés de `persistAuthTokens`), sans connexion.
 - Nouvel écran : ajouter ses routes dans `API_ROUTES`, puis un test qui appelle `expectScreen`
@@ -34,7 +41,8 @@ l'accueil plante, et la garde doit lever une erreur.
 
 ## Lancer (conteneur Playwright borné)
 
-Les références sont écrites hors du dépôt, dans `e2e-out/visual/baseline` (ou `VISUAL_SNAPSHOT_DIR`).
+Les références sont écrites hors du dépôt, dans `e2e-out/visual/baseline/<os>` (ou `VISUAL_SNAPSHOT_DIR`) :
+une par système, car le rendu des polices diffère.
 
 ```bash
 # Build A : produire les références

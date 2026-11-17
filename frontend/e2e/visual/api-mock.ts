@@ -12,6 +12,7 @@ import type {
 import type { TenantPublic } from '../../services/resources/tenants.api';
 import type { Notification } from '../../hooks/useNotifications';
 import type { UserProfile } from '../../stores/authStore';
+import type { BackendUser } from '../../services/resources/auth.api';
 
 const TENANT_ID = 'visual-tenant';
 const STAMP = '2026-01-15T09:00:00+00:00';
@@ -65,37 +66,55 @@ const activities = [] satisfies ClassificationActivity[];
 const rules = [] satisfies ClassificationRule[];
 const categories = [] satisfies DocumentCategory[];
 
-/** Chemin relatif à `/api/v1` → corps de réponse (GET). Le plus précis d'abord. */
-const API_ROUTES: ReadonlyArray<readonly [RegExp, unknown]> = [
-  [/^\/tenants\/public$/, publicTenants],
-  [/^\/tenants\/[^/]+$/, tenant],
-  [/^\/analytics\/tenant$/, tenantMetrics],
-  [/^\/notifications\/?$/, notifications],
-  [/^\/classification-rules\/domains$/, domains],
-  [/^\/classification-rules\/activities$/, activities],
-  [/^\/classification-rules\/rules$/, rules],
-  [/^\/categories$/, categories],
-  [/^\/org-units\/?$/, []],
-  [/^\/users\/?$/, []],
-  [/^\/gedrules\/templates$/, []],
+const users = [] satisfies BackendUser[];
+// Services encore typés `any[]` (org-units, gedrules) : une liste vide reste valable quel que soit le contrat.
+const untypedEmptyList: readonly unknown[] = [];
+
+/** Une route de la maquette : chemin relatif à `/api/v1` → corps de la réponse GET, du type annoncé. */
+export interface ApiRoute<T = unknown> {
+  readonly pattern: RegExp;
+  readonly body: T;
+}
+
+const apiRoute = <T>(pattern: RegExp, body: T): ApiRoute<T> => ({ pattern, body });
+
+/** Le plus précis d'abord. */
+export const API_ROUTES: readonly ApiRoute[] = [
+  apiRoute<TenantPublic[]>(/^\/tenants\/public$/, publicTenants),
+  apiRoute<Tenant>(/^\/tenants\/[^/]+$/, tenant),
+  apiRoute<TenantMetrics>(/^\/analytics\/tenant$/, tenantMetrics),
+  apiRoute<Notification[]>(/^\/notifications\/?$/, notifications),
+  apiRoute<ClassificationDomain[]>(/^\/classification-rules\/domains$/, domains),
+  apiRoute<ClassificationActivity[]>(/^\/classification-rules\/activities$/, activities),
+  apiRoute<ClassificationRule[]>(/^\/classification-rules\/rules$/, rules),
+  apiRoute<DocumentCategory[]>(/^\/categories$/, categories),
+  apiRoute<BackendUser[]>(/^\/users\/?$/, users),
+  apiRoute(/^\/org-units\/?$/, untypedEmptyList),
+  apiRoute(/^\/gedrules\/templates$/, untypedEmptyList),
 ];
 
 const API_PREFIX = '/api/v1';
+
+export interface MockApiOptions {
+  /** Chemins (relatifs à `/api/v1`) dont la route est retirée : sert à prouver la garde. */
+  readonly omit?: readonly string[];
+}
 
 /**
  * Branche la maquette sur la page. Renvoie la liste (vivante) des appels non prévus :
  * ils reçoivent un 404 et le test doit vérifier qu'elle reste vide.
  */
-export async function mockApi(page: Page): Promise<string[]> {
+export async function mockApi(page: Page, { omit = [] }: MockApiOptions = {}): Promise<string[]> {
   const unmocked: string[] = [];
+  const routes = API_ROUTES.filter(({ pattern }) => !omit.some((path) => pattern.test(path)));
 
   await page.route(`**${API_PREFIX}/**`, async (route: Route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
     const apiPath = pathname.slice(pathname.indexOf(API_PREFIX) + API_PREFIX.length);
-    const match = request.method() === 'GET' ? API_ROUTES.find(([pattern]) => pattern.test(apiPath)) : undefined;
+    const match = request.method() === 'GET' ? routes.find(({ pattern }) => pattern.test(apiPath)) : undefined;
     if (match) {
-      await route.fulfill({ json: match[1] });
+      await route.fulfill({ json: match.body });
       return;
     }
     unmocked.push(`${request.method()} ${apiPath}`);
