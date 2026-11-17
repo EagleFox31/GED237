@@ -5,6 +5,7 @@ import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../stores/authStore';
+import { Avatar } from './ui/Avatar';
 
 /**
  * Configuration de la barre de recherche par route.
@@ -334,10 +335,11 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 <p className="text-xs font-black text-slate-800 leading-none group-hover:text-rdpc-blue transition-colors italic uppercase">{userProfile?.name || 'Agent'}</p>
                 <p className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-1">{userProfile?.label || 'Agent'}</p>
               </div>
-              <img
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile?.id || 'admin'}`}
-                alt="Avatar"
-                className="w-10 h-10 rounded-xl border-2 border-white shadow-md group-hover:scale-110 transition-transform bg-slate-100"
+              <Avatar
+                name={userProfile?.name || 'Agent'}
+                matricule={userProfile?.id || 'admin'}
+                square
+                className="border-2 border-white shadow-md group-hover:scale-110 transition-transform"
               />
             </button>
             {showUserMenu && (
@@ -434,7 +436,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
             <div className="space-y-3">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Liens utiles</h4>
               <a
-                href={`${(import.meta as any).env?.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') || 'http://localhost:8000'}/api/docs`}
+                href={`${(import.meta as any).env?.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') || ''}/api/docs`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-blue-50 rounded-xl transition-colors group"

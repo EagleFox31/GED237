@@ -85,3 +85,4 @@ certs/
 
 # C6 probe readings (scripts/probe_c6.sh); dated results go in gestion-projet/recette/mesures-*/
 /c6.tsv
+/.probe_stack.pid

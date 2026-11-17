@@ -6,6 +6,7 @@ import { categoriesApi, DocumentCategory } from '../../../services/categories.ap
 import { useAuthStore } from '../../../stores/authStore';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
+import { IngestWatchNotice } from './IngestWatchNotice';
 import { UI_TOOLTIPS } from '../../../content/uiTooltips';
 import {
   formatFileSize,
@@ -1135,6 +1136,8 @@ const DirectoryIngestion: React.FC = () => {
           Ajoutez un lot de documents, définissez leur destination, vérifiez le classement proposé, puis importez uniquement les fichiers prêts.
         </p>
       </div>
+
+      <IngestWatchNotice />
 
       <input
         ref={directoryInputRef}
