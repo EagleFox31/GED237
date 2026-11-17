@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     INGEST_WATCH_PROTECTED_DIRS_STR: str = Field(
         default="", alias="INGEST_WATCH_PROTECTED_DIRS"
     )
+    # Validation queues. Off by default: current behaviour until switched on.
+    # Unified queue GET /workflows/inbox (404 while disabled).
+    WORKFLOW_INBOX_ENABLED: bool = Field(default=False)
+    # Hide steps of trashed documents from /workflows/pending and /pending-assignments.
+    WORKFLOW_PENDING_EXCLUDE_TRASHED: bool = Field(default=False)
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
     # Celery

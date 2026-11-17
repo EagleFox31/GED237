@@ -2,11 +2,11 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
@@ -19,13 +19,13 @@ from app.schemas.workflow import (
     WorkflowStepCreate,
     WorkflowStepRead,
     WorkflowStepWithDocument,
-    DocumentSummary,
     ValidatorRead,
     WorkflowActionCreate,
     WorkflowActionRead,
     AssignStepAdminRequest,
 )
 from app.core.events.dispatcher import dispatcher
+from app.services import workflow_inbox
 from app.services.workflow_service import (
     SubmitWorkflowActionUseCase,
     WorkflowActionPolicy,
@@ -38,9 +38,6 @@ WORKFLOW_SOURCE_STATUSES = {"draft", "rejected"}
 # Roles whose holders can be designated as validators of a workflow step
 # (policy: ``workflows resolve_review`` plus tenant-wide ``manage``).
 VALIDATOR_ROLE_CODES = ("manager", "tenant_admin")
-
-# Alias pour distinguer l'owner du document du current_user dans les jointures
-OwnerUser = aliased(User, name="owner_user")
 
 
 @router.get("/stats")
@@ -263,42 +260,14 @@ async def get_pending_tasks(
     if not await can_perform(current_user, "workflows", "read"):
         await authorize_or_403(current_user, "workflows", "read_own")
 
-    result = await db.execute(
-        select(WorkflowStep, Document, OwnerUser)
-        .join(Document, Document.id == WorkflowStep.document_id)
-        .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
-        .where(
-            WorkflowStep.assigned_to == current_user.id,
-            WorkflowStep.status == "current",
-            Document.tenant_id == current_user.tenant_id,
-        )
+    steps, _total = await workflow_inbox.list_steps(
+        db,
+        "mine",
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        exclude_trashed=settings.WORKFLOW_PENDING_EXCLUDE_TRASHED,
     )
-    rows = result.all()
-
-    enriched: List[WorkflowStepWithDocument] = []
-    for step, doc, owner in rows:
-        if owner and (owner.first_name or owner.last_name):
-            owner_name = f"{owner.first_name or ''} {owner.last_name or ''}".strip()
-        elif owner:
-            owner_name = owner.matricule
-        else:
-            owner_name = None
-
-        doc_summary = DocumentSummary(
-            id=doc.id,
-            title=doc.title,
-            status=doc.status,
-            document_category_id=doc.document_category_id,
-            file_type=doc.file_type,
-            owner_name=owner_name,
-            current_version_id=doc.current_version_id,
-            created_at=doc.created_at,
-        )
-        step_data = WorkflowStepWithDocument.model_validate(step)
-        step_data.document = doc_summary
-        enriched.append(step_data)
-
-    return enriched
+    return steps
 
 
 @router.get("/validators", response_model=List[ValidatorRead])
@@ -402,58 +371,72 @@ async def get_pending_assignments(
     """
     await authorize_or_403(current_user, "workflows", "manage")
 
-    from app.models.routing_audit import DocumentRoutingDecision
-
-    result = await db.execute(
-        select(WorkflowStep, Document, OwnerUser, DocumentRoutingDecision)
-        .join(Document, Document.id == WorkflowStep.document_id)
-        .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
-        .join(
-            DocumentRoutingDecision,
-            DocumentRoutingDecision.document_id == Document.id,
-            isouter=True,
-        )
-        .where(
-            WorkflowStep.status == "pending_assignment",
-            Document.tenant_id == current_user.tenant_id,
-        )
+    steps, _total = await workflow_inbox.list_steps(
+        db,
+        "unassigned",
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        exclude_trashed=settings.WORKFLOW_PENDING_EXCLUDE_TRASHED,
     )
-    rows = result.all()
+    return steps
 
-    enriched: List[WorkflowStepWithDocument] = []
-    for step, doc, owner, decision in rows:
-        if owner and (owner.first_name or owner.last_name):
-            owner_name = f"{owner.first_name or ''} {owner.last_name or ''}".strip()
-        elif owner:
-            owner_name = owner.matricule
-        else:
-            owner_name = None
 
-        doc_summary = DocumentSummary(
-            id=doc.id,
-            title=doc.title,
-            status=doc.status,
-            document_category_id=doc.document_category_id,
-            file_type=doc.file_type,
-            owner_name=owner_name,
-            created_at=doc.created_at,
-        )
+@router.get("/inbox", response_model=List[WorkflowStepWithDocument])
+async def get_workflow_inbox(
+    response: Response,
+    scope: workflow_inbox.InboxScope = Query("mine"),
+    recursive: bool = Query(False),
+    limit: int = Query(
+        workflow_inbox.INBOX_PAGE_DEFAULT, ge=1, le=workflow_inbox.INBOX_PAGE_MAX
+    ),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """One validation queue for every screen, oldest step first.
 
-        assignment_error = None
-        if decision and getattr(decision, "resolved_steps_summary", None):
-            for s_summary in decision.resolved_steps_summary:
-                if s_summary.get("label") == step.label and s_summary.get("error"):
-                    assignment_error = s_summary.get("error")
-                    break
-            if not assignment_error and decision.explanation:
-                assignment_error = decision.explanation
+    - ``mine``: steps waiting for the caller's action;
+    - ``unit``: steps waiting on documents of the caller's unit (``recursive``
+      adds the units below it);
+    - ``unassigned``: steps routing could not assign (administrators).
 
-        step_data = WorkflowStepWithDocument.model_validate(step)
-        step_data.document = doc_summary
-        step_data.assignment_error = assignment_error
-        enriched.append(step_data)
+    Documents in the trash never appear. ``X-Total-Count`` carries the total.
+    """
+    if not settings.WORKFLOW_INBOX_ENABLED:
+        raise HTTPException(status_code=404, detail="Not Found")
 
-    return enriched
+    org_unit_ids: List[UUID] = []
+    if scope == "mine":
+        if not await can_perform(current_user, "workflows", "read"):
+            await authorize_or_403(current_user, "workflows", "read_own")
+    elif scope == "unit":
+        await authorize_or_403(current_user, "workflows", "read")
+        if current_user.org_unit_id is None:
+            raise HTTPException(
+                status_code=403, detail="Portée organisationnelle invalide."
+            )
+        org_unit_ids = [current_user.org_unit_id]
+        if recursive:
+            org_unit_ids = await workflow_inbox.descendant_org_unit_ids(
+                db,
+                tenant_id=current_user.tenant_id,
+                root_org_unit_id=current_user.org_unit_id,
+            )
+    else:
+        await authorize_or_403(current_user, "workflows", "manage")
+
+    steps, total = await workflow_inbox.list_steps(
+        db,
+        scope,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        org_unit_ids=org_unit_ids,
+        exclude_trashed=True,
+        limit=limit,
+        offset=offset,
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return steps
 
 
 @router.post("/steps/{step_id}/assign", response_model=WorkflowStepRead)
