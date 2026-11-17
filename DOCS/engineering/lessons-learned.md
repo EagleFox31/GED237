@@ -556,3 +556,17 @@ première requête utilisateur.
 **Résolution** — #143 : `playwright.unit.config.ts` (sans pile ni `webServer`), `npm run test:unit` lancé dans le job Frontend Lint & Typecheck ; cas antislash corrigé (`'/\evil.example'`). 12/12 verts.
 **Prévention** — Un spec pur s'ajoute au `testMatch` de `playwright.unit.config.ts` (commentaire dans le fichier) ; contrôle en relecture : `git grep -L "page\|request" frontend/e2e/specs/*.spec.ts` doit renvoyer seulement des fichiers listés dans ce motif.
 **Leçon généralisée** — Un test unitaire ne doit pas dépendre de l'infrastructure d'un test d'intégration : sinon il en hérite le coût et sort de la CI.
+
+### LESSON-2026-037 — Commande git lancée dans le checkout partagé après un `cd` raté : passations non commitées mises de côté
+
+- **Date :** 2026-11-17
+- **Catégorie :** process / tooling
+- **Statut :** rule-added
+- **Liens :** checkout partagé `GED237` (branche `main`), worktrees `GED237-prc*`, `PASSATION*.md`
+
+**Contexte** — Chaque session travaille dans son worktree ; le checkout partagé `GED237` porte les passations non commitées de toutes les sessions. Une seule commande Bash enchaînait `cd <worktree>; git fetch …; git merge …`.
+**Échec / near miss** — Le chemin du worktree était faux : `cd` a échoué, mais `;` a laissé s'exécuter le reste dans le répertoire de départ. `git merge` a tourné sur `main` du checkout partagé, a mis de côté les modifications locales (autostash), puis s'est arrêté (« Index was not unstashed »). Les cinq `PASSATION*.md` sont revenues à l'état de `HEAD` pendant environ 7 minutes.
+**Cause racine** — Enchaînement par `;` après un `cd` : un échec de navigation ne coupe pas la suite. Le répertoire de départ par défaut est justement le checkout partagé.
+**Résolution** — L'autostash a été retrouvé (`git fsck --no-reflog`, commit « WIP on main »). Chaque fichier a été rétabli dans l'état de l'autostash, puis les entrées ajoutées entre-temps par les autres sessions y ont été remises. Contrôle : uniquement des ajouts par rapport à `HEAD`, et `HEAD` inchangé. Une deuxième session a vérifié.
+**Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
+**Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
