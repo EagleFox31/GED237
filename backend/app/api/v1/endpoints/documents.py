@@ -103,6 +103,7 @@ def _document_load_options():
         selectinload(Document.classification_activity),
         selectinload(Document.owner),
         selectinload(Document.locked_by_user),
+        selectinload(Document.deleted_by_user),
     )
 
 
@@ -496,6 +497,11 @@ def _serialize_document(document: Document) -> DocumentRead:
         ),
         locked_at=document.locked_at,
         lock_expires_at=document.lock_expires_at,
+        deleted_at=document.deleted_at,
+        deleted_by=document.deleted_by,
+        deleted_by_name=_user_name_in_tenant(
+            document.deleted_by_user, document.tenant_id
+        ),
     )
 
 

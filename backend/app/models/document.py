@@ -153,6 +153,8 @@ class Document(Base, UUIDMixin, TimestampMixin):
     locked_by_user = relationship(
         "User", foreign_keys=[locked_by_user_id], viewonly=True
     )
+    # Who sent it to the trash (#181); read-only, the trash route sets deleted_by.
+    deleted_by_user = relationship("User", foreign_keys=[deleted_by], viewonly=True)
     workflow_steps = relationship(
         "WorkflowStep", back_populates="document", cascade="all, delete-orphan"
     )

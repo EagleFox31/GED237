@@ -73,6 +73,10 @@ class DocumentRead(DocumentBase):
     locked_by_name: Optional[str] = None
     locked_at: Optional[datetime] = None
     lock_expires_at: Optional[datetime] = None
+    # Trash (#181): set while the document is in the trash.
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[UUID] = None
+    deleted_by_name: Optional[str] = None
 
     class Config:
         from_attributes = True
