@@ -162,6 +162,7 @@ Ce sont les mêmes scripts et le même protocole que la restauration n° 2 du 21
 | | | **Hors plan V1.1** | | | **≈ 1,75 h-s (B 1,25, Q 0,5)** |
 
 Décisions du PO avant la phase 1 : accord pour l'installation et la tâche cron. Avant la phase 2 : nom de domaine, et ouverture publique ou liste d'adresses.
+**Décision de O (17/11, 22:30, ticket #288)** : la phase 1 reste en V1.1, et le serveur e-mail à l'écran (lot 8a) sort en V1.2 pour la compenser. La phase 2 passe en V1.2 ; elle revient en V1.1 seulement si #154 et #212 sont fusionnés avant le 01/12.
 
 Le moment se décide après le tag du 24/11 et la démo du 30/11. Rien ne se fait sur le VPS avant.
 

@@ -178,3 +178,21 @@ Le PO a répondu « 1 V1.2, 2 V1.2, 15 oui » (transmis par O) :
 - **Totaux** : B ≈ 21,9, F ≈ 15,5, Q ≈ 21,75, I 0,5, soit ≈ 59,65 h-s.
 - **Règle adoptée par O** : aucun ajout en V1.1 sans une sortie équivalente. Au prochain dépassement de Q, #278 sort (Q 0,5).
 - **Confirmé par B (17/11)** : le 1 h-s de la sortie 3 vient en entier de #183 (rebasage, corrections et CI). #194 relève de F. B reste à ≈ 21,9.
+
+## Mise à jour du 17/11, 22:30 : mise en service sur le VPS (#288)
+
+Décision de O, prise selon la règle « aucun ajout sans une sortie équivalente ». Détail dans `deploiement-vps.md` (§ 0 et § 7).
+
+- **Ajout en V1.1 : la phase 1 de #288** (accès par VPN). Elle comprend l'installation, la tâche cron de sauvegarde et une restauration sur un poste. **B + 0,75, Q + 0,25.** Le lot 12 couvre déjà #248, #267, #268 et l'heure de mesure.
+- **Sortie : la phase 2 de #288** (accès public en HTTPS) passe en V1.2 (B 0,5, Q 0,25). Elle revient en V1.1 seulement si #154 et #212 sont fusionnés avant le 01/12.
+- **Sortie : le serveur e-mail à l'écran** (lot 8a) passe en V1.2 (B − 0,5). Le réglage reste dans le fichier d'environnement.
+- **Q passe à ≈ 22,0** : il atteint 22 sans le dépasser. **#278 reste en V1.1**, mais la marge avant les 6,8 de réserve est nulle. Au prochain ajout pour Q, #278 sort (Q − 0,5).
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Avant (§ précédent) | 21,9 | 15,5 | 21,75 | 0,5 | 59,65 |
+| Phase 1 de #288 | + 0,75 | — | + 0,25 | — | + 1 |
+| Serveur e-mail à l'écran, sorti en V1.2 | − 0,5 | — | — | — | − 0,5 |
+| **Total V1.1** | **≈ 22,15** | **≈ 15,5** | **≈ 22** | **0,5** | **≈ 60,15** |
+
+- Si #154 et #212 sont fusionnés avant le 01/12 et que la phase 2 revient en V1.1 : B ≈ 22,65, et Q ≈ 22,25. Dans ce cas, #278 sort, et Q revient à ≈ 21,75.

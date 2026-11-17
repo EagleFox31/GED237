@@ -1,6 +1,6 @@
-# Texte du ticket : Mise en service sur le VPS (après le 30/11)
+# Texte du ticket #288 : Mise en service sur le VPS (après le 30/11)
 
-- **Pour** O, qui crée le ticket. Innovateur, 17/11/2026.
+- **Pour** O, qui copie le corps dans #288. Innovateur, 17/11/2026, mis à jour après la décision de O (22:30).
 - **Étiquette** : `v1.1`.
 - **Source** : `gestion-projet/innovateur/deploiement-vps.md` (§ 0 et § 7).
 
@@ -10,7 +10,7 @@
 
 **Corps** :
 
-Mettre GED237 en service sur le VPS partagé, en deux phases. Rien ne se fait avant le tag du 24/11 ni avant la démo du 30/11. Chaque étape demande l'accord du PO.
+Mettre GED237 en service sur le VPS partagé, en deux phases. La phase 1 est en V1.1 ; la phase 2 est en V1.2, sauf si #154 et #212 sont fusionnés avant le 01/12. Rien ne se fait avant le tag du 24/11 ni avant la démo du 30/11. Chaque étape demande l'accord du PO.
 
 ### Dépendances
 
@@ -34,7 +34,9 @@ Le contrôle préalable de #248 exige au moins 2,5 Go de mémoire disponible. Le
 - [ ] Tâche cron de sauvegarde de la base (7 copies, copie hebdomadaire hors du VPS), à une heure qui ne chevauche pas les sauvegardes existantes.
 - [ ] Première restauration de cette sauvegarde sur un poste.
 
-### Phase 2 : accès public (après #154 et #212)
+### Phase 2 : accès public (après #154 et #212) — V1.2 par défaut
+
+Cette phase passe en V1.2. Elle revient en V1.1 seulement si #154 et #212 sont fusionnés avant le 01/12.
 
 - [ ] `ENVIRONMENT: production` dans la surcouche ; écoute sur `127.0.0.1` seulement.
 - [ ] Nom de domaine choisi par le PO ; enregistrement DNS.
@@ -44,11 +46,12 @@ Le contrôle préalable de #248 exige au moins 2,5 Go de mémoire disponible. Le
 
 ### Effort
 
-- Déjà au plan V1.1 : lot 2 (#154, #212, ≈ 4 h-s) et lot 12 (#248, #267, #268, mesure d'une heure, ≈ 1,75 h-s).
-- En plus : ≈ 1,75 h-s (B 1,25, Q 0,5). Sortie équivalente proposée dans le message à O.
+- Déjà au plan V1.1 : lot 12 (#248, #267, #268 et l'heure de mesure, ≈ 1,75 h-s). #154 et #212 sont au lot 2 (≈ 4 h-s).
+- Phase 1, ajoutée en V1.1 : B 0,75, Q 0,25. En compensation, le serveur e-mail à l'écran (lot 8a, B 0,5) sort en V1.2.
+- Phase 2, en V1.2 par défaut : B 0,5, Q 0,25. Si elle revient en V1.1, #278 sort (Q 0,5).
 
 ### Critères de fin
 
-- L'application répond par le VPN (phase 1) puis en HTTPS sur le nom de domaine (phase 2).
+- Phase 1 : l'application répond par le VPN. Phase 2 : elle répond en HTTPS sur le nom de domaine.
 - Une sauvegarde a été restaurée avec succès sur un poste.
 - Pendant l'heure de mesure, la mémoire disponible du VPS ne descend pas sous 300 Mo et aucun autre service ne redémarre.
