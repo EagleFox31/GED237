@@ -85,7 +85,7 @@ Le risque du menu admin « Recherche » (page introuvable sur c216141) est levé
 |---|---|---|---|
 | 1 | Durée de la remise à zéro du jeu sur le poste de démo | Q | durée notée, compatible avec J-1 |
 | 2 | Le dossier `live` (30 fichiers, dont 2 doublons) est généré et copié sur les deux postes | Q | liste des fichiers |
-| 3 | Répartition de l'import du direct **par l'assistant « Import en masse »** (pas par `ingest-directory`) : classés, à revoir, doublons, et le total de l'accueil qui en découle (351 + classés) ; si aucun fichier n'est à revoir, identifiant d'un des 41 « à revoir » MINFI du jeu pour l'étape 4 ; **durée** de « Vérifier le classement » puis de l'import (budget de l'étape 1 : 3:00) | Q | **nombres relevés le 17/11 au soir** (16, 12, 2 ; accueil à 367 ; § 10) ; **durées encore à mesurer** |
+| 3 | Répartition de l'import du direct **par l'assistant « Import en masse »** (pas par `ingest-directory`) : classés, à revoir, doublons, et le total de l'accueil qui en découle (351 + classés) ; si aucun fichier n'est à revoir, identifiant d'un des 41 « à revoir » MINFI du jeu pour l'étape 4 ; **durée** de « Vérifier le classement » puis de l'import (budget de l'étape 1 : 3:00) | Q | **nombres relevés le 17/11 au soir** (16, 12, 2 ; accueil à 367 ; § 10) ; **durées mesurées dans l'écran le 18/11** : moins de 1 s au total (§ 10) |
 | 4 | Destination de quelques fichiers de `live` dans l'arbre DAF, et un cas « A classer/‹année› » | Q | chemins notés |
 | 5 | L'import de `MINFI001` vers « Service » DAF range bien côté serveur et alimente « Ma bannette » | Q | rejeu de l'étape 1 avec `MINFI001` |
 | 6 | Le filtre « Toutes les années » de l'explorateur filtre bien un dossier de la DAF | F | capture |
@@ -180,7 +180,7 @@ Chemin : `/imports`, « Juste les ranger », service MINFI-DAF, dossier `live` d
 
 | Point | Mesure | Conséquence |
 |---|---|---|
-| Import du direct (§ 5 n° 3) | Analyse : 16 classés, 12 à revoir, 2 doublons. Exécution : 16 importés, 12 revues, 0 échec. Accueil de `MINFI001` : 351 → **367**. | L'ancien 367 était juste pour ce chemin. Le 379 du § 9 venait de `ingest-directory` : il est retiré. Les durées restent à mesurer. |
+| Import du direct (§ 5 n° 3) | Analyse : 16 classés, 12 à revoir, 2 doublons. Exécution : 16 importés, 12 revues, 0 échec. Accueil de `MINFI001` : 351 → **367**. | L'ancien 367 était juste pour ce chemin. Le 379 du § 9 venait de `ingest-directory` : il est retiré. Mêmes nombres dans l'écran le 18/11 (durées ci-dessous). |
 | Revues ouvertes | 43 → 55. Avant l'import, il y en a 43, pas 41 : les 2 bordereaux P8 (à viser, à rejeter) ne trouvent aucune règle de classement et ont chacun une revue « à revoir ». | À l'étape 4, on ouvre un des 12 fichiers de l'import, jamais un bordereau. Il n'y a pas de plan B à prévoir pour une bannette vide : l'import laisse toujours 12 fichiers à revoir. |
 | Identifiant d'une revue « à revoir » | Il change à chaque remise à zéro. | Q le relève à J-1, après la remise à zéro et l'import de répétition. |
 | Circuit (§ 5 n° 18) | `MGR001` a 2 tâches après la remise à zéro, puis 1 après le visa de préparation (« à rejeter »). | Le circuit se montre sur question. **Ne pas consommer cette tâche avant la séance.** |
@@ -189,3 +189,16 @@ Chemin : `/imports`, « Juste les ranger », service MINFI-DAF, dossier `live` d
 **Bordereaux P8 dans la bannette (décision de O, 17/11)** : on ne change pas le jeu P8 avant le tag. Les bordereaux arrivent par le circuit de validation, pas par une règle de classement ; leur présence parmi les « à revoir » est donc cohérente. La bannette compte 43 revues avant l'import, 55 après. À l'étape 4, le présentateur évite les 2 bordereaux et ouvre un des 12 fichiers de l'import. La surcouche P8 qui les classerait d'office passe en V1.2 (élément 17 de `plan-v1.2.md`, B 0,25 h-s).
 
 **Durées (Q, 17/11, sur la pile de test)** : l'analyse des 30 fichiers par l'API (`/imports/analyze`) prend 0,3 s, et l'import répond sans délai perceptible. Ces temps ne comptent ni l'envoi des fichiers depuis le navigateur ni les clics : les 3:00 de l'étape 1 dépendent surtout des gestes à l'écran. Q mesurera l'analyse et l'import de bout en bout, dans l'écran, sur sa prochaine pile de démo (après l'OCR de B).
+
+**Durées dans l'écran (Q, 18/11, `Mesuré`)** : pile isolée sur `main` 2f15b6e, page « Import en masse », `MINFI001`, « Juste les ranger », service DAF, dossier `live` de 30 fichiers. Deux passages, avec une remise à zéro avant chacun.
+
+| Mesure | 1er passage | 2e passage |
+|---|---|---|
+| Analyse : du clic à la réponse du serveur, puis à l'affichage | 441 ms, puis 538 ms | 411 ms, puis 476 ms |
+| Import : du clic à la réponse du serveur, puis à l'affichage | 249 ms, puis 306 ms | 187 ms, puis 251 ms |
+| Total, de « Vérifier le classement » au compte rendu affiché | 904 ms | 790 ms |
+
+- Compteurs identiques sur les deux passages : après l'analyse, 16 prêts, 12 à revoir, 2 ignorés ou déjà présents ; après l'import, Importés 16, À arbitrer 12, Doublons 2, Erreurs 0 ; accueil de 351 à 367.
+- L'analyse prend 0,4 à 0,45 s au lieu de 0,3 s par l'API, car le navigateur envoie lui-même les 30 fichiers. L'affichage ajoute 60 à 100 ms.
+- Limites de la mesure : navigateur sans fenêtre, page servie en mode développement (pas la version compilée), serveur sur le même poste. Un serveur distant ajoute le temps d'envoi des 30 fichiers par le réseau (`Déduit`). La répétition sur le poste de démo le confirmera.
+- **Conséquence pour l'étape 1 (`Déduit`)** : l'attente machine est inférieure à 1 s sur les 3:00 prévues. Le temps passe dans les clics, le choix du dossier et la phrase du narrateur. Le budget de 3:00 est tenu avec de la marge ; le repli « si l'import dépasse 4:00 » (§ 1) ne sert qu'en cas de panne ou de réseau lent.
