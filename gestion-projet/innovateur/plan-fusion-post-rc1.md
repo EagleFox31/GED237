@@ -224,31 +224,50 @@ Dès le 19, `main` peut porter des migrations que la release n'a pas. Si une bas
 
 Chaque PR fusionne à deux conditions : elle est relue par Q et sa CI est verte. Q relit dans ce même ordre. La chaîne alembic commande. Cet ordre **remplace** celui des lignes « migrations » et « L2 » du § 8.2. Il est reporté dans la colonne « ordre » de `releve-prs-19-11.md`.
 
-| Étape | PR, dans l'ordre | Condition propre |
-|---|---|---|
-| 1. Indépendantes | #197, #203, #171 | #171 (backend des doublons, sans migration) s’appuie sur `deleted_at`, déjà présent sur `main` ; voir l’écart A pour #197 |
-| 2. Chaîne des migrations | #161 → #180 → #183 → #154 → #193 → #186 → #165 → #192 | chaque PR rebasée, avec `down_revision` posé sur la tête de la précédente |
-| 3. Interfaces empilées | #209 après #180 ; #205 après #165 | reciblées sur `main` après la fusion de leur base |
-| 4. Corbeille et doublons | #152 → #181 → #184 → #211 → #182 → #199 | passes ciblées vertes (§ 4) ; **#199 reste bloquée tant que #171 n’est pas fusionnée** |
+État : les étapes 2 à 4 et la condition PO sont décidées par O (17/11). #161 est fermée, remplacée par #197 (mêmes commits, même migration `eff6822a5320`) ; la chaîne commence par #197 → #162 → #180 (O, 17/11). La place de #179, #153, #155, #194, #190 et #196, ainsi que le passage de #203 à l'étape 5 (écart E), sont **proposés** par l'innovateur. O tranche.
+
+| Étape | PR, dans l'ordre | Propriétaire | Condition propre |
+|---|---|---|---|
+| 1. Indépendantes, sans migration | #179, #153, #155 | B | #179 ouvre la voie à #184, #153 à #190. #155 n'a pas de suite |
+| 2. Chaîne des migrations | #197 → #162 → #180 → #183 → #154 → #193 → #186 → #165 → #192 | B | règle de chaînage ci-dessous. #197 remplace #161 ; #162 (sans migration) avant #180, qui l'embarque |
+| 3. Interfaces empilées | #209 après #180 ; #194 après #183 ; #205 après #165 | F | reciblées sur `main` après la fusion de leur base |
+| 4. Corbeille et validation | #152 → #181 → #184 → #211 → #182 → #190 | B (#152), F (#181, #184, #211, #190), Q (#182) | #179 fusionnée avant #184 ; #153 et #181 fusionnées avant #190. Passes ciblées vertes (§ 4) |
+| 5. Après l'accord écrit du PO du 23 | #196 → #203 ; #171 → #199 | B (#196, #203, #171), F (#199) | aucune ne fusionne avant l'accord, même relue et verte (décision D). #199 après #182 et #171 |
+
+**Règle de chaînage des migrations (décision O du 17/11)** : quand la PR précédente de la chaîne est fusionnée, l'auteur de chaque PR à migration repose son `down_revision` sur la nouvelle tête de `main`. O ne met aucune PR à migration en file sans `alembic heads` à une seule tête, vérifié en CI ou par Q.
+
+Garde-fou déjà en place sur `main` (vérifié le 17/11) :
+- `backend/tests/services/test_schema_check.py` l. 34-35 : `assert len(HEADS) == 1, "multiple Alembic heads: add a merge migration"`. `HEADS` vient de `expected_heads()` (`backend/app/core/schema_check.py` l. 47-49), qui lit les scripts par `ScriptDirectory.get_heads()`.
+- La gate backend l'exécute pour tout changement sous `backend/**` (`.github/appfactory-impact.json` l. 23-25). Une PR à migration touche `backend/alembic`, donc la gate tourne toujours.
+- La règle de branche de `main` exige « CI Gate » avec `strict: true` : une PR doit être à jour avec `main` avant de fusionner. Le test tourne donc sur l'état combiné, et deux têtes font échouer la CI.
+- La leçon 039 porte sur pg_dump et la restauration, pas sur les têtes. **Aucun test ne manque.**
+- Limite : une CI verte sur un SHA antérieur à la dernière fusion ne prouve rien. Seule compte la CI du SHA à jour de `main`.
 
 **Têtes alembic relevées le 17/11** (`git show` sur les têtes des branches, fichiers ajoutés par rapport à la base) :
 
 | PR | Révision ajoutée | `down_revision` | Commentaire |
 |---|---|---|---|
 | `main` | tête `a7c8d9e0f1b2` | — | — |
-| #161 | `eff6822a5320` | `a7c8d9e0f1b2` | OK |
-| #180 | `b9d4e2f7a1c3` | `eff6822a5320` | OK (embarque la migration de #161) |
+| #161 (fermée le 17/11) | `eff6822a5320` | `a7c8d9e0f1b2` | remplacée par #197 |
+| #197 | `eff6822a5320` | `a7c8d9e0f1b2` | OK (migration reprise de #161) |
+| #180 | `b9d4e2f7a1c3` | `eff6822a5320` | OK (embarque la migration de #197) |
 | #183 | `c3e8a5d1f2b7` | `b9d4e2f7a1c3` | OK (embarque les migrations de #161 et #180) |
 | #154 | aucune | — | — |
-| #193 (`f2cc377`) | `d4e8b2c6a1f3` | **`a7c8d9e0f1b2`** | **écart B** : attendu `c3e8a5d1f2b7` |
+| #193 (`f2cc377`) | `d4e8b2c6a1f3` | **`a7c8d9e0f1b2`** | à reposer sur `c3e8a5d1f2b7` (écart B) |
 | #186 | `d4f1b6c2e8a9` | `a7c8d9e0f1b2` | à reposer sur `d4e8b2c6a1f3` au rebasage |
 | #165 | `8aed3f3826d7` | `a7c8d9e0f1b2` | à reposer sur `d4f1b6c2e8a9` |
 | #192 | `c9f2a7d4e1b6` | `a7c8d9e0f1b2` | à reposer sur `8aed3f3826d7` |
-| #197 | `eff6822a5320` (celle de #161) | `a7c8d9e0f1b2` | voir l'écart A |
-| #203, #152, #181 | aucune | — | — |
+| #162, #179, #153, #155, #152, #181, #184, #211, #182, #190, #194, #209, #205, #196, #203, #171, #199 | aucune | — | — |
 
-**Écarts à trancher par O** :
-- **A. #197 n'est pas indépendante.** Elle contient les commits de #161 (`51fa2cd`, `41ec6cc`, `80c3ea9`), les 10 fichiers de #161 et la même migration `eff6822a5320`. Si elle passe en premier, elle fait entrer #161 sans relecture. Le § 7 la plaçait déjà « juste après #161 ». Proposition : la sortir de l'étape 1 et la placer juste après #161 dans l'étape 2.
-- **B. `down_revision` de #193 vaut `a7c8d9e0f1b2`, et non `c3e8a5d1f2b7`.** La branche a été écrite contre la tête actuelle de `main`. Dans l'ordre décidé, B doit la poser sur `c3e8a5d1f2b7` au rebasage après #183. Sinon, `alembic heads` renvoie deux têtes. Il en va de même pour #186, #165 et #192, qui partent toutes de `a7c8d9e0f1b2`. Chaque rebasage doit être suivi de `alembic heads`, qui doit renvoyer une seule tête.
-- **C. PR de l’ancien ordre absentes du nouveau** : #162 et #194 (migrations, § 8.2), #179 (chaîne L2), #153 → #190 (L3), #155 (L6), #196 (après le PO du 23). #171 est entrée à l’étape 1 (O, 17/11). Il faut décider si elles restent hors de cet ordre ou si elles s'y insèrent. #180 embarque des commits de #162 (`PASSATION-ci-qa.md` l. 607).
-- **D. #171 et l'accord du PO du 23.** Le § 8.2 subordonnait #171 (doublons) à l'accord écrit du PO sur le fond (`dossier-decisions-po-23-11.md`). À l'étape 1, elle peut fusionner dès sa relecture par Q, donc avant le 23. Il faut décider si l'accord du PO reste une condition de fusion de #171, ou seulement de #199 (l'écran).
+**Empilements vérifiés le 17/11** (`git merge-base --is-ancestor`, commit par commit) :
+- #161 ⊂ #197 ; #162 (1 commit sur 2) ⊂ #180 ; #180 ⊂ #183 ⊂ #194 ; #180 ⊂ #209 ; #154 ⊂ #193 ; #165 ⊂ #205 ;
+- #181 ⊂ #184, #182, #190 et #199 ; #184 ⊂ #182 ; #179 (1 commit sur 2) ⊂ #184 et #182 ; #153 ⊂ #190 ;
+- #196 (2 commits sur 2) ⊂ #203 ; #171 (2 commits sur 4) ⊂ #199.
+
+**Décisions de O sur les écarts (17/11)** :
+- **A.** #197 embarque #161 : elle passait juste après #161. O a ensuite fermé #161 ; #197 ouvre la chaîne.
+- **B.** `down_revision` : règle de chaînage ci-dessus. Elle vaut pour #193, #186, #165 et #192.
+- **C.** PR absentes : insérées ci-dessus. O retient #197 → #162 → #180 ; le reste est une proposition, O tranche.
+- **D.** L'accord du PO du 23 conditionne #171 **et** #199. Le comportement des doublons est une décision du PO : #171 sort de l'étape 1.
+
+**Écart E, nouveau (à trancher par O)** : #203 embarque les deux commits de #196. Sa description dit « Portée à confirmer par le PO avant fusion ». Le projet d'accord du § 4 de `dossier-decisions-po-23-11.md` dit « Fusion après #196 et après le 30 ». La question ajoutée au § 4 du dossier (rapports d'un manager ou d'un lecteur, soulevée par Q) touche aussi #196. Proposition : #196 → #203 passent à l'étape 5, comme #171.

@@ -1,6 +1,6 @@
 # Décisions à prendre par le PO après la recette (23/11 au soir)
 
-Présenté par O. Préparé par l'innovateur, 2026-11-17. Répondez par oui ou non. La recommandation de l'équipe est indiquée pour chaque question. Le détail est dans la fiche citée, rangée dans `gestion-projet/innovateur/`.
+Présenté par O. Préparé par l'innovateur, 2026-11-17. Répondez par oui ou non, ou choisissez une option. La recommandation de l'équipe est indiquée quand elle existe. Le détail est dans la fiche citée, rangée dans `gestion-projet/innovateur/`.
 
 ## 1. Vue « Doublons » (#171)
 
@@ -31,17 +31,34 @@ Fiche : `protocole-installation-site.md`. L'essai a lieu après le 24, une fois 
 
 > Accord PO du JJ/MM : l'installation sur site est acceptée comme preuve à la place du VPS pour l'item 28 du CDC, sur la base des relevés P1 (Windows 11 + WSL 2) et P2 (Ubuntu 24.04, hors ligne). Le PO prête le poste de P2.
 
-## 4. Responsable d'unité (#195), seulement si vous n'avez pas encore répondu
+## 4. Responsable d'unité (#195) et rapports d'un manager (#196, #203)
+
+Questions 1 à 3 : seulement si vous n'avez pas encore répondu. Question 4 : nouvelle.
 
 Fiche : `fiche-po-195-portee-unit-admin.md`.
 
 1. Le responsable d'unité ne voit **que son service et ses bureaux** : dans la liste, la recherche, les compteurs et les imports, comme dans ses rapports ? Recommandé : **oui**.
 2. Les trois accès restants vers les autres services sont fermés en V1.1, dans une PR séparée : le lien direct, l'import au nom d'un autre agent et la vue de toute l'institution ? Recommandé : **oui**.
 3. A-t-il besoin, dans son travail, de **chercher dans tout l'établissement** ? Si oui, il faut prévoir une autre voie avant la fusion.
+4. Un **manager** ou un **lecteur** doit-il voir, dans ses rapports, les documents des bureaux rattachés à son service ? Question soulevée par Q en relisant #203.
+   - Aujourd'hui, la règle des rapports prévoit « son service et ses bureaux ». Mais la liste des bureaux n'est jamais remplie : en pratique, il ne voit que son service. #203 répare ce calcul. Sans décision, ses rapports compteront donc aussi ses bureaux, alors que sa liste de documents reste limitée à son service.
+   - **Option A, oui** : ses rapports couvrent son service et ses bureaux. Conséquence : il voit des chiffres sur des documents qu'il ne peut pas ouvrir dans sa liste. Rien à changer dans #196 et #203.
+   - **Option B, non** : ses rapports couvrent son service seulement, comme sa liste. Conséquence : il voit les mêmes documents partout, comme aujourd'hui en pratique. B retire le manager et le lecteur de la règle « service et bureaux » des rapports avant la fusion de #196.
+
+Pour information : B corrige dès maintenant le lien direct (#202). Un responsable d'unité ne pourra plus ouvrir, par son lien, un document d'un autre service. Ce travail passe avant les autres chantiers de B.
 
 > Accord PO du JJ/11 : le responsable d'unité (`unit_admin`) voit seulement son service et ses bureaux, en liste, en recherche, dans les compteurs, les imports et les rapports. Le lien direct, l'import au nom d'un autre agent et la vue de l'institution seront fermés en V1.1, dans une PR distincte. Fusion après #196 et après le 30.
+> Rapports d'un manager ou d'un lecteur : [son service et ses bureaux | son service seulement].
 
-## 5. Pour information : écran de connexion sur site
+## 5. Suppression d'un établissement et registre des documents officiels (#197) — DÉCIDÉE le 17/11
+
+Pour information, aucune réponse demandée.
+
+Constat : dans #197, supprimer un établissement effaçait aussi son registre des documents officiels (migration `eff6822a5320`, l. 28 et 40 : suppression en cascade).
+
+> Décision PO du 17/11 : un établissement qui a un registre de documents officiels ne peut pas être supprimé. B l'applique dans #197 avant la fusion : la suppression est refusée (erreur 409) et la base l'interdit aussi (clé étrangère en RESTRICT).
+
+## 6. Pour information : écran de connexion sur site
 
 Aujourd'hui, l'écran de connexion affiche deux éléments de démonstration :
 - le code de connexion déjà rempli ;
