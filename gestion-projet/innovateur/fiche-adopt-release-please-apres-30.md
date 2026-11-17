@@ -101,20 +101,34 @@ Le calendrier :
 3. **`release-integrity` est chaîné** par un job `needs: release`, comme au § 3.
 4. **L'exécution à blanc en Docker est obligatoire** avant l'activation.
 
-## 9. Complément : si une rc.2 est posée
+## 9. Après la décision du PO du 17/11 : les rc sont taguées sur `release/v1.0.0`
 
-`plan-fusion-post-rc1.md` (option A, retenue par O) prévoit qu'une rc.2 éventuelle soit posée au plus tard le 27. Un correctif tardif passerait alors par la branche `release/v1.0.0`, créée depuis le dernier tag rc. Il faut donc adapter la mise en place à la date d'activation, sans changer la recommandation :
+`plan-fusion-post-rc1.md` § 8 : O coupe `release/v1.0.0` sur `main` le 19, juste après la fusion de #104. La PR des notes de B, les correctifs de recette, #121, le tag `v1.0.0-rc.1` et toute rc.2 sont tous sur la branche. Ce qui n'était qu'un cas possible devient certain.
 
-- **La graine du manifest suit la dernière rc publiée.** Si rc.2 existe, on met `{".": "1.0.0-rc.2"}` au lieu de `1.0.0-rc.1`. Sinon, Release Please calculerait la version suivante à partir d'une version périmée.
-- **Si le tag rc.2 est posé sur `release/v1.0.0`, et non sur `main`**, son commit ne fait pas partie de l'historique de `main`. Release Please, qui ne lit que `main` (`target-branch`), ne pourrait pas s'en servir pour délimiter le changelog.
-  - Dans ce cas, on fixe `"last-release-sha"` sur le dernier commit de `main` qui figure dans la rc : `git merge-base origin/main v1.0.0-rc.2`.
-  - Les cherry-picks de `release/v1.0.0` doivent avoir été reportés sur `main`. Sinon, ils manquent à la `v1.0.0`.
-- **Release Please ne gère que `main`.** La branche `release/v1.0.0` reste manuelle jusqu'à sa fermeture, après la `v1.0.0`. On n'y fait tourner aucune deuxième instance de Release Please.
-- **L'exécution à blanc** (point 4 du § 8) vérifie les deux cas :
-  - le changelog commence après la dernière rc ;
-  - la PR propose bien `1.0.0`.
+- **Les commits des tags rc ne sont pas dans l'historique de `main`.**
+  - #121 et les notes de B ne fusionnent que sur la release.
+  - Les correctifs reviennent sur `main` par recopie (`cherry-pick -x`), donc avec d'autres SHA.
+  - Release Please, qui ne lit que `main`, ne peut donc pas s'appuyer sur un tag rc pour délimiter le changelog. **`last-release-sha` est obligatoire**, et non plus optionnel. Sa valeur est le point de coupure : `git merge-base origin/main v1.0.0-rc.1`, c'est-à-dire la fusion de #104, notée `$M` dans `checklist-tag-rc1-24-11.md` (E1 bis).
+  - Pour le calcul, on utilise le dernier tag publié sur la branche (rc.2 ou `v1.0.0` s'il existe) : la base commune avec `main` reste `$M`.
+- **Ce que contient le changelog de `main`** : tout ce qui est fusionné après `$M`, c'est-à-dire les PR post-rc1 et la **recopie** des correctifs de recette. Ces correctifs sont déjà dans la rc. Ils réapparaissent donc dans le changelog, ce qui est acceptable. On peut retoucher le texte dans la PR de release.
+- **Nouveau point, Décision O : quelle version pour la première release de `main` ?** Le § 2 (graine `1.0.0-rc.1`, puis `release-as: 1.0.0`) supposait une seule ligne. Avec deux lignes, il ferait de `v1.0.0` une version de `main` qui contient tout le post-rc1 (corbeille, numérotation, TOTP, etc.). Ce contenu n'a été ni recetté ni montré en démo, et la version recettée n'aurait jamais de tag final.
 
-> Accord O du 17/11 : décisions du § 8. L'adaptation de la graine et de `last-release-sha` au § 9 se fait le 1er décembre, selon qu'une rc.2 existe ou non.
+| Option | Graine de `main` | `v1.0.0` | Première release automatique de `main` |
+|---|---|---|---|
+| **A (recommandée)** | `{".": "1.0.0"}` et `last-release-sha` = `git merge-base origin/main v1.0.0` (= `$M`) | promotion de la dernière rc sur `release/v1.0.0`, posée à la main par O après l'acceptation du PO, avec la même check-list (`TAG=v1.0.0`, sans `--prerelease`) | `v1.1.0`, à partir des `feat:` du post-rc1. C'est la même numérotation que celle de l'équipe, qui parle déjà de « V1.1 ». Pas de `release-as`. |
+| B | `{".": "1.0.0-rc.N"}` et `release-as: 1.0.0` (§ 2) | sur `main`, avec tout le post-rc1 | `v1.0.0` |
+
+Avec l'option A, la ligne « Passage à 1.0.0 » et la graine `1.0.0-rc.1` du § 2 ne s'appliquent plus. Le coût du § 6 est inchangé : on retire l'étape `release-as`, et on ajoute la pose de `v1.0.0` par O, environ 0,25 h-s avec la check-list.
+
+- **Qui pose les tags**
+  - `release/v1.0.0` reste **manuelle** (O, avec la check-list) jusqu'à `v1.0.0`. Elle est ensuite figée. Un correctif `1.0.x` n'y est posé que sur décision d'O, toujours à la main.
+  - Release Please ne tourne que sur `main` (`target-branch: main`). Aucune deuxième instance ne tourne sur la release.
+- **Ce que l'exécution à blanc doit montrer** (point 4 du § 8) :
+  - le changelog commence juste après `$M` ;
+  - la PR propose `1.1.0` avec l'option A, ou `1.0.0` avec l'option B ;
+  - aucun commit d'avant la coupure n'apparaît.
+
+> Accord O du 17/11 : décisions du § 8. Le § 9 s'applique : `last-release-sha` = point de coupure `$M`, obligatoire. Version de la première release de `main` : option ___ (A recommandée : `v1.0.0` posée à la main sur `release/v1.0.0`, puis `v1.1.0` de `main` par Release Please).
 
 ## Revue RAIDER (instruction)
 

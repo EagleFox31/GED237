@@ -1,10 +1,15 @@
-# Plan de fusion post-rc1 (25–29/11)
+# Plan de fusion post-rc1 (`main` rouverte dès le 19/11)
 
-- **Pour** : O (décideur), B, F, Q. Innovateur, 2026-11-17, sur `main` c216141. Instruction seulement : O tranche chaque point marqué **Décision O**.
+- **Pour** : O (décideur), B, F, Q. Innovateur, 2026-11-17, sur `main` c216141, mis à jour le 17/11 sur `main` 33b2425 après la décision du PO (§ 8). Instruction seulement : O tranche chaque point marqué **Décision O**.
 - **Sources** : PR ouvertes au 17/11 (`gh pr view`, base, fichiers, migrations, corps) ; règle du § 6 du plan de B (`gestion-projet/dev-backend/plan-post-rc1-dix-capacites.md`, branche `feat/post-rc1-l1-health-ready`) ; `release-demo.md` § 3 ; `checklist-demo.md` ; LESSON-2026-029. `Vérifié` = lu dans GitHub ou `main` ; `Déduit` = raisonnement.
-- **Calendrier** : tag `v1.0.0-rc.1` le mar. 24 ; rc.2 éventuel au plus tard le ven. 27 au matin (`release-demo.md` l. 37) ; démo le lun. 30. Le 28 et le 29 tombent un week-end.
+- **Calendrier (17/11, après la décision du PO)** :
+  - le 19 après la fusion de #104, O coupe `release/v1.0.0` sur `main`, et `main` rouvre aussitôt ;
+  - la recette du 20 au 23, le tag `v1.0.0-rc.1` du 24, une rc.2 éventuelle et la démo du 30 se font tous sur `release/v1.0.0` ;
+  - du 20 au 23, Q est pris par la recette.
 
-## 0. Point bloquant : la rc.2 est taguée depuis `main`
+> **Les § 0, 1, 4, 5 et 6 ci-dessous sont l'état d'avant la décision du PO. Le § 8 les remplace.** La linéarisation alembic (§ 2), les reciblages (§ 3) et les ajouts du § 7 restent valables.
+
+## 0. Point bloquant : la rc.2 est taguée depuis `main` (remplacé par le § 8)
 
 `Vérifié` : « `v1.0.0-rc.2` (si correctifs de recette après le 24) : au plus tard vendredi 27/11 matin … le tag monté sur les postes de démo est le dernier rc ». Toute PR post-rc1 fusionnée le 25 ou le 26 partirait donc dans la rc.2, et donc dans la démo.
 
@@ -13,7 +18,7 @@
 | **A (recommandée)** | Le 25 et le 26, `main` ne reçoit que les correctifs de recette et la documentation. Les fusions post-rc1 commencent le 27, après la pose de la rc.2 ou la décision « pas de rc.2 ». Si un correctif est nécessaire après le 27, la branche `release/v1.0.0` est créée depuis le dernier tag rc, et le correctif y est appliqué par cherry-pick. | La fenêtre de fusion passe de 5 à 3 jours. Les passes ciblées tournent quand même le 25 et le 26, sur les branches des PR. |
 | B | La branche `release/v1.0.0` est créée dès le 24 depuis `v1.0.0-rc.1`. La rc.2 est taguée sur cette branche, et `main` est libre dès le 25. | Une procédure nouvelle la semaine de la démo, avec des cherry-picks à reporter dans les deux sens. |
 
-**Décision O du 17/11** : option A (§ 6).
+**Décision O du 17/11** : option A (§ 6). **Remplacée le 17/11 par une variante de l'option B, sur décision du PO** : la coupure se fait le 19 et non le 24 (§ 8).
 
 ## 1. Ordre de fusion
 
@@ -43,6 +48,8 @@ Ordre de O, corrigé sur cinq points (`Vérifié` dans les corps et les bases de
 | 28 | #154 (L4) ; #155 (L6) | passes #172 et #169 vertes + accord PO écrit |
 | 29 | aucune fusion | marge ; `main` stable pour la veille |
 | après le 30 | #161 → #197 → #162 → #180 → #183 → #194 ; #193 ; #186, #165, #192 ; #171 ; #196 ; PR brouillon de #195 | § 5 et § 7 |
+
+**Les dates des créneaux sont remplacées par le § 8.2.** L'ordre des PR et les conditions d'enchaînement de ce tableau restent valables.
 
 Les PR de passe (#168, #169, #170, #172) fusionnent juste après la PR qu'elles couvrent, dans le même créneau. Si une passe échoue, sa chaîne passe après le 30. Les autres chaînes ne bougent pas.
 
@@ -118,9 +125,13 @@ Pour l'accord du PO, je propose un commentaire sur chaque PR de lot, de la forme
 | #192 | L13 | migration ; planification de la sauvegarde, à prouver par une restauration (Q) |
 | #171 | L11 | aucune passe définie ; touche les doublons montrés en démo |
 
-Règle proposée à O : **aucune migration sur `main` avant le 30**. Avec l'option A, un correctif de dernière minute partirait de `release/v1.0.0` : le tag de démo resterait sans migration nouvelle, et la base de démo garderait sa révision.
+**Le gel de ce § 5 est levé sur `main` depuis la coupure du 19 (§ 8.3).** Il ne vaut plus que pour `release/v1.0.0`.
+
+Règle proposée à O (levée sur `main` le 17/11, § 8.3) : **aucune migration sur `main` avant le 30**. Avec l'option A, un correctif de dernière minute partirait de `release/v1.0.0` : le tag de démo resterait sans migration nouvelle, et la base de démo garderait sa révision.
 
 ## 6. Décisions de O du 17/11
+
+Les points 1, 3 et 4 sont remplacés par le § 8. Les points 2, 5, 6 et 7 restent valables.
 
 1. **Option A** (§ 0). Le 25 et le 26, `main` ne reçoit que la documentation et les correctifs de recette, et les passes ciblées tournent sur les branches des PR. Les fusions post-rc1 commencent le 27, après la rc.2 éventuelle. Un correctif tardif passe par la branche `release/v1.0.0`, créée depuis le dernier tag.
 2. **#179 est traitée comme L2** : passe ciblée (#182) et accord du PO.
@@ -146,3 +157,62 @@ Règle proposée à O : **aucune migration sur `main` avant le 30**. Avec l'opti
 
   Règle de O : **la PR fusionnée en second** adapte `tests/services/test_reports_scope.py` de #161 au défaut fermé, avant sa fusion. Si #196 fusionne après #161, c'est donc #196 qui le fait.
 - **#195 est une issue** (portée de `unit_admin` en recherche et en liste des documents, alignée sur les rapports, V1.1). B ouvre une PR brouillon. Elle fusionne **après l'accord du PO sur la portée**, et donc après le 30.
+
+## 8. Décision du PO du 17/11 : `release/v1.0.0` coupée le 19, `main` rouverte
+
+Décision transmise par O : « go dès que possible ». Elle remplace l'option A (§ 0), les dates du § 1, le gel du § 5 sur `main` et les points 1, 3 et 4 du § 6.
+
+### 8.1 Les deux lignes
+
+| | `release/v1.0.0` | `main` |
+|---|---|---|
+| **Créée / ouverte** | Le 19, coupée par O sur `main` juste après la fusion de #104. | Rouverte dès la coupure, à toutes les PR post-rc1, migrations comprises. |
+| **Ce qui y entre** | La PR des notes de B, les correctifs de recette ou de démo, puis #121, **en dernier**. | Les PR post-rc1, dans l'ordre du § 1, ainsi que la recopie des correctifs faits sur la release. |
+| **Tags et usage** | Recette du 20 au 23, `v1.0.0-rc.1` le 24, rc.2 éventuelle, démo du 30. | Aucun tag avant le 30. Release Please après le 30 (`fiche-adopt-release-please-apres-30.md` § 9). |
+| **Gel** | Ni migration, ni dépendance, ni fonctionnalité. | Aucun gel. |
+| **Contrôle** | La check-list `checklist-tag-rc1-24-11.md` est mise à jour pour la release. | La règle du § 8.2 s'applique du 20 au 23. |
+
+**Correctif de recette ou de démo** : une PR vers `release/v1.0.0`, puis sa recopie vers `main` :
+- La recopie est une PR distincte, en `git cherry-pick -x` du commit de la release, ouverte le même jour par l'auteur du correctif.
+- Si `main` a divergé (par exemple après la chaîne L2 sur la suppression), l'auteur adapte la recopie, et Q la relit comme une PR neuve.
+- Un correctif qui demande une migration n'entre **pas** sur la release : il devient un écart annoncé, ou une décision O.
+
+### 8.2 Créneaux de fusion sur `main`
+
+Contrainte de O : du 20 au 23, Q est pris par la recette. **Pendant ces quatre jours, seules entrent sur `main` les PR déjà relues par Q.**
+- Est « relue par Q » une PR qui porte un commentaire de relecture de Q avec un verdict.
+- Toutes les PR post-rc1 sont encore en brouillon et n'ont aucune revue GitHub (`gh pr view`, le 17/11). Le compte est commun, donc la revue GitHub ne peut pas servir de preuve.
+- Q donne la liste des PR relues le 19 avant 18:00, en une ligne.
+
+| Créneau | PR, dans l'ordre du § 1 | Condition |
+|---|---|---|
+| 19, après la coupure | #166, #189 (docs) ; #147 (L1) | relues par Q ; CI Gate verte |
+| 20–23 | La suite de l'ordre du § 1, **seulement les PR relues par Q avant le 20**. | Chaîne L2 et L3 : passes ciblées vertes (§ 4). Q les lance, donc en pratique seulement si elles sont faites avant le 20. |
+| 24 (après le tag) → 30 | Chaînes L2 (#152 → #179 → #181 → #184 → #182), L3 (#153 → #190), L4 (#154), L6 (#155) | passes ciblées vertes ; reciblages du § 3 faits avant |
+| dès que relue par Q (au plus tôt le 24, sauf si relue avant le 20) | Chaîne des migrations #161 → #197 → #162 → #180 → #183 → #194 ; puis #193, #186, #165, #192 | ordre alembic du § 2 ; #197 juste après #161 (§ 7) |
+| après la réponse du PO du 23 | #171 (doublons) ; #196 et la PR de #195 (portée) | accord écrit du PO sur le fond (`dossier-decisions-po-23-11.md`) |
+
+Il n'y a plus de journée « sans fusion » le 29 : la démo ne dépend plus de `main`.
+
+### 8.3 Règles levées, et celles qui restent
+
+- **Levée sur `main`** : « aucune migration avant le 30 » (§ 5) et le gel des dépendances pour les PR post-rc1, dont #197 et `reportlab`. Les deux gels ne valent plus que pour `release/v1.0.0`.
+- **Accord écrit du PO pour L2, L3, L4 et L6** (§ 4) : il protégeait la démo, qui est désormais sur la release. Je propose de le remplacer par la seule passe ciblée verte. **Décision O.** Les accords de fond du § 8.2 (doublons et portée) restent nécessaires.
+- **PR Dependabot** (#29, #30, #110 à #113, #141) : la levée du gel les rend possibles sur `main`. Je recommande de les garder après le 30, car Q est pris par la recette. **Décision O.**
+- **Restent** : les passes ciblées (§ 4), la chaîne alembic (§ 2), les reciblages (§ 3) et « la PR fusionnée en second adapte les tests de portée » (§ 7).
+
+### 8.4 Base de recette et base de développement (nouveau risque)
+
+Dès le 19, `main` peut porter des migrations que la release n'a pas. Si une base passe à la tête de `main`, puis sert à faire tourner la release, le code de la release tourne sur un schéma qu'il ne connaît pas.
+- **Règle** : les postes de recette et de démo, ainsi que la pile e2e de la release, ne tournent que depuis un worktree de `release/v1.0.0`, avec leur propre volume de base de données.
+- On ne lance jamais `alembic upgrade head` depuis un checkout de `main` sur une base de recette ou de démo.
+- Après chaque fusion de migration, l'`alembic upgrade head` du § 2 ne vise que les bases de développement (`edossier` et `test_ged` du poste de dev).
+
+### 8.5 Points à régler avant le 20 (`Vérifié` le 17/11)
+
+1. **La branche `release/v1.0.0` ne sera pas protégée.** Le seul ruleset du dépôt, « AppFactory default branch governance », ne vise que `~DEFAULT_BRANCH`. Sans autre règle, n'importe qui peut pousser directement sur la release, la réécrire ou la supprimer, et une PR vers elle n'exige aucun check.
+   - Proposition : O ajoute, avant le 20, un ruleset sur `refs/heads/release/**` avec les mêmes règles (`deletion`, `non_fast_forward`, `pull_request`, `required_status_checks`). **Décision O.**
+   - À défaut, `ci_gate` doit être vert avant chaque fusion sur la release (check-list § 1).
+2. **`ci.yml` ne se déclenche que sur `main` et `develop`** (`push` et `pull_request`). Q y ajoute `release/**` avant le gel, comme décidé par O, **dans les deux déclencheurs**. Cet ajout doit être fusionné sur `main` **avant la coupure** pour se retrouver sur la release.
+3. **La recette nocturne planifiée ne tourne que sur la branche par défaut** (cron de `e2e-uat-nightly.yml`). Sur la release, elle se lance à la main par `gh workflow run e2e-uat-nightly.yml --ref release/v1.0.0` (check-list § 1, E3 bis, et § 2).
+4. **#121 et la PR des notes de B ont `main` pour base** (`Vérifié` pour #121). Leurs auteurs les reciblent juste après la coupure, avec `gh pr edit <n> --base release/v1.0.0`, puis les rebasent sur la release.
