@@ -51,6 +51,8 @@ from app.schemas.document import (
 )
 from app.services.reports_scope import (
     INSTITUTION_WIDE_ROLES,
+    UNIT_TREE_ROLES,
+    in_actor_unit_tree,
     is_within_unit_tree,
     unit_subtree_ids,
 )
@@ -97,7 +99,7 @@ ADMIN_ROLES = {"super_admin", "tenant_admin", "unit_admin"}
 # reports_scope plus super_admin; unit_admin reads its unit and the units below
 # it; manager and reader read their own unit; anyone else reads their own documents.
 TENANT_WIDE_READ_ROLES = INSTITUTION_WIDE_ROLES | {"super_admin"}
-UNIT_TREE_READ_ROLES = frozenset({"unit_admin"})
+UNIT_TREE_READ_ROLES = UNIT_TREE_ROLES
 ORG_UNIT_READ_ROLES = {"manager", "reader"}
 OWNER_MUTABLE_STATUSES = {"draft", "rejected"}
 ARCHIVABLE_SOURCE_STATUSES = {"validated", "signed"}
@@ -862,6 +864,9 @@ async def resolve_manual_review(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    # Before any check that reveals the document's state (#215).
+    if not await in_actor_unit_tree(db, current_user, document.org_unit_id):
+        raise HTTPException(status_code=404, detail="Document not found")
     await authorize_or_403(
         current_user, "workflows", "resolve_review", ctx_from_resource(document)
     )
@@ -891,6 +896,8 @@ async def resolve_manual_review(
             raise HTTPException(
                 status_code=400, detail="target_folder_id must be a valid UUID"
             ) from exc
+        if not await in_actor_unit_tree(db, current_user, target_folder_uuid):
+            raise HTTPException(status_code=403, detail="Target outside your unit tree")
         document.org_unit_id = target_folder_uuid
         document.classification_target_org_unit_id = target_folder_uuid
 

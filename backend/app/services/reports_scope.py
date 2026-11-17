@@ -23,7 +23,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select, select
+from sqlalchemy import Select, false, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import can_perform
@@ -70,6 +70,39 @@ async def is_within_unit_tree(db: AsyncSession, unit_id: UUID, root_id: UUID) ->
         )
     )
     return found.first() is not None
+
+
+# Roles whose tenant-wide policy rights ("manage") stop at their own unit tree
+# (#195, #215): the policy gives the capability, the code bounds the reach.
+UNIT_TREE_ROLES = frozenset({"unit_admin"})
+
+
+def is_unit_tree_bounded(user: User) -> bool:
+    return _role_code(user) in UNIT_TREE_ROLES
+
+
+async def in_actor_unit_tree(
+    db: Optional[AsyncSession], user: User, unit_id: Optional[UUID]
+) -> bool:
+    """True when ``user`` may act on a resource of ``unit_id``.
+
+    Unbounded roles always pass. A bounded role passes only inside its unit
+    tree, and fails closed without a unit on either side (#215).
+    """
+    if not is_unit_tree_bounded(user):
+        return True
+    if db is None or unit_id is None or user.org_unit_id is None:
+        return False
+    return await is_within_unit_tree(db, unit_id, user.org_unit_id)
+
+
+def unit_tree_filter(user: User, column) -> list:
+    """SQL conditions keeping the rows of ``column`` in the user's unit tree."""
+    if not is_unit_tree_bounded(user):
+        return []
+    if not user.org_unit_id:
+        return [false()]
+    return [column.in_(unit_subtree_ids(user.org_unit_id))]
 
 
 async def resolve_report_scope(

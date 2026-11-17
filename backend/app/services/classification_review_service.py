@@ -2,11 +2,11 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import String, cast, select
+from sqlalchemy import String, and_, cast, false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -30,6 +30,11 @@ from app.schemas.classification_review import (
 )
 from app.schemas.document import DocumentRead, NeedsReviewDocument
 from app.schemas.imports import ImportJobItemRead
+from app.services.reports_scope import (
+    in_actor_unit_tree,
+    is_unit_tree_bounded,
+    unit_subtree_ids,
+)
 from app.services.space_path_builder import SpacePathBuilder
 from app.services.storage.factory import get_storage_service
 
@@ -54,10 +59,42 @@ class ClassificationReviewService:
         self.path_builder = SpacePathBuilder(db)
         self.storage_service = get_storage_service()
 
+    def review_scope_filters(self, user: User) -> list:
+        """SQL conditions keeping the reviews of a unit-bounded role's tree (#215).
+
+        A review on a document follows the document's unit. A review on an
+        import item follows the batch: aimed at a unit of the tree, or created
+        by the user (the rule of the import screens). Anything else is hidden.
+        The engine's suggested unit is not used: it is what is being arbitrated.
+        """
+        if not is_unit_tree_bounded(user):
+            return []
+        if not user.org_unit_id:
+            return [false()]
+        tree = unit_subtree_ids(user.org_unit_id)
+        return [
+            or_(
+                ClassificationReview.document.has(Document.org_unit_id.in_(tree)),
+                and_(
+                    ClassificationReview.document_id.is_(None),
+                    ClassificationReview.import_job_item.has(
+                        ImportJobItem.import_job.has(
+                            or_(
+                                ImportJob.target_org_unit_id.in_(tree),
+                                ImportJob.created_by_id == user.id,
+                            )
+                        )
+                    ),
+                ),
+            )
+        ]
+
     async def list_open_reviews(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, scope_filters: Sequence = ()
     ) -> List[ClassificationReviewRead]:
-        reviews = await self._load_open_reviews(tenant_id=tenant_id)
+        reviews = await self._load_open_reviews(
+            tenant_id=tenant_id, scope_filters=scope_filters
+        )
         return [self._to_review_read(review) for review in reviews]
 
     async def list_legacy_needs_review_documents(
@@ -133,6 +170,7 @@ class ClassificationReviewService:
             review_id=review_id,
             tenant_id=current_user.tenant_id,
             for_update=True,
+            scope_filters=self.review_scope_filters(current_user),
         )
         if review.review_status != "open":
             raise HTTPException(
@@ -155,6 +193,13 @@ class ClassificationReviewService:
             target_org_unit_id=payload.classification_target_org_unit_id,
             target_user_id=payload.classification_target_user_id,
         )
+        if not await in_actor_unit_tree(
+            self.db, current_user, getattr(target_org_unit, "id", None)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Target outside your unit tree",
+            )
 
         if review.import_job_item_id and review.document_id is None:
             return await self._resolve_import_item_review(
@@ -522,7 +567,7 @@ class ClassificationReviewService:
         )
 
     async def _load_open_reviews(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, scope_filters: Sequence = ()
     ) -> list[ClassificationReview]:
         result = await self.db.execute(
             select(ClassificationReview)
@@ -549,6 +594,7 @@ class ClassificationReviewService:
             .where(
                 ClassificationReview.tenant_id == tenant_id,
                 ClassificationReview.review_status == "open",
+                *scope_filters,
             )
             .order_by(ClassificationReview.updated_at.desc())
         )
@@ -640,7 +686,21 @@ class ClassificationReviewService:
         review_id: UUID,
         tenant_id: UUID,
         for_update: bool = False,
+        scope_filters: Sequence = (),
     ) -> ClassificationReview:
+        if scope_filters:
+            # Checked apart from the locked read: the tree is a recursive query.
+            visible = await self.db.execute(
+                select(ClassificationReview.id).where(
+                    ClassificationReview.id == review_id,
+                    ClassificationReview.tenant_id == tenant_id,
+                    *scope_filters,
+                )
+            )
+            if visible.first() is None:
+                raise HTTPException(
+                    status_code=404, detail="Classification review not found."
+                )
         stmt = select(ClassificationReview).where(
             ClassificationReview.id == review_id,
             ClassificationReview.tenant_id == tenant_id,
