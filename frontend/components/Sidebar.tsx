@@ -52,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
+              aria-current={activeTab === item.id ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 group ${
                 activeTab === item.id
                   ? 'bg-blue-50 text-rdpc-blue shadow-sm'
@@ -90,11 +91,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           { id: 'tasks', label: 'Tâches & Suivi', icon: 'notifications' },
           { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
           { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
-          { id: 'trash', label: 'Corbeille', icon: 'delete' },
           // Manager : rapports de son service (le serveur limite les données au service).
           ...(userProfile?.id === 'manager'
             ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
             : []),
+          { id: 'trash', label: 'Corbeille', icon: 'delete' },
         ].map(item => (
           <button
             key={item.id}

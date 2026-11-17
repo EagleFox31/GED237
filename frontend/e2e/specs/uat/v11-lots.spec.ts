@@ -1,23 +1,60 @@
-import { test, expect } from '../../fixtures/auth.fixture';
+import { test, expect, apiAs } from '../../fixtures/uat.fixture';
 import type { APIRequestContext } from '@playwright/test';
 import { SEED } from '../../data/seed';
 
 /**
- * Lots V1.1 reouverts avant le gel (DEC-2026-002, GO PO du 10/11) : un scenario court par lot,
- * en fixme jusqu'a la PR du lot. Lever le fixme = remplacer le corps et supprimer test.fixme.
- * Matrice : gestion-projet/innovateur/matrice-recette.md section 6. Livre si fusionne le 19/11 18:00, sinon V1.1.
+ * Lots V1.1 reouverts avant le gel (DEC-2026-002, GO PO du 10/11) : un scenario court par lot.
+ * Les cinq lots sont fusionnes ; seul SC-V11-05 reste en fixme (worker absent de la pile E2E).
+ * Matrice : gestion-projet/innovateur/matrice-recette.md section 6.
  *
- * Le projet Playwright `smoke` ne cite pas ce fichier : a ajouter au testMatch quand un lot est livre.
+ * Joue par le projet `uat` (recette nocturne), pas par `smoke`.
+ * Compteurs partages par le tenant : les comparaisons sont en « au moins », car d'autres specs
+ * peuvent refuser des doublons en parallele en local (la CI joue un seul worker).
  */
 test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
-  test.fixme('SC-V11-01 - Given un doublon refuse a l\'upload ou a l\'import, When l\'admin ouvre le tableau de bord, Then le compteur de doublons detectes a augmente de 1', async () => {});
+  // #77, #81, #99. Volet export de SC-V11-03 (#80, #87) : le journal exporte par l'auditeur,
+  // filtre sur les doublons, ne contient que des doublons refuses, dont celui-ci.
+  test('SC-V11-01 - Given un doublon refuse au depot, When l\'admin ouvre le tableau de bord, Then le compteur « Doublons refuses » a augmente ; l\'export filtre de l\'auditeur le contient', async ({
+    page,
+    request,
+    loginAs,
+    adminApi,
+    runId,
+  }) => {
+    const before = (await adminApi.tenantMetrics()).duplicates;
+    const content = `SC-V11-01 ${runId} : contenu unique de ce run`;
+    const title = `Doublon V11 ${runId}`;
+    await adminApi.uploadDocument(`v11-doublon-${runId}.txt`, title, content);
+    const again = await adminApi.tryUpload(`v11-doublon-${runId}-copie.txt`, `${title} copie`, content);
+    expect(again.status(), 'meme contenu : doublon refuse').toBe(409);
+
+    const after = (await adminApi.tenantMetrics()).duplicates;
+    expect(after.refused_upload, 'compteur des depots refuses').toBeGreaterThanOrEqual(before.refused_upload + 1);
+    expect(after.refused).toBe(after.refused_upload + after.refused_import);
+
+    const auditor = await apiAs(request, 'auditor');
+    const csv = await auditor.exportAuditCsv({ action: 'dup_detected', table_name: 'documents' });
+    const rows = csv.replace(/^﻿/, '').split(/\r?\n/).slice(1).filter(Boolean);
+    expect(rows.length, 'une ligne par doublon refuse').toBeGreaterThanOrEqual(after.refused_upload);
+    for (const row of rows) expect(row.split(';'), 'export = evenements du filtre').toContain('Doublon refuse');
+    expect(rows.some((row) => row.split(';').includes(title)), 'le doublon de ce run est exporte').toBe(true);
+
+    // The tile shows the counters read after this refusal (other specs may only add to them).
+    await loginAs('tenant_admin');
+    await page.goto('dashboard');
+    await expect(page.getByText('Doublons refusés', { exact: true })).toBeVisible();
+    const trend = page.getByText(/\d+ dépôts · \d+ imports/);
+    await expect(trend).toBeVisible();
+    const [shownUpload = -1, shownImport = -1] = ((await trend.textContent()) ?? '').match(/\d+/g)?.map(Number) ?? [];
+    expect(shownUpload, 'depots refuses affiches').toBeGreaterThanOrEqual(after.refused_upload);
+    expect(shownImport, 'imports refuses affiches').toBeGreaterThanOrEqual(after.refused_import);
+  });
 
   // Contrat #79 : GET /classification-rules/rules/export, POST .../rules/import?dry_run&mode.
   // Les references sont des codes ; import tout-ou-rien ; un second import converge (0 ecriture).
   test.describe('SC-V11-02 - export / import des regles', () => {
     const API_URL = process.env.VITE_API_URL || 'http://localhost:8000/api/v1';
     const RULES = `${API_URL}/classification-rules/rules`;
-    const CODE = 'e2e_v11_transfer';
 
     async function token(request: APIRequestContext, user: { matricule: string; password: string }) {
       const login = await request.post(`${API_URL}/auth/login`, {
@@ -31,6 +68,8 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
     }
 
     test('SC-V11-02 - Given des regles, When export puis import (dry_run, apply, rejeu), Then 0 ecriture au rejeu ; le lecteur recoit 403', async ({ request }) => {
+      // Unique per run: a replay on a non-empty database creates its own rule (created = 1).
+      const CODE = `e2e_v11_transfer_${Date.now().toString(36)}`;
       const admin = await token(request, { matricule: 'MINFI001', password: 'Minfi@2025' });
       const exported = async () => {
         const res = await request.get(`${RULES}/export`, { headers: admin });
@@ -93,9 +132,53 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
     });
   });
 
-  test.fixme('SC-V11-03 - Given un journal d\'audit avec des evenements, When l\'auditeur l\'exporte, Then le fichier contient les evenements du filtre ; Given 3 OTP errones, When un 4e essai, Then le compte est verrouille avec un message explicite', async () => {});
+  // SC-V11-03 n'a pas de test propre ici (pas de doublon) :
+  // - export filtre : SC-V11-01 ci-dessus ; bouton « Exporter (CSV) » : uat/audit-export.spec.ts ;
+  // - verrou apres 3 OTP errones : uat/auth-2fa.spec.ts, SC-AUTH-01 E3 (compte jetable).
 
-  test.fixme('SC-V11-04 - Given une regle "mots-cles dans le texte OCR" ou "date", When un document correspondant est importe, Then il est classe a la destination de la regle et la simulation le montre avant activation', async () => {});
+  // #92 (API), #95 (ecran). Prefixe de nom sans chiffre : l'annee lue dans le nom doit etre celle du test.
+  test('SC-V11-04 - Given une regle « mots-cles du contenu » et une regle « annee », When la simulation puis le depot, Then le document est classe a la destination de la regle', async ({
+    adminApi,
+    runId,
+  }) => {
+    const key = `vonzequatre${runId.replace(/\d/g, (d) => String.fromCharCode(97 + Number(d)))}`;
+    const domain = await adminApi.createDomain(`v11d_${runId}`, `Domaine V11-04 ${runId}`);
+    const activity = await adminApi.createActivity(domain.id, `v11a_${runId}`, `Activite V11-04 ${runId}`);
+    const target = { domainId: domain.id, activityId: activity.id, priority: 0 };
+    await adminApi.createRule({
+      ...target,
+      code: `v11_mots_${runId}`,
+      name: `V11-04 mots-cles ${runId}`,
+      filenamePattern: `${key}mots`,
+      contentPattern: `${key}contrat`,
+    });
+    await adminApi.createRule({
+      ...target,
+      code: `v11_annee_${runId}`,
+      name: `V11-04 annee ${runId}`,
+      filenamePattern: `${key}annee`,
+      yearMin: 2020,
+      yearMax: 2024,
+    });
 
-  test.fixme('SC-V11-05 - Given un dossier surveille, When un fichier y est depose, Then il apparait importe/classe sans action de l\'utilisateur, et un fichier deja connu est refuse comme doublon', async () => {});
+    // Simulation (« Tester ») : chaque critere decide seul, avant tout depot.
+    const sim = async (filename: string, content?: string) => (await adminApi.simulate(filename, content)).rule_code;
+    expect(await sim(`${key}mots-note.txt`, `objet : ${key}contrat signe`), 'mot-cle present').toBe(`v11_mots_${runId}`);
+    expect(await sim(`${key}mots-note.txt`, 'aucun mot attendu'), 'mot-cle absent').not.toBe(`v11_mots_${runId}`);
+    expect(await sim(`${key}annee-2022.txt`), 'annee dans la plage').toBe(`v11_annee_${runId}`);
+    expect(await sim(`${key}annee-2018.txt`), 'annee hors plage').not.toBe(`v11_annee_${runId}`);
+    expect(await sim(`${key}annee-sans-date.txt`), 'pas d\'annee dans le nom').not.toBe(`v11_annee_${runId}`);
+
+    // Depot reel : la regle « annee » classe a sa destination. Le volet « mots-cles » au depot attend le texte
+    // extrait par le worker OCR, absent de la pile E2E : il est joue a la main pendant la recette.
+    const doc = await adminApi.uploadDocument(`${key}annee-2022.txt`, `V11-04 ${runId}`, `SC-V11-04 ${runId}`);
+    expect(doc.classification_status).toBe('classified');
+    expect(doc.classification_domain_id).toBe(domain.id);
+    expect(doc.classification_activity_id).toBe(activity.id);
+  });
+
+  test.fixme('SC-V11-05 - Given un dossier surveille, When un fichier y est depose, Then il apparait importe/classe sans action de l\'utilisateur, et un fichier deja connu est refuse comme doublon', async () => {
+    // #100, #101 livres. Le passage du dossier surveille est fait par le worker Celery, absent de la pile E2E
+    // (docker-compose.e2e.yml : postgres, redis, api) : preuve a la main pendant la recette.
+  });
 });
