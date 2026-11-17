@@ -153,6 +153,18 @@ services:
       AUTH_OTP_RESEND_MAX_PER_WINDOW: ${AUTH_OTP_RESEND_MAX_PER_WINDOW:-3}
       AUTH_OTP_RESEND_WINDOW_SECONDS: ${AUTH_OTP_RESEND_WINDOW_SECONDS:-900}
       EMAIL_SEND_TIMEOUT_SECONDS: ${EMAIL_SEND_TIMEOUT_SECONDS:-10}
+      # E-mail (login codes, new accounts): resend or smtp. Keys and passwords
+      # come from the deployment environment, never from this file.
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-resend}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_FROM: ${SMTP_FROM:-}
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
     depends_on:

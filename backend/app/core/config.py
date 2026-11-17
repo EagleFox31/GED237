@@ -3,7 +3,7 @@ import json
 import logging
 import os
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings
 from typing import List, Any
 from functools import lru_cache
@@ -13,6 +13,8 @@ OTP_CHANNEL_NAMES = ("dev_response", "email")
 # Channels that never deliver the code. Declared here because otp_delivery
 # imports this module; the guard test checks it against each channel's ``sends``.
 OTP_SILENT_CHANNELS = ("dev_response",)
+# Services that can carry every e-mail (login codes, new accounts).
+EMAIL_TRANSPORT_NAMES = ("resend", "smtp")
 
 
 class Settings(BaseSettings):
@@ -185,6 +187,16 @@ class Settings(BaseSettings):
     # Longest wait for the provider when sending a login code; beyond it the
     # login answers 503 (retryable) instead of hanging.
     EMAIL_SEND_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0)
+    # resend (HTTP API, RESEND_*) or smtp (the institution's own mail server).
+    EMAIL_TRANSPORT: str = Field(default="resend")
+    SMTP_HOST: str = Field(default="")
+    SMTP_PORT: int = Field(default=587, ge=1, le=65535)
+    SMTP_USER: str = Field(default="")
+    # Secret: masked in any repr, never logged.
+    SMTP_PASSWORD: SecretStr = Field(default=SecretStr(""))
+    SMTP_STARTTLS: bool = Field(default=True)
+    # Sender address; the SMTP account itself when empty.
+    SMTP_FROM: str = Field(default="")
 
     @field_validator("EMAIL_ENABLED", mode="before")
     @classmethod
@@ -194,6 +206,28 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return v.lower() in ("1", "true", "yes", "on")
         return bool(v)
+
+    @field_validator("EMAIL_TRANSPORT", mode="before")
+    @classmethod
+    def validate_email_transport(cls, v: Any) -> str:
+        value = str(v or "").strip().lower()
+        if value not in EMAIL_TRANSPORT_NAMES:
+            raise ValueError(
+                "EMAIL_TRANSPORT must be one of: " + ", ".join(EMAIL_TRANSPORT_NAMES)
+            )
+        return value
+
+    @property
+    def smtp_sender(self) -> str:
+        return self.SMTP_FROM or self.SMTP_USER
+
+    def email_configured(self) -> bool:
+        """E-mail is on and its transport has what it needs to send."""
+        if not self.EMAIL_ENABLED:
+            return False
+        if self.EMAIL_TRANSPORT == "smtp":
+            return bool(self.SMTP_HOST and self.smtp_sender)
+        return bool(self.RESEND_API_KEY)
 
     # Pagination
     DEFAULT_PAGE_SIZE: int = 20
@@ -267,6 +301,26 @@ def refuse_unsafe_production(s: Settings) -> None:
             "AUTH_OTP_CHANNEL=dev_response sends no login code: in production "
             "nobody could sign in. Set AUTH_OTP_CHANNEL to a channel that sends "
             "the code (email) and configure it."
+        )
+    if (
+        s.ENVIRONMENT == "production"
+        and s.AUTH_OTP_CHANNEL == "email"
+        and not s.email_configured()
+    ):
+        raise RuntimeError(
+            "AUTH_OTP_CHANNEL=email but e-mail cannot be sent: nobody could sign "
+            "in. Set EMAIL_ENABLED=true and configure EMAIL_TRANSPORT "
+            "(RESEND_API_KEY, or SMTP_HOST and SMTP_FROM/SMTP_USER)."
+        )
+    if (
+        s.ENVIRONMENT == "production"
+        and s.EMAIL_TRANSPORT == "smtp"
+        and s.SMTP_USER
+        and not s.SMTP_STARTTLS
+    ):
+        raise RuntimeError(
+            "SMTP_STARTTLS=false would send the SMTP password in clear text. "
+            "Enable SMTP_STARTTLS in production."
         )
 
 

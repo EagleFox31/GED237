@@ -137,8 +137,13 @@ def test_default_channel_sends_nothing_and_unknown_channels_are_refused():
 def test_production_refuses_to_start_on_a_channel_that_sends_no_code(channel):
     # Checked against each channel's own ``sends``: a channel added later that
     # sends nothing must be refused in production too.
+    # E-mail configured: only the channel itself is under test here.
     production = Settings(
-        ENVIRONMENT="production", SECRET_KEY="k" * 40, AUTH_OTP_CHANNEL=channel
+        ENVIRONMENT="production",
+        SECRET_KEY="k" * 40,
+        AUTH_OTP_CHANNEL=channel,
+        EMAIL_ENABLED=True,
+        RESEND_API_KEY="k",
     )
     assert (channel in OTP_SILENT_CHANNELS) is not otp_delivery.get_channel(
         channel
