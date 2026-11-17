@@ -30,7 +30,7 @@
 | 1 | Ouvrez « Tâches & Suivi » | le document soumis par l'agent ; aucun bouton pour changer son contenu | ☐ | ☐ | SC-VAL-01 |
 | 2 | « Valider » ce document | il passe à l'étape suivante, ou à « Validé » | ☐ | ☐ | SC-VAL-02 |
 | 3 | Sur un autre document : « Rejeter » sans motif, puis avec un motif | sans motif : impossible ; avec motif : **Rejeté** | ☐ | ☐ | SC-VAL-03 |
-| 4 | Cherchez le mot-clé du jeu de démo | 3 résultats en moins de 2 secondes | ☐ | ☐ | SC-LEC-01 (durée ⚠, mesurée par Q avant le 23) |
+| 4 | Cherchez le mot-clé du jeu de démo | 3 résultats en moins de 2 secondes | ☐ | ☐ | SC-LEC-01 (durée mesurée par Q le 17/11 : p95 de 20 ms) |
 | 5 | Filtrez par domaine, puis activité, puis année ; puis « Réinitialiser » | la liste et le compteur suivent chaque choix ; tout revient à zéro | ☐ | ☐ | SC-ESP-01 |
 | 6 | Ouvrez une fiche → « Télécharger » | les informations du document ; le fichier reçu est l'original | ☐ | ☐ | SC-LEC-02 |
 | 7 | Ouvrez « Rapports » | les chiffres de votre direction seulement, pas ceux des autres | ☐ | ☐ | rapports |

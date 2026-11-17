@@ -196,3 +196,5 @@ Décision de O, prise selon la règle « aucun ajout sans une sortie équivalent
 | **Total V1.1** | **≈ 22,15** | **≈ 15,5** | **≈ 22** | **0,5** | **≈ 60,15** |
 
 - Si #154 et #212 sont fusionnés avant le 01/12 et que la phase 2 revient en V1.1 : B ≈ 22,65, et Q ≈ 22,25. Dans ce cas, #278 sort, et Q revient à ≈ 21,75.
+
+**Ajout du 17/11, 22:45 (décision de O)** : le lot 8b passe à 2,25 h-s, soit + 0,25 pour B. En mode `csv`, `GET /authz/policies` répond aujourd'hui 409 : B le fait lire `policy.csv` par l'enforcer, et ajoute un test qui vérifie que `csv` et `sql` donnent la même réponse. Sans cela, la grille en lecture seule de `specs-reglages-droits-280.md` ne pourrait pas s'afficher. B passe à ≈ 22,4 et reste dans sa capacité : O accepte l'ajout sans sortie. Q n'est pas touché. **Total V1.1 ≈ 60,4 h-s.**
