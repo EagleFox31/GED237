@@ -78,9 +78,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     # Read cross-origin by the frontend: filtered total of list endpoints,
-    # official report number and hash, scheduled reports on or off.
+    # recently opened documents remembered (GET /me/recent), official report
+    # number and hash, scheduled reports on or off. One list on every branch
+    # (#205, #209): a header absent from a response is simply not exposed.
     expose_headers=[
         "X-Total-Count",
+        "X-Recent-Tracking-Enabled",
         "X-Report-Number",
         "X-Report-SHA256",
         "X-Scheduled-Reports-Enabled",
