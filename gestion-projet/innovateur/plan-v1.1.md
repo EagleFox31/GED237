@@ -198,3 +198,47 @@ Décision de O, prise selon la règle « aucun ajout sans une sortie équivalent
 - Si #154 et #212 sont fusionnés avant le 01/12 et que la phase 2 revient en V1.1 : B ≈ 22,65, et Q ≈ 22,25. Dans ce cas, #278 sort, et Q revient à ≈ 21,75.
 
 **Ajout du 17/11, 22:45 (décision de O)** : le lot 8b passe à 2,25 h-s, soit + 0,25 pour B. En mode `csv`, `GET /authz/policies` répond aujourd'hui 409 : B le fait lire `policy.csv` par l'enforcer, et ajoute un test qui vérifie que `csv` et `sql` donnent la même réponse. Sans cela, la grille en lecture seule de `specs-reglages-droits-280.md` ne pourrait pas s'afficher. B passe à ≈ 22,4 et reste dans sa capacité : O accepte l'ajout sans sortie. Q n'est pas touché. **Total V1.1 ≈ 60,4 h-s.**
+
+## Mise à jour du 18/11 : découpage de #151 et nouvelles PR (décisions de O, nuit du 17 au 18)
+
+### #151 (réflexes Windows dans l'explorateur) en trois parties
+
+| Partie | Où | Qui | Effort (h-s) | Ordre |
+|---|---|---|---|---|
+| Suppr met le document à la corbeille, jamais de suppression définitive | V1.1, PR #301 (+43 lignes, déjà écrite) | F | F 0,25 (rebasage, re-ciblage sur `main`) | après #152 et #181 ; #301 est empilée sur #181 |
+| F2 renomme le document | V1.1, PR à ouvrir | F | F 0,5 (`Déduit` : saisie dans l'arbre, `PATCH` du titre, messages 403 et verrou) | après #300 (audit du renommage) |
+| Glisser-déposer = reclassement par la boîte « Classer » | **V1.2** (#299, élément 18 de `plan-v1.2.md`) | F, Q | F 1, Q 0,5 | après #300 |
+| **#300** : audit du `PATCH` (`document_renamed`, `classification_updated`) | V1.1, PR #300 (+208 lignes) | B | B 0,5 (chiffre de O) | avant F2 ; sert aussi au glisser-déposer en V1.2 |
+
+Relecture de Q (`Déduit`) : #300, 0,25 (B écrit les tests) ; Suppr et F2, 0,25 en une seule passe sur l'explorateur. **Q + 0,5.**
+
+### Rattachement des nouvelles PR
+
+- Lot 9 (fiche document) : #293 (#274, verrou à l'écran, empilée sur la PR des champs de verrou), #295 (#275, nouvelle version, empilée sur #293).
+- Lot 10 (manager et utilisateurs) : #297 (#277, « Mon équipe »), #298 (#278, tableau de bord du manager).
+- Lot 11 (périmètre) : #296 (message clair quand un lien de document est hors périmètre, suite de #263), dans les F 0,25 déjà comptés.
+- Lot 8b (écran des droits) : #294 (grille en lecture, audit des changements de droits).
+- Lot 13 (droits en base) : #235, puis #238, empilée sur #235.
+- #151 : #300 (B), #301 (F), puis la PR F2.
+
+Ces PR sont déjà comptées dans leurs lots, sauf #300, #301 et F2.
+
+### Règle « pas d'ajout sans sortie »
+
+- **Le glisser-déposer ne compense rien** : #151 n'a jamais été chiffré en V1.1 (le ticket dit « Non chiffré », et aucun lot ne le comptait). Le sortir libère 0 h-s dans les totaux. Les trois ajouts (#300, Suppr, F2) sont donc des ajouts nets : B + 0,5, F + 0,75, Q + 0,5.
+- **Q passerait à ≈ 22,5**, au-dessus de 22. Il faut une sortie d'au moins 0,5 h-s de Q.
+- **Sortie proposée : #278** (sortie 4, PR #298), comme le prévoit la règle de O : « au prochain ajout pour Q, #278 sort ». Q − 0,5. La PR est déjà écrite (+424 lignes), donc F ne gagne que ce qui reste à faire, ≈ 0,5 (`Déduit`). #278 irait en tête de la V1.2, avant l'élément 10 qui en dépend.
+- **Autre choix** : garder #278 et prendre 0,5 h-s sur la réserve de Q (6,8). Sortir seulement F2 ne suffit pas (Q − 0,25).
+- **En attente de la décision de O.**
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Avant (§ précédent) | 22,4 | 15,5 | 22,0 | 0,5 | 60,4 |
+| #300 (audit du `PATCH`) | + 0,5 | — | + 0,25 | — | + 0,75 |
+| Suppr (#301) et F2 | — | + 0,75 | + 0,25 | — | + 1 |
+| Glisser-déposer, sorti en V1.2 (jamais compté) | — | — | — | — | 0 |
+| **Total sans sortie** | **≈ 22,9** | **≈ 16,25** | **≈ 22,5** | **0,5** | **≈ 62,15** |
+| Sortie proposée : #278 (PR #298) | — | − 0,5 | − 0,5 | — | − 1 |
+| **Total avec la sortie de #278** | **≈ 22,9** | **≈ 15,75** | **≈ 22,0** | **0,5** | **≈ 61,15** |
+
+B et F restent dans leur capacité. Avec la sortie de #278, Q revient à 22,0, sans marge avant la réserve.

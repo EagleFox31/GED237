@@ -7,6 +7,7 @@
 - **Ce que la V1.2 n'est pas** : un rattrapage de la V1.1. Si une sortie de dernière minute quitte la V1.1 (par exemple #278 ou le lot 8b), elle vient s'ajouter ici en tête.
 - **Sorties de la V1.1 du 17/11** : la phase 2 de #288 et le serveur e-mail à l'écran (éléments 15 et 16), à mettre en tête de la V1.2.
 - **Refus en V1.1 du 17/11** : la surcouche P8 (élément 17, B 0,25), décision de O.
+- **Sortie de la V1.1 du 18/11** : le glisser-déposer de #151 (élément 18, #299), décision de O. Si O retient aussi la sortie de #278 (`plan-v1.1.md`, mise à jour du 18/11), #278 s'ajoute en tête, avant l'élément 10 qui en dépend.
 
 ## Les éléments
 
@@ -29,18 +30,19 @@
 | 15 | **#288, phase 2** : accès public en HTTPS sur le VPS (production, site du proxy, nom de domaine, contrôle HTTPS) ; sortie de la V1.1 le 17/11 | les agents se connectent sans VPN | 0,5 | — | 0,25 | #154 et #212 ; phase 1 de #288. **Revient en V1.1 si #154 et #212 sont fusionnés avant le 01/12.** |
 | 16 | **Serveur e-mail à l'écran** (partie du lot 8a), sorti de la V1.1 le 17/11 | l'administrateur change le serveur d'envoi sans intervention technique | 0,5 | — | — | #154 ; en attendant, le réglage reste dans le fichier d'environnement |
 | 17 | **Surcouche P8 : bordereaux classés d'office**, refusée en V1.1 le 17/11 (pas d'ajout sans sortie équivalente) | les 2 bordereaux du jeu de démonstration ne tombent plus dans la bannette « à revoir » | 0,25 | — | — | jeu P8 ; `scenario-demo-30-11.md` § 10 |
+| 18 | **#299 : glisser-déposer un document sur un dossier = reclassement**, partie de #151 sortie de la V1.1 le 18/11 | l'agent range un document en le faisant glisser, avec les mêmes règles et la même trace que « Classer » | — (l'audit du reclassement vient de #300, en V1.1) | 1 (gestionnaires natifs, sans nouvelle bibliothèque ; le dépôt ouvre « Classer » pré-rempli) | 0,5 (e2e du glisser-déposer, refus sans droit) | #300 et la boîte « Classer » (V1.1) |
 
 ## Total
 
 | | B | F | Q | Total |
 |---|---|---|---|---|
 | Socle technique (1 à 6) | 1,75 | 1 | 1,5 | 4,25 |
-| Sorties et refus de la V1.1 (15 à 17) | 1,25 | — | 0,25 | 1,5 |
+| Sorties et refus de la V1.1 (15 à 18) | 1,25 | 1 | 0,75 | 3 |
 | Valeur pour l'agent (7, 8, 14) | 2,75 | 3 | 1,5 | 7,25 |
 | Pilotage (9, 10) | 2 | 2 | 3 | 7 |
 | Hiérarchie (11, 12) | 1 | 2 | 0,75 | 3,75 |
 | Droits par institution (13) | 2,5 | 1 | 1,5 | 5 |
-| **Total** | **11,25** | **9** | **8,5** | **≈ 28,75** |
+| **Total** | **11,25** | **10** | **9** | **≈ 30,25** |
 
 Q reste le goulot, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q, et les droits par institution (13) en pèsent 1,5. Ce sont les deux leviers de la V1.2.
 
