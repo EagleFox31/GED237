@@ -138,6 +138,8 @@ services:
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
+      # Fields users may change on their own account (#216); email is opt-in.
+      USER_SELF_EDITABLE_FIELDS: ${USER_SELF_EDITABLE_FIELDS:-first_name,last_name,phone}
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
       DEBUG: "false"
