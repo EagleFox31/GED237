@@ -24,7 +24,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select, literal, select
+from sqlalchemy import Select, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import can_perform
@@ -80,7 +80,10 @@ def unit_ancestors(unit_id: UUID) -> Select:
             OrgUnit.id == chain.c.parent_id, chain.c.depth < MAX_UNIT_DEPTH
         )
     )
-    return select(chain.c.id, chain.c.depth)
+    # A cycle repeats units up to the bound: keep each unit once, at its nearest depth.
+    return select(chain.c.id, func.min(chain.c.depth).label("depth")).group_by(
+        chain.c.id
+    )
 
 
 async def is_within_unit_tree(db: AsyncSession, unit_id: UUID, root_id: UUID) -> bool:
