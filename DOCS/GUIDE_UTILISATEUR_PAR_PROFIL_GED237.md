@@ -21,7 +21,7 @@ Votre profil est indiqué par l'administrateur qui a créé votre compte.
 1. Dans « Administration / Organisme », choisissez votre institution.
 2. Saisissez votre « Matricule Personnel » et votre « Mot de Passe ».
 3. Cliquez sur « Étape Suivante ».
-4. L'écran « Code MFA » s'ouvre. Le code à 6 chiffres s'affiche déjà rempli : cliquez sur « Confirmer l'identité ».
+4. L'écran « Code MFA » s'ouvre. Le code à 6 chiffres s'affiche déjà rempli : cliquez sur « Confirmer l'identité ». Dans cette version, le code n'est envoyé ni par e-mail ni sur une application de téléphone.
 5. Première connexion : choisissez votre mot de passe personnel, puis cliquez sur « Mettre à jour ».
    - Dans « Mot de passe temporaire reçu », tapez le mot de passe donné par l'administration.
    - Votre nouveau mot de passe doit avoir 12 caractères minimum, une majuscule, un chiffre et un caractère spécial.
@@ -40,7 +40,7 @@ Bon à savoir :
 - **La barre de recherche** est en haut de l'écran.
   - Sur « Mes Documents », « Explorateur documentaire », « Agents & Rôles » et « À distribuer », elle cherche dans la page ouverte.
   - Ailleurs, elle cherche dans les documents que votre profil peut voir (voir ci-dessous), y compris le texte des fichiers scannés. Les résultats s'affichent sous la barre.
-- **Retirer un document** : il n'y a pas de bouton pour cela dans cette version. Signalez le document à l'administrateur de votre institution.
+- **Retirer un document** : aucun profil n'a de bouton pour cela dans cette version, et la corbeille n'a pas encore d'écran. Signalez le document à l'administrateur de votre institution : il fait le lien avec l'équipe technique, qui peut aussi récupérer un document supprimé.
 
 ## Ce que vous voyez
 
@@ -111,7 +111,8 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
 - **« Rapports & Statistiques »** : les chiffres de toute l'institution.
   - Onglets « Synthèse », « Activité documentaire », « Traitement & délais », « Services ».
   - Choisissez la « Période » et le « Périmètre » (institution entière ou un service).
-  - « Exporter la vue » produit un fichier Excel, CSV ou PDF.
+  - « Exporter la vue » produit un fichier Excel ; sur l'onglet « Activité documentaire », un fichier CSV.
+  - « Générer un rapport » produit un fichier Excel, CSV ou PDF. Pour le PDF, la fenêtre d'impression s'ouvre : choisissez « Enregistrer au format PDF ».
 - **« Paramètres »** : guide des rôles, position du menu (à gauche ou en haut), liste des unités, liste de contrôle de l'installation. Les sous-titres affichés sous ce menu ne correspondent pas encore à la page.
 - **Rechercher un agent** : ouvrez « Agents & Rôles » et tapez dans la barre du haut. Les droits se règlent aussi là.
 
@@ -122,6 +123,7 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
   - « À distribuer » : elle ne sait pas **à qui le confier**.
 - Un document peut être bien rangé mais sans destinataire, ou l'inverse. Vérifiez les deux.
 - Traitez « Ma bannette » vite : un document mal rangé est difficile à retrouver.
+- **Archiver un document** : réservé à l'administrateur de la plateforme dans cette version, comme la liste générale des documents à revoir. L'Admin Institution les aura dans la version suivante. Dans « Mes Documents », le filtre « Archivé » montre les documents déjà archivés.
 
 ---
 
@@ -277,6 +279,8 @@ L'import se fait en deux temps : l'application analyse les fichiers et propose u
 - **« Les ranger et lancer le circuit »** : pour des documents qui doivent encore être validés.
 
 Pour un document courant, utilisez plutôt « Nouveau Document ».
+
+**Doublons** : un fichier déjà présent dans E-Dossier est refusé. À l'import, il est marqué « Doublon » et n'entre pas ; au dépôt d'un seul document, un message le signale. La tuile « Doublons refusés » du tableau de bord les compte. Il n'y a pas encore d'écran pour trier les doublons.
 
 ### « Bibliothèque locale »
 
