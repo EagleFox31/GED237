@@ -58,8 +58,11 @@ export const stepSentence = (step: TemplateStep, roleName: string | null, unitTy
 export const sortedSteps = <T extends { step_order: number }>(steps: readonly T[] | null | undefined): T[] =>
   [...(steps ?? [])].sort((a, b) => a.step_order - b.step_order);
 
-export const templateDetailError = (status: number | undefined): string =>
-  status === 404 ? 'Modèle introuvable.' : 'Détail indisponible pour le moment.';
+export const templateDetailError = (status: number | undefined): string => {
+  if (status === 404) return 'Modèle introuvable.';
+  if (status === 403) return "Vous n'avez pas accès à ce modèle.";
+  return 'Détail indisponible pour le moment.';
+};
 
 export const NO_STEP_MESSAGE = 'Aucune étape dans ce modèle.';
 

@@ -41,6 +41,7 @@ test.describe("Détail d'un modèle de circuit", () => {
 
   test('erreurs selon le code HTTP', () => {
     expect(templateDetailError(404)).toBe('Modèle introuvable.');
+    expect(templateDetailError(403)).toBe("Vous n'avez pas accès à ce modèle.");
     expect(templateDetailError(500)).toBe('Détail indisponible pour le moment.');
   });
 });

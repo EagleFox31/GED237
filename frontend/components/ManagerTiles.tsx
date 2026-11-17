@@ -23,7 +23,7 @@ type Tile = { key: string; label: string; value: string; icon: string; to?: stri
 
 /**
  * Tuiles du manager (#278, partie A) : chiffres de son service, relus à l'ouverture de la page.
- * « À revoir » n'a pas de lien : le manager n'a pas accès aux revues de classement.
+ * « À classer » n'a pas de lien : le manager n'a pas accès aux revues de classement.
  */
 export const ManagerTiles: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +34,9 @@ export const ManagerTiles: React.FC = () => {
   useEffect(() => {
     if (!orgUnitId) return undefined;
     let cancelled = false;
+    // Changement de service : on n'affiche pas les chiffres ni le nom de l'ancien.
+    setState({ kind: 'loading' });
+    setUnitName(null);
     api
       .getManagerAnalytics()
       .then((metrics) => {
@@ -76,7 +79,8 @@ export const ManagerTiles: React.FC = () => {
     state.kind === 'ready'
       ? [
           { key: 'total', label: 'Documents du service', value: formatCount(state.tiles.total), icon: 'description', to: '/documents' },
-          { key: 'review', label: 'À revoir', value: formatCount(state.tiles.needsReview), icon: 'rule' },
+          // Le serveur compte les documents pas encore classés et ceux à revoir : « À classer » couvre les deux.
+          { key: 'review', label: 'À classer', value: formatCount(state.tiles.needsReview), icon: 'rule' },
           { key: 'workflows', label: 'Validations en cours', value: formatCount(state.tiles.activeWorkflows), icon: 'draw', to: '/tasks' },
           { key: 'storage', label: 'Espace utilisé', value: formatStorage(state.tiles.storageMb), icon: 'hard_drive' },
         ]
