@@ -397,7 +397,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
           {onTrashed && (
             <button
               type="button"
-              onClick={() => void handleTrash()}
+              onClick={() => handleTrash()}
               disabled={trashing}
               className="mr-auto inline-flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-600 hover:text-red-700 disabled:opacity-50 transition-all"
             >

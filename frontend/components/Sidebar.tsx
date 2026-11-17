@@ -52,13 +52,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
+              aria-current={activeTab === item.id ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 group ${
                 activeTab === item.id
                   ? 'bg-blue-50 text-rdpc-blue shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <span className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-500'}`}>
+              <span aria-hidden="true" className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-500'}`}>
                 {item.icon}
               </span>
               <span className={`text-[11px] font-bold uppercase tracking-tight ${activeTab === item.id ? 'font-black' : ''}`}>
@@ -90,6 +91,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           { id: 'tasks', label: 'Tâches & Suivi', icon: 'notifications' },
           { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
           { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
+          // Manager : rapports de son service (le serveur limite les données au service).
+          ...(userProfile?.id === 'manager'
+            ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
+            : []),
           { id: 'trash', label: 'Corbeille', icon: 'delete' },
         ].map(item => (
           <button
@@ -97,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             onClick={() => onTabChange(item.id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-blue-50 text-rdpc-blue' : 'text-slate-500 hover:bg-slate-50'}`}
           >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-xl">{item.icon}</span>
             <span className="text-[11px] font-bold uppercase">{item.label}</span>
           </button>
         ))}
