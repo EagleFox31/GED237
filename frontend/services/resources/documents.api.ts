@@ -60,9 +60,11 @@ export const documentsApi = {
             'Upload du document impossible',
         ),
 
-    getDocuments: (params: { status?: string; skip?: number; limit?: number } = {}): Promise<Document[]> => {
+    getDocuments: (params: { status?: string; q?: string; skip?: number; limit?: number } = {}): Promise<Document[]> => {
         const q = new URLSearchParams();
         if (params.status) q.append('status', params.status);
+        // Recherche côté serveur, sur tout le périmètre de l'utilisateur (titre, mots-clés, classement).
+        if (params.q?.trim()) q.append('q', params.q.trim());
         if (typeof params.skip === 'number') q.append('skip', String(params.skip));
         if (typeof params.limit === 'number') q.append('limit', String(params.limit));
         const qs = q.toString();
