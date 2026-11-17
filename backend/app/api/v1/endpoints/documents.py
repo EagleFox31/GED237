@@ -1739,9 +1739,11 @@ async def purge_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Perimeter first: outside it, 404 like a missing document; inside it, a
+    # missing right answers 403 (#247).
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     await authorize_or_403(current_user, "documents", "manage")
 
-    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     versions_result = await db.execute(
         select(DocumentVersion).where(DocumentVersion.document_id == document.id)
     )

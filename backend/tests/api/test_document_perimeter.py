@@ -109,23 +109,51 @@ async def test_a_manager_keeps_its_own_document_moved_to_another_unit(
     assert response.status_code == 200, response.text
 
 
+async def _restore_and_purge(client, document_id):
+    restore = await client.post(f"{DOCUMENTS}/{document_id}/restore")
+    purge = await client.delete(f"{DOCUMENTS}/{document_id}/purge")
+    return _code(restore), _code(purge)
+
+
 @pytest.mark.asyncio
 async def test_restore_and_purge_never_confirm_a_document_outside_the_tree(
     client_as,
     db_seed,
     tree,  # noqa: F811
 ):
-    """Completes the #202 list: restore hides a trashed document outside the
-    unit_admin's tree; purge is refused before any lookup, in or out. The caller
-    is the seeded user: the restore writes an audit row."""
+    """Completes the #202 list for the unit_admin: outside its tree, restore and
+    purge answer 404; inside it, purge (no ``documents manage``) answers 403 and
+    restore succeeds. The caller is the seeded user: the restore writes an audit
+    row."""
     ids = tree["ids"]
     async with _as(
         client_as, db_seed, tree, "unit_admin", "a1", db_seed["user_id"]
     ) as client:
-        restore_out = await client.post(f"{DOCUMENTS}/{ids['b_trash']}/restore")
-        purge_out = await client.delete(f"{DOCUMENTS}/{ids['b_trash']}/purge")
+        outside = await _restore_and_purge(client, ids["b_trash"])
         purge_in = await client.delete(f"{DOCUMENTS}/{ids['a1_trash']}/purge")
         restore_in = await client.post(f"{DOCUMENTS}/{ids['a1_trash']}/restore")
-    assert _code(restore_out) == HIDDEN
+    assert outside == (HIDDEN, HIDDEN)
+    assert purge_in.status_code == 403, purge_in.text
     assert restore_in.status_code == 200, restore_in.text
-    assert purge_out.status_code == purge_in.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_restore_and_purge_answer_403_inside_the_perimeter_404_outside(
+    client_as,
+    db_seed,
+    tree,  # noqa: F811
+):
+    """A reader sees its unit's recycle bin but may neither restore nor purge;
+    another unit's bin answers like a missing document. A collaborator only
+    knows its own documents."""
+    ids = tree["ids"]
+    async with _as(client_as, db_seed, tree, "reader", "b") as client:
+        reader_in = await _restore_and_purge(client, ids["b_trash"])
+        reader_out = await _restore_and_purge(client, ids["a1_trash"])
+    async with _as(
+        client_as, db_seed, tree, "collaborator", "b", tree["collaborator"]
+    ) as client:
+        collaborator_out = await _restore_and_purge(client, ids["b_trash"])
+    assert reader_in == (403, 403)
+    assert reader_out == (HIDDEN, HIDDEN)
+    assert collaborator_out == (HIDDEN, HIDDEN)
