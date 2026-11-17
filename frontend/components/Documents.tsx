@@ -8,7 +8,8 @@ import { Document, DocumentCategory, formatFileSize, getFileTypeLabel, getStatus
 import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
-import { pushClientOperationError } from '../lib/errors';
+import { ApiError, pushApiError, pushClientOperationError } from '../lib/errors';
+import { OPEN_DOCUMENT_HANDLED_STATUSES, openDocumentErrorMessage } from '../lib/documentOpen';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -86,14 +87,26 @@ const Documents: React.FC = () => {
     if (!openId) return undefined;
     let cancelled = false;
     api
-      .getDocument(openId)
+      .getDocument(openId, { handledStatuses: OPEN_DOCUMENT_HANDLED_STATUSES })
       .then((doc) => {
         if (!cancelled) setSelectedDoc(doc);
       })
-      .catch(() => {
-        // Erreur HTTP déjà affichée par le bus d'erreurs ; on retire `open` de l'URL
-        // pour ne pas réessayer au rechargement. La liste reste utilisable.
+      .catch((err: unknown) => {
+        // 403/404 : message court choisi ici (le texte du serveur n'est jamais affiché) ; les autres
+        // erreurs sont déjà passées par le bus. On retire `open` de l'URL pour ne pas réessayer au
+        // rechargement ; la liste reste utilisable.
         if (cancelled) return;
+        if (err instanceof ApiError && (OPEN_DOCUMENT_HANDLED_STATUSES as readonly number[]).includes(err.status)) {
+          pushApiError(
+            new ApiError({
+              status: err.status,
+              detail: openDocumentErrorMessage(err.status),
+              error_code: err.status === 404 ? 'DOCUMENT_NOT_FOUND' : 'FORBIDDEN',
+              severity: 'warning',
+              retryable: false,
+            }),
+          );
+        }
         setSearchParams(
           (prev) => {
             const nextParams = new URLSearchParams(prev);

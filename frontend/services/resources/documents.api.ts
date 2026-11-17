@@ -4,7 +4,7 @@
 //           audit logs, ingestion répertoire, démarrage workflow).
 // SRP : change uniquement si le contrat /documents/* ou /classification-reviews/* évolue.
 
-import { apiCall, apiCallVoid, apiCallBlob } from '../http/client';
+import { apiCall, apiCallVoid, apiCallBlob, type ApiCallOptions } from '../http/client';
 import type {
     Document,
     ClassificationReview,
@@ -75,8 +75,8 @@ export const documentsApi = {
         );
     },
 
-    getDocument: (id: string): Promise<Document> =>
-        apiCall<Document>(`/documents/${id}`, {}, 'Lecture du document impossible'),
+    getDocument: (id: string, options: ApiCallOptions = {}): Promise<Document> =>
+        apiCall<Document>(`/documents/${id}`, {}, 'Lecture du document impossible', options),
 
     /**
      * Récupère le contenu binaire d'un document avec authentification (JWT).
