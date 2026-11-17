@@ -29,14 +29,16 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
       const owner = await apiAs(request, 'collaborator');
       const managerId = (await (await apiAs(request, 'manager')).me()).id;
       const run = `${Date.now().toString(36)}${testInfo.workerIndex}${testInfo.retry}`;
-      const titles: string[] = [];
-      for (const kind of ['à viser', 'à rejeter', 'à retourner']) {
+      let n = 0;
+      const submit = async (kind: string): Promise<string> => {
         const title = `[E2E ${run}] Bordereau ${kind}`;
-        const doc = await owner.uploadDocument(`val-${run}-${titles.length}.txt`, title, `Cycle de validation ${title}`);
+        const doc = await owner.uploadDocument(`val-${run}-${n++}.txt`, title, `Cycle de validation ${title}`);
         await owner.submitForVisa(doc.id, managerId, 'Visa du manager');
-        titles.push(title);
-      }
-      [TO_APPROVE, TO_REJECT, TO_RETURN] = titles;
+        return title;
+      };
+      TO_APPROVE = await submit('à viser');
+      TO_REJECT = await submit('à rejeter');
+      TO_RETURN = await submit('à retourner');
     } finally {
       await request.dispose();
     }
