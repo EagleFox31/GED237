@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { Empty } from '../../../components/ui/Empty';
+import { useAuthStore } from '../../../stores/authStore';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { UI_TOOLTIPS } from '../../../content/uiTooltips';
 import { exportReportsRowsExcel, exportReportsSeriesCsv, generateReportsDocument } from './reports/reportsExport';
@@ -57,6 +58,9 @@ const TAB_META: Record<ReportsViewMode, TabMeta> = {
 
 const TAB_ORDER: ReportsViewMode[] = ['synthese', 'workflows', 'services', 'documents'];
 
+// Manager : vue limitée à son service, sans la synthèse ni les compteurs de l'institution.
+const UNIT_TAB_ORDER: ReportsViewMode[] = TAB_ORDER.filter((tab) => tab !== 'synthese');
+
 const TAB_HELP: Record<ReportsViewMode, string> = {
   synthese: UI_TOOLTIPS.reports.tabSynthese,
   documents: UI_TOOLTIPS.reports.tabDocuments,
@@ -68,6 +72,8 @@ const ReportsPage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const { filters, setViewMode } = useReportsFilters();
+  const isUnitScope = useAuthStore((s) => s.userProfile?.id) === 'manager';
+  const tabOrder = isUnitScope ? UNIT_TAB_ORDER : TAB_ORDER;
   const {
     isLoading,
     error,
@@ -79,7 +85,7 @@ const ReportsPage: React.FC = () => {
     serviceActivity,
     serviceActivityError,
     viewModel,
-  } = useReportsData();
+  } = useReportsData(isUnitScope ? 'unit' : 'tenant');
   const {
     granularity,
     setGranularity,
@@ -91,7 +97,11 @@ const ReportsPage: React.FC = () => {
     viewModel: evolutionViewModel,
   } = useReportsEvolution();
 
-  const activeTab = filters.viewMode;
+  const activeTab = tabOrder.includes(filters.viewMode) ? filters.viewMode : tabOrder[0]!;
+  // Garde l'état des filtres cohérent avec l'onglet affiché (ex. Synthèse demandée par un Manager).
+  useEffect(() => {
+    if (activeTab !== filters.viewMode) setViewMode(activeTab);
+  }, [activeTab, filters.viewMode, setViewMode]);
   const activeMeta = TAB_META[activeTab];
   const isRefreshing = isLoading || isEvolutionLoading;
 
@@ -162,15 +172,15 @@ const ReportsPage: React.FC = () => {
   };
 
   const handleTablistKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    const currentIndex = tabOrder.indexOf(activeTab);
     let nextIndex = currentIndex;
-    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TAB_ORDER.length;
-    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabOrder.length;
+    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabOrder.length) % tabOrder.length;
     else if (e.key === 'Home') nextIndex = 0;
-    else if (e.key === 'End') nextIndex = TAB_ORDER.length - 1;
+    else if (e.key === 'End') nextIndex = tabOrder.length - 1;
     else return;
     e.preventDefault();
-    const nextTab = TAB_ORDER[nextIndex]!;
+    const nextTab = tabOrder[nextIndex]!;
     setViewMode(nextTab);
     document.getElementById(`tab-reports-${nextTab}`)?.focus();
   };
@@ -202,24 +212,28 @@ const ReportsPage: React.FC = () => {
               <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden>refresh</span>
               Actualiser
             </button>
-            <button
-              type="button"
-              onClick={handleExport}
-              title={UI_TOOLTIPS.reports.exportTable}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="material-symbols-outlined text-[18px]" aria-hidden>download</span>
-              Exporter la vue
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsReportModalOpen(true)}
-              title={UI_TOOLTIPS.reports.generateReport}
-              className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition-colors hover:bg-black"
-            >
-              <span className="material-symbols-outlined text-[18px]" aria-hidden>description</span>
-              Générer un rapport
-            </button>
+            {!isUnitScope && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  title={UI_TOOLTIPS.reports.exportTable}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden>download</span>
+                  Exporter la vue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsReportModalOpen(true)}
+                  title={UI_TOOLTIPS.reports.generateReport}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition-colors hover:bg-black"
+                >
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden>description</span>
+                  Générer un rapport
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -231,7 +245,7 @@ const ReportsPage: React.FC = () => {
           className="flex gap-2.5 border-b-2 border-slate-200 shrink-0 overflow-x-auto custom-scrollbar"
           onKeyDown={handleTablistKeyDown}
         >
-          {TAB_ORDER.map((tab) => {
+          {tabOrder.map((tab, index) => {
             const meta = TAB_META[tab];
             const isActive = activeTab === tab;
             return (
@@ -256,7 +270,7 @@ const ReportsPage: React.FC = () => {
                   }`}
                   aria-hidden="true"
                 >
-                  {meta.step}
+                  {index + 1}
                 </span>
                 <span className={`material-symbols-outlined text-base ${meta.accent}`} aria-hidden="true">{meta.icon}</span>
                 {meta.label}
@@ -292,7 +306,7 @@ const ReportsPage: React.FC = () => {
 
               {activeTab === 'documents' && (
                 <ReportsDocumentPanel
-                  kpis={viewModel.documentKpis}
+                  kpis={isUnitScope ? [] : viewModel.documentKpis}
                   granularity={granularity}
                   onGranularityChange={setGranularity}
                   selectedSeries={selectedSeries}
@@ -314,7 +328,7 @@ const ReportsPage: React.FC = () => {
 
               {activeTab === 'workflows' && (
                 <ReportsWorkflowPanel
-                  kpis={viewModel.workflowKpis}
+                  kpis={isUnitScope ? [] : viewModel.workflowKpis}
                   activity={workflowActivity}
                   loading={isLoading}
                   error={workflowActivityError}
@@ -323,7 +337,7 @@ const ReportsPage: React.FC = () => {
 
               {activeTab === 'services' && (
                 <>
-                  <ReportsKpiGrid items={viewModel.serviceKpis} />
+                  {!isUnitScope && <ReportsKpiGrid items={viewModel.serviceKpis} />}
                   <ReportsServiceActivityPanel
                     activity={serviceActivity}
                     loading={isLoading}
@@ -332,7 +346,7 @@ const ReportsPage: React.FC = () => {
                 </>
               )}
 
-              {activeTab !== 'synthese' ? (
+              {activeTab !== 'synthese' && !isUnitScope ? (
                 isLoading ? (
                   <div className="rounded-[2rem] border border-slate-100 bg-white shadow-sm">
                     <div className="flex items-center justify-center py-20">

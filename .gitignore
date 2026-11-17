@@ -71,6 +71,7 @@ storage/files/
 backend/backups/
 backups/*
 !backups/.gitkeep
+images-offline/
 
 # Local scratch / extracted artifacts
 backend/scripts/E*/
