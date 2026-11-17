@@ -8,6 +8,25 @@
 - **Règle de ce travail** : lecture seule sur le VPS. Aucune écriture, aucun conteneur lancé, aucun fichier Caddy créé. Tout ce qui suit est `Proposé`, et chaque écriture demande l'accord du PO.
 - **Niveaux** : `Mesuré` = relevé en lecture seule le 17/11 à 21:09 ; `Vérifié` = lu dans le code de `main` 18a1018 ; `Déduit` = calculé ; `À mesurer` = attend une mesure de Q.
 
+## 0. Ajout du 17/11, soir : ce qui existe déjà (#248) et deux phases
+
+B a déjà écrit la surcouche, dans la **PR #248**, en brouillon post-rc1 (lot 12 de `plan-v1.1.md`) :
+- `docker-compose.vps.yml` : projet `ged237-vps`, plafonds, `seed` réservé au profil `demo-seed`, `DB_PASSWORD` et `SECRET_KEY` obligatoires ;
+- `DOCS/exploitation/installation.md` § 10 ;
+- s'y ajoutent #267 (`nginx-vps.conf`, en-têtes de sécurité) et #268 (contrôle de la surcouche en CI).
+
+Ce document s'aligne sur #248. Les écarts sont ci-dessous ; c'est **#248 qui fait foi pour la configuration**.
+
+| Point | #248 | Ce document | À trancher |
+|---|---|---|---|
+| Accès | **VPN seulement** : nginx écoute sur `GED_BIND_ADDR`, une adresse du tunnel WireGuard. **Aucun site Caddy.** | site Caddy public (§ 3) | **Deux phases.** Phase 1 : VPN seulement, comme #248, jusqu'à la fusion de #154 et #212. Phase 2 : adresse publique en HTTPS par Caddy (§ 3), `GED_BIND_ADDR=127.0.0.1`. |
+| `ENVIRONMENT` | non surchargé, donc `development` (code affiché à l'écran) | `production` | Phase 2 : B ajoute `ENVIRONMENT: production` à la surcouche (0,25 h-s). #212 refuse alors de démarrer sans canal d'envoi du code. |
+| Worker | 1,2 Go | 1 Go | **la mesure du 18 tranche** ; garder 1,2 Go si la pointe dépasse 900 Mo et que la marge le permet |
+| Contrôle préalable | `free -m` : **au moins 2,5 Go disponibles** | — | **Bloquant aujourd'hui** : 2 057 Mo disponibles (`Mesuré`). Soit on libère de la mémoire sur le VPS, soit on abaisse le seuil à 2,0 Go avec le worker à 1 Go. À trancher par B et O. |
+| Port | `${GED_BIND_ADDR}:${APP_PORT:-8080}` | `127.0.0.1:8095` | 8080 est libre aussi (`Mesuré`). Garder la variable de #248 et choisir sa valeur à l'installation. |
+
+Conséquence pour l'item 27 : en phase 1, le trafic est chiffré par le tunnel WireGuard, mais ce n'est pas du HTTPS. **L'item 27 sur le VPS n'est acquis qu'en phase 2.** Sur le poste, la preuve HTTPS du 20/11 (`docker-compose.tls.yml`) reste celle de la recette.
+
 ## 1. Ce qui reste libre sur le VPS (`Mesuré`, 17/11 21:09)
 
 | Ressource | Total | Libre | Remarque |
@@ -131,16 +150,18 @@ Ce sont les mêmes scripts et le même protocole que la restauration n° 2 du 21
 
 ## 7. Ordre de mise en service (chaque étape après l'accord du PO)
 
-| # | Étape | Qui | Durée (h-s) |
-|---|---|---|---|
-| 1 | Mesure OCR du 18 à 22:15 (déjà acceptée par le PO pour cette seule mesure) | Q, B | prévue |
-| 2 | `docker-compose.vps.yml` : plafonds du § 2.1, production, `127.0.0.1:8095`, `seed=0` | B | 1,0 |
-| 3 | Choix du nom de domaine et de la restriction d'accès (§ 3 et § 4) | PO, O | — |
-| 4 | Export des images, copie, chargement, `up -d`, `migrate` | B | 0,5 |
-| 5 | Fichier `ged237.caddy`, `validate`, `reload` ; contrôle HTTPS (`prove_tls.sh` adapté au nom de domaine) | B | 0,25 |
-| 6 | Tâche cron de sauvegarde, puis première restauration sur un poste (§ 5) | B, Q | 0,5 |
-| 7 | Une heure de surveillance (`free -m`, `docker stats`) pendant un import réel, avant d'ouvrir l'accès à des agents | Q | 0,5 |
-| | **Total** | | **≈ 2,75 h-s** (B 2,0, Q 0,75) |
+| Phase | # | Étape | Qui | Déjà au plan V1.1 ? | Nouveau (h-s) |
+|---|---|---|---|---|---|
+| 1 | 1 | Mesure OCR du 18 à 22:15 (le PO l'a acceptée pour cette seule mesure) | Q, B | oui (question 14) | — |
+| 1 | 2 | Fusion de #248, #267 et #268 ; seuil du contrôle préalable et plafond du worker réglés d'après la mesure (§ 0) | B | oui, lot 12 (B 0,25) | — |
+| 1 | 3 | Installation par VPN (`installation.md` § 10) : export des images, copie, chargement, `up -d`, `migrate`, comptes réels créés à la main | B | non | B 0,5 |
+| 1 | 4 | Une heure de mesure pendant un import réel (`free -m`, `docker stats`), avant d'ouvrir à des agents | Q | oui, lot 12 (Q 1,5) | — |
+| 1 | 5 | Tâche cron de sauvegarde, puis première restauration sur un poste (§ 5) | B, Q | non | B 0,25, Q 0,25 |
+| 2 | 6 | Après la fusion de #154 et #212 : `ENVIRONMENT: production` dans la surcouche, `GED_BIND_ADDR=127.0.0.1` | B | non | B 0,25 |
+| 2 | 7 | DNS, fichier `ged237.caddy`, `validate`, `reload` ; contrôle HTTPS (`prove_tls.sh` adapté au nom de domaine) | B, Q | non | B 0,25, Q 0,25 |
+| | | **Hors plan V1.1** | | | **≈ 1,75 h-s (B 1,25, Q 0,5)** |
+
+Décisions du PO avant la phase 1 : accord pour l'installation et la tâche cron. Avant la phase 2 : nom de domaine, et ouverture publique ou liste d'adresses.
 
 Le moment se décide après le tag du 24/11 et la démo du 30/11. Rien ne se fait sur le VPS avant.
 
