@@ -58,7 +58,7 @@ test.describe('Explorateur — clic droit étendu', () => {
     await page.goto('spaces');
     await expect(page.locator('[data-explorer-item]').first()).toBeVisible();
 
-    await page.getByRole('banner').click({ button: 'right', position: { x: 4, y: 4 } });
+    await page.getByRole('navigation').first().click({ button: 'right', position: { x: 4, y: 4 } });
     await expect(page.getByRole('menu')).toHaveCount(0);
   });
 });
