@@ -275,7 +275,8 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
               type="button"
               role="tab"
               aria-selected={section === s}
-              aria-controls={panelId(s)}
+              // Un seul panneau monté : seul l'onglet actif pointe vers lui.
+              aria-controls={section === s ? panelId(s) : undefined}
               tabIndex={section === s ? 0 : -1}
               onClick={() => selectSection(s)}
               onKeyDown={onTabKeyDown}

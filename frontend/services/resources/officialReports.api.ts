@@ -105,9 +105,9 @@ export const officialReportsApi = {
     const response = await fetchWithRefresh(`${API_URL}/reports/official/schedules`, {
       headers: getHeaders(false),
     });
-    // Rôle sans droit sur la programmation : rien à signaler, l'onglet reste simplement masqué.
-    if (response.status === 403) return { items: [], enabledHeader: null };
-    if (!response.ok) throw await buildApiError(response, 'Lecture des rapports programmés impossible');
+    // Onglet secondaire lu à l'ouverture du modal : un refus (403) ou une panne (5xx) le masquent
+    // simplement, sans toast d'erreur sur l'émission qui, elle, fonctionne.
+    if (!response.ok) return { items: [], enabledHeader: null };
     return {
       items: (await response.json()) as OfficialReportSchedule[],
       enabledHeader: response.headers.get('X-Scheduled-Reports-Enabled'),
