@@ -34,7 +34,7 @@ Fiche : `protocole-installation-site.md`.
 2. L'installation sur ce poste et sur le PC Windows vaut-elle preuve, à la place d'un serveur en ligne, pour l'exigence 28 du cahier des charges ? **Oui.**
    - Sans réponse le 23 : l'exigence 28 reste impossible à vérifier.
 
-> Réponse du PO du 17/11 : **pas de poste prêté**. Q prouve l'installation sans Internet le 25/11, sur une machine simulée sans réseau (Ubuntu 24.04, 8 Go de mémoire, 10 Go de disque libres), à la place de P2. La question 2 (valeur de preuve pour l'exigence 28, avec P1) reste à confirmer par le PO au vu du relevé du 25.
+> Réponse du PO du 17/11 : **pas de poste prêté**. Q prouve l'installation sans Internet le 25/11, sur une machine simulée sans réseau (Ubuntu 24.04, 8 Go de mémoire, 10 Go de disque libres), à la place de P2. La question 2 (valeur de preuve pour l'exigence 28, avec P1) reste à confirmer par le PO au vu du relevé du 25 (question 15 de `../innovateur/fiche-decisions-po-19-11.md`).
 
 ## 4. Ce que voient le responsable d'unité et le manager (#195, #196, #203, #165)
 
