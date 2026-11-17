@@ -117,3 +117,35 @@ async def test_local_arrangement_snapshot_is_private_to_each_user(
     assert unseen.json() == {"snapshot": None}
     assert deleted.status_code == 204
     assert kept.json()["snapshot"]["id"] == "owner-arr"
+
+
+@pytest.mark.asyncio
+async def test_a_snapshot_is_never_read_or_rewritten_from_another_institution(
+    client_as, db_seed
+):
+    """#216: the key is the user alone; the institution is checked on every route."""
+
+    def in_tenant(tenant_id):
+        return client_as(
+            "collaborator",
+            id=db_seed["user_id"],
+            tenant_id=tenant_id,
+            org_unit_id=db_seed["org_unit_id"],
+        )
+
+    async with in_tenant(db_seed["tenant_id"]) as home:
+        assert (await home.put(SNAPSHOT, json=_snapshot("home-arr"))).status_code == 200
+
+    async with in_tenant(uuid.uuid4()) as elsewhere:
+        unseen = await elsewhere.get(SNAPSHOT)
+        rewritten = await elsewhere.put(SNAPSHOT, json=_snapshot("foreign-arr"))
+        deleted = await elsewhere.delete(SNAPSHOT)
+
+    async with in_tenant(db_seed["tenant_id"]) as home:
+        kept = await home.get(SNAPSHOT)
+
+    assert unseen.json() == {"snapshot": None}
+    assert rewritten.status_code == 409
+    assert rewritten.json()["error_code"] == "SNAPSHOT_OTHER_TENANT"
+    assert deleted.status_code == 204
+    assert kept.json()["snapshot"]["id"] == "home-arr"

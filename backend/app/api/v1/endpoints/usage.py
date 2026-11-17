@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.errors.domain import ConflictError
 from app.models.audit import AuditLog
 from app.models.local_organize_event import LocalOrganizeEvent
 from app.models.user import User
@@ -106,9 +107,19 @@ async def upsert_local_arrangement_snapshot(
             UserLocalArrangementSnapshot.user_id == current_user.id,
         )
     )
+    if existing and existing.tenant_id != current_user.tenant_id:
+        # The key is the user alone: a row left by another institution is never
+        # rewritten from this one (#216).
+        raise ConflictError(
+            "Un rangement d'une autre institution est enregistré pour ce compte.",
+            technical_detail=(
+                f"snapshot of user {current_user.id} belongs to tenant "
+                f"{existing.tenant_id}, request from {current_user.tenant_id}"
+            ),
+            error_code="SNAPSHOT_OTHER_TENANT",
+        )
     if existing:
         existing.payload = dumped
-        existing.tenant_id = current_user.tenant_id
     else:
         db.add(
             UserLocalArrangementSnapshot(

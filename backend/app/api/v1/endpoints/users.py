@@ -14,6 +14,7 @@ from app.core.authz import (
     can_perform,
     ctx_from_resource,
 )
+from app.core.errors.domain import AuthorizationError
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.user import User
 from app.models.document import Document
@@ -254,6 +255,8 @@ async def list_assignable_roles(
     rôles (tenant_admin, unit_admin, manager, collab, reader, auditor) sont
     retournés avec leur id, leur code et leur libellé humain.
     """
+    # Read by the user administration screens only (#216).
+    await authorize_or_403(current_user, "users", "read")
     from app.models.role import Role
 
     result = await db.execute(
@@ -299,6 +302,13 @@ async def read_user(
     return user
 
 
+# What users may change on their own account without the right to update users
+# (#216). The e-mail is the login and the OTP channel; role, unit, manager and
+# status are an administrator's call; the password has its own route, which
+# asks for the current one.
+SELF_EDITABLE_FIELDS = frozenset({"first_name", "last_name", "phone"})
+
+
 @router.patch("/{user_id}", response_model=UserRead)
 async def update_user(
     user_id: UUID,
@@ -325,6 +335,19 @@ async def update_user(
     assert_org_unit_scope(user.org_unit_id, current_user)
 
     update_data = user_in.dict(exclude_unset=True)
+
+    if is_self and not await can_perform(current_user, "users", "update"):
+        refused = sorted(set(update_data) - SELF_EDITABLE_FIELDS)
+        if refused:
+            raise AuthorizationError(
+                "Seul un administrateur peut modifier ces informations.",
+                technical_detail=(
+                    f"user {current_user.id} tried to change {refused} on their "
+                    "own account"
+                ),
+                error_code="SELF_UPDATE_FIELD_FORBIDDEN",
+                extras_public={"fields": refused},
+            )
 
     if "org_unit_id" in update_data:
         assert_org_unit_scope(update_data["org_unit_id"], current_user)
