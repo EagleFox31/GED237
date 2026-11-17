@@ -13,7 +13,7 @@
 | **A (recommandée)** | Le 25 et le 26, `main` ne reçoit que les correctifs de recette et la documentation. Les fusions post-rc1 commencent le 27, après la pose de la rc.2 ou la décision « pas de rc.2 ». Si un correctif est nécessaire après le 27, la branche `release/v1.0.0` est créée depuis le dernier tag rc, et le correctif y est appliqué par cherry-pick. | La fenêtre de fusion passe de 5 à 3 jours. Les passes ciblées tournent quand même le 25 et le 26, sur les branches des PR. |
 | B | La branche `release/v1.0.0` est créée dès le 24 depuis `v1.0.0-rc.1`. La rc.2 est taguée sur cette branche, et `main` est libre dès le 25. | Une procédure nouvelle la semaine de la démo, avec des cherry-picks à reporter dans les deux sens. |
 
-**Décision O** : A ou B. Le reste du plan suppose A.
+**Décision O du 17/11** : option A (§ 6).
 
 ## 1. Ordre de fusion
 
@@ -59,7 +59,7 @@ Les PR de passe (#168, #169, #170, #172) fusionnent juste après la PR qu'elles 
 | 6 | #165 | `8aed3f3826d7` | `a7c8d9e0f1b2` | **`d4f1b6c2e8a9`** |
 | 7 | #192 | `c9f2a7d4e1b6` | `a7c8d9e0f1b2` | **`8aed3f3826d7`** |
 
-Head final : `c9f2a7d4e1b6`. Attention, `d4e8…` (#193) et `d4f1…` (#186) se ressemblent : il faut recopier les identifiants, pas les retaper.
+Head final : `c9f2a7d4e1b6`. **Attention : `d4e8…` (#193) et `d4f1…` (#186) se ressemblent. Il faut recopier les identifiants, pas les retaper.** Chaîne retenue telle quelle par O le 17/11.
 
 Pour chaque PR rebasée, l'auteur fait les trois points suivants, dans Docker uniquement :
 
@@ -94,7 +94,7 @@ Règle du § 6 de B (`Vérifié`) : entre le 24 et le 30, seule L1 fusionne sans
 | L6 | #155 | WebSocket refuse un jeton de rafraîchissement ou révoqué | cloche + WebSocket avant et après déconnexion (#169) | Q + F | `NOTIFICATIONS_BROADCAST_MODE=off` |
 | hors § 6 | #179, #182, #184 | annulation et reclassement (issue #151) : touche le fil « classement » de la démo | #182 | Q | — |
 
-**Décision O** : faut-il traiter #179 comme L2 (passe #182 et accord du PO) ? Je le recommande, car elle touche le parcours montré au jury.
+**Décision O du 17/11** : #179 est traitée comme L2 (passe #182 et accord du PO).
 
 Un drapeau éteint par défaut ne dispense pas de la passe : L4 change le stockage du code sans drapeau (`Déduit` du § 6).
 
@@ -114,9 +114,12 @@ Pour l'accord du PO, je propose un commentaire sur chaque PR de lot, de la forme
 
 Règle proposée à O : **aucune migration sur `main` avant le 30**. Avec l'option A, un correctif de dernière minute partirait de `release/v1.0.0` : le tag de démo resterait sans migration nouvelle, et la base de démo garderait sa révision.
 
-## 6. Décisions attendues de O
+## 6. Décisions de O du 17/11
 
-1. Option A ou B (§ 0).
-2. #179 traité comme L2 (§ 4).
-3. Règle « aucune migration avant le 30 » (§ 5).
-4. #147 le 27, après la rc.2, ou dès le 25, quitte à partir dans la rc.2.
+1. **Option A** (§ 0). Le 25 et le 26, `main` ne reçoit que la documentation et les correctifs de recette, et les passes ciblées tournent sur les branches des PR. Les fusions post-rc1 commencent le 27, après la rc.2 éventuelle. Un correctif tardif passe par la branche `release/v1.0.0`, créée depuis le dernier tag.
+2. **#179 est traitée comme L2** : passe ciblée (#182) et accord du PO.
+3. **Aucune migration sur `main` avant le 30** : règle retenue.
+4. **#147 fusionne le 27**, comme les autres, sans exception.
+5. **Chaîne #152 → #179 → #181 → #184 → #182**, avec une fusion explicite de #184 : retenue.
+6. **Chaîne alembic du § 2** : retenue telle quelle.
+7. Fiche d'accord du PO pour le 26 : `accord-po-fusions-26-11.md`.
