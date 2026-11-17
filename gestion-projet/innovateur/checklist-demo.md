@@ -32,7 +32,7 @@
 
 ### Données
 
-- [ ] **Q** — `docker compose exec api sh scripts/e2e_reset.sh demo` exécuté sur le poste principal ; compteurs affichés = `expected` du manifeste (classés 357, à revoir 51, total 408 ; corbeille 8, verrous 3, versions 5).
+- [ ] **Q** — `docker compose exec api sh scripts/e2e_reset.sh demo` exécuté sur le poste principal ; compteurs affichés = `expected` du manifeste (classés 357, à revoir 51, total 408 fichiers ; corbeille 8, verrous 3, versions 5), et accueil de `MINFI001` à 351 documents (avec #260 ; scénario § 2).
 - [ ] **Q** — Dossier `demo-import/live/` (30 fichiers, dont 2 doublons volontaires) monté **en lecture seule** dans le conteneur api à **`/data/ingest`** (seul chemin conteneur, identique en e2e et en démo ; `INGEST_ALLOWED_ROOTS=/data/ingest`, tranché O 09/11, `spec-limite-upload.md` § 5) ; **non importé**. Dossiers surveillés : exigent `INGEST_WATCH_FOLDERS` (`docker-compose.yml`) **et** le corpus monté sur `/data/ingest` ; chemin live `/data/ingest/live`.
 - [ ] **Q** — Pré-OCRisation complète du corpus (worker actif jusqu'à file vide : `celery inspect active` vide, `ocr_content` non nul sur les PDF image) ; recherche P5 testée sur le mot-clé prévu (résultat attendu noté).
 - [ ] **Q** — Règle 10 « Rapports financiers » **créée inactive** ; les documents cibles sont bien « à revoir » (P6 : 51 à revoir au total, `expected.toReview` du manifeste, et non ≈ 15).
