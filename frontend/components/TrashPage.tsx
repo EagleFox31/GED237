@@ -18,6 +18,7 @@ const TrashPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const { 'documents:purge': canPurge } = useCan('documents:purge');
 
@@ -27,8 +28,10 @@ const TrashPage: React.FC = () => {
       const page = await api.getTrashPage(skip, PAGE_SIZE);
       setItems((current) => (append ? [...current, ...page.items] : page.items));
       setTotal(page.total);
+      setLoadError(false);
     } catch {
-      /* erreur déjà affichée par le bus global */
+      // Détail déjà affiché par le bus global ; ici on évite seulement un faux « vide ».
+      if (!append) setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -101,9 +104,11 @@ const TrashPage: React.FC = () => {
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-black tracking-tight text-slate-900">Corbeille</h1>
-          <span data-testid="trash-count" className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-            {total}
-          </span>
+          {!loadError && (
+            <span data-testid="trash-count" className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+              {total}
+            </span>
+          )}
           <InlineHelpButton
             label="Aide sur la corbeille"
             content="Les documents supprimés arrivent ici. Restaurez-les pour les remettre à leur place."
@@ -122,7 +127,21 @@ const TrashPage: React.FC = () => {
         )}
       </header>
 
-      {!loading && items.length === 0 ? (
+      {loadError && (
+        <div role="alert" className="rounded-[2rem] border border-red-100 bg-red-50 p-10 text-center">
+          <p className="text-sm font-medium text-red-700">Corbeille indisponible pour le moment.</p>
+          <button
+            type="button"
+            onClick={() => load()}
+            disabled={loading}
+            className="mt-4 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
+
+      {!loadError && (!loading && items.length === 0 ? (
         <div className="rounded-[2rem] border border-slate-100 bg-white p-10 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-300" aria-hidden>delete</span>
           <p className="mt-2 text-sm font-medium text-slate-500">La corbeille est vide.</p>
@@ -163,7 +182,7 @@ const TrashPage: React.FC = () => {
             </li>
           ))}
         </ul>
-      )}
+      ))}
 
       {items.length < total && (
         <div className="mt-4 text-center">

@@ -1235,14 +1235,14 @@ const SpacesPage: React.FC = () => {
           {contextMenu.kind === 'document' && (
             <>
               <button type="button" role="menuitem" onClick={() => openPreview(contextMenu.document)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">preview</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">preview</span>
                 Ouvrir
               </button>
               {(!contextMenu.document.classification_status
                 || contextMenu.document.classification_status === 'pending'
                 || contextMenu.document.classification_status === 'needs_review') && (
                 <button type="button" role="menuitem" onClick={() => openClassification(contextMenu.document)} className={MENU_ITEM}>
-                  <span className="material-symbols-outlined text-base text-slate-400">rule</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">rule</span>
                   Classer
                 </button>
               )}
@@ -1252,7 +1252,7 @@ const SpacesPage: React.FC = () => {
                 onClick={() => handleCopyPath(contextMenu.document.logical_space_path || '')}
                 className={MENU_ITEM}
               >
-                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
               </button>
               <button
@@ -1261,7 +1261,7 @@ const SpacesPage: React.FC = () => {
                 onClick={() => handleTrash(contextMenu.document)}
                 className={MENU_ITEM}
               >
-                <span className="material-symbols-outlined text-base text-slate-400">delete</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">delete</span>
                 Mettre à la corbeille
               </button>
             </>
@@ -1269,11 +1269,11 @@ const SpacesPage: React.FC = () => {
           {contextMenu.kind === 'folder' && (
             <>
               <button type="button" role="menuitem" onClick={() => openFolder(contextMenu.unitId)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">folder_open</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">folder_open</span>
                 Ouvrir
               </button>
               <button type="button" role="menuitem" onClick={() => handleCopyPath(contextMenu.path)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin
               </button>
             </>
@@ -1288,7 +1288,7 @@ const SpacesPage: React.FC = () => {
               }}
               className={MENU_ITEM}
             >
-              <span className="material-symbols-outlined text-base text-slate-400">refresh</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">refresh</span>
               Actualiser
             </button>
           )}
