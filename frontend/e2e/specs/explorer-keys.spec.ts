@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { isEditableTarget, nextFocusIndex } from '../../profiles/tenant-admin/pages/explorerKeys';
+import { isEditableTarget, keepDisplayed, nextFocusIndex, rangeSelection, toggleInSelection } from '../../profiles/tenant-admin/pages/explorerKeys';
 
 // Grille 3 colonnes (6 éléments) puis une seconde grille de 2 éléments plus bas.
 const grid = [
@@ -44,4 +44,32 @@ test.describe('Explorateur : aucun raccourci dans un champ de saisie', () => {
   for (const target of [{ tagName: 'BUTTON' }, { tagName: 'TR' }, null, undefined, {}]) {
     test(`hors saisie ${JSON.stringify(target)}`, () => expect(isEditableTarget(target)).toBe(false));
   }
+});
+
+test.describe('Explorateur : sélection multiple', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e'];
+
+  test('Ctrl+clic ajoute puis retire', () => {
+    const once = toggleInSelection(new Set(['a']), 'c');
+    expect([...once]).toEqual(['a', 'c']);
+    expect([...toggleInSelection(once, 'a')]).toEqual(['c']);
+  });
+
+  test('Maj+clic prend la plage dans l’ordre affiché, dans les deux sens', () => {
+    expect([...rangeSelection(ids, 'b', 'd')]).toEqual(['b', 'c', 'd']);
+    expect([...rangeSelection(ids, 'd', 'b')]).toEqual(['b', 'c', 'd']);
+    expect([...rangeSelection(ids, 'c', 'c')]).toEqual(['c']);
+  });
+
+  test('Maj+clic sans ancre, ou ancre disparue : la cible seule', () => {
+    expect([...rangeSelection(ids, null, 'c')]).toEqual(['c']);
+    expect([...rangeSelection(ids, 'z', 'c')]).toEqual(['c']);
+    expect(rangeSelection(ids, 'a', 'z').size).toBe(0);
+  });
+
+  test('après rechargement, seuls les éléments affichés restent sélectionnés', () => {
+    const selection = new Set(['a', 'c']);
+    expect(keepDisplayed(selection, ids)).toBe(selection);
+    expect([...keepDisplayed(selection, ['c', 'd'])]).toEqual(['c']);
+  });
 });

@@ -7,7 +7,14 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
-import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import {
+  isArrowKey,
+  isEditableTarget,
+  keepDisplayed,
+  nextFocusIndex,
+  rangeSelection,
+  toggleInSelection,
+} from './explorerKeys';
 import { UndoToast } from '../../../components/ui/UndoToast';
 import { useUndoableAction } from '../../../hooks/useUndoableAction';
 import { canUndoMove, moveToUnitPatch, placementOf, restorePlacementPatch } from '../../../lib/undo/placement';
@@ -423,6 +430,50 @@ const SpacesPage: React.FC = () => {
     });
   }, [childUnits.length, filteredDocuments, isSearchMode, selectedUnitId]);
 
+  // Même ordre pour les deux vues : la plage Maj+clic suit ce que l'utilisateur voit.
+  const orderedDocuments = useMemo(
+    () =>
+      visibleDocuments
+        .slice()
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+    [visibleDocuments]
+  );
+  const orderedIds = useMemo(() => orderedDocuments.map((doc) => doc.id), [orderedDocuments]);
+
+  // Sélection multiple (#150) : Ctrl+clic, Maj+clic, Ctrl+A ; vidée au changement de dossier.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setAnchorId(null);
+  }, [selectedUnitId]);
+
+  // Après un rechargement, on ne garde que ce qui est encore affiché.
+  useEffect(() => {
+    setSelectedIds((prev) => keepDisplayed(prev, orderedIds));
+  }, [orderedIds]);
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setAnchorId(null);
+  };
+
+  /** Ctrl/Cmd+clic ou Maj+clic : met à jour la sélection et renvoie true ; clic simple : false. */
+  const selectWithModifiers = (event: React.MouseEvent, id: string) => {
+    if (event.shiftKey) {
+      setSelectedIds(rangeSelection(orderedIds, anchorId, id));
+      if (anchorId === null) setAnchorId(id);
+      return true;
+    }
+    if (event.ctrlKey || event.metaKey) {
+      setSelectedIds((prev) => toggleInSelection(prev, id));
+      setAnchorId(id);
+      return true;
+    }
+    return false;
+  };
+
   const hiddenDescendantDocumentsCount = Math.max(
     filteredDocuments.length - visibleDocuments.length,
     0
@@ -487,8 +538,35 @@ const SpacesPage: React.FC = () => {
       }
       return;
     }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      if (event.key.toLowerCase() === 'a' && orderedIds.length > 0) {
+        event.preventDefault();
+        setSelectedIds(new Set(orderedIds));
+        return;
+      }
+      if (event.key === ' ') {
+        // Ctrl+Espace : équivalent clavier du Ctrl+clic sur l'élément qui a le focus.
+        const focusedId = (event.target as HTMLElement).closest('[data-document-id]')?.getAttribute('data-document-id');
+        if (focusedId) {
+          event.preventDefault();
+          setSelectedIds((prev) => toggleInSelection(prev, focusedId));
+          setAnchorId(focusedId);
+        }
+        return;
+      }
+    }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === 'Escape' && selectedIds.size > 0) {
+      event.preventDefault();
+      clearSelection();
+      return;
+    }
     if (event.key === 'Delete') {
+      if (selectedIds.size > 0) {
+        event.preventDefault();
+        handleTrashSelection();
+        return;
+      }
       const id = (event.target as HTMLElement).closest('[data-document-id]')?.getAttribute('data-document-id');
       const doc = documents.find((d) => d.id === id);
       if (doc) {
@@ -590,6 +668,27 @@ const SpacesPage: React.FC = () => {
     loadDocumentsRef.current();
     undo.propose(`« ${doc.title} » mis à la corbeille`, async () => {
       await api.restoreDocument(doc.id);
+      loadDocumentsRef.current();
+    });
+  };
+
+  // Corbeille groupée : chaque document est traité seul ; un échec n'empêche pas les autres.
+  const handleTrashSelection = async () => {
+    setContextMenu(null);
+    const targets = orderedDocuments.filter((doc) => selectedIds.has(doc.id));
+    if (targets.length === 0) return;
+    const results = await Promise.allSettled(targets.map((doc) => api.deleteDocument(doc.id)));
+    const trashed = targets.filter((_, index) => results[index]?.status === 'fulfilled');
+    const failed = targets.filter((_, index) => results[index]?.status === 'rejected');
+    clearSelection();
+    loadDocumentsRef.current();
+    if (trashed.length === 0) return; /* messages déjà affichés par le bus global */
+    const moved = trashed.length === 1 ? `« ${trashed[0]?.title} » mis à la corbeille` : `${trashed.length} documents mis à la corbeille`;
+    const message = failed.length > 0
+      ? `${moved}. Échec : ${failed.map((doc) => `« ${doc.title} »`).join(', ')}`
+      : moved;
+    undo.propose(message, async () => {
+      await Promise.allSettled(trashed.map((doc) => api.restoreDocument(doc.id)));
       loadDocumentsRef.current();
     });
   };
@@ -966,12 +1065,37 @@ const SpacesPage: React.FC = () => {
                 </div>
               )}
 
+              {selectedIds.size > 0 && (
+                <div
+                  role="toolbar"
+                  aria-label="Sélection"
+                  className="sticky top-0 z-10 mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3"
+                >
+                  <span role="status" className="text-sm font-bold text-slate-700">
+                    {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleTrashSelection}
+                    className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-red-600 hover:bg-red-50"
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
+                    Mettre à la corbeille
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="rounded-xl px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-white"
+                  >
+                    Désélectionner
+                  </button>
+                </div>
+              )}
+
               {!error && !documentsLoading && visibleDocuments.length > 0 && viewMode === 'icons' && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                  {visibleDocuments
-                    .slice()
-                    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                    .map((doc) => {
+                  {orderedDocuments.map((doc) => {
+                      const isSelected = selectedIds.has(doc.id);
                       const isTitleTruncated = doc.title.length > 26;
                       // Chemin du service de rattachement du doc — affiché en
                       // mode recherche pour donner le contexte de l'origine.
@@ -1001,14 +1125,19 @@ const SpacesPage: React.FC = () => {
                         >
                           <button
                             type="button"
-                            onClick={() => openPreview(doc)}
+                            onClick={(event) => {
+                              if (selectWithModifiers(event, doc.id)) return;
+                              clearSelection();
+                              setAnchorId(doc.id);
+                              openPreview(doc);
+                            }}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             draggable
                             onDragStart={(event) => startDocumentDrag(event, doc)}
                             data-document-id={doc.id}
-                            aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                            aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}${isSelected ? ' — sélectionné' : ''}`}
                             data-explorer-item
-                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
+                            className={`group w-full rounded-[1.5rem] border bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${isSelected ? 'border-rdpc-blue bg-blue-50 ring-2 ring-rdpc-blue' : 'border-slate-200'} ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span
@@ -1059,14 +1188,18 @@ const SpacesPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {visibleDocuments
-                        .slice()
-                        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                        .map((doc) => {
+                      {orderedDocuments.map((doc) => {
                           const targetUnitName = getTargetLabel(doc);
+                          const isSelected = selectedIds.has(doc.id);
                           return (
                             <tr
                               key={doc.id}
+                              aria-selected={isSelected}
+                              onClick={(event) => {
+                                if (selectWithModifiers(event, doc.id)) return;
+                                clearSelection();
+                                setAnchorId(doc.id);
+                              }}
                               onDoubleClick={() => openPreview(doc)}
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                               draggable
@@ -1074,14 +1207,14 @@ const SpacesPage: React.FC = () => {
                               data-document-id={doc.id}
                               tabIndex={0}
                               data-explorer-item
-                              aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                              aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}${isSelected ? ' — sélectionné' : ''}`}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && event.target === event.currentTarget) {
                                   event.preventDefault();
                                   openPreview(doc);
                                 }
                               }}
-                              className="align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue"
+                              className={`align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue ${isSelected ? 'bg-blue-50 ring-2 ring-inset ring-rdpc-blue' : ''}`}
                             >
                               <td className="px-6 py-5">
                                 <div className="space-y-2">

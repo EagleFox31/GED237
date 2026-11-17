@@ -49,3 +49,31 @@ export const nextFocusIndex = (boxes: ItemBox[], current: number, key: ArrowKey)
     Math.abs(c.box.left - origin.left) < Math.abs(best.box.left - origin.left) ? c : best
   ).index;
 };
+
+/** Ctrl+clic : ajoute l'élément à la sélection, ou l'en retire. */
+export const toggleInSelection = (selection: ReadonlySet<string>, id: string): Set<string> => {
+  const next = new Set(selection);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+};
+
+/**
+ * Maj+clic : tous les éléments entre l'ancre et la cible, dans l'ordre affiché, comme
+ * l'Explorateur Windows. Ancre absente ou disparue : la cible seule.
+ */
+export const rangeSelection = (orderedIds: readonly string[], anchorId: string | null, id: string): Set<string> => {
+  const end = orderedIds.indexOf(id);
+  if (end < 0) return new Set();
+  const start = anchorId === null ? -1 : orderedIds.indexOf(anchorId);
+  if (start < 0) return new Set([id]);
+  const [from, to] = start <= end ? [start, end] : [end, start];
+  return new Set(orderedIds.slice(from, to + 1));
+};
+
+/** Après un rechargement : la sélection ne garde que les éléments encore affichés. */
+export const keepDisplayed = (selection: ReadonlySet<string>, orderedIds: readonly string[]): ReadonlySet<string> => {
+  const displayed = new Set(orderedIds);
+  const kept = [...selection].filter((id) => displayed.has(id));
+  return kept.length === selection.size ? selection : new Set(kept);
+};
