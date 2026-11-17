@@ -84,3 +84,24 @@ def test_no_label_is_left_without_accents():
     for label in REVIEW_REASON_LABELS.values():
         assert "regle" not in label and " n a " not in label
         assert any(char in label for char in "éèàï"), label
+
+
+@pytest.mark.parametrize(
+    ("stored", "shown"),
+    [
+        (
+            "Fichier de staging introuvable pour cet item.",
+            "Fichier importé introuvable pour cet élément.",
+        ),
+        (
+            "Fichier de staging introuvable pour cet item en attente de revue.",
+            "Fichier importé introuvable pour cet élément en attente de revue.",
+        ),
+        (
+            "Un fichier identique existe deja dans ce tenant.",
+            "Un fichier identique existe déjà dans l'organisation.",
+        ),
+    ],
+)
+def test_old_import_item_messages_are_shown_accented(stored, shown):
+    assert review_reason_label(stored) == shown

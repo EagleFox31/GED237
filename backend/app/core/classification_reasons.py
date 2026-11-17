@@ -34,6 +34,7 @@ DUPLICATE_IN_IMPORT_MESSAGE = (
 STAGED_FILE_MISSING_MESSAGE = (
     "Fichier importé introuvable pour cet élément en attente de revue."
 )
+STAGED_FILE_LOST_MESSAGE = "Fichier importé introuvable pour cet élément."
 
 # Sentences stored before D3, exactly as written then: existing rows keep them.
 _LEGACY_TEXTS = {
@@ -52,6 +53,7 @@ _LEGACY_TEXTS = {
     "Un fichier identique existe deja dans ce tenant.": DUPLICATE_IN_TENANT_MESSAGE,
     "Ce fichier est present plusieurs fois dans le meme batch.": DUPLICATE_IN_IMPORT_MESSAGE,
     "Fichier de staging introuvable pour cet item en attente de revue.": STAGED_FILE_MISSING_MESSAGE,
+    "Fichier de staging introuvable pour cet item.": STAGED_FILE_LOST_MESSAGE,
 }
 
 

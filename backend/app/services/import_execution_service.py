@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.classification_reasons import (
     DUPLICATE_IN_TENANT_MESSAGE,
+    STAGED_FILE_LOST_MESSAGE,
     STAGED_FILE_MISSING_MESSAGE,
 )
 from app.models.document import Document
@@ -62,7 +63,7 @@ class ImportExecutionService:
 
             if not item.staging_file_path or not item.checksum_sha256:
                 item.status = "failed"
-                item.error_message = STAGED_FILE_MISSING_MESSAGE
+                item.error_message = STAGED_FILE_LOST_MESSAGE
                 summary.failed_items += 1
                 continue
 
