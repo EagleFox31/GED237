@@ -101,7 +101,7 @@ jobs:
       - name: Impact map and workflow gates agree
         run: python3 scripts/check-impact-gates.py
 
-  # Release scripts: bash -n on scripts/*.sh and the offline tag_preflight.sh test (#157).
+  # Shell scripts: bash -n on scripts/, ops/ and backend/scripts/, then the offline tag_preflight.sh test (#157).
   scripts:
     name: Scripts
     needs: impact

@@ -21,7 +21,13 @@
       "gates": ["workflow-lint"]
     },
     "scripts": {
-      "paths": ["scripts/*.sh", ".github/workflows/scripts.yml"],
+      "paths": [
+        "scripts/*.sh",
+        "ops/**/*.sh",
+        "backend/scripts/*.sh",
+        ".github/workflows/scripts.yml",
+        ".github/workflows/ci.yml"
+      ],
       "gates": ["scripts"]
     },
     "backend": {
