@@ -1,0 +1,128 @@
+# Protocole : preuve d'installation sur site (item 28 du CDC)
+
+- **Pour** : Q (exécute), B (corrige si un écart touche le code), O (planifie, porte la décision au PO). Innovateur, 2026-11-17, sur `main` c216141. Rang 6 du carnet `carnet-suite-fonctionnalites.md`, lancé par O le 17/11.
+- **Exigence** : item 28 « Déploiement on-site + démo VPS », `non vérifiable` à l'audit du 9/11 (`gestion-projet/walkthrough/[Audit] Audit fonctionnel profond - 2026-11-09.md` l. 40). Le VPS a été écarté le 9/11 ; ce protocole remplace la démo VPS par une installation rejouée sur un poste vierge.
+- **Cadre** : on suit `DOCS/exploitation/installation.md` **tel qu'il est écrit**. Tout geste absent du manuel est un écart, noté dans la grille (§ 4). Docker seulement, plafonds de mémoire et de CPU du compose conservés. `Vérifié` = lu dans `main` ou dans le dossier de Q ; `Déduit` = raisonnement ; `Proposé` = à valider par O.
+
+## 0. Ce que la preuve doit établir
+
+Une personne qui n'a jamais vu GED237 installe l'application à partir du manuel seul, sur une machine où rien de GED237 n'existe, et arrive à l'écran de connexion puis au tableau de bord. On mesure combien de temps cela prend, et on note tout ce que le manuel ne dit pas.
+
+## 1. Deux postes
+
+| Poste | Système | Voie du manuel | Quand | Exécutant |
+|---|---|---|---|---|
+| **P1, Windows** | Windows 11 + WSL 2, distribution Ubuntu 24.04 neuve et jetable | § 2 à § 5 en ligne (`build` depuis Internet) | **18/11, 07:30–10:30**, déjà planifié par Q | Q, avec son script `wsl-proof.sh` (**Adopt**) |
+| **P2, Ubuntu** | Ubuntu 24.04 installé à neuf, sans WSL ni autre pile Docker | § 9 **sans Internet** (images sur clé USB), puis § 5 à § 7 et un redémarrage | après le tag du 24, sur `v1.0.0-rc.1` | Q |
+
+**P1 reprend la preuve WSL de Q** (`GED237-c6/wsl-proof/CHECKLIST.md`, `Vérifié`). Elle tient pour l'item 28 si les compléments du § 3 sont faits, notamment la connexion : la phase `verify` du script contrôle `/health`, `alembic current`, `/` et `/api/docs`, mais pas la connexion au tableau de bord (`Vérifié`, `wsl-proof.sh` l. 135-138).
+
+**Pourquoi P2 passe par la voie hors ligne** : sur site, l'accès à Internet n'est pas garanti, et le premier `build` télécharge environ 180 Mo de paquets PyTorch (manuel § 9). La voie de la clé USB est donc la plus probable chez le client, et elle n'a jamais été rejouée sur une machine neuve (`Déduit` : aucune trace dans `gestion-projet/recette/`).
+
+**Machine de P2 : Décision O.**
+- Le VPS est exclu : 3,7 Go de RAM, sous les 8 Go du manuel (§ 1).
+- Ce PC est exclu : la VM WSL est déjà partagée avec Docker Desktop, et la règle de RAM de Q donnait 631 Mo de marge le 17 à 09:27.
+- Candidat : `academy-server` (réseau local), système et mémoire `À vérifier` par lecture seule avant de le retenir. Sinon, un poste prêté par le PO.
+
+## 2. Poste vierge : contrôles avant de commencer
+
+| Contrôle | Attendu | Commande |
+|---|---|---|
+| Système | Ubuntu 24.04 (P1 : distribution créée pour la preuve ; P2 : installation neuve) | `lsb_release -d` |
+| Docker | Engine ≥ 24 et `docker compose` v2, seuls logiciels ajoutés (prérequis du manuel § 1) | `docker version`, `docker compose version` |
+| Rien de GED237 | aucun clone, aucune image, aucun volume, aucun conteneur `edossier_*` | `docker images`, `docker volume ls`, `docker ps -a` |
+| Mémoire | ≥ 8 Go libres (manuel § 1) ; P1 suit la règle de RAM de O du 17/11 | `free -m` |
+| Disque | ≥ 10 Go libres (manuel § 1), plus la taille de la clé pour P2 | `df -h` |
+| Port | `8080` libre (P1 : `8180`, déjà noté par Q comme écart) | `ss -ltn` |
+| Version | P1 : SHA de `main` noté ; P2 : tag `v1.0.0-rc.1` | `git rev-parse --short HEAD` |
+
+## 3. Étapes chronométrées
+
+Deux temps par étape :
+- **machine** : de la commande au retour de la main ;
+- **opérateur** : le temps où la personne lit, tape ou décide.
+
+On relève l'heure de début et de fin de chaque étape.
+
+| # | Étape (§ du manuel) | P1 | P2 | Fin d'étape |
+|---|---|---|---|---|
+| E1 | Récupérer le code (§ 2) | `git clone` | clone copié depuis la clé, ou `git clone` si le site a un accès ; `git checkout v1.0.0-rc.1` | dossier présent, SHA noté |
+| E2 | Configurer (§ 3) | `.env` : `DB_PASSWORD`, `SECRET_KEY`, `APP_PORT`, `APP_VERSION` | idem | `.env` rempli ; **aucune valeur recopiée dans le relevé** |
+| E3 | Charger les images (§ 9) | — | `images_import.sh` depuis la clé, puis `docker compose config --images` | liste identique à `IMAGES.txt` |
+| E4 | Démarrer (§ 4) | `docker compose up -d --build` | `docker compose up -d` (sans `--build`) | `migrate` et `seed` en `Exited (0)` |
+| E5 | Vérifier (§ 5), **cinq contrôles** | les cinq, dont la **connexion** avec un compte de démonstration (identifiant seul dans le relevé) | idem | tableau de bord affiché après le code |
+| E6 | Sauvegarder (§ 7) | `bash ops/backup.sh` | idem | dossier `ged237-<horodatage>` créé |
+| E7 | Redémarrer la machine | — (pas de `wsl --shutdown`, interdit par Q) | redémarrage complet, **aucune commande** ensuite | tableau de bord accessible |
+| E8 | Désinstaller (§ 7) | `docker compose down -v`, puis le teardown de Q | `docker compose down -v` | aucun volume ni conteneur GED237 |
+
+Point à observer en E7 : `frontend` n'a pas de politique `restart` dans `docker-compose.yml`, alors que les cinq autres services permanents (`postgres`, `redis`, `api`, `worker`, `nginx`) ont `unless-stopped` (`Vérifié`). Après un redémarrage, il est probable que nginx réponde mais que l'application ne s'affiche pas (`Déduit`, à confirmer par E7). Si c'est le cas, c'est un écart **bloquant pour un site**, à corriger par B après le 30.
+
+## 4. Grille des écarts
+
+Un écart = tout geste ou toute information dont l'opérateur a eu besoin et que le manuel ne donne pas, ou une consigne du manuel qui ne marche pas telle quelle.
+
+| # | Poste | Étape (§) | Constat | Contournement utilisé | Gravité | Suite (PR du manuel ou correctif, porteur) |
+|---|---|---|---|---|---|---|
+| 1 | P1 | E2 (§ 3) | port 8080 pris par la pile de la sonde C6 | `APP_PORT=8180` | mineur (prévu par le manuel) | aucune |
+| 2 | P1 | § 2 du protocole | exécution en root (distribution créée sans utilisateur) | — | mineur | aucune |
+| 3 | P1 | E4 | si `RAM_MODE=soft` : plafonds réduits par un fichier `override` | `docker-compose.override.yml` de Q | **majeur** si utilisé (le manuel n'est plus suivi tel quel) | noter le pic de RAM ; pas de modification du manuel |
+| … | | | | | | |
+
+Les lignes 1 à 3 viennent de la CHECKLIST de Q (`Vérifié`). Docker installé par les paquets Ubuntu n'est pas un écart : c'est un prérequis du manuel.
+
+**Gravité** :
+- **bloquant** : sans le contournement, l'installation n'aboutit pas, ou le contournement exige de lire le code ou d'appeler l'équipe ;
+- **majeur** : l'installation aboutit, mais au prix d'un geste qu'un exploitant ne trouverait pas seul en moins de 10 minutes ;
+- **mineur** : le manuel donne déjà la parade, ou la gêne est de forme.
+
+## 5. Critère réussi / échoué (`Proposé`, chiffré)
+
+Un poste est **réussi** si les six conditions tiennent :
+
+1. **0 écart bloquant.**
+2. **Au plus 2 écarts majeurs**, chacun avec une PR du manuel ou un correctif ouvert dans les 48 h.
+3. **5 contrôles sur 5** au § 5, dont la connexion au tableau de bord.
+4. **Durée de E1 à E5** :
+   - P1 (en ligne, `build` compris) : **≤ 60 min** de temps machine ;
+   - P2 (hors ligne) : **≤ 20 min**.
+5. **Temps opérateur de E1 à E5 ≤ 20 min** sur chaque poste.
+6. **E6 réussie** (sauvegarde créée) ; et pour P2, **E7** : tableau de bord accessible **≤ 5 min** après le redémarrage, sans aucune commande.
+
+Il est **échoué** sinon. La condition qui manque est alors nommée dans le relevé.
+
+| Résultat | Item 28 |
+|---|---|
+| P1 et P2 réussis | `fait`, avec la décision du PO du § 7 |
+| Un seul poste réussi | `partiel` : le poste et la condition manquante sont nommés |
+| Aucun | reste `non vérifiable` ; incident consigné dans `DOCS/engineering/lessons-learned.md` |
+
+Pourquoi ces seuils :
+- **60 min** : le manuel annonce « plusieurs minutes » de premier `build`. Le seuil de Q tolère déjà 15 min, après le `build`, avant que `api`, `postgres` et `redis` soient `healthy`. Le reste couvre le téléchargement des images.
+- **20 min hors ligne** : sans `build`, le manuel annonce moins d'une minute de démarrage. Le reste couvre le chargement de plusieurs Go depuis la clé.
+- **20 min d'opérateur** : c'est ce qu'un exploitant peut faire pendant une visite sans immobiliser le site.
+
+## 6. Sortie
+
+- Un relevé par poste : `gestion-projet/recette/installation-site-P1-AAAA-MM-JJ.txt` et `…-P2-…`.
+- Contenu : SHA ou tag ; contrôles du § 2 ; tableau E1 à E8 avec les deux temps ; pic de RAM (P1 : `ram.tsv` de Q) ; grille du § 4 ; verdict du § 5.
+- Ni mot de passe, ni contenu de `.env`, ni jeton.
+
+## 7. Décision du PO
+
+Phrase à faire valider par le PO, portée par O :
+
+> **L'installation sur site est acceptée comme preuve à la place du VPS** pour l'item 28 du CDC, sur la base des relevés P1 (Windows 11 + WSL 2) et P2 (Ubuntu 24.04, hors ligne), selon le critère du § 5 de `protocole-installation-site.md`.
+
+Si le PO refuse, l'item 28 reste `non vérifiable` jusqu'à une démo sur un serveur d'au moins 8 Go de RAM.
+
+## 8. Hors champ, coût et risques
+
+- **Hors champ** :
+  - Docker Desktop sous Windows : ce PC ne peut pas servir de poste vierge, car Docker Desktop y héberge d'autres piles. Le manuel ne l'exige pas.
+  - HTTPS local (`https-local.md`).
+  - Mise à jour (§ 6), à rejouer avec la rc.2 si elle existe.
+- **Écart de forme** : le service `frontend` est construit avec la cible `development` (serveur Vite et dossier monté, `Vérifié` l. 203-217). Ce n'est pas un écart au manuel, mais B devra le regarder pour un site en production (V1.1).
+- **Coût** : I ≈ 1 h-s (ce protocole). Q ≈ 2 h-s : compléments de P1 le 18 ≈ 0,5 ; P2 ≈ 1,5, sans compter le temps machine. B ≈ 0,5 h-s par écart majeur ou bloquant.
+- **Reuse-first** :
+  - **Adopt** : `wsl-proof.sh` et la CHECKLIST de Q pour P1, et `images_export.sh` / `images_import.sh` pour P2.
+  - **Learn** (non retenu) : Ansible ou cloud-init pour automatiser P2. La preuve porte justement sur le manuel lu par une personne ; automatiser la masquerait.
