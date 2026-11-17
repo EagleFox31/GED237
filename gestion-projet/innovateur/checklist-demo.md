@@ -32,10 +32,10 @@
 
 ### Données
 
-- [ ] **Q** — `docker compose exec api sh scripts/e2e_reset.sh demo` exécuté sur le poste principal ; compteurs affichés = `expected` (classés ≈ 330, à revoir 35–45, corbeille 8, verrous 3, versions 5).
-- [ ] **Q** — Dossier `demo-import/live/` (30 fichiers, dont 2 doublons volontaires) monté **en lecture seule** dans le conteneur api à **`/data/ingest`** (seul chemin conteneur, identique en e2e et en démo ; `INGEST_ALLOWED_ROOTS=/data/ingest`, tranché O 09/11, `spec-limite-upload.md` § 5) ; **non importé**.
+- [ ] **Q** — `docker compose exec api sh scripts/e2e_reset.sh demo` exécuté sur le poste principal ; compteurs affichés = `expected` du manifeste (classés 357, à revoir 51, total 408 ; corbeille 8, verrous 3, versions 5).
+- [ ] **Q** — Dossier `demo-import/live/` (30 fichiers, dont 2 doublons volontaires) monté **en lecture seule** dans le conteneur api à **`/data/ingest`** (seul chemin conteneur, identique en e2e et en démo ; `INGEST_ALLOWED_ROOTS=/data/ingest`, tranché O 09/11, `spec-limite-upload.md` § 5) ; **non importé**. Dossiers surveillés : exigent `INGEST_WATCH_FOLDERS` (`docker-compose.yml`) **et** le corpus monté sur `/data/ingest` ; chemin live `/data/ingest/live`.
 - [ ] **Q** — Pré-OCRisation complète du corpus (worker actif jusqu'à file vide : `celery inspect active` vide, `ocr_content` non nul sur les PDF image) ; recherche P5 testée sur le mot-clé prévu (résultat attendu noté).
-- [ ] **Q** — Règle 10 « Rapports financiers » **créée inactive** ; les ~15 documents cibles sont bien « à revoir ».
+- [ ] **Q** — Règle 10 « Rapports financiers » **créée inactive** ; les documents cibles sont bien « à revoir » (P6 : 51 à revoir au total, `expected.toReview` du manifeste, et non ≈ 15).
 - [ ] **Q** — *(lot 2, si fusionné au relevé du 19)* Les 9 règles actives du seed + la règle 10 visibles sur `/rules` ; **export** du fichier de règles puis **réimport à blanc** du même fichier : résultat « 0 créée, 0 mise à jour » (zéro écriture, `updated_at` inchangé) ; le fichier exporté est gardé dans la pochette (reprise des règles sur le poste de secours).
 - [ ] **Q** — *(lot 1, si fusionné)* Tuile « Doublons refusés » du tableau de bord = **12** après le reset (valeur `expected` du jeu D1) ; elle passera à **14** après l'import P2 (2 doublons volontaires) : les deux valeurs notées sur la fiche de P.
 - [ ] **Q** — *(lot 3a, si fusionné)* Export CSV du journal d'audit téléchargé sur le poste principal et **ouvert dans Excel** (accents lisibles, colonnes séparées, dates au bon format) ; Excel installé et testé **sur les deux postes**.
@@ -76,6 +76,7 @@
 - [ ] **O** — Seed vérifié : connexion `MGR001` réussie après le seed explicite (le compose ne seed pas ; `jeu-donnees-demo.md` § 2), puis déconnexion.
 - [ ] **Q** — Rapport Playwright du plan B ouvert dans un second onglet (local, `file://`), captures des 8 parcours vérifiées.
 - [ ] **O** — Téléphones en silencieux, notifications système coupées, Docker Desktop réduit (pas de fenêtre « mise à jour disponible »).
+- [ ] **O** — Images **construites la veille** (J-1) ou chargées depuis la clé USB : **pas de `docker compose build` ni de `--build` le jour J** (le build de l'image api télécharge ~180 Mo de wheels torch ; un téléchargement coupé échoue au contrôle de hash pip : incident du 17/11).
 - [ ] **O** — Point de reprise vérifié : `/health` = 200 sur les deux postes, même nombre de documents affiché sur `/spaces` DAF (poste de secours = restauration de la sauvegarde J-1).
 
 ### Pendant (P présente, O au clavier de secours)

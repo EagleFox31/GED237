@@ -154,7 +154,7 @@ test.describe('SC-AUTH-02 — Prolonger une session active', () => {
     expect(await page.evaluate(() => sessionStorage.getItem('post_login_destination')), 'destination mémorisée').toContain('/audit?e2e=destination');
   }
 
-  async function relog(page: Page, user: (typeof TEST_USERS)[keyof typeof TEST_USERS]) {
+  async function relog(page: Page, user: { institution: string; matricule: string; password: string }) {
     const lp = new LoginPage(page);
     await lp.fillCredentials(user.institution, user.matricule, user.password);
     await lp.submitLogin();
@@ -174,6 +174,15 @@ test.describe('SC-AUTH-02 — Prolonger une session active', () => {
     await loginAs('tenant_admin');
     await expireOn(page);
     await relog(page, TEST_USERS.collaborator);
+    await expect(page).not.toHaveURL(/\/audit/);
+    await new LoginPage(page).expectDashboardVisible();
+  });
+
+  test('E1 : un autre compte du même rôle (autre ministère) ne reprend pas la destination', async ({ page, loginAs }) => {
+    await loginAs('collaborator');
+    await expireOn(page);
+    // MINESUP001 est aussi collaborateur : même profil de rôle, compte et ministère différents.
+    await relog(page, { institution: 'Ministère de l’Enseignement Supérieur (MINESUP)', matricule: 'MINESUP001', password: 'Sup@2025' });
     await expect(page).not.toHaveURL(/\/audit/);
     await new LoginPage(page).expectDashboardVisible();
   });

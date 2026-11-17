@@ -529,6 +529,19 @@ première requête utilisateur.
 **Prévention** — (1) Un spec e2e ajouté ou modifié est **exécuté** avant fusion : la PR cite la commande et le résultat (`E2E_ARGS="--project=uat <spec>"`) ; « listé, non exécuté » = limite écrite, pas preuve. (2) Run `uat` complet obligatoire avant chaque tag rc (checklist de recette), à défaut d'un job CI planifié — à trancher par ci-qa (`ci.yml` hors de ce lot). (3) Objet de page = un écran : la fonctionnalité testée doit être rendue par la route du `goto()` choisi ; contrôle en relecture : `git grep -n "<Composant>" frontend/profiles` mène bien à la page de la route visée.
 **Leçon généralisée** — Un test qui ne tourne jamais n'est pas un filet, c'est une dette silencieuse : tout ensemble de tests hors CI doit avoir un déclencheur explicite (avant release, planifié) sinon il pourrit sans bruit. Et quand une fonctionnalité change d'écran, ses objets de page et ses specs font partie du changement.
 
+### LESSON-2026-035 — Comparaison visuelle avec API simulée « réussie » sur une page plantée
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing
+- **Statut :** captured (contrôle appliqué aux captures ponctuelles ; aucun script versionné concerné)
+- **Liens :** PR #122 (migration Tailwind compilé), `frontend/components/Dashboard.tsx`, `frontend/App.tsx` (`ProfileDashboard`)
+
+**Contexte** — Pour vérifier #122 sans pile complète, les écrans login, dashboard et règles ont été comparés (build CDN vs build compilé) avec une API simulée répondant `{}` ou `[]` à toute requête, sur la base de styles calculés et de captures.
+**Échec / near miss** — Le « dashboard » comparé était l'écran d'erreur de l'application : la réponse `{}` faisait planter le composant (`metrics.workflows.completed` sur un objet vide), et le profil de test (`tenant`) n'affichait de toute façon pas ce composant, réservé aux profils hors des sept rôles connus. Les deux builds affichaient la même page d'erreur, donc « aucune différence ». Le défaut n'a été vu qu'en cherchant les tuiles au survol.
+**Cause racine** — (1) La comparaison mesurait l'égalité de deux pages, pas la présence de la page voulue. (2) Une maquette d'API trop pauvre ne respecte pas le contrat de type attendu par l'écran. (3) Aucun contrôle ne confirmait que l'écran visé était celui rendu.
+**Résolution** — Maquette complète (forme de `TenantMetrics`, `[]` pour les listes), profil adapté à l'écran, puis comparaison refaite : tuiles et sélecteur identiques. Seuls login et règles du premier passage étaient réellement rendus.
+**Prévention** — Avant toute capture ou comparaison de styles : (1) asserter un sélecteur métier de l'écran visé (titre ou tuile visible) ; (2) asserter l'absence de l'écran d'erreur (texte « Une erreur est survenue ») ; (3) faire échouer le script sinon ; (4) bâtir la maquette depuis le type du contrat (`types.ts`), pas depuis `{}`. Le script de capture n'est pas versionné : la règle vaut pour tout script futur sous `e2e/` ou `scripts/`.
+**Leçon généralisée** — Une comparaison « sans différence » ne prouve rien tant qu'on n'a pas prouvé que ce qui est comparé est bien l'objet visé.
 ### LESSON-2026-036 — Specs unitaires purs rattachés à un projet e2e dépendant d'une pile : jamais exécutés en CI
 
 - **Date :** 2026-11-17
