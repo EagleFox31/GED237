@@ -48,7 +48,7 @@ Chaque profil ne voit que ce qui le concerne. C'est voulu : l'administrateur pr�
 
 - **Collaborateur** : vos propres documents seulement, dans « Mes Documents » comme dans la recherche.
 - **Responsable et Lecteur** : les documents de votre service.
-- **Admin Institution et Auditeur** : toute l'institution.
+- **Admin Institution, Admin Service et Auditeur** : toute l'institution.
 - **Importer pour d'autres agents** (« Import en masse »), l'« Explorateur documentaire » et « Ma bannette » : réservés à l'administrateur. Le Responsable et le Collaborateur n'importent que leurs propres fichiers.
 
 ---
@@ -134,7 +134,7 @@ Vous suivez l'activité de votre service.
 ### Vos 3 gestes
 
 1. **« Tableau de Bord »** : lisez les « Indicateurs du Service » : « Documents », « Workflows en attente » (circuits en cours), « Workflows complétés ».
-2. **« Mes Documents »** : consultez les documents de votre service.
+2. **« Mes Documents »** : consultez les documents. Dans cette version, vous voyez ceux de toute l'institution, pas seulement de votre service.
 3. **« Tâches & Suivi »** : traitez les étapes qui vous attendent.
 
 ### Votre menu
