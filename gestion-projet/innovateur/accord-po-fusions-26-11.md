@@ -103,9 +103,9 @@ Le 28.
 
 > Accord PO du 26/11 : fusion avant le 30 de #155, à partir du 28, avec `NOTIFICATIONS_BROADCAST_MODE=off` laissé par défaut. Passe #169 verte et contrôle de la cloche par F (liens ci-dessus).
 
-## Compléments proposés à O
+## Compléments retenus par O le 17/11
 
-Q et F décident s'ils les ajoutent.
+Q exécute les passes, F le contrôle de la cloche ; O les prévient le 25.
 
 | Lot | Complément | Pourquoi |
 |---|---|---|
