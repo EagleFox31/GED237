@@ -20,6 +20,17 @@ except ImportError:
     resend = None  # type: ignore
 
 
+def mask_email(address: str) -> str:
+    """``awa.ndi@minfi.cm`` -> ``a***@minfi.cm``: enough to recognise, not to harvest.
+
+    Addresses are personal data: logs only ever carry this form.
+    """
+    local, _, domain = (address or "").strip().partition("@")
+    if not local or not domain:
+        return "***"
+    return f"{local[0]}***@{domain}"
+
+
 def _is_active() -> bool:
     return bool(
         settings.EMAIL_ENABLED and settings.RESEND_API_KEY and _RESEND_AVAILABLE
@@ -34,7 +45,9 @@ def send_email(to: str, subject: str, html: str) -> bool:
     """
     if not _is_active():
         logger.info(
-            "Email skipped (disabled or not configured) to=%s subject=%s", to, subject
+            "Email skipped (disabled or not configured) to=%s subject=%s",
+            mask_email(to),
+            subject,
         )
         return False
 
@@ -48,10 +61,10 @@ def send_email(to: str, subject: str, html: str) -> bool:
                 "html": html,
             }
         )
-        logger.info("Email sent to=%s subject=%s", to, subject)
+        logger.info("Email sent to=%s subject=%s", mask_email(to), subject)
         return True
     except Exception:
-        logger.exception("Failed to send email to=%s", to)
+        logger.exception("Failed to send email to=%s", mask_email(to))
         return False
 
 

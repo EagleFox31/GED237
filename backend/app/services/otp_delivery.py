@@ -10,6 +10,7 @@ The code itself is never logged nor audited; only a masked target is.
 """
 
 import asyncio
+import logging
 import hashlib
 import hmac
 import html
@@ -19,6 +20,9 @@ from typing import Optional, Protocol
 from app.core.config import OTP_CHANNEL_NAMES, settings
 from app.models.user import User
 from app.services import email_service
+from app.services.email_service import mask_email
+
+logger = logging.getLogger(__name__)
 
 REASON_NO_CONTACT = "no_contact"
 REASON_SEND_FAILED = "send_failed"
@@ -44,14 +48,6 @@ class OtpChannel(Protocol):
     async def deliver(
         self, user: User, code: str, *, expires_in: int
     ) -> DeliveryResult: ...
-
-
-def mask_email(address: str) -> str:
-    """``awa.ndi@minfi.cm`` -> ``a***@minfi.cm``: enough to recognise, not to harvest."""
-    local, _, domain = address.partition("@")
-    if not local or not domain:
-        return "***"
-    return f"{local[0]}***@{domain}"
 
 
 class DevResponseChannel:
@@ -96,13 +92,21 @@ class EmailChannel:
         if not address:
             return DeliveryResult(delivered=False, reason=REASON_NO_CONTACT)
         target = mask_email(address)
-        # The provider client is blocking: kept off the event loop.
-        sent = await asyncio.to_thread(
-            email_service.send_email,
-            address,
-            "Votre code de vérification E-Dossier",
-            _email_body(user, code, expires_in),
-        )
+        # The provider client is blocking: kept off the event loop, and not waited
+        # for beyond EMAIL_SEND_TIMEOUT_SECONDS (the login then answers 503).
+        try:
+            sent = await asyncio.wait_for(
+                asyncio.to_thread(
+                    email_service.send_email,
+                    address,
+                    "Votre code de vérification E-Dossier",
+                    _email_body(user, code, expires_in),
+                ),
+                timeout=settings.EMAIL_SEND_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Login code to=%s: provider timed out", target)
+            sent = False
         if not sent:
             return DeliveryResult(
                 delivered=False, target=target, reason=REASON_SEND_FAILED
