@@ -420,12 +420,13 @@ const SpacesPage: React.FC = () => {
 
   // Total du dossier : le serveur compte tous les documents filtrés, la page n'en
   // charge que SPACES_PAGE_SIZE (#256). Les documents de sous-services masqués sur
-  // la page sont retirés ; le compte ne descend jamais sous ce qui est affiché.
+  // la page sont retirés quand tout est chargé. Paginé avec des sous-services, on ne
+  // connaît que la page : on affiche le total serveur, sous-services compris.
   const isPaginated = totalDocuments > documents.length;
-  const folderDocumentCount = Math.max(
-    totalDocuments - hiddenDescendantDocumentsCount,
-    visibleDocuments.length
-  );
+  const countIncludesSubServices = isPaginated && hiddenDescendantDocumentsCount > 0;
+  const folderDocumentCount = countIncludesSubServices
+    ? totalDocuments
+    : Math.max(totalDocuments - hiddenDescendantDocumentsCount, visibleDocuments.length);
 
   const reviewCount = useMemo(
     () =>
@@ -646,7 +647,10 @@ const SpacesPage: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-500">
-                <span>{folderDocumentCount} document{folderDocumentCount > 1 ? 's' : ''}</span>
+                <span>
+                  {folderDocumentCount} document{folderDocumentCount > 1 ? 's' : ''}
+                  {countIncludesSubServices ? ' (sous-services compris)' : ''}
+                </span>
                 <span>·</span>
                 <span>
                   {reviewCount} à revoir{isPaginated ? ' sur cette page' : ''}
