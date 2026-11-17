@@ -32,18 +32,18 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
       },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
     },
     {
       name: 'authed-chromium',
@@ -72,6 +72,11 @@ export default defineConfig({
       // API-only comparison of the demo dataset with demo-manifest (expected); run on a stack reset with the demo profile.
       name: 'demo',
       testMatch: /demo-counters\.spec\.ts/,
+    },
+    {
+      // Post-rc1 lots (API only, real backend, self-seeding): run with the smoke project on every PR.
+      name: 'post-rc1',
+      testMatch: /specs[\\/]post-rc1[\\/].*\.spec\.ts/,
     },
     {
       // UAT campaign (gestion-projet/MATRICE_UAT_E2E): one spec per journey, real API, no mocks.
