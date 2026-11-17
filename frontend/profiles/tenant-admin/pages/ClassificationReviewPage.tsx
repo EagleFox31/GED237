@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../../services/api';
+import {
+  auditDetailsLine,
+  classificationStatusLabel,
+  documentStatusLabel,
+  processingModeLabel,
+} from '../../../lib/reviewLabels';
 import { categoriesApi, type DocumentCategory } from '../../../services/categories.api';
 import type {
   AuditLogEntry,
@@ -114,14 +120,16 @@ const ClassificationReviewPage: React.FC = () => {
       ? categoriesById.get(selectedImportItem.detected_document_category_id) || 'Non classé'
       : 'Non classé');
   const selectedReviewWorkflowStatus = selectedDocument
-    ? selectedDocument.status
+    ? documentStatusLabel(selectedDocument.status)
     : 'En attente de finalisation';
-  const selectedReviewProcessingMode =
-    selectedDocument?.processing_mode || selectedReview?.processing_mode || 'archive';
+  const selectedReviewProcessingMode = processingModeLabel(
+    selectedDocument?.processing_mode || selectedReview?.processing_mode || 'archive',
+  );
   const selectedReviewLogicalPath =
     selectedDocument?.logical_space_path || selectedImportItem?.logical_space_path || null;
-  const selectedReviewClassificationStatus =
-    selectedDocument?.classification_status || selectedImportItem?.status || 'pending';
+  const selectedReviewClassificationStatus = classificationStatusLabel(
+    selectedDocument?.classification_status || selectedImportItem?.status || 'pending',
+  );
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -413,8 +421,8 @@ const ClassificationReviewPage: React.FC = () => {
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Document</p>
                   <p className="text-sm font-bold text-slate-800">{selectedReviewCategoryName}</p>
-                  <p className="text-xs text-slate-500 mt-1">Statut GED: {selectedReviewWorkflowStatus}</p>
-                  <p className="text-xs text-slate-500">Mode: {selectedReviewProcessingMode}</p>
+                  <p className="text-xs text-slate-500 mt-1">Statut : {selectedReviewWorkflowStatus}</p>
+                  <p className="text-xs text-slate-500">Traitement : {selectedReviewProcessingMode}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Classement actuel</p>
@@ -450,7 +458,8 @@ const ClassificationReviewPage: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {auditLogs.map((log) => {
-                    const meta = ACTION_LABELS[log.action] || { label: log.action, icon: 'history', color: 'bg-slate-100 text-slate-500' };
+                    const meta = ACTION_LABELS[log.action] || { label: 'Autre action', icon: 'history', color: 'bg-slate-100 text-slate-500' };
+                    const details = auditDetailsLine(log.new_data);
                     return (
                       <div key={log.id} className="flex items-start gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
@@ -463,11 +472,7 @@ const ClassificationReviewPage: React.FC = () => {
                               {new Date(log.created_at).toLocaleString('fr-FR')}
                             </span>
                           </div>
-                          {log.new_data && Object.keys(log.new_data).length > 0 && (
-                            <p className="text-xs text-slate-500 mt-1 break-words">
-                              {JSON.stringify(log.new_data)}
-                            </p>
-                          )}
+                          {details && <p className="text-xs text-slate-500 mt-1 break-words">{details}</p>}
                         </div>
                       </div>
                     );

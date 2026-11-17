@@ -246,6 +246,22 @@ export class UatApi {
     );
   }
 
+  /** Accepts a visa step as its assignee, on the current version (same body as « Valider » in /tasks). */
+  async acceptVisa(stepId: string, versionId: string): Promise<void> {
+    await ok(
+      await this.request.post(`${API_URL}/workflows/step/${stepId}/actions`, {
+        headers: this.headers,
+        data: { action_type: 'visa', outcome: 'accepted', document_version_id: versionId },
+      }),
+      `accept step ${stepId}`,
+    );
+  }
+
+  /** Raw archive request: returns the response so refusals (403, 409) can be asserted. */
+  async tryArchive(documentId: string) {
+    return this.request.patch(`${API_URL}/documents/${documentId}`, { headers: this.headers, data: { status: 'archived' } });
+  }
+
   async workflowSteps(documentId: string): Promise<WorkflowStep[]> {
     return ok(
       await this.request.get(`${API_URL}/workflows/document/${documentId}/steps`, { headers: this.headers }),

@@ -547,7 +547,7 @@ première requête utilisateur.
 
 - **Date :** 2026-11-17
 - **Catégorie :** testing
-- **Statut :** captured (contrôle appliqué aux captures ponctuelles ; aucun script versionné concerné)
+- **Statut :** prevention-added (#138 : script versionné `frontend/e2e/visual/`, garde `screen-guard.ts` et test qui la prouve)
 - **Liens :** PR #122 (migration Tailwind compilé), `frontend/components/Dashboard.tsx`, `frontend/App.tsx` (`ProfileDashboard`)
 
 **Contexte** — Pour vérifier #122 sans pile complète, les écrans login, dashboard et règles ont été comparés (build CDN vs build compilé) avec une API simulée répondant `{}` ou `[]` à toute requête, sur la base de styles calculés et de captures.
@@ -598,3 +598,31 @@ première requête utilisateur.
 **Résolution** — Entrée retirée : aucune page de recherche n'existe. La recherche plein texte passe par le bandeau, et le filtre par l'Explorateur documentaire. Ensuite, la version durcie de GUARD-07 a trouvé un 2e lien mort, « Accès & Permissions » (`security_config`). La 1re version l'avait laissé passer. L'entrée est retirée elle aussi : `/authz` est réservé au super admin, et les rôles et permissions sont gérés dans « Agents & Rôles ».
 **Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
 **Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
+
+### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
+
+- **Date :** 2026-11-17
+- **Catégorie :** security / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/users.py` (`_assert_role_grantable`, `update_user`), `backend/tests/api/test_users.py`
+
+**Contexte** — POST et PATCH /users acceptent `role_id` (ou `role_code` à la création). Le droit `users:create`/`users:update` était le seul contrôle.
+**Échec / near miss** — Relevé en revue de #222 : un tenant_admin pouvait donner le rôle super_admin à un agent ou à lui-même, donc l'accès à toutes les institutions.
+**Cause racine** — L'autorisation portait sur l'action (« modifier un agent »), pas sur la valeur écrite. Le rôle attribué n'était comparé à rien.
+**Résolution** — Seul un super_admin attribue super_admin ; personne n'attribue un rôle plus élevé que le sien (`hierarchy_level` plus bas) ; personne ne change son propre rôle. Refus en 403 explicite (`ROLE_GRANT_FORBIDDEN`, `OWN_ROLE_CHANGE_FORBIDDEN`). PATCH refuse aussi un e-mail déjà pris (409 `USER_EMAIL_TAKEN`).
+**Prévention** — Tests de non-régression en POST et en PATCH : tenant_admin vers super_admin refusé (sur lui-même et sur un agent), rôle inférieur et super_admin autorisés.
+**Leçon généralisée** — Un droit d'écriture sur une ressource ne couvre pas les champs qui portent eux-mêmes un privilège (rôle, institution, rattachement). Chaque champ de ce type a son contrôle de valeur et son test de refus.
+
+### LESSON-2026-046 — Données e2e partagées consommées par une spec : la suite dépendait de l'ordre de lancement
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / e2e
+- **Statut :** prevention-added
+- **Liens :** `frontend/e2e/specs/uat/validation-cycle.spec.ts`, `frontend/e2e/specs/seed.spec.ts`, `frontend/e2e/data/seed-manifest.json` (`pendingTasks`), `frontend/e2e/specs/demo-counters.spec.ts`, `frontend/e2e/data/demo.ts` (`DEMO_P8_TITLES`)
+
+**Contexte** — Le seed e2e crée 3 tâches de visa pour MGR001 (`E2E-VAL-*`). `seed.spec` vérifie qu'elles sont en attente ; `validation-cycle` les validait et les rejetait. Cette spec est dans deux projets (`smoke` et `uat`).
+**Échec / near miss** — Suite complète du 17/11 sur f8f1d75 : `seed.spec:58` et SC-VAL-01 [smoke] en échec. MGR001 n'avait plus qu'une tâche sur trois : le 1er passage de `validation-cycle` avait consommé les deux autres. Même jour, `demo-counters:113` attendait 357 documents et en trouvait 359 : les 2 documents P8, ajoutés après le jeu de démo par `e2e_reset.sh demo`.
+**Cause racine** — Une spec qui modifie l'état consommait des données partagées, créées une seule fois par remise à zéro. Le passage n'était donc ni rejouable ni indépendant de l'ordre. Pour demo-counters : le manifeste P8 annonce que ses documents ne comptent pas dans `expected`, mais la spec ne les excluait pas.
+**Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
+**Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
+**Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.

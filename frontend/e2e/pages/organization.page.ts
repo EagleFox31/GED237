@@ -2,7 +2,7 @@ import { type Page, type Locator, expect } from '@playwright/test';
 
 /**
  * Page Object Model for OrganizationPage (profiles/tenant-admin/pages/OrganizationPage.tsx).
- * Covers: org tree sidebar, unit detail tabs (info, staff, chart), create org/user modals.
+ * Covers: org tree sidebar, unit detail tabs (info, staff, chart), create unit modal, agent creation via /users.
  */
 export class OrganizationPage {
   readonly page: Page;
@@ -49,18 +49,17 @@ export class OrganizationPage {
   readonly orgModal: Locator;
   readonly orgNameInput: Locator;
   readonly orgCodeInput: Locator;
-  readonly orgParentInput: Locator;
-  readonly orgDescriptionInput: Locator;
   readonly orgSubmitButton: Locator;
 
-  // Create User modal
+  // Création d'agent : « Créer un agent » ouvre le formulaire de /users (AgentsListTab).
   readonly userModal: Locator;
+  readonly userMatriculeInput: Locator;
   readonly userEmailInput: Locator;
   readonly userFirstNameInput: Locator;
   readonly userLastNameInput: Locator;
-  readonly userPasswordInput: Locator;
   readonly userRoleSelect: Locator;
   readonly userSubmitButton: Locator;
+  readonly tempPasswordDialog: Locator;
 
   constructor(page: Page) {
     // Sidebar
@@ -68,7 +67,7 @@ export class OrganizationPage {
     this.filterInput = page.getByPlaceholder('Filtrer la structure...');
     this.refreshButton = page.locator('button:has(span:text("refresh"))');
     this.treeNodes = page.locator('.custom-scrollbar .select-none div.cursor-pointer, .custom-scrollbar .select-none [class*="cursor-pointer"]').filter({ hasText: /\S/ });
-    this.newStructureButton = page.getByRole('button', { name: /nouvelle structure/i });
+    this.newStructureButton = page.getByRole('button', { name: /nouveau service racine/i });
     this.loadingText = page.getByText('Chargement...');
     this.emptyTreeText = page.getByText("Aucune structure d'organisation définie.");
 
@@ -96,27 +95,27 @@ export class OrganizationPage {
     this.staffTable = page.locator('table');
     this.staffRows = page.locator('table tbody tr');
     this.noAgentText = page.getByText('Aucun agent assigné');
-    this.createUserButton = page.getByRole('button', { name: /créer utilisateur/i });
+    this.createUserButton = page.getByRole('button', { name: /créer un agent/i });
 
     // Chart tab
     this.chartView = page.getByText('Vue Hiérarchique');
 
     // Create Org modal
-    this.orgModal = page.locator('.fixed.inset-0').filter({ hasText: 'Nouvelle Structure' });
-    this.orgNameInput = this.orgModal.locator('input').first();
-    this.orgCodeInput = this.orgModal.locator('input').nth(1);
-    this.orgParentInput = this.orgModal.locator('input').nth(2);
-    this.orgDescriptionInput = this.orgModal.locator('textarea');
-    this.orgSubmitButton = this.orgModal.getByRole('button', { name: /créer la structure/i });
+    this.orgModal = page.getByRole('dialog').filter({ hasText: /nouveau service racine/i });
+    this.orgNameInput = this.orgModal.getByPlaceholder('Direction Générale');
+    this.orgCodeInput = this.orgModal.getByPlaceholder('DG');
+    this.orgSubmitButton = this.orgModal.getByRole('button', { name: /^créer$/i });
 
-    // Create User modal
-    this.userModal = page.locator('.fixed.inset-0').filter({ hasText: 'Nouvel Utilisateur' });
-    this.userEmailInput = this.userModal.locator('input[type="email"]');
-    this.userFirstNameInput = this.userModal.locator('input[type="text"]').first();
-    this.userLastNameInput = this.userModal.locator('input[type="text"]').nth(1);
-    this.userPasswordInput = this.userModal.locator('input[type="password"]');
-    this.userRoleSelect = this.userModal.locator('select');
-    this.userSubmitButton = this.userModal.getByRole('button', { name: /créer le compte/i });
+    // Formulaire « Nouvel agent » (/users) : libellés non reliés aux champs, ordre du formulaire.
+    this.userModal = page.locator('.fixed.inset-0').filter({ has: page.getByRole('heading', { name: /nouvel agent/i }) });
+    const agentForm = page.locator('form#agent-form');
+    this.userMatriculeInput = agentForm.getByPlaceholder('MINFI001');
+    this.userEmailInput = agentForm.getByPlaceholder('agent@minfi.gov.cm');
+    this.userFirstNameInput = agentForm.locator('input').nth(2);
+    this.userLastNameInput = agentForm.locator('input').nth(3);
+    this.userRoleSelect = agentForm.locator('select').first();
+    this.userSubmitButton = page.getByRole('button', { name: /créer l['’]agent/i });
+    this.tempPasswordDialog = page.locator('.fixed.inset-0').filter({ hasText: /mot de passe temporaire/i });
 
     this.page = page;
   }
@@ -173,12 +172,9 @@ export class OrganizationPage {
     await expect(this.orgModal).toBeVisible();
   }
 
-  async fillOrgForm(name: string, code: string, description?: string) {
+  async fillOrgForm(name: string, code: string) {
     await this.orgNameInput.fill(name);
     await this.orgCodeInput.fill(code);
-    if (description) {
-      await this.orgDescriptionInput.fill(description);
-    }
   }
 
   async submitOrgForm() {
@@ -194,17 +190,17 @@ export class OrganizationPage {
   async openCreateUserModal() {
     await this.switchToStaffTab();
     await this.createUserButton.click();
+    await expect(this.page).toHaveURL(/\/users/);
     await expect(this.userModal).toBeVisible();
   }
 
-  async fillUserForm(email: string, firstName: string, lastName: string, password: string, role?: string) {
+  /** Remplit le formulaire « Nouvel agent » avec le premier rôle proposé. */
+  async fillUserForm(matricule: string, email: string, firstName: string, lastName: string) {
+    await this.userMatriculeInput.fill(matricule);
     await this.userEmailInput.fill(email);
     await this.userFirstNameInput.fill(firstName);
     await this.userLastNameInput.fill(lastName);
-    await this.userPasswordInput.fill(password);
-    if (role) {
-      await this.userRoleSelect.selectOption(role);
-    }
+    await this.userRoleSelect.selectOption({ index: 1 });
   }
 
   async submitUserForm() {
