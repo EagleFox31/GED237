@@ -77,8 +77,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    # Filtered total of list endpoints, read cross-origin by the frontend.
-    expose_headers=["X-Total-Count"],
+    # Read cross-origin by the frontend: filtered total of list endpoints, and
+    # whether recently opened documents are remembered (GET /me/recent).
+    expose_headers=["X-Total-Count", "X-Recent-Tracking-Enabled"],
 )
 
 # Include API Router
