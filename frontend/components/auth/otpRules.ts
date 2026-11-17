@@ -44,7 +44,11 @@ const ADMIN_ROLES = ['super_admin', 'tenant_admin'];
  * jamais soi-même ; un super_admin, les comptes super_admin et tenant_admin ; un tenant_admin,
  * les agents de son institution (l'écran ne montre que ceux-là). Sinon le serveur répond 403.
  */
-export const canResetApp = (actorRole: string | undefined, targetRole: string | undefined, isSelf: boolean): boolean => {
+export const canResetApp = (
+  actorRole: string | null | undefined,
+  targetRole: string | null | undefined,
+  isSelf: boolean,
+): boolean => {
   if (isSelf) return false;
   const actor = (actorRole ?? '').toLowerCase();
   const targetIsAdmin = ADMIN_ROLES.includes((targetRole ?? '').toLowerCase());

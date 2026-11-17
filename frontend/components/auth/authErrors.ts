@@ -28,7 +28,7 @@ export const rateLimitMessage = (detail: string | undefined): string => {
   const window = /per\s+(\d+)\s+(second|minute|hour|day)/i.exec(detail ?? '');
   if (!window) return TOO_MANY_TRIES;
   const [, count, unit] = window;
-  const unitLower = unit.toLowerCase();
+  const unitLower = (unit ?? '').toLowerCase();
   const withinMinute = unitLower === 'second' || (unitLower === 'minute' && Number(count) <= 1);
   return withinMinute ? TOO_MANY_TRIES : TOO_MANY_TRIES_LONGER;
 };

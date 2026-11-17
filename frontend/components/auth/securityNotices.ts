@@ -47,7 +47,7 @@ export const securityNoticeContact = (role: string | undefined): string =>
     ? 'Pas vous ? Contactez un administrateur de plateforme.'
     : 'Pas vous ? Contactez votre administrateur.';
 
-export const saveSecurityNotices =(notices: SecurityNotice[] | undefined): void => {
+export const saveSecurityNotices = (notices: SecurityNotice[] | undefined): void => {
   try {
     if (notices && notices.length > 0) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(notices));
     else sessionStorage.removeItem(STORAGE_KEY);
