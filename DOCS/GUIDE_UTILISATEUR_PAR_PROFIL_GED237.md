@@ -89,7 +89,7 @@ Vous ouvrez les institutions sur la plateforme. Vous ne gérez pas leur travail 
 
 Les mots de passe techniques ne passent jamais par l'écran.
 
-Dans cette version, les droits ne se règlent pas à l'écran. Le serveur les garde dans un fichier, et l'onglet des règles de « Gestion AuthZ » affiche une erreur au lieu de la liste.
+Dans cette version, les droits ne se règlent pas à l'écran. Le serveur les garde dans un fichier, et l'onglet des règles de « Gestion AuthZ » indique que les droits ne sont pas modifiables sur cette installation.
 
 Dans la prochaine version :
 - la durée des sessions, le nombre d'essais de connexion et la taille maximale d'un envoi passeront à l'écran ;
@@ -134,7 +134,7 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
   - « Exporter la vue » produit un fichier Excel ; sur l'onglet « Activité documentaire », un fichier CSV.
   - « Générer un rapport » produit un fichier Excel, CSV ou PDF. Pour le PDF, la fenêtre d'impression s'ouvre : choisissez « Enregistrer au format PDF ».
 - **« Paramètres »** : guide des rôles, position du menu (à gauche ou en haut), liste des unités, liste de contrôle de l'installation. Les sous-titres affichés sous ce menu ne correspondent pas encore à la page.
-- **Rechercher un agent** : ouvrez « Agents & Rôles » et tapez dans la barre du haut. Les droits se règlent aussi là.
+- **Rechercher un agent** : ouvrez « Agents & Rôles » et tapez dans la barre du haut. Le rôle de chaque agent se choisit aussi là.
 
 ### Bon à savoir
 
