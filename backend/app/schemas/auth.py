@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 from typing import Literal, Optional
 
 # ASCII only: "\d" also matches other scripts' digits, which the code checks
@@ -121,6 +122,14 @@ class UserInfo(BaseModel):
     must_change_password: bool = False
 
 
+class SecurityNotice(BaseModel):
+    """A change to the account's authenticator app since its previous login."""
+
+    event: Literal["totp_enrolled", "totp_disabled", "totp_reset"]
+    at: datetime
+    by_self: bool  # False: done by an administrator (reset)
+
+
 class TokenResponse(BaseModel):
     """Token response schema"""
 
@@ -128,6 +137,8 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     user: UserInfo
+    # Shown once by the client as a banner; empty when nothing changed.
+    security_notices: list[SecurityNotice] = []
 
 
 class RefreshTokenRequest(BaseModel):

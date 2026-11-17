@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import (
@@ -574,10 +575,14 @@ async def reset_user_totp(
     """Remove the user's authenticator app after an in-person check (lost phone,
     DEC-2026-004). The holder enrols a new one at the next login.
 
-    A superior only, never oneself: an agent by a tenant_admin of the same
-    institution, a tenant_admin by a super_admin, a super_admin by another
-    super_admin. Audited, and the holder is told by e-mail. 204 also when there
-    was no app (nothing written)."""
+    A superior only, never oneself: an agent by a tenant_admin of its own
+    institution; a tenant_admin or a super_admin by a super_admin of any
+    institution. Audited, and the holder is told by e-mail. 204 also when there
+    was no app (nothing written); 409 when the server runs without the app."""
+    if not settings.AUTH_TOTP_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=totp.DISABLED_MESSAGE
+        )
     query = select(User).options(selectinload(User.role)).filter(User.id == user_id)
     if _role_code(current_user) != totp.SUPER_ADMIN:
         # Out of the caller's institution: as if it did not exist.

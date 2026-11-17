@@ -17,7 +17,7 @@ import pytest_asyncio
 from cryptography.fernet import Fernet
 from httpx import AsyncClient
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.api.v1.endpoints import auth as auth_endpoints
 from app.api.v1.endpoints import notifications
@@ -433,6 +433,7 @@ async def test_required_role_without_app_enrols_before_any_token(
     )
     assert done.status_code == 200, done.text
     assert done.json()["access_token"] and done.json()["refresh_token"]
+    assert done.json()["security_notices"] == []  # its own enrolment is no news
     assert [m.to for m in outbox.messages] == [HOLDER]
     assert "ajoutée" in outbox.messages[0].html
     for action in ("totp_enrolment_required", "totp_enrolled", "login"):
@@ -709,15 +710,67 @@ async def test_tenant_admin_resets_an_agent_audited_and_holder_told(
         assert len(outbox.messages) == 1
 
 
+async def _seeded_role_is(db, db_seed, code: str) -> None:
+    await db.execute(
+        update(Role).where(Role.id == db_seed["role_id"]).values(code=code)
+    )
+    await db.commit()
+
+
 @pytest.mark.asyncio
-async def test_super_admin_of_another_institution_resets(
+async def test_super_admin_resets_a_tenant_admin_of_another_institution(
     client_as, db_session, db_seed, outbox
 ):
     await _seed_app(db_session, db_seed)
+    await _seeded_role_is(db_session, db_seed, "tenant_admin")
     chief = await _real_user(db_session, db_seed, "SA002")
     async with client_as("super_admin", id=chief.id, tenant_id=uuid.uuid4()) as client:
         assert (await client.post(_reset_url(db_seed))).status_code == 204
     assert await _app_count(db_session) == 0
+    assert (await _audit(db_session, "totp_reset"))[0].new_data["via"] == "app"
+
+
+@pytest.mark.parametrize(
+    "actor, target, same_tenant, allowed",
+    [
+        ("super_admin", "super_admin", False, True),
+        ("super_admin", "tenant_admin", False, True),
+        ("super_admin", "collaborator", True, False),  # an agent: never
+        ("super_admin", "unit_admin", False, False),
+        ("tenant_admin", "collaborator", True, True),
+        ("tenant_admin", "unit_admin", True, True),
+        ("tenant_admin", "collaborator", False, False),
+        ("tenant_admin", "tenant_admin", True, False),
+        ("tenant_admin", "super_admin", True, False),
+        ("unit_admin", "collaborator", True, False),
+    ],
+)
+def test_who_resets_whom(actor, target, same_tenant, allowed):
+    tenant = uuid.uuid4()
+    assert (
+        totp.reset_allowed(
+            actor_id=uuid.uuid4(),
+            actor_role=actor,
+            actor_tenant=tenant,
+            target_id=uuid.uuid4(),
+            target_role=target,
+            target_tenant=tenant if same_tenant else uuid.uuid4(),
+        )
+        is allowed
+    )
+
+
+@pytest.mark.asyncio
+async def test_reset_is_refused_when_the_server_runs_without_the_app(
+    client_as, db_session, db_seed, monkeypatch
+):
+    await _seed_app(db_session, db_seed)
+    monkeypatch.setattr(settings, "AUTH_TOTP_ENABLED", False)
+    async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as client:
+        refused = await client.post(_reset_url(db_seed))
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == totp.DISABLED_MESSAGE
+    assert await _app_count(db_session) == 1
 
 
 @pytest.mark.asyncio
@@ -725,6 +778,8 @@ async def test_super_admin_of_another_institution_resets(
     "role, same_tenant, self_reset, expected",
     [
         ("tenant_admin", False, False, 404),  # another institution: not even seen
+        ("super_admin", False, False, 403),  # an agent: its own tenant_admin only
+        ("super_admin", True, False, 403),
         ("collaborator", True, False, 403),
         ("unit_admin", True, False, 403),
         ("super_admin", True, True, 403),  # the holder, whatever the role
@@ -753,20 +808,36 @@ async def test_reset_of_an_unknown_account_is_404(client_as, db_seed):
     assert missing.status_code == 404
 
 
+async def _super_admin(db, db_seed, matricule: str, *, active: bool = True) -> User:
+    if await db.get(Role, 1) is None:
+        db.add(
+            Role(
+                id=1,
+                code="super_admin",
+                label="Super administrateur",
+                hierarchy_level=0,
+            )
+        )
+    user = await _real_user(db, db_seed, matricule)
+    user.role_id = 1
+    user.is_active = active
+    await db.commit()
+    return user
+
+
+def _ops_args(operator: str, *extra: str):
+    return reset_totp.parse_args(
+        ["--institution", "TESTMIN", "--matricule", "TEST001", "--operator", operator]
+        + list(extra)
+    )
+
+
 @pytest.mark.asyncio
 async def test_ops_script_shows_first_then_resets(db_session, db_seed, outbox):
     """The last super_admin: reset from the server, after an in-person check."""
     await _seed_app(db_session, db_seed)
-    args = reset_totp.parse_args(
-        [
-            "--institution",
-            "TESTMIN",
-            "--matricule",
-            "TEST001",
-            "--operator",
-            "Exploitant",
-        ]
-    )
+    operator = await _super_admin(db_session, db_seed, "SA002")
+    args = _ops_args("SA002")
     lines: list[str] = []
     assert await reset_totp.run(db_session, args, out=lines.append) == 0
     assert lines[-1].startswith("Dry run")
@@ -778,8 +849,8 @@ async def test_ops_script_shows_first_then_resets(db_session, db_seed, outbox):
     assert await _app_count(db_session) == 0
     rows = await _audit(db_session, "totp_reset")
     assert len(rows) == 1
-    assert rows[0].user_id is None
-    assert rows[0].new_data["by"] == "ops:Exploitant"
+    assert rows[0].user_id == operator.id
+    assert (rows[0].new_data["by"], rows[0].new_data["via"]) == ("SA002", "ops-script")
     assert [m.to for m in outbox.messages] == [HOLDER]
 
     assert await reset_totp.run(db_session, args, out=lines.append) == 0
@@ -787,9 +858,72 @@ async def test_ops_script_shows_first_then_resets(db_session, db_seed, outbox):
     assert len(await _audit(db_session, "totp_reset")) == 1
 
     unknown = reset_totp.parse_args(
-        ["--institution", "TESTMIN", "--matricule", "NOPE", "--operator", "Exploitant"]
+        ["--institution", "TESTMIN", "--matricule", "NOPE", "--operator", "SA002"]
     )
     assert await reset_totp.run(db_session, unknown, out=lines.append) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operator, extra",
+    [
+        ("TEST001", []),  # an agent, the holder here
+        ("SA404", []),  # nobody
+        ("SA003", []),  # a super_admin no longer active
+        ("SA002", ["--operator-institution", "NOWHERE"]),
+    ],
+)
+async def test_ops_script_needs_an_active_super_admin_operator(
+    db_session, db_seed, outbox, operator, extra
+):
+    await _seed_app(db_session, db_seed)
+    await _super_admin(db_session, db_seed, "SA002")
+    await _super_admin(db_session, db_seed, "SA003", active=False)
+    args = _ops_args(operator, "--apply", *extra)
+    lines: list[str] = []
+    assert await reset_totp.run(db_session, args, out=lines.append) == 2
+    assert lines[-1].startswith("Operator refused")
+    assert await _app_count(db_session) == 1
+    assert await _audit(db_session, "totp_reset") == []
+    assert outbox.messages == []
+
+
+@pytest.mark.asyncio
+async def test_the_next_login_tells_what_changed_on_the_app(
+    auth_client: AsyncClient, db_session, db_seed, clock, outbox
+):
+    secret = await _enrol(auth_client, clock)
+    clock.step = 1
+    first = await _verify(
+        auth_client,
+        (await _login(auth_client))["session_token"],
+        totp.code_at(secret, S0 + 1),
+    )
+    assert [(n["event"], n["by_self"]) for n in first.json()["security_notices"]] == [
+        ("totp_enrolled", True)
+    ]
+
+    clock.step = 2
+    second = await _verify(
+        auth_client,
+        (await _login(auth_client))["session_token"],
+        totp.code_at(secret, S0 + 2),
+    )
+    assert second.json()["security_notices"] == []  # told once
+
+    chief = await _real_user(db_session, db_seed, "TA001")
+    await totp.reset(
+        db_session, await db_session.get(User, db_seed["user_id"]), actor=chief
+    )
+    outbox.messages.clear()
+    step1 = await _login(auth_client)
+    third = await _verify(
+        auth_client, step1["session_token"], _emailed_code(outbox.messages[-1])
+    )
+    assert third.status_code == 200, third.text
+    notices = third.json()["security_notices"]
+    assert [(n["event"], n["by_self"]) for n in notices] == [("totp_reset", False)]
+    assert notices[0]["at"]
 
 
 # --- a reset closes every session (stolen phone) ------------------------------
