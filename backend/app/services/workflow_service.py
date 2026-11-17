@@ -1,4 +1,5 @@
 # backend/app/services/workflow_service.py
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,7 @@ from app.models.user import User
 from app.schemas.workflow import WorkflowActionCreate
 from app.core.events.dispatcher import dispatcher
 from app.core.authz import can_perform, ctx_from_resource
+from app.services.reports_scope import in_actor_unit_tree
 
 
 class WorkflowActionPolicy:
@@ -23,6 +25,8 @@ class WorkflowActionPolicy:
         document: Document,
         action: WorkflowActionCreate,
         actor: User,
+        *,
+        db: Optional[AsyncSession] = None,
     ):
         # 1. Vérification de l'état du step
         if step.status != "current":
@@ -31,8 +35,10 @@ class WorkflowActionPolicy:
             )
 
         # 2. Vérification des droits (Assigné ou utilisateur avec capacité manage via Casbin)
-        if step.assigned_to != actor.id and not await can_perform(
-            actor, "workflows", "manage", ctx_from_resource(document)
+        # A unit-bounded manager (unit_admin) acts only inside its unit tree (#215).
+        if step.assigned_to != actor.id and not (
+            await can_perform(actor, "workflows", "manage", ctx_from_resource(document))
+            and await in_actor_unit_tree(db, actor, document.org_unit_id)
         ):
             raise HTTPException(
                 status_code=403, detail="You are not assigned to this step"
@@ -89,7 +95,7 @@ class SubmitWorkflowActionUseCase:
             raise HTTPException(status_code=404, detail="Document not found")
 
         # Execution de la Policy
-        await self.policy.check_can_perform_action(step, document, action, actor)
+        await self.policy.check_can_perform_action(step, document, action, actor, db=db)
 
         # Tracabilité explicite de l'acte (avec l'action.document_version_id explicite de la requête)
         action_trace = WorkflowAction(

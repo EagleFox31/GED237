@@ -598,3 +598,17 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+
+### LESSON-2026-045 — Un rôle d'unité avec `manage` agit sur toute l'institution : Casbin ne connaît pas l'arbre
+
+- **Date :** 2026-11-17
+- **Catégorie :** authz
+- **Statut :** test-added
+- **Liens :** #215, `app/services/reports_scope.py` (`in_actor_unit_tree`, `unit_tree_filter`), `policy.csv` (classification_reviews, workflows)
+
+**Contexte** — `policy.csv` donne à `unit_admin` `classification_reviews, manage` et `workflows, manage`. Le matcher accepte `p.act == "manage"` pour toute action.
+**Échec / near miss** — Casbin vérifie le tenant, pas l'unité : un unit_admin pouvait lister et trancher les revues, valider, réassigner et lire les circuits de toute l'institution. #195 avait borné les lectures, pas ces écritures. Trouvé en revue (#215), sans incident signalé.
+**Cause racine** — Le périmètre « son unité et ses sous-unités » vit dans le code (#195), alors que le droit vient de la politique. Chaque nouvelle route sous `manage` hérite de la portée tenant si elle n'appelle pas la règle d'arbre.
+**Résolution** — Une seule règle pour les rôles bornés : `in_actor_unit_tree` (contrôle unitaire, fermé par défaut) et `unit_tree_filter` (filtre SQL). Ressource hors arbre : 404 ; cible hors arbre : 403. Un acteur explicitement assigné garde son droit.
+**Prévention** — `tests/api/test_unit_admin_write_scope.py` : un unit_admin d'une autre branche reçoit 404, une cible hors arbre 403, un parent n'est jamais atteint depuis une sous-unité ; tenant_admin et super_admin gardent toute l'institution. Sans les gardes, 9 tests sur 14 échouent.
+**Leçon généralisée** — Un droit de politique (`manage`) dit *quoi*, pas *où*. Toute route ouverte à un rôle borné doit passer par la règle de périmètre, et son test doit inclure un acteur du même rôle dans une autre branche.

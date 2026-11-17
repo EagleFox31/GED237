@@ -51,7 +51,10 @@ async def list_classification_reviews(
 ):
     await authorize_or_403(current_user, "classification_reviews", "read")
     service = ClassificationReviewService(db)
-    return await service.list_open_reviews(tenant_id=current_user.tenant_id)
+    return await service.list_open_reviews(
+        tenant_id=current_user.tenant_id,
+        scope_filters=service.review_scope_filters(current_user),
+    )
 
 
 @router.post("/{review_id}/resolve", response_model=ClassificationReviewResolveResponse)
