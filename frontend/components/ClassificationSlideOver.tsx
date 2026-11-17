@@ -33,6 +33,8 @@ interface ClassificationSlideOverProps {
   activities: ClassificationActivityOption[];
   flatUnits: FlatUnitNode[];
   onSuccess: () => void;
+  /** Service imposé (glisser-déposer sur un dossier, #299) : la suggestion automatique ne le remplace pas. */
+  targetOrgUnitId?: string | null;
 }
 
 type SuggestionBannerState =
@@ -79,6 +81,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
   activities,
   flatUnits,
   onSuccess,
+  targetOrgUnitId = null,
 }) => {
   const [domainId, setDomainId] = useState('');
   const [activityId, setActivityId] = useState('');
@@ -94,7 +97,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
     if (document) {
       setDomainId(document.classification_domain_id || '');
       setActivityId(document.classification_activity_id || '');
-      setOrgUnitId(document.classification_target_org_unit_id || document.org_unit_id || '');
+      setOrgUnitId(targetOrgUnitId || document.classification_target_org_unit_id || document.org_unit_id || '');
       setYear(document.classification_year ? String(document.classification_year) : String(new Date().getFullYear()));
       setScope(
         document.classification_scope && document.classification_scope !== 'person'
@@ -104,7 +107,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
       setError(null);
       setSuggestionBanner(null);
     }
-  }, [document]);
+  }, [document, targetOrgUnitId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,7 +153,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
 
           setDomainId(result.classification_domain_id);
           setActivityId(result.classification_activity_id);
-          setOrgUnitId(result.classification_target_org_unit_id);
+          setOrgUnitId(targetOrgUnitId || result.classification_target_org_unit_id);
           setYear(String(result.classification_year));
           setScope(suggestedScope);
           setSuggestionBanner({
@@ -184,7 +187,7 @@ export const ClassificationSlideOver: React.FC<ClassificationSlideOverProps> = (
     return () => {
       cancelled = true;
     };
-  }, [document, isOpen]);
+  }, [document, isOpen, targetOrgUnitId]);
 
   // Reset activity if domain changes and current activity doesn't belong to it
   useEffect(() => {
