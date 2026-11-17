@@ -21,10 +21,19 @@ async function fetchFeatures(): Promise<unknown> {
   return response.json();
 }
 
+// Génération de session : une lecture encore en vol après reset() (déconnexion) ne réécrit pas l'état.
+let generation = 0;
+
 export const useFeaturesStore = create<FeaturesStore>((set) => ({
   ...FEATURES_UNLOADED,
   load: async () => {
-    set(await loadFeatures(fetchFeatures));
+    generation += 1;
+    const mine = generation;
+    const state = await loadFeatures(fetchFeatures);
+    if (mine === generation) set(state);
   },
-  reset: () => set(FEATURES_UNLOADED),
+  reset: () => {
+    generation += 1;
+    set(FEATURES_UNLOADED);
+  },
 }));
