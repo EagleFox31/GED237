@@ -64,7 +64,7 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 | Risque | Signe | Plan B |
 |---|---|---|
 | Code à usage unique refusé ou trop de tentatives | message d'erreur, attente imposée (« Compte verrouillé. Réessayez dans … ») | passer sur B (`MINFI001`, déjà connectée) et commenter ; capture de `auth-2fa` |
-| Code à usage unique affiché en clair à l'écran (canal `dev_response` de la pile de démo, signalé par O le 17/11) | le code apparaît sur l'écran projeté pendant la connexion de A | parade retenue selon le § 5 n° 14 : (a) la connexion de A se fait avant la séance, comme B à E, et l'étape « Connexion » montre l'écran de connexion **sans le valider** (0:30 gagnées) ; ou (b) projecteur en mode « étendre », connexion saisie sur l'écran non projeté, puis bascule. Phrase si le jury le voit : « Sur la pile de démonstration, le code s'affiche pour le test ; en service, il part par un canal séparé. » (`À vérifier` : canal réel, § 5 n° 14) |
+| Code à usage unique affiché en clair à l'écran (canal `dev_response` de la pile de démo, signalé par O le 17/11) | le code apparaît sur l'écran projeté pendant la connexion de A | parade retenue selon le § 5 n° 14 : (a) la connexion de A se fait avant la séance, comme B à E, et l'étape « Connexion » montre l'écran de connexion **sans le valider** (0:30 gagnées) ; ou (b) projecteur en mode « étendre », connexion saisie sur l'écran non projeté, puis bascule. Phrase si le jury le voit : « Sur la pile de démonstration, le code s'affiche pour le test ; son envoi par e-mail arrive dans la version suivante. » (la rc.1 n'a pas de canal d'envoi : #154 vient après le 30/11, § 8) |
 | Session expirée sur une fenêtre préconnectée | retour à l'écran de connexion | reconnexion du compte concerné (≈ 40 s) ; si deux expirent, captures pour les étapes restantes |
 | Import long ou en erreur | analyse qui ne finit pas, erreur | importer un sous-dossier de 5 fichiers préparé (dont 1 doublon) ; sinon capture de `directory-import` |
 | Répartition différente de celle annoncée | autres nombres de classés, à revoir ou doublons | lire les nombres affichés sans les commenter ; la répétition fige les chiffres attendus (§ 5 n° 3) |
@@ -143,3 +143,24 @@ Si le PO fait corriger E24 ou E25 sur la release, appliquer la version « corrig
 | E25 | § 4, ligne « L'auditeur quitte sa page d'arrivée » | plan B : cliquer « Tableau de Bord » | ligne supprimée |
 | E24 | § 1, étape 2, « Ce que le jury doit voir » | « … **E24** : le statut s'affiche « A verifier », sans accent » | fin de phrase supprimée |
 | E24 | § 4, ligne « Le jury remarque « A verifier » » | « Écart connu, noté en recette. » | ligne supprimée |
+
+## 8. Recoupement avec le contenu réel de la rc.1 (17/11)
+
+Demande de O du 17/11. La rc.1, c'est `main` au moment de la coupe : 53d4c40, plus #104 (documentation seule). Depuis b701314 (§ 7), seuls #217 (documentation) et #223 sont arrivés. #223 ne touche que l'attribution des rôles (`users.py`), et aucune étape ne s'en sert.
+
+Fonctions absentes de la rc.1 :
+- application d'authentification (#193, #219) ;
+- envoi du code par e-mail et renvoi (#154) ;
+- écran « Corbeille » (#181, #211, #184) ;
+- vue « Doublons » (#171, #199) ;
+- favoris et récents (#165) ;
+- rapports officiels (#180, #197, #209).
+
+| Étape | Appui sur une fonction absente | Décision |
+|---|---|---|
+| Connexion (§ 1), phrase de la parade (§ 4) | la phrase disait « en service, il part par un canal séparé » ; la rc.1 n'a pas de canal d'envoi (#154) | **remplacée** : « son envoi par e-mail arrive dans la version suivante » |
+| 5. Recherche et droits | aucun : le document en corbeille vient du jeu, et la recherche de la rc.1 l'exclut (#42) ; aucun écran « Corbeille » n'est ouvert | **gardée** ; si le jury demande à voir la corbeille : « bientôt », à l'oral (#181) |
+| 1 bis, vue « doublons » | déjà annoncée comme venant après la version | **gardée**, avec le « bientôt » déjà écrit |
+| Questions, sécurité des comptes administrateurs | l'application d'authentification n'est pas dans la rc.1 | rien à montrer ; à l'oral, sur question : « bientôt, obligatoire pour les administrateurs » (#193, DEC-2026-004) |
+
+Aucune étape n'est à retirer. Les étapes 1 à 4, 6 et 7 n'utilisent que des fonctions de la rc.1.
