@@ -9,13 +9,13 @@
 
 Fil conducteur : *un service reçoit un dossier en vrac. GED237 le range tout seul, explique pourquoi, laisse à un humain ce qu'il ne sait pas classer, puis chacun ne retrouve que ce qu'il a le droit de voir, avec la trace de qui a fait quoi et les chiffres du service.*
 
-Postes : une fenêtre **A** (`MINFI001`, administrateur de l'institution), connectée en direct, et quatre profils de navigateur **préconnectés** 10 minutes avant la séance : **B** `MINFI001` (secours de A), **C** `READ001` (lecteur DSI), **D** `AUDIT001` (auditeur), **E** `MGR001` (manager DAF). Une seule connexion en direct. Sur b701314, l'import, l'explorateur et la bannette sont réservés à l'administrateur : un collaborateur ne peut pas faire les étapes 1, 2 et 4 (§ 7, lignes 2 à 4).
+Postes : une fenêtre **A** (`MINFI001`, administrateur de l'institution), connectée en direct, et quatre profils de navigateur **préconnectés** 10 minutes avant la séance : **B** `MINFI001` (secours de A), **C** `READ001` (lecteur DSI), **D** `AUDIT001` (auditeur), **E** `MGR001` (manager DAF). Une seule connexion en direct. Narrateur : l'administrateur du ministère (décision de O du 17/11). L'import, l'explorateur et la bannette lui sont réservés, ce qui est voulu : c'est le cloisonnement, pas un manque (§ 7, lignes 2 à 4).
 
 | Min | Durée | Étape | Fenêtre | Ce que l'on fait (`Vérifié` sauf mention) | Ce que le jury doit voir | Transition |
 |---|---|---|---|---|---|---|
 | 0:00–1:00 | 1:00 | **Ouverture** | — | une diapositive (§ 5 n° 19) : des dossiers partagés en vrac, des documents introuvables | le problème et la promesse en une phrase | « Entrons comme l'administrateur du ministère. » |
 | 1:00–1:45 | 0:45 | **Connexion** | A | « Administration / Organisme », « Matricule Personnel », « Mot de Passe », « Étape Suivante », puis le code et « Confirmer l'identité » (parade du § 4 si le code s'affiche) | nom et rôle « Admin Institution » dans l'en-tête | « La DAF lui transmet 30 fichiers en vrac. » |
-| 1:45–4:45 | 3:00 | **1. Import en vrac** | A | menu « Import en masse » (`/ingestion`) → « Importer dans le Serveur de l'Application » → « Juste les ranger » → « Choisir un dossier » : `live` (30 fichiers, envoi par le navigateur) → « Définir la destination » : « Service », DAF → « Vérifier le classement » → « Importer les documents » | les cartes « Fichiers analysés », « Prêts », « À revoir », « Ignorés / doublons » (**2 doublons** reconnus au contenu), puis « Importés », « À arbitrer », « Doublons », « Erreurs » | « Où sont-ils partis ? » |
+| 1:45–4:45 | 3:00 | **1. Import en vrac** | A | menu « Import en masse » (`/ingestion`) → « Importer dans le Serveur de l'Application » → « Juste les ranger » → « Choisir un dossier » : `live` (30 fichiers, envoi par le navigateur) → « Définir la destination » : « Service », DAF → « Vérifier le classement » → « Importer les documents ». Phrase pendant l'analyse : « L'administrateur prépare, chacun ne voit que ce qui le concerne. Un agent n'importe pas en masse et ne cherche que dans ses documents : c'est le cloisonnement voulu. » | les cartes « Fichiers analysés », « Prêts », « À revoir », « Ignorés / doublons » (**2 doublons** reconnus au contenu), puis « Importés », « À arbitrer », « Doublons », « Erreurs » | « Où sont-ils partis ? » |
 | 4:45–6:15 | 1:30 | **2. Le rangement** | A | « Explorateur documentaire » (`/spaces`) : DAF → domaine → activité → année ; ouvrir un document importé | l'arborescence **service > domaine > activité > année** remplie par l'import ; un fichier sans date part dans « A classer/‹année› » (`À vérifier`, § 5 n° 4). Si l'on demande « et par année d'abord ? » : « On range d'abord par métier, parce que c'est ainsi qu'on cherche un dossier ; l'année est le dernier niveau, et le filtre « Toutes les années » permet de choisir une année. » **E24** : le statut s'affiche « A verifier », sans accent | « Pourquoi là ? Parce qu'une règle le dit. » |
 | 6:15–7:45 | 1:30 | **3. Les règles** | A | « Plan de classement » (`/classement`) → « Règles de classement » : une règle avec critère de **contenu** ou d'**année** ; puis « Simulateur » sur une règle inactive | la règle en clair ; la simulation montre avant/après **sans rien déplacer** | « Ce qu'aucune règle ne sait classer attend un humain. » |
 | 7:45–8:45 | 1:00 | **4. La bannette** | A | « Ma bannette » (`/classification-reviews`, page « Revue de classement ») : un fichier « à revoir » de l'import ; « Domaine », « Activité », « Année », puis « Classer et relancer » | le fichier quitte la bannette et rejoint l'arbre | « Maintenant, retrouvons-le. » |
@@ -53,7 +53,7 @@ Comptes du seed (`backend/scripts/seed_db.py`, `Vérifié` sur b701314 : identif
 | `READ001` | lecteur | DSI | C, préconnectée | même recherche, autre résultat ; menu réduit |
 | `AUDIT001` | auditeur | MINFI | D, préconnectée | journal d'audit en lecture seule, export CSV |
 | `MGR001` | manager | DAF | E, préconnectée | recherche limitée à la DAF ; rapports limités à la DAF ; circuit de validation sur demande |
-| `MINFI002` | collaborateur | DAF | **non utilisé** | sur b701314, son import est verrouillé, la bannette lui est refusée et sa recherche ne montre que ses propres documents (§ 7) |
+| `MINFI002` | collaborateur | DAF | **non utilisé** | son import est verrouillé, la bannette lui est refusée et sa recherche ne montre que ses propres documents (§ 7) : preuve du cloisonnement, à citer si le jury demande ce que voit un agent |
 | `UNIT001` | admin d'unité | DRH | **aucun profil admin d'unité dans la démo** (décision O du 17/11) | en recherche et en liste, il voit tout l'établissement ; suivi par l'issue #195 après la rc.1 |
 | `MINESUP001`, `SUPER001` | collaborateur MINESUP, super admin | — | non utilisés | — |
 
@@ -135,4 +135,11 @@ Demande de O du 17/11. Chaque ligne cite le texte de la version c216141 (numéro
 - **E24** (accents) : étape 2, statut « A verifier » dans l'« Explorateur documentaire ». « Parametres » (menu du super admin) n'apparaît pas, car `SUPER001` n'est pas utilisé.
 - **E25** (menu de l'auditeur) : étape 6, fenêtre D. Elle reste sur sa page d'arrivée, avec un plan B au § 4.
 
-Si le PO fait corriger E24 ou E25 sur la release, retirer la mention correspondante de l'étape 2 ou 6 et la ligne du § 4.
+Si le PO fait corriger E24 ou E25 sur la release, appliquer la version « corrigé » ci-dessous (question Q6 de O au PO), après avoir relu le libellé dans le code de `release/v1.0.0`.
+
+| Écart | Ligne | Version actuelle (non corrigé) | Version si corrigé sur la release |
+|---|---|---|---|
+| E25 | § 1, étape 6, « Ce que l'on fait » | « … puis D, qui arrive sur la page « Registre Des Actions » (`/audit`) : filtre de la colonne « Effectuée par » sur l'administrateur → « Exporter (CSV) ». **E25** : D n'a pas d'entrée « Audit » dans son menu ; ne pas quitter la page » | « … puis D : menu « ‹libellé relevé› » (`/audit`), page « Registre Des Actions » : filtre de la colonne « Effectuée par » sur l'administrateur → « Exporter (CSV) » » |
+| E25 | § 4, ligne « L'auditeur quitte sa page d'arrivée » | plan B : cliquer « Tableau de Bord » | ligne supprimée |
+| E24 | § 1, étape 2, « Ce que le jury doit voir » | « … **E24** : le statut s'affiche « A verifier », sans accent » | fin de phrase supprimée |
+| E24 | § 4, ligne « Le jury remarque « A verifier » » | « Écart connu, noté en recette. » | ligne supprimée |
