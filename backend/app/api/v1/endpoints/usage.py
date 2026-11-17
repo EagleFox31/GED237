@@ -109,7 +109,11 @@ async def upsert_local_arrangement_snapshot(
     )
     if existing and existing.tenant_id != current_user.tenant_id:
         # The key is the user alone: a row left by another institution is never
-        # rewritten from this one (#216).
+        # rewritten from this one (#216). The API never moves a user to another
+        # tenant; the row only remains after a change made in the database. The
+        # operator who made it then purges the old row:
+        #   DELETE FROM user_local_arrangement_snapshots s USING users u
+        #   WHERE s.user_id = u.id AND s.tenant_id <> u.tenant_id;
         raise ConflictError(
             "Un rangement d'une autre institution est enregistré pour ce compte.",
             technical_detail=(

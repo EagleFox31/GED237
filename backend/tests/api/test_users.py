@@ -309,6 +309,10 @@ async def test_assignable_roles_are_refused_without_users_read(client_as, db_see
     assert response.status_code == 403
 
 
+# Every role without users:update edits its own account through update_own only.
+SELF_SERVICE_ROLES = ("unit_admin", "auditor", "manager", "collaborator", "reader")
+
+
 def _self_client(client_as, db_seed, role="collaborator"):
     return client_as(
         role,
@@ -319,8 +323,9 @@ def _self_client(client_as, db_seed, role="collaborator"):
 
 
 @pytest.mark.asyncio
-async def test_a_user_updates_their_own_name_and_phone(client_as, db_seed):
-    async with _self_client(client_as, db_seed) as client:
+@pytest.mark.parametrize("role", SELF_SERVICE_ROLES)
+async def test_a_user_updates_their_own_name_and_phone(client_as, db_seed, role):
+    async with _self_client(client_as, db_seed, role) as client:
         response = await client.patch(
             f"{USERS}/{db_seed['user_id']}",
             json={"first_name": "Awa", "last_name": "Mbida", "phone": "690000000"},
@@ -347,14 +352,25 @@ async def test_a_user_updates_their_own_name_and_phone(client_as, db_seed):
         ("avatar_url", "https://exemple.cm/a.png"),
     ],
 )
+@pytest.mark.parametrize("role", SELF_SERVICE_ROLES)
 async def test_a_user_cannot_change_an_admin_field_of_their_own_account(
-    client_as, db_session, db_seed, field, value
+    client_as, db_session, db_seed, field, value, role
 ):
     """#216: refused out loud, and nothing of the request is written."""
     user = await db_session.get(User, db_seed["user_id"])
-    before = (user.email, user.role_id, user.org_unit_id, user.is_active, user.phone)
+    fields = (
+        "email",
+        "role_id",
+        "org_unit_id",
+        "reports_to_user_id",
+        "is_active",
+        "password_hash",
+        "avatar_url",
+        "phone",
+    )
+    before = [getattr(user, name) for name in fields]
 
-    async with _self_client(client_as, db_seed) as client:
+    async with _self_client(client_as, db_seed, role) as client:
         response = await client.patch(
             f"{USERS}/{db_seed['user_id']}", json={"phone": "699999999", field: value}
         )
@@ -363,8 +379,7 @@ async def test_a_user_cannot_change_an_admin_field_of_their_own_account(
     assert response.json()["error_code"] == "SELF_UPDATE_FIELD_FORBIDDEN"
     assert response.json()["fields"] == [field]
     await db_session.refresh(user)
-    after = (user.email, user.role_id, user.org_unit_id, user.is_active, user.phone)
-    assert after == before
+    assert [getattr(user, name) for name in fields] == before
 
 
 @pytest.mark.asyncio
