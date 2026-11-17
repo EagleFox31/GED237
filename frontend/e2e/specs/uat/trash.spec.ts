@@ -41,10 +41,10 @@ test.describe('Corbeille', () => {
     await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
     const item = page.getByLabel(new RegExp(`^${title} — `));
     await item.click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Mettre à la corbeille' }).click();
+    await page.getByRole('menuitem', { name: 'Mettre à la corbeille', exact: true }).click();
     await expect(item).toHaveCount(0);
 
-    await page.goto('trash');
+    await page.getByRole('button', { name: 'Corbeille', exact: true }).click();
     const list = page.getByRole('list', { name: 'Documents dans la corbeille' });
     await expect(list.getByText(title)).toBeVisible();
     await expect(page.getByTestId('trash-count')).not.toHaveText('0');
@@ -63,7 +63,7 @@ test.describe('Corbeille', () => {
     await trash(request, adminToken, doc.id);
 
     await loginAs('tenant_admin');
-    await page.goto('trash');
+    await page.getByRole('button', { name: 'Corbeille', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toBeVisible();
     await page.getByRole('button', { name: `Supprimer définitivement ${title}` }).click();
     const dialog = page.getByRole('alertdialog');
@@ -88,7 +88,7 @@ test.describe('Corbeille', () => {
     await trash(request, token, doc.id);
 
     await loginAs('manager');
-    await page.goto('trash');
+    await page.getByRole('button', { name: 'Corbeille', exact: true }).click();
     await expect(page.getByRole('button', { name: `Restaurer ${title}` })).toBeVisible();
     await expect(page.getByRole('button', { name: `Supprimer définitivement ${title}` })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toHaveCount(0);
