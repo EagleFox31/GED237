@@ -21,21 +21,19 @@ test.describe('Feature: AuthZ Admin', () => {
     await expect(page.getByRole('button', { name: /sante/i })).toBeVisible();
   });
 
-  test('Given /authz, When tab Policies, Then policies table is populated', async ({ loginAs, page }) => {
+  test('Given /authz in csv mode, When tab Policies, Then 409 and a readable message', async ({ loginAs, page }) => {
     await loginAs('super_admin');
 
     const policiesPromise = page.waitForResponse(r => /\/authz\/policies/.test(r.url()) && r.request().method() === 'GET');
     await page.goto('authz');
     const policies = await policiesPromise;
 
-    await expect(page.getByText(/policies/i).first()).toBeVisible();
-    if (policies.status() === 409) {
-      // AUTHZ_BACKEND=csv : droits non modifiables, message lisible et jamais le texte brut du serveur.
-      await expect(page.getByRole('status').filter({ hasText: 'Les droits ne sont pas modifiables sur cette installation.' })).toBeVisible();
-      await expect(page.getByText(/AUTHZ_BACKEND/)).toHaveCount(0);
-      return;
-    }
-    await expect(page.locator('table').first()).toBeVisible({ timeout: 10_000 });
+    // La pile e2e tourne en AUTHZ_BACKEND=csv (défaut, docker-compose.e2e.yml ne le change pas) :
+    // l'API refuse la liste (409) et l'écran affiche un message lisible, jamais le texte brut du serveur.
+    // Une pile en sql/shadow devra vérifier 200 et une règle connue (ex. tenant_admin / documents).
+    expect(policies.status()).toBe(409);
+    await expect(page.getByRole('status').filter({ hasText: 'Les droits ne sont pas modifiables sur cette installation.' })).toBeVisible();
+    await expect(page.getByText(/AUTHZ_BACKEND/)).toHaveCount(0);
   });
 
   test('Given /authz, When click Sante tab, Then backend status is shown', async ({ loginAs, page }) => {
