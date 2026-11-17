@@ -2,16 +2,17 @@
 
 Présenté par O. Préparé par l'innovateur le 17/11. Pour chaque question, répondez oui ou non, ou choisissez A ou B. La recommandation de l'équipe est en **gras**. La fiche citée donne le détail, à lire seulement en cas de doute (dossier `gestion-projet/innovateur/`).
 
-## 1. Vue « Doublons » (#171)
+## 1. Vue « Doublons » (#171) et corbeille (#152)
 
 Fiche : `fiche-po-171-doublons.md`.
 
 1. Les copies en trop vont seulement à la corbeille, d'où on peut les restaurer, jamais en suppression définitive ? **Oui.**
 2. Une copie présente dans deux services : l'administrateur décide seul au début, et le propriétaire sera prévenu dans une version suivante ? **Oui.**
-3. Une copie en cours de validation ne peut pas être mise à la corbeille ? **Oui.**
+3. Un document en cours de validation, doublon ou non, ne peut pas être mis à la corbeille ? **Oui.** Aujourd'hui, il y va et ses étapes de validation restent ouvertes.
+   - Sans réponse le 23 (q. 3) : le document va à la corbeille et sa validation reste ouverte.
    - Sans réponse le 23 (q. 1 à 3) : la vue « Doublons » n'entre pas dans la V1.1 ; elle attend votre accord.
 
-> Accord PO du JJ/11 : vue « doublons » en corbeille seulement, sans suppression définitive. Entre deux services, l'administrateur seul résout au départ (V1.0 livrée le 30), le propriétaire est prévenu en V1.1. Une copie en cours de validation n'est pas mise à la corbeille. Fusion après le 30.
+> Accord PO du JJ/11 : vue « doublons » en corbeille seulement, sans suppression définitive. Entre deux services, l'administrateur seul résout au départ (V1.0 livrée le 30), le propriétaire est prévenu en V1.1. Un document en cours de validation, doublon ou non, n'est pas mis à la corbeille. Fusion après le 30.
 
 ## 2. Critères de succès : « − 70 % du temps de recherche » et « 90 % d'adoption en 3 mois »
 

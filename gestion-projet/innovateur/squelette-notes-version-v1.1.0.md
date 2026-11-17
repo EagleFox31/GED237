@@ -36,7 +36,7 @@
 
 | PR | Ce qui change | Agent | Admin | Lecteur | État |
 |---|---|---|---|---|---|
-| #152 | « Supprimer » met le document à la corbeille, avec une trace dans le journal. La suppression définitive (purge) est sûre, groupée, et peut devenir automatique. | Un document supprimé par erreur se récupère. | Purge la corbeille. Purge automatique si activée (`TRASH_RETENTION_DAYS`, coupée par défaut). | — | à relire |
+| #152 | « Supprimer » met le document à la corbeille, avec une trace dans le journal. La suppression définitive (purge) est sûre, groupée, et peut devenir automatique. | Un document supprimé par erreur se récupère. | Purge la corbeille. Purge automatique si activée (`TRASH_RETENTION_DAYS`, coupée par défaut). Elle ne touche jamais un document signé, archivé ou émis au registre officiel (décision de O du 17/11, en application de la décision PO du 17/11). | — | à relire ; suppression d'un document en cours de validation : selon la réponse du PO (dossier du 23, § 1, q. 3) |
 | #181 | Écran « Corbeille » : liste des documents supprimés, restauration, purge selon les droits. | Retrouve et restaure ses documents supprimés. | Restaure ou purge pour son périmètre. | — | relue ; défaut du menu contextuel en correction chez F |
 | #179 | Un déplacement de document peut être annulé. Le reclassement est tracé dans le journal. | Annule un déplacement fait par erreur. | Voit les reclassements dans le journal. | — | relue |
 | #184 | Dans l'explorateur : touche Suppr pour mettre à la corbeille, glisser-déposer pour reclasser, et « Annuler » juste après. | Supprime ou reclasse vite, et peut annuler. | Comme l'agent. | — | non validée tant que la nightly est rouge |
