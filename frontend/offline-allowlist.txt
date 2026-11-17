@@ -1,0 +1,10 @@
+# Liste blanche de scripts/check_offline_frontend.sh : une expression régulière étendue
+# par ligne, comparée à l'URL entière. Chaque entrée dit pourquoi le navigateur ne
+# télécharge rien. Pas d'entrée pour un CDN, une police ou une image distante :
+# ces ressources s'embarquent dans le build.
+
+# Espaces de noms XML (attribut xmlns des SVG) : un identifiant, jamais téléchargé.
+^http://www\.w3\.org/(2000/svg|1999/xlink|1999/xhtml)$
+
+# API locale de développement (repli de VITE_API_URL dans constants.tsx).
+^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?(/|$)

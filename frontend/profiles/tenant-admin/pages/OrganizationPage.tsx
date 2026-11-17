@@ -6,6 +6,7 @@ import { CreateOrgUnitModal } from '../../super-admin/pages/tenant-detail/Create
 // CreateAdminModal n'est plus nécessaire : la création d'agents passe par /users.
 import type { Document } from '../../../types';
 import { formatDate, formatFileSize, getFileTypeLabel } from '../../../types';
+import { Avatar } from '../../../components/ui/Avatar';
 
 // Interface matching the backend Schema
 interface OrgUnitNode {
@@ -469,7 +470,7 @@ const OrganizationPage: React.FC = () => {
                           <tr key={agent.id} className="group hover:bg-blue-50/30 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${agent.first_name}`} alt="" className="w-10 h-10 rounded-xl bg-slate-100" />
+                                <Avatar name={`${agent.first_name} ${agent.last_name}`} matricule={agent.matricule} square />
                                 <span className="text-sm font-bold text-slate-700">{agent.first_name} {agent.last_name}</span>
                               </div>
                             </td>
