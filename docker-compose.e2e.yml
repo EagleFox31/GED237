@@ -85,6 +85,8 @@ services:
       AUTH_LOGIN_RATE_LIMIT: 300/minute
       AUTH_OTP_RATE_LIMIT: 300/minute
       AUTH_REFRESH_RATE_LIMIT: 300/minute
+      # Unified validation queue (#153): the UAT covers it enabled; the fallback is forced by a route stub.
+      WORKFLOW_INBOX_ENABLED: "true"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
       interval: 5s

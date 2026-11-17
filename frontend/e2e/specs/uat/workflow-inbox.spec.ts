@@ -2,7 +2,7 @@ import { test, expect, API_URL, apiAs } from '../../fixtures/uat.fixture';
 
 /**
  * #153 : une seule file de validation, lue par /tasks (onglets), l'accueil Manager et les assignations.
- * Sans WORKFLOW_INBOX_ENABLED (défaut), l'écran se rabat sur les anciennes routes : seul « À moi » est vérifié.
+ * La pile e2e active WORKFLOW_INBOX_ENABLED ; le mode repli (route 404) est forcé par un stub réseau.
  */
 test.describe('File de validation unifiée', () => {
   test('« À moi » : l’étape confiée au manager est dans sa file', async ({ page, request, loginAs, adminApi, runId }) => {
@@ -42,6 +42,23 @@ test.describe('File de validation unifiée', () => {
     await page.getByRole('tab', { name: /Sans validateur/ }).click();
     await expect(page).toHaveURL(/[?&]file=unassigned/);
     await expect(card).toHaveCount(0);
+  });
+
+  test('repli : file unifiée absente (404), anciennes routes sans erreur', async ({ page, request, loginAs, adminApi, runId }) => {
+    const manager = await (await apiAs(request, 'manager')).me();
+    const title = `Repli file ${runId}`;
+    const doc = await adminApi.uploadDocument(`repli-file-${runId}.txt`, title, `Repli ${runId}`);
+    await adminApi.submitForVisa(doc.id, manager.id, `Visa repli ${runId}`);
+
+    // Simule un serveur où WORKFLOW_INBOX_ENABLED=false.
+    await page.route('**/workflows/inbox?**', (route) => route.fulfill({ status: 404, json: { detail: 'Not Found' } }));
+    await loginAs('manager');
+    await page.goto('tasks?file=unit');
+    await expect(page.getByRole('tab', { name: /À moi/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: /Mon unité/ })).toHaveCount(0);
+    const card = page.getByLabel(title, { exact: true });
+    await expect(card.getByRole('button', { name: 'Valider' })).toBeVisible();
+    await expect(page.getByText('Impossible de charger cette file.')).toHaveCount(0);
   });
 
   test('collaborateur : seulement « À moi »', async ({ page, loginAs }) => {
