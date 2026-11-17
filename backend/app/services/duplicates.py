@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
+from app.models.workflow import WorkflowStep
 
 CHECKSUM = DocumentVersion.checksum_sha256
 
@@ -117,3 +118,29 @@ async def load_with_checksum(
         .where(*filters, Document.id.in_(list(ids)))
     )
     return {document.id: (document, checksum) for document, checksum in rows.all()}
+
+
+# A validation is under way: the document is in review, or one of its steps waits
+# for someone (current step, or a step waiting for an assignee).
+OPEN_STEP_STATUSES = ("current", "pending_assignment")
+
+
+async def in_validation(db: AsyncSession, documents: Iterable[Document]) -> list[UUID]:
+    """Ids of the documents a validation is under way on, in the order given.
+
+    Trashing such a copy would pull it out from under its validators: the
+    validation must be finished or cancelled first."""
+    documents = list(documents)
+    with_open_step = set(
+        (
+            await db.execute(
+                select(WorkflowStep.document_id).where(
+                    WorkflowStep.document_id.in_([d.id for d in documents]),
+                    WorkflowStep.status.in_(OPEN_STEP_STATUSES),
+                )
+            )
+        ).scalars()
+    )
+    return [
+        d.id for d in documents if d.status == "in_review" or d.id in with_open_step
+    ]

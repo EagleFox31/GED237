@@ -11,6 +11,7 @@ from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
 from app.models.user import User
+from app.models.workflow import WorkflowStep
 
 DUPLICATES = "/api/v1/duplicates"
 RESOLVE = f"{DUPLICATES}/resolve"
@@ -166,6 +167,45 @@ async def test_different_content_is_refused_and_nothing_moves(
     assert response.json()["error_code"] == "NOT_DUPLICATE"
     assert not await _is_trashed(db_session, other)
     assert await _trash_audits(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_copy_under_validation_is_refused_and_nothing_moves(
+    admin_client: AsyncClient, db_session, db_seed, groups
+):
+    keep, reviewed, stepped = groups["a"]
+    reviewed.status = "in_review"
+    db_session.add(
+        WorkflowStep(
+            document_id=stepped.id, step_order=1, label="Visa", status="current"
+        )
+    )
+    await db_session.commit()
+    for trash_ids in ([reviewed.id], [stepped.id], [reviewed.id, stepped.id]):
+        response = await admin_client.post(
+            RESOLVE,
+            json={"keep_id": str(keep.id), "trash_ids": [str(i) for i in trash_ids]},
+        )
+        assert response.status_code == 409, response.text
+        assert response.json()["error_code"] == "DOCUMENT_IN_VALIDATION"
+        assert f"{len(trash_ids)} copie(s)" in response.json()["detail"]
+    assert not await _is_trashed(db_session, reviewed)
+    assert not await _is_trashed(db_session, stepped)
+    assert await _trash_audits(db_session) == 0
+
+    # The validation over (step completed, document validated): trashed as usual.
+    reviewed.status = "validated"
+    step = await db_session.scalar(
+        select(WorkflowStep).where(WorkflowStep.document_id == stepped.id)
+    )
+    step.status = "completed"
+    await db_session.commit()
+    done = await admin_client.post(
+        RESOLVE,
+        json={"keep_id": str(keep.id), "trash_ids": _ids([reviewed, stepped])},
+    )
+    assert done.status_code == 200, done.text
+    assert await _trash_audits(db_session) == 2
 
 
 @pytest.mark.asyncio

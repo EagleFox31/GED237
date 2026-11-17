@@ -22,7 +22,7 @@ from app.schemas.duplicates import (
     DuplicateResolution,
     DuplicateResolveRequest,
 )
-from app.services.duplicates import list_groups, load_with_checksum
+from app.services.duplicates import in_validation, list_groups, load_with_checksum
 
 router = APIRouter()
 
@@ -64,6 +64,7 @@ async def resolve_duplicate_group(
     """Keep ``keep_id``, send ``trash_ids`` to the recycle bin, all or nothing.
 
     Every document must be visible and have the same content as the one kept.
+    A copy under validation is refused (409): finish or cancel the validation first.
     Documents already in the recycle bin are left as they are (safe retry).
     """
     found = await load_with_checksum(
@@ -106,6 +107,16 @@ async def resolve_duplicate_group(
         if not await _can_trash_document(current_user, document):
             raise HTTPException(status_code=403, detail="Privileges insuffisants")
         await _ensure_not_locked_for_write(document, current_user)
+    busy = await in_validation(db, to_trash)
+    if busy:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "document_in_validation",
+                "message": f"{len(busy)} copie(s) en cours de validation : "
+                "terminez ou annulez la validation avant de la mettre à la corbeille.",
+            },
+        )
 
     now = datetime.now(timezone.utc)
     for document in to_trash:
