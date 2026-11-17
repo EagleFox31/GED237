@@ -708,3 +708,64 @@ async def test_a_restore_during_a_bulk_purge_answers_404(
     response = await restore
     assert response.status_code == 404
     assert await _document_row(test_engine, document_id) is None
+
+
+@pytest.fixture
+async def owner_client(test_engine, db_seed):
+    """The caller read from the request session, as get_current_user does in
+    production: a document the caller owns then shares that session's User."""
+    from fastapi import Depends
+    from httpx import ASGITransport
+    from sqlalchemy.orm import selectinload
+
+    from app.core.database import get_db
+    from app.core.dependencies import get_current_user
+    from app.main import app
+    from app.models.role import Role
+    from app.models.user import User
+
+    factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with factory() as session:
+        await session.execute(
+            update(Role)
+            .where(Role.id == db_seed["role_id"])
+            .values(code="tenant_admin")
+        )
+        await session.commit()
+
+    async def override_get_db():
+        async with factory() as session:
+            yield session
+
+    async def override_get_current_user(db: AsyncSession = Depends(get_db)):
+        return (
+            await db.execute(
+                select(User)
+                .options(selectinload(User.role))
+                .where(User.id == db_seed["user_id"])
+            )
+        ).scalar_one()
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            yield client
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.mark.asyncio
+async def test_the_owner_restores_and_purges_their_document(owner_client, db_seed):
+    restored = await _trashed(owner_client, db_seed, "owner-restore.txt")
+    response = await owner_client.post(f"{DOCS}/{restored}/restore")
+    assert response.status_code == 200, response.text
+
+    purged = await _trashed(owner_client, db_seed, "owner-purge.txt")
+    response = await owner_client.delete(f"{DOCS}/{purged}/purge")
+    assert response.status_code == 200, response.text

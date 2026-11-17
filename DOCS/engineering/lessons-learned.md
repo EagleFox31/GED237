@@ -528,3 +528,17 @@ première requête utilisateur.
 **Résolution** — Spec réécrit sur `/classement` dans #108 (helper `openClassementRules`), à valider par le run `--project=uat` de #108.
 **Prévention** — (1) Un spec e2e ajouté ou modifié est **exécuté** avant fusion : la PR cite la commande et le résultat (`E2E_ARGS="--project=uat <spec>"`) ; « listé, non exécuté » = limite écrite, pas preuve. (2) Run `uat` complet obligatoire avant chaque tag rc (checklist de recette), à défaut d'un job CI planifié — à trancher par ci-qa (`ci.yml` hors de ce lot). (3) Objet de page = un écran : la fonctionnalité testée doit être rendue par la route du `goto()` choisi ; contrôle en relecture : `git grep -n "<Composant>" frontend/profiles` mène bien à la page de la route visée.
 **Leçon généralisée** — Un test qui ne tourne jamais n'est pas un filet, c'est une dette silencieuse : tout ensemble de tests hors CI doit avoir un déclencheur explicite (avant release, planifié) sinon il pourrit sans bruit. Et quand une fonctionnalité change d'écran, ses objets de page et ses specs font partie du changement.
+
+### LESSON-2026-045 — Verrou avec `populate_existing` : le propriétaire ne pouvait plus restaurer
+
+- **Date :** 2026-11-17
+- **Catégorie :** backend / testing
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_get_document_or_404`), `backend/tests/api/test_trash_purge.py` (`owner_client`)
+
+**Contexte** — #152 verrouille le document (`FOR UPDATE`) avant restauration ou purge, pour voir une purge concurrente.
+**Échec / near miss** — Recette : POST /documents/{id}/restore répondait 500 `MissingGreenlet` quand l'appelant était le propriétaire.
+**Cause racine** — Le verrou était posé sur la lecture complète avec `populate_existing=True`. Le chargement de `Document.owner` réécrivait alors le `current_user` de la même session et déchargeait `User.role` ; le contrôle de droits le relisait hors greenlet. Les tests ne l'ont pas vu : leur utilisateur est un faux objet hors session.
+**Résolution** — Verrou dans une requête à part, sur l'id seul ; puis lecture normale sans `populate_existing`.
+**Prévention** — `owner_client` lit l'appelant dans la session de la requête, comme en production ; le propriétaire restaure et purge son document. Le test échoue sur l'ancien code.
+**Leçon généralisée** — `populate_existing` réécrit tout objet déjà dans la session, y compris l'utilisateur courant. Verrouiller sur une requête minimale, et tester au moins un chemin avec un appelant réel tiré de la session de la requête.
