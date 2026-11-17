@@ -1,4 +1,70 @@
-# Fiche de passage — UAT manuelle du lundi 23/11 sur la release
+# Recette du lundi 23/11, 18:00 — fiche du PO et détail pour O
+
+# Partie 1 — Fiche du PO (une page)
+
+- **Où** : la version de démo (rc.1), jeu de démo remis à zéro. Durée : environ 1 h.
+- **Comptes** : l'identifiant suffit ; le mot de passe vous est remis à part.
+- **Comment** : jouez les profils dans l'ordre, car chacun prépare le suivant. Cochez OK si vous voyez ce qui est écrit, KO sinon, avec un mot en remarque.
+- **Déjà connus, à ne pas noter KO** :
+  - le code de connexion est déjà rempli à l'écran : cliquez sur « Confirmer l'identité » ;
+  - quelques accents manquent (« A verifier », « Parametres ») ;
+  - l'auditeur arrive sur « Registre Des Actions », sans entrée « Audit » dans le menu.
+- **Réf.** : le numéro du critère du cahier des charges, pour Q. ⚠ = pas encore de test automatique : votre coche est la seule preuve.
+
+## 1. Agent — `MINFI002` (collaborateur, Direction des affaires financières)
+
+| # | Faites | Vous devez voir | OK | KO | Réf. |
+|---|---|---|---|---|---|
+| 1 | Connectez-vous avec un **mauvais** mot de passe | « Échec de connexion. Vérifiez vos identifiants. », sans dire ce qui est faux | ☐ | ☐ | SC-AUTH-01 |
+| 2 | Connectez-vous normalement | votre accueil en moins de 5 secondes, au nom du MINFI | ☐ | ☐ | SC-AUTH-01 |
+| 3 | « Mes Documents » → « Nouveau Document » : titre, catégorie, un PDF | le document apparaît en **Brouillon** | ☐ | ☐ | SC-RED-01 |
+| 4 | Recommencez avec un fichier de plus de 100 Mo | un message qui donne la limite ; rien n'est déposé | ☐ | ☐ | SC-RED-01 ⚠ |
+| 5 | Sur votre brouillon : « Soumettre » → « Soumettre au visa » vers `MGR001` | le statut change : le document part en validation | ☐ | ☐ | SC-VAL-01 ⚠ |
+| 6 | Cherchez un mot présent dans vos documents | les documents attendus ; un clic ouvre la fiche | ☐ | ☐ | SC-LEC-01 |
+| 7 | Déconnectez-vous, puis bouton « Précédent » du navigateur | vous restez sur l'écran de connexion | ☐ | ☐ | SC-AUTH-03 |
+
+## 2. Manager — `MGR001` (responsable DAF)
+
+| # | Faites | Vous devez voir | OK | KO | Réf. |
+|---|---|---|---|---|---|
+| 1 | Ouvrez « Tâches & Suivi » | le document soumis par l'agent ; aucun bouton pour changer son contenu | ☐ | ☐ | SC-VAL-01 |
+| 2 | « Valider » ce document | il passe à l'étape suivante, ou à « Validé » | ☐ | ☐ | SC-VAL-02 |
+| 3 | Sur un autre document : « Rejeter » sans motif, puis avec un motif | sans motif : impossible ; avec motif : **Rejeté** | ☐ | ☐ | SC-VAL-03 |
+| 4 | Cherchez le mot-clé du jeu de démo | 3 résultats en moins de 2 secondes | ☐ | ☐ | SC-LEC-01 (durée ⚠) |
+| 5 | Filtrez par domaine, puis activité, puis année ; puis « Réinitialiser » | la liste et le compteur suivent chaque choix ; tout revient à zéro | ☐ | ☐ | SC-ESP-01 |
+| 6 | Ouvrez une fiche → « Télécharger » | les informations du document ; le fichier reçu est l'original | ☐ | ☐ | SC-LEC-02 |
+| 7 | Ouvrez « Rapports » | les chiffres de votre direction seulement, pas ceux des autres | ☐ | ☐ | rapports |
+
+## 3. Administrateur — `MINFI001` (administrateur du MINFI)
+
+| # | Faites | Vous devez voir | OK | KO | Réf. |
+|---|---|---|---|---|---|
+| 1 | « Import en masse » → dossier `live` → « Vérifier le classement » → « Importer les documents » | un compte rendu : importés, doublons (2), à revoir (2), en moins d'une minute | ☐ | ☐ | SC-ADM-08 |
+| 2 | Refaites exactement le même import | rien de nouveau : tout est signalé en doublon | ☐ | ☐ | SC-ADM-08 ⚠ |
+| 3 | « Explorateur documentaire » : direction → domaine → activité → année | les documents importés sont rangés au bon endroit | ☐ | ☐ | SC-E2E-01 ⚠ (mesure) |
+| 4 | « Règles de classement » : créez une règle, puis lancez le « Simulateur » | la liste des documents et de leur nouvelle place ; **aucun document n'a bougé** | ☐ | ☐ | SC-ADM-05, 06 ⚠ |
+| 5 | « Ma bannette » : classez un document à revoir → « Classer et relancer » | il quitte la file et apparaît à sa place | ☐ | ☐ | SC-ADM-07 |
+| 6 | Cherchez un mot présent **seulement** dans les documents du MINESUP | aucun résultat, aucun titre du MINESUP | ☐ | ☐ | SC-SEC-02 ⚠ |
+| 7 | Rechargez la page (F5) | même page, toujours connecté | ☐ | ☐ | ⚠ |
+
+## 4. Auditeur — `AUDIT001`
+
+| # | Faites | Vous devez voir | OK | KO | Réf. |
+|---|---|---|---|---|---|
+| 1 | Ouvrez le registre des actions | les actions de la séance (dépôt, validation, import, classement), avec l'heure et l'auteur | ☐ | ☐ | SC-AUD-01, SC-ADM-09 |
+| 2 | Filtrez sur l'auteur `MINFI001` | ses seules actions | ☐ | ☐ | SC-AUD-01 |
+| 3 | Retrouvez la connexion et le dépôt de `MINFI002` | une ligne pour chacun | ☐ | ☐ | SC-ADM-09 |
+| 4 | « Exporter (CSV) », puis ouvrez le fichier dans le tableur | les mêmes lignes que l'écran : heure, auteur, action | ☐ | ☐ | SC-AUD-02 |
+| 5 | Cherchez un bouton pour déposer ou modifier | aucun ; l'écran reste utilisable | ☐ | ☐ | SC-SEC-03, 04 |
+
+## Verdict du PO
+
+- ☐ **Tout est OK**, ou les KO sont déjà connus (liste ci-dessus) : bon pour le tag du 24/11.
+- ☐ **Un KO nouveau** : notez le profil, le numéro et ce que vous avez vu. O le trie le soir même.
+
+Signature : ______________________ Date : 23/11/2026
+
+# Partie 2 — Détail pour O
 
 - **Pour** : O, qui la déroule sur `release/v1.0.0` (rc.1), poste principal, jeu de démo remis à zéro.
 - **Source** : `criteres-acceptation.md` § 2 (version du 17/11, branche `docs/notes-version-rc1`), une ligne par critère, dans l'ordre de `scenario-demo-30-11.md`, groupées par compte de connexion. Libellés vérifiés sur b701314.
