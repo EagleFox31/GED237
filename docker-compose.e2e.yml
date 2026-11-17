@@ -3,7 +3,7 @@ name: edossier-e2e
 # Self-contained E2E stack: same command locally and in CI.
 #   docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e
 #   docker compose -f docker-compose.e2e.yml down -v
-# Override the Playwright selection with E2E_ARGS (default: the smoke project).
+# Override the Playwright selection with E2E_ARGS (default: the smoke and post-rc1 projects).
 # Reports land in frontend/e2e-out/ (git-ignored).
 
 x-logging: &default-logging
@@ -76,6 +76,9 @@ services:
       ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
       # development echoes the OTP in the login response; the specs rely on it.
       ENVIRONMENT: development
+      # Post-rc1 L3 (#153): validation queue switches, both driven by E2E_WORKFLOW_INBOX (default off).
+      WORKFLOW_INBOX_ENABLED: ${E2E_WORKFLOW_INBOX:-false}
+      WORKFLOW_PENDING_EXCLUDE_TRASHED: ${E2E_WORKFLOW_INBOX:-false}
       E2E_MANIFEST: /e2e-data/seed-manifest.json
       # Directory imports are refused outside these roots (403 INGEST_PATH_FORBIDDEN when empty).
       INGEST_ALLOWED_ROOTS: /data/ingest
@@ -109,10 +112,12 @@ services:
     working_dir: /app
     environment:
       CI: "true"
+      # Tells the specs which queue mode the api runs with (same variable as the api).
+      E2E_WORKFLOW_INBOX: ${E2E_WORKFLOW_INBOX:-false}
       HUSKY: "0"
       VITE_API_URL: http://api:8000/api/v1
       PLAYWRIGHT_HTML_OUTPUT_DIR: /out/playwright-report
-      E2E_ARGS: ${E2E_ARGS:---project=smoke}
+      E2E_ARGS: ${E2E_ARGS:---project=smoke --project=post-rc1}
     volumes:
       # Sources read-only, copied into the container: host node_modules (Windows) never leak in.
       - ./frontend:/src:ro
