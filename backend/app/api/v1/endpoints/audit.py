@@ -125,7 +125,7 @@ def _extract_detail(log: AuditLog) -> str:
             value = payload.get(key)
             if value:
                 return str(value)
-    return "Action tracee automatiquement par le systeme."
+    return "Action tracée automatiquement par le système."
 
 
 def _serialize_audit_log(
