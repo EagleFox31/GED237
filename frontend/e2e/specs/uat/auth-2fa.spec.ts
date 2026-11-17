@@ -160,7 +160,13 @@ test.describe('SC-AUTH-02 — Prolonger une session active', () => {
   const DESTINATION = 'audit?e2e=destination';
 
   async function expireOn(page: Page) {
-    await page.evaluate((bogus) => {
+    // Expire the tokens while no app page is alive: written on the live dashboard, one of its own
+    // requests could fail first and record /dashboard as the destination (flaky run 44080091290).
+    // The init script runs once, before the app loads on DESTINATION; later navigations keep their tokens.
+    await page.goto('about:blank');
+    await page.addInitScript((bogus) => {
+      if (window.top !== window || sessionStorage.getItem('e2e_expired_once')) return;
+      sessionStorage.setItem('e2e_expired_once', '1');
       sessionStorage.setItem('access_token', bogus);
       sessionStorage.setItem('token', bogus);
       sessionStorage.setItem('refresh_token', bogus);
