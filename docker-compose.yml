@@ -139,6 +139,8 @@ services:
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       # Read here by POST /reports/schedules (409 when off): same value as the worker.
       SCHEDULED_REPORTS_ENABLED: ${SCHEDULED_REPORTS_ENABLED:-false}
+      # Read here by POST /analytics/quality/alerts (409 when off): same as the worker.
+      QUALITY_ALERTS_ENABLED: ${QUALITY_ALERTS_ENABLED:-false}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
