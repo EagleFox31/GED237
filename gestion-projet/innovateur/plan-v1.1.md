@@ -166,3 +166,14 @@ Le PO a répondu « 1 V1.2, 2 V1.2, 15 oui » (transmis par O) :
   - la relecture par Q des grosses PR de la chaîne.
   Un dépassement de plus de 0,5 h-s chez Q entame la marge. On n'ajoute plus rien en V1.1 sans en sortir autant.
 - **Prochaine sortie si besoin** : #278 (sortie 4, Q 0,5). Le lot 8b ne sort qu'avec l'accord du PO.
+
+**Mise à jour du 17/11, fin de soirée (chiffres de B, décision de O)** :
+- **8b passe de 1,5 à 2,0 h-s (B)** : l'audit des changements de droits, avec 2 libellés en français, et la lecture de `GET /authz/policies` par l'administrateur d'institution. L'écriture reste au super admin, avec des tests dans les deux sens. O l'accepte : c'est une exigence de sécurité.
+- **Lot 13 (B)** : le rebasage de #235 et #238, plus le passage en `sql` (compose et doc), ne figuraient pas dans le total de B. **+0,5 h-s**. La synchronisation idempotente de #235 sert de migration.
+- **B : + 1 h-s, soit ≈ 21,9.** Le 1 h-s de B sur la sortie 3 est `Déduit` et en cours de confirmation. S'il n'avait pas été compté, B est à ≈ 22,9, ce qui reste dans sa capacité.
+- **Q : + 0,25 h-s (`Déduit`), soit ≈ 21,75.**
+  - Passage en `sql` : Q rejoue la suite des droits (security-isolation, route-guard, authz) sur une pile en `sql` (+ 0,25).
+  - Audit de 8b : B écrit les tests ; la relecture tient dans les 0,5 de Q déjà comptés pour 8b.
+  - Q reste sous 22 : **#278 reste en V1.1**. Il ne reste que ≈ 0,25 h-s avant d'entamer la marge de 6,8.
+- **Totaux** : B ≈ 21,9, F ≈ 15,5, Q ≈ 21,75, I 0,5, soit ≈ 59,65 h-s.
+- **Règle adoptée par O** : aucun ajout en V1.1 sans une sortie équivalente. Au prochain dépassement de Q, #278 sort (Q 0,5).
