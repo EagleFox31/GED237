@@ -81,6 +81,9 @@ Limites hors `fixme` :
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
 - L'Admin Service : ses documents et sa recherche couvrent toute l'institution ; ses rapports, seulement son service. Le limiter à son service partout est prévu en V1.1 (#215).
 - Les documents mis à la corbeille sont encore comptés dans les statistiques de l'institution ; corrigé en V1.1 (#218).
+- Renommer ou reclasser un document ne laisse pas encore de trace dans le journal d'audit. Correction prévue en V1.1 (#250).
+- Écran « Gestion AuthZ », onglet des règles : il n'affiche pas les droits sur ce serveur et montre un message d'erreur. Le serveur garde les droits dans un fichier (`AUTHZ_BACKEND=csv`) ; c'est la personne qui installe qui les règle. En V1.1, la grille s'affiche en lecture seule tant que le serveur reste dans ce mode, puis devient modifiable par le seul super admin quand il passe en base de données.
+- Reporté en V1.2 (décision du 17/11) : désigner un lecteur d'un autre service sans lancer de circuit ; alertes de qualité et onglet « Qualité » des rapports ; accès public en HTTPS sur un serveur distant.
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
 - Lots non fusionnés au 19/11 18:00 : relevé O reporté ici le 19 au soir ; phrases d'écart dans `plan-presentation.md` § 3.

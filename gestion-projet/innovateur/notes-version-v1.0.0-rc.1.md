@@ -82,6 +82,9 @@ Limites hors `fixme` :
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
 - L'Admin Service : ses documents et sa recherche couvrent toute l'institution ; ses rapports, seulement son service. Le limiter à son service partout est prévu en V1.1 (#215).
 - Les documents mis à la corbeille sont encore comptés dans les statistiques de l'institution ; corrigé en V1.1 (#218).
+- Renommer ou reclasser un document ne laisse pas encore de trace dans le journal d'audit. Correction prévue en V1.1 (#250).
+- Écran « Gestion AuthZ », onglet des règles : il n'affiche pas les droits sur ce serveur et montre un message d'erreur. Le serveur garde les droits dans un fichier (`AUTHZ_BACKEND=csv`) ; c'est la personne qui installe qui les règle. En V1.1, la grille s'affiche en lecture seule tant que le serveur reste dans ce mode, puis devient modifiable par le seul super admin quand il passe en base de données.
+- Reporté en V1.2 (décision du 17/11) : désigner un lecteur d'un autre service sans lancer de circuit ; alertes de qualité et onglet « Qualité » des rapports ; accès public en HTTPS sur un serveur distant.
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
 - Lots non fusionnés au 19/11 18:00 : relevé O reporté ici le 19 au soir ; phrases d'écart dans `plan-presentation.md` § 3.
@@ -89,8 +92,20 @@ Limites hors `fixme` :
 
 - **HTTPS (item CDC 27)** : l'accès chiffré `https://localhost:8443` utilise un certificat local (mkcert) installé sur le poste de démonstration ; aucun certificat public (pas de nom de domaine, démonstration sur place). Un autre poste affiche un avertissement tant que `mkcert -install` n'y a pas été lancé. Le HTTP sur le port 8080 reste disponible. Livré par #109 ; décision du PO du 16/11 : la démonstration se fait en HTTPS. *Si #109 n'est pas fusionnée le 19 à 18:00 : « accès HTTP seulement ».*
 - **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; la valeur retenue est celle des relevés du `c6.tsv` : **à renseigner le 19 au soir (≥ 6 relevés verts) puis le 21 (10 sur 10)**, sans arrondi.
-- **Déploiement sur serveur distant (item CDC 28)** : non livré, décision du PO du 9/11 (démonstration sur place, mêmes conteneurs).
+- **Déploiement sur serveur distant (item CDC 28)** : non livré dans la rc.1, décision du PO du 9/11 (démonstration sur place, mêmes conteneurs). La preuve d'installation retenue est l'essai d'installation sans Internet du 25/11. La mise en service sur le serveur distant vient en V1.1, avec un accès par VPN seulement (#288) ; l'accès public en HTTPS suit en V1.2.
 - **Volumétrie (item CDC 8)** : 420 documents mesurés ; les 100 000 fichiers du cahier des charges sont mesurés en décembre.
+
+### Ce qui se règle où
+
+| À l'écran | Sur le serveur, par la personne qui installe |
+|---|---|
+| Institutions, leur organisation et leur premier administrateur (« Institutions ») | Mots de passe techniques et clé de sécurité |
+| Comptes (« Utilisateurs ») | Durée des sessions, nombre d'essais de connexion, taille maximale d'un envoi |
+| « Gestion AuthZ » : les droits ne s'y règlent pas dans cette version (voir les Limites connues) | Droits des rôles (fichier `policy.csv`) |
+| Affichage du menu (« Paramètres ») | Sauvegardes et restaurations |
+| Côté Admin Institution : plan de classement, règles de rangement, modèles, espaces | Adresse et port de l'application |
+
+Les mots de passe techniques ne passent jamais par l'écran. En V1.1, la durée des sessions, le nombre d'essais de connexion et la taille maximale d'un envoi passent à l'écran, et la grille des droits s'affiche ; elle devient modifiable par le seul super admin quand le serveur passe en base de données. Détail des réglages du serveur : `DOCS/exploitation/installation.md` § 3.
 
 ### Dépendances
 
