@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.classification_review import ClassificationReview
 from app.models.document import Document
+from app.models.import_job import ImportJob
+from app.models.import_job_item import ImportJobItem
 from app.models.local_organize_event import LocalOrganizeEvent
 from app.models.org_unit import OrgUnit
 from app.models.org_unit import OrgUnitClosure
@@ -173,7 +175,9 @@ class ReportsService:
             local_runs,
             local_files,
             local_files_unranged,
-        ) = await self._local_organize_metrics(tenant_id=tenant_id)
+        ) = await self._local_organize_metrics(
+            tenant_id=tenant_id, org_unit_id=org_unit_id, recursive=recursive
+        )
         signals = ReportsDocumentActivitySignals(
             unclassified_documents=await self._count_documents(
                 [
@@ -196,7 +200,7 @@ class ReportsService:
             ),
             documents_needing_review=reviewed_documents,
             imports_needing_review=await self._count_open_import_reviews(
-                tenant_id=tenant_id
+                tenant_id=tenant_id, org_unit_id=org_unit_id, recursive=recursive
             ),
             local_organize_runs=local_runs,
             local_organize_files=local_files,
@@ -643,28 +647,75 @@ class ReportsService:
             for row in result.all()
         ]
 
-    async def _count_open_import_reviews(self, *, tenant_id: UUID) -> int:
+    @staticmethod
+    def _users_in_scope(org_unit_id: Optional[UUID], recursive: bool):
+        """Users of the report's unit (and its sub-units when recursive).
+
+        Signals without a unit of their own (import reviews, local organize
+        counters) belong to the unit of the user who produced them.
+        """
+        in_unit = User.org_unit_id == org_unit_id
+        if recursive:
+            descendant_ids = select(OrgUnitClosure.descendant_id).where(
+                OrgUnitClosure.ancestor_id == org_unit_id
+            )
+            in_unit = or_(in_unit, User.org_unit_id.in_(descendant_ids))
+        return select(User.id).where(in_unit)
+
+    async def _count_open_import_reviews(
+        self,
+        *,
+        tenant_id: UUID,
+        org_unit_id: Optional[UUID] = None,
+        recursive: bool = False,
+    ) -> int:
         stmt = select(func.count(ClassificationReview.id)).where(
             ClassificationReview.tenant_id == tenant_id,
             ClassificationReview.review_status == "open",
             ClassificationReview.import_job_item_id.is_not(None),
             ClassificationReview.document_id.is_(None),
         )
+        if org_unit_id:
+            stmt = (
+                stmt.join(
+                    ImportJobItem,
+                    ImportJobItem.id == ClassificationReview.import_job_item_id,
+                )
+                .join(ImportJob, ImportJob.id == ImportJobItem.import_job_id)
+                .where(
+                    ImportJob.created_by_id.in_(
+                        self._users_in_scope(org_unit_id, recursive)
+                    )
+                )
+            )
         result = await self.db.execute(stmt)
         return int(result.scalar_one() or 0)
 
-    async def _local_organize_metrics(self, *, tenant_id: UUID) -> tuple[int, int, int]:
-        """Compteurs agrégés du mode « Ranger sur mon poste » pour le tenant.
+    async def _local_organize_metrics(
+        self,
+        *,
+        tenant_id: UUID,
+        org_unit_id: Optional[UUID] = None,
+        recursive: bool = False,
+    ) -> tuple[int, int, int]:
+        """Compteurs agrégés du mode « Ranger sur mon poste » pour le périmètre.
 
         Retourne (nb_runs, total_files, total_files_unranged). Aucun fichier
         ni nom n'est lu — uniquement les compteurs anonymes enregistrés via
-        POST /api/v1/usage/local-organize.
+        POST /api/v1/usage/local-organize. Avec une unité, seuls les
+        rangements de ses utilisateurs comptent.
         """
         stmt = select(
             func.count(LocalOrganizeEvent.id),
             func.coalesce(func.sum(LocalOrganizeEvent.file_count), 0),
             func.coalesce(func.sum(LocalOrganizeEvent.files_unranged), 0),
         ).where(LocalOrganizeEvent.tenant_id == tenant_id)
+        if org_unit_id:
+            stmt = stmt.where(
+                LocalOrganizeEvent.user_id.in_(
+                    self._users_in_scope(org_unit_id, recursive)
+                )
+            )
         result = await self.db.execute(stmt)
         row = result.one_or_none()
         if row is None:
