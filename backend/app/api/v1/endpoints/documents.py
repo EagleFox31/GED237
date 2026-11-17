@@ -261,16 +261,27 @@ async def _resolve_target_org_unit_id(
     return org_unit.id
 
 
-async def _can_read_document(user: User, document: Document) -> bool:
+async def _within_unit_tree(db: AsyncSession, user: User, document: Document) -> bool:
+    """The document sits in the user's unit or in a unit below it (#202)."""
+    return bool(
+        user.org_unit_id
+        and document.org_unit_id
+        and await is_within_unit_tree(db, document.org_unit_id, user.org_unit_id)
+    )
+
+
+async def _can_read_document(db: AsyncSession, user: User, document: Document) -> bool:
     """
     Casbin valide le TYPE de permission (read / read_own).
-    La logique org_unit pour manager/reader reste ici (règle métier).
+    La portée par unité reste ici (règle métier) : la même que GET /documents.
     """
     ctx = ctx_from_resource(document)
     if await can_perform(user, "documents", "read", ctx):
         role_code = _role_code(user)
         if role_code in ORG_UNIT_READ_ROLES:
             return bool(user.org_unit_id and document.org_unit_id == user.org_unit_id)
+        if role_code in UNIT_TREE_READ_ROLES:
+            return await _within_unit_tree(db, user, document)
         return True  # admin / auditor : accès tenant-wide
     return await can_perform(user, "documents", "read_own", ctx)
 
@@ -833,7 +844,7 @@ async def get_document_audit_logs(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(db, current_user, document):
         raise HTTPException(status_code=403, detail="Not enough privileges")
 
     query = (
@@ -1107,7 +1118,7 @@ async def get_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
@@ -1121,7 +1132,7 @@ async def get_document_versions(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
@@ -1185,7 +1196,7 @@ async def get_document_content(
         )
 
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(db, current_user, document):
         # 404 plutôt que 403 : on évite de signaler l'existence d'une ressource
         # à un utilisateur non autorisé (anti-énumération).
         raise HTTPException(status_code=404, detail="Document not found")
@@ -1500,7 +1511,7 @@ async def get_document_ocr(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )

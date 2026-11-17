@@ -228,3 +228,30 @@ async def test_subtree_follows_parent_links(db_session, db_seed, tree):
     assert await is_within_unit_tree(db_session, units["a2"], units["a"])
     assert not await is_within_unit_tree(db_session, units["b"], units["a"])
     assert not await is_within_unit_tree(db_session, units["a"], units["a1"])
+
+
+# Read by id (#202): the same scope as the listings, on every route that opens
+# one document. Trashed documents are left out: these routes answer 404 for them.
+BY_ID = ("", "/versions", "/audit-logs")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role,unit,active", [m[:3] for m in MATRIX], ids=[f"{r}@{u}" for r, u, *_ in MATRIX]
+)
+async def test_reading_a_document_by_id_follows_the_listing_scope(
+    client_as, db_seed, tree, role, unit, active
+):
+    user = {"tenant_id": db_seed["tenant_id"], "org_unit_id": tree["units"][unit]}
+    if role == "collaborator":
+        user["id"] = tree["collaborator"]
+    readable = {suffix: set() for suffix in BY_ID}
+    async with client_as(role, **user) as client:
+        for key in WIDE:
+            for suffix in BY_ID:
+                response = await client.get(f"{DOCUMENTS}{tree['ids'][key]}{suffix}")
+                assert response.status_code in (200, 403), (key, suffix, response.text)
+                if response.status_code == 200:
+                    readable[suffix].add(key)
+
+    assert readable == {suffix: active for suffix in BY_ID}
