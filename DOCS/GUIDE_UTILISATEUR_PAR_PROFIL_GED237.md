@@ -150,7 +150,7 @@ Configurer le fonctionnement documentaire de l'institution et resoudre les cas q
 - `Plan de classement`
 - `Import en masse`
 - `Audit & Tracabilite`
-- `Parametres`
+- `Paramètres`
 
 ### Parcours recommande de mise en service
 
