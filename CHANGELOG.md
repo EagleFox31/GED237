@@ -76,6 +76,7 @@ Limites hors `fixme` :
 - Cycle de vie manuel : corbeille, restauration et purge par l'administrateur ; pas de durée de conservation automatique.
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
 - L'administrateur de service voit et cherche dans toute l'institution ; le limiter à son service est prévu en V1.1 (#215).
+- Les documents mis à la corbeille sont encore comptés dans les statistiques de l'institution ; corrigé en V1.1 (#218).
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
 - Lots non fusionnés au 19/11 18:00 : relevé O reporté ici le 19 au soir ; phrases d'écart dans `plan-presentation.md` § 3.
