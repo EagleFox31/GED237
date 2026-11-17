@@ -18,6 +18,7 @@ E-Dossier range, retrouve et fait valider les documents de votre institution. Ce
 - Les documents sont classés automatiquement par service, domaine, activité et année, selon des règles. L'administrateur peut tester une règle avant de l'activer.
 - Un dossier peut être surveillé : ce qui y arrive est importé sans action de votre part.
 - Ce que les règles ne savent pas classer attend dans « Ma bannette », où l'administrateur le classe à la main.
+- L'administrateur de l'institution archive un document validé ou signé : il reste consultable, avec le badge « Archivé ».
 
 **Retrouver un document**
 
@@ -51,7 +52,7 @@ E-Dossier range, retrouve et fait valider les documents de votre institution. Ce
 - **Réglage du serveur** : en rc.1, laissez ENVIRONMENT=development : le code de connexion s'affiche à l'écran. Avec production, il n'est ni affiché ni envoyé et personne ne peut se connecter. L'envoi par e-mail arrive en V1.1.
 - **Mot de passe oublié** : le lien « Oublié ? » ne fait encore rien. Demandez un nouveau mot de passe à votre administrateur.
 - **Corbeille** : elle n'a pas encore d'écran. Pour récupérer un document supprimé, adressez-vous à votre administrateur. Les documents en corbeille comptent encore dans les statistiques de l'institution (#218).
-- **Archivage et documents à revoir** : dans cette version, l'archivage d'un document et la liste des documents à revoir sont réservés à l'administrateur de la plateforme. L'administrateur de l'institution les aura en V1.1.
+- **Responsable et lecteur** : ils ne voient pas encore les documents des bureaux qui dépendent de leur service. En V1.1, ils verront leur service et ses sous-services, de la même façon dans la liste, la recherche et les rapports (#195).
 - **Conservation** : aucun document n'est supprimé automatiquement au bout d'une durée ; c'est l'administrateur qui vide la corbeille.
 - **Documents numérisés** : la lecture du texte d'un scan reste simple. Un scan de mauvaise qualité peut échapper à la recherche ; cherchez alors par titre ou par dossier.
 - **Autre poste que celui de la démonstration** : le navigateur peut afficher un avertissement de sécurité tant que le poste n'a pas été préparé par l'équipe technique.
@@ -61,13 +62,14 @@ E-Dossier range, retrouve et fait valider les documents de votre institution. Ce
 
 **Connexion**
 
-- Envoi du code de connexion par e-mail, avec un bouton pour le renvoyer (#154).
+- Envoi du code de connexion par e-mail, sur votre adresse du ministère et par le serveur de messagerie du ministère, avec un bouton pour renvoyer le code (#154).
 - Application d'authentification sur téléphone, obligatoire pour les administrateurs. En cas de téléphone perdu, le niveau supérieur réinitialise l'accès après vérification de votre identité (#193).
 - Réinitialisation de votre mot de passe depuis l'écran de connexion.
 
 **Droits et profil**
 
 - L'administrateur d'un service ne voit et ne modifie que les documents de son service et de ses sous-services. Il dispose d'un tableau de bord de son service (#215).
+- Un responsable désigné sur un document d'un autre service, comme lecteur ou signataire, peut l'ouvrir.
 - Chacun peut modifier lui-même son nom, son prénom et son téléphone. Les autres informations du compte restent gérées par l'administrateur (#222).
 - L'application cache d'elle-même les fonctions que votre administrateur a désactivées (#214, #224).
 
