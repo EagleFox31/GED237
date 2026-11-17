@@ -36,7 +36,7 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
     const csv = await auditor.exportAuditCsv({ action: 'dup_detected', table_name: 'documents' });
     const rows = csv.replace(/^﻿/, '').split(/\r?\n/).slice(1).filter(Boolean);
     expect(rows.length, 'une ligne par doublon refuse').toBeGreaterThanOrEqual(after.refused_upload);
-    for (const row of rows) expect(row.split(';'), 'export = evenements du filtre').toContain('Doublon refuse');
+    for (const row of rows) expect(row.split(';'), 'export = evenements du filtre').toContain('Doublon refusé');
     expect(rows.some((row) => row.split(';').includes(title)), 'le doublon de ce run est exporte').toBe(true);
 
     // The tile shows the counters read after this refusal (other specs may only add to them).
