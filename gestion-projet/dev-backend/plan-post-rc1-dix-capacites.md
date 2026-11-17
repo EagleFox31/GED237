@@ -66,7 +66,7 @@ Total hors TOTP, PDF, partage par ACL et archivage : 31,5 h-s.
 - Décision 1 (corbeille : purge automatique désactivée pour la démonstration, 90 jours en pilote) : **validée**.
 - Décisions 2 et 3 : **la suppression par l'utilisateur met le document en corbeille**. `DELETE /documents/{id}` ne supprime plus définitivement ; la suppression définitive passe par la purge de la corbeille (rôle `documents manage`), réservée aux documents déjà en corbeille. Lot L2 ; `TRASH_PURGE_REQUIRES_TRASHED` devient inutile.
 - Décision 4 (canal OTP) : **validée**.
-- Décision 5 (file « mon unité ») : **en discussion**. Proposition : unité seule par défaut, unités filles avec `recursive=true`, comme `/reports/*` et `/spaces/documents`.
-- Décision 6 (rapport officiel) : **en discussion**. Proposition : numéro d'ordre par institution et par année, avec registre des exemplaires émis (une table, donc après le 30/11).
+- Décision 5 (file « mon unité ») : **validée** : unité seule par défaut, unités filles avec `recursive=true`, comme `/reports/*` et `/spaces/documents`.
+- Décision 6 (rapport officiel) : **validée** : numéro d'ordre `N° 0001/2026/<sigle de l'institution>`, par institution, remis à zéro chaque année, avec registre des exemplaires émis (une table, donc après le 30/11).
 - Décisions 7, 8, 9 : **validées**.
 - Décision 10 (archivage légal) : cadre validé, aucun code sans décision écrite sur les durées et le sort final.
