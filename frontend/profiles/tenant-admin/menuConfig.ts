@@ -18,6 +18,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
       { id: 'dashboard', label: 'Tableau de bord', icon: 'dashboard', subItems: ['Vue générale', 'Alertes'] },
       { id: 'needs_review', label: 'Ma bannette', icon: 'inbox', subItems: ['Documents à revoir', 'En attente de ma signature'] },
       { id: 'pending_assignments', label: 'À distribuer', icon: 'assignment_ind', subItems: ['Documents sans destinataire'] },
+      { id: 'my_documents', label: 'Favoris & récents', icon: 'star', subItems: ['Favoris', 'Récents', 'Partagés avec moi'] },
       { id: 'search_config', label: 'Recherche', icon: 'manage_search', subItems: ['Recherche plein texte', 'Recherche avancée'] },
     ]
   },

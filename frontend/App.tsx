@@ -37,6 +37,7 @@ import PendingAssignmentsInbox from './profiles/tenant-admin/pages/PendingAssign
 import SpacesPage from './profiles/tenant-admin/pages/SpacesPage';
 import ClassificationReviewPage from './profiles/tenant-admin/pages/ClassificationReviewPage';
 import ReportsPage from './profiles/tenant-admin/pages/ReportsPage';
+import MyDocumentsPage from './components/MyDocumentsPage';
 import LocalLibraryPage from './profiles/tenant-admin/pages/LocalLibraryPage';
 
 // Route → activeTab mapping (pour la compatibilité Sidebar/Header)
@@ -62,6 +63,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/local-library': 'local_library',
   '/audit': 'audit_central',
   '/reports': 'reports',
+  '/my-documents': 'my_documents',
 };
 
 const TAB_TO_ROUTE: Record<string, string> = {
@@ -84,6 +86,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'local_library': '/local-library',
   'audit_central': '/audit',
   'reports': '/reports',
+  'my_documents': '/my-documents',
 };
 
 const DEFAULT_ROUTE_BY_PROFILE: Record<string, string> = {
@@ -274,6 +277,7 @@ const AppLayout: React.FC = () => {
             <Route path="/local-library" element={<LocalLibraryPage />} />
             <Route path="/audit" element={<AuditLogs />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/my-documents" element={<MyDocumentsPage />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
