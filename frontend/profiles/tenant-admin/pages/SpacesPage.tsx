@@ -7,6 +7,7 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 
 interface UserNode {
   id: string;
@@ -115,6 +116,9 @@ const DOCUMENT_STATUSES = ['draft', 'in_review', 'validated', 'signed', 'archive
 const SPACES_PAGE_SIZE = 50;
 const FILTER_SELECT =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none focus:border-rdpc-blue';
+// Focus clavier visible sur un dossier ou un document (navigation aux flèches).
+const EXPLORER_ITEM_FOCUS =
+  'outline-none focus-visible:border-rdpc-blue focus-visible:bg-blue-50 focus-visible:ring-4 focus-visible:ring-rdpc-blue/20';
 
 type ViewMode = 'details' | 'icons';
 
@@ -197,6 +201,10 @@ const SpacesPage: React.FC = () => {
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  // Zone des dossiers et documents : garde le focus clavier quand on change de dossier.
+  const itemsRegionRef = useRef<HTMLDivElement>(null);
+  // Élément à refocaliser à la fermeture de l'aperçu.
+  const previewReturnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -416,12 +424,68 @@ const SpacesPage: React.FC = () => {
   const openFolder = (unitId: string) => {
     setSelectedUnitId(unitId);
     setContextMenu(null);
+    // Le bouton activé disparaît avec l'ancien dossier : le focus reste dans l'explorateur.
+    itemsRegionRef.current?.focus({ preventScroll: true });
   };
 
   const openPreview = (document: Document) => {
+    previewReturnFocusRef.current = window.document.activeElement as HTMLElement | null;
     setPreviewDocument(document);
     setContextMenu(null);
   };
+
+  const closePreview = () => {
+    setPreviewDocument(null);
+    const back = previewReturnFocusRef.current;
+    previewReturnFocusRef.current = null;
+    if (back?.isConnected) back.focus({ preventScroll: true });
+  };
+
+  // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
+  const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || isEditableTarget(event.target)) return;
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f') {
+      const search = window.document.querySelector<HTMLInputElement>('[data-global-search]');
+      if (search) {
+        event.preventDefault();
+        search.focus();
+        search.select();
+      }
+      return;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === 'Backspace') {
+      if (parentUnit) {
+        event.preventDefault();
+        openFolder(parentUnit.id);
+      }
+      return;
+    }
+    if (!isArrowKey(event.key)) return;
+    const items = Array.from(
+      itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
+    );
+    const current = items.indexOf(window.document.activeElement as HTMLElement);
+    // Hors d'un élément (filtres, boutons d'en-tête), les flèches gardent leur rôle habituel.
+    if (items.length === 0 || (current < 0 && event.target !== itemsRegionRef.current)) return;
+    event.preventDefault();
+    const boxes = items.map((el) => {
+      const rect = el.getBoundingClientRect();
+      return { top: rect.top, left: rect.left };
+    });
+    items[nextFocusIndex(boxes, current, event.key)]?.focus();
+  };
+
+  useEffect(() => {
+    if (!previewDocument) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePreview();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+    // closePreview ne lit que des refs et un setter stables.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewDocument]);
 
   const openClassification = (document: Document) => {
     setDocumentToClassify(document);
@@ -488,7 +552,10 @@ const SpacesPage: React.FC = () => {
             )}
           </div>
 
-            <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+            <div
+              className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm"
+              onKeyDown={handleExplorerKeyDown}
+            >
             <div className="flex flex-col gap-6 border-b border-slate-100 px-8 py-7 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-6">
                 {parentUnit && (
@@ -536,6 +603,18 @@ const SpacesPage: React.FC = () => {
                 >
                   Importer
                 </button>
+                <InlineHelpButton
+                  label="Raccourcis clavier"
+                  content={
+                    <ul className="space-y-1 text-left">
+                      <li><b>Flèches</b> : se déplacer</li>
+                      <li><b>Entrée</b> : ouvrir</li>
+                      <li><b>Retour arrière</b> : dossier parent</li>
+                      <li><b>Ctrl+F</b> : rechercher</li>
+                      <li><b>Échap</b> : fermer</li>
+                    </ul>
+                  }
+                />
               </div>
             </div>
 
@@ -681,7 +760,12 @@ const SpacesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="min-h-[560px] px-8 py-8">
+            <div
+              ref={itemsRegionRef}
+              tabIndex={-1}
+              aria-label="Contenu du dossier"
+              className="min-h-[560px] px-8 py-8 outline-none"
+            >
               {childUnits.length > 0 && !isSearchMode && (
                 <div className="mb-8 space-y-4">
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
@@ -701,7 +785,8 @@ const SpacesPage: React.FC = () => {
                             type="button"
                             onClick={() => openFolder(child.id)}
                             onDoubleClick={() => openFolder(child.id)}
-                            className="group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50"
+                            data-explorer-item
+                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50 ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span className="material-symbols-outlined text-4xl text-amber-500">folder</span>
@@ -781,7 +866,8 @@ const SpacesPage: React.FC = () => {
                             onClick={() => openPreview(doc)}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
-                            className="group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue"
+                            data-explorer-item
+                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span
@@ -842,7 +928,16 @@ const SpacesPage: React.FC = () => {
                               key={doc.id}
                               onDoubleClick={() => openPreview(doc)}
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
-                              className="align-top transition-colors hover:bg-slate-50"
+                              tabIndex={0}
+                              data-explorer-item
+                              aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' && event.target === event.currentTarget) {
+                                  event.preventDefault();
+                                  openPreview(doc);
+                                }
+                              }}
+                              className="align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue"
                             >
                               <td className="px-6 py-5">
                                 <div className="space-y-2">
@@ -998,7 +1093,7 @@ const SpacesPage: React.FC = () => {
 
       {previewDocument && (
         <div className="fixed inset-0 z-40 flex justify-end bg-slate-950/45 backdrop-blur-sm">
-          <div className="absolute inset-0" onClick={() => setPreviewDocument(null)} />
+          <div className="absolute inset-0" onClick={closePreview} />
 
           <div className="relative flex h-full w-full max-w-[95vw] animate-in slide-in-from-right duration-300 flex-col bg-white shadow-2xl lg:max-w-[88vw] lg:flex-row">
             <div className="flex min-h-0 flex-1 flex-col border-b border-slate-200 bg-slate-100 lg:border-b-0 lg:border-r">
@@ -1013,7 +1108,9 @@ const SpacesPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPreviewDocument(null)}
+                  onClick={closePreview}
+                  aria-label="Fermer l'aperçu"
+                  title="Fermer (Échap)"
                   className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
                 >
                   <span className="material-symbols-outlined">close</span>
