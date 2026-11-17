@@ -570,3 +570,17 @@ première requête utilisateur.
 **Résolution** — L'autostash a été retrouvé (`git fsck --no-reflog`, commit « WIP on main »). Chaque fichier a été rétabli dans l'état de l'autostash, puis les entrées ajoutées entre-temps par les autres sessions y ont été remises. Contrôle : uniquement des ajouts par rapport à `HEAD`, et `HEAD` inchangé. Une deuxième session a vérifié.
 **Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
 **Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
+
+### LESSON-2026-040 — Entrée du menu admin sans page : « Recherche » ouvrait la page introuvable
+
+- **Date :** 2026-11-17
+- **Catégorie :** frontend / testing
+- **Statut :** prevention-added
+- **Liens :** `frontend/profiles/tenant-admin/menuConfig.ts`, `frontend/App.tsx` (`TAB_TO_ROUTE`, repli `/${tab}`, `NotFoundPage`), `frontend/e2e/specs/route-guard.spec.ts` (GUARD-07)
+
+**Contexte** — Le menu admin est déclaré dans `menuConfig.ts` par identifiants d'onglet. `App.tsx` traduit l'identifiant en route via `TAB_TO_ROUTE`, et à défaut navigue vers `/${tab}`.
+**Échec / near miss** — L'entrée « Recherche » (`search_config`) n'avait ni route ni page : `/search_config` affichait « Espace en Travaux ». Signalé pendant la recette rc.1.
+**Cause racine** — Le menu et les routes sont deux listes séparées, sans contrôle qui les relie. Le repli `/${tab}` masque l'absence de correspondance au lieu de la signaler.
+**Résolution** — Entrée retirée : aucune page de recherche n'existe. La recherche plein texte passe par le bandeau, et le filtre par l'Explorateur documentaire. Ensuite, la version durcie de GUARD-07 a trouvé un 2e lien mort, « Accès & Permissions » (`security_config`). La 1re version l'avait laissé passer. L'entrée est retirée elle aussi : `/authz` est réservé au super admin, et les rôles et permissions sont gérés dans « Agents & Rôles ».
+**Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
+**Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
