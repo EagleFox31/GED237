@@ -4,8 +4,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.org_unit import OrgUnit, OrgUnitClosure
+from app.models.org_unit import OrgUnit
 from app.models.user import User
+from app.services.reports_scope import unit_ancestors
 
 
 class SpacePathBuilder:
@@ -84,69 +85,26 @@ class SpacePathBuilder:
         """
         Retourne la chaîne organisationnelle de la racine vers le nœud cible.
 
-        La closure table est utilisée en priorité pour les hiérarchies déjà
-        matérialisées. Certaines unités historiques ou créées sans alimentation
-        de cette table peuvent toutefois ne pas y avoir de ligne. Dans ce cas,
-        on reconstruit la chaîne via ``parent_id`` afin de ne jamais perdre la
-        cible du chemin logique.
+        La chaîne se lit sur ``parent_id``, seule relation tenue à jour (#201) ;
+        une unité absente de l'institution donne une chaîne vide.
         """
         if org_unit_id in self._org_chain_cache:
             return self._org_chain_cache[org_unit_id]
 
+        ancestors = unit_ancestors(org_unit_id).subquery()
         result = await self.db.execute(
-            select(OrgUnit.id, OrgUnit.name)
-            .join(
-                OrgUnitClosure,
-                OrgUnit.id == OrgUnitClosure.ancestor_id,
-            )
-            .where(
-                OrgUnitClosure.descendant_id == org_unit_id,
-                OrgUnit.tenant_id == tenant_id,
-            )
-            .order_by(OrgUnitClosure.depth.desc())
+            select(OrgUnit.name)
+            .join(ancestors, ancestors.c.id == OrgUnit.id)
+            .where(OrgUnit.tenant_id == tenant_id)
+            .order_by(ancestors.c.depth.desc())
         )
-
-        rows = result.all()
-        closure_ids = [row.id for row in rows]
-        chain = [cleaned for row in rows if (cleaned := self._clean_segment(row.name))]
-
-        # A valid closure chain must contain the target itself (depth = 0).
-        # If it does not, rebuild from parent pointers. This covers legacy/test
-        # data and, more importantly, units created while closure maintenance is
-        # temporarily incomplete.
-        if org_unit_id not in closure_ids:
-            chain = await self._org_chain_from_parents(org_unit_id, tenant_id)
+        chain = [
+            cleaned
+            for row in result.all()
+            if (cleaned := self._clean_segment(row.name))
+        ]
 
         self._org_chain_cache[org_unit_id] = chain
-        return chain
-
-    async def _org_chain_from_parents(
-        self, org_unit_id: UUID, tenant_id: UUID
-    ) -> list[str]:
-        result = await self.db.execute(
-            select(OrgUnit.id, OrgUnit.parent_id, OrgUnit.name).where(
-                OrgUnit.tenant_id == tenant_id
-            )
-        )
-        units = {row.id: (row.parent_id, row.name) for row in result.all()}
-
-        chain: list[str] = []
-        seen: set[UUID] = set()
-        current_id: Optional[UUID] = org_unit_id
-
-        while current_id is not None and current_id not in seen:
-            current = units.get(current_id)
-            if current is None:
-                break
-
-            seen.add(current_id)
-            parent_id, name = current
-            cleaned = self._clean_segment(name)
-            if cleaned:
-                chain.append(cleaned)
-            current_id = parent_id
-
-        chain.reverse()
         return chain
 
     async def _user_name(self, user_id: UUID, tenant_id: UUID) -> Optional[str]:

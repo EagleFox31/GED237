@@ -15,7 +15,8 @@ les compteurs de leurs réponses :
 Le sous-arbre se lit sur ``org_units.parent_id``, seule relation tenue à jour :
 la table ``org_unit_closure`` n'est alimentée par aucun chemin de l'application.
 Les listes de documents, la recherche, les statistiques et les imports
-réutilisent ``unit_subtree_ids`` et ``is_within_unit_tree``.
+réutilisent ``unit_subtree_ids`` et ``is_within_unit_tree`` ; le moteur de règles et
+le chemin des espaces remontent l'arbre avec ``unit_ancestors`` (#201).
 """
 
 from dataclasses import dataclass
@@ -23,7 +24,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select, select
+from sqlalchemy import Select, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import can_perform
@@ -58,6 +59,28 @@ def unit_subtree_ids(root_id: UUID) -> Select:
     # UNION, not UNION ALL: a cycle in parent_id stops instead of looping.
     tree = tree.union(select(OrgUnit.id).where(OrgUnit.parent_id == tree.c.id))
     return select(tree.c.id)
+
+
+# Deeper than any real unit tree: a cycle in parent_id stops here instead of looping.
+MAX_UNIT_DEPTH = 64
+
+
+def unit_ancestors(unit_id: UUID) -> Select:
+    """``unit_id`` and every unit above it, as ``(id, depth)`` rows (#201).
+
+    Depth 0 is the unit itself, 1 its parent, and so on up to the root.
+    """
+    chain = (
+        select(OrgUnit.id, OrgUnit.parent_id, literal(0).label("depth"))
+        .where(OrgUnit.id == unit_id)
+        .cte(recursive=True)
+    )
+    chain = chain.union_all(
+        select(OrgUnit.id, OrgUnit.parent_id, chain.c.depth + 1).where(
+            OrgUnit.id == chain.c.parent_id, chain.c.depth < MAX_UNIT_DEPTH
+        )
+    )
+    return select(chain.c.id, chain.c.depth)
 
 
 async def is_within_unit_tree(db: AsyncSession, unit_id: UUID, root_id: UUID) -> bool:
