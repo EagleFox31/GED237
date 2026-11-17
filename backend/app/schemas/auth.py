@@ -33,6 +33,14 @@ class OTPVerifyRequest(BaseModel):
     otp: str = Field(..., min_length=6, max_length=6, description="6-digit OTP")
 
 
+class OTPResendRequest(BaseModel):
+    """Ask for a new code for a login session still open"""
+
+    session_token: str = Field(
+        ..., min_length=1, description="Session token from login"
+    )
+
+
 class UserInfo(BaseModel):
     """User information schema"""
 

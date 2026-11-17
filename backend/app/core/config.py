@@ -9,6 +9,9 @@ from typing import List, Any
 from functools import lru_cache
 
 
+OTP_CHANNEL_NAMES = ("dev_response", "email")
+
+
 class Settings(BaseSettings):
     """Application settings"""
 
@@ -57,6 +60,22 @@ class Settings(BaseSettings):
     # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
     AUTH_OTP_MAX_FAILURES: int = 3
     AUTH_LOCKOUT_SECONDS: int = 900
+    # How the second-factor code reaches the user (services/otp_delivery.py).
+    # dev_response sends nothing: the code is echoed in development only.
+    AUTH_OTP_CHANNEL: str = "dev_response"
+    # Minimum delay between two sendings of a code for the same login session.
+    AUTH_OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=30, ge=0)
+
+    @field_validator("AUTH_OTP_CHANNEL", mode="before")
+    @classmethod
+    def validate_otp_channel(cls, v: Any) -> str:
+        value = str(v).strip().lower()
+        if value not in OTP_CHANNEL_NAMES:
+            raise ValueError(
+                "AUTH_OTP_CHANNEL must be one of: " + ", ".join(OTP_CHANNEL_NAMES)
+            )
+        return value
+
     # True only when the API is reachable exclusively through a reverse proxy
     # that sets X-Forwarded-For (nginx/nginx.conf). Otherwise the header is
     # client-controlled and ignored.
