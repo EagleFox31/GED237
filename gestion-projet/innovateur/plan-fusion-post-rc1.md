@@ -19,7 +19,7 @@
 
 Ordre de O, corrigé sur cinq points (`Vérifié` dans les corps et les bases des PR) :
 
-1. **#191 est une issue**, pas une PR (« Rapports : suites de la relecture de #188 (V1.1) »). Je la retire de l'ordre.
+1. **#191 est une issue**, pas une PR (« Rapports : suites de la relecture de #188 (V1.1) »). Je la retire de l'ordre ; c'est **#196** qui la traite (§ 7).
 2. **#184 (annulation, écran)** utilise le contrat PATCH de #179, et son corps dit « Ne pas fusionner avant #152 ». Donc **#179 passe avant #184**, et non après la chaîne L2.
 3. **#182 (5da2d38) contient les heads de #181 (ca54b13) et de #184 (70a49f5)**. En revanche, il ne contient ni le dernier commit de #152 (7fa8a3d) ni celui de #179 (cf4e434) (`Vérifié` : `git merge-base --is-ancestor` et `git cherry`, le 17/11). D'où trois règles :
    - #152 et #179 fusionnent d'abord.
@@ -34,6 +34,7 @@ Ordre de O, corrigé sur cinq points (`Vérifié` dans les corps et les bases de
 
 | Créneau | PR, dans l'ordre | Condition |
 |---|---|---|
+| avant le tag du 24 | #198 (correctif rc.1 du menu) | avant #121, qui reste la dernière fusion avant le tag (§ 7) |
 | 25–26 | #166, #189 (docs) ; PR docs du scénario de démo | aucune (aucun effet à l'exécution) |
 | 25–26 | **passes ciblées sur les branches des PR**, sans fusion : #168, #170, #172, #169 et #182 (§ 4) | Docker uniquement |
 | 27 (après rc.2) | #147 (L1) | aucune passe (§ 6 de B) |
@@ -41,7 +42,7 @@ Ordre de O, corrigé sur cinq points (`Vérifié` dans les corps et les bases de
 | 28 | #153 (L3) → #190 | passe #170 verte + accord PO écrit ; #190 après #181 et #153 |
 | 28 | #154 (L4) ; #155 (L6) | passes #172 et #169 vertes + accord PO écrit |
 | 29 | aucune fusion | marge ; `main` stable pour la veille |
-| après le 30 | #161 → #162 → #180 → #183 → #194 ; #193 ; #186, #165, #192 ; #171 | § 5 |
+| après le 30 | #161 → #197 → #162 → #180 → #183 → #194 ; #193 ; #186, #165, #192 ; #171 ; #196 ; PR brouillon de #195 | § 5 et § 7 |
 
 Les PR de passe (#168, #169, #170, #172) fusionnent juste après la PR qu'elles couvrent, dans le même créneau. Si une passe échoue, sa chaîne passe après le 30. Les autres chaînes ne bougent pas.
 
@@ -58,6 +59,8 @@ Les PR de passe (#168, #169, #170, #172) fusionnent juste après la PR qu'elles 
 | 5 | #186 | `d4f1b6c2e8a9` | `a7c8d9e0f1b2` | **`d4e8b2c6a1f3`** |
 | 6 | #165 | `8aed3f3826d7` | `a7c8d9e0f1b2` | **`d4f1b6c2e8a9`** |
 | 7 | #192 | `c9f2a7d4e1b6` | `a7c8d9e0f1b2` | **`8aed3f3826d7`** |
+
+#197 n'ajoute aucune révision : elle porte la migration `eff6822a5320` de #161, qu'elle contient (§ 7). La chaîne ne change pas.
 
 Head final : `c9f2a7d4e1b6`. **Attention : `d4e8…` (#193) et `d4f1…` (#186) se ressemblent. Il faut recopier les identifiants, pas les retaper.** Chaîne retenue telle quelle par O le 17/11.
 
@@ -105,6 +108,9 @@ Pour l'accord du PO, je propose un commentaire sur chaque PR de lot, de la forme
 | PR | Lot | Motif |
 |---|---|---|
 | #161, #180, #183, #194 | L5b, L9 | table de B : L9 et le PDF de L5 après le 30 ; migrations |
+| #197 | L5 (PDF) | table de B : PDF de L5 après le 30 ; nouvelle dépendance `reportlab==5.1.0`, or les dépendances sont gelées jusqu'au 30 |
+| #196 | issue #191 | règle de portée des rapports (V1.1) ; PR brouillon |
+| PR de #195 (à ouvrir) | issue #195 | portée de `unit_admin` en recherche et en liste (V1.1) ; accord du PO sur la portée d'abord |
 | #162 | L8 | table de B : après le 30 |
 | #165 | L7 | table de B : après le 30 ; migration |
 | #193 | L4 (TOTP) | migration + parcours de connexion ; aucune passe dédiée (#172 ne couvre que le renvoi d'OTP) |
@@ -123,3 +129,20 @@ Règle proposée à O : **aucune migration sur `main` avant le 30**. Avec l'opti
 5. **Chaîne #152 → #179 → #181 → #184 → #182**, avec une fusion explicite de #184 : retenue.
 6. **Chaîne alembic du § 2** : retenue telle quelle.
 7. Fiche d'accord du PO pour le 26 : `accord-po-fusions-26-11.md`.
+
+## 7. Ajouts de O du 17/11 : #195 à #198
+
+`Vérifié` le 17/11 (`gh pr view`, `git merge-base --is-ancestor`, diffs des branches).
+
+- **#198, correctif rc.1 du menu** (retire l'entrée d'administration qui ouvrait la page introuvable) : fusion **avant le tag** du 24, et avant #121, qui reste la dernière fusion avant le tag. Pas de draft, base `main`.
+- **#197, PDF du rapport officiel (L5)** : gelée jusqu'au 30, fusion **juste après #161**.
+  - Sa base GitHub est `main`, mais sa branche **contient** #161 (head 80c3ea9, ancêtre de #197). Aucun reciblage n'est donc nécessaire. En revanche, tant que #161 n'est pas fusionnée, le diff de #197 montre aussi #161.
+  - **#197 ne doit jamais fusionner avant #161** : elle ferait entrer #161 et sa migration sans sa propre relecture.
+  - Elle n'ajoute pas de migration ; elle ajoute la dépendance `reportlab==5.1.0` (`requirements.txt`), d'où le gel.
+- **#196 traite l'issue #191** (brouillon, base `main`). Elle passe la règle de portée des rapports en **défaut fermé** : seuls `tenant_admin` et `auditor` voient toute l'institution, tout autre rôle est limité à son unité et à ses sous-unités. #196 et #161 ne se touchent pas dans les mêmes fichiers, mais **la seconde fusionnée casse les tests de l'autre** :
+  - `resolve_report_scope` prend désormais `db` en paramètre, alors que `tests/services/test_reports_scope.py` de #161 l'appelle sans.
+  - Le test `test_user_without_role_is_not_restricted` de #161 attend l'ancien défaut ouvert.
+  - Le test `test_scoped_role_on_another_unit_is_refused` de #161 est à relire : avec #196, une sous-unité est permise.
+
+  Règle de O : **la PR fusionnée en second** adapte `tests/services/test_reports_scope.py` de #161 au défaut fermé, avant sa fusion. Si #196 fusionne après #161, c'est donc #196 qui le fait.
+- **#195 est une issue** (portée de `unit_admin` en recherche et en liste des documents, alignée sur les rapports, V1.1). B ouvre une PR brouillon. Elle fusionne **après l'accord du PO sur la portée**, et donc après le 30.
