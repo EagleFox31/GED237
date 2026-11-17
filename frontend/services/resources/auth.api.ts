@@ -4,9 +4,10 @@
 // SRP : change uniquement si le contrat /auth/* évolue.
 
 import { API_URL } from '../../constants';
-import { apiCall, requestJson, fetchWithRefresh } from '../http/client';
+import { apiCall, fetchWithRefresh } from '../http/client';
 import { clearAuthSession, getHeaders } from '../http/session';
 import { buildApiError } from '../http/errorAdapter';
+import { apiErrorFromResponse } from '../../lib/errors';
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -67,22 +68,26 @@ export type OtpVerifyResult = AuthSession | TotpEnrolmentRequired;
 export const isEnrolmentRequired = (result: OtpVerifyResult): result is TotpEnrolmentRequired =>
     'status' in result && result.status === 'totp_enrolment_required';
 
-const postJson = <T>(path: string, body: unknown): Promise<T> =>
-    requestJson<T>(`${API_URL}${path}`, {
+/**
+ * Écrans avant session (connexion, code, enrôlement) : l'erreur n'est PAS poussée au bus
+ * global (dont le toast montrerait le détail anglais de l'API) ; l'écran affiche son propre
+ * message français (components/auth/authErrors.ts).
+ */
+const postJson = async <T>(path: string, body: unknown): Promise<T> => {
+    const response = await fetch(`${API_URL}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
+    if (!response.ok) throw await apiErrorFromResponse(response);
+    return response.json() as Promise<T>;
+};
 
 // ── API ─────────────────────────────────────────────────────────────────────
 
 export const authApi = {
     login: (payload: LoginPayload): Promise<LoginResponse> =>
-        requestJson<LoginResponse>(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        }),
+        postJson<LoginResponse>('/auth/login', payload),
 
     verifyOTP: (payload: OTPVerifyPayload): Promise<OtpVerifyResult> =>
         postJson<OtpVerifyResult>('/auth/verify-otp', payload),

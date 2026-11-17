@@ -7,9 +7,11 @@ import { HelpHint } from './HelpHint';
 import { isEnrolmentRequired } from '../services/resources/auth.api';
 import { TotpEnrolment } from './auth/TotpEnrolment';
 import { isAppCode, otpPrompt, resendErrorMessage, resendSecondsLeft } from './auth/otpRules';
+import { authErrorMessage } from './auth/authErrors';
 
-const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
-const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
+/** Message français d'une erreur d'API sur cet écran (l'API répond en anglais). */
+const messageOf = (err: unknown, fallback: string) =>
+  err instanceof ApiError ? authErrorMessage(err.status, err.raw.detail, fallback) : fallback;
 const LOCKED_FALLBACK = 'Compte verrouillé temporairement.';
 
 /** Verrou de compte (423) : message serveur et durée restante en secondes. */
@@ -160,7 +162,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         applyLockout(lock);
         return;
       }
-      setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Échec de connexion. Vérifiez vos identifiants.");
+      setError(messageOf(err, 'Échec de connexion. Vérifiez vos identifiants.'));
     } finally {
       setLoading(false);
     }
@@ -194,7 +196,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         applyLockout(lock);
         return;
       }
-      setError(isRateLimited(err) ? TOO_MANY_ATTEMPTS : "Code invalide");
+      setError(messageOf(err, 'Code invalide'));
     } finally {
       setLoading(false);
     }
@@ -224,7 +226,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       setResendNotice('Nouveau code envoyé.');
       if (response.otp && response.otp.length === 6) setOtp(response.otp.split(''));
     } catch (err) {
-      setError(resendErrorMessage(err instanceof ApiError ? err.status : undefined));
+      // 429 et 503 : textes du #154 ; session expirée et autres détails connus : traduits.
+      const status = err instanceof ApiError ? err.status : undefined;
+      setError(status === 429 || status === 503 ? resendErrorMessage(status) : messageOf(err, resendErrorMessage(status)));
     }
   };
 

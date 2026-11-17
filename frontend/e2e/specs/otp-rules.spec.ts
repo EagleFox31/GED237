@@ -9,6 +9,33 @@ import {
   resendErrorMessage,
   resendSecondsLeft,
 } from '../../components/auth/otpRules';
+import { SESSION_EXPIRED, TOO_MANY_TRIES, authErrorMessage, withRoleLabels } from '../../components/auth/authErrors';
+
+test.describe('Écrans de connexion : erreurs API en français', () => {
+  test('401 et 404 connus traduits', () => {
+    expect(authErrorMessage(401, 'Invalid credentials', 'x')).toBe('Identifiant ou mot de passe incorrect.');
+    expect(authErrorMessage(401, 'Invalid OTP', 'x')).toBe('Code invalide');
+    expect(authErrorMessage(401, 'Invalid or expired session', 'x')).toBe(SESSION_EXPIRED);
+    expect(authErrorMessage(404, 'Invalid or expired enrolment', 'x')).toBe(SESSION_EXPIRED);
+    expect(authErrorMessage(404, 'User not found', 'x')).toBe('Compte introuvable.');
+  });
+
+  test('429 : texte fixe, quel que soit le détail slowapi', () => {
+    expect(authErrorMessage(429, 'Rate limit exceeded: 5 per 1 minute', 'x')).toBe(TOO_MANY_TRIES);
+    expect(authErrorMessage(429, undefined, 'x')).toBe(TOO_MANY_TRIES);
+  });
+
+  test('422 : libellés de rôle à la place des codes', () => {
+    expect(withRoleLabels('Le rôle tenant_admin exige une adresse e-mail')).toBe('Le rôle Admin Institution exige une adresse e-mail');
+    expect(withRoleLabels('super_admin ou unit_admin')).toBe('Super Admin ou Admin Service');
+    expect(authErrorMessage(422, 'Le rôle super_admin exige une adresse e-mail', 'x')).toBe('Le rôle Super Admin exige une adresse e-mail');
+  });
+
+  test('détail inconnu ou absent : message de repli', () => {
+    expect(authErrorMessage(500, 'An error occurred during login: boom', 'Repli')).toBe('Repli');
+    expect(authErrorMessage(400, undefined, 'Repli')).toBe('Repli');
+  });
+});
 
 test.describe('Écran de code : règles', () => {
   test('application : pas de renvoi, texte adapté', () => {

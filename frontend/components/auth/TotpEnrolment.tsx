@@ -5,10 +5,13 @@ import { api, type AuthSession } from '../../services/api';
 import type { TotpSecret } from '../../services/resources/auth.api';
 import { ApiError } from '../../lib/errors';
 import { groupSecret, isSixDigits } from './otpRules';
-
-const EXPIRED = 'Délai dépassé. Reconnectez-vous.';
+import { SESSION_EXPIRED, authErrorMessage } from './authErrors';
 
 const statusOf = (err: unknown) => (err instanceof ApiError ? err.status : undefined);
+/** Jeton d'enrôlement refusé (401) ou inconnu/expiré (404) : retour à la connexion. */
+const isExpired = (err: unknown) => statusOf(err) === 401 || statusOf(err) === 404;
+const messageOf = (err: unknown, fallback: string) =>
+  err instanceof ApiError ? authErrorMessage(err.status, err.raw.detail, fallback) : fallback;
 
 interface TotpEnrolmentProps {
   enrolmentToken: string;
@@ -38,7 +41,7 @@ export const TotpEnrolment: React.FC<TotpEnrolmentProps> = ({ enrolmentToken, on
       })
       .catch((err: unknown) => {
         if (!alive) return;
-        if (statusOf(err) === 401) onExpired(EXPIRED);
+        if (isExpired(err)) onExpired(SESSION_EXPIRED);
         else setLoadFailed(true);
       });
     return () => {
@@ -57,13 +60,12 @@ export const TotpEnrolment: React.FC<TotpEnrolmentProps> = ({ enrolmentToken, on
     try {
       onDone(await api.confirmTotpEnrolment(enrolmentToken, code));
     } catch (err) {
-      const status = statusOf(err);
-      if (status === 401) {
-        onExpired(EXPIRED);
+      if (isExpired(err)) {
+        onExpired(SESSION_EXPIRED);
         return;
       }
       setCode('');
-      setError(status === 429 ? 'Trop de tentatives, réessayez dans une minute.' : 'Code incorrect');
+      setError(messageOf(err, 'Code incorrect'));
     } finally {
       setBusy(false);
     }
