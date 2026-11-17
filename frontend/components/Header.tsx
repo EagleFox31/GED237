@@ -6,6 +6,16 @@ import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../stores/authStore';
 import { Avatar } from './ui/Avatar';
+import { getStatusLabel } from '../types';
+
+/** Résultat de `GET /search` (SearchHitResponse côté serveur). */
+interface SearchHit {
+  document_id: string;
+  title: string;
+  status: string;
+  category?: string | null;
+  file_type?: string | null;
+}
 
 /**
  * Configuration de la barre de recherche par route.
@@ -120,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
     }
   };
 
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -128,6 +138,13 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const userMenuRef = useRef<HTMLDivElement>(null);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+
+  // Un résultat ouvre la fiche du document dans « Mes documents » (?open=<id>).
+  const openSearchResult = (hit: SearchHit) => {
+    setShowResults(false);
+    setGlobalQuery('');
+    navigate(`/documents?open=${encodeURIComponent(hit.document_id)}`);
+  };
 
   // Au changement de route, on nettoie l'état UI hérité (dropdown global) :
   // pas de sens d'afficher des résultats /spaces quand on arrive sur /users.
@@ -251,6 +268,14 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 onFocus={() => {
                   if (!isPageLocalSearch && searchQuery.length >= 2) setShowResults(true);
                 }}
+                onKeyDown={(e) => {
+                  // Entrée : ouvre le premier résultat de la recherche globale.
+                  const first = searchResults[0];
+                  if (e.key === 'Enter' && !isPageLocalSearch && showResults && first) {
+                    e.preventDefault();
+                    openSearchResult(first);
+                  }
+                }}
                 placeholder={searchConfig.placeholder}
                 aria-label={searchConfig.placeholder}
                 data-global-search
@@ -263,18 +288,26 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 {searchResults.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">
                     <div className="p-2 border-b border-slate-50">
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 pt-1">{searchResults.length} RÉSULTATS (FULL-TEXT)</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 pt-1">{searchResults.length} {searchResults.length > 1 ? 'résultats' : 'résultat'}</p>
                     </div>
                     {searchResults.map((result) => (
-                      <div key={result.id} className="p-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-3 group transition-colors">
+                      <button
+                        type="button"
+                        key={result.document_id}
+                        onClick={() => openSearchResult(result)}
+                        aria-label={`Ouvrir ${result.title}`}
+                        className="w-full text-left p-3 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-3 group transition-colors"
+                      >
                         <div className="w-10 h-10 rounded-xl bg-blue-50 text-rdpc-blue flex items-center justify-center shrink-0 group-hover:bg-rdpc-blue group-hover:text-white transition-colors">
                           <span className="material-symbols-outlined text-lg">{result.file_type?.includes('pdf') ? 'picture_as_pdf' : 'description'}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-bold text-slate-800 truncate">{result.title}</h4>
-                          <p className="text-[10px] text-slate-400 font-medium truncate">Catégorie: {result.category_name || 'Non classé'} • Statut: {result.status}</p>
+                          <p className="text-[10px] text-slate-400 font-medium truncate">
+                            {result.category ? `${result.category} • ` : ''}{getStatusLabel(result.status)}
+                          </p>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
