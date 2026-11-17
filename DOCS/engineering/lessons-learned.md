@@ -533,7 +533,7 @@ première requête utilisateur.
 
 - **Date :** 2026-11-17
 - **Catégorie :** testing
-- **Statut :** captured (contrôle appliqué aux captures ponctuelles ; aucun script versionné concerné)
+- **Statut :** prevention-added (#138 : script versionné `frontend/e2e/visual/`, garde `screen-guard.ts` et test qui la prouve)
 - **Liens :** PR #122 (migration Tailwind compilé), `frontend/components/Dashboard.tsx`, `frontend/App.tsx` (`ProfileDashboard`)
 
 **Contexte** — Pour vérifier #122 sans pile complète, les écrans login, dashboard et règles ont été comparés (build CDN vs build compilé) avec une API simulée répondant `{}` ou `[]` à toute requête, sur la base de styles calculés et de captures.
