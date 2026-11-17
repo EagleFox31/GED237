@@ -17,7 +17,7 @@
 | Processeur | 2 vCPU | charge 1,49 au relevé (0,3 à 0,5 en moyenne sur 5 et 15 min) | Les autres services sont calmes. |
 | Disque | 38 Go | **12 Go** | Cache de build récupérable : 1,9 Go. Il y a aussi d'anciennes archives `fleet-*.tgz` dans le dossier personnel, à trier avec l'utilisateur. |
 | Ports locaux pris | — | — | 2019, 3000, 3001, 5000, 8081, 8090, 8787, 8790, 8791, 8792, 51821. **8095 est libre.** |
-| Caddy | service systemd | — | Sites existants : `claude-accounts-manager`, `loveink-mailer`, `precis-translator`, `trigenys-sign`, `vpn-manager`, `vpn`, et `casino-de-la-reine` (désactivé le 16/11). Aucun `ged237`. |
+| Caddy | service systemd | — | Sites existants : un gestionnaire de comptes, `loveink-mailer`, `precis-translator`, `trigenys-sign`, `vpn-manager`, `vpn`, et `casino-de-la-reine` (désactivé le 16/11). Aucun `ged237`. |
 | Tâches planifiées | — | — | La sauvegarde de fleet tourne chaque nuit à 02:30. |
 
 ## 2. Ce que demande la pile GED237
