@@ -423,7 +423,9 @@ const SpacesPage: React.FC = () => {
   // la page sont retirés quand tout est chargé. Paginé avec des sous-services, on ne
   // connaît que la page : on affiche le total serveur, sous-services compris.
   const isPaginated = totalDocuments > documents.length;
-  const countIncludesSubServices = isPaginated && hiddenDescendantDocumentsCount > 0;
+  // Les documents de sous-services peuvent tous être sur les pages suivantes : on
+  // se fie à l'existence de sous-services, pas au nombre masqué sur cette page.
+  const countIncludesSubServices = isPaginated && childUnits.length > 0 && !isSearchMode;
   const folderDocumentCount = countIncludesSubServices
     ? totalDocuments
     : Math.max(totalDocuments - hiddenDescendantDocumentsCount, visibleDocuments.length);
