@@ -35,6 +35,10 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Validation d'import : la file de traitement ne bloque plus la réponse quand le stockage des résultats est injoignable (#75).
 - Interface : contraste, libellés de l'Atelier, message clair en cas de trop nombreuses tentatives de connexion, accessibilité des modales et du lecteur (#45, #73).
 
+### Droits retirés
+
+- Les rapports de l'Admin Service ne couvrent plus que son service et ses sous-services ; les Collaborateurs n'ont plus accès aux rapports (#188, #187).
+
 ### Recette et CI
 
 - Suite de fumée Playwright et parcours UAT P1–P8 joués contre la pile Docker complète (#39, #48, #55, #59, #63, #69).
@@ -72,7 +76,7 @@ Limites hors `fixme` :
 
 - Cycle de vie manuel : corbeille, restauration et purge par l'administrateur ; pas de durée de conservation automatique.
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
-- L'administrateur de service voit et cherche dans toute l'institution ; le limiter à son service est prévu en V1.1 (#215).
+- L'Admin Service : ses documents et sa recherche couvrent toute l'institution ; ses rapports, seulement son service. Le limiter à son service partout est prévu en V1.1 (#215).
 - Les documents mis à la corbeille sont encore comptés dans les statistiques de l'institution ; corrigé en V1.1 (#218).
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
