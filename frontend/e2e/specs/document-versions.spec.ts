@@ -46,9 +46,9 @@ test.describe('Nouvelle version depuis la fiche (#275)', () => {
 
     // THEN
     await expect(form.getByRole('status')).toHaveText(/^Version \d+ ajoutée\.$/, { timeout: 15_000 });
-    const current = page.locator('.glass').filter({ hasText: 'Actuelle' }).filter({ hasText: `Note ${runId}` });
-    await expect(current).toBeVisible();
-    await expect(page.getByRole('heading', { name: /^Version \d+$/ })).toHaveCount(2);
+    const versions = page.getByTestId('document-version');
+    await expect(versions).toHaveCount(2);
+    await expect(versions.filter({ hasText: 'Actuelle' })).toContainText(`Note ${runId}`);
 
     // WHEN — same file again
     await fileInput.setInputFiles(newContent);
@@ -56,6 +56,6 @@ test.describe('Nouvelle version depuis la fiche (#275)', () => {
 
     // THEN
     await expect(form.getByRole('alert')).toHaveText('Ce fichier est identique à la version actuelle.', { timeout: 15_000 });
-    await expect(page.getByRole('heading', { name: /^Version \d+$/ })).toHaveCount(2);
+    await expect(versions).toHaveCount(2);
   });
 });

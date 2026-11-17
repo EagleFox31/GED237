@@ -400,7 +400,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 <div className="text-center py-10 text-slate-400 font-bold">Aucun historique disponible.</div>
               )}
               {!versionsLoading && versions.map((v) => (
-                <div key={v.id} className={`glass p-5 rounded-3xl border flex items-center justify-between transition-all ${
+                <div key={v.id} data-testid="document-version" className={`glass p-5 rounded-3xl border flex items-center justify-between transition-all ${
                   v.is_current ? 'border-blue-400 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200'
                 }`}>
                   <div className="flex items-center gap-4">
