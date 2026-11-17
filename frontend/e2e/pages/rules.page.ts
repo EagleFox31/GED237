@@ -37,9 +37,9 @@ export class RulesPage {
 
   constructor(page: Page) {
     // Header
-    this.heading = page.getByRole('heading', { name: /paramétrage ged.*classement|routage automatique|automates.*règles/i });
-    this.subtitle = page.getByText(/configuration des modèles|classement automatique|circuits workflow/i);
-    this.rulesTabButton = page.getByRole('button', { name: /règles de routage/i });
+    this.heading = page.getByRole('heading', { name: /traitement des documents/i });
+    this.subtitle = page.getByText(/comment les documents circulent/i);
+    this.rulesTabButton = page.getByRole('button', { name: /règles d['’]aiguillage/i });
     // In the current UI, simulation is a tab, not a mode toggle button.
     this.simulationButton = page.getByRole('button', { name: /simulat/i });
     this.newRuleButton = page.getByRole('button', { name: /nouvelle règle/i });

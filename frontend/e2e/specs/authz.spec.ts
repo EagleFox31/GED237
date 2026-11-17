@@ -26,9 +26,15 @@ test.describe('Feature: AuthZ Admin', () => {
 
     const policiesPromise = page.waitForResponse(r => /\/authz\/policies/.test(r.url()) && r.request().method() === 'GET');
     await page.goto('authz');
-    await policiesPromise;
+    const policies = await policiesPromise;
 
     await expect(page.getByText(/policies/i).first()).toBeVisible();
+    if (policies.status() === 409) {
+      // AUTHZ_BACKEND=csv : droits non modifiables, message lisible et jamais le texte brut du serveur.
+      await expect(page.getByRole('status').filter({ hasText: 'Les droits ne sont pas modifiables sur cette installation.' })).toBeVisible();
+      await expect(page.getByText(/AUTHZ_BACKEND/)).toHaveCount(0);
+      return;
+    }
     await expect(page.locator('table').first()).toBeVisible({ timeout: 10_000 });
   });
 
