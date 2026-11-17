@@ -1,6 +1,10 @@
+import type { APIRequestContext, Page, TestInfo } from '@playwright/test';
+
 import { test, expect } from '../fixtures/auth.fixture';
+import { UatApi } from '../fixtures/uat.fixture';
 import { DocumentsPage, DraftWorkspacePage, UploadDocumentModalPage } from '../pages/documents.page';
 import { DocumentDetailModal } from '../pages/document-detail.page';
+import { HeaderPage } from '../pages/header.page';
 import { seedCategory } from '../data/seed';
 import { uniqueTextFile } from '../data/files';
 
@@ -468,5 +472,130 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
     const card = page.locator('.grid > div.glass').filter({ hasText: docTitle });
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card).toContainText(/brouillon|en révision/i);
+  });
+});
+
+/** Unique suffix per test and retry: titles and upload checksums never collide on a replayed base. */
+const runIdOf = (info: TestInfo) => `${Date.now().toString(36)}${info.workerIndex}${info.retry}`;
+
+/** API helper on the session opened by loginAs (no extra 2FA login, so no rate-limit pressure). */
+async function sessionApi(page: Page, request: APIRequestContext): Promise<UatApi> {
+  const token = await page.evaluate(() => sessionStorage.getItem('access_token'));
+  if (!token) throw new Error('access_token absent from sessionStorage after loginAs');
+  return new UatApi(request, token);
+}
+
+const openUrl = (documentId: string) => new RegExp(`/documents[?](.*&)?open=${documentId}(&|$)`);
+
+test.describe('header search → document → archive (#256)', () => {
+  test.slow(); // visa circuit set up through the API, two roles
+
+  /**
+   * SCENARIO 16: Recherche du bandeau → fiche → Archiver
+   *
+   *   GIVEN  un document validé (circuit d'un visa : déposé par l'admin, visé par le Manager)
+   *   AND    l'admin sur l'accueil (la liste globale n'existe pas sur /documents, /spaces, /users)
+   *   WHEN   il tape le titre dans la recherche du bandeau et clique le résultat
+   *   THEN   /documents?open=<id> s'ouvre sur la fiche du document
+   *   WHEN   il clique « Archiver » puis « Oui, archiver »
+   *   THEN   le document est archivé (API et badge « Archivé »)
+   */
+  test('Given doc validé, When recherche bandeau puis clic résultat et Archiver, Then fiche ouverte et doc archivé', async ({ page, request, loginAs }) => {
+    const runId = runIdOf(test.info());
+    const title = `Recherche archivage 256 ${runId}`;
+    const header = new HeaderPage(page);
+    const detail = new DocumentDetailModal(page);
+
+    // GIVEN — tenant_admin owns `documents archive`; the API only archives a validated or signed document.
+    await loginAs('manager');
+    const manager = await sessionApi(page, request);
+    await loginAs('tenant_admin');
+    const admin = await sessionApi(page, request);
+    const doc = await admin.uploadDocument(`search-archive-${runId}.txt`, title, `Recherche puis archivage ${runId}`);
+    const [step] = await admin.submitForVisa(doc.id, (await manager.me()).id, 'Visa #256');
+    const { current_version_id: versionId } = await admin.getDocument(doc.id);
+    if (!step || !versionId) throw new Error(`no visa step or current version for ${title}`);
+    await manager.acceptVisa(step.id, versionId);
+    await expect.poll(async () => (await admin.getDocument(doc.id)).status).toBe('validated');
+
+    // WHEN — search from the dashboard (loginAs lands there), click the result
+    await header.searchAndOpen(title);
+
+    // THEN — the document opens
+    await expect(page).toHaveURL(openUrl(doc.id));
+    await detail.expectOpenOn(title);
+
+    // WHEN — archive from the document
+    await detail.archive();
+
+    // THEN — server state first (the button reads « Archivage… » during the request), then what the user sees
+    await expect.poll(async () => (await admin.getDocument(doc.id)).status).toBe('archived');
+    await detail.expectArchived(title);
+  });
+
+  /**
+   * SCENARIO 17: Entrée dans la recherche du bandeau ouvre le premier résultat
+   *
+   *   GIVEN  un document au titre unique
+   *   WHEN   l'admin tape ce titre dans le bandeau
+   *   THEN   le statut du résultat est traduit (pas « draft » brut)
+   *   WHEN   il appuie sur Entrée
+   *   THEN   la fiche du document s'ouvre (/documents?open=<id>)
+   *   AND    la fermer retire ?open= de l'URL
+   */
+  test('Given doc, When recherche bandeau puis Entrée, Then fiche ouverte et fermeture nettoie l\'URL', async ({ page, request, loginAs }) => {
+    const runId = runIdOf(test.info());
+    const title = `Recherche entree 256 ${runId}`;
+    const header = new HeaderPage(page);
+    const detail = new DocumentDetailModal(page);
+
+    // GIVEN
+    await loginAs('tenant_admin');
+    const admin = await sessionApi(page, request);
+    const doc = await admin.uploadDocument(`search-enter-${runId}.txt`, title, `Recherche par Entrée ${runId}`);
+
+    // WHEN
+    await header.searchFor(title, title);
+
+    // THEN — translated status label in the result row
+    await expect(header.searchResult(title)).not.toContainText(/\b(draft|in_review|validated)\b/);
+
+    // WHEN
+    await header.searchInput.press('Enter');
+
+    // THEN
+    await expect(page).toHaveURL(openUrl(doc.id));
+    await detail.expectOpenOn(title);
+
+    // AND
+    await detail.close();
+    await expect(detail.heading(title)).toBeHidden();
+    await expect(page).not.toHaveURL(/[?&]open=/);
+  });
+
+  /**
+   * SCENARIO 18: « Mes documents » trouve un document par son titre (recherche côté serveur, #256 écart 9)
+   *
+   *   GIVEN  un document au titre unique
+   *   WHEN   l'admin le cherche dans la barre de « Mes documents »
+   *   THEN   sa carte est affichée
+   */
+  test('Given doc au titre unique, When recherche dans Mes documents, Then carte trouvée', async ({ page, request, loginAs }) => {
+    const runId = runIdOf(test.info());
+    const title = `Mes documents 256 ${runId}`;
+    const docsPage = new DocumentsPage(page);
+
+    // GIVEN
+    await loginAs('tenant_admin');
+    const admin = await sessionApi(page, request);
+    await admin.uploadDocument(`my-docs-${runId}.txt`, title, `Mes documents ${runId}`);
+
+    // WHEN
+    await docsPage.goto();
+    await docsPage.expectPageVisible();
+    await docsPage.searchDocuments(title);
+
+    // THEN
+    await expect(docsPage.documentHeading(title)).toBeVisible({ timeout: 10_000 });
   });
 });
