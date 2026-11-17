@@ -35,6 +35,7 @@ torchvision==0.21.0
 torchaudio==2.6.0
 Pillow==13.0.0
 pypdf==7.0.0
+reportlab==5.1.0      # official report as PDF (BSD); post-rc1 L5
 pdf2image==1.17.0
 
 # Utilities

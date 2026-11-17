@@ -8,6 +8,15 @@ name and scope of the schedule's creator, who gets an in-app notification in the
 same transaction. A refusal (rights lost, no short name) is recorded as a failed run
 and notified once; an unexpected error rolls everything back, so the next pass
 tries again.
+
+Known limits, on purpose:
+- Only the last closed period is issued. There is no catch-up: a period missed
+  while the worker was stopped is not issued later (issue it by hand). A new
+  schedule issues the period that closed just before its creation, so the first
+  report comes at the next pass.
+- An unexpected error (a bug, not a refusal) is retried at each pass and logged
+  with its trace each time, without notification. Refusals are final for their
+  period.
 """
 
 import logging

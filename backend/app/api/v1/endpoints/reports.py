@@ -262,13 +262,24 @@ async def reprint_official_report(
     )
 
 
+SCHEDULED_REPORTS_HEADER = "X-Scheduled-Reports-Enabled"
+
+
 @router.get("/official/schedules", response_model=list[ReportScheduleOut])
 async def list_report_schedules(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """The caller's active scheduled reports."""
+    """The caller's active scheduled reports.
+
+    The header tells the client whether this server runs them, so it can hide
+    the feature when it is off.
+    """
     await authorize_or_403(current_user, "analytics.tenant", "read")
+    response.headers[SCHEDULED_REPORTS_HEADER] = (
+        "true" if settings.SCHEDULED_REPORTS_ENABLED else "false"
+    )
     result = await db.execute(
         select(ReportSchedule)
         .where(

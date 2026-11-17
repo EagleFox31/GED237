@@ -1,10 +1,11 @@
 name: CI
 
+# release/** : the acceptance branch cut at the freeze (release/v1.0.0) runs the same gates as main.
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "release/**"]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "release/**"]
   # Manual full validation: every gate runs.
   workflow_dispatch: {}
 

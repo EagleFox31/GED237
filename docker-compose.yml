@@ -137,6 +137,8 @@ services:
       # Watched folders: read here only for GET /documents/ingest-watch/status.
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      # Read here by POST /reports/schedules (409 when off): same value as the worker.
+      SCHEDULED_REPORTS_ENABLED: ${SCHEDULED_REPORTS_ENABLED:-false}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
@@ -211,6 +213,7 @@ services:
       args:
         VITE_APP_VERSION: ${APP_VERSION:-dev}
     container_name: edossier_frontend
+    restart: unless-stopped
     mem_limit: 768m
     memswap_limit: 768m
     cpus: 1.0
