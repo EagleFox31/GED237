@@ -86,6 +86,37 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.e2e.yml down -v --remove-orphans
 
+  # The VPS overlay must still merge with the reference stack, and its proxy config must load (#251).
+  compose-config:
+    name: Compose config (VPS overlay)
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'compose-config') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # Dummy values: the overlay refuses to render without them (${VAR:?}).
+      DB_PASSWORD: ci-dummy
+      SECRET_KEY: ci-dummy
+      GED_BIND_ADDR: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compose 2.24.4 or later (merge tags !override and !reset)
+        run: |
+          version=$(docker compose version --short)
+          echo "docker compose $version"
+          if [ "$(printf '%s\n' 2.24.4 "$version" | sort -V | head -n1)" != 2.24.4 ]; then
+            echo "::error::docker compose $version predates 2.24.4: the overlay's merge tags would be rejected"
+            exit 1
+          fi
+      - name: Overlay merges with docker-compose.yml (demo-seed profile included)
+        run: docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile demo-seed config -q
+      - name: Proxy config loads (nginx -t, same image as the stack)
+        run: |
+          docker run --rm --add-host api:127.0.0.1 --add-host frontend:127.0.0.1 \
+            -v "$PWD/nginx/nginx-vps.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$PWD/nginx/app-locations.conf:/etc/nginx/snippets/app-locations.conf:ro" \
+            nginx:alpine nginx -t
+
   # An invalid workflow file fails on every push with zero jobs; catch it in review.
   workflows:
     name: Workflow lint (actionlint)
@@ -119,7 +150,7 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [impact, backend, frontend, security, workflows, tracked-files]
+    needs: [impact, backend, frontend, security, compose-config, workflows, tracked-files]
     runs-on: ubuntu-latest
     timeout-minutes: 2
 

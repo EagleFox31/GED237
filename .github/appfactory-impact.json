@@ -53,6 +53,11 @@
       ],
       "gates": ["container-scan"],
       "dependsOn": ["ci-platform", "dependencies"]
+    },
+    "vps-deploy": {
+      "paths": ["docker-compose.yml", "docker-compose.vps.yml", "nginx/**"],
+      "gates": ["compose-config"],
+      "dependsOn": ["ci-platform"]
     }
   }
 }
