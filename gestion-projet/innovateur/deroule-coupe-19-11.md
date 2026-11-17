@@ -25,7 +25,7 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 
 | Heure | Commande (worktree `GED237-docs-notes-version`) | Contrôle attendu | Si KO |
 |---|---|---|---|
-| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | `53d4c40`. Sinon, `main` a bougé : faire `git merge origin/main` en local avant le push | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
+| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | `b43e95f` (main après la fusion de #226, le 17/11 ; la tête locale de #104 part encore de 53d4c40, le merge est donc à faire). Sinon, `main` a encore bougé : faire `git merge origin/main` en local avant le push | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
 | 17:56 | `git merge-tree --write-tree origin/main HEAD` | une seule ligne (un SHA d'arbre), sans `CONFLICT` | idem |
 | 17:57 | `head -n 5 gestion-projet/innovateur/notes-version-v1.0.0-rc.1.md \| grep -Eiq 'brouillon\|Pour\**[[:space:]]*:' && echo STOP \|\| echo OK` | `OK` | `STOP` : corriger en local avant le push, qui reste unique |
 | 17:58 | `git diff origin/main...HEAD \| grep -cE '@20(25)'` | `0` : aucun mot de passe de démonstration | retirer la ligne, puis faire un nouveau commit local |
