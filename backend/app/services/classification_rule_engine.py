@@ -131,7 +131,7 @@ class ClassificationRuleEngine:
             )
             return ClassificationResolution(
                 status=ClassificationStatus.no_rule,
-                message="Aucune regle de classement n'a correspondu.",
+                message="Aucune règle de classement n'a correspondu.",
                 classification_year=current_year,
                 logical_space_path=pending_path,
                 diagnostics=diagnostics,
