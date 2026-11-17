@@ -13,7 +13,7 @@ Une personne qui n'a jamais vu GED237 installe l'application à partir du manuel
 | Poste | Système | Voie du manuel | Quand | Exécutant |
 |---|---|---|---|---|
 | **P1, Windows** | Windows 11 + WSL 2, distribution Ubuntu 24.04 neuve et jetable | § 2 à § 5 en ligne (`build` depuis Internet) | **18/11, 07:30–10:30**, déjà planifié par Q | Q, avec son script `wsl-proof.sh` (**Adopt**) |
-| **P2, Ubuntu** | Ubuntu 24.04 installé à neuf, sans WSL ni autre pile Docker | § 9 **sans Internet** (images sur clé USB), puis § 5 à § 7 et un redémarrage | après le tag du 24, sur `v1.0.0-rc.1` | Q |
+| **P2, Ubuntu** | Ubuntu 24.04 installé à neuf, sans WSL ni autre pile Docker | § 9 **sans Internet** (images sur clé USB), puis § 5 à § 7 et un redémarrage | après la fusion de #154 et du garde-fou de B (empilé sur #154, après le tag du 24), sur le premier tag qui les contient | Q |
 
 **P1 reprend la preuve WSL de Q** (`GED237-c6/wsl-proof/CHECKLIST.md`, `Vérifié`). Elle tient pour l'item 28 si les compléments du § 3 sont faits, notamment la connexion : la phase `verify` du script contrôle `/health`, `alembic current`, `/` et `/api/docs`, mais pas la connexion au tableau de bord (`Vérifié`, `wsl-proof.sh` l. 135-138).
 
@@ -68,6 +68,7 @@ Un écart = tout geste ou toute information dont l'opérateur a eu besoin et que
 | 2 | P1 | § 2 du protocole | exécution en root (distribution créée sans utilisateur) | — | mineur | aucune |
 | 3 | P1 | E4 | si `RAM_MODE=soft` : plafonds réduits par un fichier `override` | `docker-compose.override.yml` de Q | **majeur** si utilisé (le manuel n'est plus suivi tel quel) | noter le pic de RAM ; pas de modification du manuel |
 | 4 | P1, P2 | E4 (§ 4) | `frontend` en cible `development` (serveur Vite) dans le compose de site | — | majeur, ligne « produit », hors § 5 | build statique servi par nginx, à instruire après le 30 (B) |
+| 5 | P1 | E5 (§ 5) | code de connexion prérempli à l'écran : `ENVIRONMENT: development` en dur dans `docker-compose.yml` (l. 141), aucun envoi en rc.1 | — | limite connue de la rc.1, inscrite dans ses notes ; pas un écart de P1 | B après le tag, empilé sur #154 : `ENVIRONMENT` réglable, garde-fou au démarrage en production sans canal d'envoi, § du manuel ; contrôlé par la condition 7 sur P2 |
 | … | | | | | | |
 
 Les lignes 1 à 3 viennent de la CHECKLIST de Q (`Vérifié`). Docker installé par les paquets Ubuntu n'est pas un écart : c'est un prérequis du manuel.
@@ -79,7 +80,7 @@ Les lignes 1 à 3 viennent de la CHECKLIST de Q (`Vérifié`). Docker installé 
 
 ## 5. Critère réussi / échoué (`Proposé`, chiffré)
 
-Un poste est **réussi** si les six conditions tiennent :
+Un poste est **réussi** si les six conditions tiennent, et pour P2 la septième aussi :
 
 1. **0 écart bloquant.**
 2. **Au plus 2 écarts majeurs**, chacun avec une PR du manuel ou un correctif ouvert dans les 48 h.
@@ -89,6 +90,7 @@ Un poste est **réussi** si les six conditions tiennent :
    - P2 (hors ligne) : **≤ 20 min**.
 5. **Temps opérateur de E1 à E5 ≤ 20 min** sur chaque poste.
 6. **E6 réussie** (sauvegarde créée) ; et pour P2, **E7** : tableau de bord accessible **≤ 5 min** après le redémarrage, sans aucune commande.
+7. **P2 seulement, bloquant** (demande de O, 17/11) : à E5, **le code de connexion n'apparaît pas à l'écran et arrive par e-mail**. Si le code s'affiche, ou si aucun e-mail n'arrive, P2 est échoué, même si tout le reste est réussi. P2 suppose donc #154 fusionnée et le garde-fou de B en place.
 
 Il est **échoué** sinon. La condition qui manque est alors nommée dans le relevé.
 
