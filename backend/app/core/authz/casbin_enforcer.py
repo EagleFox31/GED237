@@ -311,6 +311,8 @@ async def bootstrap_sql_policies_from_csv(force: bool = False) -> int:
       absentes du CSV, ajoute les manquantes. Écritures unitaires (auto_save),
       jamais save_policy() qui efface et réécrit toute la table : les lignes
       déjà conformes gardent leur id, un second passage n'écrit rien.
+      Une règle du CSV présente deux fois en SQL n.est plus dédoublonnée
+      (sans effet sur l.enforce : casbin charge les doublons une seule fois).
     Retourne le nombre de lignes importées.
     """
     sql_e = await _get_sql_enforcer()
@@ -381,7 +383,8 @@ async def csv_sql_policy_drift() -> dict[str, list[list[str]]]:
     Compare policy.csv with the SQL policy store, read fresh from the database.
     - missing_p / missing_g : rules of policy.csv absent from SQL
     - sql_only_p / sql_only_g: rules only in SQL (added through the admin API,
-      or removed from policy.csv since) — reported, never touched
+      or removed from policy.csv since) — reported; this function never
+      touches them (bootstrap force=True removes them)
     Read only.
     """
     sql_e = await _get_sql_enforcer()
