@@ -34,6 +34,10 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Rapports : les signaux `imports_needing_review` et `local_organize_*` sont limités au périmètre de l'appelant (#188).
 - Compteurs `/documents/stats` et `/workflows/stats` limités aux documents que l'appelant peut lister (#177, #176).
 
+### Sécurité
+
+- Un administrateur ne peut plus attribuer un rôle plus élevé que le sien (#223).
+
 ### Droits retirés
 
 - Les rapports de l'Admin Service ne couvrent plus que son service et ses sous-services ; les Collaborateurs n'ont plus accès aux rapports (#188, #187).

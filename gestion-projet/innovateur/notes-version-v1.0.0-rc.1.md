@@ -35,6 +35,10 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 - Validation d'import : la file de traitement ne bloque plus la réponse quand le stockage des résultats est injoignable (#75).
 - Interface : contraste, libellés de l'Atelier, message clair en cas de trop nombreuses tentatives de connexion, accessibilité des modales et du lecteur (#45, #73).
 
+### Sécurité
+
+- Un administrateur ne peut plus attribuer un rôle plus élevé que le sien (#223).
+
 ### Droits retirés
 
 - Les rapports de l'Admin Service ne couvrent plus que son service et ses sous-services ; les Collaborateurs n'ont plus accès aux rapports (#188, #187).
