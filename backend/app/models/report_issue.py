@@ -31,7 +31,7 @@ class ReportCounter(Base):
 
     tenant_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
         primary_key=True,
     )
     year = Column(Integer, primary_key=True)
@@ -41,11 +41,14 @@ class ReportCounter(Base):
 class ReportIssue(Base, UUIDMixin):
     """One official report copy issued."""
 
+    # RESTRICT (PO decision): an institution that issued official copies cannot
+    # be deleted; the register keeps every copy.
+
     __tablename__ = "report_issues"
 
     tenant_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
         nullable=False,
     )
     year = Column(Integer, nullable=False)

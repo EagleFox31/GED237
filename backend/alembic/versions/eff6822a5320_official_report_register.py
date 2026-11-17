@@ -7,6 +7,8 @@ Create Date: 2026-11-17
 Two new tables for numbered official reports (post-rc1 lot 5): ``report_counters``
 (last number per institution and year) and ``report_issues`` (one line per copy
 issued). Additive only: no existing table or row is touched.
+Both tables block the deletion of an institution that has rows (RESTRICT, PO
+decision): issued official copies are kept.
 """
 
 import sqlalchemy as sa
@@ -25,7 +27,7 @@ def upgrade() -> None:
         sa.Column(
             "tenant_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("tenants.id", ondelete="CASCADE"),
+            sa.ForeignKey("tenants.id", ondelete="RESTRICT"),
             primary_key=True,
         ),
         sa.Column("year", sa.Integer(), primary_key=True),
@@ -37,7 +39,7 @@ def upgrade() -> None:
         sa.Column(
             "tenant_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("tenants.id", ondelete="CASCADE"),
+            sa.ForeignKey("tenants.id", ondelete="RESTRICT"),
             nullable=False,
         ),
         sa.Column("year", sa.Integer(), nullable=False),
