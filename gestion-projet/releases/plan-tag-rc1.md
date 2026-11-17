@@ -22,7 +22,9 @@ FPR=7776361468B5DF0CFF903723A00188980F856DF1
 - [ ] Aucun run en échec ni en cours sur ce SHA :
   `gh run list -c $SHA --json workflowName,status,conclusion -q '.[]|"\(.workflowName) \(.status) \(.conclusion)"'`
   Attendu : toutes les lignes en `completed success` (ou `skipped`), au minimum CI et Security.
-- [ ] Le dernier run `E2E UAT nightly` sur main est vert (`gh run list -w e2e-uat-nightly.yml -b main -L 1`). Sinon, le lancer : `gh workflow run e2e-uat-nightly.yml --ref main`.
+- [ ] Relancer la recette nocturne sur le SHA final, avant les contrôles suivants : `gh workflow run e2e-uat-nightly.yml --ref main`, puis `gh run watch $(gh run list -w e2e-uat-nightly.yml -b main -L 1 --json databaseId -q '.[0].databaseId') --exit-status`.
+- [ ] Le dernier run `E2E UAT nightly` sur main est vert et porte ce SHA :
+  `gh run list -w e2e-uat-nightly.yml -b main -L 1 --json status,conclusion,headSha -q '.[0]|"\(.status) \(.conclusion) \(.headSha)"'` affiche `completed success $SHA`. Un run vert sur un SHA antérieur ne suffit pas pour le tag.
 - [ ] Le tag n'existe pas encore : `git ls-remote --tags origin $TAG` ne renvoie rien.
 - [ ] Le garde-fou « interface sans Internet » (#146) est passé sur ce SHA : le job `Frontend CI / Build` est vert. Contrôle direct, sans Docker, sur le dist de ce SHA :
   `gh run download $(gh run list -c $SHA -w ci.yml --json databaseId -q '.[0].databaseId') -n frontend-build -D /tmp/fb/dist && bash scripts/check_offline_frontend.sh /tmp/fb` (à lancer depuis un clone au SHA) affiche `OK : aucune URL externe`. Sinon : **Stop**, l'interface dépend d'Internet (salle de démonstration sans réseau).
