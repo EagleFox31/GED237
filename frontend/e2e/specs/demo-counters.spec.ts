@@ -97,12 +97,6 @@ test.describe('Demo dataset vs expected (step 4)', () => {
       dom: await map('/classification-rules/domains'),
       act: await map('/classification-rules/activities'),
     };
-    // Pile sans le jeu de démo (aucun de ses domaines) : rien à comparer, on saute au lieu d'échouer.
-    const knownDomains = new Set(codes.dom.values());
-    test.skip(
-      !DEMO.expected.domains.some((code) => knownDomains.has(code)),
-      'jeu de démo absent : réinitialiser la pile avec le profil demo',
-    );
   });
 
   test('reference data and rules', async ({ request }) => {
