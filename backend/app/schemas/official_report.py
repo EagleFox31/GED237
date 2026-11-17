@@ -9,7 +9,7 @@ from app.schemas.reports import ReportsGranularity
 OfficialReportKind = Literal[
     "evolution", "document-activity", "workflow-activity", "service-activity"
 ]
-OfficialReportFormat = Literal["csv", "html"]
+OfficialReportFormat = Literal["csv", "html", "pdf"]
 
 
 class OfficialReportRequest(BaseModel):

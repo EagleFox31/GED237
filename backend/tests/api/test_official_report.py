@@ -2,13 +2,16 @@
 
 import asyncio
 import hashlib
+import io
 import uuid
 from datetime import datetime
 from urllib.parse import unquote
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select, update
+from pypdf import PdfReader
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 
 from app.models.audit import AuditLog
 from app.models.report_issue import ReportCounter, ReportIssue
@@ -84,6 +87,31 @@ async def test_html_copy_is_self_contained(admin_client: AsyncClient):
     assert page.startswith("<!doctype html>")
     assert "TESTMIN" in page
     assert "http://" not in page and "https://" not in page
+
+
+@pytest.mark.asyncio
+async def test_pdf_copy_is_numbered_and_reprinted_as_is(
+    admin_client: AsyncClient, db_session
+):
+    response = await admin_client.post(
+        OFFICIAL, json={"kind": "document-activity", "format": "pdf"}
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"].endswith('.pdf"')
+    number = unquote(response.headers["x-report-number"])
+    text = "\n".join(
+        page.extract_text() for page in PdfReader(io.BytesIO(response.content)).pages
+    )
+    assert number in text and "TESTMIN" in text
+
+    issue_id = await db_session.scalar(
+        select(ReportIssue.id).where(ReportIssue.format == "pdf")
+    )
+    reprint = await admin_client.get(f"{OFFICIAL}/issues/{issue_id}/file")
+    assert reprint.status_code == 200
+    assert reprint.content == response.content
+    assert reprint.headers["content-type"] == "application/pdf"
 
 
 @pytest.mark.asyncio
@@ -183,7 +211,7 @@ async def test_reader_cannot_issue_nor_list(client_as, db_seed):
     "payload",
     [
         {"kind": "unknown"},
-        {"kind": "evolution", "format": "pdf"},
+        {"kind": "evolution", "format": "docx"},
         {"kind": "evolution", "unexpected": 1},
         {},
     ],
@@ -245,3 +273,60 @@ async def test_bad_period_is_400(admin_client: AsyncClient, db_session):
     )
     assert response.status_code == 400
     assert await _count(db_session, ReportIssue) == 0
+
+
+async def _bare_institution(db_session) -> uuid.UUID:
+    tenant_id = uuid.uuid4()
+    db_session.add(
+        Tenant(
+            id=tenant_id,
+            name="Etablissement ferme",
+            short_name="FERME",
+            domain=f"ferme-{tenant_id}.gov.cm",
+            is_active=True,
+        )
+    )
+    await db_session.commit()
+    return tenant_id
+
+
+@pytest.mark.asyncio
+async def test_an_institution_that_issued_official_copies_cannot_be_deleted(
+    db_session,
+):
+    """PO decision: issued official copies are kept, so their institution stays."""
+    tenant_id = await _bare_institution(db_session)
+    db_session.add(ReportCounter(tenant_id=tenant_id, year=2026, last_value=1))
+    db_session.add(
+        ReportIssue(
+            tenant_id=tenant_id,
+            year=2026,
+            sequence=1,
+            number="N° 0001/2026/FERME",
+            kind="evolution",
+            format="csv",
+            content_sha256="0" * 64,
+            file_sha256="0" * 64,
+            content=b"copie",
+        )
+    )
+    await db_session.commit()
+
+    with pytest.raises(IntegrityError):
+        await db_session.execute(delete(Tenant).where(Tenant.id == tenant_id))
+    await db_session.rollback()
+
+    assert await _count(db_session, Tenant, Tenant.id == tenant_id) == 1
+    assert (
+        await _count(db_session, ReportIssue, ReportIssue.tenant_id == tenant_id) == 1
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_institution_without_register_can_still_be_deleted(db_session):
+    tenant_id = await _bare_institution(db_session)
+
+    await db_session.execute(delete(Tenant).where(Tenant.id == tenant_id))
+    await db_session.commit()
+
+    assert await _count(db_session, Tenant, Tenant.id == tenant_id) == 0
