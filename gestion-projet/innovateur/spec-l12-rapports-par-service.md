@@ -1,6 +1,6 @@
 # Spec fonctionnelle L12 : rapports par service
 
-- **Pour** : B (API), F (écrans), Q (critères), O (planifie), PO (trois décisions, § 6). Innovateur, 2026-11-17, sur `main` 0503181. Post-rc1 : rien ne fusionne avant le tag du 24/11.
+- **Pour** : B (API), F (écrans), Q (critères), O (planifie), PO (trois décisions, § 6). Innovateur, 2026-11-17, sur `main` 0503181. Post-rc1 (rien ne fusionne avant le tag du 24/11), sauf la part rc.1 décidée le 17/11 (§ 2, PR de B).
 - **Besoin** : Expression de besoin § 3 (« Managers : … accès aux rapports ») ; `MATRICE_TRACABILITE_PRODUIT.md` l. 50 (« Rapports Services … Ajouter période et scope ») et l. 66 (« Admin Service … KPI parfois tenant-wide »). Lot L12 de `lot-l11-fonctionnalites.md`.
 - **S'appuie sur** : #175 (menu « Rapports » du Manager, en file) et #159 (règle de portée unique `resolve_report_scope`, brouillon post-rc1). L12 se branche **après** ces deux PR, sans les réécrire.
 - `Vérifié` = lu dans `main` ou dans la PR citée ; `Proposé` = à valider (B, F ou PO).
@@ -25,13 +25,20 @@
 |---|---|---|---|
 | `super_admin` | tout tenant (`tenant_id`) | tout service | oui (existant) |
 | `tenant_admin` | tout le tenant | tout service, avec ou sans sous-services | oui (existant) |
-| `auditor` | tout le tenant, lecture | tout service | **D-L12-3** |
-| `unit_admin` | **D-L12-1** : son service et ses sous-services (`Proposé`) ; aujourd'hui : tout le tenant | dans son périmètre | **D-L12-1** |
-| `manager` | son service et ses sous-services (inchangé) | **nouveau** : son service ou un de ses sous-services ; un service hors de son arbre → 403 | oui (#175) |
-| `collaborator` | **D-L12-2** : 403 sur `/reports/*` (`Proposé`) ; aujourd'hui : tout le tenant par l'API, sans menu | — | non |
+| `auditor` | tout le tenant, lecture | tout service | **oui, en L12** (D-L12-3, décision PO du 17/11) |
+| `unit_admin` | son service et ses sous-services (D-L12-1, **décision PO du 17/11**, **en rc.1** par B) ; avant : tout le tenant | dans son périmètre (choix en L12) | inchangé |
+| `manager` | son service et ses sous-services (inchangé) | **nouveau en L12** : son service ou un de ses sous-services ; un service hors de son arbre → 403 | oui (#175) |
+| `collaborator` | 403 sur `/reports/*` (D-L12-2, **décision PO du 17/11**, **en rc.1** par B) ; avant : tout le tenant par l'API, sans menu | — | non |
 | `reader` | 403 (inchangé) | — | non |
 
 Règle unique : la portée se calcule dans `resolve_report_scope` (#159) et s'applique à **tous** les compteurs de la réponse, y compris `imports_needing_review` et `local_organize_*`.
+
+**Découpage décidé le 17/11 (décision PO, relayée par O)** :
+
+| Où | Contenu | Qui |
+|---|---|---|
+| **rc.1, avant le gel** | D-L12-1 (`unit_admin` limité à son périmètre) ; D-L12-2 (`collaborator` → 403) ; signaux `imports_needing_review` et `local_organize_*` limités au périmètre du Manager | B |
+| **L12, après le tag** | D-L12-3 (menu « Rapports » de l'auditeur) ; filtre de période (§ 3, § 4) ; choix du service et visée d'un sous-service ; écrans (§ 5) | B, F, Q |
 
 ## 3. Filtre de période
 
@@ -71,15 +78,13 @@ Pas de nouvelle table ni de migration (`Déduit` : tout se calcule sur les table
 - **Manager** : même écran, sans Synthèse (#175), la liste des services réduite à son arbre.
 - **Sous 768 px** : les filtres passent sous le titre, sur deux lignes.
 
-## 6. Décisions du PO (avant le démarrage)
+## 6. Décisions du PO (**décision PO du 17/11** : les trois recommandations validées)
 
-| # | Question | Recommandation |
-|---|---|---|
-| **D-L12-1** | L'admin de service (`unit_admin`) doit-il être limité à son service et ses sous-services dans les rapports ? | **Oui** : c'est l'écart de la matrice l. 66. Cela retire un droit existant : le noter dans le CHANGELOG. |
-| **D-L12-2** | Le collaborateur doit-il perdre l'accès aux rapports par l'API (aujourd'hui tout le tenant, sans menu) ? | **Oui, 403** : aucun besoin écrit, et il lit des chiffres d'autres services. B confirme d'abord qu'aucun écran du collaborateur n'appelle `/reports/*`. |
-| **D-L12-3** | L'auditeur a-t-il le menu « Rapports » (lecture, tout le tenant) ? | **Oui** : il a déjà le droit côté API ; seul le menu manque. |
-
-Sans réponse, L12 se livre avec les rôles d'aujourd'hui (seuls le Manager et le filtre de période changent). D-L12-1 et D-L12-2 restent alors des écarts écrits.
+| # | Question | Décision | Livraison |
+|---|---|---|---|
+| **D-L12-1** | L'admin de service (`unit_admin`) est-il limité à son service et ses sous-services dans les rapports ? | **Oui** (écart de la matrice l. 66). Un droit existant est retiré : à écrire dans le CHANGELOG. | rc.1, B |
+| **D-L12-2** | Le collaborateur perd-il l'accès aux rapports par l'API ? | **Oui, 403**. B vérifie d'abord qu'aucun écran du collaborateur n'appelle `/reports/*`. | rc.1, B |
+| **D-L12-3** | L'auditeur a-t-il le menu « Rapports » (lecture, tout le tenant) ? | **Oui** : il a déjà le droit côté API, seul le menu manque. | L12, après le tag |
 
 ## 7. Critères d'acceptation (Q)
 
@@ -89,13 +94,13 @@ Données : pile e2e, jeu de démo, deux services frères A et B, A1 sous-service
 |---|---|---|
 | CA1 | Manager de A : les services de `/reports/service-activity` sont A et A1, jamais B ; c'est un sous-ensemble strict de la liste de l'admin (reprend le test de #175) | API + e2e |
 | CA2 | Manager de A, `org_unit_id=A1` → 200, seulement A1 ; `org_unit_id=B` → 403 | API |
-| CA3 | Manager de A : `imports_needing_review` et `local_organize_*` ne comptent que A et A1 (un import en revue créé dans B n'apparaît pas) | API |
+| CA3 | **(rc.1)** Manager de A : `imports_needing_review` et `local_organize_*` ne comptent que A et A1 (un import en revue créé dans B n'apparaît pas) | API |
 | CA4 | `date_from > date_to` → 400 ; écart de 367 jours → 400 | API |
 | CA5 | Sans dates : `filters.date_from` vaut aujourd'hui − 30 jours et `filters.date_to` vaut aujourd'hui | API |
 | CA6 | Le document d'il y a 40 jours n'entre pas dans `documents_created_in_period` sur 30 jours, et y entre sur 60 jours | API |
 | CA7 | Les compteurs « À ce jour » sont identiques pour deux périodes différentes | API |
 | CA8 | Admin du tenant avec plus de 12 services : `limit=200` les renvoie tous, et `total_services` est juste ; sans `limit`, la réponse est identique à celle d'avant L12 | API, non-régression |
-| CA9 | `reader` → 403 ; selon D-L12-2, `collaborator` → 403 ; selon D-L12-1, `unit_admin` limité comme le Manager | API |
+| CA9 | **(rc.1)** `reader` → 403 ; `collaborator` → 403 (D-L12-2) ; `unit_admin` limité à son service et ses sous-services, un service frère → 403 (D-L12-1) | API |
 | CA10 | Écran : les filtres sont dans l'URL ; un rechargement garde la vue ; le Manager ne voit que A et A1 dans la liste des services | e2e |
 | CA11 | Temps : p95 < 2 s sur `/reports/service-activity` avec le jeu de démo (méthode de `measure_c3.py`) | mesure |
 | CA12 | Les tests existants des rapports et de #159 restent verts | CI |
@@ -104,10 +109,11 @@ Données : pile e2e, jeu de démo, deux services frères A et B, A1 sous-service
 
 | Porteur | Travail | h-s |
 |---|---|---|
-| B | dates sur trois routes, bloc `filters`, compteurs par période, `limit`, portée des deux signaux, visée d'un sous-service (dans `resolve_report_scope`), décisions D-L12-1 et D-L12-2 si oui | 1,25 |
-| F | barre de filtres, URL, libellés, texte vide, lien « tous les services » | 0,75 |
-| Q | CA1 à CA12 (tests d'API dans la suite backend, e2e manager) | 0,5 |
+| B, **rc.1** | D-L12-1, D-L12-2, portée des deux signaux ; tests CA3 et CA9 dans la même PR | ≈ 0,5 (`Déduit`, à confirmer par B) |
+| B, L12 | dates sur trois routes, bloc `filters`, compteurs par période, `limit`, visée d'un sous-service (dans `resolve_report_scope`) | ≈ 0,75 |
+| F, L12 | barre de filtres, URL, libellés, texte vide, lien « tous les services », menu de l'auditeur (D-L12-3) | 0,75 |
+| Q, L12 | CA1, CA2, CA4 à CA8, CA10 à CA12 (tests d'API dans la suite backend, e2e manager) | 0,5 |
 
-**Total** : 2,5 h-s, comme dans `lot-l11-fonctionnalites.md`. Ordre : #159 et #175 fusionnées, puis B, puis F et Q en parallèle.
+**Total** : 2,5 h-s, comme dans `lot-l11-fonctionnalites.md`, dont ≈ 0,5 avancé en rc.1. Ordre : la PR rc.1 de B d'abord ; puis, après le tag, #159 et #175 fusionnées, B, puis F et Q en parallèle. Si la PR rc.1 fusionne avant #159, #159 reprend ces règles dans `resolve_report_scope` et ses 14 tests (« comportement inchangé ») doivent être mis à jour.
 
 **Risque** : un Manager qui vise un sous-service passe par la table de fermeture (`OrgUnitClosure`). Un test négatif (service frère → 403) est obligatoire (CA2).
