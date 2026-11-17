@@ -8,7 +8,8 @@ import { apiCall, apiCallVoid, fetchWithRefresh, getHeaders } from '../http/clie
 import { buildApiError } from '../http/errorAdapter';
 
 export type OfficialReportKind = 'evolution' | 'document-activity' | 'workflow-activity' | 'service-activity';
-export type OfficialReportFormat = 'csv' | 'html';
+/** `pdf` arrive avec #197 (fusionnée avant celle-ci). */
+export type OfficialReportFormat = 'csv' | 'html' | 'pdf';
 export type ReportFrequency = 'weekly' | 'monthly';
 
 export interface OfficialReportRequest {
@@ -99,8 +100,17 @@ export const officialReportsApi = {
     return readCopy(response, 'Réimpression impossible');
   },
 
-  listSchedules: (): Promise<OfficialReportSchedule[]> =>
-    apiCall('/reports/official/schedules', {}, 'Lecture des rapports programmés impossible'),
+  /** Programmations actives, et l'en-tête `X-Scheduled-Reports-Enabled` tel que reçu (lu par le modal). */
+  listSchedules: async (): Promise<{ items: OfficialReportSchedule[]; enabledHeader: string | null }> => {
+    const response = await fetchWithRefresh(`${API_URL}/reports/official/schedules`, {
+      headers: getHeaders(false),
+    });
+    if (!response.ok) throw await buildApiError(response, 'Lecture des rapports programmés impossible');
+    return {
+      items: (await response.json()) as OfficialReportSchedule[],
+      enabledHeader: response.headers.get('X-Scheduled-Reports-Enabled'),
+    };
+  },
 
   createSchedule: (name: string, frequency: ReportFrequency, report: OfficialReportRequest): Promise<OfficialReportSchedule> =>
     apiCall(

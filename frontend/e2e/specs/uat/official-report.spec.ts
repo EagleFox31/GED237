@@ -32,19 +32,26 @@ test.describe('Copie officielle', () => {
     await expect(status).toHaveText(`Copie réimprimée : ${number}`);
   });
 
-  test('programmation désactivée : le refus du serveur est affiché tel quel', async ({ page, loginAs }) => {
+  test('programmation désactivée : onglet masqué, onglets au clavier, Échap ferme', async ({ page, loginAs }) => {
     await loginAs('tenant_admin');
     await page.goto('reports');
     await page.getByRole('button', { name: 'Copie officielle' }).click();
     const dialog = page.getByRole('dialog', { name: 'Copie officielle' });
 
-    await dialog.getByRole('tab', { name: 'Programmés' }).click();
-    const submit = dialog.getByRole('button', { name: 'Programmer' });
-    await expect(submit).toBeDisabled();
-    await dialog.getByLabel('Nom').fill('Bilan mensuel');
-    await submit.click();
-    // SCHEDULED_REPORTS_ENABLED vaut false par défaut : 409 avec ce detail.
-    await expect(page.getByText('Les rapports programmés sont désactivés sur ce serveur.')).toBeVisible();
-    await expect(dialog.getByRole('list', { name: 'Rapports programmés' })).toHaveCount(0);
+    // SCHEDULED_REPORTS_ENABLED vaut false par défaut : le serveur l'annonce, l'onglet n'apparaît pas.
+    const tabs = dialog.getByRole('tab');
+    await expect(tabs).toHaveText(['Émettre', 'Registre']);
+
+    const issueTab = dialog.getByRole('tab', { name: 'Émettre' });
+    await issueTab.focus();
+    await page.keyboard.press('ArrowRight');
+    const registerTab = dialog.getByRole('tab', { name: 'Registre' });
+    await expect(registerTab).toBeFocused();
+    await expect(registerTab).toHaveAttribute('aria-selected', 'true');
+    await expect(dialog.getByRole('tabpanel', { name: 'Registre' })).toBeVisible();
+    await expect(dialog.getByText('Chargement…')).toHaveCount(0);
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
   });
 });

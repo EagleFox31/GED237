@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { formatDate } from '../../../../types';
 import { officialReportsApi } from '../../../../services';
@@ -13,14 +13,17 @@ import type {
 } from '../../../../services/resources/officialReports.api';
 import { InlineHelpButton } from '../../../../components/ui/InlineHelpButton';
 import { downloadBlob } from './reportsExport';
-
-type Section = 'issue' | 'register' | 'schedules';
-
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'issue', label: 'Émettre' },
-  { id: 'register', label: 'Registre' },
-  { id: 'schedules', label: 'Programmés' },
-];
+import {
+  SECTION_LABELS,
+  canClose,
+  nextSection,
+  registerLoadFromError,
+  registerMessage,
+  schedulingEnabledFrom,
+  visibleSections,
+  type OfficialSection,
+  type RegisterLoad,
+} from './officialReportView';
 
 export const KIND_LABELS: Record<OfficialReportKind, string> = {
   evolution: 'Évolution',
@@ -34,11 +37,16 @@ const FREQUENCY_LABELS: Record<ReportFrequency, string> = {
   monthly: 'Chaque mois',
 };
 
+const FORMATS: OfficialReportFormat[] = ['csv', 'html', 'pdf'];
+
 const PAGE_SIZE = 20;
 
 const fieldClass =
   'w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-rdpc-blue focus:outline-none';
 const labelClass = 'mb-1 block text-xs font-bold text-slate-500';
+
+const tabId = (section: OfficialSection) => `official-tab-${section}`;
+const panelId = (section: OfficialSection) => `official-panel-${section}`;
 
 interface OfficialReportModalProps {
   onClose: () => void;
@@ -48,10 +56,11 @@ interface OfficialReportModalProps {
 
 /**
  * Copies officielles (#161) : émission numérotée, registre avec réimpression, et rapports
- * programmés (#180). Les refus du serveur s'affichent tels quels via le bus d'erreurs.
+ * programmés (#180) quand le serveur les exécute. Les refus du serveur s'affichent tels quels
+ * via le bus d'erreurs.
  */
 export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClose, defaultKind = 'evolution' }) => {
-  const [section, setSection] = useState<Section>('issue');
+  const [section, setSection] = useState<OfficialSection>('issue');
   const [kind, setKind] = useState<OfficialReportKind>(defaultKind);
   const [format, setFormat] = useState<OfficialReportFormat>('csv');
   const [dateFrom, setDateFrom] = useState('');
@@ -61,9 +70,15 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
 
   const [issues, setIssues] = useState<OfficialReportIssue[]>([]);
   const [issuesTotal, setIssuesTotal] = useState(0);
+  const [registerLoad, setRegisterLoad] = useState<RegisterLoad>('loading');
+  const [schedulingEnabled, setSchedulingEnabled] = useState(false);
   const [schedules, setSchedules] = useState<OfficialReportSchedule[]>([]);
   const [scheduleName, setScheduleName] = useState('');
   const [frequency, setFrequency] = useState<ReportFrequency>('monthly');
+
+  const busyRef = useRef(false);
+  const tabRefs = useRef<Partial<Record<OfficialSection, HTMLButtonElement | null>>>({});
+  const sections = visibleSections(schedulingEnabled);
 
   const request = (): OfficialReportRequest => ({
     kind,
@@ -73,35 +88,62 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   });
 
   const loadIssues = useCallback(async (append = false, skip = 0) => {
+    setRegisterLoad('loading');
     try {
       const page = await officialReportsApi.listIssues(skip, PAGE_SIZE);
       setIssues((current) => (append ? [...current, ...page.items] : page.items));
       setIssuesTotal(page.total);
-    } catch {
-      /* erreur déjà affichée par le bus global */
+      setRegisterLoad('ready');
+    } catch (error) {
+      setRegisterLoad(registerLoadFromError(error));
     }
   }, []);
 
-  const loadSchedules = useCallback(async () => {
-    try {
-      setSchedules(await officialReportsApi.listSchedules());
-    } catch {
-      /* erreur déjà affichée par le bus global */
-    }
+  useEffect(() => {
+    let alive = true;
+    officialReportsApi
+      .listSchedules()
+      .then(({ items, enabledHeader }) => {
+        if (!alive) return;
+        setSchedulingEnabled(schedulingEnabledFrom(enabledHeader));
+        setSchedules(items);
+      })
+      .catch(() => {
+        /* erreur déjà affichée par le bus global ; l'onglet reste masqué */
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
     if (section === 'register') loadIssues();
-    if (section === 'schedules') loadSchedules();
-  }, [section, loadIssues, loadSchedules]);
+  }, [section, loadIssues]);
+
+  const requestClose = useCallback(() => {
+    if (canClose(busyRef.current)) onClose();
+  }, [onClose]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [requestClose]);
+
+  const selectSection = (next: OfficialSection, focus = false) => {
+    setSection(next);
+    setNotice('');
+    if (focus) tabRefs.current[next]?.focus();
+  };
+
+  const onTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const next = nextSection(sections, section, event.key);
+    if (!next) return;
+    event.preventDefault();
+    selectSection(next, true);
+  };
 
   const deliver = (copy: OfficialCopy, verb: string) => {
     downloadBlob(copy.blob, copy.filename);
@@ -109,6 +151,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   };
 
   const run = async (action: () => Promise<void>) => {
+    busyRef.current = true;
     setBusy(true);
     setNotice('');
     try {
@@ -116,6 +159,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
     } catch {
       /* erreur déjà affichée par le bus global (detail du serveur tel quel) */
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -152,7 +196,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
       <div>
         <span className={labelClass} id="official-format-label">Format</span>
         <div role="group" aria-labelledby="official-format-label" className="flex gap-2">
-          {(['csv', 'html'] as OfficialReportFormat[]).map((f) => (
+          {FORMATS.map((f) => (
             <button
               key={f}
               type="button"
@@ -182,12 +226,15 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
     </div>
   );
 
+  const registerText = registerMessage(registerLoad, issues.length);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4" role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="official-report-title"
+        aria-busy={busy}
         className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
       >
         <div className="flex items-start justify-between gap-4">
@@ -202,35 +249,47 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
+            disabled={busy}
             aria-label="Fermer"
-            className="rounded-full border border-slate-200 p-2 text-slate-400 transition hover:text-slate-700"
+            title={busy ? 'Patientez, copie en cours' : undefined}
+            className="rounded-full border border-slate-200 p-2 text-slate-400 transition hover:text-slate-700 disabled:opacity-50"
           >
             <span className="material-symbols-outlined" aria-hidden="true">close</span>
           </button>
         </div>
 
         <div role="tablist" aria-label="Copie officielle" className="mt-5 flex gap-2">
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <button
-              key={s.id}
+              key={s}
+              ref={(node) => {
+                tabRefs.current[s] = node;
+              }}
+              id={tabId(s)}
               type="button"
               role="tab"
-              aria-selected={section === s.id}
-              onClick={() => {
-                setSection(s.id);
-                setNotice('');
-              }}
+              aria-selected={section === s}
+              aria-controls={panelId(s)}
+              tabIndex={section === s ? 0 : -1}
+              onClick={() => selectSection(s)}
+              onKeyDown={onTabKeyDown}
               className={`rounded-2xl px-4 py-2 text-xs font-bold ${
-                section === s.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                section === s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {s.label}
+              {SECTION_LABELS[s]}
             </button>
           ))}
         </div>
 
-        <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
+        <div
+          role="tabpanel"
+          id={panelId(section)}
+          aria-labelledby={tabId(section)}
+          tabIndex={0}
+          className="mt-5 min-h-0 flex-1 overflow-y-auto"
+        >
           {section === 'issue' && (
             <div className="space-y-5">
               {reportChoice(true)}
@@ -247,8 +306,8 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
           )}
 
           {section === 'register' && (
-            issues.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-500">Aucune copie émise.</p>
+            registerText ? (
+              <p className="py-8 text-center text-sm text-slate-500">{registerText}</p>
             ) : (
               <>
                 <ul aria-label="Registre" className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
@@ -278,7 +337,8 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
                     <button
                       type="button"
                       onClick={() => loadIssues(true, issues.length)}
-                      className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200"
+                      disabled={registerLoad === 'loading'}
+                      className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-50"
                     >
                       Afficher plus
                     </button>
@@ -288,7 +348,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
             )
           )}
 
-          {section === 'schedules' && (
+          {section === 'schedules' && schedulingEnabled && (
             <div className="space-y-5">
               {schedules.length > 0 && (
                 <ul aria-label="Rapports programmés" className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
