@@ -549,6 +549,20 @@ async def _get_document_or_404(
     return document
 
 
+async def _get_document_in_reach_or_404(
+    db: AsyncSession, user: User, document_id: UUID
+) -> Document:
+    """Load a document of the user's tenant, or 404.
+
+    A document outside a bounded role's unit tree answers like a missing one,
+    before any right or state check reveals that it exists (#202, #215).
+    """
+    document = await _get_document_or_404(db, user.tenant_id, document_id)
+    if not await _in_reach(db, user, document):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return document
+
+
 @router.get("/stats")
 async def get_document_stats(
     tenant_id: Optional[UUID] = None,
@@ -858,7 +872,7 @@ async def get_document_audit_logs(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_read_document(db, current_user, document):
         raise HTTPException(status_code=403, detail="Not enough privileges")
 
@@ -887,10 +901,7 @@ async def resolve_manual_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    # Before any check that reveals the document's state (#215).
-    if not await in_actor_unit_tree(db, current_user, document.org_unit_id):
-        raise HTTPException(status_code=404, detail="Document not found")
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     await authorize_or_403(
         current_user, "workflows", "resolve_review", ctx_from_resource(document)
     )
@@ -1137,7 +1148,7 @@ async def get_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_read_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
@@ -1151,7 +1162,7 @@ async def get_document_versions(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_read_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
@@ -1215,7 +1226,7 @@ async def get_document_content(
             status_code=400, detail="disposition must be 'inline' or 'attachment'"
         )
 
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_read_document(db, current_user, document):
         # 404 plutôt que 403 : on évite de signaler l'existence d'une ressource
         # à un utilisateur non autorisé (anti-énumération).
@@ -1293,7 +1304,7 @@ async def delete_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_mutate_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
@@ -1322,7 +1333,7 @@ async def update_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_mutate_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to update this document"
@@ -1439,6 +1450,10 @@ async def update_document(
                 )
             )
             target_user = target_user_result.scalar_one_or_none()
+            # Tree first: an unknown target and an out-of-tree one answer alike.
+            await _ensure_unit_in_reach(
+                db, current_user, target_user.org_unit_id if target_user else None
+            )
             if target_user is None or not target_user.org_unit_id:
                 raise HTTPException(
                     status_code=400,
@@ -1453,6 +1468,7 @@ async def update_document(
                 )
             requested_target_org_unit_id = target_user.org_unit_id
         elif requested_target_org_unit_id is not None:
+            await _ensure_unit_in_reach(db, current_user, requested_target_org_unit_id)
             target_unit_result = await db.execute(
                 select(OrgUnit).where(
                     OrgUnit.id == requested_target_org_unit_id,
@@ -1500,9 +1516,6 @@ async def update_document(
                 classification_year=requested_year,
             )
 
-        if requested_target_org_unit_id is not None:
-            await _ensure_unit_in_reach(db, current_user, requested_target_org_unit_id)
-
         document.classification_domain_id = requested_domain_id
         document.classification_activity_id = requested_activity_id
         document.classification_year = requested_year
@@ -1533,7 +1546,7 @@ async def get_document_ocr(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_read_document(db, current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
@@ -1604,9 +1617,7 @@ async def start_workflow_a_posteriori(
     les règles d'aiguillage en vigueur.
     """
     await authorize_or_403(current_user, "documents", "update")
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await in_actor_unit_tree(db, current_user, document.org_unit_id):
-        raise HTTPException(status_code=404, detail="Document not found")
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     await _ensure_not_locked_for_write(document, current_user)
 
     if document.processing_mode != "archive":
@@ -1660,7 +1671,7 @@ async def trash_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_trash_document(db, current_user, document):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     await _ensure_not_locked_for_write(document, current_user)
@@ -1684,7 +1695,7 @@ async def restore_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_trash_document(db, current_user, document):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at is None:
@@ -1709,7 +1720,7 @@ async def purge_document(
 ):
     await authorize_or_403(current_user, "documents", "manage")
 
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     versions_result = await db.execute(
         select(DocumentVersion).where(DocumentVersion.document_id == document.id)
     )
@@ -1746,7 +1757,7 @@ async def upload_new_version(
     - identical to any previous version of the same document
     - identical to a version in another active document of the same tenant
     """
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_mutate_document(db, current_user, document):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
@@ -1885,7 +1896,7 @@ async def lock_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_manage_lock(db, current_user, document):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
@@ -1922,7 +1933,7 @@ async def unlock_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_manage_lock(db, current_user, document):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     is_admin = await can_perform(
@@ -1952,7 +1963,7 @@ async def refresh_lock(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_manage_lock(db, current_user, document):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if not document.locked_by_user_id or str(document.locked_by_user_id) != str(
