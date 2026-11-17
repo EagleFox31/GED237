@@ -576,7 +576,8 @@ const SpacesPage: React.FC = () => {
     });
   };
 
-  const undo = useUndoableAction();
+  // Ctrl+Z ne vise pas la page quand l'aperçu ou un menu est ouvert par-dessus.
+  const undo = useUndoableAction(undefined, !previewDocument && !contextMenu);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   const handleTrash = async (doc: Document) => {

@@ -14,9 +14,10 @@ export type UndoOffer = {
 
 /**
  * Dernière action annulable, façon Gmail : un seul niveau, pas d'historique.
- * Ctrl+Z (ou Cmd+Z) annule tant que le message est visible, sauf dans un champ de saisie.
+ * Ctrl+Z (ou Cmd+Z) annule tant que le message est visible, sauf dans un champ de saisie
+ * et sauf quand `shortcutEnabled` vaut false (aperçu ou menu ouvert par-dessus la page).
  */
-export function useUndoableAction(windowMs = UNDO_WINDOW_MS) {
+export function useUndoableAction(windowMs = UNDO_WINDOW_MS, shortcutEnabled = true) {
   const [offer, setOffer] = useState<UndoOffer | null>(null);
   const seq = useRef(0);
 
@@ -45,7 +46,7 @@ export function useUndoableAction(windowMs = UNDO_WINDOW_MS) {
   }, [offer, windowMs]);
 
   useEffect(() => {
-    if (!offer?.undo) return undefined;
+    if (!offer?.undo || !shortcutEnabled) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
       if (event.key.toLowerCase() !== 'z' || isEditableTarget(event.target)) return;
@@ -54,7 +55,7 @@ export function useUndoableAction(windowMs = UNDO_WINDOW_MS) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [offer, runUndo]);
+  }, [offer, runUndo, shortcutEnabled]);
 
   return { offer, propose, dismiss, runUndo };
 }
