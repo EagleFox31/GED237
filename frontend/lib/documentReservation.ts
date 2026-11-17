@@ -42,6 +42,8 @@ export function reservationErrorMessage(status: number, action: ReservationActio
   if (status === 409) return 'Votre réservation a expiré.';
   if (status === 400) return 'Document dans la corbeille : réservation impossible.';
   if (status === 403) {
+    // refresh-lock : 403 quand la réservation n'est plus à moi (libérée par un admin, reprise après expiration).
+    if (action === 'refresh') return 'Votre réservation a été levée.';
     return action === 'reserve'
       ? "Vous n'avez pas le droit de réserver ce document."
       : "Seule la personne qui l'a réservé peut le libérer.";

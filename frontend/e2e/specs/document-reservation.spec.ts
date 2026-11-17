@@ -46,6 +46,7 @@ test.describe('Réservation de document : messages d’erreur', () => {
     expect(reservationErrorMessage(400, 'reserve')).toContain('corbeille');
     expect(reservationErrorMessage(403, 'reserve')).toContain('réserver');
     expect(reservationErrorMessage(403, 'release')).toContain('libérer');
+    expect(reservationErrorMessage(403, 'refresh')).toBe('Votre réservation a été levée.');
     expect(reservationErrorMessage(500, 'release')).toBe('Libération impossible. Réessayez.');
     expect(reservationErrorMessage(0, 'reserve')).toBe('Réservation impossible. Réessayez.');
   });

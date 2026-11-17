@@ -2,7 +2,7 @@
 //
 // Réservation d'un document (#274), dans l'en-tête de la fiche : qui le réserve et jusqu'à quand,
 // « Réserver » / « Libérer », prolongation automatique tant que la fiche reste ouverte.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Document } from '../types';
 import { api } from '../services/api';
 import { ApiError } from '../lib/errors';
@@ -73,20 +73,26 @@ const DocumentReservation: React.FC<DocumentReservationProps> = ({ document, onC
     [reload],
   );
 
+  // Dernière version du document et des callbacks, lue par le minuteur sans le relancer à chaque relecture.
+  const latest = useRef({ document, onChange, reload });
+  latest.current = { document, onChange, reload };
+
   // Prolonge la réservation tant que la fiche est ouverte ; un échec (expirée, reprise) recharge l'état.
+  // Dépend seulement de l'état et de l'id : une relecture de la fiche ne remet pas le délai à zéro.
   useEffect(() => {
     if (view.kind !== 'mine') return undefined;
     const timer = window.setInterval(() => {
       api.refreshDocumentLock(document.id).then(
-        ({ lock_expires_at: expiresAt }) => onChange({ ...document, lock_expires_at: expiresAt }),
+        ({ lock_expires_at: expiresAt }) =>
+          latest.current.onChange({ ...latest.current.document, lock_expires_at: expiresAt }),
         async (err: unknown) => {
           setError(reservationErrorMessage(err instanceof ApiError ? err.status : 0, 'refresh'));
-          await reload();
+          await latest.current.reload();
         },
       );
     }, RESERVATION_REFRESH_MS);
     return () => window.clearInterval(timer);
-  }, [view.kind, document, onChange, reload]);
+  }, [view.kind, document.id]);
 
   if (!canReserve && view.kind === 'free') return null;
 
