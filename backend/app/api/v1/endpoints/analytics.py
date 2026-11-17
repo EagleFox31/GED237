@@ -3,12 +3,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 
-from app.api.v1.endpoints.documents import TENANT_WIDE_READ_ROLES, _role_code
+from app.api.v1.endpoints.documents import (
+    TENANT_WIDE_READ_ROLES,
+    UNIT_TREE_READ_ROLES,
+    _role_code,
+)
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
 from app.models.user import User
 from app.services.analytics.dashboard_facade import DashboardFacade
+
+# unit_admin keeps the institution figures for now (its dashboard calls this
+# route); narrowing it to its tree is a follow-up of #195.
+TENANT_ANALYTICS_ROLES = TENANT_WIDE_READ_ROLES | UNIT_TREE_READ_ROLES
 
 router = APIRouter()
 
@@ -21,7 +29,7 @@ async def get_tenant_analytics(
     """Métriques agrégées de toute l'institution : rôles d'administration et
     auditeur. Le manager a /analytics/manager, limité à son unité."""
     await authorize_or_403(current_user, "analytics.tenant", "read")
-    if _role_code(current_user) not in TENANT_WIDE_READ_ROLES:
+    if _role_code(current_user) not in TENANT_ANALYTICS_ROLES:
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     facade = DashboardFacade(db)
     return await facade.get_tenant_metrics(str(current_user.tenant_id))

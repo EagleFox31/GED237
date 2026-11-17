@@ -36,14 +36,18 @@ from app.schemas.imports import (
 from app.services.import_analysis_service import ImportAnalysisService
 from app.services.import_execution_service import ImportExecutionService
 from app.services.storage.factory import get_storage_service
+from app.services.reports_scope import is_within_unit_tree
+
+# One read scope with documents (decision D-L12-1): no local copy of the role sets.
+from app.api.v1.endpoints.documents import (
+    ADMIN_ROLES,
+    ORG_UNIT_READ_ROLES,
+    UNIT_TREE_READ_ROLES,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-ADMIN_ROLES = {"super_admin", "tenant_admin", "unit_admin"}
-TENANT_WIDE_READ_ROLES = ADMIN_ROLES | {"auditor"}
-ORG_UNIT_READ_ROLES = {"manager", "reader"}
 
 
 def _role_code(user: User) -> str:
@@ -141,7 +145,7 @@ async def _get_job_for_update_or_404(db: AsyncSession, job_id: UUID) -> ImportJo
     return job
 
 
-async def _can_read_job(user: User, job: ImportJob) -> bool:
+async def _can_read_job(db: AsyncSession, user: User, job: ImportJob) -> bool:
     ctx = AuthzContext(
         tenant_id=job.tenant_id,
         owner_id=job.created_by_id,
@@ -151,6 +155,15 @@ async def _can_read_job(user: User, job: ImportJob) -> bool:
         role_code = _role_code(user)
         if role_code in ORG_UNIT_READ_ROLES:
             return bool(user.org_unit_id and job.target_org_unit_id == user.org_unit_id)
+        if role_code in UNIT_TREE_READ_ROLES:
+            # Its own batches, and those aimed at a unit of its tree.
+            return str(job.created_by_id) == str(user.id) or bool(
+                user.org_unit_id
+                and job.target_org_unit_id
+                and await is_within_unit_tree(
+                    db, job.target_org_unit_id, user.org_unit_id
+                )
+            )
         return True
     return await can_perform(user, "documents", "read_own", ctx)
 
@@ -262,7 +275,7 @@ async def commit_import_job(
 ):
     await authorize_or_403(current_user, "documents", "create")
     job = await _get_job_for_update_or_404(db, job_id)
-    if not await _can_read_job(current_user, job):
+    if not await _can_read_job(db, current_user, job):
         raise HTTPException(status_code=403, detail="Acces refuse a ce batch d'import.")
     if not _can_commit_job(current_user, job):
         raise HTTPException(
@@ -330,7 +343,7 @@ async def get_import_job(
     db: AsyncSession = Depends(get_db),
 ):
     job = await _get_job_or_404(db, job_id)
-    if not await _can_read_job(current_user, job):
+    if not await _can_read_job(db, current_user, job):
         raise HTTPException(status_code=403, detail="Acces refuse a ce batch d'import.")
     return job
 
@@ -343,7 +356,7 @@ async def get_import_job_items(
     db: AsyncSession = Depends(get_db),
 ):
     job = await _get_job_or_404(db, job_id)
-    if not await _can_read_job(current_user, job):
+    if not await _can_read_job(db, current_user, job):
         raise HTTPException(status_code=403, detail="Acces refuse a ce batch d'import.")
     items = job.items
     if status_filter:

@@ -570,3 +570,17 @@ première requête utilisateur.
 **Résolution** — L'autostash a été retrouvé (`git fsck --no-reflog`, commit « WIP on main »). Chaque fichier a été rétabli dans l'état de l'autostash, puis les entrées ajoutées entre-temps par les autres sessions y ont été remises. Contrôle : uniquement des ajouts par rapport à `HEAD`, et `HEAD` inchangé. Une deuxième session a vérifié.
 **Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
 **Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
+
+### LESSON-2026-041 — Table de fermeture des unités jamais alimentée : « unité et sous-unités » réduit en silence à « son unité »
+
+- **Date :** 2026-11-17
+- **Catégorie :** data / authz
+- **Statut :** test-added
+- **Liens :** #195, #196, `app/services/reports_scope.py`, `org_unit_closure`
+
+**Contexte** — La règle des rapports (D-L12-1) borne les rôles d'unité à leur unité et à ses sous-unités ; les sous-unités étaient lues dans `org_unit_closure`.
+**Échec / near miss** — Aucun chemin de l'application n'écrit cette table (ni migration, ni seed, ni création d'unité ; pas même la ligne de profondeur 0). Les tests l'alimentaient à la main. En production, la règle « unité et sous-unités » se réduisait donc à « son unité » sans erreur visible. Trouvé en préparant #195, avant tout signalement.
+**Cause racine** — Une structure dérivée (fermeture transitive) consommée sans propriétaire qui la tienne à jour ; les tests fabriquaient la donnée au lieu de passer par le chemin de création réel.
+**Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
+**Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
+**Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.

@@ -11,6 +11,11 @@ les compteurs de leurs réponses :
   est limité à sa propre unité et à ses sous-unités : sans unité demandée, il
   obtient son unité et ses sous-unités ; il peut viser l'une d'elles ; une unité
   hors de son arbre est refusée (403).
+
+Le sous-arbre se lit sur ``org_units.parent_id``, seule relation tenue à jour :
+la table ``org_unit_closure`` n'est alimentée par aucun chemin de l'application.
+Les listes de documents, la recherche, les statistiques et les imports
+réutilisent ``unit_subtree_ids`` et ``is_within_unit_tree``.
 """
 
 from dataclasses import dataclass
@@ -18,11 +23,11 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import can_perform
-from app.models.org_unit import OrgUnitClosure
+from app.models.org_unit import OrgUnit
 from app.models.user import User
 
 # Rôles qui voient toute l'institution. Liste fermée : un rôle absent est
@@ -47,14 +52,21 @@ def _forbidden(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
-async def _is_within(db: AsyncSession, unit_id: UUID, root_id: UUID) -> bool:
+def unit_subtree_ids(root_id: UUID) -> Select:
+    """Ids of ``root_id`` and of every unit below it, as a subquery."""
+    tree = select(OrgUnit.id).where(OrgUnit.id == root_id).cte(recursive=True)
+    # UNION, not UNION ALL: a cycle in parent_id stops instead of looping.
+    tree = tree.union(select(OrgUnit.id).where(OrgUnit.parent_id == tree.c.id))
+    return select(tree.c.id)
+
+
+async def is_within_unit_tree(db: AsyncSession, unit_id: UUID, root_id: UUID) -> bool:
     """``unit_id`` is ``root_id`` or one of its sub-units."""
     if str(unit_id) == str(root_id):
         return True
     found = await db.execute(
-        select(OrgUnitClosure.descendant_id).where(
-            OrgUnitClosure.ancestor_id == root_id,
-            OrgUnitClosure.descendant_id == unit_id,
+        select(OrgUnit.id).where(
+            OrgUnit.id == unit_id, OrgUnit.id.in_(unit_subtree_ids(root_id))
         )
     )
     return found.first() is not None
@@ -84,6 +96,6 @@ async def resolve_report_scope(
         raise _forbidden("Portée organisationnelle invalide.")
     if org_unit_id is None:
         return ReportScope(effective_tenant, user.org_unit_id, True)
-    if not await _is_within(db, org_unit_id, user.org_unit_id):
+    if not await is_within_unit_tree(db, org_unit_id, user.org_unit_id):
         raise _forbidden("Accès hors périmètre organisationnel refusé.")
     return ReportScope(effective_tenant, org_unit_id, recursive)

@@ -49,6 +49,11 @@ from app.schemas.document import (
     NeedsReviewDocument,
     ResolveReviewPayload,
 )
+from app.services.reports_scope import (
+    INSTITUTION_WIDE_ROLES,
+    is_within_unit_tree,
+    unit_subtree_ids,
+)
 from app.services.space_path_builder import SpacePathBuilder
 from app.services.classification_review_service import ClassificationReviewService
 from app.core.redis import get_redis
@@ -88,7 +93,11 @@ def _reject_oversized_announced_body(request: Request, filename: str | None) -> 
 
 
 ADMIN_ROLES = {"super_admin", "tenant_admin", "unit_admin"}
-TENANT_WIDE_READ_ROLES = ADMIN_ROLES | {"auditor"}
+# Read scope (decision D-L12-1, the reports rule): the institution-wide roles of
+# reports_scope plus super_admin; unit_admin reads its unit and the units below
+# it; manager and reader read their own unit; anyone else reads their own documents.
+TENANT_WIDE_READ_ROLES = INSTITUTION_WIDE_ROLES | {"super_admin"}
+UNIT_TREE_READ_ROLES = frozenset({"unit_admin"})
 ORG_UNIT_READ_ROLES = {"manager", "reader"}
 OWNER_MUTABLE_STATUSES = {"draft", "rejected"}
 ARCHIVABLE_SOURCE_STATUSES = {"validated", "signed"}
@@ -203,11 +212,14 @@ def _role_code(user: User) -> str:
 
 def visible_document_scope(user: User) -> list:
     """Filters added to the tenant filter so that counters only cover what
-    GET /documents lists: whole tenant for administration roles and the auditor,
-    own unit for manager and reader, own documents otherwise."""
+    GET /documents lists: whole tenant for tenant_admin, auditor and super_admin,
+    unit and sub-units for unit_admin, own unit for manager and reader, own
+    documents otherwise."""
     role_code = _role_code(user)
     if role_code in TENANT_WIDE_READ_ROLES:
         return []
+    if role_code in UNIT_TREE_READ_ROLES and user.org_unit_id:
+        return [Document.org_unit_id.in_(unit_subtree_ids(user.org_unit_id))]
     if role_code in ORG_UNIT_READ_ROLES and user.org_unit_id:
         return [Document.org_unit_id == user.org_unit_id]
     return [Document.owner_id == user.id]
@@ -750,17 +762,10 @@ async def list_documents(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    role_code = _role_code(current_user)
     query = select(Document).where(
         Document.tenant_id == current_user.tenant_id, Document.deleted_at.is_(None)
     )
-
-    if role_code in TENANT_WIDE_READ_ROLES:
-        pass
-    elif role_code in ORG_UNIT_READ_ROLES and current_user.org_unit_id:
-        query = query.where(Document.org_unit_id == current_user.org_unit_id)
-    else:
-        query = query.where(Document.owner_id == current_user.id)
+    query = query.where(*visible_document_scope(current_user))
 
     if document_status:
         query = query.where(Document.status == document_status)
@@ -777,16 +782,10 @@ async def list_trashed_documents(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    role_code = _role_code(current_user)
     query = select(Document).where(
         Document.tenant_id == current_user.tenant_id, Document.deleted_at.is_not(None)
     )
-    if role_code in TENANT_WIDE_READ_ROLES:
-        pass
-    elif role_code in ORG_UNIT_READ_ROLES and current_user.org_unit_id:
-        query = query.where(Document.org_unit_id == current_user.org_unit_id)
-    else:
-        query = query.where(Document.owner_id == current_user.id)
+    query = query.where(*visible_document_scope(current_user))
     result = await db.execute(
         query.options(
             *_document_load_options(),
@@ -1013,9 +1012,23 @@ async def list_workspace_documents(
     # - Tenant-wide roles (admins, auditors): full access to any unit.
     # - Org-unit roles (manager, reader): restricted to their own unit.
     #   Accessing another unit's workspace is forbidden unless they are admin.
+    # - unit_admin: any unit of its own tree (its unit and the units below it).
     # - Everyone else (collaborator, etc.): only their own documents.
     if role_code not in TENANT_WIDE_READ_ROLES:
-        if role_code in ORG_UNIT_READ_ROLES:
+        if role_code in UNIT_TREE_READ_ROLES:
+            if not current_user.org_unit_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User must be attached to an org unit for this operation",
+                )
+            if not await is_within_unit_tree(
+                db, target_unit_id, current_user.org_unit_id
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access to a unit outside your own tree is forbidden",
+                )
+        elif role_code in ORG_UNIT_READ_ROLES:
             if not current_user.org_unit_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
