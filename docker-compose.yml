@@ -208,6 +208,7 @@ services:
       args:
         VITE_APP_VERSION: ${APP_VERSION:-dev}
     container_name: edossier_frontend
+    restart: unless-stopped
     mem_limit: 768m
     memswap_limit: 768m
     cpus: 1.0
