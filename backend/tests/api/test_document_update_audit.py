@@ -10,6 +10,7 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from app.api.v1.endpoints.audit import ACTION_LABELS
 from app.models.audit import AuditLog
 from app.models.document import Document
 
@@ -134,3 +135,9 @@ async def test_a_reclassification_is_one_reclassify_entry_not_two(
     assert [action for action, _ in entries] == ["reclassify"]
     before, after = entries[0][1]["before"], entries[0][1]["after"]
     assert (before["classification_year"], after["classification_year"]) == (None, 2026)
+
+
+def test_the_journal_shows_both_actions_in_french():
+    """Without a label the journal page and its export show the English code."""
+    assert ACTION_LABELS["document_updated"] == "Modification du document"
+    assert ACTION_LABELS["reclassify"] == "Reclassement"
