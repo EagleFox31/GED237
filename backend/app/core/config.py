@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     AUTH_OTP_CHANNEL: str = "dev_response"
     # Minimum delay between two sendings of a code for the same login session.
     AUTH_OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=30, ge=0)
+    # Authenticator app (RFC 6238, services/totp.py), off by default. When on, an
+    # account with a confirmed app gives its app code; the others, and anyone who
+    # asks for a new code, fall back to AUTH_OTP_CHANNEL.
+    AUTH_TOTP_ENABLED: bool = False
+    # Name shown in the authenticator app.
+    AUTH_TOTP_ISSUER: str = "E-Dossier"
 
     @field_validator("AUTH_OTP_CHANNEL", mode="before")
     @classmethod

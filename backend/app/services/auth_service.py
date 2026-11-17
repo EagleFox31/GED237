@@ -28,8 +28,13 @@ from app.core.security import (
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
-from app.services import otp_delivery
+from app.services import otp_delivery, totp
 from app.services.audit_trail import audit_entry
+
+# Value of otp:<session> when the session waits for the authenticator app code.
+# Never equal to a stored code: those are hashes with a prefix.
+TOTP_PENDING = "totp"
+METHOD_TOTP = "totp"
 
 
 class AuthService:
@@ -110,6 +115,23 @@ class AuthService:
             raise AuthenticationError("Invalid credentials")
 
         session_token = secrets.token_urlsafe(32)
+        if await totp.is_active_for(db, user.id):
+            # Nothing is sent: the code comes from the user's app. "Resend"
+            # falls back to AUTH_OTP_CHANNEL (lost or flat phone).
+            await redis.setex(
+                f"otp:{session_token}", self.OTP_EXPIRY_SECONDS, TOTP_PENDING
+            )
+            await redis.setex(
+                f"session:{session_token}",
+                self.SESSION_TOKEN_EXPIRY_SECONDS,
+                str(user.id),
+            )
+            return {
+                "session_token": session_token,
+                "message": "Enter the code shown by your authenticator app",
+                "expires_in": self.OTP_EXPIRY_SECONDS,
+                "method": METHOD_TOTP,
+            }
         otp = await self._send_code(
             db,
             redis,
@@ -202,6 +224,7 @@ class AuthService:
             "session_token": session_token,
             "message": "OTP sent to your registered contact",
             "expires_in": expires_in,
+            "method": otp_delivery.get_channel().name,
         }
         if (
             settings.ENVIRONMENT == "development"
@@ -284,7 +307,11 @@ class AuthService:
         user_id = UUID(user_id_str)
         # A session opened just before the lock must not get round it.
         await self._raise_if_locked(redis, user_id)
-        if not otp_delivery.code_matches(stored_otp, session_token, otp):
+        if stored_otp == TOTP_PENDING:
+            accepted = await totp.consume(db, user_id, otp)
+        else:
+            accepted = otp_delivery.code_matches(stored_otp, session_token, otp)
+        if not accepted:
             # Audited before the counter: at the limit it ends the session.
             pending_user = await db.get(User, user_id)
             if pending_user is not None:

@@ -24,6 +24,31 @@ class LoginResponse(BaseModel):
     message: str
     expires_in: int
     otp: Optional[str] = None  # Only in development
+    # Where the code comes from: "totp" (authenticator app) or the sending
+    # channel ("email", "dev_response"). Lets the screen word its prompt.
+    method: Optional[str] = None
+
+
+class TotpStatus(BaseModel):
+    """Authenticator app of the current user."""
+
+    available: bool  # AUTH_TOTP_ENABLED on this server
+    enrolled: bool  # app confirmed: the login asks for its code
+
+
+class TotpEnrollResponse(BaseModel):
+    """Shown once: the secret is never returned again."""
+
+    secret: str
+    otpauth_uri: str
+
+
+class TotpCodeRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class TotpDisableRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
 
 
 class OTPVerifyRequest(BaseModel):
