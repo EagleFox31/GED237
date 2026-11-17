@@ -15,13 +15,14 @@ Les efforts sont en heures de session (h-s) : B pour le backend, F pour le front
 | 5 | **Profil modifiable par soi-même, et réglages lus par l'application** | #222 (#216) ; #224 (#214), backend seul ; #230, frontend, sans PR à ce jour | ≈ 3 : B 0,5, F 1,5 (#230 : l'application lit `GET /config/features` et cache les fonctions désactivées), Q 1 | #222 : liste blanche par défaut (fiche, question 8). Les deux sont sans migration et indépendantes de la chaîne : elles peuvent fusionner dès le 24. |
 | 6 | **E23 à E25** | #229, corrigé par #233 (F, brouillon, c37353e) : « Gérer les permissions » sans action ; accents « A verifier » et « Parametres » ; pas d'entrée « Audit » pour l'auditeur. | ≈ 2,5 : F 1,5, Q 0,5, innovateur 0,5 (lignes du guide 70, 109, 146, 232 et 242) | Après #230, si E23 et E25 passent par les réglages. Réponse du PO (fiche, question 7 ; par défaut V1.1). |
 | 7 | **Dependabot** | #112 (pytest 9), #141 (npm), #111 (python, 25 paquets), puis une à une : #113 (starlette 1.10), #29 (TypeScript 7), #30 (ESLint 10), #110 (Python 3.15) | ≈ 4 : B 2, F 1, Q 1 | Après le 30 (décision O du 17/11), et **après** les lots 1 à 6, pour ne pas faire rebaser 30 PR sur des fichiers de verrouillage changés. Les versions majeures passent une par une, CI complète à chaque fois. Pour #113 et #110, la compatibilité avec FastAPI et les roues de PyTorch est `À vérifier`. Sans roue disponible, #110 est fermée et reportée. |
+| 8 | **Réglages à l'écran et écran des droits** (décision du PO du 17/11, question 12, option C) | Ticket à créer, en deux lots. 8a, réglages : la durée des sessions, les essais de connexion, la taille maximale d'un envoi, les fonctions activées et le serveur e-mail passent à l'écran du super admin. 8b, écran des droits : rôles × actions à cocher, en français simple, à la place des règles brutes de « Gestion AuthZ ». Les mots de passe techniques restent sur le serveur. | `À chiffrer` par B et F. Ordre de grandeur `Déduit` : 8a ≈ 4 à 6, 8b ≈ 3 | 8a après #154 (serveur e-mail) et #230 (fonctions activées). 8b après le lot 3, qui touche aussi `policy.csv`. |
 
-**Total ≈ 34 h-s** : B ≈ 13, F ≈ 6,5, Q ≈ 14,5, innovateur 0,5.
+**Total ≈ 34 h-s** sans le lot 8 : B ≈ 13, F ≈ 6,5, Q ≈ 14,5, innovateur 0,5. Le lot 8 ajoute ≈ 7 à 9 h-s (`Déduit`), surtout pour B et F. La date de fin est à revoir après leur chiffrage.
 
 **Ordre de passage** :
 1. Dès le 24 : lots 5 et 4 (#222 → #227 → #224), sans migration, en parallèle de l'étape 1 du lot 1.
 2. Lot 1 avec le lot 2 à sa place dans la chaîne.
-3. Lot 3, puis lot 6.
+3. Lot 3, puis lot 6, puis lot 8.
 4. Lot 7 en dernier.
 
 ## Date de fin réaliste

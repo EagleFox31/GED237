@@ -36,3 +36,4 @@ Les questions 2 à 6 et 8 à 12 ne changent pas la rc.1 : leurs effets arrivent 
 | 9 | D'abord sur notre VPS. | Empreinte et réductions : `empreinte-pile-rc1-vps.md`. |
 | 10 | A : archivage par l'administrateur d'institution dans la rc.1 (#231, puis #239). | Retiré des « Limites connues », ajouté au guide. **À condition que #231 et #239 fusionnent avant la coupe.** |
 | 11 | Adresses internes du ministère. | Le code part par le serveur de messagerie du ministère (#154, transport SMTP). |
+| 12 | A pour la rc.1, puis C en V1.1 (réponse du 17/11, transmise par O). | rc.1 : page « Ce qui se règle où » dans le guide (4bef7d8, branche du guide) et dans les notes rc.1 (push de #104 du 19). V1.1 : les réglages non secrets passent à l'écran, et un écran des droits en français simple (rôles × actions à cocher) remplace les règles brutes. Ticket en deux lots, chiffrage par B et F. Les mots de passe techniques restent sur le serveur. |
