@@ -1,9 +1,9 @@
 # Décisions en attente du PO (18/11)
 
-**Comment répondre** : une lettre par question, par exemple « 1A 2A 3A 4A 5A 6A ».
+**Comment répondre** : une lettre par question, par exemple « 1A 2A 3A 4A 5A 6A 7A ».
 - L'option A est notre recommandation.
 - Les coûts sont en heures de travail de l'équipe (h-s).
-- Sans réponse à la date indiquée, nous appliquons l'option A.
+- Sans réponse à la date indiquée : option A pour les questions 1 et 2. Pour le serveur (questions 3 à 7), rien n'est fait sans votre accord.
 
 **1. Alertes de qualité (version 1.2)** : prévenir la direction quand le classement ou les délais se dégradent.
 - **A. Mettre de côté** : rien en 1.2 ; le travail déjà fait reste disponible. 0 h-s. Plus on attend, plus la reprise coûte.
@@ -37,3 +37,8 @@
 - **A. Accord pour la 2e étape** : les autres sites du serveur ne sont pas touchés. Le réglage est vérifié avant d'être appliqué, et en cas d'erreur l'ancien reste en place. 0,5 h-s, déjà prévu.
 - **B. Pas de publication** : GED237 reste accessible par le réseau privé seulement. 0 h-s.
 - *Sans réponse* : pas d'adresse publique, comme au point 3.
+
+**7. Installation de GED237 sur le serveur** : toute modification du serveur demande votre accord.
+- **A. Accord pour installer GED237 sur le serveur après le 30/11** : 1re étape par le réseau privé (VPN), chaque étape annoncée avant d'être faite. 0,5 h-s, déjà prévu.
+- **B. Pas d'installation pour l'instant** : GED237 reste sur les postes de l'équipe. 0 h-s.
+- *Sans réponse au 01/12* : rien n'est installé ; les questions 4 à 6 attendent.
