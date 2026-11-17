@@ -485,3 +485,63 @@ def test_beat_registry_merges_retention_with_the_watch():
             "schedule": 3600.0,
         },
     }
+
+
+# --- documents purge: institution administrator ------------------------------
+
+
+def _as_tenant_admin(client_as, db_seed, tenant_id=None):
+    return client_as(
+        "tenant_admin",
+        id=db_seed["user_id"],
+        tenant_id=tenant_id or db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+    )
+
+
+@pytest.mark.asyncio
+async def test_tenant_admin_purges_and_empties_own_trash(
+    client_as, db_seed, test_engine
+):
+    async with _as_tenant_admin(client_as, db_seed) as client:
+        active = await _upload(client, db_seed, "ta-active.txt")
+        single = await _trashed(client, db_seed, "ta-single.txt")
+        bulk = await _trashed(client, db_seed, "ta-bulk.txt")
+
+        refused = await client.delete(f"{DOCS}/{active}/purge")
+        purged = await client.delete(f"{DOCS}/{single}/purge")
+        emptied = await client.post(f"{DOCS}/trash/empty")
+
+    assert refused.status_code == 409
+    assert purged.status_code == 200, purged.text
+    assert emptied.status_code == 200, emptied.text
+    assert emptied.json() == {"purged": 1, "remaining": 0}
+    assert await _document_row(test_engine, active) is not None
+    assert await _document_row(test_engine, single) is None
+    assert await _document_row(test_engine, bulk) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ["unit_admin", "manager", "auditor", "reader"])
+async def test_other_roles_cannot_purge(client_as, admin_client, db_seed, role):
+    document_id = await _trashed(admin_client, db_seed, f"no-purge-{role}.txt")
+    async with client_as(
+        role, tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
+    ) as client:
+        purge = await client.delete(f"{DOCS}/{document_id}/purge")
+        empty = await client.post(f"{DOCS}/trash/empty")
+    assert purge.status_code == 403
+    assert empty.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_tenant_admin_of_another_institution_purges_nothing(
+    client_as, admin_client, db_seed, test_engine
+):
+    document_id = await _trashed(admin_client, db_seed, "foreign-purge.txt")
+    async with _as_tenant_admin(client_as, db_seed, tenant_id=uuid.uuid4()) as client:
+        purge = await client.delete(f"{DOCS}/{document_id}/purge")
+        empty = await client.post(f"{DOCS}/trash/empty")
+    assert purge.status_code == 404
+    assert empty.json()["purged"] == 0
+    assert await _document_row(test_engine, document_id) is not None
