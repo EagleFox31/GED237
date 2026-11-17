@@ -26,6 +26,13 @@ export const isTrashKey = (event: {
 export const trashConfirmMessage = (title: string): string =>
   `Mettre « ${title} » à la corbeille ? Vous pourrez le restaurer depuis la corbeille.`;
 
+/**
+ * Élément qui reprend le focus après le retrait de l'élément `removedIndex` :
+ * celui qui prend sa place, ou le dernier si c'était le dernier ; -1 s'il ne reste rien.
+ */
+export const focusIndexAfterRemoval = (removedIndex: number, remaining: number): number =>
+  remaining <= 0 ? -1 : Math.min(Math.max(removedIndex, 0), remaining - 1);
+
 export interface ItemBox {
   top: number;
   left: number;

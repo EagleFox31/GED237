@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { clampToViewport, isEditableTarget, isTrashKey, nextFocusIndex, trashConfirmMessage } from '../../profiles/tenant-admin/pages/explorerKeys';
+import {
+  clampToViewport,
+  focusIndexAfterRemoval,
+  isEditableTarget,
+  isTrashKey,
+  nextFocusIndex,
+  trashConfirmMessage,
+} from '../../profiles/tenant-admin/pages/explorerKeys';
 
 // Grille 3 colonnes (6 éléments) puis une seconde grille de 2 éléments plus bas.
 const grid = [
@@ -73,5 +80,12 @@ test.describe('Explorateur : Suppr met à la corbeille (#151)', () => {
     expect(trashConfirmMessage('Note de service')).toBe(
       'Mettre « Note de service » à la corbeille ? Vous pourrez le restaurer depuis la corbeille.'
     );
+  });
+
+  test('le focus passe au voisin, au dernier en fin de liste, nulle part si vide', () => {
+    expect(focusIndexAfterRemoval(2, 5)).toBe(2);
+    expect(focusIndexAfterRemoval(5, 5)).toBe(4);
+    expect(focusIndexAfterRemoval(-1, 3)).toBe(0);
+    expect(focusIndexAfterRemoval(0, 0)).toBe(-1);
   });
 });
