@@ -6,6 +6,10 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.classification_reasons import (
+    DUPLICATE_IN_TENANT_MESSAGE,
+    STAGED_FILE_MISSING_MESSAGE,
+)
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
 from app.models.import_job import ImportJob
@@ -49,7 +53,7 @@ class ImportExecutionService:
             if item.status in {"pending", "needs_review"}:
                 if not item.staging_file_path or not item.checksum_sha256:
                     item.status = "failed"
-                    item.error_message = "Fichier de staging introuvable pour cet item en attente de revue."
+                    item.error_message = STAGED_FILE_MISSING_MESSAGE
                     summary.failed_items += 1
                     continue
                 await review_service.ensure_open_review_for_import_item(item=item)
@@ -58,7 +62,7 @@ class ImportExecutionService:
 
             if not item.staging_file_path or not item.checksum_sha256:
                 item.status = "failed"
-                item.error_message = "Fichier de staging introuvable pour cet item."
+                item.error_message = STAGED_FILE_MISSING_MESSAGE
                 summary.failed_items += 1
                 continue
 
@@ -75,9 +79,7 @@ class ImportExecutionService:
 
                 if await self._is_duplicate(item, tenant_id=job.tenant_id):
                     item.status = "duplicate"
-                    item.error_message = (
-                        "Un fichier identique existe deja dans ce tenant."
-                    )
+                    item.error_message = DUPLICATE_IN_TENANT_MESSAGE
                     job.duplicate_files += 1
                     summary.post_commit_delete_paths.append(item.staging_file_path)
                     continue
@@ -218,7 +220,7 @@ class ImportExecutionService:
         if job.target_org_unit_id:
             return owner_id, job.target_org_unit_id
         raise RuntimeError(
-            "Impossible de determiner l'unite organisationnelle du document."
+            "Impossible de déterminer l'unité organisationnelle du document."
         )
 
     @staticmethod
