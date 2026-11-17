@@ -4,6 +4,6 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e/specs',
-  testMatch: /(safe-path|account-key|explorer-keys)\.spec\.ts/,
+  testMatch: /(safe-path|account-key|explorer-keys|features)\.spec\.ts/,
   reporter: process.env.CI ? 'dot' : 'list',
 });
