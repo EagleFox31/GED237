@@ -13,6 +13,19 @@ export const isEditableTarget = (target: unknown): boolean => {
   return Boolean(el.isContentEditable) || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName.toUpperCase());
 };
 
+/** Suppr seul (sans Maj, Ctrl, Alt ni Cmd) : mise à la corbeille, jamais suppression définitive (#151). */
+export const isTrashKey = (event: {
+  key: string;
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}): boolean => event.key === 'Delete' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey;
+
+/** Question posée avant la mise à la corbeille au clavier (une touche est vite pressée par erreur). */
+export const trashConfirmMessage = (title: string): string =>
+  `Mettre « ${title} » à la corbeille ? Vous pourrez le restaurer depuis la corbeille.`;
+
 export interface ItemBox {
   top: number;
   left: number;

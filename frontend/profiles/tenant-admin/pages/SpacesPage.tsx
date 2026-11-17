@@ -7,7 +7,7 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
-import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { clampToViewport, isArrowKey, isEditableTarget, isTrashKey, nextFocusIndex, trashConfirmMessage } from './explorerKeys';
 
 interface UserNode {
   id: string;
@@ -503,6 +503,15 @@ const SpacesPage: React.FC = () => {
       }
       return;
     }
+    if (isTrashKey(event)) {
+      // Seul un document qui a le focus est concerné ; le même chemin que « Mettre à la corbeille ».
+      const id = (event.target as HTMLElement).getAttribute('data-document-id');
+      const doc = id ? visibleDocuments.find((d) => d.id === id) : undefined;
+      if (!doc) return;
+      event.preventDefault();
+      if (window.confirm(trashConfirmMessage(doc.title))) handleTrash(doc).catch(() => undefined);
+      return;
+    }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (event.key === 'Backspace') {
       if (parentUnit) {
@@ -961,6 +970,7 @@ const SpacesPage: React.FC = () => {
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                             data-explorer-item
+                            data-document-id={doc.id}
                             className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
@@ -1024,6 +1034,7 @@ const SpacesPage: React.FC = () => {
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                               tabIndex={0}
                               data-explorer-item
+                              data-document-id={doc.id}
                               aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && event.target === event.currentTarget) {
