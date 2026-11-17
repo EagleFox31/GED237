@@ -597,6 +597,20 @@ async def disable_user_mfa(
     return user
 
 
+async def _authorize_hierarchy_read(current_user: User, user: User) -> None:
+    """My team (#277): anyone reads their own chain, a manager that of their direct
+    reports, without users:read. Anything else needs users:read, and a refusal is a 404
+    (the #247 rule: what is out of reach is not revealed to exist)."""
+    if user.id == current_user.id or user.reports_to_user_id == current_user.id:
+        return
+    try:
+        await authorize_or_403(current_user, "users", "read", ctx_from_resource(user))
+    except HTTPException as exc:
+        if exc.status_code != status.HTTP_403_FORBIDDEN:
+            raise
+        raise HTTPException(status_code=404, detail="User not found") from exc
+
+
 @router.get("/{user_id}/hierarchy-up", response_model=List[UserRead])
 async def get_hierarchy_up(
     user_id: UUID,
@@ -613,7 +627,7 @@ async def get_hierarchy_up(
     ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    await authorize_or_403(current_user, "users", "read", ctx_from_resource(user))
+    await _authorize_hierarchy_read(current_user, user)
 
     chain: List[User] = []
     seen: set = set()
@@ -653,7 +667,7 @@ async def get_hierarchy_down(
     ).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    await authorize_or_403(current_user, "users", "read", ctx_from_resource(user))
+    await _authorize_hierarchy_read(current_user, user)
 
     rows = (
         (
