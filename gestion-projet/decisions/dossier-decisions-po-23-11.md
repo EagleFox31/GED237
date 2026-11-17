@@ -9,14 +9,16 @@ Fiche : `fiche-po-171-doublons.md`.
 1. Les copies en trop vont seulement à la corbeille, d'où on peut les restaurer, jamais en suppression définitive ? **Oui.**
 2. Une copie présente dans deux services : l'administrateur décide seul au début, et le propriétaire sera prévenu dans une version suivante ? **Oui.**
 3. Une copie en cours de validation ne peut pas être mise à la corbeille ? **Oui.**
+   - Sans réponse le 23 (q. 1 à 3) : la vue « Doublons » n'entre pas dans la V1.1 ; elle attend votre accord.
 
-> Accord PO du JJ/11 : vue « doublons » en corbeille seulement, sans suppression définitive. Entre deux services, l'administrateur seul résout en V1.0 ; le propriétaire est prévenu en V1.1. Une copie en cours de validation n'est pas mise à la corbeille. Fusion après le 30.
+> Accord PO du JJ/11 : vue « doublons » en corbeille seulement, sans suppression définitive. Entre deux services, l'administrateur seul résout au départ (V1.0 livrée le 30), le propriétaire est prévenu en V1.1. Une copie en cours de validation n'est pas mise à la corbeille. Fusion après le 30.
 
 ## 2. Critères de succès : « − 70 % du temps de recherche » et « 90 % d'adoption en 3 mois »
 
 Fiche : `protocole-mesure-criteres-succes.md`.
 
-1. Le client mesure le temps de recherche actuel **avant** de remettre les comptes aux agents ? **Oui.** Sans cette mesure, le « − 70 % » ne pourra jamais être prouvé.
+1. Le client mesure le temps de recherche actuel **avant** de remettre les comptes aux agents ? **Oui.**
+   - Sans réponse le 23 : la mesure de départ n'est pas faite, et le « − 70 % » ne pourra jamais être prouvé.
 2. On compte les agents de la liste remise par le client à la mise en service, sans les comptes techniques ni de démonstration ? **Oui.**
 3. Un agent est « actif » s'il consulte ou dépose au moins un document dans 3 des 4 dernières semaines du 3e mois ? **Oui.**
 
@@ -26,20 +28,25 @@ Fiche : `protocole-mesure-criteres-succes.md`.
 
 Fiche : `protocole-installation-site.md`.
 
-1. Pouvez-vous prêter un poste neuf (Ubuntu 24.04, 8 Go de mémoire et 10 Go de disque libres) pendant une demi-journée, après le 24 ? Répondez oui ou non, et donnez une date.
-2. L'installation sur ce poste et sur le PC Windows vaut-elle preuve, à la place d'un serveur en ligne, pour l'exigence 28 du cahier des charges ? **Oui.** Sinon, cette exigence reste impossible à vérifier.
+1. Pouvez-vous prêter un poste neuf (Ubuntu 24.04, 8 Go de mémoire et 10 Go de disque libres) le **mardi 25/11 de 09:00 à 13:00**, ou sinon le mercredi 26/11 aux mêmes heures ? Q installe, O chronomètre. Répondez par le créneau.
+   - Sans réponse le 23 : l'essai sans Internet n'a pas lieu avant la démo du 30.
+2. L'installation sur ce poste et sur le PC Windows vaut-elle preuve, à la place d'un serveur en ligne, pour l'exigence 28 du cahier des charges ? **Oui.**
+   - Sans réponse le 23 : l'exigence 28 reste impossible à vérifier.
 
 > Accord PO du JJ/MM : l'installation sur site est acceptée comme preuve à la place du VPS pour l'item 28 du CDC, sur la base des relevés P1 (Windows 11 + WSL 2) et P2 (Ubuntu 24.04, hors ligne). Le PO prête le poste de P2.
 
 ## 4. Ce que voient le responsable d'unité et le manager (#195, #196, #203, #165)
 
-Fiche : `fiche-po-195-portee-unit-admin.md`. Questions 1 à 3 : seulement si vous n'y avez pas encore répondu.
+Fiche : `fiche-po-195-portee-unit-admin.md`. Les questions 1 à 3 portent sur #195 ; les questions 4 et 5 sont nouvelles.
 
 1. Le responsable d'unité voit seulement son service et ses bureaux, partout : liste, recherche, compteurs, imports et rapports ? **Oui.**
 2. Ses trois derniers accès aux autres services (lien direct, import au nom d'un autre agent, vue de toute l'institution) seront fermés en V1.1 ? **Oui.**
-3. A-t-il besoin, pour son travail, de chercher dans tout l'établissement ? Si oui, il faut prévoir une autre façon de le faire avant la fusion.
+3. A-t-il besoin, pour son travail, de chercher dans tout l'établissement ? **Non**, sauf si vous citez un cas réel. Si oui, il faut prévoir une autre façon de le faire avant la fusion.
+   - Sans réponse le 23 (q. 1 à 3) : rien ne change, il voit encore tout l'établissement dans sa liste et sa recherche.
 4. Les rapports d'un manager ou d'un lecteur couvrent : A. son service et ses bureaux, ou B. son service seulement, comme sa liste de documents ? **B** : il voit les mêmes documents partout. Avec A, il voit des chiffres sur des documents qu'il ne peut pas ouvrir.
+   - Sans réponse le 23 : si #203 fusionne en l'état, ses bureaux sont comptés dans ses rapports.
 5. Un manager doit valider un document d'un autre service. Aujourd'hui, il le voit dans sa liste mais reçoit « accès refusé ». Faut-il A. qu'il puisse le lire pendant sa validation seulement, ou B. que le document n'apparaisse plus dans sa liste ? **A** : sinon, il vise un document sans l'avoir lu.
+   - Sans réponse le 23 : le message « accès refusé » reste.
 
 Pour information : B corrige dès maintenant le lien direct (#202). Un responsable d'unité ne pourra plus ouvrir, par un lien, un document d'un autre service.
 
