@@ -108,15 +108,28 @@ async def list_groups(
 
 
 async def load_with_checksum(
-    db: AsyncSession, filters: list, ids: Iterable[UUID]
+    db: AsyncSession, filters: list, ids: Iterable[UUID], *, lock: bool = False
 ) -> dict[UUID, tuple[Document, str | None]]:
-    """Visible documents (trashed included) with the checksum of their current version."""
-    rows = await db.execute(
+    """Visible documents (trashed included) with the checksum of their current version.
+
+    ``lock`` holds the document rows until commit, taken in id order so two
+    resolutions of the same group queue up instead of deadlocking: crossed
+    choices (one keeps A and trashes B, the other keeps B and trashes A) would
+    otherwise both pass and trash every copy.
+    """
+    query = (
         select(Document, CHECKSUM)
         .select_from(Document)
         .outerjoin(DocumentVersion, DocumentVersion.id == Document.current_version_id)
         .where(*filters, Document.id.in_(list(ids)))
     )
+    if lock:
+        query = (
+            query.order_by(Document.id)
+            .with_for_update(of=Document)
+            .execution_options(populate_existing=True)
+        )
+    rows = await db.execute(query)
     return {document.id: (document, checksum) for document, checksum in rows.all()}
 
 

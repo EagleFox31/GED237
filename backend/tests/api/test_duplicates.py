@@ -1,11 +1,13 @@
 """Duplicates view: groups of identical documents, keep one, trash the others."""
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.audit import AuditLog
 from app.models.document import Document
@@ -327,3 +329,67 @@ async def test_resolve_outside_contract_is_422(admin_client: AsyncClient, same):
 async def test_list_limit_is_bounded(admin_client: AsyncClient):
     response = await admin_client.get(DUPLICATES, params={"limit": 101})
     assert response.status_code == 422
+
+
+# --- Two resolutions of the same group at once ------------------------------
+
+
+async def _pair(db_session, db_seed):
+    first = await _doc(db_session, db_seed, "x", SHA_A, day=1)
+    second = await _doc(db_session, db_seed, "y", SHA_A, day=2)
+    return first, second
+
+
+def _resolve(keep: Document, trash: Document) -> dict:
+    return {"keep_id": str(keep.id), "trash_ids": [str(trash.id)]}
+
+
+@pytest.mark.asyncio
+async def test_a_crossed_resolution_waits_and_then_keeps_the_survivor(
+    admin_client: AsyncClient, db_session, db_seed, test_engine
+):
+    x, y = await _pair(db_session, db_seed)
+    session = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )()
+    try:
+        # Another resolution keeps x and trashes y, not committed yet.
+        locked = (
+            await session.execute(
+                select(Document)
+                .where(Document.id.in_([x.id, y.id]))
+                .order_by(Document.id)
+                .with_for_update()
+            )
+        ).scalars()
+        {d.id: d for d in locked}[y.id].deleted_at = datetime.now(timezone.utc)
+        await session.flush()
+
+        crossed = asyncio.create_task(admin_client.post(RESOLVE, json=_resolve(y, x)))
+        await asyncio.sleep(0.5)
+        assert not crossed.done(), "the crossed resolution did not wait for the lock"
+        await session.commit()
+    finally:
+        await session.close()
+
+    response = await crossed
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "KEPT_DOCUMENT_TRASHED"
+    assert not await _is_trashed(db_session, x)
+    assert await _is_trashed(db_session, y)
+
+
+@pytest.mark.asyncio
+async def test_two_crossed_resolutions_never_trash_every_copy(
+    admin_client: AsyncClient, db_session, db_seed
+):
+    x, y = await _pair(db_session, db_seed)
+
+    responses = await asyncio.gather(
+        admin_client.post(RESOLVE, json=_resolve(x, y)),
+        admin_client.post(RESOLVE, json=_resolve(y, x)),
+    )
+
+    assert sorted(r.status_code for r in responses) == [200, 409]
+    assert [await _is_trashed(db_session, d) for d in (x, y)].count(True) == 1
+    assert await _trash_audits(db_session) == 1

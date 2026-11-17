@@ -68,7 +68,7 @@ async def resolve_duplicate_group(
     Documents already in the recycle bin are left as they are (safe retry).
     """
     found = await load_with_checksum(
-        db, _visible(current_user), [payload.keep_id, *payload.trash_ids]
+        db, _visible(current_user), [payload.keep_id, *payload.trash_ids], lock=True
     )
     missing = [str(i) for i in (payload.keep_id, *payload.trash_ids) if i not in found]
     if missing:
