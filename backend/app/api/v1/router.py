@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     documents,
     gedrules,
     imports,
+    my_documents,
     notifications,
     org_units,
     reports,
@@ -55,3 +56,4 @@ api_router.include_router(
 api_router.include_router(authz.router, prefix="/authz", tags=["Authorization"])
 api_router.include_router(audit.router, prefix="/audit", tags=["Audit"])
 api_router.include_router(usage.router, prefix="/usage", tags=["Usage"])
+api_router.include_router(my_documents.router, prefix="/me", tags=["My documents"])

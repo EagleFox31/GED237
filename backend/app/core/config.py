@@ -153,6 +153,11 @@ class Settings(BaseSettings):
             raise ValueError("SCHEMA_CHECK_MODE must be one of: fail, warn, off")
         return value
 
+    # My documents (favourites, recently opened). Tracking writes one row per
+    # opened document: off by default, as any new side effect.
+    RECENT_DOCUMENTS_TRACKING_ENABLED: bool = False
+    RECENT_DOCUMENTS_MAX_PER_USER: int = Field(default=50, ge=1, le=200)
+
     # Email (Resend)
     RESEND_API_KEY: str = Field(default="")
     RESEND_FROM: str = Field(default="onboarding@resend.dev")
