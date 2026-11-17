@@ -46,6 +46,11 @@ jobs:
           cd frontend
           npm run lint
 
+      - name: Run unit specs
+        run: |
+          cd frontend
+          npm run test:unit
+
   build:
     name: Build
     runs-on: ubuntu-latest

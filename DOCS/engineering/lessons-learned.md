@@ -542,3 +542,17 @@ première requête utilisateur.
 **Résolution** — Maquette complète (forme de `TenantMetrics`, `[]` pour les listes), profil adapté à l'écran, puis comparaison refaite : tuiles et sélecteur identiques. Seuls login et règles du premier passage étaient réellement rendus.
 **Prévention** — Avant toute capture ou comparaison de styles : (1) asserter un sélecteur métier de l'écran visé (titre ou tuile visible) ; (2) asserter l'absence de l'écran d'erreur (texte « Une erreur est survenue ») ; (3) faire échouer le script sinon ; (4) bâtir la maquette depuis le type du contrat (`types.ts`), pas depuis `{}`. Le script de capture n'est pas versionné : la règle vaut pour tout script futur sous `e2e/` ou `scripts/`.
 **Leçon généralisée** — Une comparaison « sans différence » ne prouve rien tant qu'on n'a pas prouvé que ce qui est comparé est bien l'objet visé.
+
+### LESSON-2026-036 — Specs unitaires purs rattachés à un projet e2e dépendant d'une pile : jamais exécutés en CI
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / ci
+- **Statut :** prevention-added (PR #143)
+- **Liens :** PR #97 (`safe-path.spec.ts`), PR #140 (`account-key.spec.ts`), PR #143, `frontend/playwright.config.ts` (projet `chromium` → `setup`), `frontend/playwright.unit.config.ts`, `.github/workflows/frontend.yml`
+
+**Contexte** — Les specs purs (aucun navigateur, aucune API) tournaient sous `@playwright/test`, dans le projet `chromium`, qui dépend de `setup` (connexion sur une pile réelle). La CI ne lance que `--project=smoke`.
+**Échec / near miss** — Un cas de `safe-path.spec.ts` était rouge depuis #97 sans que personne le voie : `'/\evil.example'` vaut `/evil.example` en JS, donc il testait une URL sûre. Découvert le 2026-11-17 en lançant ces specs à la main pour #140.
+**Cause racine** — Même schéma que LESSON-2026-034 : un ensemble de tests sans déclencheur. Le rattachement à un projet qui exige une pile rendait leur exécution coûteuse, donc jamais faite.
+**Résolution** — #143 : `playwright.unit.config.ts` (sans pile ni `webServer`), `npm run test:unit` lancé dans le job Frontend Lint & Typecheck ; cas antislash corrigé (`'/\evil.example'`). 12/12 verts.
+**Prévention** — Un spec pur s'ajoute au `testMatch` de `playwright.unit.config.ts` (commentaire dans le fichier) ; contrôle en relecture : `git grep -L "page\|request" frontend/e2e/specs/*.spec.ts` doit renvoyer seulement des fichiers listés dans ce motif.
+**Leçon généralisée** — Un test unitaire ne doit pas dépendre de l'infrastructure d'un test d'intégration : sinon il en hérite le coût et sort de la CI.
