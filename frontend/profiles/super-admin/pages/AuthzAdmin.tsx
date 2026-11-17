@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../services/api';
 import { PolicyRule, AuthzMetricPoint, AuthzHealthResponse } from '../../../types';
+import { ApiError } from '../../../lib/errors';
 
 type TabId = 'policies' | 'metrics' | 'health';
+
+/** 409 de GET /authz/policies : installation en mode fichier (AUTHZ_BACKEND=csv). */
+const POLICIES_READ_ONLY = 'Les droits ne sont pas modifiables sur cette installation.';
+const POLICIES_LOAD_FAILED = 'Chargement des droits impossible. Réessayez plus tard.';
 
 // ─── Policies Tab ──────────────────────────────────────────
 
@@ -24,8 +29,9 @@ const PoliciesTab: React.FC = () => {
       ]);
       setPolicies(policiesData);
       setRoles(rolesData);
-    } catch (err: any) {
-      setError(err.message || 'Erreur de chargement');
+    } catch (err: unknown) {
+      // Jamais le texte du serveur : le message dépend du seul code HTTP.
+      setError(err instanceof ApiError && err.status === 409 ? POLICIES_READ_ONLY : POLICIES_LOAD_FAILED);
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +62,10 @@ const PoliciesTab: React.FC = () => {
   };
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cam-red"></div></div>;
-  if (error) return <div className="text-center py-20 text-red-500 font-bold">{error}</div>;
+  if (error) {
+    const tone = error === POLICIES_READ_ONLY ? 'text-slate-500' : 'text-red-500';
+    return <div role="status" className={`text-center py-20 font-bold ${tone}`}>{error}</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -94,7 +103,7 @@ const PoliciesTab: React.FC = () => {
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Annuler</button>
-            <button type="button" onClick={handleAdd} className="px-5 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase hover:scale-105 transition-transform">Creer</button>
+            <button type="button" onClick={handleAdd} className="px-5 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase hover:scale-105 transition-transform">Créer</button>
           </div>
         </div>
       )}
@@ -274,7 +283,7 @@ const HealthTab: React.FC = () => {
         <span className={`material-symbols-outlined text-4xl ${health.degraded ? 'text-red-500' : 'text-green-500'}`}>
           {health.degraded ? 'error' : 'check_circle'}
         </span>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Etat</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">État</p>
         <p className={`text-2xl font-black uppercase ${health.degraded ? 'text-red-500' : 'text-green-600'}`}>
           {health.degraded ? 'Degrade' : 'Operationnel'}
         </p>

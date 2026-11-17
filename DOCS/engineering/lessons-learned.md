@@ -612,3 +612,17 @@ première requête utilisateur.
 **Résolution** — Verrou dans une requête à part, sur l'id seul ; puis lecture normale sans `populate_existing`.
 **Prévention** — `owner_client` lit l'appelant dans la session de la requête, comme en production ; le propriétaire restaure et purge son document. Le test échoue sur l'ancien code.
 **Leçon généralisée** — `populate_existing` réécrit tout objet déjà dans la session, y compris l'utilisateur courant. Verrouiller sur une requête minimale, et tester au moins un chemin avec un appelant réel tiré de la session de la requête.
+
+### LESSON-2026-046 — Données e2e partagées consommées par une spec : la suite dépendait de l'ordre de lancement
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / e2e
+- **Statut :** prevention-added
+- **Liens :** `frontend/e2e/specs/uat/validation-cycle.spec.ts`, `frontend/e2e/specs/seed.spec.ts`, `frontend/e2e/data/seed-manifest.json` (`pendingTasks`), `frontend/e2e/specs/demo-counters.spec.ts`, `frontend/e2e/data/demo.ts` (`DEMO_P8_TITLES`)
+
+**Contexte** — Le seed e2e crée 3 tâches de visa pour MGR001 (`E2E-VAL-*`). `seed.spec` vérifie qu'elles sont en attente ; `validation-cycle` les validait et les rejetait. Cette spec est dans deux projets (`smoke` et `uat`).
+**Échec / near miss** — Suite complète du 17/11 sur f8f1d75 : `seed.spec:58` et SC-VAL-01 [smoke] en échec. MGR001 n'avait plus qu'une tâche sur trois : le 1er passage de `validation-cycle` avait consommé les deux autres. Même jour, `demo-counters:113` attendait 357 documents et en trouvait 359 : les 2 documents P8, ajoutés après le jeu de démo par `e2e_reset.sh demo`.
+**Cause racine** — Une spec qui modifie l'état consommait des données partagées, créées une seule fois par remise à zéro. Le passage n'était donc ni rejouable ni indépendant de l'ordre. Pour demo-counters : le manifeste P8 annonce que ses documents ne comptent pas dans `expected`, mais la spec ne les excluait pas.
+**Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
+**Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
+**Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
