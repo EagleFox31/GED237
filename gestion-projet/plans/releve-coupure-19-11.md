@@ -67,7 +67,7 @@ git log --first-parent --format='%h %cI %s' "$REF..$CUT"
 gh pr list --state merged --base main --limit 100 --search "merged:2026-11-17T02:01:32Z..$CUT_Z" \
   --json number,mergedAt,mergeCommit,title --jq 'sort_by(.mergedAt)[] | "#\(.number) \(.mergedAt) \(.mergeCommit.oid[0:7]) \(.title)"'
 # État des PR rc.1 du § 4.2
-for n in 174 175 121 104; do gh pr view "$n" --json number,state,isDraft,mergeCommit \
+for n in 174 175 121 104 NNN; do  # NNN = PR rc.1 de B (rapports), numéro à relever gh pr view "$n" --json number,state,isDraft,mergeCommit \
   --jq '"#\(.number) \(.state) draft=\(.isDraft) \(.mergeCommit.oid // "-" | .[0:7])"'; done
 # Contrôle : aucune PR post-rc1 ni Dependabot fusionnée (sortie attendue : la phrase finale seule)
 for n in 147 152 153 154 155 159 161 162 165 166 168 169 170 171 172 179 180 181 182 183 29 30 110 111 112 113 141; do
@@ -81,6 +81,7 @@ gh pr list --state open --limit 100 --search "created:>2026-11-17T08:50:00Z" --j
 | Classe | PR | Attendu à 18:00 | État à 18:00 (MERGED SHA / OPEN) | Effet sur le taux CDC |
 |---|---|---|---|---|
 | rc.1, prêtes | #174 (recherche du bandeau, #163) ; #175 (menu Rapports du Manager, limité à son service) | MERGED, sinon V1.1 | `…` | 0 : aucun des 32 items (`Déduit`) |
+| rc.1, B (décision PO du 17/11) | PR de B, numéro `#…` à relever le 19 : `unit_admin` limité à son périmètre et `collaborator` en 403 sur `/reports/*`, signaux `imports_needing_review` et `local_organize_*` limités au périmètre du Manager (spec L12 § 2, #166) | MERGED, sinon V1.1 | `…` | 0 : aucun des 32 items (`Déduit`) ; si V1.1, phrase « Limites connues » : « Dans les rapports, l'admin de service et le collaborateur voient les chiffres de tout l'établissement ; deux signaux du Manager comptent aussi les autres services. » |
 | rc.1, dernière fusion | #121 (version 1.0.0-rc.1 du frontend) | OPEN : elle fusionne juste avant le tag du 24 | `…` | 0 |
 | rc.1, docs | #104 (cette PR) | OPEN, brouillon ; passe en prêt **après** cette passe | `…` | 0 |
 | Déjà fusionnées depuis `b64144f` | #146, #128, #130, #131, #132, #142, #144, #143, #156, #158, #160, #164, #173, #178, #177 | MERGED | (sortie du delta § 4.1) | 0 : relevé préliminaire § 4 ; #177 (compteurs limités à ce que l'appelant peut lister) ne déplace aucun item (`Déduit`) |
