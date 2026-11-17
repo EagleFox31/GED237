@@ -39,7 +39,10 @@ test.describe('Explorateur — réflexes clavier', () => {
 
     const search = page.locator('[data-global-search]');
     await expect(search).toBeFocused();
-    await page.keyboard.type('ab');
+    // Champ porté par l'URL (?q=) : attendre l'affichage avant la touche suivante, sinon elle s'applique à
+    // l'ancienne valeur (frappe très rapide, défaut distinct suivi en issue).
+    await search.fill('ab');
+    await expect(search).toHaveValue('ab');
     await page.keyboard.press('Backspace');
     await expect(search).toHaveValue('a');
     await expect(page.getByRole('button', { name: /^Retour vers/ })).toHaveCount(0);

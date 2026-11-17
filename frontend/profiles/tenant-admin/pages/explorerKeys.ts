@@ -34,6 +34,7 @@ export const nextFocusIndex = (boxes: ItemBox[], current: number, key: ArrowKey)
   if (key === 'ArrowRight') return Math.min(current + 1, boxes.length - 1);
 
   const origin = boxes[current];
+  if (!origin) return current;
   const down = key === 'ArrowDown';
   const candidates = boxes
     .map((box, index) => ({ box, index }))
