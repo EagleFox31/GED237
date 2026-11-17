@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import BigInteger, cast, func, select
 
 from app.core.config import settings
 from app.models.user import User
@@ -12,6 +12,12 @@ from app.models.import_job import ImportJob
 # Jobs whose analysis was committed: an analysis that is cancelled or re-run must not count its
 # duplicates twice.
 COMMITTED_IMPORT_STATUSES = ("running", "completed", "completed_with_errors")
+
+
+def _total_storage_bytes():
+    """SUM of a bigint is numeric in PostgreSQL, a Decimal in Python, and FastAPI
+    sends a Decimal as a JSON string ("1.00"): cast back to bigint (#264)."""
+    return cast(func.sum(Document.file_size), BigInteger).label("total_storage_bytes")
 
 
 class DashboardFacade:
@@ -36,7 +42,7 @@ class DashboardFacade:
         # 2. Document & Storage Statistics
         stmt_docs = select(
             func.count(Document.id).label("total_docs"),
-            func.sum(Document.file_size).label("total_storage_bytes"),
+            _total_storage_bytes(),
         ).where(Document.tenant_id == tenant_id, Document.deleted_at.is_(None))
 
         doc_res = (await self.db.execute(stmt_docs)).first()
@@ -119,7 +125,7 @@ class DashboardFacade:
         # 1. Documents in this org unit
         stmt_docs = select(
             func.count(Document.id).label("total_docs"),
-            func.sum(Document.file_size).label("total_storage_bytes"),
+            _total_storage_bytes(),
             func.count(Document.id)
             .filter(Document.classification_status.in_(("pending", "needs_review")))
             .label("needs_review"),
@@ -176,7 +182,7 @@ class DashboardFacade:
         # 3. Global Storage & Docs
         stmt_global_docs = select(
             func.count(Document.id).label("total_docs"),
-            func.sum(Document.file_size).label("total_storage_bytes"),
+            _total_storage_bytes(),
         ).where(Document.deleted_at.is_(None))
         global_doc_res = (await self.db.execute(stmt_global_docs)).first()
 
