@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '../services/api';
 import type { Document } from '../types';
 import { useCan } from '../hooks/useCan';
+import { canEmptyTrash, isPurgeProtected } from '../lib/trashRules';
 import { InlineHelpButton } from './ui/InlineHelpButton';
 
 const PAGE_SIZE = 50;
@@ -22,18 +23,24 @@ const TrashPage: React.FC = () => {
   const [confirm, setConfirm] = useState<Confirm>(null);
   const { 'documents:purge': canPurge } = useCan('documents:purge');
 
+  // Seule la dernière lecture lancée compte : une réponse plus ancienne arrivée après est ignorée.
+  const loadSeq = useRef(0);
+
   const load = useCallback(async (append = false, skip = 0) => {
+    loadSeq.current += 1;
+    const mine = loadSeq.current;
     setLoading(true);
     try {
       const page = await api.getTrashPage(skip, PAGE_SIZE);
+      if (mine !== loadSeq.current) return;
       setItems((current) => (append ? [...current, ...page.items] : page.items));
       setTotal(page.total);
       setLoadError(false);
     } catch {
       // Détail déjà affiché par le bus global ; ici on évite seulement un faux « vide ».
-      if (!append) setLoadError(true);
+      if (mine === loadSeq.current && !append) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (mine === loadSeq.current) setLoading(false);
     }
   }, []);
 
@@ -116,7 +123,7 @@ const TrashPage: React.FC = () => {
             content="Les documents supprimés arrivent ici. Restaurez-les pour les remettre à leur place."
           />
         </div>
-        {canPurge && total > 0 && (
+        {canPurge && canEmptyTrash(items, total) && (
           <button
             type="button"
             onClick={askEmpty}
@@ -169,7 +176,17 @@ const TrashPage: React.FC = () => {
               >
                 <span className="material-symbols-outlined" aria-hidden>restore_from_trash</span>
               </button>
-              {canPurge && (
+              {canPurge && isPurgeProtected(doc) && (
+                <span
+                  role="img"
+                  aria-label={`${doc.title} : signé ou archivé, ne peut pas être effacé`}
+                  title="Signé ou archivé : ne peut pas être effacé"
+                  className="material-symbols-outlined p-2 text-slate-300"
+                >
+                  lock
+                </span>
+              )}
+              {canPurge && !isPurgeProtected(doc) && (
                 <button
                   type="button"
                   onClick={() => askPurge(doc)}
