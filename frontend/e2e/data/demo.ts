@@ -44,3 +44,12 @@ export interface DemoManifest {
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 export const DEMO: DemoManifest = JSON.parse(fs.readFileSync(path.join(dir, DEMO_MANIFEST_FILE), 'utf-8'));
+
+/**
+ * Titles of the P8 overlay documents (demo-p8-manifest.json), recreated by `e2e_reset.sh demo` after the dataset.
+ * They are not part of DEMO.expected: the counter checks leave them out.
+ */
+export const DEMO_P8_TITLES: ReadonlySet<string> = new Set(
+  (JSON.parse(fs.readFileSync(path.join(dir, 'demo-p8-manifest.json'), 'utf-8')) as { documents: { title: string }[] })
+    .documents.map((d) => d.title),
+);
