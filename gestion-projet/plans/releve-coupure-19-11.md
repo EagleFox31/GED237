@@ -49,3 +49,75 @@ git fetch -q origin && git merge-base --is-ancestor <sha> origin/main && echo "d
 Sources : `gh pr list --state open` (10/11 12:30) ; `innovateur/notes-version-v1.0.0-rc.1.md` « Limites connues » ; `innovateur/specs-v11-avant-gel/lot-*.md` ; `decisions/DEC-2026-002` (coupure du 19/11 18:00, révision du 10/11) ; `recette/plan-recette-20-23-11.md` § 1–2 ; message O du 10/11 (D6 → F, UI lot 4 → F, D3 → B après lot 4).
 
 Ajout 16/11 (message O) : #116 (F, polices et icônes embarquées, écart 1 de l'audit HTTPS, partiel) est dans la file ; Tailwind fera l'objet d'une PR à part, go/no-go le 19 à 12:00. #115 (manuel d'installation § 1, dépendance Internet du navigateur) : docs seule. Statuts de #99, #100, #115, #116 : à relever le 19.
+
+## 4. Passe du 19 à 18:00 : squelette (I, 17/11, `main` 0503181)
+
+Heure de coupure : 19/11 18:00 heure du poste (UTC+1, `date +%z` = `+0100`) = **`2026-11-19T17:00:00Z`**. Toutes les commandes travaillent en UTC. Base de comparaison : `b64144f` (#140, fusionnée `2026-11-17T02:01:31Z`), celle du relevé préliminaire du taux CDC.
+
+### 4.1 Commandes (O, une passe, dans un worktree ou un checkout à jour, lecture seule)
+
+```bash
+git fetch -q origin
+CUT_Z=2026-11-19T17:00:00Z; REF=b64144f
+# SHA de coupure : dernier commit de main (premier parent) avant l'heure de coupure
+CUT=$(git rev-list -1 --first-parent --before="$CUT_Z" origin/main); git log -1 --format='%h %cI %s' "$CUT"
+# Delta de main entre la base et la coupure
+git log --first-parent --format='%h %cI %s' "$REF..$CUT"
+# Même delta côté PR, dates de fusion en UTC (borne de départ = 1 s après la fusion de #140, exclue)
+gh pr list --state merged --base main --limit 100 --search "merged:2026-11-17T02:01:32Z..$CUT_Z" \
+  --json number,mergedAt,mergeCommit,title --jq 'sort_by(.mergedAt)[] | "#\(.number) \(.mergedAt) \(.mergeCommit.oid[0:7]) \(.title)"'
+# État des PR rc.1 du § 4.2
+for n in 174 175 121 104; do gh pr view "$n" --json number,state,isDraft,mergeCommit \
+  --jq '"#\(.number) \(.state) draft=\(.isDraft) \(.mergeCommit.oid // "-" | .[0:7])"'; done
+# Contrôle : aucune PR post-rc1 ni Dependabot fusionnée (sortie attendue : la phrase finale seule)
+for n in 147 152 153 154 155 159 161 162 165 166 168 169 170 171 172 179 180 181 182 183 29 30 110 111 112 113 141; do
+  gh pr view "$n" --json number,state --jq 'select(.state != "OPEN") | "#\(.number) \(.state)"'; done; echo "contrôle post-rc1 terminé"
+# Nouvelles PR ouvertes depuis le 17/11 à classer dans le § 4.2
+gh pr list --state open --limit 100 --search "created:>2026-11-17T08:50:00Z" --json number,isDraft,title --jq '.[] | "#\(.number) draft=\(.isDraft) \(.title)"'
+```
+
+### 4.2 PR rc.1 et post-rc1 (relevé du 17/11, `main` 0503181)
+
+| Classe | PR | Attendu à 18:00 | État à 18:00 (MERGED SHA / OPEN) | Effet sur le taux CDC |
+|---|---|---|---|---|
+| rc.1, prêtes | #174 (recherche du bandeau, #163) ; #175 (menu Rapports du Manager, limité à son service) | MERGED, sinon V1.1 | `…` | 0 : aucun des 32 items (`Déduit`) |
+| rc.1, dernière fusion | #121 (version 1.0.0-rc.1 du frontend) | OPEN : elle fusionne juste avant le tag du 24 | `…` | 0 |
+| rc.1, docs | #104 (cette PR) | OPEN, brouillon ; passe en prêt **après** cette passe | `…` | 0 |
+| Déjà fusionnées depuis `b64144f` | #146, #128, #130, #131, #132, #142, #144, #143, #156, #158, #160, #164, #173, #178, #177 | MERGED | (sortie du delta § 4.1) | 0 : relevé préliminaire § 4 ; #177 (compteurs limités à ce que l'appelant peut lister) ne déplace aucun item (`Déduit`) |
+| Post-rc1, brouillons | lots L1 à L9 : #147, #152, #153, #154, #155, #159, #161, #162, #165, #180, #183 ; produit : #171 (vue doublons), #179, #181 ; e2e : #168, #169, #170, #172, #182 ; docs : #166 | OPEN | `…` | 0 pour rc.1. #171 fera passer l'item 19 de `partiel` à `fait` (+0,5) dans une version ultérieure, pas dans rc.1 |
+| Gelées (dépendances, jusqu'au 30/11) | #29, #30, #110, #111, #112, #113, #141 | OPEN | `…` | 0 |
+
+Une PR post-rc1 ou gelée trouvée MERGED = anomalie à signaler à O le soir même, pas une entrée du taux.
+
+### 4.3 C6, item 29 (chiffres de Q)
+
+Commande : `sh scripts/c6_summary.sh <chemin de c6.tsv donné par Q>` (demi-journées en UTC : matin avant 12:00Z, soir à partir de 12:00Z ; le relevé du soir du 19 se prend avant 17:00Z, la sonde s'arrête à la coupure).
+
+| Demi-journée (UTC) | Relevés | 200 | Taux | KO et cause écrite | Verte ? |
+|---|---|---|---|---|---|
+| 2026-11-17 matin | `…` | `…` | `…` | `…` | `…` |
+| 2026-11-17 soir | `…` | `…` | `…` | `…` | `…` |
+| 2026-11-18 matin | `…` | `…` | `…` | `…` | `…` |
+| 2026-11-18 soir | `…` | `…` | `…` | `…` | `…` |
+| 2026-11-19 matin | `…` | `…` | `…` | `…` | `…` |
+| 2026-11-19 soir (jusqu'à 17:00Z) | `…` | `…` | `…` | `…` | `…` |
+
+- **Verte** : au moins un relevé, et 100 % de 200 hors KO expliqués écrits dans la colonne cause (`protocole-mesures-criteres.md` § C6).
+- **À obtenir de Q avant le 19 à 12:00** : heure de reprise de la sonde après la panne du 17 (00:45) `…` ; heure UTC du premier relevé du 17 matin `…` ; cause de la panne `…`.
+- **Verdict** : 6 demi-journées vertes consécutives → item 29 `partiel` ; sinon `absent`. `fait` n'est pas atteignable dans cette version : la campagne s'arrête au 19.
+
+### 4.4 Taux CDC à 18:00
+
+Formule : taux = (fait + 0,5 × partiel) / 32. Départ `b64144f` : 26 fait, 3 partiels (19, 27, 31), 3 absents (8, 28, 29) = 27,5 points = 85,9 %.
+
+1. Item 29 : selon le verdict du § 4.3.
+2. Items 27 et 31 : inchangés à 18:00 ; ils se prouvent aux passages du 20.
+3. Autres items : aucun ne bouge si la colonne « Effet » du § 4.2 reste à 0. Une PR inattendue qui en déplace un s'écrit ici, avec sa preuve.
+
+| Cas | Fait | Partiel | Absent | Points | Taux |
+|---|---|---|---|---|---|
+| C6 tenue | 26 | 4 | 2 | 28 | 87,5 % |
+| C6 non tenue | 26 | 3 | 3 | 27,5 | 85,9 % |
+| **Relevé du 19** | `…` | `…` | `…` | `…` | `…` |
+
+Reports le soir même (I) : colonne « Statut 19/11 18:00 » de `innovateur/tableau-statuts-final-19-11.md`, puis `criteres-acceptation.md` et `plan-presentation.md` ; ensuite seulement, #104 passe en prêt (O la met en file).

@@ -74,7 +74,7 @@ Base 27,5 (85,9 %). Les entrées sont indépendantes ; #144 (images hors ligne),
 | Item 29 | Item 27 (HTTPS prouvé) | Item 31 (rejeu sans écart) | Points | Taux |
 |---|---|---|---|---|
 | partiel | fait | fait | 29 | **90,6 %** (plafond) |
-| partiel | fait ou fait | l'un des deux | 28,5 | 89,1 % |
+| partiel | un seul des deux | | 28,5 | 89,1 % |
 | partiel | partiel (repli HTTP) | partiel | 28 | 87,5 % |
 | absent | fait | fait | 28,5 | 89,1 % |
 | absent | un seul des deux | | 28 | 87,5 % |
@@ -83,6 +83,8 @@ Base 27,5 (85,9 %). Les entrées sont indépendantes ; #144 (images hors ligne),
 Lecture : le taux du 19 à 18:00 vaut 87,5 % au mieux ; le 90,6 % n'est observable que le 20. Un item déjà `fait` ne se perd que par régression constatée à la recette.
 
 ## 5. À remplir le 19 à 18:00
+
+Saisie unique dans `gestion-projet/plans/releve-coupure-19-11.md` § 4 : commandes en UTC (§ 4.1), PR rc.1 et post-rc1 (§ 4.2), chiffres de C6 (§ 4.3), calcul du taux (§ 4.4). Le tableau ci-dessous en reprend le résultat.
 
 | Champ | Valeur |
 |---|---|
