@@ -23,7 +23,7 @@ export const useProfileRefresh = (): void => {
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
       const now = Date.now();
-      if (!shouldRefreshProfile(lastAt.current, now)) return;
+      if (!shouldRefreshProfile(lastAt.current, now, navigator.onLine)) return;
       lastAt.current = now;
       api.getMe(BACKGROUND).then(refreshProfile).catch(() => undefined);
     };

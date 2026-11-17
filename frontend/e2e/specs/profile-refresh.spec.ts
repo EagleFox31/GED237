@@ -10,4 +10,9 @@ test.describe('Profil : relecture au retour sur l’onglet', () => {
     expect(shouldRefreshProfile(t0, t0 + PROFILE_REFRESH_MIN_INTERVAL_MS - 1)).toBe(false);
     expect(shouldRefreshProfile(t0, t0 + PROFILE_REFRESH_MIN_INTERVAL_MS)).toBe(true);
   });
+
+  test('hors ligne : pas de relecture, même après 5 minutes', () => {
+    expect(shouldRefreshProfile(null, 1_000, false)).toBe(false);
+    expect(shouldRefreshProfile(0, PROFILE_REFRESH_MIN_INTERVAL_MS, false)).toBe(false);
+  });
 });

@@ -3,6 +3,11 @@
 
 export const PROFILE_REFRESH_MIN_INTERVAL_MS = 5 * 60 * 1000;
 
-/** `lastAt` : horodatage de la dernière relecture lancée (null si aucune depuis le chargement). */
-export const shouldRefreshProfile = (lastAt: number | null, now: number): boolean =>
-  lastAt === null || now - lastAt >= PROFILE_REFRESH_MIN_INTERVAL_MS;
+/**
+ * `lastAt` : horodatage de la dernière relecture lancée (null si aucune depuis le chargement).
+ * `online` à false (portable qui sort de veille, réseau pas encore revenu) : pas d'appel, sinon
+ * l'erreur réseau afficherait un bandeau que l'utilisateur n'a pas demandé. L'appelant ne met
+ * alors pas `lastAt` à jour : la relecture est retentée au prochain retour sur l'onglet.
+ */
+export const shouldRefreshProfile = (lastAt: number | null, now: number, online = true): boolean =>
+  online && (lastAt === null || now - lastAt >= PROFILE_REFRESH_MIN_INTERVAL_MS);

@@ -44,6 +44,8 @@ test.describe('Rattachement : textes', () => {
     expect(hierarchyErrorMessage(404)).toBe('Agent introuvable.');
     expect(hierarchyErrorMessage(500)).toBe('Rattachement indisponible pour le moment.');
     expect(hierarchyErrorMessage(undefined)).toBe('Rattachement indisponible pour le moment.');
+    // « Mon équipe » : un 404 (rôle hors périmètre avant #285) ne parle pas d'« agent ».
+    expect(hierarchyErrorMessage(404, 'self')).toBe('Rattachement indisponible pour le moment.');
     expect(errorStatus({ status: 404 })).toBe(404);
     expect(errorStatus(new Error('réseau'))).toBeUndefined();
   });

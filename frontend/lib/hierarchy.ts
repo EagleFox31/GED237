@@ -29,9 +29,12 @@ export const chainEntries = (chain: readonly HierarchyPerson[], expanded: boolea
 
 export const teamCountLabel = (count: number): string => (count > 1 ? `${count} personnes` : `${count} personne`);
 
-/** Message du bloc selon le code HTTP ; jamais le texte du serveur. */
-export const hierarchyErrorMessage = (status: number | undefined): string =>
-  status === 404 ? 'Agent introuvable.' : 'Rattachement indisponible pour le moment.';
+/**
+ * Message du bloc selon le code HTTP ; jamais le texte du serveur.
+ * « Agent introuvable. » n'a de sens que sur la fiche d'un agent, pas sur « Mon équipe ».
+ */
+export const hierarchyErrorMessage = (status: number | undefined, variant: 'self' | 'agent' = 'agent'): string =>
+  status === 404 && variant === 'agent' ? 'Agent introuvable.' : 'Rattachement indisponible pour le moment.';
 
 export const errorStatus = (error: unknown): number | undefined => {
   if (typeof error !== 'object' || error === null) return undefined;

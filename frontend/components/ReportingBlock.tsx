@@ -56,7 +56,7 @@ export const ReportingBlock: React.FC<ReportingBlockProps> = ({ userId, variant,
         if (!cancelled) setState({ kind: 'ready', chain, team });
       })
       .catch((error: unknown) => {
-        if (!cancelled) setState({ kind: 'error', message: hierarchyErrorMessage(errorStatus(error)) });
+        if (!cancelled) setState({ kind: 'error', message: hierarchyErrorMessage(errorStatus(error), variant) });
       });
     return () => {
       cancelled = true;
