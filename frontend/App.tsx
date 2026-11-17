@@ -107,7 +107,7 @@ export const ADMIN_ROUTES = {
   '/tenants': ['super'],
   '/tenants/:tenantId': ['super'],
   '/platform-users': ['super'],
-  '/authz': ['super'],
+  '/authz': ['super', 'tenant'],
   '/org': ['super', 'tenant'],
   '/rules': ['super', 'tenant'],
   '/classement': ['super', 'tenant'],

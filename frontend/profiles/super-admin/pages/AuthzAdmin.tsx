@@ -1,142 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../services/api';
-import { PolicyRule, AuthzMetricPoint, AuthzHealthResponse } from '../../../types';
-import { ApiError } from '../../../lib/errors';
+import { AuthzMetricPoint, AuthzHealthResponse } from '../../../types';
+import { useAuthStore } from '../../../stores/authStore';
+import RightsGridTab from './RightsGridTab';
 
 type TabId = 'policies' | 'metrics' | 'health';
-
-/** 409 de GET /authz/policies : installation en mode fichier (AUTHZ_BACKEND=csv). */
-const POLICIES_READ_ONLY = 'Les droits ne sont pas modifiables sur cette installation.';
-const POLICIES_LOAD_FAILED = 'Chargement des droits impossible. Réessayez plus tard.';
-
-// ─── Policies Tab ──────────────────────────────────────────
-
-const PoliciesTab: React.FC = () => {
-  const [policies, setPolicies] = useState<PolicyRule[]>([]);
-  const [roles, setRoles] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newPolicy, setNewPolicy] = useState({ v0: '', v1: '', v2: '' });
-
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [policiesData, rolesData] = await Promise.all([
-        api.getAuthzPolicies(),
-        api.getAuthzRoles(),
-      ]);
-      setPolicies(policiesData);
-      setRoles(rolesData);
-    } catch (err: unknown) {
-      // Jamais le texte du serveur : le message dépend du seul code HTTP.
-      setError(err instanceof ApiError && err.status === 409 ? POLICIES_READ_ONLY : POLICIES_LOAD_FAILED);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const handleAdd = async () => {
-    if (!newPolicy.v0 || !newPolicy.v1 || !newPolicy.v2) return;
-    try {
-      await api.addAuthzPolicy(newPolicy);
-      setNewPolicy({ v0: '', v1: '', v2: '' });
-      setShowAdd(false);
-      fetchData();
-    } catch (err: any) {
-      alert(err.message || 'Erreur lors de l\'ajout');
-    }
-  };
-
-  const handleDelete = async (policy: PolicyRule) => {
-    if (!confirm(`Supprimer la policy ${policy.v0} → ${policy.v1} → ${policy.v2} ?`)) return;
-    try {
-      await api.deleteAuthzPolicy(policy);
-      fetchData();
-    } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression');
-    }
-  };
-
-  if (isLoading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cam-red"></div></div>;
-  if (error) {
-    const tone = error === POLICIES_READ_ONLY ? 'text-slate-500' : 'text-red-500';
-    return <div role="status" className={`text-center py-20 font-bold ${tone}`}>{error}</div>;
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{policies.length} policies</span>
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">|</span>
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{roles.length} roles</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-2 px-4 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-transform"
-        >
-          <span className="material-symbols-outlined text-sm">add</span>
-          Ajouter
-        </button>
-      </div>
-
-      {showAdd && (
-        <div className="glass p-6 rounded-2xl border border-white space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Role (v0)</label>
-              <input value={newPolicy.v0} onChange={e => setNewPolicy(p => ({ ...p, v0: e.target.value }))} className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-bold border-none outline-none focus:ring-4 focus:ring-red-500/10" placeholder="ex: tenant_admin" />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Resource (v1)</label>
-              <input value={newPolicy.v1} onChange={e => setNewPolicy(p => ({ ...p, v1: e.target.value }))} className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-bold border-none outline-none focus:ring-4 focus:ring-red-500/10" placeholder="ex: documents" />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Action (v2)</label>
-              <input value={newPolicy.v2} onChange={e => setNewPolicy(p => ({ ...p, v2: e.target.value }))} className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-bold border-none outline-none focus:ring-4 focus:ring-red-500/10" placeholder="ex: read" />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Annuler</button>
-            <button type="button" onClick={handleAdd} className="px-5 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase hover:scale-105 transition-transform">Créer</button>
-          </div>
-        </div>
-      )}
-
-      <div className="glass rounded-[2rem] bg-white border-white overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50/50">
-              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Role</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Resource</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Action</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest w-16"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {policies.map((p, i) => (
-              <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-3 text-sm font-bold text-slate-700">{p.v0}</td>
-                <td className="px-6 py-3 text-sm font-medium text-slate-600">{p.v1}</td>
-                <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-md uppercase">{p.v2}</span></td>
-                <td className="px-6 py-3">
-                  <button type="button" onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-600 transition-colors">
-                    <span className="material-symbols-outlined text-lg">delete</span>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
 
 // ─── Metrics Tab ──────────────────────────────────────────
 
@@ -306,9 +174,11 @@ const HealthTab: React.FC = () => {
 
 const AuthzAdmin: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('policies');
+  // L'admin ministère ne voit que la grille, en lecture (#280) : métriques et santé restent au super-admin.
+  const isSuper = useAuthStore((s) => s.userProfile?.id) === 'super';
 
   const tabs: { id: TabId; label: string; icon: string }[] = [
-    { id: 'policies', label: 'Policies', icon: 'policy' },
+    { id: 'policies', label: 'Droits', icon: 'policy' },
     { id: 'metrics', label: 'Metriques', icon: 'monitoring' },
     { id: 'health', label: 'Sante', icon: 'health_and_safety' },
   ];
@@ -317,21 +187,15 @@ const AuthzAdmin: React.FC = () => {
     <div className="p-8 pb-32 flex flex-col h-full animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-8 shrink-0">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-cam-red/5 text-cam-red rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-3 border border-cam-red/10">
-            <span className="w-1.5 h-1.5 rounded-full bg-cam-red animate-pulse"></span>
-            Super Admin Only
-          </div>
           <h1 className="text-4xl font-black text-slate-800 tracking-tighter uppercase italic flex items-center gap-3">
             <span className="material-symbols-outlined text-4xl text-cam-red">admin_panel_settings</span>
-            Gestion AuthZ
+            Droits d'accès
           </h1>
-          <p className="text-slate-500 font-medium italic mt-2">
-            Policies RBAC Casbin, metriques d'autorisation et sante du systeme.
-          </p>
+          <p className="text-slate-500 font-medium italic mt-2">Qui peut faire quoi, rôle par rôle.</p>
         </div>
       </div>
 
-      <div className="flex gap-4 mb-6 border-b-2 border-slate-200 shrink-0">
+      <div className={`flex gap-4 mb-6 border-b-2 border-slate-200 shrink-0 ${isSuper ? '' : 'hidden'}`}>
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -343,16 +207,16 @@ const AuthzAdmin: React.FC = () => {
             }`}
             onClick={() => setActiveTab(tab.id)}
           >
-            <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg">{tab.icon}</span>
             {tab.label}
           </button>
         ))}
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'policies' && <PoliciesTab />}
-        {activeTab === 'metrics' && <MetricsTab />}
-        {activeTab === 'health' && <HealthTab />}
+        {(activeTab === 'policies' || !isSuper) && <RightsGridTab />}
+        {isSuper && activeTab === 'metrics' && <MetricsTab />}
+        {isSuper && activeTab === 'health' && <HealthTab />}
       </div>
     </div>
   );

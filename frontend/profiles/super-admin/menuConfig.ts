@@ -8,7 +8,7 @@ export const SUPER_ADMIN_MENU: MenuSection[] = [
       { id: 'dashboard', label: 'Dashboard Global', icon: 'dashboard' },
       { id: 'tenants', label: 'Institutions', icon: 'account_balance' },
       { id: 'platform_users', label: 'Utilisateurs', icon: 'manage_accounts' },
-      { id: 'authz', label: 'Gestion AuthZ', icon: 'admin_panel_settings' },
+      { id: 'authz', label: "Droits d'accès", icon: 'admin_panel_settings' },
     ]
   },
   {
