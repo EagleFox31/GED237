@@ -110,6 +110,35 @@ class EmailChannel:
         return DeliveryResult(delivered=True, target=target)
 
 
+def _totp_notice_body(user: User, enrolled: bool) -> str:
+    name = html.escape(user.full_name or "")
+    greeting = f"Bonjour {name}," if name else "Bonjour,"
+    change = "ajoutée à" if enrolled else "retirée de"
+    return (
+        '<div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; '
+        'max-width: 560px; margin: 0 auto; color: #1e293b;">'
+        f"<p>{greeting}</p>"
+        f"<p>Une application d'authentification vient d'être {change} "
+        "votre compte E-Dossier.</p>"
+        "<p>Si vous n'êtes pas à l'origine de ce changement, changez votre mot "
+        "de passe et prévenez votre administrateur.</p></div>"
+    )
+
+
+async def notify_totp_change(user: User, *, enrolled: bool) -> bool:
+    """Tell the holder an app was added or removed, whoever did it.
+
+    Best effort: no address or a failed send does not undo the change
+    (the audit log keeps it)."""
+    address = (user.email or "").strip()
+    if not address:
+        return False
+    subject = "Application d'authentification " + ("ajoutée" if enrolled else "retirée")
+    return await asyncio.to_thread(
+        email_service.send_email, address, subject, _totp_notice_body(user, enrolled)
+    )
+
+
 CHANNELS: dict[str, OtpChannel] = {
     channel.name: channel for channel in (DevResponseChannel(), EmailChannel())
 }

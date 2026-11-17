@@ -1,5 +1,6 @@
 """Authenticator app (TOTP) as the main second factor, e-mail as fallback (L4)."""
 
+import asyncio
 import base64
 import re
 from types import SimpleNamespace
@@ -7,11 +8,13 @@ from types import SimpleNamespace
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import func, select
 
 from app.api.v1.endpoints import auth as auth_endpoints
 from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.core.redis import get_redis
+from app.models.user_totp import UserTotp
 from app.services import otp_delivery, totp
 
 LOGIN = "/api/v1/auth/login"
@@ -23,6 +26,8 @@ CREDENTIALS = {
     "matricule": "TEST001",
     "password": "testpassword123",
 }
+# The admin client's user is built in memory: its password check is stubbed.
+PASSWORD = {"current_password": "right"}
 T0 = 1_800_000_000  # a fixed instant: steps are counted from here
 S0 = T0 // totp.STEP_SECONDS
 
@@ -43,6 +48,11 @@ async def totp_env(monkeypatch):
     monkeypatch.setattr(settings, "AUTH_OTP_CHANNEL", "dev_response")
     monkeypatch.setattr(settings, "AUTH_OTP_RESEND_COOLDOWN_SECONDS", 30)
     monkeypatch.setattr(settings, "AUTH_TOTP_ENABLED", True)
+    monkeypatch.setattr(
+        auth_endpoints,
+        "verify_password",
+        lambda plain, hashed: plain == PASSWORD["current_password"],
+    )
     limiter.reset()
     await _clear_keys()
     yield
@@ -77,7 +87,7 @@ def _emailed_code(message) -> str:
 
 async def _enrol(client: AsyncClient, clock) -> str:
     """Enrol and confirm the seeded user's app at step S0; returns the secret."""
-    response = await client.post(f"{TOTP}/enroll")
+    response = await client.post(f"{TOTP}/enroll", json=PASSWORD)
     assert response.status_code == 200, response.text
     secret = response.json()["secret"]
     assert response.json()["otpauth_uri"].startswith("otpauth://totp/")
@@ -246,7 +256,7 @@ async def test_enrolment_rules(admin_client: AsyncClient, clock, monkeypatch):
     status = (await admin_client.get(TOTP)).json()
     assert status == {"available": True, "enrolled": False}
 
-    response = await admin_client.post(f"{TOTP}/enroll")
+    response = await admin_client.post(f"{TOTP}/enroll", json=PASSWORD)
     secret = response.json()["secret"]
     clock.step = 0
     wrong = await admin_client.post(
@@ -261,14 +271,14 @@ async def test_enrolment_rules(admin_client: AsyncClient, clock, monkeypatch):
     )
     assert ok.status_code == 204
     assert (await admin_client.get(TOTP)).json()["enrolled"] is True
-    assert (await admin_client.post(f"{TOTP}/enroll")).status_code == 409
+    assert (await admin_client.post(f"{TOTP}/enroll", json=PASSWORD)).status_code == 409
     logs = await admin_client.get(
         "/api/v1/audit/logs", params={"action": "totp_enrolled"}
     )
     assert len(logs.json()) == 1
 
     monkeypatch.setattr(settings, "AUTH_TOTP_ENABLED", False)
-    assert (await admin_client.post(f"{TOTP}/enroll")).status_code == 404
+    assert (await admin_client.post(f"{TOTP}/enroll", json=PASSWORD)).status_code == 404
 
 
 @pytest.mark.asyncio
@@ -331,3 +341,165 @@ async def test_emailed_code_removes_the_app_without_the_phone(
     )
     assert removed.status_code == 204
     assert (await admin_client.get(TOTP)).json()["enrolled"] is False
+
+
+# --- security review of #193 ---------------------------------------------------
+
+NON_ASCII_DIGITS = "١٢٣٤٥٦"  # Arabic-Indic: str.isdigit() is True for them
+
+
+def _other_code(code: str) -> str:
+    return str((int(code) + 1) % 1_000_000).zfill(6)
+
+
+@pytest.mark.asyncio
+async def test_a_session_token_alone_does_not_enrol(
+    admin_client: AsyncClient, db_session
+):
+    without = await admin_client.post(f"{TOTP}/enroll")
+    assert without.status_code == 422
+    wrong = await admin_client.post(
+        f"{TOTP}/enroll", json={"current_password": "wrong"}
+    )
+    assert wrong.status_code == 400
+    assert await db_session.scalar(select(func.count()).select_from(UserTotp)) == 0
+
+
+@pytest.mark.asyncio
+async def test_holder_is_told_when_the_app_is_added_and_removed(
+    admin_client: AsyncClient, clock, outbox
+):
+    secret = await _enrol(admin_client, clock)
+    # One notice, sent at confirmation: an unconfirmed secret changes nothing.
+    assert [m.to for m in outbox.messages] == ["test@testministry.gov.cm"]
+    assert "ajoutée" in outbox.messages[-1].html
+    clock.step = 1
+    removed = await admin_client.post(
+        f"{TOTP}/disable", json={**PASSWORD, "code": totp.code_at(secret, S0 + 1)}
+    )
+    assert removed.status_code == 204
+    assert len(outbox.messages) == 2
+    assert "retirée" in outbox.messages[-1].html
+
+
+@pytest.mark.asyncio
+async def test_non_ascii_digits_are_refused_not_a_server_error(
+    admin_client: AsyncClient, clock
+):
+    await _enrol(admin_client, clock)
+    session = (await _login(admin_client))["session_token"]
+    assert (await _verify(admin_client, session, NON_ASCII_DIGITS)).status_code == 422
+    confirm = await admin_client.post(
+        f"{TOTP}/confirm", json={"code": NON_ASCII_DIGITS}
+    )
+    assert confirm.status_code == 422
+    disable = await admin_client.post(
+        f"{TOTP}/disable", json={**PASSWORD, "code": NON_ASCII_DIGITS}
+    )
+    assert disable.status_code == 422
+    assert totp.matching_step(totp.generate_secret(), NON_ASCII_DIGITS) is None
+
+
+@pytest.mark.asyncio
+async def test_same_app_code_checked_twice_at_once_passes_once(
+    admin_client: AsyncClient, clock
+):
+    secret = await _enrol(admin_client, clock)
+    clock.step = 1
+    code = totp.code_at(secret, S0 + 1)
+    sessions = [(await _login(admin_client))["session_token"] for _ in range(2)]
+    results = await asyncio.gather(*[_verify(admin_client, s, code) for s in sessions])
+    assert sorted(r.status_code for r in results) == [200, 401]
+
+
+@pytest.mark.asyncio
+async def test_switching_channel_does_not_reset_the_failure_count(
+    admin_client: AsyncClient, clock, outbox
+):
+    secret = await _enrol(admin_client, clock)
+    clock.step = 1
+    app_code = totp.code_at(secret, S0 + 1)
+    statuses = []
+    for by_email in (False, True, False):
+        session = (await _login(admin_client))["session_token"]
+        wrong = _other_code(app_code)
+        if by_email:
+            resent = await admin_client.post(RESEND, json={"session_token": session})
+            assert resent.json()["method"] == "email"
+            wrong = _other_code(_emailed_code(outbox.messages[-1]))
+        statuses.append((await _verify(admin_client, session, wrong)).status_code)
+    assert statuses == [401, 401, 423]
+
+
+@pytest.mark.asyncio
+async def test_code_spent_at_login_cannot_remove_the_app(
+    admin_client: AsyncClient, clock
+):
+    secret = await _enrol(admin_client, clock)
+    clock.step = 1
+    code = totp.code_at(secret, S0 + 1)
+    session = (await _login(admin_client))["session_token"]
+    assert (await _verify(admin_client, session, code)).status_code == 200
+    replay = await admin_client.post(f"{TOTP}/disable", json={**PASSWORD, "code": code})
+    assert replay.status_code == 400
+    assert (await admin_client.get(TOTP)).json()["enrolled"] is True
+
+
+@pytest.mark.asyncio
+async def test_fallback_code_is_single_use_and_expires(
+    admin_client: AsyncClient, clock, outbox, db_seed
+):
+    key = auth_endpoints._disable_key(db_seed["user_id"])
+    redis = await get_redis()
+
+    await _enrol(admin_client, clock)
+    assert (await admin_client.post(f"{TOTP}/disable-code")).status_code == 200
+    code = _emailed_code(outbox.messages[-1])
+    assert 0 < await redis.ttl(key) <= auth_endpoints.TOTP_DISABLE_CODE_SECONDS
+    used = await admin_client.post(f"{TOTP}/disable", json={**PASSWORD, "code": code})
+    assert used.status_code == 204
+
+    await _enrol(admin_client, clock)
+    again = await admin_client.post(f"{TOTP}/disable", json={**PASSWORD, "code": code})
+    assert again.status_code == 400
+
+    assert (await admin_client.post(f"{TOTP}/disable-code")).status_code == 200
+    code = _emailed_code(outbox.messages[-1])
+    await redis.delete(key)  # what the 300 s expiry does
+    late = await admin_client.post(f"{TOTP}/disable", json={**PASSWORD, "code": code})
+    assert late.status_code == 400
+    assert (await admin_client.get(TOTP)).json()["enrolled"] is True
+
+
+@pytest.mark.asyncio
+async def test_guessing_on_confirm_and_disable_hits_the_rate_limit(
+    admin_client: AsyncClient, clock, monkeypatch
+):
+    monkeypatch.setattr(settings, "AUTH_OTP_RATE_LIMIT", "3/minute")
+    limiter.reset()
+    enrolled = await admin_client.post(f"{TOTP}/enroll", json=PASSWORD)
+    clock.step = 0
+    wrong = {"code": _other_code(totp.code_at(enrolled.json()["secret"], S0))}
+    confirms = [
+        (await admin_client.post(f"{TOTP}/confirm", json=wrong)).status_code
+        for _ in range(4)
+    ]
+    assert confirms == [400, 400, 400, 429]
+    disables = [
+        (
+            await admin_client.post(f"{TOTP}/disable", json={**PASSWORD, **wrong})
+        ).status_code
+        for _ in range(4)
+    ]
+    assert disables == [400, 400, 400, 429]
+
+
+@pytest.mark.asyncio
+async def test_secret_is_not_shown_again_nor_logged(admin_client: AsyncClient, clock):
+    secret = await _enrol(admin_client, clock)
+    assert secret not in (await admin_client.get(TOTP)).text
+    logs = await admin_client.get(
+        "/api/v1/audit/logs", params={"action": "totp_enrolled"}
+    )
+    assert logs.status_code == 200 and len(logs.json()) == 1
+    assert secret not in logs.text

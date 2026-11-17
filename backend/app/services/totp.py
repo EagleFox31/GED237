@@ -61,7 +61,7 @@ def code_at(secret: str, step: int, digits: int = DIGITS) -> str:
 
 def matching_step(secret: str, code: str, now: Optional[float] = None) -> Optional[int]:
     """Step whose code is ``code`` within the drift allowance, or None."""
-    if len(code) != DIGITS or not code.isdigit():
+    if len(code) != DIGITS or not (code.isascii() and code.isdigit()):
         return None
     step = current_step(now)
     found = None

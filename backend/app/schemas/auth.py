@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
+# ASCII only: "\d" also matches other scripts' digits, which the code checks
+# cannot compare (they raised a 500 instead of a refusal).
+SIX_DIGITS = r"^[0-9]{6}$"
+
 
 class LoginRequest(BaseModel):
     """Login request schema"""
@@ -43,15 +47,21 @@ class TotpEnrollResponse(BaseModel):
     otpauth_uri: str
 
 
+class TotpEnrollRequest(BaseModel):
+    """The password again: a stolen session token alone must not add an app."""
+
+    current_password: str = Field(..., min_length=1)
+
+
 class TotpCodeRequest(BaseModel):
-    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+    code: str = Field(..., min_length=6, max_length=6, pattern=SIX_DIGITS)
 
 
 class TotpDisableRequest(BaseModel):
     """Password and a second factor: the app code, or a code from /totp/disable-code."""
 
     current_password: str = Field(..., min_length=1)
-    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+    code: str = Field(..., min_length=6, max_length=6, pattern=SIX_DIGITS)
 
 
 class TotpDisableCodeResponse(BaseModel):
@@ -64,7 +74,9 @@ class OTPVerifyRequest(BaseModel):
     """OTP verification request schema"""
 
     session_token: str = Field(..., description="Session token from login")
-    otp: str = Field(..., min_length=6, max_length=6, description="6-digit OTP")
+    otp: str = Field(
+        ..., min_length=6, max_length=6, pattern=SIX_DIGITS, description="6-digit OTP"
+    )
 
 
 class OTPResendRequest(BaseModel):

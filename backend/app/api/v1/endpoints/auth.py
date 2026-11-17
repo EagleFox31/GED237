@@ -26,6 +26,7 @@ from app.schemas.auth import (
     TotpCodeRequest,
     TotpDisableCodeResponse,
     TotpDisableRequest,
+    TotpEnrollRequest,
     TotpEnrollResponse,
     TotpStatus,
 )
@@ -251,12 +252,21 @@ async def totp_status(
 
 
 @router.post("/totp/enroll", response_model=TotpEnrollResponse)
+@limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
 async def totp_enroll(
+    payload: TotpEnrollRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """New secret for the app. Not used at login until confirmed with a first code."""
+    """New secret for the app. Not used at login until confirmed with a first code.
+    Asks for the password: a stolen session token alone must not add an app."""
     _require_totp_enabled()
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mot de passe actuel incorrect",
+        )
     record = await totp.get_record(db, current_user.id)
     if record is not None and record.confirmed_at is not None:
         raise HTTPException(
@@ -291,6 +301,7 @@ async def totp_confirm(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Code incorrect"
         )
     await _audit_totp(db, current_user, "totp_enrolled", request)
+    await otp_delivery.notify_totp_change(current_user, enrolled=True)
     return None
 
 
@@ -364,4 +375,5 @@ async def totp_disable(
         await db.delete(record)
         await db.commit()
         await _audit_totp(db, current_user, "totp_disabled", request)
+        await otp_delivery.notify_totp_change(current_user, enrolled=False)
     return None
