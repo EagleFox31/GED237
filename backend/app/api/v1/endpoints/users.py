@@ -1,4 +1,6 @@
 # backend/app/api/v1/endpoints/users.py
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -177,7 +179,9 @@ async def create_user(
             " ".join(p for p in [db_user.first_name, db_user.last_name] if p).strip()
             or None
         )
-        send_account_created(
+        # SMTP blocks for up to the send timeout: keep it off the event loop.
+        await asyncio.to_thread(
+            send_account_created,
             to=db_user.email,
             full_name=full_name,
             matricule=db_user.matricule,

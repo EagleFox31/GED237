@@ -164,6 +164,7 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
       SMTP_FROM: ${SMTP_FROM:-}
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"

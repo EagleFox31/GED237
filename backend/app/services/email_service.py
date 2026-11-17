@@ -60,13 +60,19 @@ def _send_smtp(to: str, subject: str, html: str) -> None:
     message["Subject"] = subject
     message.set_content("Ce message s'affiche en HTML.")
     message.add_alternative(html, subtype="html")
-    with smtplib.SMTP(
-        settings.SMTP_HOST,
-        settings.SMTP_PORT,
-        timeout=settings.EMAIL_SEND_TIMEOUT_SECONDS,
-    ) as server:
-        if settings.SMTP_STARTTLS:
-            server.starttls(context=ssl.create_default_context())
+    host, port = settings.SMTP_HOST, settings.SMTP_PORT
+    timeout = settings.EMAIL_SEND_TIMEOUT_SECONDS
+    context = ssl.create_default_context()
+    server = (
+        smtplib.SMTP_SSL(host, port, timeout=timeout, context=context)
+        if settings.SMTP_SSL
+        else smtplib.SMTP(host, port, timeout=timeout)
+    )
+    with server:
+        # Fail closed: a server that does not offer STARTTLS raises here,
+        # before any password or message is sent.
+        if settings.SMTP_STARTTLS and not settings.SMTP_SSL:
+            server.starttls(context=context)
         if settings.SMTP_USER:
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD.get_secret_value())
         server.send_message(message)

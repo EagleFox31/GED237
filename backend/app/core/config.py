@@ -195,7 +195,10 @@ class Settings(BaseSettings):
     # Secret: masked in any repr, never logged.
     SMTP_PASSWORD: SecretStr = Field(default=SecretStr(""))
     SMTP_STARTTLS: bool = Field(default=True)
-    # Sender address; the SMTP account itself when empty.
+    # Implicit TLS from the first byte (usually port 465). When true, STARTTLS
+    # is not used: the connection is already encrypted.
+    SMTP_SSL: bool = Field(default=False)
+    # Sender address; the SMTP account itself when empty and it is an address.
     SMTP_FROM: str = Field(default="")
 
     @field_validator("EMAIL_ENABLED", mode="before")
@@ -219,14 +222,27 @@ class Settings(BaseSettings):
 
     @property
     def smtp_sender(self) -> str:
-        return self.SMTP_FROM or self.SMTP_USER
+        if self.SMTP_FROM:
+            return self.SMTP_FROM
+        # A login such as "ged-mailer" is not a valid From: require SMTP_FROM.
+        return self.SMTP_USER if "@" in self.SMTP_USER else ""
+
+    @property
+    def smtp_encrypted(self) -> bool:
+        return self.SMTP_SSL or self.SMTP_STARTTLS
 
     def email_configured(self) -> bool:
         """E-mail is on and its transport has what it needs to send."""
         if not self.EMAIL_ENABLED:
             return False
         if self.EMAIL_TRANSPORT == "smtp":
-            return bool(self.SMTP_HOST and self.smtp_sender)
+            # A login needs its password: an empty one fails on every mail.
+            has_password = bool(self.SMTP_PASSWORD.get_secret_value())
+            return bool(
+                self.SMTP_HOST
+                and self.smtp_sender
+                and (not self.SMTP_USER or has_password)
+            )
         return bool(self.RESEND_API_KEY)
 
     # Pagination
@@ -310,17 +326,25 @@ def refuse_unsafe_production(s: Settings) -> None:
         raise RuntimeError(
             "AUTH_OTP_CHANNEL=email but e-mail cannot be sent: nobody could sign "
             "in. Set EMAIL_ENABLED=true and configure EMAIL_TRANSPORT "
-            "(RESEND_API_KEY, or SMTP_HOST and SMTP_FROM/SMTP_USER)."
+            "(RESEND_API_KEY, or SMTP_HOST, a sender address and the password "
+            "of SMTP_USER)."
         )
     if (
         s.ENVIRONMENT == "production"
         and s.EMAIL_TRANSPORT == "smtp"
-        and s.SMTP_USER
-        and not s.SMTP_STARTTLS
+        and not s.smtp_encrypted
     ):
-        raise RuntimeError(
-            "SMTP_STARTTLS=false would send the SMTP password in clear text. "
-            "Enable SMTP_STARTTLS in production."
+        if s.SMTP_USER:
+            raise RuntimeError(
+                "SMTP without TLS would send the SMTP password in clear text. "
+                "Enable SMTP_STARTTLS (or SMTP_SSL for port 465) in production."
+            )
+        # A relay without login has no password to leak, but mails (login
+        # codes, temporary passwords) still travel in clear: warn, not refuse,
+        # as some internal relays only accept plain connections.
+        logging.getLogger(__name__).warning(
+            "SMTP relay without TLS in production: e-mails, login codes "
+            "included, travel in clear text. Enable SMTP_STARTTLS or SMTP_SSL."
         )
 
 

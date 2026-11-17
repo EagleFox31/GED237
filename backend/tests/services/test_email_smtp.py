@@ -102,6 +102,7 @@ def use_smtp(monkeypatch, smtp_server):
         "SMTP_USER": ACCOUNT,
         "SMTP_PASSWORD": SecretStr(PASSWORD),
         "SMTP_STARTTLS": False,
+        "SMTP_SSL": False,
         "SMTP_FROM": "",
         "EMAIL_SEND_TIMEOUT_SECONDS": 5.0,
     }
@@ -218,6 +219,14 @@ def test_transport_is_validated_and_the_password_never_printed():
     assert PASSWORD not in repr(configured) and PASSWORD not in str(configured)
 
 
+SMTP_LOGIN = {
+    "EMAIL_ENABLED": True,
+    "EMAIL_TRANSPORT": "smtp",
+    "SMTP_HOST": "mx",
+    "SMTP_USER": ACCOUNT,
+}
+
+
 @pytest.mark.parametrize(
     "fields, configured",
     [
@@ -226,19 +235,40 @@ def test_transport_is_validated_and_the_password_never_printed():
         ({"EMAIL_ENABLED": True, "RESEND_API_KEY": "k"}, True),
         ({"EMAIL_ENABLED": True, "EMAIL_TRANSPORT": "smtp"}, False),
         ({"EMAIL_ENABLED": True, "EMAIL_TRANSPORT": "smtp", "SMTP_HOST": "mx"}, False),
+        # A login without its password would fail on every mail.
+        (SMTP_LOGIN, False),
+        ({**SMTP_LOGIN, "SMTP_PASSWORD": PASSWORD}, True),
+        # A login that is not an address cannot be the sender.
+        ({**SMTP_LOGIN, "SMTP_PASSWORD": PASSWORD, "SMTP_USER": "ged-mailer"}, False),
+        (
+            {
+                **SMTP_LOGIN,
+                "SMTP_PASSWORD": PASSWORD,
+                "SMTP_USER": "ged-mailer",
+                "SMTP_FROM": "no-reply@minfi.cm",
+            },
+            True,
+        ),
+        # An open relay: no login, no password, an explicit sender.
         (
             {
                 "EMAIL_ENABLED": True,
                 "EMAIL_TRANSPORT": "smtp",
                 "SMTP_HOST": "mx",
-                "SMTP_USER": ACCOUNT,
+                "SMTP_FROM": "no-reply@minfi.cm",
             },
             True,
         ),
     ],
 )
 def test_email_is_configured_only_when_its_transport_can_send(fields, configured):
-    defaults = {"RESEND_API_KEY": "", "SMTP_HOST": "", "SMTP_USER": "", "SMTP_FROM": ""}
+    defaults = {
+        "RESEND_API_KEY": "",
+        "SMTP_HOST": "",
+        "SMTP_USER": "",
+        "SMTP_PASSWORD": "",
+        "SMTP_FROM": "",
+    }
     assert Settings(**{**defaults, **fields}).email_configured() is configured
 
 
@@ -251,6 +281,7 @@ def _production(**fields):
         "EMAIL_TRANSPORT": "smtp",
         "SMTP_HOST": "mx.minfi.cm",
         "SMTP_USER": ACCOUNT,
+        "SMTP_PASSWORD": PASSWORD,
         "SMTP_STARTTLS": True,
     }
     return Settings(**{**base, **fields})
@@ -278,3 +309,59 @@ def test_production_refuses_to_send_the_smtp_password_in_clear():
     refuse_unsafe_production(
         _production(ENVIRONMENT="development", SMTP_STARTTLS=False)
     )
+
+
+def test_production_accepts_implicit_tls_on_port_465():
+    refuse_unsafe_production(
+        _production(SMTP_PORT=465, SMTP_SSL=True, SMTP_STARTTLS=False)
+    )
+
+
+def test_production_warns_when_a_relay_sends_in_clear(caplog):
+    caplog.set_level(logging.WARNING, logger="app.core.config")
+
+    refuse_unsafe_production(
+        _production(SMTP_STARTTLS=False, SMTP_USER="", SMTP_FROM="no-reply@minfi.cm")
+    )
+
+    assert "travel in clear text" in caplog.text
+    caplog.clear()
+    refuse_unsafe_production(_production())
+    assert "clear text" not in caplog.text
+
+
+# --- Transport security --------------------------------------------------------
+
+
+def test_starttls_fails_closed_when_the_server_does_not_offer_it(
+    use_smtp, monkeypatch, caplog
+):
+    # Real starttls(): the fake server does not advertise STARTTLS.
+    monkeypatch.setattr(settings, "SMTP_STARTTLS", True)
+    caplog.set_level(logging.INFO, logger="app.services.email_service")
+
+    assert email_service.send_email(RECIPIENT, "Objet", "<p>x</p>") is False
+
+    assert "AUTH" not in use_smtp["commands"]
+    assert "MAIL" not in use_smtp["commands"]
+    assert "SMTPNotSupportedError" in caplog.text
+    _assert_no_secret(caplog)
+
+
+def test_implicit_tls_uses_smtp_ssl_with_a_verifying_context(use_smtp, monkeypatch):
+    opened = []
+
+    def fake_smtp_ssl(host, port, *, timeout, context):
+        # Stands for the TLS socket: the fake server speaks plain SMTP.
+        opened.append(context)
+        return smtplib.SMTP(host, port, timeout=timeout)
+
+    monkeypatch.setattr(settings, "SMTP_SSL", True)
+    monkeypatch.setattr(settings, "SMTP_STARTTLS", True)  # ignored with SMTP_SSL
+    monkeypatch.setattr(smtplib, "SMTP_SSL", fake_smtp_ssl)
+
+    assert email_service.send_email(RECIPIENT, "Objet", "<p>x</p>")
+
+    assert len(opened) == 1 and opened[0] is not None
+    assert "STARTTLS" not in use_smtp["commands"]
+    assert use_smtp["auth"] == (ACCOUNT, PASSWORD)
