@@ -182,9 +182,13 @@ async def stop_rule(db: AsyncSession, rule: QualityAlertRule) -> None:
 
 
 async def _stop_refused(db: AsyncSession, rule_id) -> None:
-    """A refused rule (creator inactive, rights or scope lost) stops for good."""
+    """A refused rule (creator inactive, rights or scope lost) stops for good.
+
+    A rule deleted meanwhile has nothing left to stop."""
     try:
-        await stop_rule(db, await db.get(QualityAlertRule, rule_id))
+        rule = await db.get(QualityAlertRule, rule_id)
+        if rule:
+            await stop_rule(db, rule)
         await db.commit()
     except Exception:  # noqa: BLE001 - retried at the next pass
         await db.rollback()

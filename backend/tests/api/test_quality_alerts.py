@@ -14,7 +14,7 @@ from app.models.quality_alert import QualityAlertEvent, QualityAlertRule
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
-from app.services.quality_alerts import EVENT_TYPE, evaluate_rules
+from app.services.quality_alerts import EVENT_TYPE, _stop_refused, evaluate_rules
 from app.workers.celery_app import celery_app
 from app.workers.tasks import evaluate_quality_alerts
 
@@ -173,6 +173,13 @@ async def test_a_refused_rule_stops_and_closes_its_open_event(db_session, db_see
     assert (await db_session.get(QualityAlertRule, rule_id)).is_active is False
     assert len(await _alert_messages(db_session)) == 1  # no end-of-alert message
     assert (await evaluate_rules(db_session)).refused == []  # stopped for good
+
+
+@pytest.mark.asyncio
+async def test_a_rule_deleted_before_its_stop_is_left_alone(db_session, caplog):
+    with caplog.at_level(logging.ERROR):
+        await _stop_refused(db_session, uuid.uuid4())
+    assert "could not be stopped" not in caplog.text
 
 
 async def _open_events(db_session, rule_id) -> int:
