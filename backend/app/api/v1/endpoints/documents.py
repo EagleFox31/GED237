@@ -503,17 +503,26 @@ def _parse_next_version(versions: List[DocumentVersion]) -> str:
 async def _get_document_or_404(
     db: AsyncSession, tenant_id: UUID, document_id: UUID, *, lock: bool = False
 ) -> Document:
-    """``lock``: hold the row until commit and read it fresh, so a concurrent
-    purge is seen (gone: 404) instead of failing later on a deleted row."""
+    """``lock``: hold the row until commit, so a concurrent purge is seen
+    (gone: 404) instead of failing later on a deleted row.
+
+    The lock is a query of its own on the id alone: locking the full read with
+    ``populate_existing`` re-read its relations too, and when the owner is the
+    caller it reset ``current_user`` and left its role unloaded (500
+    MissingGreenlet on restore by the owner, #152)."""
+    if lock:
+        locked = await db.scalar(
+            select(Document.id)
+            .where(Document.id == document_id, Document.tenant_id == tenant_id)
+            .with_for_update()
+        )
+        if locked is None:
+            raise HTTPException(status_code=404, detail="Document not found")
     query = (
         select(Document)
         .options(*_document_load_options())
         .where(Document.id == document_id, Document.tenant_id == tenant_id)
     )
-    if lock:
-        query = query.with_for_update(of=Document).execution_options(
-            populate_existing=True
-        )
     result = await db.execute(query)
     document = result.scalar_one_or_none()
     if document is None:

@@ -47,6 +47,7 @@ class NotInTrashError(Exception):
 # Never purged, by hand, in bulk or by retention: a signed or archived document
 # keeps its legal value in the trash, where it can only be restored.
 PROTECTED_STATUSES = ("signed", "archived")
+# The official register (report_issues) holds its own copies, no key to documents.
 
 
 class ProtectedDocumentError(Exception):

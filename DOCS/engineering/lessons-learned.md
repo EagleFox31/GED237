@@ -584,3 +584,17 @@ première requête utilisateur.
 **Résolution** — Entrée retirée : aucune page de recherche n'existe. La recherche plein texte passe par le bandeau, et le filtre par l'Explorateur documentaire. Ensuite, la version durcie de GUARD-07 a trouvé un 2e lien mort, « Accès & Permissions » (`security_config`). La 1re version l'avait laissé passer. L'entrée est retirée elle aussi : `/authz` est réservé au super admin, et les rôles et permissions sont gérés dans « Agents & Rôles ».
 **Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
 **Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
+
+### LESSON-2026-045 — Verrou avec `populate_existing` : le propriétaire ne pouvait plus restaurer
+
+- **Date :** 2026-11-17
+- **Catégorie :** backend / testing
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_get_document_or_404`), `backend/tests/api/test_trash_purge.py` (`owner_client`)
+
+**Contexte** — #152 verrouille le document (`FOR UPDATE`) avant restauration ou purge, pour voir une purge concurrente.
+**Échec / near miss** — Recette : POST /documents/{id}/restore répondait 500 `MissingGreenlet` quand l'appelant était le propriétaire.
+**Cause racine** — Le verrou était posé sur la lecture complète avec `populate_existing=True`. Le chargement de `Document.owner` réécrivait alors le `current_user` de la même session et déchargeait `User.role` ; le contrôle de droits le relisait hors greenlet. Les tests ne l'ont pas vu : leur utilisateur est un faux objet hors session.
+**Résolution** — Verrou dans une requête à part, sur l'id seul ; puis lecture normale sans `populate_existing`.
+**Prévention** — `owner_client` lit l'appelant dans la session de la requête, comme en production ; le propriétaire restaure et purge son document. Le test échoue sur l'ancien code.
+**Leçon généralisée** — `populate_existing` réécrit tout objet déjà dans la session, y compris l'utilisateur courant. Verrouiller sur une requête minimale, et tester au moins un chemin avec un appelant réel tiré de la session de la requête.
