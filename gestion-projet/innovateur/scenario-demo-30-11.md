@@ -16,7 +16,7 @@ Postes : une fenêtre **A** (`MINFI002`, collaborateur DAF), connectée en direc
 | 0:00–1:30 | **Ouverture** | — | une diapositive : des dossiers partagés en vrac, des documents introuvables | le problème et la promesse en une phrase | « Entrons comme un agent de la DAF. » |
 | 1:30–2:30 | **Connexion** | A | mot de passe puis code à usage unique | nom et rôle dans l'en-tête | « Ce matin, il reçoit 30 fichiers en vrac. » |
 | 2:30–6:00 | **1. Import en vrac** | A | menu « Ranger / Importer » (`/ingestion`) → « Importer dans le Serveur de l'Application » → choix du dossier `live` (30 fichiers, envoi par le navigateur) → analyse → validation | la répartition avant import (classés, à revoir, **2 doublons** reconnus au contenu et ignorés), puis le compteur de fin | « Où sont-ils partis ? » |
-| 6:00–8:00 | **2. Le rangement** | A | explorateur des documents (libellé et route `À vérifier`, § 5 n° 6) : DAF → domaine → activité → année ; ouvrir un document importé | l'arborescence **service > domaine > activité > année** remplie par l'import ; un fichier sans date part dans « A classer/‹année› » | « Pourquoi là ? Parce qu'une règle le dit. » |
+| 6:00–8:00 | **2. Le rangement** | A | explorateur des documents (libellé et route `À vérifier`, § 5 n° 6) : DAF → domaine → activité → année ; ouvrir un document importé | l'arborescence **service > domaine > activité > année** remplie par l'import ; un fichier sans date part dans « A classer/‹année› ». Si l'on demande « et par année d'abord ? » : « On range d'abord par métier, parce que c'est ainsi qu'on cherche un dossier ; l'année est le dernier niveau, et un filtre par année existe dans chaque dossier. » (filtre : `À vérifier`, § 5 n° 6) | « Pourquoi là ? Parce qu'une règle le dit. » |
 | 8:00–10:00 | **3. Les règles** | B | « Plan de classement » (`/classement`) → onglet des règles : une règle avec critère de **contenu** ou d'**année** ; onglet simulateur sur une règle inactive | la règle en clair ; la simulation montre avant/après **sans rien déplacer** | « Ce qu'aucune règle ne sait classer attend un humain. » |
 | 10:00–11:00 | **4. La bannette** | A | « Ma bannette » (`/classification-reviews`) : un fichier « à revoir » de l'import, choix du domaine, de l'activité et de l'année | le fichier quitte la bannette et rejoint l'arbre | « Maintenant, retrouvons-le. » |
 | 11:00–13:00 | **5. Recherche et droits** | A puis C | barre de recherche du bandeau, même mot-clé dans A (DAF) puis C (lecteur DSI) | deux listes différentes pour la même requête ; un document mis en corbeille n'apparaît pas ; le menu de C est réduit (pas d'import d'administration, pas de rapports) | « Et qui a fait quoi ? » |
@@ -32,7 +32,7 @@ Direct : 14:30 (de 1:30 à 16:30 ; ce bloc inclut la connexion). Le tampon se pr
 - **Mesure de charge** (100 000 fichiers en moins de 20 min, item 8) : non mesurée ; décision PO du 17/11, mesure après le 24/11.
 - **Vue « doublons »** (item 19) : les doublons sont refusés à l'import et comptés au tableau de bord ; la vue de choix arrive après la version.
 - **HTTPS, installation sur site, disponibilité** (items 27, 28, 29) : dire l'état constaté au compte rendu du 20/11, pas avant.
-- **Circuit de validation** : présent dans la rc.1 mais hors de ce fil conducteur ; à montrer seulement si le jury le demande (repli : `deroule-demo.md` P8).
+- **Circuit de validation** : présent dans la rc.1 mais hors de ce fil conducteur ; montré **seulement si le jury le demande** (décision O du 17/11). Un document est déjà en attente de visa chez `MGR001` (§ 5 n° 18) : fenêtre E, tâches en attente, viser ou rejeter avec motif (1:00, pris sur les questions ; déroulé détaillé : `deroule-demo.md` P8).
 
 ## 2. Jeu de données de démo
 
@@ -52,7 +52,7 @@ Comptes du seed (`backend/scripts/seed_db.py`, `Vérifié`). **Aucun mot de pass
 | `READ001` | lecteur | DSI | C, préconnectée | même recherche, autre résultat ; menu réduit |
 | `AUDIT001` | auditeur | MINFI | D, préconnectée | journal d'audit en lecture seule, export CSV |
 | `MGR001` | manager | DAF | E, préconnectée | rapports limités à la DAF |
-| `UNIT001` | admin d'unité | DRH | non utilisé | en recherche, il voit tout l'établissement (§ 6) : ne pas le montrer |
+| `UNIT001` | admin d'unité | DRH | **aucun profil admin d'unité dans la démo** (décision O du 17/11) | en recherche et en liste, il voit tout l'établissement ; suivi par l'issue #195 après la rc.1 |
 | `MINESUP001`, `SUPER001` | collaborateur MINESUP, super admin | — | non utilisés | — |
 
 ## 4. Risques en direct et plan B
@@ -66,7 +66,7 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 | Import long ou en erreur | analyse qui ne finit pas, erreur | importer un sous-dossier de 5 fichiers préparé (dont 1 doublon) ; sinon capture de `directory-import` |
 | Répartition différente de celle annoncée | autres nombres de classés, à revoir ou doublons | lire les nombres affichés sans les commenter ; la répétition fige les chiffres attendus (§ 5 n° 3) |
 | Bannette vide (tout est classé) | liste vide | ouvrir un des 51 « à revoir » du jeu |
-| Mauvais clic sur le menu admin « Recherche » | page introuvable (`Vérifié`, aucune route) | ne jamais l'utiliser ; la recherche passe par la barre du bandeau |
+| Mauvais clic sur le menu admin « Recherche » | page introuvable sur c216141 (`Vérifié`) ; correctif de F en rc.1 attendu avant le 19 à 12:00 (décision O du 17/11) | la recherche passe de toute façon par la barre du bandeau ; si le correctif n'est pas fusionné, ne jamais cliquer ce menu |
 | Rapports vides ou erreur côté manager | aucun chiffre, refus | montrer la même page dans B (admin, tout l'établissement), en disant que le manager ne voit que la DAF |
 | Journal filtré vide | aucune ligne | retirer le filtre d'agent, garder la journée |
 | Pile Docker ou poste en panne | plus de réponse | poste de secours prêt, avec la même pile et le même jeu (`checklist-demo.md` § B) ; sinon captures pour tout le reste |
@@ -81,7 +81,7 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 | 3 | Répartition de l'import du direct : classés, à revoir, doublons | Q | les trois nombres, figés dans ce document par ajout daté |
 | 4 | Destination de quelques fichiers de `live` dans l'arbre DAF, et un cas « A classer/‹année› » | Q | chemins notés |
 | 5 | L'import d'un collaborateur range bien côté serveur et alimente sa bannette | Q | rejeu de l'étape 1 avec `MINFI002` |
-| 6 | Libellé et route de l'explorateur pour un collaborateur (arbre complet visible ?) | F | capture et route |
+| 6 | Libellé et route de l'explorateur pour un collaborateur (arbre complet visible ?) ; existence d'un filtre par année dans un dossier (sinon retirer la fin de la phrase prête de l'étape 2) | F | capture et route |
 | 7 | Au moins une règle active du jeu utilise un critère de contenu ou d'année ; une règle inactive donne une simulation non vide | B | nom des règles retenues |
 | 8 | Mot-clé présent dans la DAF et la DSI ; un document de la corbeille le contient ; résultats différents entre A et C | Q | mot-clé et nombres de résultats |
 | 9 | Menus de `READ001` et `MGR001` conformes au § 3 | F | captures |
@@ -92,10 +92,12 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 | 14 | Comment le code à usage unique arrive sur la pile de démo | B | mode décrit, sans secret |
 | 15 | Deux répétitions chronométrées (dont le 27/11), écarts reportés ici par ajout daté | O | chronos |
 | 16 | Captures de secours régénérées sur le tag `v1.0.0-rc.1` | Q | rapport Playwright du tag |
+| 17 | Chaque entrée du menu admin (`MINFI001`) ouvre une page, aucune « page introuvable » (correctif de F du menu « Recherche ») | Q | liste des entrées cliquées, avec la route |
+| 18 | Un document de la DAF est en attente de visa chez `MGR001` après la remise à zéro (jeu P8), et le visa comme le rejet motivé fonctionnent | Q | identifiant du document, capture de la tâche en attente |
 
-## 6. Points à trancher par O
+## 6. Décisions de O du 17/11 (sur la première version de ce § 6)
 
-1. **« Rangement par année puis catégorie »** : l'arbre du serveur range par **service > domaine > activité > année** (`space_path_builder.py`, `Vérifié`), soit la catégorie d'abord, puis l'année. Le scénario montre cet ordre. Il existe aussi un mode « Ranger sur mon poste » (stratégies « Par année » et « Par type puis année »), mais je ne le propose pas : il double le message, et il envoie quand même au serveur les noms et chemins des fichiers (`Vérifié`), ce qui affaiblit la phrase « rien ne quitte le poste ».
-2. **`unit_admin` en recherche** : il est compté dans `ADMIN_ROLES`, donc voit tout l'établissement en recherche et en liste (`backend/app/api/v1/endpoints/documents.py` l. 90-91, `Vérifié`), alors que #188 le limite à son unité dans les rapports. Est-ce voulu ? Si non : à instruire avec B, après le tag, comme la règle de portée de #159.
-3. **Menu admin « Recherche »** : il mène à une page introuvable (`frontend/App.tsx` l. 229, `Vérifié`). Le masquer avant le tag serait un correctif d'une ligne côté F, à passer par la règle D2. Sinon, la consigne « ne pas cliquer » suffit pour la démo.
-4. **Circuit de validation** : hors fil conducteur. Je propose de ne le montrer que si le jury le demande.
+1. **Ordre du rangement** : on montre ce qui existe, la catégorie (domaine, activité) puis l'année (`space_path_builder.py`, `Vérifié`). Pas de « Ranger sur mon poste ». Phrase prête au § 1, étape 2.
+2. **`unit_admin` en recherche et en liste** : il voit tout l'établissement (`documents.py` l. 90-91, `ADMIN_ROLES`), alors que #188 le limite dans les rapports. Rien ne change pour la rc.1 (trop large avant le gel) ; issue #195 après la rc.1, présentée au PO par O. Aucun profil admin d'unité dans la démo (§ 3).
+3. **Menu admin « Recherche »** : F le corrige en rc.1, limite le 19 à 12:00 ; contrôle en recette (§ 5 n° 17, Q).
+4. **Circuit de validation** : montré seulement sur demande ; un document en attente est préparé (§ 1 bis, § 5 n° 18).
