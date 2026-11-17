@@ -95,6 +95,21 @@ TENANT_WIDE_READ_ROLES = ADMIN_ROLES | {"auditor"}
 ORG_UNIT_READ_ROLES = {"manager", "reader"}
 OWNER_MUTABLE_STATUSES = {"draft", "rejected"}
 ARCHIVABLE_SOURCE_STATUSES = {"validated", "signed"}
+# Where a document is filed. A PATCH that changes any of them is audited as
+# "reclassify" with the values before and after, so a move can be undone by
+# sending the "before" classification back.
+PLACEMENT_FIELDS = (
+    "classification_domain_id",
+    "classification_activity_id",
+    "classification_year",
+    "classification_scope",
+    "classification_target_org_unit_id",
+    "classification_target_user_id",
+    "classification_status",
+    "logical_space_path",
+    "org_unit_id",
+    "owner_id",
+)
 LOCK_DURATION_MINUTES = 30
 
 
@@ -1273,6 +1288,7 @@ async def delete_document(
 async def update_document(
     document_id: UUID,
     document_in: DocumentUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1281,6 +1297,7 @@ async def update_document(
         raise HTTPException(
             status_code=403, detail="Not enough privileges to update this document"
         )
+    placement_before = _placement(document)
     if document.deleted_at:
         raise HTTPException(status_code=400, detail="Cannot update a document in trash")
     await _ensure_not_locked_for_write(document, current_user)
@@ -1473,9 +1490,29 @@ async def update_document(
         setattr(document, field, value)
 
     db.add(document)
+    placement_after = _placement(document)
+    if placement_after != placement_before:
+        db.add(
+            _audit_document_action(
+                user=current_user,
+                document_id=document.id,
+                action="reclassify",
+                details={"before": placement_before, "after": placement_after},
+                request=request,
+            )
+        )
     await db.commit()
     # Reload with relationships
     return await _get_document_or_404(db, current_user.tenant_id, document.id)
+
+
+def _placement(document: Document) -> Dict[str, Any]:
+    """JSON-ready snapshot of PLACEMENT_FIELDS."""
+    snapshot = {}
+    for field in PLACEMENT_FIELDS:
+        value = getattr(document, field)
+        snapshot[field] = str(value) if isinstance(value, UUID) else value
+    return snapshot
 
 
 @router.get("/{document_id}/ocr", response_model=DocumentOCRContent)
