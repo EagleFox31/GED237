@@ -35,6 +35,15 @@ export interface Document {
   logical_space_path?: string | null;
   source_relative_path?: string | null;
   import_job_id?: string | null;
+  // Réservation (#274) : échéance passée = document libre.
+  locked_by_user_id?: string | null;
+  locked_by_name?: string | null;
+  locked_at?: string | null;
+  lock_expires_at?: string | null;
+  // Corbeille (#181)
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  deleted_by_name?: string | null;
 }
 
 export type ClassificationReviewStatus = 'open' | 'resolved' | 'cancelled';

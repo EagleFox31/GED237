@@ -14,6 +14,8 @@ export interface UserProfile {
   email?: string;
   tenantId?: string;
   orgUnitId?: string;
+  /** Identifiant du compte côté API (`id` porte le modèle de rôle). Absent d'un profil stocké avant #274. */
+  userId?: string;
   mustChangePassword?: boolean;
 }
 
@@ -26,7 +28,7 @@ const DEFAULT_PROFILE: UserProfile = {
   name: 'Utilisateur',
 };
 
-const ROLE_PROFILE_MAP: Record<string, Omit<UserProfile, 'name' | 'backendRole' | 'backendRoleLabel' | 'matricule' | 'email' | 'tenantId' | 'orgUnitId'>> = {
+const ROLE_PROFILE_MAP: Record<string, Omit<UserProfile, 'name' | 'backendRole' | 'backendRoleLabel' | 'matricule' | 'email' | 'tenantId' | 'orgUnitId' | 'userId'>> = {
   SUPER_ADMIN: { id: 'super', label: 'Super Admin', role: 'Plateforme', icon: 'security_update_good', color: 'bg-cam-red' },
   TENANT_ADMIN: { id: 'tenant', label: 'Admin Institution', role: 'Organisation', icon: 'account_balance', color: 'bg-rdpc-blue' },
   UNIT_ADMIN: { id: 'unit', label: 'Admin Unité', role: 'Service', icon: 'domain', color: 'bg-blue-500' },
@@ -90,6 +92,7 @@ const normalizeBackendUser = (user: BackendUser): UserProfile => {
     email: user.email || undefined,
     tenantId: user.tenant_id,
     orgUnitId: user.org_unit_id || undefined,
+    userId: user.id,
     mustChangePassword: user.must_change_password || false,
   };
 };
@@ -117,6 +120,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       email: candidate.email?.toString(),
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
+      userId: candidate.userId?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
     };
   }
@@ -136,6 +140,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       email: candidate.email?.toString(),
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
+      userId: candidate.userId?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
     };
   }

@@ -11,6 +11,7 @@ import type {
     ResolveClassificationReviewPayload,
     ResolveClassificationReviewResponse,
 } from '../../types';
+import { RESERVATION_HANDLED_STATUSES } from '../../lib/documentReservation';
 
 export interface IngestWatchFolderRun {
     path: string;
@@ -77,6 +78,22 @@ export const documentsApi = {
 
     getDocument: (id: string): Promise<Document> =>
         apiCall<Document>(`/documents/${id}`, {}, 'Lecture du document impossible'),
+
+    // ── Réservation (#274) : 400/403/409/423 affichés par l'écran ─────────
+    lockDocument: (id: string): Promise<{ lock_expires_at: string }> =>
+        apiCall(`/documents/${id}/lock`, { method: 'POST' }, 'Réservation impossible', {
+            handledStatuses: RESERVATION_HANDLED_STATUSES,
+        }),
+
+    unlockDocument: (id: string): Promise<unknown> =>
+        apiCall(`/documents/${id}/unlock`, { method: 'POST' }, 'Libération impossible', {
+            handledStatuses: RESERVATION_HANDLED_STATUSES,
+        }),
+
+    refreshDocumentLock: (id: string): Promise<{ lock_expires_at: string }> =>
+        apiCall(`/documents/${id}/refresh-lock`, { method: 'POST' }, 'Prolongation impossible', {
+            handledStatuses: RESERVATION_HANDLED_STATUSES,
+        }),
 
     /**
      * Récupère le contenu binaire d'un document avec authentification (JWT).
