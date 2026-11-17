@@ -4,6 +4,7 @@
 - **Sources** : `checklist-tag-rc1-24-11.md` (E1 à E1 ter), `plan-fusion-post-rc1.md` (§ 8.4 à 8.6), `releve-prs-19-11.md` (§ 1).
 - **Rôles** : I pousse #104 **une seule fois** et lance `gh pr ready 104`. I ne fusionne rien et ne met aucune branche à jour sur GitHub. Seul O fusionne, coupe la release et crée le ruleset.
 - **Horaires** : ce sont des cibles. La CI de `main` a duré entre 1 et 11 min le 17/11 (runs de b701314, bc62fa5 et 53d4c40). Si une étape glisse, les suivantes glissent avec elle, **sans en sauter aucune**.
+- **Copier les commandes depuis la vue GitHub rendue, pas depuis le fichier brut.** Dans les tableaux, `\|` est un échappement markdown. Copié depuis le brut, `grep -E` le lit comme un `|` littéral, et le filtre ne filtre plus rien.
 
 ## 0. Constats du 17/11 qui changent la procédure (`Vérifié`)
 
@@ -49,9 +50,9 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 
 | Heure | Commande | Contrôle attendu | Si KO |
 |---|---|---|---|
-| 18:20 | `git show origin/main:.github/workflows/ci.yml \| grep -c 'release/\*\*'` | `2` (#206, fusionnée le 17/11) | `< 2` : couper quand même, puis recopier #206 sur `$BR` (décision O) |
+| 18:20 | `git show origin/main:.github/workflows/ci.yml \| grep -cE '^\s*branches:.*release/\*\*'` | `2` (#206, fusionnée le 17/11 ; un par déclencheur — sans `branches:`, le commentaire de la l. 3 donne `3`) | `< 2` : couper quand même, puis recopier #206 sur `$BR` (décision O) |
 | 18:21 | `gh api repos/$REPO/git/refs -f ref=refs/heads/$BR -f sha=$M` | réponse JSON avec `"ref": "refs/heads/release/v1.0.0"` | `Reference already exists` : lire `gh api repos/$REPO/branches/$BR -q .commit.sha`. Si c'est `$M`, rien à faire. Sinon, **ne pas supprimer** la branche : O tranche |
-| 18:22 | `gh api repos/$REPO/branches/$BR -q .commit.sha` | `= $M` | — |
+| 18:22 | `gh api repos/$REPO/branches/$BR -q .commit.sha` | `= $M`, **avant** le ruleset du § 4 | autre SHA : le corriger maintenant, tant que la règle `deletion` du ruleset n'existe pas encore |
 
 ## 4. Ruleset de la release — O, 18:25
 
@@ -84,7 +85,7 @@ Ce JSON est aligné sur le ruleset d'O. `bypass_actors` est vide, comme dans cel
 | Heure | Commande | Contrôle attendu | Si KO |
 |---|---|---|---|
 | 18:25 | `gh api -X POST repos/$REPO/rulesets --input ruleset-release.json -q .id` | un id numérique, à noter : `____` | erreur 422 : lire le message, corriger le JSON, recommencer. **Aucune fusion sur `$BR`** tant que le ruleset n'est pas actif |
-| 18:27 | `gh api repos/$REPO/rulesets/<id> -q '.enforcement, .conditions.ref_name.include, [.rules[].type]'` | `active`, `["refs/heads/release/**"]`, les quatre règles | O corrige (`gh api -X PUT repos/$REPO/rulesets/<id> --input …`), puis relit |
+| 18:27 | `gh api repos/$REPO/rulesets/<id> -q '.enforcement, .conditions.ref_name.include, [.rules[].type]'` | `active`, `["refs/heads/release/**"]` et `["deletion","non_fast_forward","pull_request","required_status_checks"]` | O corrige (`gh api -X PUT repos/$REPO/rulesets/<id> --input …`), puis relit. Mauvais SHA de coupe découvert après coup : la règle `deletion` empêche de supprimer puis recréer la branche. O désactive d'abord le ruleset (`enforcement` à `disabled`), recoupe, contrôle `= $M`, puis le réactive |
 | 18:28 | `gh api repos/$REPO/rulesets/26190959 -q '.conditions.ref_name.include'` | toujours `["~DEFAULT_BRANCH"]` | le ruleset d'AppFactory a été modifié par erreur : le remettre tel quel |
 
 ## 5. Tête alembic unique — Q, 18:30
