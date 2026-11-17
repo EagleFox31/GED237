@@ -131,7 +131,10 @@ async def test_reader_is_refused(client_as, db_seed):
 
 
 @pytest.mark.asyncio
-async def test_collaborator_gets_counts_but_not_titles(client_as, db_session, db_seed):
+async def test_collaborator_gets_neither_counts_nor_titles(
+    client_as, db_session, db_seed
+):
+    """Reports are closed to the collaborator (#188), the quality screen too."""
     await _seed_documents(db_session, db_seed)
     async with client_as(
         "collaborator",
@@ -142,7 +145,7 @@ async def test_collaborator_gets_counts_but_not_titles(client_as, db_session, db
         listed = await client.get(
             f"{QUALITY}/documents", params={"indicator": "no_text"}
         )
-    assert summary.status_code == 200
+    assert summary.status_code == 403
     assert listed.status_code == 403
 
 
