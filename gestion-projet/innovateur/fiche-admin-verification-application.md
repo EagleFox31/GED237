@@ -44,11 +44,11 @@ Vous ne pouvez pas vous dépanner seul, et l'e-mail ne remplace pas l'applicatio
 1. Allez voir **en personne** la personne de niveau supérieur :
    - vous êtes administrateur d'institution : un administrateur de plateforme ;
    - vous êtes administrateur de plateforme : un **autre** administrateur de plateforme.
-2. Elle vérifie votre identité, puis touche [LIBELLÉ : action de réinitialisation dans la fiche de l'agent].
+2. Avant de réinitialiser, le niveau supérieur vérifie votre carte professionnelle (ou une pièce d'identité). Il touche ensuite [LIBELLÉ : action de réinitialisation dans la fiche de l'agent].
 3. **Toutes vos sessions sont fermées aussitôt**, sur tous les appareils, y compris le téléphone perdu. Vous recevez un e-mail qui le confirme.
 4. Sur place, reconnectez-vous et refaites la partie 2 avec votre nouveau téléphone.
 
-Vous gérez des agents ? Leur réinitialisation suit la même règle : vérifiez l'identité **en personne**, jamais par téléphone ni par e-mail. Prévenez l'agent que toutes ses sessions vont se fermer.
+Vous gérez des agents ? Leur réinitialisation suit la même règle : vérifiez **en personne** sa carte professionnelle (ou une pièce d'identité), jamais par téléphone ni par e-mail. Prévenez l'agent que toutes ses sessions vont se fermer.
 
 ### 5. Pourquoi votre compte doit avoir une adresse e-mail
 

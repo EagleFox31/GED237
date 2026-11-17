@@ -111,3 +111,5 @@ Questions posées au PO (instruction du 17/11) :
 1. (d), recommandée, ou (b).
 2. Rôles soumis à l'obligation : `tenant_admin` et `super_admin` (réglage, extensible à `auditor` plus tard).
 3. Au moins deux `super_admin`, et une procédure d'exploitation pour le cas où il n'en resterait qu'un.
+
+**Précision du 17/11/2026** (O, complément de procédure qui ne change pas l'option (d)) : « Avant de réinitialiser, le niveau supérieur vérifie votre carte professionnelle (ou une pièce d'identité). » Elle vaut pour chaque ligne du tableau du § 4, point 4, et figure dans `gestion-projet/innovateur/fiche-admin-verification-application.md`.
