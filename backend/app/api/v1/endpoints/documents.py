@@ -489,13 +489,20 @@ def _parse_next_version(versions: List[DocumentVersion]) -> str:
 
 
 async def _get_document_or_404(
-    db: AsyncSession, tenant_id: UUID, document_id: UUID
+    db: AsyncSession, tenant_id: UUID, document_id: UUID, *, lock: bool = False
 ) -> Document:
-    result = await db.execute(
+    """``lock``: hold the row until commit and read it fresh, so a concurrent
+    purge is seen (gone: 404) instead of failing later on a deleted row."""
+    query = (
         select(Document)
         .options(*_document_load_options())
         .where(Document.id == document_id, Document.tenant_id == tenant_id)
     )
+    if lock:
+        query = query.with_for_update(of=Document).execution_options(
+            populate_existing=True
+        )
+    result = await db.execute(query)
     document = result.scalar_one_or_none()
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -1633,7 +1640,9 @@ async def restore_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_or_404(
+        db, current_user.tenant_id, document_id, lock=True
+    )
     if not await _can_trash_document(current_user, document):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at is None:
@@ -1659,13 +1668,24 @@ async def purge_document(
 ):
     await authorize_or_403(current_user, "documents", "purge")
 
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_or_404(
+        db, current_user.tenant_id, document_id, lock=True
+    )
     if document.deleted_at is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "error": "document_not_in_trash",
                 "message": "Placez d'abord le document dans la corbeille.",
+            },
+        )
+    if trash_service.is_protected(document):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "document_protected",
+                "message": "Un document signé ou archivé ne peut pas être supprimé "
+                "définitivement.",
             },
         )
     await trash_service.purge_many(
@@ -1690,7 +1710,8 @@ async def empty_trash(
 
     No filter: the whole trash, ``TRASH_PURGE_BATCH`` documents per call
     (``remaining`` tells whether to call again). Identifiers of another
-    institution, or of documents that are not in the trash, are ignored.
+    institution, or of documents that are not in the trash, are ignored; a
+    signed or archived document is never purged nor counted.
     """
     await authorize_or_403(current_user, "documents", "purge")
 
@@ -1700,14 +1721,15 @@ async def empty_trash(
         deleted_before = datetime.now(timezone.utc) - timedelta(
             days=payload.older_than_days
         )
+    matching = trash_service.trashed_query(
+        current_user.tenant_id,
+        document_ids=payload.document_ids,
+        deleted_before=deleted_before,
+    )
     result = await db.execute(
-        trash_service.trashed_query(
-            current_user.tenant_id,
-            document_ids=payload.document_ids,
-            deleted_before=deleted_before,
+        matching.limit(settings.TRASH_PURGE_BATCH).with_for_update(
+            skip_locked=True, of=Document
         )
-        .limit(settings.TRASH_PURGE_BATCH)
-        .with_for_update(skip_locked=True, of=Document)
     )
     details = {}
     if payload.older_than_days is not None:
@@ -1721,7 +1743,8 @@ async def empty_trash(
         details=details,
         request=request,
     )
-    remaining = await trash_service.count_trashed(db, current_user.tenant_id)
+    # Same filters as the purge: what one more call would still delete.
+    remaining = await trash_service.count_matching(db, matching)
     return TrashEmptyResponse(purged=purged, remaining=remaining)
 
 
