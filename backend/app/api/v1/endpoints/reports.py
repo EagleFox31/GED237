@@ -24,8 +24,11 @@ from app.schemas.official_report import (
 )
 from app.services.official_report import (
     OfficialReportError,
+    issue_filename,
     issue_official_report,
     list_issues,
+    media_type,
+    reprint_issue,
 )
 from app.services.reports_scope import resolve_report_scope
 from app.services.reports_service import ReportsService
@@ -181,11 +184,7 @@ async def issue_official_report_route(
     return Response(
         content=issued.content,
         media_type=issued.media_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{issued.filename}"',
-            "X-Report-Number": quote(issued.issue.number, safe="/ "),
-            "X-Report-SHA256": issued.issue.file_sha256,
-        },
+        headers=_copy_headers(issued.issue, issued.filename),
     )
 
 
@@ -218,3 +217,41 @@ async def list_official_report_issues(
     )
     response.headers["X-Total-Count"] = str(total)
     return issues
+
+
+def _copy_headers(issue, filename: str) -> dict[str, str]:
+    return {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "X-Report-Number": quote(issue.number, safe="/ "),
+        "X-Report-SHA256": issue.file_sha256,
+    }
+
+
+@router.get("/official/issues/{issue_id}/file")
+async def reprint_official_report(
+    issue_id: UUID,
+    tenant_id: Optional[UUID] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reprint: the very file delivered at issue, same number, no new number.
+
+    Same visibility as the register; logged as ``report_reprinted``.
+    """
+    await authorize_or_403(current_user, "analytics.tenant", "read")
+    scope = await resolve_report_scope(current_user, tenant_id=tenant_id)
+    try:
+        issue = await reprint_issue(
+            db,
+            current_user,
+            tenant_id=scope.tenant_id,
+            issue_id=issue_id,
+            issued_by=current_user.id if scope.org_unit_id is not None else None,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return Response(
+        content=issue.content,
+        media_type=media_type(issue.format),
+        headers=_copy_headers(issue, issue_filename(issue)),
+    )

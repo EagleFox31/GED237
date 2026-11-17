@@ -1,12 +1,13 @@
 """Official reports: numbered, fingerprinted and logged copies of the report screens.
 
 The data comes from ``ReportsService`` (the same figures as the screens), within the
-scope given by ``resolve_report_scope``. Each copy gets an order number per
-institution and year, ``N° 0001/2026/<short name>``, taken under a row lock, and a
-line in the ``report_issues`` register with the SHA-256 of the delivered file.
+scope given by ``resolve_report_scope``. PO decisions of 17/11:
 
-Rendering depends only on the stored header and the data, so an identical report
-can be produced again byte for byte (``OFFICIAL_REPORT_NEW_NUMBER_EACH_TIME=false``).
+- every generation takes a new number, ``N° 0001/2026/<SIGLE>[/<service>]``: one
+  counter per institution and year, reset each year, never reused, taken under the
+  row lock of an upsert (no gap, no duplicate under concurrent access);
+- a reprint is the download of the very same file, without a new number;
+- an institution without short name cannot issue official reports (422).
 """
 
 from __future__ import annotations
@@ -25,8 +26,8 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
-from app.core.config import settings
 from app.models.audit import AuditLog
 from app.models.org_unit import OrgUnit
 from app.models.report_issue import ReportCounter, ReportIssue
@@ -136,7 +137,6 @@ class IssuedReport:
     content: bytes
     media_type: str
     filename: str
-    reused: bool
 
 
 def _label(key: str) -> str:
@@ -281,15 +281,30 @@ def content_digest(kind: str, filters: dict[str, Any], data: dict[str, Any]) -> 
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def format_number(sequence: int, year: int, short_name: Optional[str]) -> str:
-    suffix = f"/{short_name}" if short_name else ""
-    return f"N° {sequence:04d}/{year}{suffix}"
+MISSING_SHORT_NAME = "Renseignez le sigle de l'institution"
 
 
-def _filename(kind: str, sequence: int, year: int, short_name: Optional[str], fmt: str):
-    safe = re.sub(r"[^A-Za-z0-9_-]", "", short_name or "")
-    suffix = f"-{safe}" if safe else ""
-    return f"rapport-{kind}-{sequence:04d}-{year}{suffix}.{fmt}"
+def format_number(
+    sequence: int, year: int, short_name: str, service: Optional[str] = None
+) -> str:
+    """``N° 0012/2026/MINX`` or, for a report on one service, ``…/MINX/DRH``."""
+    parts = [f"{sequence:04d}", str(year), short_name]
+    if service:
+        parts.append(service)
+    return "N° " + "/".join(parts)
+
+
+def issue_filename(issue: ReportIssue) -> str:
+    """``rapport-<kind>-0012-2026-MINX-DRH.csv``, from the number itself."""
+    tail = issue.number.removeprefix("N° ").split("/")
+    safe = [re.sub(r"[^A-Za-z0-9_-]", "", part) for part in tail]
+    return (
+        f"rapport-{issue.kind}-{'-'.join(part for part in safe if part)}.{issue.format}"
+    )
+
+
+def media_type(fmt: str) -> str:
+    return _MEDIA_TYPES[fmt]
 
 
 _MEDIA_TYPES = {"csv": "text/csv; charset=utf-8", "html": "text/html; charset=utf-8"}
@@ -345,16 +360,22 @@ def _applied_filters(
     return {key: value for key, value in filters.items() if value is not None}
 
 
-async def _unit_label(db: AsyncSession, scope: ReportScope) -> str:
+async def _unit(db: AsyncSession, scope: ReportScope) -> tuple[str, Optional[str]]:
+    """Printed unit label, and the service part of the number (short name or code)."""
     if scope.org_unit_id is None:
-        return "Toutes les unités"
-    name = await db.scalar(
-        select(OrgUnit.name).where(
-            OrgUnit.id == scope.org_unit_id, OrgUnit.tenant_id == scope.tenant_id
+        return "Toutes les unités", None
+    unit = (
+        await db.execute(
+            select(OrgUnit.name, OrgUnit.short_name, OrgUnit.code).where(
+                OrgUnit.id == scope.org_unit_id, OrgUnit.tenant_id == scope.tenant_id
+            )
         )
-    )
-    label = name or str(scope.org_unit_id)
-    return f"{label} (et sous-unités)" if scope.recursive else label
+    ).first()
+    if unit is None:
+        return str(scope.org_unit_id), None
+    label = f"{unit.name} (et sous-unités)" if scope.recursive else unit.name
+    service = (unit.short_name or "").strip() or (unit.code or "").strip() or None
+    return label, service
 
 
 def _period_label(filters: dict[str, Any], now: datetime) -> str:
@@ -391,91 +412,95 @@ async def issue_official_report(
     tenant = await db.get(Tenant, scope.tenant_id)
     if tenant is None:
         raise LookupError("Institution introuvable.")
-    short_name = (tenant.short_name or "").strip() or None
-    if short_name is None and settings.OFFICIAL_REPORT_REQUIRE_SHORT_NAME:
-        raise OfficialReportError(
-            "L'institution n'a pas de sigle : un administrateur doit le renseigner "
-            "avant l'émission d'un rapport officiel."
-        )
+    short_name = (tenant.short_name or "").strip()
+    if not short_name:
+        raise OfficialReportError(MISSING_SHORT_NAME)
 
     data = await _fetch_data(db, request, scope)
     filters = _applied_filters(request, scope, data)
-    digest = content_digest(request.kind, filters, data)
     now = datetime.now(LOCAL_TZ)
+    unit_label, service = await _unit(db, scope)
 
-    reused: Optional[ReportIssue] = None
-    if not settings.OFFICIAL_REPORT_NEW_NUMBER_EACH_TIME:
-        reused = await db.scalar(
-            select(ReportIssue)
-            .where(
-                ReportIssue.tenant_id == scope.tenant_id,
-                ReportIssue.year == now.year,
-                ReportIssue.kind == request.kind,
-                ReportIssue.format == request.format,
-                ReportIssue.content_sha256 == digest,
-            )
-            .order_by(ReportIssue.issued_at, ReportIssue.sequence)
-            .limit(1)
-        )
-
-    if reused is not None:
-        issue = reused
-        content = render(issue.header, data, issue.format)
-    else:
-        sequence = await _next_sequence(db, scope.tenant_id, now.year)
-        header = {
-            "title": f"Rapport officiel – {KIND_TITLES[request.kind]}",
-            "number": format_number(sequence, now.year, short_name),
-            "institution": tenant.name,
-            "unit": await _unit_label(db, scope),
-            "period": _period_label(filters, now),
-            "issued_by": _author(user),
-            "issued_at": f"{now:%d/%m/%Y %H:%M} (heure de Yaoundé)",
-        }
-        content = render(header, data, request.format)
-        issue = ReportIssue(
-            tenant_id=scope.tenant_id,
-            year=now.year,
-            sequence=sequence,
-            number=header["number"],
-            kind=request.kind,
-            format=request.format,
-            filters=filters,
-            header=header,
-            content_sha256=digest,
-            file_sha256=hashlib.sha256(content).hexdigest(),
-            issued_by=user.id,
-        )
-        db.add(issue)
-        await db.flush()
-
-    db.add(
-        AuditLog(
-            tenant_id=scope.tenant_id,
-            user_id=user.id,
-            table_name="report_issues",
-            record_id=issue.id,
-            action="report_generated",
-            new_data={
-                "number": issue.number,
-                "kind": issue.kind,
-                "format": issue.format,
-                "file_sha256": hashlib.sha256(content).hexdigest(),
-                "reissued": reused is not None,
-            },
-        )
+    # Taken last, right before the insert: the counter row stays locked until the
+    # commit, and a failure rolls the increment back with the copy (no gap).
+    sequence = await _next_sequence(db, scope.tenant_id, now.year)
+    header = {
+        "title": f"Rapport officiel – {KIND_TITLES[request.kind]}",
+        "number": format_number(sequence, now.year, short_name, service),
+        "institution": tenant.name,
+        "unit": unit_label,
+        "period": _period_label(filters, now),
+        "issued_by": _author(user),
+        "issued_at": f"{now:%d/%m/%Y %H:%M} (heure de Yaoundé)",
+    }
+    content = render(header, data, request.format)
+    issue = ReportIssue(
+        tenant_id=scope.tenant_id,
+        year=now.year,
+        sequence=sequence,
+        number=header["number"],
+        kind=request.kind,
+        format=request.format,
+        filters=filters,
+        header=header,
+        content_sha256=content_digest(request.kind, filters, data),
+        file_sha256=hashlib.sha256(content).hexdigest(),
+        content=content,
+        issued_by=user.id,
     )
+    db.add(issue)
+    await db.flush()
+    _log(db, user, issue, "report_generated")
     await db.commit()
     await db.refresh(issue)
     return IssuedReport(
         issue=issue,
         content=content,
-        media_type=_MEDIA_TYPES[issue.format],
-        filename=_filename(
-            issue.kind, issue.sequence, issue.year, short_name, issue.format
-        ),
-        reused=reused is not None,
+        media_type=media_type(issue.format),
+        filename=issue_filename(issue),
     )
+
+
+def _log(db: AsyncSession, user, issue: ReportIssue, action: str) -> None:
+    db.add(
+        AuditLog(
+            tenant_id=issue.tenant_id,
+            user_id=user.id,
+            table_name="report_issues",
+            record_id=issue.id,
+            action=action,
+            new_data={
+                "number": issue.number,
+                "kind": issue.kind,
+                "format": issue.format,
+                "file_sha256": issue.file_sha256,
+            },
+        )
+    )
+
+
+async def reprint_issue(
+    db: AsyncSession,
+    user,
+    *,
+    tenant_id: UUID,
+    issue_id: UUID,
+    issued_by: Optional[UUID] = None,
+) -> ReportIssue:
+    """The copy as delivered, same number and same bytes; logged as a reprint."""
+    query = (
+        select(ReportIssue)
+        .options(undefer(ReportIssue.content))
+        .where(ReportIssue.id == issue_id, ReportIssue.tenant_id == tenant_id)
+    )
+    if issued_by is not None:
+        query = query.where(ReportIssue.issued_by == issued_by)
+    issue = await db.scalar(query)
+    if issue is None:
+        raise LookupError("Rapport introuvable.")
+    _log(db, user, issue, "report_reprinted")
+    await db.commit()
+    return issue
 
 
 async def list_issues(

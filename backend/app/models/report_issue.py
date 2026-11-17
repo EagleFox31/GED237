@@ -2,8 +2,8 @@
 
 Each generated official report gets an order number per institution and year
 (``N° 0001/2026/<short name>``). ``report_counters`` holds the last number given;
-``report_issues`` keeps one line per copy issued, with the SHA-256 of the file
-delivered, so a copy can be checked against the register later.
+``report_issues`` keeps one line per copy issued, with the file delivered and its
+SHA-256: a reprint returns that same file, and a copy can be checked later.
 """
 
 from sqlalchemy import (
@@ -12,10 +12,12 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import deferred
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -53,12 +55,13 @@ class ReportIssue(Base, UUIDMixin):
     format = Column(String(8), nullable=False)
     # Effective scope and filters, as applied (ids as strings).
     filters = Column(JSONB, nullable=False, default=dict)
-    # Header printed on the copy (institution, unit, period, author, date), kept
-    # so an identical copy can be produced again byte for byte.
+    # Header printed on the copy (institution, unit, period, author, date).
     header = Column(JSONB, nullable=False, default=dict)
     # SHA-256 of the report data alone, and of the file delivered.
     content_sha256 = Column(String(64), nullable=False)
     file_sha256 = Column(String(64), nullable=False)
+    # The file delivered, so a reprint is the very same file (no new number).
+    content = deferred(Column(LargeBinary, nullable=False))
     issued_by = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
     )

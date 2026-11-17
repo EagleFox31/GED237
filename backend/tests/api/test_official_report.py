@@ -1,5 +1,6 @@
 """Official reports: numbered copies, register, fingerprint and audit trail."""
 
+import asyncio
 import hashlib
 import uuid
 from datetime import datetime
@@ -9,7 +10,6 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select, update
 
-from app.core.config import settings
 from app.models.audit import AuditLog
 from app.models.report_issue import ReportCounter, ReportIssue
 from app.models.tenant import Tenant
@@ -87,24 +87,68 @@ async def test_html_copy_is_self_contained(admin_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_identical_report_keeps_its_number_when_configured(
-    admin_client: AsyncClient, db_session, monkeypatch
+async def test_reprint_is_the_same_file_without_a_new_number(
+    admin_client: AsyncClient, db_session
 ):
-    monkeypatch.setattr(settings, "OFFICIAL_REPORT_NEW_NUMBER_EACH_TIME", False)
     first = await admin_client.post(OFFICIAL, json={"kind": "service-activity"})
     again = await admin_client.post(OFFICIAL, json={"kind": "service-activity"})
-    other = await admin_client.post(
-        OFFICIAL, json={"kind": "service-activity", "format": "html"}
+    assert unquote(again.headers["x-report-number"]).startswith("N° 0002/")
+
+    issue_id = await db_session.scalar(
+        select(ReportIssue.id).where(ReportIssue.sequence == 1)
+    )
+    reprint = await admin_client.get(f"{OFFICIAL}/issues/{issue_id}/file")
+    assert reprint.status_code == 200
+    assert reprint.content == first.content
+    assert reprint.headers["x-report-number"] == first.headers["x-report-number"]
+    assert reprint.headers["x-report-sha256"] == first.headers["x-report-sha256"]
+    assert (
+        reprint.headers["content-disposition"] == first.headers["content-disposition"]
+    )
+    assert await _count(db_session, ReportIssue) == 2
+    assert await _count(db_session, ReportCounter) == 1
+    assert (
+        await _count(db_session, AuditLog, AuditLog.action == "report_reprinted") == 1
     )
 
-    assert again.content == first.content
-    assert again.headers["x-report-sha256"] == first.headers["x-report-sha256"]
-    assert again.headers["x-report-number"] == first.headers["x-report-number"]
-    assert unquote(other.headers["x-report-number"]).startswith("N° 0002/")
-    assert await _count(db_session, ReportIssue) == 2
-    assert (
-        await _count(db_session, AuditLog, AuditLog.action == "report_generated") == 3
+    missing = await admin_client.get(f"{OFFICIAL}/issues/{uuid.uuid4()}/file")
+    assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_report_on_one_service_carries_it_in_the_number(
+    admin_client: AsyncClient, db_seed
+):
+    response = await admin_client.post(
+        OFFICIAL, json={"kind": "evolution", "org_unit_id": str(db_seed["org_unit_id"])}
     )
+    assert response.status_code == 200, response.text
+    year = _year()
+    assert (
+        unquote(response.headers["x-report-number"])
+        == f"N° 0001/{year}/TESTMIN/DIR-TEST"
+    )
+    assert (
+        f'filename="rapport-evolution-0001-{year}-TESTMIN-DIR-TEST.csv"'
+        in response.headers["content-disposition"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_concurrent_issues_get_distinct_numbers_without_gap(
+    admin_client: AsyncClient, db_session
+):
+    responses = await asyncio.gather(
+        *[admin_client.post(OFFICIAL, json={"kind": "evolution"}) for _ in range(6)]
+    )
+    assert [response.status_code for response in responses] == [200] * 6
+    numbers = sorted(unquote(r.headers["x-report-number"]) for r in responses)
+    assert numbers == [f"N° {n:04d}/{_year()}/TESTMIN" for n in range(1, 7)]
+    sequences = (
+        await db_session.scalars(select(ReportIssue.sequence).order_by("sequence"))
+    ).all()
+    assert sequences == [1, 2, 3, 4, 5, 6]
+    assert await db_session.scalar(select(ReportCounter.last_value)) == 6
 
 
 @pytest.mark.asyncio
@@ -118,24 +162,9 @@ async def test_institution_without_short_name_is_refused_without_taking_a_number
 
     response = await admin_client.post(OFFICIAL, json={"kind": "evolution"})
     assert response.status_code == 422
-    assert "sigle" in response.json()["detail"]
+    assert response.json()["detail"] == "Renseignez le sigle de l'institution"
     assert await _count(db_session, ReportCounter) == 0
     assert await _count(db_session, ReportIssue) == 0
-
-
-@pytest.mark.asyncio
-async def test_institution_without_short_name_when_allowed(
-    admin_client: AsyncClient, db_session, db_seed, monkeypatch
-):
-    monkeypatch.setattr(settings, "OFFICIAL_REPORT_REQUIRE_SHORT_NAME", False)
-    await db_session.execute(
-        update(Tenant).where(Tenant.id == db_seed["tenant_id"]).values(short_name=None)
-    )
-    await db_session.commit()
-
-    response = await admin_client.post(OFFICIAL, json={"kind": "evolution"})
-    assert response.status_code == 200
-    assert unquote(response.headers["x-report-number"]) == f"N° 0001/{_year()}"
 
 
 @pytest.mark.asyncio
@@ -171,32 +200,41 @@ async def test_register_limit_is_bounded(admin_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_foreign_tenant_sees_nothing(admin_client: AsyncClient, client_as):
+async def test_foreign_tenant_sees_nothing(
+    admin_client: AsyncClient, client_as, db_session
+):
     created = await admin_client.post(OFFICIAL, json={"kind": "evolution"})
     assert created.status_code == 200
+
+    issue_id = await db_session.scalar(select(ReportIssue.id))
 
     async with client_as("tenant_admin", tenant_id=uuid.uuid4()) as client:
         listed = await client.get(f"{OFFICIAL}/issues")
         issued = await client.post(OFFICIAL, json={"kind": "evolution"})
+        reprint = await client.get(f"{OFFICIAL}/issues/{issue_id}/file")
     assert listed.status_code == 200
     assert listed.json() == []
     assert listed.headers["x-total-count"] == "0"
     assert issued.status_code == 404
+    assert reprint.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_manager_lists_only_own_copies(
-    admin_client: AsyncClient, client_as, db_seed
+async def test_manager_lists_and_reprints_only_own_copies(
+    admin_client: AsyncClient, client_as, db_session, db_seed
 ):
     created = await admin_client.post(OFFICIAL, json={"kind": "evolution"})
     assert created.status_code == 200
+    issue_id = await db_session.scalar(select(ReportIssue.id))
 
     async with client_as(
         "manager", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
     ) as client:
         listed = await client.get(f"{OFFICIAL}/issues")
+        reprint = await client.get(f"{OFFICIAL}/issues/{issue_id}/file")
     assert listed.status_code == 200
     assert listed.headers["x-total-count"] == "0"
+    assert reprint.status_code == 404
 
 
 @pytest.mark.asyncio

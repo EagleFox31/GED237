@@ -59,6 +59,7 @@ def upgrade() -> None:
         ),
         sa.Column("content_sha256", sa.String(64), nullable=False),
         sa.Column("file_sha256", sa.String(64), nullable=False),
+        sa.Column("content", sa.LargeBinary(), nullable=False),
         sa.Column(
             "issued_by",
             postgresql.UUID(as_uuid=True),

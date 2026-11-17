@@ -64,4 +64,5 @@ def test_rendering_is_deterministic():
 
 def test_number_format():
     assert format_number(1, 2026, "MINX") == "N° 0001/2026/MINX"
-    assert format_number(12345, 2027, None) == "N° 12345/2027"
+    assert format_number(12345, 2027, "MINX") == "N° 12345/2027/MINX"
+    assert format_number(12, 2026, "MINX", "DRH") == "N° 0012/2026/MINX/DRH"

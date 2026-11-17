@@ -153,14 +153,6 @@ class Settings(BaseSettings):
             raise ValueError("SCHEMA_CHECK_MODE must be one of: fail, warn, off")
         return value
 
-    # Official report register (numbered copies: "N° 0001/2026/<short name>").
-    # True: every generation takes a new number. False: an identical report
-    # (same kind, filters and data) is reissued under its first number.
-    OFFICIAL_REPORT_NEW_NUMBER_EACH_TIME: bool = True
-    # True: an institution without short name cannot issue official reports.
-    # False: the number is issued without the suffix ("N° 0001/2026").
-    OFFICIAL_REPORT_REQUIRE_SHORT_NAME: bool = True
-
     # Email (Resend)
     RESEND_API_KEY: str = Field(default="")
     RESEND_FROM: str = Field(default="onboarding@resend.dev")
