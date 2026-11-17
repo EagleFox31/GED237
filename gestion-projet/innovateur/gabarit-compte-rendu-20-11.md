@@ -18,7 +18,7 @@ Statut : `réussi`, `échec`, `partiel`, `reporté au …`, `non joué`.
 | 0 | Arrêt de la sonde C6, synthèse par demi-journée | 19/11 18:00 | … | … | … | … | … |
 | 1 | Rejeu du manuel d'installation (clone et build neufs) | 19/11 18:15 | … | … | … | … | … |
 | 2 | `mkcert -install`, `prove_tls.sh`, contrôles 307 et WebSocket | 19/11 19:30 (PO présent) | … | … | … | … | … |
-| 3 | Restauration n° 2 (`backup.sh`, `restore.sh --wipe`, comptages, puis `e2e_reset.sh demo`) | 20/11 08:00 | … | … | `recette/restauration-2026-11-20.txt` | … | … |
+| 3 | Restauration n° 2 (`backup.sh`, `restore.sh --wipe`, comptages, puis `e2e_reset.sh demo`) | sam 21/11 09:00–10:00, repli le 22 | … | … | `recette/restauration-2026-11-21.txt` | … | … |
 | 4 | Run uat officiel (run 1, pile e2e isolée) : `…` réussis, `…` ignorés, `…` en échec | 20/11 08:30 | … | … | … | … | … |
 | 5 | Les 8 parcours en HTTPS | 20/11 09:45 | … | … | … | … | … |
 
