@@ -68,6 +68,23 @@ async def _validate_category_for_tenant(
         raise HTTPException(status_code=400, detail="Categorie documentaire invalide.")
 
 
+async def _assert_in_unit_tree(
+    db: AsyncSession, current_user: User, unit_id: UUID | None
+) -> None:
+    """unit_admin imports only for its unit and the units below it (#202)."""
+    if _role_code(current_user) not in UNIT_TREE_READ_ROLES:
+        return
+    if not (
+        unit_id
+        and current_user.org_unit_id
+        and await is_within_unit_tree(db, unit_id, current_user.org_unit_id)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Cible hors de votre unite et de ses sous-unites.",
+        )
+
+
 async def _resolve_target_org_unit_id(
     db: AsyncSession,
     *,
@@ -77,6 +94,7 @@ async def _resolve_target_org_unit_id(
     if target_org_unit_id is None:
         return current_user.org_unit_id
     assert_org_unit_scope(target_org_unit_id, current_user)
+    await _assert_in_unit_tree(db, current_user, target_org_unit_id)
     result = await db.execute(
         select(OrgUnit.id).where(
             OrgUnit.id == target_org_unit_id,
@@ -117,6 +135,7 @@ async def _resolve_target_user(
         )
     if _role_code(current_user) in ORG_UNIT_READ_ROLES:
         assert_org_unit_scope(target_user.org_unit_id, current_user)
+    await _assert_in_unit_tree(db, current_user, target_user.org_unit_id)
     return target_user
 
 

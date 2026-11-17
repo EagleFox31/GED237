@@ -11,12 +11,16 @@ No row is written to org_unit_closure: the application never fills it, so the
 rule must hold on ``parent_id`` alone.
 """
 
+import io
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 
+from app.api.v1.endpoints import imports
 from app.models.document import Document
 from app.models.import_job import ImportJob
 from app.models.org_unit import OrgUnit
@@ -275,8 +279,12 @@ async def test_changing_a_document_by_id_follows_the_listing_scope(
     ids = tree["ids"]
     changed = {"patch": set(), "lock": set(), "trash": set(), "restore": set()}
     workflow = {}
+    # The seeded account: a lock and an audit row reference users.id.
     async with client_as(
-        role, tenant_id=db_seed["tenant_id"], org_unit_id=tree["units"][unit]
+        role,
+        id=db_seed["user_id"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=tree["units"][unit],
     ) as client:
         for key in sorted(WIDE):
             url = f"{DOCUMENTS}{ids[key]}"
@@ -313,7 +321,10 @@ async def test_unit_admin_cannot_send_a_document_out_of_its_tree(
 ):
     units, ids = tree["units"], tree["ids"]
     async with client_as(
-        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a1"]
+        "unit_admin",
+        id=db_seed["user_id"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["a1"],
     ) as client:
         up = await client.patch(
             f"{DOCUMENTS}{ids['a2']}",
@@ -335,3 +346,46 @@ async def test_unit_admin_cannot_send_a_document_out_of_its_tree(
     assert to_someone_outside.status_code == 403, to_someone_outside.text
     assert down.status_code == 200, down.text
     assert down.json()["org_unit_id"] == str(units["a2"])
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_imports_only_into_its_tree(
+    client_as, db_session, db_seed, tree
+):
+    """Import on behalf of a unit or a person (#202).
+
+    The policy gives unit_admin no documents/create, so the import is refused at
+    the door. The target check below holds the tree rule if that ever changes.
+    """
+    units = tree["units"]
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a1"]
+    ) as client:
+        door = await client.post(
+            f"{IMPORTS}/analyze",
+            files=[("files", ("note.txt", io.BytesIO(b"alpha"), "text/plain"))],
+            data={"source_scope": "service", "target_org_unit_id": str(units["a2"])},
+        )
+    assert door.status_code == 403, door.text
+
+    user = SimpleNamespace(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["a1"],
+        role=SimpleNamespace(code="unit_admin"),
+    )
+    below = await imports._resolve_target_org_unit_id(
+        db_session, current_user=user, target_org_unit_id=units["a2"]
+    )
+    assert below == units["a2"]
+    for outside in (units["b"], units["a"]):
+        with pytest.raises(HTTPException) as refused:
+            await imports._resolve_target_org_unit_id(
+                db_session, current_user=user, target_org_unit_id=outside
+            )
+        assert refused.value.status_code == 403
+    with pytest.raises(HTTPException) as refused:
+        await imports._resolve_target_user(
+            db_session, current_user=user, target_user_id=tree["collaborator"]
+        )
+    assert refused.value.status_code == 403
