@@ -8,6 +8,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import authorize_or_403
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.quality_alert import QualityAlertEvent, QualityAlertRule
@@ -130,8 +131,13 @@ async def create_quality_alert(
     db: AsyncSession = Depends(get_db),
 ):
     """Watch one indicator in the caller's scope (403 if refused, checked again
-    at each pass). Nothing is sent unless the alerts are switched on."""
+    at each pass); 409 while the alerts are switched off on this server."""
     await authorize_or_403(current_user, "analytics.tenant", "read")
+    if not settings.QUALITY_ALERTS_ENABLED:
+        raise HTTPException(
+            status_code=409,
+            detail="Les alertes qualité sont désactivées sur ce serveur.",
+        )
     scope = await resolve_report_scope(
         current_user,
         tenant_id=payload.tenant_id,

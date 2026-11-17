@@ -6,11 +6,14 @@ import uuid
 import pytest
 from sqlalchemy import func, select, update
 
+from app.core.config import settings
 from app.models.document import Document
 from app.models.notification import Notification
 from app.models.quality_alert import QualityAlertEvent, QualityAlertRule
 from app.models.user import User
 from app.services.quality_alerts import EVENT_TYPE, evaluate_rules
+from app.workers.celery_app import celery_app
+from app.workers.tasks import evaluate_quality_alerts
 
 ALERTS = "/api/v1/analytics/quality/alerts"
 
@@ -125,14 +128,14 @@ async def test_a_rate_rule_needs_documents_in_scope(db_session, db_seed):
 @pytest.mark.asyncio
 async def test_an_inactive_creator_is_refused_without_notification(db_session, db_seed):
     await _document(db_session, db_seed, classification_year=None)
-    rule = await _rule(db_session, db_seed)
+    rule_id = str((await _rule(db_session, db_seed)).id)  # read before the rollback
     await db_session.execute(
         update(User).where(User.id == db_seed["user_id"]).values(is_active=False)
     )
     await db_session.commit()
 
     result = await evaluate_rules(db_session)
-    assert (result.opened, result.refused) == ([], [str(rule.id)])
+    assert (result.opened, result.refused) == ([], [rule_id])
     assert (
         await db_session.scalar(select(func.count()).select_from(QualityAlertEvent))
         == 0
@@ -149,7 +152,10 @@ async def test_a_stopped_rule_is_ignored(db_session, db_seed):
 
 
 @pytest.mark.asyncio
-async def test_create_list_and_stop_an_alert(admin_client, db_session, db_seed):
+async def test_create_list_and_stop_an_alert(
+    admin_client, db_session, db_seed, monkeypatch
+):
+    monkeypatch.setattr(settings, "QUALITY_ALERTS_ENABLED", True)
     await _document(db_session, db_seed, classification_year=None)
     created = await admin_client.post(
         ALERTS,
@@ -176,6 +182,29 @@ async def test_create_list_and_stop_an_alert(admin_client, db_session, db_seed):
     assert (await admin_client.get(ALERTS)).json() == []
     again = await admin_client.delete(f"{ALERTS}/{body['id']}")
     assert again.status_code == 204  # already stopped: no-op
+
+
+@pytest.mark.asyncio
+async def test_disabled_server_refuses_alerts_and_evaluates_nothing(
+    admin_client, db_session, db_seed
+):
+    assert settings.QUALITY_ALERTS_ENABLED is False  # default
+    assert "evaluate-quality-alerts" not in (celery_app.conf.beat_schedule or {})
+
+    refused = await admin_client.post(
+        ALERTS, json={"indicator": "no_text", "measure": "count", "threshold": 1}
+    )
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == (
+        "Les alertes qualité sont désactivées sur ce serveur."
+    )
+    assert await db_session.scalar(select(func.count(QualityAlertRule.id))) == 0
+
+    await _document(db_session, db_seed, classification_year=None)
+    await _rule(db_session, db_seed)  # left from a time it was on
+    assert evaluate_quality_alerts() is None
+    assert await db_session.scalar(select(func.count(QualityAlertEvent.id))) == 0
+    assert await db_session.scalar(select(func.count(Notification.id))) == 0
 
 
 @pytest.mark.asyncio
