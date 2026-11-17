@@ -123,12 +123,12 @@ const EXPLORER_ITEM_FOCUS =
 type ViewMode = 'details' | 'icons';
 
 type ContextMenuState =
-  | {
-      kind: 'document';
-      x: number;
-      y: number;
-      document: Document;
-    };
+  | { kind: 'document'; x: number; y: number; document: Document }
+  | { kind: 'folder'; x: number; y: number; unitId: string; path: string }
+  | { kind: 'background'; x: number; y: number };
+
+const MENU_ITEM =
+  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none';
 
 const SpacesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -205,6 +205,8 @@ const SpacesPage: React.FC = () => {
   const itemsRegionRef = useRef<HTMLDivElement>(null);
   // Élément à refocaliser à la fermeture de l'aperçu.
   const previewReturnFocusRef = useRef<HTMLElement | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuReturnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -359,8 +361,13 @@ const SpacesPage: React.FC = () => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setContextMenu(null);
+        // Échap rend le focus à l'élément qui a ouvert le menu.
+        const back = menuReturnFocusRef.current;
+        if (back?.isConnected) back.focus({ preventScroll: true });
       }
     };
+    // Le menu ouvert au clavier prend le focus sur sa première entrée.
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
 
     window.addEventListener('click', closeMenu);
     window.addEventListener('keydown', closeOnEscape);
@@ -444,6 +451,23 @@ const SpacesPage: React.FC = () => {
   // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
   const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.defaultPrevented || isEditableTarget(event.target)) return;
+    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+      const target = event.target as HTMLElement;
+      const region = itemsRegionRef.current;
+      if (!region || !region.contains(target)) return;
+      // Même chemin que la souris : on rejoue un événement « contextmenu » à l'emplacement de l'élément.
+      const rect = target.getBoundingClientRect();
+      event.preventDefault();
+      target.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect.left + Math.min(rect.width / 2, 48),
+          clientY: rect.top + rect.height / 2,
+        })
+      );
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f') {
       const search = window.document.querySelector<HTMLInputElement>('[data-global-search]');
       if (search) {
@@ -492,12 +516,39 @@ const SpacesPage: React.FC = () => {
     setContextMenu(null);
   };
 
+  const rememberMenuOpener = () => {
+    menuReturnFocusRef.current = window.document.activeElement as HTMLElement | null;
+  };
+
+  const handleFolderContextMenu = (event: React.MouseEvent, unitId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    rememberMenuOpener();
+    setContextMenu({
+      kind: 'folder',
+      x: event.clientX,
+      y: event.clientY,
+      unitId,
+      path: buildBreadcrumbSegments(unitId, unitsById).map((s) => s.name).join(' / '),
+    });
+  };
+
+  // Fond de la carte : les éléments arrêtent la propagation, seul le vide arrive ici.
+  // Hors de l'explorateur, le menu du navigateur reste disponible.
+  const handleBackgroundContextMenu = (event: React.MouseEvent) => {
+    if (isEditableTarget(event.target)) return;
+    event.preventDefault();
+    rememberMenuOpener();
+    setContextMenu({ kind: 'background', x: event.clientX, y: event.clientY });
+  };
+
   const handleDocumentContextMenu = (
     event: React.MouseEvent,
     document: Document
   ) => {
     event.preventDefault();
     event.stopPropagation();
+    rememberMenuOpener();
     setContextMenu({
       kind: 'document',
       x: event.clientX,
@@ -764,6 +815,7 @@ const SpacesPage: React.FC = () => {
               ref={itemsRegionRef}
               tabIndex={-1}
               aria-label="Contenu du dossier"
+              onContextMenu={handleBackgroundContextMenu}
               className="min-h-[560px] px-8 py-8 outline-none"
             >
               {childUnits.length > 0 && !isSearchMode && (
@@ -785,6 +837,7 @@ const SpacesPage: React.FC = () => {
                             type="button"
                             onClick={() => openFolder(child.id)}
                             onDoubleClick={() => openFolder(child.id)}
+                            onContextMenu={(event) => handleFolderContextMenu(event, child.id)}
                             data-explorer-item
                             className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50 ${EXPLORER_ITEM_FOCUS}`}
                           >
@@ -1052,42 +1105,76 @@ const SpacesPage: React.FC = () => {
 
       {contextMenu && (
         <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Actions"
           className="fixed z-50 min-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            const entries = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+            const at = entries.indexOf(window.document.activeElement as HTMLElement);
+            event.preventDefault();
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            entries[(at + step + entries.length) % entries.length]?.focus();
+          }}
           onContextMenu={(event) => {
             event.preventDefault();
             event.stopPropagation();
           }}
         >
-          <button
-                type="button"
-                onClick={() => openPreview(contextMenu.document)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-              >
+          {contextMenu.kind === 'document' && (
+            <>
+              <button type="button" role="menuitem" onClick={() => openPreview(contextMenu.document)} className={MENU_ITEM}>
                 <span className="material-symbols-outlined text-base text-slate-400">preview</span>
                 Ouvrir
               </button>
               {(!contextMenu.document.classification_status
                 || contextMenu.document.classification_status === 'pending'
                 || contextMenu.document.classification_status === 'needs_review') && (
-                <button
-                  type="button"
-                  onClick={() => openClassification(contextMenu.document)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                >
+                <button type="button" role="menuitem" onClick={() => openClassification(contextMenu.document)} className={MENU_ITEM}>
                   <span className="material-symbols-outlined text-base text-slate-400">rule</span>
                   Classer
                 </button>
               )}
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => handleCopyPath(contextMenu.document.logical_space_path || '')}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                className={MENU_ITEM}
               >
                 <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
               </button>
+            </>
+          )}
+          {contextMenu.kind === 'folder' && (
+            <>
+              <button type="button" role="menuitem" onClick={() => openFolder(contextMenu.unitId)} className={MENU_ITEM}>
+                <span className="material-symbols-outlined text-base text-slate-400">folder_open</span>
+                Ouvrir
+              </button>
+              <button type="button" role="menuitem" onClick={() => handleCopyPath(contextMenu.path)} className={MENU_ITEM}>
+                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                Copier le chemin
+              </button>
+            </>
+          )}
+          {contextMenu.kind === 'background' && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setContextMenu(null);
+                loadDocuments();
+              }}
+              className={MENU_ITEM}
+            >
+              <span className="material-symbols-outlined text-base text-slate-400">refresh</span>
+              Actualiser
+            </button>
+          )}
         </div>
       )}
 
