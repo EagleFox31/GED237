@@ -21,7 +21,7 @@
       "gates": ["workflow-lint"]
     },
     "backend": {
-      "paths": ["backend/**", "backend/**/.*"],
+      "paths": ["backend/**", "backend/**/.*", "docker-compose.yml"],
       "gates": ["backend", "sast", "e2e"],
       "dependsOn": ["ci-platform"]
     },
