@@ -4,6 +4,7 @@ import { Icons } from '../constants';
 import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, formatFileSize } from '../types';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { ConfirmationModal } from './ui/ConfirmationModal';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -23,6 +24,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
   const [archiving, setArchiving] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'workflow' | 'history'>('info');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [stepsLoading, setStepsLoading] = useState(false);
@@ -112,7 +114,6 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   };
 
   const handleArchive = async () => {
-    if (!window.confirm('Archiver ce document ? Il ne pourra plus être effacé de la corbeille.')) return;
     setActionError(null);
     setArchiving(true);
     try {
@@ -411,7 +412,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
           {canArchive && (
             <button
               type="button"
-              onClick={handleArchive}
+              onClick={() => setConfirmArchive(true)}
               disabled={archiving}
               title="Le document archivé est protégé contre l'effacement."
               className="px-6 py-3 text-sm font-bold text-white bg-slate-700 hover:bg-slate-800 disabled:opacity-60 rounded-2xl transition-all flex items-center gap-2"
@@ -423,6 +424,18 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
           <button type="button" onClick={onClose} className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-all">Fermer</button>
         </div>
       </div>
+      <ConfirmationModal
+        open={confirmArchive}
+        title="Archiver ce document ?"
+        message="Il ne pourra plus être effacé de la corbeille."
+        icon="inventory_2"
+        confirmLabel="Oui, archiver"
+        onConfirm={() => {
+          setConfirmArchive(false);
+          handleArchive();
+        }}
+        onCancel={() => setConfirmArchive(false)}
+      />
     </div>
   );
 };

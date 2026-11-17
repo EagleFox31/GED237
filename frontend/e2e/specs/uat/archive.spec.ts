@@ -33,8 +33,8 @@ test.describe('Archivage', () => {
     await loginAs('tenant_admin');
     await openDocument(page, runId, title);
     const archive = page.getByRole('button', { name: 'Archiver', exact: true });
-    page.once('dialog', (dialog) => dialog.accept());
     await archive.click();
+    await page.getByRole('button', { name: 'Oui, archiver', exact: true }).click();
 
     // Pendant la requête le bouton affiche « Archivage… » : on attend l'état serveur, pas sa disparition.
     await expect.poll(async () => (await adminApi.document(doc.id)).status).toBe('archived');
