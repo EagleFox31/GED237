@@ -12,17 +12,23 @@ FPR=7776361468B5DF0CFF903723A00188980F856DF1
 
 ## 1. Fusion de #121 (version du frontend)
 
+- [ ] **#121 est la dernière fusion avant le tag** (décision O du 17/11) : les notes de version (#104 et la PR des notes) et toute PR de documentation sont fusionnées avant elle ; aucune fusion après elle. Seuls restent ouverts les brouillons `post-rc1` et les PR reportées après le tag : `gh pr list --state open --json number,isDraft,title`.
 - [ ] `gh pr view 121 --json state,mergeStateStatus,headRefOid` : OPEN, et pas BEHIND (sinon, la file la met à jour).
 - [ ] Fusionner #121 via la file.
 - [ ] `git fetch -q origin main && git show origin/main:frontend/package.json | grep '"version"'` affiche `"version": "1.0.0-rc.1"`.
 
 ## 2. SHA de main, vert
 
+Raccourci : `bash scripts/tag_preflight.sh $TAG` enchaîne les contrôles de ce paragraphe et celui de la présence des notes (§ 3), en lecture seule, avec une ligne `OK` ou `KO` par contrôle et un arrêt au premier `KO`. La dernière ligne `PRÊT : … peut être posé sur <SHA>` donne le SHA à noter. Les cases ci-dessous restent la référence en cas de `KO`.
+
+- [ ] Le SHA de tête de main est celui de la fusion de #121 : `gh pr view 121 --json mergeCommit -q .mergeCommit.oid` est égal à `git rev-parse origin/main`. Raison : la CI ne construit le frontend que si la fusion le touche ; après une fusion de documentation seule, `Frontend / Build` et l'artefact `frontend-build` n'existent pas sur le SHA, et le garde-fou « interface sans Internet » ne peut pas être rejoué (constat du 17/11 sur 3db30d5). Si une fusion est passée après #121 : **Stop**, prévenir O.
 - [ ] `SHA=$(git rev-parse origin/main) && echo $SHA`. Noter le SHA ici : `________`.
 - [ ] Aucun run en échec ni en cours sur ce SHA :
   `gh run list -c $SHA --json workflowName,status,conclusion -q '.[]|"\(.workflowName) \(.status) \(.conclusion)"'`
   Attendu : toutes les lignes en `completed success` (ou `skipped`), au minimum CI et Security.
-- [ ] Le dernier run `E2E UAT nightly` sur main est vert (`gh run list -w e2e-uat-nightly.yml -b main -L 1`). Sinon, le lancer : `gh workflow run e2e-uat-nightly.yml --ref main`.
+- [ ] Relancer la recette nocturne sur le SHA final, avant les contrôles suivants : `gh workflow run e2e-uat-nightly.yml --ref main`, puis `gh run watch $(gh run list -w e2e-uat-nightly.yml -b main -L 1 --json databaseId -q '.[0].databaseId') --exit-status`.
+- [ ] Le dernier run `E2E UAT nightly` sur main est vert et porte ce SHA :
+  `gh run list -w e2e-uat-nightly.yml -b main -L 1 --json status,conclusion,headSha -q '.[0]|"\(.status) \(.conclusion) \(.headSha)"'` affiche `completed success $SHA`. Un run vert sur un SHA antérieur ne suffit pas pour le tag.
 - [ ] Le tag n'existe pas encore : `git ls-remote --tags origin $TAG` ne renvoie rien.
 - [ ] Le garde-fou « interface sans Internet » (#146) est passé sur ce SHA : le job `Frontend CI / Build` est vert. Contrôle direct, sans Docker, sur le dist de ce SHA :
   `gh run download $(gh run list -c $SHA -w ci.yml --json databaseId -q '.[0].databaseId') -n frontend-build -D /tmp/fb/dist && bash scripts/check_offline_frontend.sh /tmp/fb` (à lancer depuis un clone au SHA) affiche `OK : aucune URL externe`. Sinon : **Stop**, l'interface dépend d'Internet (salle de démonstration sans réseau).

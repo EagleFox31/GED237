@@ -556,3 +556,45 @@ première requête utilisateur.
 **Résolution** — Maquette complète (forme de `TenantMetrics`, `[]` pour les listes), profil adapté à l'écran, puis comparaison refaite : tuiles et sélecteur identiques. Seuls login et règles du premier passage étaient réellement rendus.
 **Prévention** — Avant toute capture ou comparaison de styles : (1) asserter un sélecteur métier de l'écran visé (titre ou tuile visible) ; (2) asserter l'absence de l'écran d'erreur (texte « Une erreur est survenue ») ; (3) faire échouer le script sinon ; (4) bâtir la maquette depuis le type du contrat (`types.ts`), pas depuis `{}`. Le script de capture n'est pas versionné : la règle vaut pour tout script futur sous `e2e/` ou `scripts/`.
 **Leçon généralisée** — Une comparaison « sans différence » ne prouve rien tant qu'on n'a pas prouvé que ce qui est comparé est bien l'objet visé.
+
+### LESSON-2026-036 — Specs unitaires purs rattachés à un projet e2e dépendant d'une pile : jamais exécutés en CI
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / ci
+- **Statut :** prevention-added (PR #143)
+- **Liens :** PR #97 (`safe-path.spec.ts`), PR #140 (`account-key.spec.ts`), PR #143, `frontend/playwright.config.ts` (projet `chromium` → `setup`), `frontend/playwright.unit.config.ts`, `.github/workflows/frontend.yml`
+
+**Contexte** — Les specs purs (aucun navigateur, aucune API) tournaient sous `@playwright/test`, dans le projet `chromium`, qui dépend de `setup` (connexion sur une pile réelle). La CI ne lance que `--project=smoke`.
+**Échec / near miss** — Un cas de `safe-path.spec.ts` était rouge depuis #97 sans que personne le voie : `'/\evil.example'` vaut `/evil.example` en JS, donc il testait une URL sûre. Découvert le 2026-11-17 en lançant ces specs à la main pour #140.
+**Cause racine** — Même schéma que LESSON-2026-034 : un ensemble de tests sans déclencheur. Le rattachement à un projet qui exige une pile rendait leur exécution coûteuse, donc jamais faite.
+**Résolution** — #143 : `playwright.unit.config.ts` (sans pile ni `webServer`), `npm run test:unit` lancé dans le job Frontend Lint & Typecheck ; cas antislash corrigé (`'/\evil.example'`). 12/12 verts.
+**Prévention** — Un spec pur s'ajoute au `testMatch` de `playwright.unit.config.ts` (commentaire dans le fichier) ; contrôle en relecture : `git grep -L "page\|request" frontend/e2e/specs/*.spec.ts` doit renvoyer seulement des fichiers listés dans ce motif.
+**Leçon généralisée** — Un test unitaire ne doit pas dépendre de l'infrastructure d'un test d'intégration : sinon il en hérite le coût et sort de la CI.
+
+### LESSON-2026-037 — Commande git lancée dans le checkout partagé après un `cd` raté : passations non commitées mises de côté
+
+- **Date :** 2026-11-17
+- **Catégorie :** process / tooling
+- **Statut :** rule-added
+- **Liens :** checkout partagé `GED237` (branche `main`), worktrees `GED237-prc*`, `PASSATION*.md`
+
+**Contexte** — Chaque session travaille dans son worktree ; le checkout partagé `GED237` porte les passations non commitées de toutes les sessions. Une seule commande Bash enchaînait `cd <worktree>; git fetch …; git merge …`.
+**Échec / near miss** — Le chemin du worktree était faux : `cd` a échoué, mais `;` a laissé s'exécuter le reste dans le répertoire de départ. `git merge` a tourné sur `main` du checkout partagé, a mis de côté les modifications locales (autostash), puis s'est arrêté (« Index was not unstashed »). Les cinq `PASSATION*.md` sont revenues à l'état de `HEAD` pendant environ 7 minutes.
+**Cause racine** — Enchaînement par `;` après un `cd` : un échec de navigation ne coupe pas la suite. Le répertoire de départ par défaut est justement le checkout partagé.
+**Résolution** — L'autostash a été retrouvé (`git fsck --no-reflog`, commit « WIP on main »). Chaque fichier a été rétabli dans l'état de l'autostash, puis les entrées ajoutées entre-temps par les autres sessions y ont été remises. Contrôle : uniquement des ajouts par rapport à `HEAD`, et `HEAD` inchangé. Une deuxième session a vérifié.
+**Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
+**Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
+
+### LESSON-2026-040 — Entrée du menu admin sans page : « Recherche » ouvrait la page introuvable
+
+- **Date :** 2026-11-17
+- **Catégorie :** frontend / testing
+- **Statut :** prevention-added
+- **Liens :** `frontend/profiles/tenant-admin/menuConfig.ts`, `frontend/App.tsx` (`TAB_TO_ROUTE`, repli `/${tab}`, `NotFoundPage`), `frontend/e2e/specs/route-guard.spec.ts` (GUARD-07)
+
+**Contexte** — Le menu admin est déclaré dans `menuConfig.ts` par identifiants d'onglet. `App.tsx` traduit l'identifiant en route via `TAB_TO_ROUTE`, et à défaut navigue vers `/${tab}`.
+**Échec / near miss** — L'entrée « Recherche » (`search_config`) n'avait ni route ni page : `/search_config` affichait « Espace en Travaux ». Signalé pendant la recette rc.1.
+**Cause racine** — Le menu et les routes sont deux listes séparées, sans contrôle qui les relie. Le repli `/${tab}` masque l'absence de correspondance au lieu de la signaler.
+**Résolution** — Entrée retirée : aucune page de recherche n'existe. La recherche plein texte passe par le bandeau, et le filtre par l'Explorateur documentaire. Ensuite, la version durcie de GUARD-07 a trouvé un 2e lien mort, « Accès & Permissions » (`security_config`). La 1re version l'avait laissé passer. L'entrée est retirée elle aussi : `/authz` est réservé au super admin, et les rôles et permissions sont gérés dans « Agents & Rôles ».
+**Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
+**Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
