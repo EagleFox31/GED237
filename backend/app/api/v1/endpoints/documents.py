@@ -219,6 +219,18 @@ def _role_code(user: User) -> str:
     return (getattr(user.role, "code", "") or "").lower()
 
 
+def visible_document_scope(user: User) -> list:
+    """Filters added to the tenant filter so that counters only cover what
+    GET /documents lists: whole tenant for administration roles and the auditor,
+    own unit for manager and reader, own documents otherwise."""
+    role_code = _role_code(user)
+    if role_code in TENANT_WIDE_READ_ROLES:
+        return []
+    if role_code in ORG_UNIT_READ_ROLES and user.org_unit_id:
+        return [Document.org_unit_id == user.org_unit_id]
+    return [Document.owner_id == user.id]
+
+
 def _require_org_unit(user: User) -> UUID:
     if not user.org_unit_id:
         raise HTTPException(
@@ -526,15 +538,17 @@ async def get_document_stats(
     """
     Compteurs de documents pour un tenant (total + par statut).
     super_admin peut passer ?tenant_id= pour cibler un tenant.
-    Aucun contenu de document n est expose.
+    Aucun contenu de document n est expose ; chacun ne compte que ce qu il peut lister.
     """
     is_super = await can_perform(current_user, "tenants", "manage")
     effective_tenant = tenant_id if (is_super and tenant_id) else current_user.tenant_id
+    scope = visible_document_scope(current_user)
 
     total_result = await db.execute(
         select(func.count(Document.id)).where(
             Document.tenant_id == effective_tenant,
             Document.deleted_at.is_(None),
+            *scope,
         )
     )
     total = total_result.scalar_one()
@@ -544,6 +558,7 @@ async def get_document_stats(
         .where(
             Document.tenant_id == effective_tenant,
             Document.deleted_at.is_(None),
+            *scope,
         )
         .group_by(Document.status)
     )
@@ -553,6 +568,7 @@ async def get_document_stats(
         select(func.count(Document.id)).where(
             Document.tenant_id == effective_tenant,
             Document.deleted_at.is_not(None),
+            *scope,
         )
     )
     trashed = trash_result.scalar_one()

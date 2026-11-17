@@ -78,15 +78,43 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   // la valeur est portée par l'URL (?q=...) → pas de duplication de state.
   const urlQuery = searchParams.get('q') || '';
   const [globalQuery, setGlobalQuery] = useState('');
-  const searchQuery = isPageLocalSearch ? urlQuery : globalQuery;
+  // Mode "page-local" : le champ affiche une saisie locale, poussée vers l'URL.
+  // La mise à jour de l'URL est différée par le routeur : lier le champ directement
+  // à l'URL faisait perdre les touches frappées avant le rendu suivant (#163).
+  const [pageDraft, setPageDraft] = useState(urlQuery);
+  const pendingUrlQueryRef = useRef<string | null>(null);
+  const lastPathRef = useRef(location.pathname);
+  useEffect(() => {
+    const pathChanged = lastPathRef.current !== location.pathname;
+    lastPathRef.current = location.pathname;
+    const pending = pendingUrlQueryRef.current;
+    // Changement venu d'ailleurs (lien, navigation, retour) : l'URL fait foi.
+    if (pathChanged || pending === null) {
+      pendingUrlQueryRef.current = null;
+      setPageDraft(urlQuery);
+    } else if (urlQuery === pending) {
+      // L'URL a rattrapé la saisie ; les valeurs intermédiaires sont ignorées.
+      pendingUrlQueryRef.current = null;
+    }
+  }, [urlQuery, location.pathname]);
+  const searchQuery = isPageLocalSearch ? pageDraft : globalQuery;
   const setSearchQuery = (next: string) => {
     if (isPageLocalSearch) {
+      setPageDraft(next);
+      // Valeur déjà dans l'URL (lettre tapée puis effacée avant le rendu) : l'URL ne
+      // changera pas et l'effet ne repassera pas ; rien n'est donc en attente.
+      pendingUrlQueryRef.current = next === urlQuery ? null : next;
       // `replace: true` pour ne pas polluer l'historique du navigateur à
       // chaque frappe — on garde une seule entrée pour la session de filtrage.
-      const nextParams = new URLSearchParams(searchParams);
-      if (next) nextParams.set('q', next);
-      else nextParams.delete('q');
-      setSearchParams(nextParams, { replace: true });
+      setSearchParams(
+        (current) => {
+          const nextParams = new URLSearchParams(current);
+          if (next) nextParams.set('q', next);
+          else nextParams.delete('q');
+          return nextParams;
+        },
+        { replace: true }
+      );
     } else {
       setGlobalQuery(next);
     }

@@ -91,6 +91,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
           { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
           { id: 'trash', label: 'Corbeille', icon: 'delete' },
+          // Manager : rapports de son service (le serveur limite les données au service).
+          ...(userProfile?.id === 'manager'
+            ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
+            : []),
         ].map(item => (
           <button
             key={item.id}

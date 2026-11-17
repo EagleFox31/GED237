@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.api.v1.endpoints.documents import visible_document_scope
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
@@ -52,11 +53,13 @@ async def get_workflow_stats(
     """
     Compteur de workflow steps actifs (current + pending) pour un tenant.
     - super_admin : peut passer ?tenant_id= pour cibler un tenant.
-    - autres roles : scope au tenant courant.
+    - autres roles : scope au tenant courant, limite aux documents qu'ils peuvent
+      lister (unite pour manager et lecteur).
     """
     await authorize_or_403(current_user, "workflows", "read")
     is_super = await can_perform(current_user, "tenants", "manage")
     effective_tenant = tenant_id if (is_super and tenant_id) else current_user.tenant_id
+    scope = visible_document_scope(current_user)
 
     count_result = await db.execute(
         select(func.count(WorkflowStep.id))
@@ -64,6 +67,7 @@ async def get_workflow_stats(
         .where(
             Document.tenant_id == effective_tenant,
             WorkflowStep.status.in_(["current", "pending"]),
+            *scope,
         )
     )
     active_steps = count_result.scalar_one()
@@ -74,6 +78,7 @@ async def get_workflow_stats(
         .where(
             Document.tenant_id == effective_tenant,
             WorkflowStep.status == "completed",
+            *scope,
         )
     )
     completed_steps = completed_result.scalar_one()
