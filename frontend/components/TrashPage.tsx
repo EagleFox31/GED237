@@ -35,7 +35,7 @@ const TrashPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void load();
+    load();
   }, [load]);
 
   const removeLocally = (id: string) => {
@@ -74,6 +74,7 @@ const TrashPage: React.FC = () => {
       run: async () => {
         // Le serveur purge par lots : on rappelle tant qu'il en reste.
         for (let guard = 0; guard < 100; guard += 1) {
+          // eslint-disable-next-line no-await-in-loop -- en série : chaque appel dépend du `remaining` du précédent.
           const { remaining } = await api.emptyTrash();
           if (remaining === 0) break;
         }
@@ -139,7 +140,7 @@ const TrashPage: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => void restore(doc)}
+                onClick={() => restore(doc)}
                 disabled={busy}
                 aria-label={`Restaurer ${doc.title}`}
                 title="Restaurer"
@@ -168,7 +169,7 @@ const TrashPage: React.FC = () => {
         <div className="mt-4 text-center">
           <button
             type="button"
-            onClick={() => void load(true, items.length)}
+            onClick={() => load(true, items.length)}
             disabled={loading}
             className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-50"
           >
@@ -193,7 +194,7 @@ const TrashPage: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => void runConfirm()}
+                onClick={() => runConfirm()}
                 className="flex-1 rounded-2xl bg-red-600 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-red-700"
               >
                 {confirm.label}

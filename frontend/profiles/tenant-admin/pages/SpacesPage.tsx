@@ -493,7 +493,7 @@ const SpacesPage: React.FC = () => {
       const doc = documents.find((d) => d.id === id);
       if (doc) {
         event.preventDefault();
-        void handleTrash(doc);
+        handleTrash(doc);
       }
       return;
     }
@@ -587,10 +587,10 @@ const SpacesPage: React.FC = () => {
     } catch {
       return; /* message déjà affiché par le bus global */
     }
-    void loadDocumentsRef.current();
+    loadDocumentsRef.current();
     undo.propose(`« ${doc.title} » mis à la corbeille`, async () => {
       await api.restoreDocument(doc.id);
-      void loadDocumentsRef.current();
+      loadDocumentsRef.current();
     });
   };
 
@@ -606,14 +606,14 @@ const SpacesPage: React.FC = () => {
     } catch {
       return; /* bus global */
     }
-    void loadDocumentsRef.current();
+    loadDocumentsRef.current();
     const message = `« ${doc.title} » déplacé vers ${unitsById.get(unitId)?.name ?? 'le dossier'}`;
     undo.propose(
       message,
       canUndoMove(before, patch)
         ? async () => {
             await api.updateDocument(doc.id, restorePlacementPatch(before));
-            void loadDocumentsRef.current();
+            loadDocumentsRef.current();
           }
         : undefined
     );
@@ -637,7 +637,7 @@ const SpacesPage: React.FC = () => {
       setDropTargetId(null);
       if (!documentId) return;
       event.preventDefault();
-      void handleMoveToUnit(documentId, unitId);
+      handleMoveToUnit(documentId, unitId);
     },
   });
 
@@ -1194,7 +1194,7 @@ const SpacesPage: React.FC = () => {
         </div>
       )}
 
-      <UndoToast offer={undo.offer} onUndo={() => void undo.runUndo()} onDismiss={undo.dismiss} />
+      <UndoToast offer={undo.offer} onUndo={() => undo.runUndo()} onDismiss={undo.dismiss} />
 
       {contextMenu && (
         <div
@@ -1243,7 +1243,7 @@ const SpacesPage: React.FC = () => {
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => void handleTrash(contextMenu.document)}
+                onClick={() => handleTrash(contextMenu.document)}
                 className={MENU_ITEM}
               >
                 <span className="material-symbols-outlined text-base text-slate-400">delete</span>
