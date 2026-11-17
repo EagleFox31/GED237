@@ -58,19 +58,19 @@ Le serveur décide. L'écran affiche une action seulement si `GET /authz/me/perm
 
 **404 de #263** : on n'écrit jamais « vous n'avez pas accès ». Un document hors périmètre et un document déjà effacé donnent le même message.
 
-## Périmètre : point à régler avec B
+## Périmètre
 
 Sur #152, la liste de la corbeille se borne par rôle :
 - rôles à lecture d'institution : toute l'institution ;
 - rôles d'unité : leur service seul ;
 - les autres : leurs propres documents.
 
-Elle ne suit pas encore le périmètre de #203 (service et sous-services, réponse 5 du PO). **Critère** : après #203, un agent ne voit dans la corbeille que des documents qu'il pouvait voir avant leur suppression. Si #181 fusionne avant #203, l'écart est noté dans les limites de la V1.1.
+Elle ne suit pas encore le périmètre de #203 (service et sous-services, réponse 5 du PO). **Réglé par #203** (confirmé par B le 17/11) : `/documents/trash` y reprend `visible_document_scope`, la règle de la liste, et `test_unit_admin_read_scope.py` couvre la corbeille. **Critère** : après #203, un agent ne voit dans la corbeille que des documents qu'il pouvait voir avant leur suppression (la suppression ne change ni le service ni le propriétaire). Si #181 fusionne avant #203, l'écart est noté dans les limites de la V1.1.
 
 ## Écarts avec #181, à faire par F
 
 1. Bouton **Annuler** pendant 5 s après « Mettre à la corbeille ». Si F juge ce point trop coûteux, il le dit, et on le sort en V1.2.
-2. La ligne de corbeille affiche la date de suppression et la personne qui a supprimé. **Vérifié sur #152 : `DocumentRead` n'expose ni `deleted_at` ni `deleted_by`.** B les ajoute, avec le nom de la personne (≈ 0,25 h-s, `Déduit`). Sans eux, la ligne n'affiche que le titre et le service, et la liste reste triée par date de suppression côté serveur.
+2. La ligne de corbeille affiche la date de suppression et la personne qui a supprimé. **Vérifié sur #152 : `DocumentRead` n'expose ni `deleted_at` ni `deleted_by`.** Les champs existent dans le modèle : B les expose, avec `deleted_by_name` (0,25 h-s confirmé par B, 0,15 s'il le fait avec les champs de #274). Sans eux, la ligne n'affiche que le titre et le service, et la liste reste triée par date de suppression côté serveur.
 3. Le 404 sur `restore` et `purge` retire la ligne, avec le message ci-dessus.
 4. Le message de fin de « Vider » distingue les documents protégés.
 

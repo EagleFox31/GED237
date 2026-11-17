@@ -94,13 +94,23 @@ Un bloc **Texte reconnu** dans l'onglet « Détails & Aperçu », sous l'aperçu
 
 | `ocr_status` | Affichage |
 |---|---|
-| `completed` | Le texte, dans une zone défilante, avec un bouton **Copier** (message « Texte copié. »). Si `ocr_confidence` est présent et inférieur à 60 %, une ligne d'aide : « Lecture incertaine : vérifiez sur l'original. » Le seuil de 60 % est `Déduit` : à confirmer par B. |
+| `completed` | Le texte, dans une zone défilante, avec un bouton **Copier** (message « Texte copié. »). Ligne « Lecture incertaine » si `low_confidence` vaut `true` (voir plus bas). |
 | `processing` | « Lecture du texte en cours. Revenez dans quelques minutes. » |
 | `not_processed` | « Pas de texte reconnu pour ce type de fichier. » |
 | `completed` avec un texte vide | « Aucun texte lisible n'a été trouvé dans ce fichier. » |
-| `failed` (ajouté par B en V1.1, demande de O du 17/11) | « Le texte n'a pas pu être lu. Le document reste consultable. » |
+| `failed` (ajouté par B en V1.1, avec `ocr_error`) | Message selon la raison, voir le tableau suivant. Le document reste consultable dans tous les cas. |
 
-**État d'échec** : aujourd'hui, le serveur renvoie `processing` pour toute image ou tout PDF sans texte, même quand la lecture a échoué. B ajoute un vrai état `failed` en V1.1. **Filet, seulement si `failed` n'est pas livré à temps** : au-delà de 24 h après le dépôt, l'écran traite `processing` comme `failed`. Le filet disparaît dès que B livre `failed`.
+| `ocr_error` (codes à confirmer par B) | Message affiché |
+|---|---|
+| fichier introuvable (`file_not_found`) | « Le texte n'a pas pu être lu : le fichier est introuvable. Prévenez votre administrateur. » |
+| format non pris en charge (`unsupported_format`) | « Ce type de fichier ne permet pas de lire le texte. » |
+| aucun texte lu (`no_text`) | « Aucun texte lisible n'a été trouvé dans ce fichier. » |
+| erreur du moteur (`engine_error`) | « La lecture du texte a échoué. Réessayez plus tard ou prévenez votre administrateur. » |
+| raison absente ou inconnue | « Le texte n'a pas pu être lu. » |
+
+**Lecture incertaine** : B ajoute le booléen `low_confidence` à `GET /{id}/ocr` (seuil de 0,7, fixé côté serveur). L'écran ne code aucun seuil : il affiche la ligne « Lecture incertaine : vérifiez sur l'original. » quand `low_confidence` vaut `true`.
+
+**État d'échec** : B ajoute `failed` et `ocr_error` en V1.1 (≈ 1 h-s, sans migration ; décision de O du 17/11). **Repli à 24 h, seulement pour les anciens documents** restés en `processing` avant ce changement : au-delà de 24 h après le dépôt, l'écran les traite comme `failed` sans raison.
 
 ### Critères d'acceptation
 

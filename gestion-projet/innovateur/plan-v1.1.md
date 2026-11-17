@@ -132,3 +132,8 @@ B et F tiennent sans peine du 24/11 au 04/12. **Q reste le goulot** : 24,25 h-s 
 Avec 1 et 2, Q tombe à ≈ 21,25 h-s, et le 04/12 retrouve une marge d'environ 0,75 h-s.
 
 **Décision de O sur #274 (17/11 au soir)** : B ajoute les champs de verrou à `DocumentRead`, pour 0,5 h-s. F ne fait que l'écran, et son chiffre pour #274 passe de 2 à 1,5. Les totaux deviennent B 21,75 et F 16,25. Q et le total ne changent pas, le verdict non plus. O pose au PO les deux choix : la sortie 3, et la question 13 a) en V1.2.
+
+**Mise à jour du 17/11, 22 h** (O) :
+- B ajoute l'état OCR `failed` avec `ocr_error`, plus `low_confidence` (#276, ≈ 1 h-s).
+- B expose aussi `deleted_at`, `deleted_by` et le nom de la personne pour la corbeille (#181, 0,25 h-s, ou 0,15 avec #274).
+- B passe à **22,75 h-s**, chiffre fixé par O. Q ne change pas, le verdict non plus.
