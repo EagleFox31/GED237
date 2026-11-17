@@ -612,3 +612,17 @@ première requête utilisateur.
 **Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
 **Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
 **Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-047 — Script d'exploitation testé seulement par import : il plantait une fois lancé comme fichier
+
+- **Date :** 2026-11-17
+- **Catégorie :** ops / déploiement
+- **Statut :** prevention-added
+- **Liens :** `backend/scripts/bootstrap_authz_sql.py`, `docker-compose.yml` (service `migrate`), `backend/tests/api/test_authz_sql_sync.py`
+
+**Contexte** — Lot 13 (V1.1) : le service `migrate` doit remplir la table des droits après `alembic upgrade head`, avec `python scripts/bootstrap_authz_sql.py`.
+**Échec / near miss** — Premier essai de la commande `migrate` sur une base jetable : `ModuleNotFoundError: No module named 'app'`. Avec la compose V1.1, `migrate` aurait échoué et l'API ne serait jamais partie. Les tests étaient verts : ils importent les fonctions du script, ils ne le lancent pas.
+**Cause racine** — Lancé comme fichier, Python met `scripts/` dans `sys.path`, pas `backend/`. `seed_db.py` ajoute `backend/` lui-même ; `bootstrap_authz_sql.py` ne le faisait pas. Pytest ajoute `backend/` au chemin, ce qui masquait le défaut.
+**Résolution** — Le script ajoute `backend/` à `sys.path`, comme `seed_db.py`.
+**Prévention** — `test_the_bootstrap_script_runs_as_a_file` lance le script dans un sous-processus, sans `PYTHONPATH`. Ce test échoue sur l'ancienne version et passe avec le correctif. `test_a_right_removed_by_the_admin_stays_removed_when_migrate_replays` vérifie qu'un rejeu de `migrate` ne remet pas un droit retiré.
+**Leçon généralisée** — Un script appelé par la compose ou par la doc se teste par la même commande que celle de la compose, pas seulement par import. Avant de brancher une commande dans un service de démarrage, la lancer une fois dans l'image, sur une base jetable.

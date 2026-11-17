@@ -3,7 +3,10 @@ a SQL policy store that is already in use, without touching the rules changed
 through the admin API. A converged store gives zero writes."""
 
 import os
+import subprocess
+import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -244,3 +247,38 @@ async def test_an_api_write_keeps_a_rule_written_meanwhile_by_another_worker(
     # Every other row, the other worker's included, keeps its id and values.
     assert {i: after[i] for i in kept} == kept
     assert len(after) == len(before) + (1 if api_write == "add" else -1)
+
+
+@pytest.mark.asyncio
+async def test_a_right_removed_by_the_admin_stays_removed_when_migrate_replays(
+    sql_store,
+):
+    # migrate runs the plain bootstrap on every start (docker-compose.yml): it fills an
+    # empty store only, so a policy.csv right revoked through the API must not come back.
+    assert await bootstrap_sql_policies_from_csv() > 0
+    revoked = ["tenant_admin", "documents", "delete"]
+    assert await remove_sql_policy(revoked)
+    before = _state(sql_store)
+
+    assert await bootstrap_sql_policies_from_csv() == 0
+
+    assert _state(sql_store) == before
+    await reload_enforcer()
+    assert not await enforce_permission(*revoked)
+
+
+def test_the_bootstrap_script_runs_as_a_file():
+    # The migrate container runs `python scripts/bootstrap_authz_sql.py` from backend/,
+    # where `app` is not importable unless the script puts backend/ on sys.path.
+    backend = Path(__file__).resolve().parents[2]
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    result = subprocess.run(
+        [sys.executable, "scripts/bootstrap_authz_sql.py", "--help"],
+        cwd=backend,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--sync" in result.stdout
