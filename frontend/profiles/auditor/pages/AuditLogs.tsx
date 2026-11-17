@@ -273,7 +273,7 @@ const AuditLogs: React.FC = () => {
       cell: (log) => (
         <div>
           <p className="text-sm font-medium leading-relaxed text-slate-600">
-            {log.detail || 'Action tracee automatiquement par le systeme.'}
+            {log.detail || 'Action tracée automatiquement par le système.'}
           </p>
           {(log.ip_address || log.user_agent) && (
             <p className="mt-2 text-[11px] font-medium text-slate-400">
