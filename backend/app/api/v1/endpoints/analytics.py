@@ -13,9 +13,9 @@ from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
 from app.models.user import User
 from app.services.analytics.dashboard_facade import DashboardFacade
+from app.services.reports_scope import unit_subtree_ids
 
-# unit_admin keeps the institution figures for now (its dashboard calls this
-# route); narrowing it to its tree is a follow-up of #195.
+# Same figures for every role; unit_admin gets them for its unit tree only.
 TENANT_ANALYTICS_ROLES = TENANT_WIDE_READ_ROLES | UNIT_TREE_READ_ROLES
 
 router = APIRouter()
@@ -27,12 +27,17 @@ async def get_tenant_analytics(
     db: AsyncSession = Depends(get_db),
 ):
     """Métriques agrégées de toute l'institution : rôles d'administration et
-    auditeur. Le manager a /analytics/manager, limité à son unité."""
+    auditeur ; l'admin de service les reçoit pour son unité et ses sous-unités
+    (mêmes clés). Le manager a /analytics/manager, limité à son unité."""
     await authorize_or_403(current_user, "analytics.tenant", "read")
     if _role_code(current_user) not in TENANT_ANALYTICS_ROLES:
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
+    units = None
+    if _role_code(current_user) in UNIT_TREE_READ_ROLES:
+        # No unit: the subtree is empty, every figure is 0.
+        units = unit_subtree_ids(current_user.org_unit_id)
     facade = DashboardFacade(db)
-    return await facade.get_tenant_metrics(str(current_user.tenant_id))
+    return await facade.get_tenant_metrics(str(current_user.tenant_id), units=units)
 
 
 @router.get("/platform", response_model=Dict[str, Any])

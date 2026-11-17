@@ -78,14 +78,18 @@ async def test_institution_roles_keep_tenant_wide_counters(
     assert set(documents) == {"tenant_id", "total", "trashed", "by_status"}
     assert workflows.json()["active_workflow_steps"] == 6
     assert analytics.status_code == 200
+    institution = analytics.json()
+    assert (institution["documents"]["total"], institution["workflows"]["pending"]) == (
+        6,
+        6,
+    )
 
 
 @pytest.mark.asyncio
-async def test_unit_admin_counts_its_tree_and_keeps_tenant_analytics(
+async def test_unit_admin_counts_its_tree_in_every_counter(
     client_as, db_seed, other_unit
 ):
-    """#195: the other unit is beside the seeded one, not below it. The
-    institution figures stay open to unit_admin (its dashboard; follow-up)."""
+    """#195, #213: the other unit is beside the seeded one, not below it."""
     async with client_as(
         "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
     ) as client:
@@ -95,6 +99,11 @@ async def test_unit_admin_counts_its_tree_and_keeps_tenant_analytics(
     assert (documents["total"], documents["trashed"]) == (2, 1)
     assert workflows["active_workflow_steps"] == 3
     assert analytics.status_code == 200
+    tree = analytics.json()
+    # Same keys as the institution figures, counted in the unit tree.
+    assert (tree["documents"]["total"], tree["workflows"]["pending"]) == (3, 3)
+    assert tree["users"]["total"] == 1
+    assert tree["duplicates"]["refused"] == 0
 
 
 @pytest.mark.asyncio

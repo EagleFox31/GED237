@@ -1,6 +1,6 @@
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import Select, func, select
 
 from app.core.config import settings
 from app.models.user import User
@@ -23,12 +23,19 @@ class DashboardFacade:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_tenant_metrics(self, tenant_id: str) -> Dict[str, Any]:
+    async def get_tenant_metrics(
+        self, tenant_id: str, units: Optional[Select] = None
+    ) -> Dict[str, Any]:
         """
         Get KPIs for a specific tenant (ministry).
+
+        ``units``: ids of the units counted (``unit_subtree_ids``); None, the
+        whole institution. Same keys either way.
         """
         # 1. User Statistics
         stmt_users = select(func.count(User.id)).where(User.tenant_id == tenant_id)
+        if units is not None:
+            stmt_users = stmt_users.where(User.org_unit_id.in_(units))
         users_count = await self.db.scalar(stmt_users) or 0
 
         # 2. Document & Storage Statistics
@@ -36,6 +43,8 @@ class DashboardFacade:
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
         ).where(Document.tenant_id == tenant_id)
+        if units is not None:
+            stmt_docs = stmt_docs.where(Document.org_unit_id.in_(units))
 
         doc_res = (await self.db.execute(stmt_docs)).first()
         docs_count = doc_res.total_docs if doc_res else 0
@@ -61,30 +70,34 @@ class DashboardFacade:
             .join(Document, Document.id == WorkflowStep.document_id)
             .where(Document.tenant_id == tenant_id)
         )
+        if units is not None:
+            stmt_workflows = stmt_workflows.where(Document.org_unit_id.in_(units))
 
         wf_res = (await self.db.execute(stmt_workflows)).first()
 
         # 4. Duplicates refused since the origin: upload/new version (audited as dup_detected, 409 to the
         # user) and committed imports (ImportJob.duplicate_files, not audited: no double count).
-        refused_upload = (
-            await self.db.scalar(
-                select(func.count(AuditLog.id)).where(
-                    AuditLog.tenant_id == tenant_id,
-                    AuditLog.table_name == "documents",
-                    AuditLog.action == "dup_detected",
-                )
-            )
-            or 0
+        stmt_refused_upload = select(func.count(AuditLog.id)).where(
+            AuditLog.tenant_id == tenant_id,
+            AuditLog.table_name == "documents",
+            AuditLog.action == "dup_detected",
         )
-        refused_import = (
-            await self.db.scalar(
-                select(func.coalesce(func.sum(ImportJob.duplicate_files), 0)).where(
-                    ImportJob.tenant_id == tenant_id,
-                    ImportJob.status.in_(COMMITTED_IMPORT_STATUSES),
-                )
-            )
-            or 0
+        stmt_refused_import = select(
+            func.coalesce(func.sum(ImportJob.duplicate_files), 0)
+        ).where(
+            ImportJob.tenant_id == tenant_id,
+            ImportJob.status.in_(COMMITTED_IMPORT_STATUSES),
         )
+        if units is not None:
+            # Refused by a member of these units / imported into one of them.
+            stmt_refused_upload = stmt_refused_upload.where(
+                AuditLog.user_id.in_(select(User.id).where(User.org_unit_id.in_(units)))
+            )
+            stmt_refused_import = stmt_refused_import.where(
+                ImportJob.target_org_unit_id.in_(units)
+            )
+        refused_upload = await self.db.scalar(stmt_refused_upload) or 0
+        refused_import = await self.db.scalar(stmt_refused_import) or 0
 
         # 5. Storage format in MB for UI convenience
         storage_mb = round(storage_bytes / (1024 * 1024), 2)
