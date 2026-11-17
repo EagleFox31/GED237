@@ -206,11 +206,11 @@ Décision de O, prise selon la règle « aucun ajout sans une sortie équivalent
 | Partie | Où | Qui | Effort (h-s) | Ordre |
 |---|---|---|---|---|
 | Suppr met le document à la corbeille, jamais de suppression définitive | V1.1, PR #301 (+43 lignes, déjà écrite) | F | F 0,25 (rebasage, re-ciblage sur `main`) | après #152 et #181 ; #301 est empilée sur #181 |
-| F2 renomme le document | V1.1, PR à ouvrir | F | F 0,5 (`Déduit` : saisie dans l'arbre, `PATCH` du titre, messages 403 et verrou) | après #300 (audit du renommage) |
-| Glisser-déposer = reclassement par la boîte « Classer » | **V1.2** (#299, élément 18 de `plan-v1.2.md`) | F, Q | F 1, Q 0,5 | après #300 |
-| **#300** : audit du `PATCH` (`document_renamed`, `classification_updated`) | V1.1, PR #300 (+208 lignes) | B | B 0,5 (chiffre de O) | avant F2 ; sert aussi au glisser-déposer en V1.2 |
+| F2 renomme le document | V1.1, PR #302 (brouillon) | F | F 0,5 (`Déduit` : saisie dans l'arbre, `PATCH` du titre, messages 403 et verrou) | après #262 (`document_updated` trace aussi le titre) |
+| Glisser-déposer = reclassement par la boîte « Classer » | **V1.2** (#299, élément 18 de `plan-v1.2.md`) | F, Q | F 1, Q 0,5 | après #179 et #262 |
+| #300 : audit du `PATCH` | **fermée par B (18/11)** : doublon de #179 (reclassement) et de #262 (`document_updated`, titre compris) | B | 0 | — |
 
-Relecture de Q (`Déduit`) : #300, 0,25 (B écrit les tests) ; Suppr et F2, 0,25 en une seule passe sur l'explorateur. **Q + 0,5.**
+Relecture de Q (`Déduit`) : Suppr et F2, 0,25 en une seule passe sur l’explorateur. **Q + 0,25.**
 
 ### Rattachement des nouvelles PR
 
@@ -219,9 +219,9 @@ Relecture de Q (`Déduit`) : #300, 0,25 (B écrit les tests) ; Suppr et F2, 0,25
 - Lot 11 (périmètre) : #296 (message clair quand un lien de document est hors périmètre, suite de #263), dans les F 0,25 déjà comptés.
 - Lot 8b (écran des droits) : #294 (grille en lecture, audit des changements de droits).
 - Lot 13 (droits en base) : #235, puis #238, empilée sur #235.
-- #151 : #300 (B), #301 (F), puis la PR F2.
+- #151 : #301 (Suppr, F), puis #302 (F2, F), après #262. #300 est fermée (doublon de #179 et #262).
 
-Ces PR sont déjà comptées dans leurs lots, sauf #300, #301 et F2.
+Ces PR sont déjà comptées dans leurs lots, sauf #301 et #302.
 
 ### Règle « pas d'ajout sans sortie »
 
@@ -242,3 +242,14 @@ Ces PR sont déjà comptées dans leurs lots, sauf #300, #301 et F2.
 | **Total avec la sortie de #278** | **≈ 22,9** | **≈ 15,75** | **≈ 22,0** | **0,5** | **≈ 61,15** |
 
 B et F restent dans leur capacité. Avec la sortie de #278, Q revient à 22,0, sans marge avant la réserve.
+
+**Ajout du 18/11 (décision de O) : #300 fermée.** B ferme #300 : c'est un doublon de #179 (trace du reclassement) et de #262 (`document_updated`, qui trace aussi le titre). F2 est en PR #302 (brouillon) et passe après #262 ; Suppr reste en PR #301. Le glisser-déposer (V1.2) dépend désormais de #179 et #262.
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Avec la sortie de #278 (ci-dessus) | 22,9 | 15,75 | 22,0 | 0,5 | 61,15 |
+| #300 retirée | − 0,5 | — | − 0,25 | — | − 0,75 |
+| **Total V1.1** | **≈ 22,4** | **≈ 15,75** | **≈ 21,75** | **0,5** | **≈ 60,4** |
+
+- Q a ≈ 0,25 h-s devant lui avant d'atteindre 22.
+- **#278 reste en V1.2** : le faire revenir coûterait Q + 0,5, soit ≈ 22,25, au-dessus de 22.
