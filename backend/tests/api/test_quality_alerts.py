@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.models.document import Document
 from app.models.notification import Notification
 from app.models.quality_alert import QualityAlertEvent, QualityAlertRule
+from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.services.quality_alerts import EVENT_TYPE, evaluate_rules
@@ -40,7 +41,19 @@ async def _document(db_session, db_seed, **overrides) -> Document:
     return document
 
 
-async def _rule(db_session, db_seed, **overrides) -> QualityAlertRule:
+async def _owner_role(db_session, db_seed, role: str = "tenant_admin") -> None:
+    """The seeded user is a collaborator, who gets no report (#188): the owner
+    of a rule is an administrator unless a test says otherwise."""
+    await db_session.execute(
+        update(Role).where(Role.id == db_seed["role_id"]).values(code=role)
+    )
+    await db_session.commit()
+
+
+async def _rule(
+    db_session, db_seed, *, role="tenant_admin", **overrides
+) -> QualityAlertRule:
+    await _owner_role(db_session, db_seed, role)
     fields = dict(
         id=uuid.uuid4(),
         tenant_id=db_seed["tenant_id"],
@@ -184,6 +197,7 @@ async def test_create_list_and_stop_an_alert(
     admin_client, db_session, db_seed, monkeypatch
 ):
     monkeypatch.setattr(settings, "QUALITY_ALERTS_ENABLED", True)
+    await _owner_role(db_session, db_seed)  # admin_client acts as the seeded user
     await _document(db_session, db_seed, classification_year=None)
     created = await admin_client.post(
         ALERTS,
