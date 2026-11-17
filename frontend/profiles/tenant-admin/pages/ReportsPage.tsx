@@ -6,6 +6,8 @@ import { UI_TOOLTIPS } from '../../../content/uiTooltips';
 import { exportReportsRowsExcel, exportReportsSeriesCsv, generateReportsDocument } from './reports/reportsExport';
 import { ReportsDocumentPanel } from './reports/ReportsDocumentPanel';
 import { ReportsKpiGrid } from './reports/ReportsKpiGrid';
+import { OfficialReportModal } from './reports/OfficialReportModal';
+import type { OfficialReportKind } from '../../../services/resources/officialReports.api';
 import { ReportGenerationModal, type ReportGenerationRequest } from './reports/ReportGenerationModal';
 import { ReportsServiceActivityPanel } from './reports/ReportsServiceActivityPanel';
 import { ReportsSummaryPanel } from './reports/ReportsSummaryPanel';
@@ -64,8 +66,17 @@ const TAB_HELP: Record<ReportsViewMode, string> = {
   services: UI_TOOLTIPS.reports.tabServices,
 };
 
+/** Rapport proposé pour la copie officielle selon l'onglet ouvert. */
+const OFFICIAL_KIND: Record<ReportsViewMode, OfficialReportKind> = {
+  synthese: 'evolution',
+  workflows: 'workflow-activity',
+  services: 'service-activity',
+  documents: 'document-activity',
+};
+
 const ReportsPage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isOfficialOpen, setIsOfficialOpen] = useState(false);
 
   const { filters, setViewMode } = useReportsFilters();
   const {
@@ -192,6 +203,15 @@ const ReportsPage: React.FC = () => {
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsOfficialOpen(true)}
+              title="Exemplaire numéroté, inscrit au registre"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
+              Copie officielle
+            </button>
             <button
               type="button"
               onClick={handleRefresh}
@@ -360,6 +380,9 @@ const ReportsPage: React.FC = () => {
         onClose={() => setIsReportModalOpen(false)}
         onGenerate={handleGenerateReport}
       />
+      {isOfficialOpen && (
+        <OfficialReportModal defaultKind={OFFICIAL_KIND[activeTab]} onClose={() => setIsOfficialOpen(false)} />
+      )}
     </div>
   );
 };
