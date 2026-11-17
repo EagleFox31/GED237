@@ -2,7 +2,7 @@
 
 - **Pour** : O, qui en tirera les notes de la première release automatique `v1.1.0` sur `main`, après les fusions post-rc1.
 - **Périmètre** : les PR post-rc1 de l'ordre accepté le 17/11 (commit 1152a1a, `plan-fusion-post-rc1.md` § 8.6), plus #213 (étape 5). #208 et #104 vont dans `release/v1.0.0`, donc hors de cette liste.
-- **État au 17/11 12:44** : tiré de `PASSATION-ci-qa.md`.
+- **État au 17/11 12:44** : tiré de `PASSATION-ci-qa.md`, mis à jour par O ensuite (#197, #186, #183).
   - **relue** : verdict OK de Q ;
   - **relue avec remarques** : OK de Q, avec des remarques non bloquantes ;
   - **changements demandés** : Q bloque ;
@@ -28,7 +28,7 @@
 
 | PR | Ce qui change | Agent | Admin | Lecteur | État |
 |---|---|---|---|---|---|
-| #197 | Un rapport officiel peut être émis en PDF, avec le même numéro et la même empreinte que le CSV et le HTML. Un établissement qui a émis des rapports officiels ne peut plus être supprimé. | — | Émet et réimprime ses rapports en PDF. La suppression d'un établissement qui a un registre est refusée. | Imprime le PDF d'un rapport qu'il peut voir. | relue avec remarques ; correctif RESTRICT relu, OK une fois la CI verte |
+| #197 | Un rapport officiel peut être émis en PDF, avec le même numéro et la même empreinte que le CSV et le HTML. Un établissement qui a émis des rapports officiels ne peut plus être supprimé. | — | Émet et réimprime ses rapports en PDF. La suppression d'un établissement qui a un registre est refusée. | Imprime le PDF d'un rapport qu'il peut voir. | relue (OK de Q, CI verte) |
 | #180 | Rapports officiels programmés : chaque semaine ou chaque mois, le rapport de la période close est émis tout seul, numéroté. | — | Programme un rapport. Il reçoit une notification à chaque émission. Si activé (`SCHEDULED_REPORTS_ENABLED`). | — | changements demandés à 12:34, bloquant levé par le delta 5585c4f (relu à 12:43) ; CI en attente |
 | #209 | Écran des rapports officiels : émettre, consulter le registre, réimprimer, programmer. | — | Fait tout depuis l'écran, sans passer par l'API. | Consulte le registre et réimprime selon ses droits. | à relire ; suit #180 |
 
@@ -41,7 +41,7 @@
 | #179 | Un déplacement de document peut être annulé. Le reclassement est tracé dans le journal. | Annule un déplacement fait par erreur. | Voit les reclassements dans le journal. | — | relue |
 | #184 | Dans l'explorateur : touche Suppr pour mettre à la corbeille, glisser-déposer pour reclasser, et « Annuler » juste après. | Supprime ou reclasse vite, et peut annuler. | Comme l'agent. | — | non validée tant que la nightly est rouge |
 | #211 | Sélection multiple dans l'explorateur (Ctrl+clic, Maj+clic), puis mise à la corbeille groupée. | Met plusieurs documents à la corbeille en une fois. | Comme l'agent. | — | à relire ; suit #184 |
-| #182 | Tests de bout en bout de l'annulation (suppression et déplacement). | — | — | — | non validée, nightly rouge ; pas de ligne dans les notes finales |
+| #182 | Tests de bout en bout de l'annulation (suppression et déplacement). | — | — | — | non validée, nightly rouge ; pas de ligne dans les notes finales (validé par O) |
 
 ## Doublons
 
@@ -56,26 +56,27 @@
 |---|---|---|---|---|---|
 | #162 | Indicateurs de qualité des documents : sans métadonnées, à revoir, sans texte lisible. Taux de qualité et listes des documents à corriger. | — | Voit les documents à compléter dans son périmètre. | Le manager voit la qualité de son service. | à relire |
 | #194 | Onglet « Qualité » dans Rapports et statistiques, et écran des alertes de qualité. | — | Suit le taux de documents complets et règle ses alertes. | Le manager voit l'onglet pour son service. | à relire ; suit #183 |
-| #183 | Alertes de qualité : on est prévenu quand un indicateur dépasse un seuil, en nombre ou en %. | — | Crée des règles d'alerte et reçoit les notifications. Si activé (`QUALITY_ALERTS_ENABLED`). | — | changements demandés (12:36) |
+| #183 | Alertes de qualité : on est prévenu quand un indicateur dépasse un seuil, en nombre ou en %. | — | Crée des règles d'alerte et reçoit les notifications. Si activé (`QUALITY_ALERTS_ENABLED`). | — | changements demandés (12:36) ; poussée en f1a1a1c, à relire |
 | #155 | Les notifications arrivent tout de suite, sans recharger la page, même avec plusieurs serveurs. | Voit ses notifications en direct. Si activé (`NOTIFICATIONS_BROADCAST_MODE`, coupé par défaut). | Comme l'agent. | Comme l'agent. | à relire |
 | #192 | Sauvegarde automatique chaque nuit, durée de conservation réglable, et alerte si elle échoue. | — | Super admin et exploitation : une sauvegarde par nuit sans action, une alerte en cas d'échec. Si activé (`SCHEDULED_BACKUP_ENABLED`, coupé par défaut). | — | à relire |
 
-## Hors des cinq thèmes : travail quotidien
+## Travail quotidien
 
-Écart proposé à O : ces PR n'entrent dans aucun des cinq thèmes demandés. Elles peuvent former un sixième groupe, ou être rangées ailleurs à son choix.
+Sixième groupe, validé par O le 17/11 : ces PR n'entrent dans aucun des cinq thèmes.
 
 | PR | Ce qui change | Agent | Admin | Lecteur | État |
 |---|---|---|---|---|---|
 | #153 | Une seule file de validation, triée par ancienneté : mes documents, ceux de mon unité, ceux sans responsable. | Voit tout ce qu'il doit valider au même endroit. Si activé (`WORKFLOW_INBOX_ENABLED`). | Voit aussi les validations sans responsable. | — | à relire |
 | #190 | Écran de la file de validation, à onglets. | Comme #153. | Comme #153. | — | à relire ; suit #181 et #153 |
-| #165 | Favoris, documents récents et documents partagés avec moi. | Met des documents en favori (étoile) et retrouve ses derniers documents ouverts (récents si activés : `RECENT_DOCUMENTS_TRACKING_ENABLED`). | Comme l'agent. | Comme l'agent. | à relire |
+| #165 | Favoris, documents récents et documents partagés avec moi. | Met des documents en favori (étoile) et retrouve ses derniers documents ouverts (récents si activés : `RECENT_DOCUMENTS_TRACKING_ENABLED`). | Comme l'agent. | Comme l'agent. | changements demandés (réglage absent du compose, comme #180 et #183) ; en attente du PO (dossier du 23, § 4, q. 5) |
 | #205 | Écran « Mes documents » : favoris, récents, partagés. | Comme #165. | Comme #165. | Comme #165. | à relire ; suit #165 |
-| #186 | Un import de dossier interrompu reprend où il s'était arrêté, sans tout refaire. | — | Relance un gros import coupé sans doublons ni attente. | — | changements demandés (« à corriger ») |
+| #186 | Un import de dossier interrompu reprend où il s'était arrêté, sans tout refaire. | — | Relance un gros import coupé sans doublons ni attente. | — | relue (OK de Q) ; rechaînera sa migration derrière #197 à son tour |
 
 ---
 
 ## Pour O
 
 - **Lignes à confirmer par les auteurs** : la colonne « Ce qui change » vient des descriptions de PR. B et F peuvent corriger une formulation avant la release.
-- **Réglages coupés par défaut** : `SCHEDULED_REPORTS_ENABLED`, `QUALITY_ALERTS_ENABLED`, `TRASH_RETENTION_DAYS`, `NOTIFICATIONS_BROADCAST_MODE`, `SCHEDULED_BACKUP_ENABLED`, `WORKFLOW_INBOX_ENABLED`, `RECENT_DOCUMENTS_TRACKING_ENABLED`. Il faut décider, avant la release, lesquels sont activés sur site. Sinon, les lignes correspondantes sortent des notes.
+- **Réglages coupés par défaut** : `SCHEDULED_REPORTS_ENABLED`, `QUALITY_ALERTS_ENABLED`, `TRASH_RETENTION_DAYS`, `NOTIFICATIONS_BROADCAST_MODE`, `SCHEDULED_BACKUP_ENABLED`, `WORKFLOW_INBOX_ENABLED`, `RECENT_DOCUMENTS_TRACKING_ENABLED`. Règle validée par O le 17/11 : chacun est tranché au moment de la release V1.1 ; une ligne dont le réglage reste coupé sort des notes.
 - **Q. 4 du PO** : la ligne #196 « Lecteur » sera fixée par sa réponse (recommandation B : son service seulement).
+- **Q. 5 du PO** : la ligne #165 dépend de sa réponse (recommandation A : le valideur lit le document pendant la validation). Avec B, « Partagés avec moi » ne montre plus les documents à valider venant d'autres services.
