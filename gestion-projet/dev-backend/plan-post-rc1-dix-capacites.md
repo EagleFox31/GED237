@@ -60,3 +60,13 @@ Total hors TOTP, PDF, partage par ACL et archivage : 31,5 h-s.
 - L4 : les connexions en cours au déploiement échouent une fois (format Redis changé, fenêtre de 5 minutes) ; l'e2e de connexion reste sur `dev_response`.
 - L6 : `httpx.ASGITransport` ne lance pas le cycle de vie de l'application ; tester l'abonné directement.
 - Défauts constatés à consigner dans `DOCS/engineering/lessons-learned.md` quand le lot les corrige : purge des fichiers avant `commit` ; WebSocket jamais alimenté.
+
+## 5. Décisions du PO du 17/11
+
+- Décision 1 (corbeille : purge automatique désactivée pour la démonstration, 90 jours en pilote) : **validée**.
+- Décisions 2 et 3 : **la suppression par l'utilisateur met le document en corbeille**. `DELETE /documents/{id}` ne supprime plus définitivement ; la suppression définitive passe par la purge de la corbeille (rôle `documents manage`), réservée aux documents déjà en corbeille. Lot L2 ; `TRASH_PURGE_REQUIRES_TRASHED` devient inutile.
+- Décision 4 (canal OTP) : **validée**.
+- Décision 5 (file « mon unité ») : **en discussion**. Proposition : unité seule par défaut, unités filles avec `recursive=true`, comme `/reports/*` et `/spaces/documents`.
+- Décision 6 (rapport officiel) : **en discussion**. Proposition : numéro d'ordre par institution et par année, avec registre des exemplaires émis (une table, donc après le 30/11).
+- Décisions 7, 8, 9 : **validées**.
+- Décision 10 (archivage légal) : cadre validé, aucun code sans décision écrite sur les durées et le sort final.
