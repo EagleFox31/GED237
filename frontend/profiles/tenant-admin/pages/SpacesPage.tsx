@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
 import type { Document } from '../../../types';
@@ -7,7 +7,7 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
-import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 import { UndoToast } from '../../../components/ui/UndoToast';
 import { useUndoableAction } from '../../../hooks/useUndoableAction';
 import { canUndoMove, moveToUnitPatch, placementOf, restorePlacementPatch } from '../../../lib/undo/placement';
@@ -361,6 +361,20 @@ const SpacesPage: React.FC = () => {
     // ou désactive une recherche, pour bénéficier du mode récursif forcé.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUnitId, recursive, debouncedQuery, domainFilter, activityFilter, yearFilter, classificationFilter, statusFilter, page]);
+
+  // Mesuré avant l'affichage : un menu ouvert près du bas de l'écran remonte au lieu de déborder.
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!contextMenu || !menu) {
+      setMenuPosition(null);
+      return;
+    }
+    const { width, height } = menu.getBoundingClientRect();
+    setMenuPosition(
+      clampToViewport({ x: contextMenu.x, y: contextMenu.y }, { width, height }, { width: window.innerWidth, height: window.innerHeight })
+    );
+  }, [contextMenu]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -1200,9 +1214,10 @@ const SpacesPage: React.FC = () => {
         <div
           ref={menuRef}
           role="menu"
+          tabIndex={-1}
           aria-label="Actions"
           className="fixed z-50 min-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={menuPosition ?? { top: contextMenu.y, left: contextMenu.x }}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
