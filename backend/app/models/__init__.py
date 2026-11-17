@@ -13,6 +13,7 @@ from app.models.classification_rule import ClassificationRule
 from app.models.classification_review import ClassificationReview
 from app.models.import_job import ImportJob
 from app.models.import_job_item import ImportJobItem
+from app.models.ingest_run import IngestRun, IngestRunFile
 from app.models.document_version import DocumentVersion
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.gedrules import (
@@ -47,6 +48,8 @@ __all__ = [
     "ClassificationReview",
     "ImportJob",
     "ImportJobItem",
+    "IngestRun",
+    "IngestRunFile",
     "DocumentVersion",
     "WorkflowStep",
     "WorkflowAction",

@@ -2,7 +2,7 @@
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from fastapi import (
@@ -35,12 +35,15 @@ from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
 from app.models.document_category import DocumentCategory
 from app.models.document_version import DocumentVersion
+from app.models.ingest_run import IngestRun, IngestRunFile
 from app.models.org_unit import OrgUnit
 from app.models.user import User
 from app.schemas.document import (
     ClassificationStatus,
     DirectoryIngestRequest,
     DirectoryIngestResponse,
+    IngestRunFileOut,
+    IngestRunProgress,
     IngestWatchStatus,
     DocumentOCRContent,
     DocumentRead,
@@ -796,6 +799,76 @@ async def ingest_watch_status(
     return status_for_tenant(last_run, current_user.tenant_id, tenant_code)
 
 
+async def _own_ingest_run_or_404(
+    db: AsyncSession, current_user: User, run_id: UUID
+) -> IngestRun:
+    """A run is visible to the user who started it, in their institution only."""
+    run = await db.scalar(
+        select(IngestRun).where(
+            IngestRun.id == run_id,
+            IngestRun.tenant_id == current_user.tenant_id,
+            IngestRun.owner_id == current_user.id,
+        )
+    )
+    if run is None:
+        raise HTTPException(status_code=404, detail="Import introuvable.")
+    return run
+
+
+@router.get("/ingest-runs/{run_id}", response_model=IngestRunProgress)
+async def ingest_run_progress(
+    run_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Progress of a directory import (lot 14): files done, by outcome."""
+    await authorize_or_403(current_user, "documents", "create")
+    run = await _own_ingest_run_or_404(db, current_user, run_id)
+    counts = dict(
+        (
+            await db.execute(
+                select(IngestRunFile.status, func.count())
+                .where(IngestRunFile.run_id == run.id)
+                .group_by(IngestRunFile.status)
+            )
+        ).all()
+    )
+    return IngestRunProgress(
+        id=run.id,
+        status=run.status,
+        total_found=run.total_found,
+        attempts=run.attempts,
+        started_at=run.started_at,
+        finished_at=run.finished_at,
+        imported=counts.get("imported", 0),
+        duplicate=counts.get("duplicate", 0),
+        error=counts.get("error", 0),
+    )
+
+
+@router.get("/ingest-runs/{run_id}/files", response_model=List[IngestRunFileOut])
+async def ingest_run_files(
+    run_id: UUID,
+    outcome: Optional[Literal["imported", "duplicate", "error"]] = Query(
+        None, alias="status"
+    ),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Files of a directory import, e.g. ``?status=error`` for those to fix."""
+    await authorize_or_403(current_user, "documents", "create")
+    run = await _own_ingest_run_or_404(db, current_user, run_id)
+    query = select(IngestRunFile).where(IngestRunFile.run_id == run.id)
+    if outcome is not None:
+        query = query.where(IngestRunFile.status == outcome)
+    rows = await db.execute(
+        query.order_by(IngestRunFile.source_path).limit(limit).offset(offset)
+    )
+    return rows.scalars().all()
+
+
 @router.get("/needs-review", response_model=List[NeedsReviewDocument])
 async def list_needs_review(
     skip: int = 0,
@@ -1523,6 +1596,7 @@ async def ingest_directory(
         recursive=request.recursive,
         document_category_id=request.document_category_id,
         processing_mode=request.processing_mode,
+        track=True,
     )
     result = await report
     return DirectoryIngestResponse(**result.to_dict())

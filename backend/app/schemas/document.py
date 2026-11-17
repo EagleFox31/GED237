@@ -118,6 +118,32 @@ class DirectoryIngestResponse(BaseModel):
     details: List[IngestFileDetail] = []
     # Files whose content is already in the GED (counted in skipped).
     duplicate_count: int = 0
+    # Resumable import (lot 14): the run this request belongs to, and the files
+    # an earlier interrupted request had already brought in (counted in skipped).
+    run_id: Optional[UUID] = None
+    already_done: int = 0
+
+
+class IngestRunProgress(BaseModel):
+    id: UUID
+    status: str  # running | partial (some files failed) | completed
+    total_found: int
+    attempts: int
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+    imported: int = 0
+    duplicate: int = 0
+    error: int = 0
+
+
+class IngestRunFileOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    source_path: str
+    status: str  # imported | duplicate | error
+    document_id: Optional[UUID] = None
+    error: Optional[str] = None
+    updated_at: datetime
 
 
 class NeedsReviewDocument(DocumentRead):
