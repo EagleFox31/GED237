@@ -3,6 +3,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: check-yaml
+        # Compose merge tags (!override, !reset) are valid for Compose, unknown to a
+        # plain YAML loader: --unsafe keeps the syntax check without building objects.
+        args: [--unsafe]
       - id: check-json
         # tsconfig files are JSONC (comments allowed by TypeScript).
         exclude: (^|/)tsconfig[^/]*\.json$
