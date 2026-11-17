@@ -147,6 +147,12 @@ services:
       # Not relaxed for the demo: the account lock must stay visible.
       AUTH_OTP_MAX_FAILURES: "3"
       AUTH_LOCKOUT_SECONDS: "900"
+      # How the login code is sent (dev_response: echoed, development only).
+      AUTH_OTP_CHANNEL: ${AUTH_OTP_CHANNEL:-dev_response}
+      AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${AUTH_OTP_RESEND_COOLDOWN_SECONDS:-30}
+      AUTH_OTP_RESEND_MAX_PER_WINDOW: ${AUTH_OTP_RESEND_MAX_PER_WINDOW:-3}
+      AUTH_OTP_RESEND_WINDOW_SECONDS: ${AUTH_OTP_RESEND_WINDOW_SECONDS:-900}
+      EMAIL_SEND_TIMEOUT_SECONDS: ${EMAIL_SEND_TIMEOUT_SECONDS:-10}
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
     depends_on:
