@@ -12,6 +12,7 @@ import type {
     ResolveClassificationReviewResponse,
 } from '../../types';
 import { RESERVATION_HANDLED_STATUSES } from '../../lib/documentReservation';
+import { VERSION_UPLOAD_HANDLED_STATUSES } from '../../lib/documentVersionUpload';
 
 export interface IngestWatchFolderRun {
     path: string;
@@ -128,6 +129,18 @@ export const documentsApi = {
 
     getDocumentVersions: (id: string): Promise<any[]> =>
         apiCall<any[]>(`/documents/${id}/versions`, {}, 'Récupération des versions impossible'),
+
+    uploadDocumentVersion: (id: string, file: File, changeNote?: string): Promise<{ version: string | number }> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (changeNote) formData.append('change_note', changeNote);
+        return apiCall<{ version: string | number }>(
+            `/documents/${id}/versions`,
+            { method: 'POST', body: formData },
+            'Envoi de la nouvelle version impossible',
+            { handledStatuses: VERSION_UPLOAD_HANDLED_STATUSES },
+        );
+    },
 
     // ── Stats ─────────────────────────────────────────────────────────────
 

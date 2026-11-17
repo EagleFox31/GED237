@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import DocumentReservation from './DocumentReservation';
+import DocumentNewVersion from './DocumentNewVersion';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -74,6 +75,16 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
       console.error('Failed to fetch versions:', err);
     } finally {
       setVersionsLoading(false);
+    }
+  };
+
+  /** Après une nouvelle version : relit l'historique et la fiche (version courante, taille). */
+  const handleVersionUploaded = async () => {
+    await loadVersions();
+    try {
+      handleReservationChange(await api.getDocument(document.id));
+    } catch (err) {
+      console.error('Reload after new version failed:', err);
     }
   };
 
@@ -379,6 +390,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
 
           {activeTab === 'history' && (
             <div className="max-w-3xl mx-auto space-y-4">
+              <DocumentNewVersion document={document} onUploaded={handleVersionUploaded} />
               {versionsLoading && (
                 <div className="flex items-center justify-center py-10">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rdpc-blue"></div>
