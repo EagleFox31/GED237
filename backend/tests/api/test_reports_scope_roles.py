@@ -39,9 +39,7 @@ async def _unit(db, tenant_id, code, parent=None) -> uuid.UUID:
     return unit.id
 
 
-async def _activity(db, tenant_id, org_unit_id, matricule, files) -> None:
-    """A user of ``org_unit_id`` with one import awaiting review and one local
-    organize run of ``files`` files."""
+async def _user(db, tenant_id, org_unit_id, matricule) -> uuid.UUID:
     user = User(
         id=uuid.uuid4(),
         tenant_id=tenant_id,
@@ -56,8 +54,16 @@ async def _activity(db, tenant_id, org_unit_id, matricule, files) -> None:
     )
     db.add(user)
     await db.flush()
+    return user.id
+
+
+async def _review(db, tenant_id, created_by_id, *, unit=None, person=None) -> None:
+    """One import awaiting review, aimed at ``unit`` or at ``person``."""
     job = ImportJob(
-        tenant_id=tenant_id, created_by_id=user.id, target_org_unit_id=org_unit_id
+        tenant_id=tenant_id,
+        created_by_id=created_by_id,
+        target_org_unit_id=unit,
+        target_user_id=person,
     )
     db.add(job)
     await db.flush()
@@ -69,16 +75,24 @@ async def _activity(db, tenant_id, org_unit_id, matricule, files) -> None:
     db.add(item)
     await db.flush()
     db.add(ClassificationReview(tenant_id=tenant_id, import_job_item_id=item.id))
+
+
+async def _activity(db, tenant_id, org_unit_id, matricule, files) -> uuid.UUID:
+    """A user of ``org_unit_id`` with one import into that unit awaiting review
+    and one local organize run of ``files`` files."""
+    user_id = await _user(db, tenant_id, org_unit_id, matricule)
+    await _review(db, tenant_id, user_id, unit=org_unit_id)
     db.add(
         LocalOrganizeEvent(
             tenant_id=tenant_id,
-            user_id=user.id,
+            user_id=user_id,
             file_count=files,
             files_unranged=1,
             strategy="by_type",
             mode="zip",
         )
     )
+    return user_id
 
 
 @pytest.fixture
@@ -87,10 +101,17 @@ async def tree(db_session, db_seed):
     a = db_seed["org_unit_id"]
     a1 = await _unit(db_session, tenant, "DIR-A1", parent=a)
     b = await _unit(db_session, tenant, "DIR-B")
-    await _activity(db_session, tenant, a1, "AGENTA1", files=3)
-    await _activity(db_session, tenant, b, "AGENTB", files=7)
+    agent_a1 = await _activity(db_session, tenant, a1, "AGENTA1", files=3)
+    agent_b = await _activity(db_session, tenant, b, "AGENTB", files=7)
     await db_session.commit()
-    return {"tenant": tenant, "a": a, "a1": a1, "b": b}
+    return {
+        "tenant": tenant,
+        "a": a,
+        "a1": a1,
+        "b": b,
+        "agent_a1": agent_a1,
+        "agent_b": agent_b,
+    }
 
 
 async def _signals(client, **params) -> tuple[int, int, int]:
@@ -157,6 +178,27 @@ async def test_manager_signals_count_own_unit_and_sub_units_only(client_as, tree
         "manager", tenant_id=tree["tenant"], org_unit_id=tree["b"]
     ) as client:
         assert await _signals(client) == (1, 1, 7)
+
+
+@pytest.mark.asyncio
+async def test_import_reviews_count_for_the_import_target_not_its_creator(
+    client_as, tree, db_session
+):
+    tenant = tree["tenant"]
+    admin = await _user(db_session, tenant, None, "ADMINIMP")
+    await _review(db_session, tenant, admin, unit=tree["a"])  # admin -> A
+    await _review(db_session, tenant, tree["agent_a1"], unit=tree["b"])  # A1 -> B
+    await _review(db_session, tenant, tree["agent_b"], person=tree["agent_a1"])
+    await db_session.commit()
+
+    async with client_as("manager", tenant_id=tenant, org_unit_id=tree["a"]) as client:
+        # Own import + admin's import into A + B's import for a person of A1.
+        assert (await _signals(client))[0] == 3
+    async with client_as("manager", tenant_id=tenant, org_unit_id=tree["b"]) as client:
+        # Own import + A1's import into B; the admin's import into A is not here.
+        assert (await _signals(client))[0] == 2
+    async with client_as("tenant_admin", tenant_id=tenant, org_unit_id=None) as client:
+        assert (await _signals(client))[0] == 5
 
 
 @pytest.mark.asyncio

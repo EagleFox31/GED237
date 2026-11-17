@@ -648,19 +648,26 @@ class ReportsService:
         ]
 
     @staticmethod
-    def _users_in_scope(org_unit_id: Optional[UUID], recursive: bool):
-        """Users of the report's unit (and its sub-units when recursive).
-
-        Signals without a unit of their own (import reviews, local organize
-        counters) belong to the unit of the user who produced them.
-        """
-        in_unit = User.org_unit_id == org_unit_id
+    def _in_unit_scope(column, org_unit_id: Optional[UUID], recursive: bool):
+        """``column`` is the report's unit (or one of its sub-units when recursive)."""
+        in_unit = column == org_unit_id
         if recursive:
             descendant_ids = select(OrgUnitClosure.descendant_id).where(
                 OrgUnitClosure.ancestor_id == org_unit_id
             )
-            in_unit = or_(in_unit, User.org_unit_id.in_(descendant_ids))
-        return select(User.id).where(in_unit)
+            in_unit = or_(in_unit, column.in_(descendant_ids))
+        return in_unit
+
+    @classmethod
+    def _users_in_scope(cls, org_unit_id: Optional[UUID], recursive: bool):
+        """Users of the report's unit (and its sub-units when recursive).
+
+        Local organize counters have no unit of their own: they belong to the
+        unit of the user who ran them.
+        """
+        return select(User.id).where(
+            cls._in_unit_scope(User.org_unit_id, org_unit_id, recursive)
+        )
 
     async def _count_open_import_reviews(
         self,
@@ -682,9 +689,16 @@ class ReportsService:
                     ImportJobItem.id == ClassificationReview.import_job_item_id,
                 )
                 .join(ImportJob, ImportJob.id == ImportJobItem.import_job_id)
+                # An import belongs to its target (a unit, or a person of the
+                # unit), not to whoever launched it.
                 .where(
-                    ImportJob.created_by_id.in_(
-                        self._users_in_scope(org_unit_id, recursive)
+                    or_(
+                        self._in_unit_scope(
+                            ImportJob.target_org_unit_id, org_unit_id, recursive
+                        ),
+                        ImportJob.target_user_id.in_(
+                            self._users_in_scope(org_unit_id, recursive)
+                        ),
                     )
                 )
             )
