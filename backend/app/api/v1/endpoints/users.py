@@ -14,7 +14,7 @@ from app.core.authz import (
     can_perform,
     ctx_from_resource,
 )
-from app.core.errors.domain import AuthorizationError
+from app.core.errors.domain import AuthorizationError, ConflictError
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.user import User
 from app.models.document import Document
@@ -79,6 +79,40 @@ async def _validate_reports_to(
             ).scalar_one_or_none()
 
 
+async def _assert_role_grantable(
+    db: AsyncSession, current_user: User, role_id: Optional[int]
+) -> None:
+    """Refuse a role above the caller's own. Only a super_admin grants super_admin.
+
+    ``hierarchy_level``: 1 is super_admin and a lower level is a more privileged
+    role (001_initial_schema). Without this check a tenant_admin could make
+    anyone, themselves included, super_admin of every institution.
+    """
+    caller_code = current_user.role.code if current_user.role else None
+    if caller_code == "super_admin":
+        return
+    from app.models.role import Role
+
+    target = await db.get(Role, role_id) if role_id is not None else None
+    if target is None:
+        raise HTTPException(status_code=422, detail=f"Unknown role_id: {role_id}")
+    caller = (
+        await db.execute(select(Role).where(Role.code == caller_code))
+    ).scalar_one_or_none()
+    if (
+        caller is None
+        or target.code == "super_admin"
+        or target.hierarchy_level < caller.hierarchy_level
+    ):
+        raise AuthorizationError(
+            "Vous ne pouvez pas attribuer un rôle plus élevé que le vôtre.",
+            technical_detail=(
+                f"{caller_code} {current_user.id} tried to grant role {target.code}"
+            ),
+            error_code="ROLE_GRANT_FORBIDDEN",
+        )
+
+
 @router.post(
     "/", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED
 )
@@ -114,6 +148,8 @@ async def create_user(
                 status_code=422, detail=f"Unknown role_code: {user_in.role_code}"
             )
         user_in.role_id = role_row.id
+
+    await _assert_role_grantable(db, current_user, user_in.role_id)
 
     query = select(User).filter(
         User.matricule == user_in.matricule, User.tenant_id == user_in.tenant_id
@@ -347,6 +383,28 @@ async def update_user(
                 ),
                 error_code="SELF_UPDATE_FIELD_FORBIDDEN",
                 extras_public={"fields": refused},
+            )
+
+    if "role_id" in update_data and update_data["role_id"] != user.role_id:
+        if is_self:
+            raise AuthorizationError(
+                "Vous ne pouvez pas changer votre propre rôle.",
+                technical_detail=f"user {current_user.id} tried to change their own role",
+                error_code="OWN_ROLE_CHANGE_FORBIDDEN",
+            )
+        await _assert_role_grantable(db, current_user, update_data["role_id"])
+
+    if update_data.get("email") and update_data["email"] != user.email:
+        taken = await db.scalar(
+            select(User.id).where(
+                User.email == update_data["email"], User.id != user.id
+            )
+        )
+        if taken:
+            raise ConflictError(
+                "Cette adresse e-mail est déjà utilisée par un autre compte.",
+                technical_detail=f"e-mail of user {user.id} already used by {taken}",
+                error_code="USER_EMAIL_TAKEN",
             )
 
     if "org_unit_id" in update_data:
