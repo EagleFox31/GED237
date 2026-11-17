@@ -7,8 +7,8 @@
 
 ## 0. Constats du 17/11 qui changent la procédure (`Vérifié`)
 
-1. **`main` n'a pas de file de fusion.** Le seul ruleset (« AppFactory default branch governance », id 26190959) a quatre règles : `deletion`, `non_fast_forward`, `pull_request` et `required_status_checks` (CI Gate, `strict`). Il n'a pas de règle `merge_queue`, et la requête GraphQL `mergeQueue(branch:"main")` renvoie `null`. La « file » est donc l'ordre du § 8.6, et O fusionne à la main.
-2. **`strict` exige une branche à jour.** Une PR en retard sur `main` (`BEHIND`) ne fusionne pas. C'est son auteur qui la met à jour, **en local, puis par un push**.
+1. **`main` n'a pas de file de fusion.** Le seul ruleset (« AppFactory default branch governance », id 26190959) a quatre règles : `deletion`, `non_fast_forward`, `pull_request` et `required_status_checks` (CI Gate, `strict`). Il n'a pas de règle `merge_queue`, et la requête GraphQL `mergeQueue(branch:"main")` renvoie `null`. La « file » est le **script de file d'O** : il met la branche à jour (update-branch) si elle est en retard, puis lance `gh pr merge N --merge` une fois CI Gate vert. Les PR y entrent dans l'ordre du § 8.6.
+2. **`strict` exige une branche à jour.** Une PR en retard sur `main` (`BEHIND`) ne fusionne pas. C'est la file d'O qui la met à jour. Les auteurs ne font pas d'update-branch eux-mêmes.
 3. **#104 est aujourd'hui `DIRTY` sur GitHub** (tête distante 7302e3c). La tête locale 0288c02 contient déjà le merge de 53d4c40. Le dry-run sur 53d4c40 est propre, et le push du 19 lève donc le conflit.
 4. **Le diff de #104 touche aussi `DOCS/engineering/lessons-learned.md`** (LESSON-032 et 044). Le contrôle E1 de la check-list, « seulement `gestion-projet/` et `CHANGELOG.md` », répondrait KO à tort. Le contrôle corrigé est à l'étape 1.
 5. **Tête alembic de `main`** : `a7c8d9e0f1b2`. C'est la seule révision qui n'est le `down_revision` d'aucune autre.
@@ -39,8 +39,8 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 
 | Heure | Commande | Contrôle attendu | Si KO |
 |---|---|---|---|
-| 18:05 → 18:15 | `ci_gate 104`, à relancer jusqu'à la fin de la CI | `draft=false`, `etat=CLEAN`, `CI Gate COMPLETED SUCCESS` | `BEHIND` : I fait un merge local de `origin/main`, mais **un second push exige l'accord d'O**. CI rouge : I lit le log (`gh run view --log-failed`) ; les corrections se font par commit local, et le push n'a lieu qu'avec l'accord d'O. E2 attend |
-| 18:15 | `gh pr merge 104 --merge` | `gh pr view 104 --json state -q .state` = `MERGED` | refus (règle non satisfaite) : relire `ci_gate 104`, ne jamais contourner |
+| 18:05 → 18:15 | `ci_gate 104`, à relancer jusqu'à la fin de la CI | `draft=false`, `etat=CLEAN`, `CI Gate COMPLETED SUCCESS` | `BEHIND` : la file d'O met la branche à jour, et I ne pousse rien. CI rouge : I lit le log (`gh run view --log-failed`) ; les corrections se font par commit local, et le push n'a lieu qu'avec l'accord d'O. E2 attend |
+| 18:15 | **O met #104 dans sa file** (script de file). Repli manuel : `gh pr merge 104 --merge` | `gh pr view 104 --json state -q .state` = `MERGED` | refus (règle non satisfaite) : relire `ci_gate 104`, ne jamais contourner |
 | 18:16 | `git fetch -q origin && M=$(gh pr view 104 --json mergeCommit -q .mergeCommit.oid) && [ "$M" = "$(git rev-parse origin/main)" ] && echo OK-tete` | `OK-tete` | une autre fusion est passée entre-temps : couper quand même sur `$M`, pas sur la tête de `main` |
 
 `--merge` correspond au mode des fusions récentes (« Merge pull request #223 »). Le dépôt autorise aussi `squash` et `rebase` : c'est à O de choisir.
@@ -69,7 +69,8 @@ Fichier hors dépôt, par exemple `ruleset-release.json` dans un dossier tempora
     { "type": "pull_request", "parameters": {
         "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": false,
         "require_code_owner_review": false, "require_last_push_approval": false,
-        "required_review_thread_resolution": true } },
+        "required_review_thread_resolution": true,
+        "allowed_merge_methods": ["merge", "squash", "rebase"] } },
     { "type": "required_status_checks", "parameters": {
         "strict_required_status_checks_policy": true, "do_not_enforce_on_create": true,
         "required_status_checks": [ { "context": "CI Gate" } ] } }
@@ -78,7 +79,7 @@ Fichier hors dépôt, par exemple `ruleset-release.json` dans un dossier tempora
 }
 ```
 
-`bypass_actors` est vide, comme dans le ruleset d'AppFactory (`Vérifié` le 17/11).
+Ce JSON est aligné sur le ruleset d'O. `bypass_actors` est vide, comme dans celui d'AppFactory (`Vérifié` le 17/11). `do_not_enforce_on_create: true` est indispensable : sans lui, la création d'une branche `release/**` par push serait bloquée. L'ordre est fixe : la branche d'abord (§ 3), le ruleset ensuite.
 
 | Heure | Commande | Contrôle attendu | Si KO |
 |---|---|---|---|
@@ -115,9 +116,9 @@ La fusion se fait par O, une fois la CI verte. C'est de la documentation seule, 
 
 | Heure | Qui | Commande | Contrôle attendu | Si KO |
 |---|---|---|---|---|
-| 18:45 | B | en local : `git fetch -q origin && git merge origin/main`, puis `git push` ; enfin `gh pr ready 179` | `gh pr view 179 --json isDraft,baseRefName -q '"\(.isDraft) \(.baseRefName)"'` = `false main` | conflit : B le résout en local ; #179 glisse, et #153 peut passer avant (même étape, sans dépendance) |
+| 18:45 | B | `gh pr ready 179` (la file d'O met la branche à jour si elle est en retard) | `gh pr view 179 --json isDraft,baseRefName -q '"\(.isDraft) \(.baseRefName)"'` = `false main` | conflit : B le résout en local ; #179 glisse, et #153 peut passer avant (même étape, sans dépendance) |
 | 18:50 → 19:05 | O | `ci_gate 179` | `etat=CLEAN`, `CI Gate COMPLETED SUCCESS`, et une tête identique au SHA relu par Q (sinon, Q relit le delta) | rouge : B corrige ; on ne fusionne pas |
-| 19:05 | O | `gh pr merge 179 --merge` | `MERGED` ; `git fetch -q origin && git rev-parse origin/main` = `mergeCommit` de #179 | — |
+| 19:05 | O | #179 dans sa file. Repli manuel : `gh pr merge 179 --merge` | `MERGED` ; `git fetch -q origin && git rev-parse origin/main` = `mergeCommit` de #179 | — |
 | 19:06 | O | `gh api repos/$REPO/branches/$BR -q .commit.sha` | toujours `$M` : la fusion sur `main` n'a pas touché la release | différent : alerte, et O relit l'historique de `$BR` |
 
 **Fin de la coupe** : `main` est rouvert et `$BR` reste figée sur `$M`, protégée. La suite est à E1 ter de la check-list : reciblage de #121 et de la PR des notes de B vers `$BR`, par leurs auteurs.
