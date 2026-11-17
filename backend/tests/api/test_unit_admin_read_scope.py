@@ -20,6 +20,7 @@ import pytest_asyncio
 from app.models.document import Document
 from app.models.import_job import ImportJob
 from app.models.org_unit import OrgUnit
+from app.models.user import User
 from app.models.workflow import WorkflowStep
 from app.services.reports_scope import is_within_unit_tree, unit_subtree_ids
 
@@ -32,7 +33,6 @@ WORKFLOW_STATS = "/api/v1/workflows/stats"
 IMPORTS = "/api/v1/imports"
 SERVICES = "/api/v1/reports/service-activity"
 NEEDLE = "perimetre"
-COLLABORATOR = uuid.uuid4()
 
 WIDE = {"a", "a1", "a2", "b", "own"}
 # role, unit of the caller, active documents seen, trashed seen, imports readable
@@ -72,6 +72,24 @@ async def tree(db_session, db_seed):
     units["a1"] = await _unit(db_session, tenant_id, units["a"])
     units["a2"] = await _unit(db_session, tenant_id, units["a1"])
     units["b"] = await _unit(db_session, tenant_id)
+    # A real account: documents and import jobs reference users.id.
+    seeded = await db_session.get(User, db_seed["user_id"])
+    collaborator = uuid.uuid4()
+    db_session.add(
+        User(
+            id=collaborator,
+            tenant_id=tenant_id,
+            org_unit_id=units["b"],
+            role_id=seeded.role_id,
+            matricule=f"COL-{collaborator.hex[:8]}",
+            email=f"{collaborator.hex[:8]}@example.test",
+            first_name="Agent",
+            last_name="Collaborateur",
+            password_hash="unused",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
 
     ids = {}
 
@@ -101,7 +119,7 @@ async def tree(db_session, db_seed):
 
     for unit in ("a", "a1", "a2", "b"):
         await doc(unit, unit)
-    await doc("own", "b", owner=COLLABORATOR)
+    await doc("own", "b", owner=collaborator)
     await doc("a1_trash", "a1", trashed=True)
     await doc("b_trash", "b", trashed=True)
 
@@ -117,9 +135,9 @@ async def tree(db_session, db_seed):
 
     await job("job_a1", "a1", db_seed["user_id"])
     await job("job_b", "b", db_seed["user_id"])
-    await job("job_own", "b", COLLABORATOR)
+    await job("job_own", "b", collaborator)
     await db_session.commit()
-    return {"units": units, "ids": ids}
+    return {"units": units, "ids": ids, "collaborator": collaborator}
 
 
 def _keys(tree, found_ids) -> set[str]:
@@ -136,7 +154,7 @@ async def test_every_listing_shows_the_same_scope(
 ):
     user = {"tenant_id": db_seed["tenant_id"], "org_unit_id": tree["units"][unit]}
     if role == "collaborator":
-        user["id"] = COLLABORATOR
+        user["id"] = tree["collaborator"]
     async with client_as(role, **user) as client:
         listed = (await client.get(DOCUMENTS)).json()
         in_trash = (await client.get(TRASH)).json()
