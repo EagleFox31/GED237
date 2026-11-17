@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.errors.domain import (
     AccountLockedError,
     OtpDeliveryError,
+    OtpResendQuotaError,
     OtpResendTooSoonError,
     TotpResendUnavailableError,
 )
@@ -104,6 +105,7 @@ async def resend_otp(
     except (
         AccountLockedError,
         OtpDeliveryError,
+        OtpResendQuotaError,
         OtpResendTooSoonError,
         TotpResendUnavailableError,
     ):

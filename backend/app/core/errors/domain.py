@@ -201,6 +201,24 @@ class TotpResendUnavailableError(AppError):
     )
 
 
+class OtpResendQuotaError(AppError):
+    """Too many codes asked for this account lately, whatever the login session."""
+
+    status_code = 429
+    default_error_code = "OTP_RESEND_QUOTA"
+    default_severity = Severity.warning
+    default_retryable = True
+
+    def __init__(self, *, retry_after: int) -> None:
+        seconds = max(1, retry_after)
+        minutes = max(1, -(-seconds // 60))
+        super().__init__(
+            "Trop de codes demandés pour ce compte. " f"Réessayez dans {minutes} min.",
+            technical_detail="otp resend quota per account",
+            extras_public={"retry_after": seconds},
+        )
+
+
 class AuthorizationError(AppError):
     """Utilisateur identifié mais non autorisé pour cette action."""
 

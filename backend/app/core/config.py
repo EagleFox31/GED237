@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     AUTH_OTP_CHANNEL: str = "dev_response"
     # Minimum delay between two sendings of a code for the same login session.
     AUTH_OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=30, ge=0)
+    # Resends per account and per window, whatever the login session (0: no quota).
+    AUTH_OTP_RESEND_MAX_PER_WINDOW: int = Field(default=3, ge=0)
+    AUTH_OTP_RESEND_WINDOW_SECONDS: int = Field(default=900, ge=1)
+
     # Authenticator app (RFC 6238, services/totp.py), off by default. When on, an
     # account with a confirmed app gives its app code, with no e-mail fallback
     # (DEC-2026-004); the others keep AUTH_OTP_CHANNEL.
@@ -220,6 +224,9 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = Field(default="")
     RESEND_FROM: str = Field(default="onboarding@resend.dev")
     EMAIL_ENABLED: bool = Field(default=False)
+    # Longest wait for the provider when sending a login code; beyond it the
+    # login answers 503 (retryable) instead of hanging.
+    EMAIL_SEND_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0)
 
     @field_validator("EMAIL_ENABLED", mode="before")
     @classmethod
