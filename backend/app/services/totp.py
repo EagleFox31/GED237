@@ -29,6 +29,7 @@ from sqlalchemy.orm import selectinload
 from app.core import session_revocation
 from app.core.config import settings
 from app.core.redis import get_redis
+from app.models.audit import AuditLog
 from app.models.role import Role
 from app.models.user import User
 from app.models.user_totp import UserTotp
@@ -37,6 +38,11 @@ from app.services.audit_trail import audit_entry
 
 SUPER_ADMIN = "super_admin"
 TENANT_ADMIN = "tenant_admin"
+# Shown when the server runs without the app (AUTH_TOTP_ENABLED false).
+DISABLED_MESSAGE = "L'application d'authentification n'est pas activée sur ce serveur."
+# Where a reset came from, kept in its audit entry.
+VIA_APP = "app"
+VIA_OPS_SCRIPT = "ops-script"
 
 STEP_SECONDS = 30
 DIGITS = 6
@@ -241,12 +247,13 @@ def reset_allowed(
 ) -> bool:
     """Who may reset whose app (DEC-2026-004): a superior, never oneself.
 
-    An agent by a tenant_admin of the same institution; a tenant_admin by a
-    super_admin; a super_admin by ANOTHER super_admin."""
+    A super_admin resets super_admin and tenant_admin accounts of every
+    institution, never an agent; an agent is reset by a tenant_admin of its own
+    institution only."""
     if str(actor_id) == str(target_id):
         return False
     if actor_role == SUPER_ADMIN:
-        return True
+        return target_role in (SUPER_ADMIN, TENANT_ADMIN)
     if actor_role == TENANT_ADMIN:
         return str(actor_tenant) == str(target_tenant) and target_role not in (
             TENANT_ADMIN,
@@ -259,15 +266,15 @@ async def reset(
     db: AsyncSession,
     target: User,
     *,
-    actor: Optional[User],
-    operator: Optional[str] = None,
+    actor: User,
+    via: str = VIA_APP,
     request: Optional[Request] = None,
 ) -> bool:
     """Remove ``target``'s app after an in-person check. False: nothing to reset.
 
-    ``actor`` is the superior who did it; None for the ops script, which names
-    its ``operator``. Revokes every session of the account, audited, then the holder is told
-    by e-mail."""
+    ``actor`` is the superior who did it, in the application or, ``via`` the ops
+    script, the super_admin it names. Revokes every session of the account,
+    audited, then the holder is told by e-mail."""
     record = await get_record(db, target.id)
     if record is None:
         return False
@@ -275,18 +282,18 @@ async def reset(
     # Lost or stolen phone: every open session goes, refresh tokens included.
     # Before the commit: if Redis fails, nothing is reset and the caller retries.
     await session_revocation.revoke_all(await get_redis(), target.id)
-    by = actor.matricule if actor is not None else f"ops:{operator}"
     db.add(
         audit_entry(
             tenant_id=target.tenant_id,
-            user_id=actor.id if actor is not None else None,
+            user_id=actor.id,
             table_name="users",
             record_id=target.id,
             action="totp_reset",
             details={
                 "name": target.full_name,
                 "matricule": target.matricule,
-                "by": by,
+                "by": actor.matricule,
+                "via": via,
                 "sessions_revoked": True,
             },
             request=request,
@@ -312,3 +319,31 @@ async def count_super_admins_with_app(db: AsyncSession) -> int:
         )
     )
     return int(found.scalar_one())
+
+
+# Changes to the app the holder is told about at the next login (DEC-2026-004).
+NOTICE_ACTIONS = ("totp_enrolled", "totp_disabled", "totp_reset")
+MAX_NOTICES = 20
+
+
+async def notices_since(
+    db: AsyncSession, user_id: uuid.UUID, since: Optional[datetime]
+) -> list[dict]:
+    """App added, removed or reset on the account after ``since`` (its previous
+    login; None: never logged in), newest first, read from the audit log."""
+    query = (
+        select(AuditLog.action, AuditLog.created_at, AuditLog.user_id)
+        .where(
+            AuditLog.table_name == "users",
+            AuditLog.record_id == user_id,
+            AuditLog.action.in_(NOTICE_ACTIONS),
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(MAX_NOTICES)
+    )
+    if since is not None:
+        query = query.where(AuditLog.created_at > since)
+    return [
+        {"event": action, "at": at, "by_self": actor == user_id}
+        for action, at, actor in (await db.execute(query)).all()
+    ]

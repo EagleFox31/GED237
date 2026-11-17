@@ -382,9 +382,19 @@ class AuthService:
         return await self._issue_tokens(db, user, role, request)
 
     async def _issue_tokens(
-        self, db: AsyncSession, user: User, role: Role, request: Optional[Request]
+        self,
+        db: AsyncSession,
+        user: User,
+        role: Role,
+        request: Optional[Request],
+        notices: Optional[list] = None,
     ) -> Dict[str, Any]:
-        """Second factor checked: the login is recorded and the tokens issued."""
+        """Second factor checked: the login is recorded and the tokens issued.
+
+        With them, the changes to the app since the previous login (``notices``
+        when the caller read them before writing its own)."""
+        if notices is None:
+            notices = await totp.notices_since(db, user.id, user.last_login)
         user.last_login = datetime.utcnow()
         # Logged when the tokens are issued, i.e. once the second factor is checked.
         db.add(
@@ -413,6 +423,7 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
+            "security_notices": notices,
             "user": {
                 "id": str(user.id),
                 "matricule": user.matricule,
@@ -508,6 +519,8 @@ class AuthService:
         if not await totp.consume(db, user.id, code, confirming=True):
             return None
         await redis.delete(f"{ENROL_PREFIX}{token}")
+        # Read first: the enrolment just made in this login is no news to the holder.
+        notices = await totp.notices_since(db, user.id, user.last_login)
         db.add(
             audit_entry(
                 tenant_id=user.tenant_id,
@@ -521,7 +534,7 @@ class AuthService:
         )
         await db.commit()
         await otp_delivery.notify_totp_event(user, "enrolled")
-        return await self._issue_tokens(db, user, role, request)
+        return await self._issue_tokens(db, user, role, request, notices)
 
     async def _record_otp_failure(
         self,

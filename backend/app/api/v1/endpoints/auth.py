@@ -229,7 +229,7 @@ async def logout(
 
 # --- Authenticator app (TOTP, post-rc1 lot 4, DEC-2026-004) ------------------
 
-TOTP_OFF = "L'application d'authentification n'est pas activée sur ce serveur."
+TOTP_OFF = totp.DISABLED_MESSAGE
 
 
 def _require_totp_enabled() -> None:
