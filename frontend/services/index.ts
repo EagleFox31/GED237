@@ -78,6 +78,7 @@ export const api = {
     getDocument: documentsApi.getDocument,
     getDocumentContentBlob: documentsApi.getDocumentContentBlob,
     updateDocument: documentsApi.updateDocument,
+    renameDocument: documentsApi.renameDocument,
     deleteDocument: documentsApi.deleteDocument,
     getTrashPage: documentsApi.getTrashPage,
     restoreDocument: documentsApi.restoreDocument,

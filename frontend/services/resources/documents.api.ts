@@ -123,6 +123,23 @@ export const documentsApi = {
             'Mise à jour du document impossible',
         ),
 
+    /** Renomme le document ; message court selon le code HTTP, jamais le texte du serveur. */
+    renameDocument: (id: string, title: string): Promise<Document> =>
+        apiCall<Document>(
+            `/documents/${id}`,
+            { method: 'PATCH', body: JSON.stringify({ title }) },
+            'Renommage impossible pour le moment.',
+            {
+                statusMessages: {
+                    400: 'Ce document est dans la corbeille.',
+                    403: 'Vous ne pouvez pas renommer ce document.',
+                    404: 'Document introuvable.',
+                    422: 'Titre non valide.',
+                    423: "Document réservé : impossible de le renommer pour l'instant.",
+                },
+            },
+        ),
+
     /** Met le document à la corbeille (rien n'est supprimé définitivement ici). */
     deleteDocument: async (id: string): Promise<true> => {
         await apiCallVoid(`/documents/${id}`, { method: 'DELETE' }, 'Suppression du document impossible', {

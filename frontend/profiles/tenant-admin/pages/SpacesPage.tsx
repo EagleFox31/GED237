@@ -7,7 +7,17 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
-import { clampToViewport, isArrowKey, isEditableTarget, isTrashKey, nextFocusIndex, trashConfirmMessage } from './explorerKeys';
+import {
+  clampToViewport,
+  isArrowKey,
+  isEditableTarget,
+  isRenameKey,
+  isTrashKey,
+  nextFocusIndex,
+  renamedTitle,
+  TITLE_MAX_LENGTH,
+  trashConfirmMessage,
+} from './explorerKeys';
 
 interface UserNode {
   id: string;
@@ -503,13 +513,14 @@ const SpacesPage: React.FC = () => {
       }
       return;
     }
-    if (isTrashKey(event)) {
-      // Seul un document qui a le focus est concerné ; le même chemin que « Mettre à la corbeille ».
+    if (isTrashKey(event) || isRenameKey(event)) {
+      // Seul un document qui a le focus est concerné ; mêmes chemins que le menu contextuel.
       const id = (event.target as HTMLElement).getAttribute('data-document-id');
       const doc = id ? visibleDocuments.find((d) => d.id === id) : undefined;
       if (!doc) return;
       event.preventDefault();
-      if (window.confirm(trashConfirmMessage(doc.title))) handleTrash(doc).catch(() => undefined);
+      if (isRenameKey(event)) handleRename(doc).catch(() => undefined);
+      else if (window.confirm(trashConfirmMessage(doc.title))) handleTrash(doc).catch(() => undefined);
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -599,6 +610,21 @@ const SpacesPage: React.FC = () => {
       loadDocuments();
     } catch {
       /* message déjà affiché par le bus global */
+    }
+  };
+
+  const handleRename = async (doc: Document) => {
+    setContextMenu(null);
+    const title = renamedTitle(
+      window.prompt(`Nouveau nom (${TITLE_MAX_LENGTH} caractères au plus) :`, doc.title),
+      doc.title
+    );
+    if (!title) return;
+    try {
+      await api.renameDocument(doc.id, title);
+      loadDocuments();
+    } catch {
+      /* message choisi selon le code HTTP, affiché par le bus global */
     }
   };
 
@@ -1199,6 +1225,16 @@ const SpacesPage: React.FC = () => {
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleRename(contextMenu.document)}
+                className={MENU_ITEM}
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">edit</span>
+                Renommer
+                <span className="ml-auto text-xs text-slate-400">F2</span>
               </button>
               <button
                 type="button"
