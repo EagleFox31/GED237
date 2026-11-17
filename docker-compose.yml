@@ -137,6 +137,8 @@ services:
       # Watched folders: read here only for GET /documents/ingest-watch/status.
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      INGEST_WATCH_SETTLE_SECONDS: ${INGEST_WATCH_SETTLE_SECONDS:-10}
+      INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
@@ -149,6 +151,13 @@ services:
       AUTH_LOCKOUT_SECONDS: "900"
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
+      # Login codes by e-mail: off by default, the key comes from the shell or .env.
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
+      # My documents: list of recently opened documents (off by default).
+      RECENT_DOCUMENTS_TRACKING_ENABLED: ${RECENT_DOCUMENTS_TRACKING_ENABLED:-false}
+      RECENT_DOCUMENTS_MAX_PER_USER: ${RECENT_DOCUMENTS_MAX_PER_USER:-50}
     depends_on:
       postgres:
         condition: service_healthy
@@ -187,8 +196,10 @@ services:
       INGEST_ALLOWED_ROOTS: /data/ingest
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      INGEST_WATCH_SETTLE_SECONDS: ${INGEST_WATCH_SETTLE_SECONDS:-10}
       # Demo live import folder: never watched, even through a parent folder.
       INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
+      DEBUG: "false"
     depends_on:
       redis:
         condition: service_healthy

@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -15,6 +16,8 @@ from app.services import my_documents as service
 router = APIRouter()
 
 TOTAL_COUNT_HEADER = "X-Total-Count"
+# Lets the frontend tell "nothing opened yet" from "not remembered at all".
+RECENT_TRACKING_HEADER = "X-Recent-Tracking-Enabled"
 PAGE_MAX = 200
 
 
@@ -71,6 +74,9 @@ async def list_recent(
     db: AsyncSession = Depends(get_db),
 ):
     total, items = await service.list_recent(db, current_user, skip=skip, limit=limit)
+    response.headers[RECENT_TRACKING_HEADER] = (
+        "true" if settings.RECENT_DOCUMENTS_TRACKING_ENABLED else "false"
+    )
     return _page(response, total, items)
 
 

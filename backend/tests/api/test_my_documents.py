@@ -149,11 +149,18 @@ async def test_collaborator_cannot_mark_a_hidden_document(
 async def test_recent_is_not_tracked_by_default(
     admin_client: AsyncClient, db_session, db_seed
 ):
+    origin = settings.ALLOWED_ORIGINS[0]
     document = await _add(db_session, _doc(db_seed, "note"))
     opened = await admin_client.get(f"/api/v1/documents/{document.id}")
     assert opened.status_code == 200
     assert await _count(db_session, DocumentRecentAccess) == 0
-    assert (await admin_client.get(f"{ME}/recent")).json() == []
+    listed = await admin_client.get(f"{ME}/recent", headers={"Origin": origin})
+    assert listed.json() == []
+    assert listed.headers["x-recent-tracking-enabled"] == "false"
+    # Readable by the frontend, which is served from another origin in dev.
+    assert "x-recent-tracking-enabled" in (
+        listed.headers["access-control-expose-headers"].lower()
+    )
 
 
 @pytest.mark.asyncio
@@ -171,6 +178,7 @@ async def test_recent_keeps_the_latest_documents_when_tracking_is_on(
         assert opened.status_code == 200
     listed = await admin_client.get(f"{ME}/recent")
     assert _ids(listed) == [str(a.id), str(b.id)]
+    assert listed.headers["x-recent-tracking-enabled"] == "true"
     count_a = await db_session.scalar(
         select(DocumentRecentAccess.access_count).where(
             DocumentRecentAccess.document_id == a.id
