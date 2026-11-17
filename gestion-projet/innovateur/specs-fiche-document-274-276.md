@@ -98,8 +98,9 @@ Un bloc **Texte reconnu** dans l'onglet « Détails & Aperçu », sous l'aperçu
 | `processing` | « Lecture du texte en cours. Revenez dans quelques minutes. » |
 | `not_processed` | « Pas de texte reconnu pour ce type de fichier. » |
 | `completed` avec un texte vide | « Aucun texte lisible n'a été trouvé dans ce fichier. » |
+| `failed` (ajouté par B en V1.1, demande de O du 17/11) | « Le texte n'a pas pu être lu. Le document reste consultable. » |
 
-**Limite connue, à signaler à B** : le serveur renvoie `processing` pour toute image ou tout PDF sans texte, y compris quand la lecture a échoué. Il n'existe pas d'état « échec ». Sans cet état, un scan illisible reste affiché « en cours » sans fin. Avant de coder ce cas, F demande à B s'il ajoute un état `failed`. Sinon, au-delà de 24 h après le dépôt, l'écran affiche « Le texte n'a pas pu être lu. »
+**État d'échec** : aujourd'hui, le serveur renvoie `processing` pour toute image ou tout PDF sans texte, même quand la lecture a échoué. B ajoute un vrai état `failed` en V1.1. **Filet, seulement si `failed` n'est pas livré à temps** : au-delà de 24 h après le dépôt, l'écran traite `processing` comme `failed`. Le filet disparaît dès que B livre `failed`.
 
 ### Critères d'acceptation
 
