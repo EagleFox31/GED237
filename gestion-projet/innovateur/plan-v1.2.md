@@ -1,0 +1,56 @@
+# Plan V1.2 — ébauche
+
+- **Pour** O, puis le PO. Innovateur, 17/11/2026. Ébauche : les chiffres sont `Déduit` sauf mention contraire, et B, F et Q les remplaceront.
+- **Périmètre** :
+  - les tickets étiquetés `v1.2` (relevés par `gh` le 17/11) ;
+  - les points notés « V1.2 » dans les specs V1.1 (`specs-*.md`) et dans `plan-v1.1.md`.
+- **Ce que la V1.2 n'est pas** : un rattrapage de la V1.1. Si une sortie de dernière minute quitte la V1.1 (par exemple #278 ou le lot 8b), elle vient s'ajouter ici en tête.
+
+## Les éléments
+
+| # | Élément | Valeur pour l'utilisateur, en une ligne | B | F | Q | Dépend de |
+|---|---|---|---|---|---|---|
+| 1 | **#265** : supprimer la table `org_unit_closure`, inutilisée | aucune visible : moins de code mort, des migrations plus sûres | 0,5 (migration) | — | 0,25 | arbre des unités par `parent_id` (#266, V1.1) |
+| 2 | **#279 et #281** : déprécier `GET /documents/tree` au profit de `/spaces/tree` | aucune visible : une seule façon de parcourir les dossiers | 0,25 | — (F vérifie que l'écran n'appelle plus l'ancienne route) | 0,25 | — ; la suppression de la route se fera plus tard, après un cycle de dépréciation |
+| 3 | **#113** : Starlette 1.x | aucune visible : rester sur une version maintenue | 0,5 | — | 0,25 | compatibilité de FastAPI avec Starlette 1.x, à vérifier avant |
+| 4 | **#110** : image Python 3.15 | aucune visible : sécurité et performances de la base logicielle | 0,5 | — | 0,25 | paquets compilés disponibles en 3.15 (asyncpg, OCR) |
+| 5 | **#29** : TypeScript 7 | aucune visible : contrôles plus rapides pour l'équipe | — | 0,5 | 0,25 | #30 conseillé avant |
+| 6 | **#30** : ESLint 10 | aucune visible : outillage à jour | — | 0,5 | 0,25 | — |
+| 7 | **#254, partie 13 a)** : lecteur désigné hors circuit | un agent peut donner à lire un document à une personne précise d'un autre service, sans lancer de circuit | 1,5 (table et migration) | 1 (écran de désignation) | 0,5 | partie V1.1 de #254 (accès par l'étape de circuit) |
+| 8 | **Versions** : restaurer une ancienne version, comparer deux versions | l'agent revient en arrière après une erreur sans redéposer le fichier, et voit ce qui a changé | 1,25 | 1,75 | 0,75 | #275 (V1.1) |
+| 9 | **#183 → #194** : alertes de qualité et onglet « Qualité » des rapports | la direction est prévenue quand le classement ou les délais se dégradent | 1 (confirmé par B : rebasage de ≈ 3 800 lignes, corrections, CI) | 0,5 (rebasage de #194, empilée sur #183) | 2,5 (chiffre du plan V1.1) | #162 ; à rebaser sur `main` V1.1 |
+| 10 | **Tableaux de bord** des autres rôles, avec l'évolution dans le temps | chacun voit son activité et la tendance, pas seulement un chiffre du jour | 1 (séries dans le temps) | 1,5 | 0,5 | #278 (V1.1) |
+| 11 | **« Mon équipe » au-delà des N-1** : N-2 et plus, dépliables | un directeur voit toute sa branche, pas seulement ses chefs de service | 0,5 (profondeur et contrôle du périmètre en cascade) | 0,5 | 0,25 | #277 (PR #285) |
+| 12 | **Organigramme graphique** de l'institution | l'administrateur vérifie d'un coup d'œil qui rend compte à qui | 0,5 (route d'arbre complet) | 1,5 | 0,5 | 11 |
+| 13 | **Droits propres à chaque institution** | une institution règle ses droits sans toucher aux autres | 2,5 (domaine par institution dans le modèle de droits, migration de `casbin_rule`) | 1 (grille par institution, modifiable par son administrateur) | 1,5 (tests par rôle et par institution) | lot 8b et passage en `sql` (V1.1). **Seulement si le PO le demande.** |
+| 14 | **Annuler pendant 5 s** après « Mettre à la corbeille » | rattraper un clic malheureux sans aller dans la corbeille | — | 0,25 | 0,25 | #181. **Seulement si F le sort de la V1.1** (écart 1 de `specs-corbeille-181.md`). |
+
+## Total
+
+| | B | F | Q | Total |
+|---|---|---|---|---|
+| Socle technique (1 à 6) | 1,75 | 1 | 1,5 | 4,25 |
+| Valeur pour l'agent (7, 8, 14) | 2,75 | 3 | 1,5 | 7,25 |
+| Pilotage (9, 10) | 2 | 2 | 3 | 7 |
+| Hiérarchie (11, 12) | 1 | 2 | 0,75 | 3,75 |
+| Droits par institution (13) | 2,5 | 1 | 1,5 | 5 |
+| **Total** | **10** | **9** | **8,25** | **≈ 27,25** |
+
+Q reste le goulot, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q, et les droits par institution (13) en pèsent 1,5. Ce sont les deux leviers de la V1.2.
+
+## Ordre proposé
+
+1. **Socle (1 à 6), en début de cycle**, quand la branche principale est calme. Les montées de version passent avant les fonctions, pour ne pas rebaser les fonctions deux fois. Ordre : #265, #281, #113, #110, puis #30 et #29.
+2. **Valeur pour l'agent (7, 8, 14)** : ce que les agents utilisent chaque jour.
+3. **Pilotage (9, 10)**, selon la réponse du PO à la question 1. **#183 se dégrade chaque semaine** : il a ≈ 3 800 lignes de retard sur `main`. S'il est gardé, il passe en tête du pilotage, voire avant le point 2, pour ne pas payer son rebasage deux fois.
+4. **Hiérarchie (11, puis 12)**.
+5. **Droits par institution (13)**, seulement si le PO le demande (question 2). C'est l'élément le plus risqué : il touche le modèle de droits de toute la plateforme.
+
+## Questions au PO (deux)
+
+1. **Alertes de qualité (#183 et #194)** : les voulez-vous toujours ?
+   - Si oui, on les met en tête de la V1.2, car leur retard grossit chaque semaine.
+   - Si non, on ferme les deux PR et on garde l'idée pour plus tard. Gain ≈ 4 h-s, dont 2,5 de Q.
+2. **Droits propres à chaque institution** : une institution vous a-t-elle demandé des droits différents des autres ?
+   - Si non, on ne le fait pas : les droits restent communs et réglés par l'administrateur de la plateforme. Gain ≈ 5 h-s, dont 1,5 de Q.
+   - Si oui, dites laquelle et pour quel rôle : on vise juste.

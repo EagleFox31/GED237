@@ -177,3 +177,4 @@ Le PO a répondu « 1 V1.2, 2 V1.2, 15 oui » (transmis par O) :
   - Q reste sous 22 : **#278 reste en V1.1**. Il ne reste que ≈ 0,25 h-s avant d'entamer la marge de 6,8.
 - **Totaux** : B ≈ 21,9, F ≈ 15,5, Q ≈ 21,75, I 0,5, soit ≈ 59,65 h-s.
 - **Règle adoptée par O** : aucun ajout en V1.1 sans une sortie équivalente. Au prochain dépassement de Q, #278 sort (Q 0,5).
+- **Confirmé par B (17/11)** : le 1 h-s de la sortie 3 vient en entier de #183 (rebasage, corrections et CI). #194 relève de F. B reste à ≈ 21,9.
