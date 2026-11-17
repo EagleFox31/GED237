@@ -554,13 +554,34 @@ async def _get_document_in_reach_or_404(
 ) -> Document:
     """Load a document of the user's tenant, or 404.
 
-    A document outside a bounded role's unit tree answers like a missing one,
-    before any right or state check reveals that it exists (#202, #215).
+    A document outside the user's perimeter answers like a missing one, before
+    any right or state check reveals that it exists (#202, #215, #247).
     """
     document = await _get_document_or_404(db, user.tenant_id, document_id)
-    if not await _in_reach(db, user, document):
+    if not await _in_perimeter(db, user, document):
         raise HTTPException(status_code=404, detail="Document not found")
     return document
+
+
+async def _in_perimeter(db: AsyncSession, user: User, document: Document) -> bool:
+    """Whether the document is one the user may know about.
+
+    The same perimeter as GET /documents (``visible_document_scope``): the unit
+    tree for unit_admin, the unit for manager and reader, the whole tenant for
+    the roles that read it all, own documents for the others (collaborator).
+    Inside it, a missing right still answers 403. A manager also keeps the
+    documents it owns in another unit: ``update_own`` lets it move one there
+    and back (undo of a move).
+    """
+    role_code = _role_code(user)
+    if role_code in ORG_UNIT_READ_ROLES:
+        in_unit = bool(user.org_unit_id and document.org_unit_id == user.org_unit_id)
+        return in_unit or document.owner_id == user.id
+    if role_code in UNIT_TREE_READ_ROLES:
+        return await _in_reach(db, user, document)
+    if await can_perform(user, "documents", "read", ctx_from_resource(document)):
+        return True
+    return document.owner_id == user.id
 
 
 @router.get("/stats")
