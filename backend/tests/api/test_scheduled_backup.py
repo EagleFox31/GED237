@@ -255,9 +255,12 @@ async def test_backup_restores_with_the_same_counts_and_files(
 ):
     pg_dump, pg_restore = _tool("pg_dump"), _tool("pg_restore")
     monkeypatch.setattr(settings, "SCHEDULED_BACKUP_PG_DUMP", pg_dump)
-    # The runner's client may be newer than the CI server; this test restores
-    # with that same client, so the archive version is readable here.
-    monkeypatch.setattr(sb, "check_pg_dump_matches", lambda client, server: None)
+    # The version guard runs for real: the CI puts a client of the server's
+    # major first on PATH (backend.yml). Elsewhere a mismatched client skips.
+    async with test_engine.connect() as conn:
+        server = int((await conn.execute(text("SHOW server_version_num"))).scalar_one())
+    if sb._pg_dump_major() != server // 10000 and not os.getenv("CI"):
+        pytest.skip("pg_dump major differs from the test server")
 
     result = await sb.run_scheduled_backup(factory, now=NOW)
     assert result["status"] == "succeeded", result
@@ -294,6 +297,7 @@ async def test_backup_restores_with_the_same_counts_and_files(
                 pg_restore,
                 "--no-owner",
                 "--no-privileges",
+                "--exit-on-error",
                 f"--dbname={dsn}",
                 str(backup / "db.dump"),
             ],
@@ -302,17 +306,7 @@ async def test_backup_restores_with_the_same_counts_and_files(
             capture_output=True,
             text=True,
         )
-        # A client newer than the server writes session settings the server
-        # does not know (pg_dump 17: transaction_timeout). Production never
-        # meets this: the version guard keeps client and server on one major.
-        # Any other restore error fails the test, with pg_restore's own words.
-        errors = [
-            line
-            for line in restored.stderr.splitlines()
-            if line.startswith("pg_restore: error:")
-            and "transaction_timeout" not in line
-        ]
-        assert not errors, restored.stderr
+        assert restored.returncode == 0, restored.stderr
         engine = create_async_engine(
             url.set(database=scratch).render_as_string(hide_password=False),
             poolclass=NullPool,
