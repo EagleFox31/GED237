@@ -2005,7 +2005,7 @@ async def test_standard_can_read_own_document_after_upload(test_engine, db_seed)
         r2 = await client.get(f"/api/v1/documents/{doc_id}")
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
-    assert r2.status_code == 403
+    assert r2.status_code == 404  # outside its perimeter: like a missing one (#247)
 
 
 @pytest.mark.asyncio

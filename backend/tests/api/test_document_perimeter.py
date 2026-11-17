@@ -116,9 +116,12 @@ async def test_restore_and_purge_never_confirm_a_document_outside_the_tree(
     tree,  # noqa: F811
 ):
     """Completes the #202 list: restore hides a trashed document outside the
-    unit_admin's tree; purge is refused before any lookup, in or out."""
+    unit_admin's tree; purge is refused before any lookup, in or out. The caller
+    is the seeded user: the restore writes an audit row."""
     ids = tree["ids"]
-    async with _as(client_as, db_seed, tree, "unit_admin", "a1") as client:
+    async with _as(
+        client_as, db_seed, tree, "unit_admin", "a1", db_seed["user_id"]
+    ) as client:
         restore_out = await client.post(f"{DOCUMENTS}/{ids['b_trash']}/restore")
         purge_out = await client.delete(f"{DOCUMENTS}/{ids['b_trash']}/purge")
         purge_in = await client.delete(f"{DOCUMENTS}/{ids['a1_trash']}/purge")
