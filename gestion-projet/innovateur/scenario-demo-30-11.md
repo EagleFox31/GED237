@@ -13,7 +13,7 @@ Postes : une fenêtre **A** (`MINFI002`, collaborateur DAF), connectée en direc
 
 | Min | Étape | Fenêtre | Ce que l'on fait (`Vérifié` sauf mention) | Ce que le jury doit voir | Transition |
 |---|---|---|---|---|---|
-| 0:00–1:30 | **Ouverture** | — | une diapositive : des dossiers partagés en vrac, des documents introuvables | le problème et la promesse en une phrase | « Entrons comme un agent de la DAF. » |
+| 0:00–1:30 | **Ouverture** | — | une diapositive (§ 5 n° 19) : des dossiers partagés en vrac, des documents introuvables | le problème et la promesse en une phrase | « Entrons comme un agent de la DAF. » |
 | 1:30–2:30 | **Connexion** | A | mot de passe puis code à usage unique | nom et rôle dans l'en-tête | « Ce matin, il reçoit 30 fichiers en vrac. » |
 | 2:30–6:00 | **1. Import en vrac** | A | menu « Ranger / Importer » (`/ingestion`) → « Importer dans le Serveur de l'Application » → choix du dossier `live` (30 fichiers, envoi par le navigateur) → analyse → validation | la répartition avant import (classés, à revoir, **2 doublons** reconnus au contenu et ignorés), puis le compteur de fin | « Où sont-ils partis ? » |
 | 6:00–8:00 | **2. Le rangement** | A | explorateur des documents (libellé et route `À vérifier`, § 5 n° 6) : DAF → domaine → activité → année ; ouvrir un document importé | l'arborescence **service > domaine > activité > année** remplie par l'import ; un fichier sans date part dans « A classer/‹année› ». Si l'on demande « et par année d'abord ? » : « On range d'abord par métier, parce que c'est ainsi qu'on cherche un dossier ; l'année est le dernier niveau, et un filtre par année existe dans chaque dossier. » (filtre : `À vérifier`, § 5 n° 6) | « Pourquoi là ? Parce qu'une règle le dit. » |
@@ -62,6 +62,7 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 | Risque | Signe | Plan B |
 |---|---|---|
 | Code à usage unique refusé ou trop de tentatives | message d'erreur, attente imposée | passer sur B, déjà connectée, et commenter ; capture de `auth-2fa` |
+| Code à usage unique affiché en clair à l'écran (canal `dev_response` de la pile de démo, signalé par O le 17/11) | le code apparaît sur l'écran projeté pendant la connexion de A | parade retenue selon le § 5 n° 14 : (a) la connexion de A se fait avant la séance, comme B à E, et l'étape « Connexion » montre l'écran de connexion **sans le valider** (0:30 gagnées) ; ou (b) projecteur en mode « étendre », connexion saisie sur l'écran non projeté, puis bascule. Phrase si le jury le voit : « Sur la pile de démonstration, le code s'affiche pour le test ; en service, il part par un canal séparé. » (`À vérifier` : canal réel, § 5 n° 14) |
 | Session expirée sur une fenêtre préconnectée | retour à l'écran de connexion | reconnexion du compte concerné (≈ 40 s) ; si deux expirent, captures pour les étapes restantes |
 | Import long ou en erreur | analyse qui ne finit pas, erreur | importer un sous-dossier de 5 fichiers préparé (dont 1 doublon) ; sinon capture de `directory-import` |
 | Répartition différente de celle annoncée | autres nombres de classés, à revoir ou doublons | lire les nombres affichés sans les commenter ; la répétition fige les chiffres attendus (§ 5 n° 3) |
@@ -89,11 +90,12 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 | 11 | Journal : lignes d'import, de revue et de consultation de `MINFI002` du jour ; l'export CSV s'ouvre dans le tableur | Q | fichier exporté |
 | 12 | Rapports de `MGR001` limités à la DAF, avec signaux à la même portée (#188) | Q | capture des onglets Synthèse et Services |
 | 13 | Durée de vie d'une session préconnectée (au moins 40 min, ou renouvellement automatique) | B | réglage relevé dans la configuration |
-| 14 | Comment le code à usage unique arrive sur la pile de démo | B | mode décrit, sans secret |
+| 14 | Comment le code à usage unique arrive sur la pile de démo ; s'il s'affiche à l'écran (`dev_response`), choix de la parade (a) ou (b) du § 4 et mise à jour de l'étape « Connexion » | B (fait), O (choix) | mode décrit, sans secret ; parade notée par ajout daté |
 | 15 | Deux répétitions chronométrées (dont le 27/11), écarts reportés ici par ajout daté | O | chronos |
 | 16 | Captures de secours régénérées sur le tag `v1.0.0-rc.1` | Q | rapport Playwright du tag |
 | 17 | Chaque entrée du menu admin (`MINFI001`) ouvre une page, aucune « page introuvable » (correctif de F du menu « Recherche ») | Q | liste des entrées cliquées, avec la route |
 | 18 | Un document de la DAF est en attente de visa chez `MGR001` après la remise à zéro (jeu P8), et le visa comme le rejet motivé fonctionnent | Q | identifiant du document, capture de la tâche en attente |
+| 19 | Diapositive d'ouverture (le problème des dossiers en vrac, la promesse en une phrase) | O la fournit, P la valide | fichier de la diapositive, validation de P |
 
 ## 6. Décisions de O du 17/11 (sur la première version de ce § 6)
 
