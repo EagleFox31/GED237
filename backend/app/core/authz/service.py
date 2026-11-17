@@ -39,6 +39,7 @@ _SENSITIVE_ACTIONS = frozenset(
     {
         "delete",
         "delete_own",
+        "purge",
         "manage",
         "assign",
         "resolve_review",
