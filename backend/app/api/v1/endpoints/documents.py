@@ -48,6 +48,8 @@ from app.schemas.document import (
     DocumentUpdate,
     NeedsReviewDocument,
     ResolveReviewPayload,
+    TrashEmptyRequest,
+    TrashEmptyResponse,
 )
 from app.services.space_path_builder import SpacePathBuilder
 from app.services.classification_review_service import ClassificationReviewService
@@ -56,6 +58,7 @@ from app.models.tenant import Tenant
 from app.services.ingest_watch import read_last_run, status_for_tenant
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
+from app.services import trash_service
 from app.services.storage.factory import get_storage_service
 from app.workers.tasks import process_document_ocr
 
@@ -756,6 +759,7 @@ async def list_documents(
 
 @router.get("/trash", response_model=List[DocumentRead])
 async def list_trashed_documents(
+    response: Response,
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
@@ -771,13 +775,15 @@ async def list_trashed_documents(
         query = query.where(Document.org_unit_id == current_user.org_unit_id)
     else:
         query = query.where(Document.owner_id == current_user.id)
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    response.headers[TOTAL_COUNT_HEADER] = str(total or 0)
     result = await db.execute(
         query.options(
             *_document_load_options(),
         )
-        .order_by(Document.deleted_at.desc())
-        .offset(skip)
-        .limit(limit)
+        .order_by(Document.deleted_at.desc(), Document.id.asc())
+        .offset(max(skip, 0))
+        .limit(min(max(limit, 1), WORKSPACE_PAGE_MAX))
     )
     return [_serialize_document(document) for document in result.scalars().all()]
 
@@ -1233,24 +1239,32 @@ async def delete_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Move the document to the trash. Nothing is deleted for good here.
+
+    Permanent deletion goes through the trash purge (``documents manage``).
+    """
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(current_user, document):
+    if not (
+        await _can_mutate_document(current_user, document)
+        or await _can_trash_document(current_user, document)
+    ):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
         )
     await _ensure_not_locked_for_write(document, current_user)
+    if document.deleted_at is not None:
+        return None
 
-    versions_result = await db.execute(
-        select(DocumentVersion).where(DocumentVersion.document_id == document.id)
+    document.deleted_at = datetime.now(timezone.utc)
+    document.deleted_by = current_user.id
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=document.id,
+            action="document_trashed",
+            details={"via": "delete"},
+        )
     )
-    versions = versions_result.scalars().all()
-    for version in versions:
-        if version.file_path:
-            storage_service.delete_file(version.file_path)
-    if document.file_path:
-        storage_service.delete_file(document.file_path)
-
-    await db.delete(document)
     await db.commit()
     return None
 
@@ -1638,6 +1652,7 @@ async def restore_document(
 
 @router.delete("/{document_id}/purge", status_code=status.HTTP_200_OK)
 async def purge_document(
+    request: Request,
     document_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -1645,24 +1660,69 @@ async def purge_document(
     await authorize_or_403(current_user, "documents", "manage")
 
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    versions_result = await db.execute(
-        select(DocumentVersion).where(DocumentVersion.document_id == document.id)
-    )
-    versions = versions_result.scalars().all()
-    for version in versions:
-        if version.file_path:
-            storage_service.delete_file(version.file_path)
-    if document.file_path:
-        storage_service.delete_file(document.file_path)
-
-    db.add(
-        _audit_document_action(
-            user=current_user, document_id=document.id, action="document_purged"
+    if document.deleted_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "document_not_in_trash",
+                "message": "Placez d'abord le document dans la corbeille.",
+            },
         )
+    await trash_service.purge_many(
+        db,
+        storage_service,
+        [document],
+        actor_id=current_user.id,
+        reason=trash_service.REASON_MANUAL,
+        request=request,
     )
-    await db.delete(document)
-    await db.commit()
     return {"message": "Document definitivement supprime."}
+
+
+@router.post("/trash/empty", response_model=TrashEmptyResponse)
+async def empty_trash(
+    request: Request,
+    payload: Optional[TrashEmptyRequest] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Purge trashed documents of the caller's institution, oldest first.
+
+    No filter: the whole trash, ``TRASH_PURGE_BATCH`` documents per call
+    (``remaining`` tells whether to call again). Identifiers of another
+    institution, or of documents that are not in the trash, are ignored.
+    """
+    await authorize_or_403(current_user, "documents", "manage")
+
+    payload = payload or TrashEmptyRequest()
+    deleted_before = None
+    if payload.older_than_days is not None:
+        deleted_before = datetime.now(timezone.utc) - timedelta(
+            days=payload.older_than_days
+        )
+    result = await db.execute(
+        trash_service.trashed_query(
+            current_user.tenant_id,
+            document_ids=payload.document_ids,
+            deleted_before=deleted_before,
+        )
+        .limit(settings.TRASH_PURGE_BATCH)
+        .with_for_update(skip_locked=True, of=Document)
+    )
+    details = {}
+    if payload.older_than_days is not None:
+        details["older_than_days"] = payload.older_than_days
+    purged = await trash_service.purge_many(
+        db,
+        storage_service,
+        result.scalars().all(),
+        actor_id=current_user.id,
+        reason=trash_service.REASON_BULK,
+        details=details,
+        request=request,
+    )
+    remaining = await trash_service.count_trashed(db, current_user.tenant_id)
+    return TrashEmptyResponse(purged=purged, remaining=remaining)
 
 
 @router.post("/{document_id}/versions", status_code=status.HTTP_201_CREATED)
