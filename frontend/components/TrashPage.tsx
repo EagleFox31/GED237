@@ -72,15 +72,16 @@ const TrashPage: React.FC = () => {
   const askEmpty = () =>
     setConfirm({
       title: 'Vider la corbeille ?',
-      message: `${total} document${total > 1 ? 's' : ''} ${total > 1 ? 'seront effacés' : 'sera effacé'}. Impossible de revenir en arrière.`,
+      message: 'Les documents seront effacés, sauf ceux signés ou archivés. Impossible de revenir en arrière.',
       label: 'Vider',
       run: async () => {
-        // Le serveur purge par lots : on rappelle tant qu'il en reste.
+        // Le serveur purge par lots : on rappelle tant qu'il en reste. `remaining` ne compte que
+        // ce qu'un nouvel appel purgerait (signés et archivés exclus) ; un lot vide arrête aussi.
         for (let guard = 0; guard < 100; guard += 1) {
           // Séquentiel voulu : chaque appel dépend du reste laissé par le précédent.
           // eslint-disable-next-line no-await-in-loop
-          const { remaining } = await api.emptyTrash();
-          if (remaining === 0) break;
+          const { purged, remaining } = await api.emptyTrash();
+          if (remaining <= 0 || purged === 0) break;
         }
         await load();
       },
