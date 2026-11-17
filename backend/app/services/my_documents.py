@@ -31,7 +31,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 
 from app.core.config import settings
 from app.models.document import Document
@@ -76,9 +76,12 @@ def _active(user: User) -> list:
 
 
 def _is_favorite(user: User):
+    # Own alias: the favourites listing already joins document_favorites, which
+    # would otherwise be auto-correlated away and leave the subquery without FROM.
+    favorite = aliased(DocumentFavorite)
     return exists().where(
-        DocumentFavorite.user_id == user.id,
-        DocumentFavorite.document_id == Document.id,
+        favorite.user_id == user.id,
+        favorite.document_id == Document.id,
     )
 
 
