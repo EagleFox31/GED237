@@ -140,6 +140,7 @@ async def test_valid_app_code_logs_in_and_nothing_is_sent(
     admin_client: AsyncClient, clock, outbox
 ):
     secret = await _enrol(admin_client, clock)
+    outbox.messages.clear()  # the "app added" notice sent at enrolment
     clock.step = 1
     step1 = await _login(admin_client)
     assert step1["method"] == "totp"
