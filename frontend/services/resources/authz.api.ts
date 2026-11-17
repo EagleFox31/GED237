@@ -28,8 +28,11 @@ export interface AuthzMetricsFilters {
 // ── API ─────────────────────────────────────────────────────────────────────
 
 export const authzApi = {
+    // 409 : politiques non modifiables sur cette installation (AUTHZ_BACKEND=csv) ; l'écran l'affiche lui-même.
     getAuthzPolicies: (): Promise<any[]> =>
-        apiCall<any[]>('/authz/policies', {}, 'Récupération des politiques impossible'),
+        apiCall<any[]>('/authz/policies', {}, 'Récupération des politiques impossible', {
+            handledStatuses: [409],
+        }),
 
     addAuthzPolicy: (policy: AuthzPolicy): Promise<any> =>
         apiCall<any>(
