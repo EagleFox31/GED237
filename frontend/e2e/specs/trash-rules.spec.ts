@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { canEmptyTrash, isPurgeProtected } from '../../lib/trashRules';
+import { canEmptyTrash, isGoneFromTrash, isPurgeProtected } from '../../lib/trashRules';
 
 test.describe('Corbeille : actions définitives possibles', () => {
   test('signé et archivé sont protégés, les autres statuts non', () => {
@@ -20,5 +20,15 @@ test.describe('Corbeille : actions définitives possibles', () => {
 
   test('« Vider » gardé tant que toutes les pages ne sont pas chargées', () => {
     expect(canEmptyTrash([{ status: 'signed' }], 51)).toBe(true);
+  });
+});
+
+test.describe('Corbeille : document disparu', () => {
+  test('seul un 404 retire la ligne', () => {
+    expect(isGoneFromTrash({ status: 404 })).toBe(true);
+    expect(isGoneFromTrash({ status: 403 })).toBe(false);
+    expect(isGoneFromTrash({ status: 500 })).toBe(false);
+    expect(isGoneFromTrash(new Error('réseau'))).toBe(false);
+    expect(isGoneFromTrash(null)).toBe(false);
   });
 });

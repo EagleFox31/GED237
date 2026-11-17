@@ -14,3 +14,10 @@ export const isPurgeProtected = (doc: Pick<Document, 'status'>): boolean =>
  */
 export const canEmptyTrash = (items: ReadonlyArray<Pick<Document, 'status'>>, total: number): boolean =>
   items.length < total || items.some((doc) => !isPurgeProtected(doc));
+
+/**
+ * 404 sur restaurer ou supprimer : le document n'est plus dans la corbeille de l'utilisateur
+ * (déjà traité ailleurs, ou hors de son périmètre, #247). La ligne n'a plus lieu d'être.
+ */
+export const isGoneFromTrash = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && (error as { status?: unknown }).status === 404;

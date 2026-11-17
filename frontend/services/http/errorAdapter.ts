@@ -12,18 +12,25 @@ import { ApiError, apiErrorFromResponse, apiErrorFromException, pushApiError } f
 
 export type { ApiError };
 
+/** Message court à afficher pour un code HTTP donné, à la place du détail technique du serveur. */
+export type StatusMessages = Partial<Record<number, string>>;
+
+export interface ApiErrorOptions {
+    /** Statuts que l'appelant affiche lui-même : l'erreur est levée sans toast global. */
+    handledStatuses?: readonly number[];
+    /** Message court par code HTTP, affiché par le bus au lieu du détail du serveur. */
+    statusMessages?: StatusMessages;
+}
+
 /**
  * Construit une ApiError typée depuis une Response non-ok, la pousse au bus
  * global (sauf 401 déjà géré par le refresh interceptor), et la retourne pour
  * que le call site puisse aussi la gérer localement.
  */
-/** Message court à afficher pour un code HTTP donné, à la place du détail technique du serveur. */
-export type StatusMessages = Partial<Record<number, string>>;
-
 export const buildApiError = async (
     response: Response,
     fallback: string,
-    statusMessages?: StatusMessages,
+    { handledStatuses = [], statusMessages }: ApiErrorOptions = {},
 ): Promise<ApiError> => {
     let apiErr = await apiErrorFromResponse(response);
     const override = statusMessages?.[apiErr.status];
@@ -34,8 +41,9 @@ export const buildApiError = async (
         apiErr = new ApiError({ ...apiErr.raw, detail: fallback });
     }
     // Les 401 sont gérés par fetchWithRefresh (refresh ou logout) :
-    // pas de toast intermédiaire redondant.
-    if (apiErr.status !== 401) {
+    // pas de toast intermédiaire redondant. Les statuts « handled » sont
+    // affichés par l'appelant avec son propre message : pas de toast non plus.
+    if (apiErr.status !== 401 && !handledStatuses.includes(apiErr.status)) {
         pushApiError(apiErr);
     }
     return apiErr;

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.core.classification_reasons import ReviewReasonText
 from app.schemas.document import ClassificationScope, DocumentRead
 from app.schemas.imports import ImportJobItemRead, ProcessingMode
 
@@ -19,7 +20,7 @@ class ClassificationReviewRead(BaseModel):
     review_source: ClassificationReviewSource
     review_status: ClassificationReviewStatus
     processing_mode: Optional[ProcessingMode] = None
-    arbitration_reason: Optional[str] = None
+    arbitration_reason: ReviewReasonText = None
     suggested_domain_id: Optional[UUID] = None
     suggested_activity_id: Optional[UUID] = None
     suggested_year: Optional[int] = None

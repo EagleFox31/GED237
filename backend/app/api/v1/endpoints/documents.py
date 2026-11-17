@@ -122,6 +122,38 @@ def _escape_like(value: str) -> str:
     )
 
 
+def _apply_text_filter(query, text: str):
+    """Literal, case-insensitive match on title, tags, domain, activity or category name."""
+    pattern = f"%{_escape_like(text)}%"
+
+    def _match(column):
+        return column.ilike(pattern, escape=_LIKE_ESCAPE)
+
+    return (
+        query.outerjoin(
+            ClassificationDomain,
+            Document.classification_domain_id == ClassificationDomain.id,
+        )
+        .outerjoin(
+            ClassificationActivity,
+            Document.classification_activity_id == ClassificationActivity.id,
+        )
+        .outerjoin(
+            DocumentCategory,
+            Document.document_category_id == DocumentCategory.id,
+        )
+        .where(
+            or_(
+                _match(Document.title),
+                _match(func.array_to_string(Document.tags, " ")),
+                _match(ClassificationDomain.name),
+                _match(ClassificationActivity.name),
+                _match(DocumentCategory.name),
+            )
+        )
+    )
+
+
 class WorkspaceDocumentFilters:
     """Server-side filters for workspace/space document listings.
 
@@ -164,34 +196,7 @@ class WorkspaceDocumentFilters:
                 Document.classification_status == self.classification_status
             )
         if self.q:
-            pattern = f"%{_escape_like(self.q)}%"
-
-            def _match(column):
-                return column.ilike(pattern, escape=_LIKE_ESCAPE)
-
-            query = (
-                query.outerjoin(
-                    ClassificationDomain,
-                    Document.classification_domain_id == ClassificationDomain.id,
-                )
-                .outerjoin(
-                    ClassificationActivity,
-                    Document.classification_activity_id == ClassificationActivity.id,
-                )
-                .outerjoin(
-                    DocumentCategory,
-                    Document.document_category_id == DocumentCategory.id,
-                )
-                .where(
-                    or_(
-                        _match(Document.title),
-                        _match(func.array_to_string(Document.tags, " ")),
-                        _match(ClassificationDomain.name),
-                        _match(ClassificationActivity.name),
-                        _match(DocumentCategory.name),
-                    )
-                )
-            )
+            query = _apply_text_filter(query, self.q)
         return query
 
     def paginate(self, query):
@@ -766,6 +771,7 @@ async def list_documents(
     skip: int = 0,
     limit: int = 100,
     document_status: Optional[str] = Query(default=None, alias="status"),
+    q: Optional[str] = Query(default=None, max_length=120),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -783,8 +789,14 @@ async def list_documents(
 
     if document_status:
         query = query.where(Document.status == document_status)
+    # Search runs on the whole scope, not on the page the client already holds.
+    if q and q.strip():
+        query = _apply_text_filter(query, q.strip())
 
-    query = query.options(*_document_load_options())
+    # Stable order: the most recent documents first, so pages do not shift.
+    query = query.order_by(Document.created_at.desc(), Document.id).options(
+        *_document_load_options()
+    )
     result = await db.execute(query.offset(skip).limit(limit))
     return [_serialize_document(document) for document in result.scalars().all()]
 
@@ -841,7 +853,7 @@ async def list_needs_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "review")
     service = ClassificationReviewService(db)
     documents = await service.list_legacy_needs_review_documents(
         tenant_id=current_user.tenant_id
@@ -1346,7 +1358,7 @@ async def update_document(
                 status_code=400,
                 detail="Document status transitions must go through workflow endpoints",
             )
-        await authorize_or_403(current_user, "documents", "manage")
+        await authorize_or_403(current_user, "documents", "archive")
         if document.status not in ARCHIVABLE_SOURCE_STATUSES:
             raise HTTPException(
                 status_code=409,

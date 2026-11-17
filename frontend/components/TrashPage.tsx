@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import type { Document } from '../types';
 import { useCan } from '../hooks/useCan';
-import { canEmptyTrash, isPurgeProtected } from '../lib/trashRules';
+import { canEmptyTrash, isGoneFromTrash, isPurgeProtected } from '../lib/trashRules';
 import { InlineHelpButton } from './ui/InlineHelpButton';
 
 const PAGE_SIZE = 50;
@@ -58,8 +58,9 @@ const TrashPage: React.FC = () => {
     try {
       await api.restoreDocument(doc.id);
       removeLocally(doc.id);
-    } catch {
-      /* bus global */
+    } catch (error) {
+      // Message déjà affiché par le bus global ; un 404 retire en plus la ligne disparue.
+      if (isGoneFromTrash(error)) removeLocally(doc.id);
     } finally {
       setBusy(false);
     }
@@ -71,7 +72,11 @@ const TrashPage: React.FC = () => {
       message: `« ${doc.title} » sera effacé. Impossible de revenir en arrière.`,
       label: 'Supprimer',
       run: async () => {
-        await api.purgeDocument(doc.id);
+        try {
+          await api.purgeDocument(doc.id);
+        } catch (error) {
+          if (!isGoneFromTrash(error)) throw error;
+        }
         removeLocally(doc.id);
       },
     });
