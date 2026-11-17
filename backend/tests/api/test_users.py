@@ -8,7 +8,9 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 
+from app.core.config import Settings, settings
 from app.core.security import hash_password
 from app.models.role import Role
 from app.models.tenant import Tenant
@@ -394,6 +396,39 @@ async def test_an_administrator_keeps_every_field_of_their_own_account(
         )
     assert response.status_code == 200, response.text
     assert response.json()["email"] == "admin2@ged.cm"
+
+
+def test_the_default_self_service_list_leaves_the_email_out():
+    """#216, PO question 8: names and phone by default, not the e-mail."""
+    default = Settings.model_fields["USER_SELF_EDITABLE_FIELDS_STR"].default
+    assert set(default.split(",")) == {"first_name", "last_name", "phone"}
+
+
+@pytest.mark.parametrize("field", ["role_id", "is_active", "password", "bogus"])
+def test_the_self_service_list_refuses_administrator_fields(field):
+    with pytest.raises(ValidationError, match="USER_SELF_EDITABLE_FIELDS"):
+        Settings(USER_SELF_EDITABLE_FIELDS=f"first_name,{field}")
+
+
+@pytest.mark.asyncio
+async def test_a_deployment_can_open_the_email_to_self_service(
+    client_as, db_seed, monkeypatch
+):
+    """The list is configuration: a different PO answer needs no code change."""
+    monkeypatch.setattr(
+        settings, "USER_SELF_EDITABLE_FIELDS_STR", "first_name,last_name,phone,email"
+    )
+    async with _self_client(client_as, db_seed) as client:
+        opened = await client.patch(
+            f"{USERS}/{db_seed['user_id']}", json={"email": "self2@ged.cm"}
+        )
+        still_refused = await client.patch(
+            f"{USERS}/{db_seed['user_id']}", json={"avatar_url": "x.png"}
+        )
+    assert opened.status_code == 200, opened.text
+    assert opened.json()["email"] == "self2@ged.cm"
+    assert still_refused.status_code == 403
+    assert still_refused.json()["fields"] == ["avatar_url"]
 
 
 async def _privileged_roles(db_session):

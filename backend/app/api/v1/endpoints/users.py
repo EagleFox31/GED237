@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import (
@@ -338,13 +339,6 @@ async def read_user(
     return user
 
 
-# What users may change on their own account without the right to update users
-# (#216). The e-mail is the login and the OTP channel; role, unit, manager and
-# status are an administrator's call; the password has its own route, which
-# asks for the current one.
-SELF_EDITABLE_FIELDS = frozenset({"first_name", "last_name", "phone"})
-
-
 @router.patch("/{user_id}", response_model=UserRead)
 async def update_user(
     user_id: UUID,
@@ -373,7 +367,11 @@ async def update_user(
     update_data = user_in.dict(exclude_unset=True)
 
     if is_self and not await can_perform(current_user, "users", "update"):
-        refused = sorted(set(update_data) - SELF_EDITABLE_FIELDS)
+        # What users may change on their own account without the right to
+        # update users (#216): settings.USER_SELF_EDITABLE_FIELDS. Role, unit,
+        # manager and status are an administrator's call; the password has its
+        # own route, which asks for the current one.
+        refused = sorted(set(update_data) - settings.USER_SELF_EDITABLE_FIELDS)
         if refused:
             raise AuthorizationError(
                 "Seul un administrateur peut modifier ces informations.",
