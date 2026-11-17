@@ -1,7 +1,10 @@
 # Scheduled backup (post-rc1 lot 13), off unless this overlay is added:
-#   docker compose -f docker-compose.yml -f docker-compose.backup.yml up -d worker
-# The worker's beat writes one backup a night into ./backups/scheduled (host),
-# same layout as ops/backup.sh. Keep it apart from ops/backup.sh's BACKUP_DIR:
+#   docker compose -f docker-compose.yml -f docker-compose.backup.yml up -d api worker
+# api and worker both: the worker's beat writes the backups, the api reports
+# their status and the "stale" alert. Other settings (hour, retention, maximum
+# age, pg_dump) are passed by docker-compose.yml, from .env.
+# The worker writes one backup a night into ./backups/scheduled (host), same
+# layout as ops/backup.sh. Keep it apart from ops/backup.sh's BACKUP_DIR:
 # that script's BACKUP_RETENTION counts every ged237-* directory it finds.
 # Requires a pg_dump of the server's major version (checked before each run):
 # set SCHEDULED_BACKUP_PG_DUMP once postgresql-client-15 is in the worker image.
@@ -9,16 +12,8 @@ services:
   worker:
     environment:
       SCHEDULED_BACKUP_ENABLED: "true"
-      SCHEDULED_BACKUP_HOUR: ${SCHEDULED_BACKUP_HOUR:-2}
-      SCHEDULED_BACKUP_KEEP_DAILY: ${SCHEDULED_BACKUP_KEEP_DAILY:-7}
-      SCHEDULED_BACKUP_KEEP_WEEKLY: ${SCHEDULED_BACKUP_KEEP_WEEKLY:-4}
-      SCHEDULED_BACKUP_PG_DUMP: ${SCHEDULED_BACKUP_PG_DUMP:-pg_dump}
-      SCHEDULED_BACKUP_DIR: /var/backups/ged237
     volumes:
       - ${SCHEDULED_BACKUP_HOST_DIR:-./backups/scheduled}:/var/backups/ged237
   api:
-    # The api only reads backup_runs (GET /api/v1/backups/status): it needs the
-    # flag to report the "stale" alert.
     environment:
       SCHEDULED_BACKUP_ENABLED: "true"
-      SCHEDULED_BACKUP_HOUR: ${SCHEDULED_BACKUP_HOUR:-2}

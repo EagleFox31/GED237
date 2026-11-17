@@ -50,6 +50,9 @@ STALE_RUNNING = timedelta(hours=6)
 TAR_MTIME = 946684800  # 2000-01-01T00:00:00Z
 DIR_PATTERN = re.compile(r"^ged237-\d{8}T\d{6}Z$")
 PG_DUMP_TIMEOUT_SECONDS = 6 * 3600
+# Owner only: a backup holds every document and the password hashes.
+PRIVATE_DIR_MODE = 0o700
+PRIVATE_FILE_MODE = 0o600
 
 
 class BackupError(Exception):
@@ -267,6 +270,14 @@ def _finish_files(partial: Path, counts: dict[str, str], files: int) -> None:
     (partial / "MANIFEST.txt").write_text(manifest, encoding="utf-8")
 
 
+def _make_private(directory: Path) -> None:
+    """Owner-only modes, set explicitly whatever the process umask."""
+    directory.chmod(PRIVATE_DIR_MODE)
+    for path in directory.iterdir():
+        if path.is_file():
+            path.chmod(PRIVATE_FILE_MODE)
+
+
 def _dir_size(path: Path) -> int:
     return sum(p.stat().st_size for p in path.iterdir() if p.is_file())
 
@@ -282,9 +293,9 @@ async def _write_backup(session_factory, root: Path, now: datetime) -> tuple[str
         )
     name = f"ged237-{now.astimezone(timezone.utc):%Y%m%dT%H%M%SZ}"
     partial = root / f".{name}.partial"
-    root.mkdir(parents=True, exist_ok=True)
+    root.mkdir(mode=PRIVATE_DIR_MODE, parents=True, exist_ok=True)
     shutil.rmtree(partial, ignore_errors=True)
-    partial.mkdir()
+    partial.mkdir(mode=PRIVATE_DIR_MODE)
     try:
         async with session_factory() as db:
             await db.connection(
@@ -308,6 +319,7 @@ async def _write_backup(session_factory, root: Path, now: datetime) -> tuple[str
             partial / "storage.tar.gz",
         )
         await asyncio.to_thread(_finish_files, partial, counts, files)
+        _make_private(partial)
         final = root / name
         if final.exists():
             raise BackupError(f"Le dossier {name} existe déjà.")

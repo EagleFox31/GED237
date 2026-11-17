@@ -132,6 +132,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      STORAGE_TYPE: local
       STORAGE_PATH: /var/storage_data
       INGEST_ALLOWED_ROOTS: /data/ingest
       # Watched folders: read here only for GET /documents/ingest-watch/status.
@@ -149,6 +150,15 @@ services:
       AUTH_LOCKOUT_SECONDS: "900"
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
+      # Scheduled backup: off here, docker-compose.backup.yml turns it on and
+      # mounts the directory. Same values for api (status, alert) and worker.
+      SCHEDULED_BACKUP_ENABLED: ${SCHEDULED_BACKUP_ENABLED:-false}
+      SCHEDULED_BACKUP_HOUR: ${SCHEDULED_BACKUP_HOUR:-2}
+      SCHEDULED_BACKUP_DIR: /var/backups/ged237
+      SCHEDULED_BACKUP_KEEP_DAILY: ${SCHEDULED_BACKUP_KEEP_DAILY:-7}
+      SCHEDULED_BACKUP_KEEP_WEEKLY: ${SCHEDULED_BACKUP_KEEP_WEEKLY:-4}
+      SCHEDULED_BACKUP_MAX_AGE_HOURS: ${SCHEDULED_BACKUP_MAX_AGE_HOURS:-24}
+      SCHEDULED_BACKUP_PG_DUMP: ${SCHEDULED_BACKUP_PG_DUMP:-pg_dump}
     depends_on:
       postgres:
         condition: service_healthy
@@ -183,12 +193,22 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      STORAGE_TYPE: local
       STORAGE_PATH: /var/storage_data
       INGEST_ALLOWED_ROOTS: /data/ingest
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       # Demo live import folder: never watched, even through a parent folder.
       INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
+      # Scheduled backup: off here, docker-compose.backup.yml turns it on and
+      # mounts the directory. Same values for api (status, alert) and worker.
+      SCHEDULED_BACKUP_ENABLED: ${SCHEDULED_BACKUP_ENABLED:-false}
+      SCHEDULED_BACKUP_HOUR: ${SCHEDULED_BACKUP_HOUR:-2}
+      SCHEDULED_BACKUP_DIR: /var/backups/ged237
+      SCHEDULED_BACKUP_KEEP_DAILY: ${SCHEDULED_BACKUP_KEEP_DAILY:-7}
+      SCHEDULED_BACKUP_KEEP_WEEKLY: ${SCHEDULED_BACKUP_KEEP_WEEKLY:-4}
+      SCHEDULED_BACKUP_MAX_AGE_HOURS: ${SCHEDULED_BACKUP_MAX_AGE_HOURS:-24}
+      SCHEDULED_BACKUP_PG_DUMP: ${SCHEDULED_BACKUP_PG_DUMP:-pg_dump}
     depends_on:
       redis:
         condition: service_healthy

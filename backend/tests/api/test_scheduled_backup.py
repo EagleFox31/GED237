@@ -87,6 +87,20 @@ def test_version_guard_refuses_a_different_major():
 # --- runs --------------------------------------------------------------------
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX modes")
+def test_a_backup_is_readable_by_its_owner_only(tmp_path):
+    backup = tmp_path / "ged237-20261117T010000Z"
+    backup.mkdir(mode=0o755)
+    for name in ("db.dump", "storage.tar.gz", "SHA256SUMS", "MANIFEST.txt"):
+        (backup / name).write_bytes(b"x")
+        (backup / name).chmod(0o644)
+
+    sb._make_private(backup)
+
+    assert backup.stat().st_mode & 0o777 == 0o700
+    assert {p.stat().st_mode & 0o777 for p in backup.iterdir()} == {0o600}
+
+
 @pytest.mark.asyncio
 async def test_same_day_runs_back_up_once(backup_env, factory, monkeypatch):
     calls = []
@@ -280,6 +294,8 @@ async def test_backup_restores_with_the_same_counts_and_files(
     )
     assert manifest["format"] == "1"
     assert manifest["storage_files"] == "2"
+    assert backup.stat().st_mode & 0o777 == 0o700
+    assert {p.stat().st_mode & 0o777 for p in backup.iterdir()} == {0o600}
 
     # Database: restore into a scratch database, compare with the manifest.
     scratch = f"ged237_restore_{uuid.uuid4().hex[:8]}"
