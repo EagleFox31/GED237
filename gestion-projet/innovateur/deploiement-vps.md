@@ -31,13 +31,13 @@ Conséquence pour l'item 27 : en phase 1, le trafic est chiffré par le tunnel W
 
 | Ressource | Total | Libre | Remarque |
 |---|---|---|---|
-| Mémoire | 3 819 Mo | **2 057 Mo disponibles** (même chiffre que le relevé de B : 2 049 Mo) | 15 conteneurs tournent. Les plus gros : WAHA et son bot (≈ 380 Mo), deploy-app (147 Mo), precis-translation (≈ 140 Mo). |
+| Mémoire | 3 819 Mo | **2 057 Mo disponibles** (même chiffre que le relevé de B : 2 049 Mo) | 15 conteneurs tournent. Les plus gros : un service de messagerie et son bot (≈ 380 Mo), puis deux applications d'autres projets (147 Mo et ≈ 140 Mo). |
 | Swap | 2 047 Mo | 744 Mo | **1 303 Mo déjà utilisés** : le VPS est déjà serré, la pile GED237 ne doit pas swapper. |
 | Processeur | 2 vCPU | charge 1,49 au relevé (0,3 à 0,5 en moyenne sur 5 et 15 min) | Les autres services sont calmes. |
-| Disque | 38 Go | **12 Go** | Cache de build récupérable : 1,9 Go. Il y a aussi d'anciennes archives `fleet-*.tgz` dans le dossier personnel, à trier avec l'utilisateur. |
+| Disque | 38 Go | **12 Go** | Cache de build récupérable : 1,9 Go. Il y a aussi d'anciennes archives d'un autre projet dans le dossier personnel, à trier avec l'utilisateur. |
 | Ports locaux pris | — | — | 2019, 3000, 3001, 5000, 8081, 8090, 8787, 8790, 8791, 8792, 51821. **8095 est libre.** |
-| Caddy | service systemd | — | Sites existants : un gestionnaire de comptes, `loveink-mailer`, `precis-translator`, `trigenys-sign`, `vpn-manager`, `vpn`, et `casino-de-la-reine` (désactivé le 16/11). Aucun `ged237`. |
-| Tâches planifiées | — | — | La sauvegarde de fleet tourne chaque nuit à 02:30. |
+| Caddy | service systemd | — | Sites existants : sept, tous d'autres projets, dont un désactivé le 16/11. Aucun pour GED237. |
+| Tâches planifiées | — | — | La sauvegarde d'un autre projet tourne chaque nuit à 02:30. |
 
 ## 2. Ce que demande la pile GED237
 
@@ -49,7 +49,7 @@ Conséquence pour l'item 27 : en phase 1, le trafic est chiffré par le tunnel W
 |---|---|---|---|---|---|
 | api | 1 Go, 1,5 CPU, `--reload` | **512 Mo, 1 CPU**, sans swap | 233 Mo (`Mesuré` en local) | `À mesurer` | sans `--reload` ; `ENVIRONMENT=production` |
 | worker (OCR) | 2 Go, 2 CPU, `--concurrency=2` | **1 Go, 1 CPU, sans swap**, `--concurrency=1` | `À mesurer` | **`À mesurer` le 18 à 22:15** (Q, banc Tesseract et RapidOCR : 1 Go sans swap, 1,5 CPU) | Avec 1 CPU au plus, l'OCR laisse toujours un vCPU aux autres services. |
-| postgres | 768 Mo | **384 Mo, 0,5 CPU** | 50 Mo | grandit avec la base | même plafond que `deploy-db-prod-1` |
+| postgres | 768 Mo | **384 Mo, 0,5 CPU** | 50 Mo | grandit avec la base | même plafond que la base d'un autre projet du VPS |
 | redis | 192 Mo | **64 Mo, 0,25 CPU** | 16 Mo | — | — |
 | frontend | 768 Mo, serveur Vite de développement | **64 Mo, 0,25 CPU** | `À mesurer` (fichiers statiques) | — | cible `production` du `frontend/Dockerfile` (nginx et fichiers construits, `Vérifié`) |
 | nginx | 64 Mo | **64 Mo, 0,25 CPU** | 14 Mo | — | port publié **`127.0.0.1:8095`** seulement (§ 3) |
@@ -79,7 +79,7 @@ On ne construit pas les images sur le VPS : PyTorch y demanderait de la mémoire
 
 ## 3. HTTPS : `/etc/caddy/sites/ged237.caddy` (contenu proposé, **non créé**)
 
-Le modèle est celui de `trigenys-sign.caddy` (`Mesuré`) : un bloc par site, un reverse proxy vers un port local, rien d'autre. **Aucun site existant n'est touché.** Le `Caddyfile` importe déjà `sites/*.caddy`, donc un fichier ajouté suffit.
+Le modèle est celui d'un site existant (`Mesuré`) : un bloc par site, un reverse proxy vers un port local, rien d'autre. **Aucun site existant n'est touché.** Le `Caddyfile` importe déjà `sites/*.caddy`, donc un fichier ajouté suffit.
 
 ```caddy
 # GED237 — reverse proxy vers le nginx de la pile (port local uniquement)
@@ -116,7 +116,7 @@ Reprise du § 4 de l'empreinte, toujours vrai sur `main` :
 |---|---|
 | `docker-compose.vps.yml` remplace `ENVIRONMENT` par `production` et exige un `SECRET_KEY` propre au VPS, dans un `.env` hors dépôt, droits 600. #268 rend `SECRET_KEY` obligatoire (V1.1). | B |
 | Envoi du code par e-mail (#154) et garde de démarrage (#212) : sans eux, la double authentification ne protège rien. | V1.1 |
-| D'ici là : accès réservé à une **liste d'adresses** (`<plages autorisées>` du § 3 : réseau du ministère, adresse du PO), ou au **VPN** déjà en place (wg-easy). | O choisit, PO valide |
+| D'ici là : accès réservé à une **liste d'adresses** (`<plages autorisées>` du § 3 : réseau du ministère, adresse du PO), ou au **VPN** déjà en place. | O choisit, PO valide |
 | VPN : quand un client vise l'adresse publique du VPS, sa requête passe-t-elle par le tunnel, et Caddy voit-il alors l'adresse du VPN ? `À vérifier` par B sur un poste client, avant de choisir le VPN. | B |
 
 ## 5. Sauvegarde et restauration (protocole du 21/11)
@@ -126,7 +126,7 @@ Ce sont les mêmes scripts et le même protocole que la restauration n° 2 du 21
 | Étape | Commande, ou règle | Preuve |
 |---|---|---|
 | Sauvegarde | `bash ops/backup.sh` → `backups/ged237-<UTC>/` (`db.dump`, `storage.tar.gz`, `SHA256SUMS`, `MANIFEST.txt`) ; api et worker arrêtés 1 à 2 min | `sha256sum -c SHA256SUMS` sans erreur |
-| Fréquence | chaque nuit à **03:15**, pour ne pas chevaucher fleet (02:30) ; une tâche cron de l'utilisateur ubuntu, **avec l'accord du PO** | `backups/backup.log` |
+| Fréquence | chaque nuit à **03:15**, pour ne pas chevaucher l'autre sauvegarde nocturne du serveur (02:30) ; une tâche cron de l'utilisateur ubuntu, **avec l'accord du PO** | `backups/backup.log` |
 | Rotation | pas de rotation dans les scripts V1 (V1.1, `sauvegarde-restauration.md` § 3.1) : on garde les 7 dernières par un `find … -mtime +7` dans la même tâche cron | nombre de dossiers ≤ 8 |
 | Copie hors du VPS | chaque semaine, `scp -r` du dernier dossier vers un poste du ministère : **une sauvegarde qui reste sur le VPS ne protège pas d'une perte du VPS** | dossier daté sur le poste |
 | Restauration | **jamais sur le VPS** pour l'exercice, faute de mémoire pour une seconde pile. Elle se fait sur un poste, comme le 21/11 : `bash ops/restore.sh backups/ged237-<horodatage> --wipe`, puis `alembic current` et `/health`, puis un second passage sur le même dossier (aucun écart). C'est aussi le scénario réel : un VPS perdu se reconstruit ailleurs. | `restauration-vps-<date>.txt` |
@@ -138,8 +138,8 @@ Ce sont les mêmes scripts et le même protocole que la restauration n° 2 du 21
 |---|---|---|---|
 | 1 | La pointe OCR dépasse 900 Mo | mesure du 18 | plan B, ci-dessous |
 | 2 | Un import en masse s'éternise (un seul OCR à la fois) | file Celery qui grossit | importer hors des heures de bureau ; ou plan B 2 |
-| 3 | Un autre service du VPS grossit (WAHA) | `free -m` < 400 Mo disponibles | plafonds sur les conteneurs sans limite : WAHA, son bot, eli-bot, sign et mailer sont plafonnés à 3,73 Go, c'est-à-dire sans limite (`Mesuré`). À proposer à leurs propriétaires ; hors GED237 |
-| 4 | Le disque se remplit avec les sauvegardes | `df -h` < 3 Go libres | rotation à 7, purge du cache de build (1,9 Go), tri des archives `fleet-*.tgz`, avec l'accord de l'utilisateur |
+| 3 | Un autre service du VPS grossit | `free -m` < 400 Mo disponibles | plafonds sur les conteneurs sans limite : cinq conteneurs d'autres projets sont plafonnés à 3,73 Go, c'est-à-dire sans limite (`Mesuré`). À proposer à leurs propriétaires ; hors GED237 |
+| 4 | Le disque se remplit avec les sauvegardes | `df -h` < 3 Go libres | rotation à 7, purge du cache de build (1,9 Go), tri des anciennes archives d'un autre projet, avec l'accord de l'utilisateur |
 | 5 | Une erreur dans le fichier Caddy coupe les autres sites | `caddy validate` en échec | `validate` avant `reload` ; un `reload` en échec garde l'ancienne configuration |
 | 6 | Adresse ouverte avec le mode développement | code affiché à l'écran | § 4 : liste d'adresses ou VPN tant que #154 et #212 ne sont pas livrés |
 

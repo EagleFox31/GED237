@@ -10,7 +10,7 @@
 |---|---|---|---|
 | Mémoire | 3,7 Go | **2,0 Go** disponibles | Le swap est déjà utilisé à **1,3 Go sur 2 Go** : la machine manque déjà de mémoire. |
 | Disque | 38 Go | **12 Go** | 1,9 Go de cache de build récupérable. |
-| Processeur | 2 vCPU | — | 15 conteneurs tournent, dont WAHA (≈ 375 Mo à eux deux). |
+| Processeur | 2 vCPU | — | 15 conteneurs tournent, dont un service de messagerie et son bot (≈ 375 Mo à eux deux). |
 
 ## 2. Ce que consomme la pile rc.1
 
@@ -26,7 +26,7 @@
 
 Disque : l'image de l'API et du worker pèse **3,2 Go**, celle du frontend de développement 0,7 Go, et postgres, redis et nginx ≈ 0,3 Go. Il faut donc **≈ 4,2 Go**, plus l'archive d'import (`images.tar.gz`, plusieurs Go) pendant l'installation. On ne construit pas sur le VPS : PyTorch y demanderait de la mémoire et du disque en plus.
 
-**Verdict (`Déduit`)** : les 8 Go de la fiche sont des plafonds, pas une consommation. Au repos, la pile tient dans les 2 Go libres. Pendant un OCR difficile, elle peut les dépasser et pousser les autres services (WAHA, sign, deploy) dans un swap déjà chargé. **La pile rc.1 ne doit donc pas aller sur le VPS telle quelle.**
+**Verdict (`Déduit`)** : les 8 Go de la fiche sont des plafonds, pas une consommation. Au repos, la pile tient dans les 2 Go libres. Pendant un OCR difficile, elle peut les dépasser et pousser les autres services du VPS dans un swap déjà chargé. **La pile rc.1 ne doit donc pas aller sur le VPS telle quelle.**
 
 ## 3. Ce qu'il faut couper ou réduire
 
@@ -37,7 +37,7 @@ Ce sont des réglages de déploiement, sans changement du code de l'application.
 | 1 | Worker : `--concurrency=1`, plafond 1,2 Go, 1 CPU | ≈ 0,8 Go de pointe | Un seul OCR à la fois : la file s'allonge pendant un import en masse. |
 | 2 | Frontend : cible `production` du Dockerfile (fichiers statiques servis par nginx) au lieu du serveur Vite | ≈ 0,1 Go de mémoire, 0,6 Go de disque | Aucune pour l'utilisateur. |
 | 3 | API : sans `--reload`, plafond 512 Mo, 1 CPU | ≈ 0,05 à 0,1 Go | Il faut redémarrer l'API après une mise à jour (c'est déjà le cas avec `up -d`). |
-| 4 | Postgres 384 Mo, redis 64 Mo | rien au repos, mais la pointe est bornée | Ces plafonds sont ceux des autres bases du VPS (`deploy-db-prod-1` : 384 Mo). |
+| 4 | Postgres 384 Mo, redis 64 Mo | rien au repos, mais la pointe est bornée | Ces plafonds sont ceux des autres bases du VPS (384 Mo). |
 | 5 | Pas de `seed` : `--scale seed=0`, puis comptes réels créés à la main (`donnees-demo.md`, « Plateforme vide ») | — | Point de sécurité ci-dessous. |
 | 6 | Disque : purger le cache de build (1,9 Go), et supprimer l'archive d'images après l'import | ≈ 2 à 5 Go | Avec l'accord de l'utilisateur. |
 
@@ -49,7 +49,7 @@ En rc.1 :
 - `ENVIRONMENT=development` affiche le code de connexion à l'écran ;
 - la page de connexion affiche les comptes de démonstration.
 
-Sur une adresse publique, la double authentification ne protège donc rien. **La rc.1 sur le VPS doit rester joignable par le VPN seulement** : wg-easy tourne déjà sur le VPS. À défaut, il faut une liste d'adresses IP autorisées dans Caddy. Elle n'est publiable qu'en V1.1, avec l'envoi du code par e-mail (#154) et la garde de démarrage (#212).
+Sur une adresse publique, la double authentification ne protège donc rien. **La rc.1 sur le VPS doit rester joignable par le VPN seulement** : un VPN tourne déjà sur le VPS. À défaut, il faut une liste d'adresses IP autorisées dans Caddy. Elle n'est publiable qu'en V1.1, avec l'envoi du code par e-mail (#154) et la garde de démarrage (#212).
 
 ## 5. Recommandation
 
