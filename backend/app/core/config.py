@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     TRASH_PURGE_INTERVAL_SECONDS: int = Field(default=3600, ge=60)
     # Documents purged per transaction (automatic purge) and per bulk-purge call.
     TRASH_PURGE_BATCH: int = Field(default=200, ge=1, le=1000)
+    # Validation queues. Off by default: current behaviour until switched on.
+    # Unified queue GET /workflows/inbox (404 while disabled).
+    WORKFLOW_INBOX_ENABLED: bool = Field(default=False)
+    # Hide steps of trashed documents from /workflows/pending and /pending-assignments.
+    WORKFLOW_PENDING_EXCLUDE_TRASHED: bool = Field(default=False)
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
     # Celery
