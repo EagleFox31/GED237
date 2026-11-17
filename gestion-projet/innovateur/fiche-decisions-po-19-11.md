@@ -19,3 +19,19 @@ Pour chaque question, une réponse suffit : la lettre de l'option, ou « d'accor
 | 11 | Vos agents ont-ils une adresse e-mail sur un serveur du ministère, joignable sans Internet ? | Oui ; Non ; Je ne sais pas | Envoi du code par e-mail via ce serveur (#154), et application d'authentification pour les administrateurs | Envoi par e-mail quand même. Mais on ne sait pas si la connexion marche pendant une coupure d'Internet. Si la réponse est non, seuls les comptes avec l'application se connectent pendant une coupure. |
 
 Les questions 2 à 6 et 8 à 11 ne changent pas la rc.1 : leurs effets arrivent en V1.1. Seules les questions 1 et 7 touchent la démo du 30/11.
+
+## Réponses du PO, 17/11
+
+| # | Réponse | Effet |
+|---|---|---|
+| 1 | Pas de poste prêté. | Q prouve l'installation sans Internet le 25/11, sur une machine simulée sans réseau. |
+| 2 | Oui. | V1.1 (#203), après #196 et après le 30. |
+| 3 | Oui. | Les trois accès sont fermés en V1.1, dans une PR distincte. |
+| 4 | Non. | — |
+| 5 | Le manager et le lecteur voient leur service et ses sous-services (un niveau), dans la liste, la recherche et les rapports. | V1.1, consigné sur #195. Écrit dans les « Limites connues » de la rc.1. |
+| 6 | A. | V1.1. Annoncé dans « Prévu V1.1 ». |
+| 7 | A : #233 est déjà dans `main`, donc dans la rc.1. | Guide aligné (E23 à E25). |
+| 8 | A. | V1.1 (#222). |
+| 9 | D'abord sur notre VPS. | Empreinte et réductions : `empreinte-pile-rc1-vps.md`. |
+| 10 | A : archivage par l'administrateur d'institution dans la rc.1 (#231, puis #239). | Retiré des « Limites connues », ajouté au guide. **À condition que #231 et #239 fusionnent avant la coupe.** |
+| 11 | Adresses internes du ministère. | Le code part par le serveur de messagerie du ministère (#154, transport SMTP). |

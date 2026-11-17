@@ -34,7 +34,7 @@ Fiche : `protocole-installation-site.md`.
 2. L'installation sur ce poste et sur le PC Windows vaut-elle preuve, à la place d'un serveur en ligne, pour l'exigence 28 du cahier des charges ? **Oui.**
    - Sans réponse le 23 : l'exigence 28 reste impossible à vérifier.
 
-> Accord PO du JJ/MM : l'installation sur site est acceptée comme preuve à la place du VPS pour l'item 28 du CDC, sur la base des relevés P1 (Windows 11 + WSL 2) et P2 (Ubuntu 24.04, hors ligne). Le PO prête le poste de P2.
+> Réponse du PO du 17/11 : **pas de poste prêté**. Q prouve l'installation sans Internet le 25/11, sur une machine simulée sans réseau (Ubuntu 24.04, 8 Go de mémoire, 10 Go de disque libres), à la place de P2. La question 2 (valeur de preuve pour l'exigence 28, avec P1) reste à confirmer par le PO au vu du relevé du 25.
 
 ## 4. Ce que voient le responsable d'unité et le manager (#195, #196, #203, #165)
 
@@ -51,9 +51,9 @@ Fiche : `fiche-po-195-portee-unit-admin.md`. Les questions 1 à 3 portent sur #1
 
 Pour information : B corrige dès maintenant le lien direct (#202). Un responsable d'unité ne pourra plus ouvrir, par un lien, un document d'un autre service.
 
-> Accord PO du JJ/11 : le responsable d'unité (`unit_admin`) voit seulement son service et ses bureaux, en liste, en recherche, dans les compteurs, les imports et les rapports. Le lien direct, l'import au nom d'un autre agent et la vue de l'institution seront fermés en V1.1, dans une PR distincte. Fusion après #196 et après le 30.
-> Rapports d'un manager ou d'un lecteur : [son service et ses bureaux | son service seulement].
-> Document d'un autre service à valider : [ouvert pendant la validation | absent de la liste].
+> Réponse du PO du 17/11, pour la V1.1 (consignée sur #195) : le responsable d'unité (`unit_admin`) voit seulement son service et ses bureaux, en liste, en recherche, dans les compteurs, les imports et les rapports (question 1 : oui). Le lien direct, l'import au nom d'un autre agent et la vue de l'institution seront fermés en V1.1, dans une PR distincte (question 2 : oui). Il n'a pas besoin de chercher dans tout l'établissement (question 3 : non). Fusion après #196 et après le 30.
+> Manager et lecteur (question 4) : ils voient leur service et ses sous-services (un niveau), avec le même périmètre dans la liste, la recherche et les rapports. La liste s'élargit donc aux bureaux, au lieu de réduire les rapports.
+> Document d'un autre service à valider (question 5) : **A**, le responsable désigné comme lecteur ou signataire peut l'ouvrir.
 
 ## 5. Suppression d'un établissement qui a émis des documents officiels (#197) — DÉCIDÉE le 17/11
 

@@ -23,7 +23,7 @@ Une personne qui n'a jamais vu GED237 installe l'application à partir du manuel
 - Le VPS est exclu : 3,7 Go de RAM, sous les 8 Go du manuel (§ 1).
 - Ce PC est exclu : la VM WSL est déjà partagée avec Docker Desktop, et la règle de RAM de Q donnait 631 Mo de marge le 17 à 09:27.
 - `academy-server` : **injoignable depuis ce PC le 17/11 à 11:08**. SSH a expiré et le ping n'a obtenu aucune réponse. Le serveur est sur 192.168.10.x, alors que ce PC est sur 192.168.1.x : il faut être sur le réseau de l'académie. Système et mémoire restent `À vérifier`, en lecture seule, depuis ce réseau.
-- Repli retenu par O : **un poste prêté par le PO**, avec Ubuntu 24.04 neuf, au moins 8 Go de RAM libres et au moins 10 Go de disque libres (manuel § 1).
+- Repli retenu par O : un poste prêté par le PO. **Remplacé le 17/11** : le PO ne prête pas de poste. Q fait l'essai le 25/11 sur une machine simulée sans réseau (une VM sans carte réseau, ou réseau coupé après la copie des fichiers), avec Ubuntu 24.04 neuf, au moins 8 Go de RAM libres et au moins 10 Go de disque libres (manuel § 1).
 
 ## 2. Poste vierge : contrôles avant de commencer
 

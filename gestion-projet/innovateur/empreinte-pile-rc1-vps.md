@@ -8,7 +8,7 @@
 
 | Ressource | Total | Libre | Remarque |
 |---|---|---|---|
-| Mémoire | 3,8 Go | **2,0 Go** disponibles | Le swap est déjà utilisé à **1,3 Go sur 2 Go** : la machine manque déjà de mémoire. |
+| Mémoire | 3,7 Go | **2,0 Go** disponibles | Le swap est déjà utilisé à **1,3 Go sur 2 Go** : la machine manque déjà de mémoire. |
 | Disque | 38 Go | **12 Go** | 1,9 Go de cache de build récupérable. |
 | Processeur | 2 vCPU | — | 15 conteneurs tournent, dont WAHA (≈ 375 Mo à eux deux). |
 
@@ -22,7 +22,7 @@
 | frontend | 768 Mo, serveur de **développement** Vite | 106 Mo | — |
 | redis | 192 Mo | 16 Mo | — |
 | nginx | 64 Mo | 14 Mo | — |
-| **Total** | **4,8 Go** de plafonds | **≈ 0,4 Go** sans le worker | **jusqu'à ≈ 2,5 Go** pendant un OCR (`Déduit`) |
+| **Total** | **4,8 Go** de plafonds (5,9 Go avec `migrate` et `seed`, qui ne tournent qu'un moment, relevé du 17/11) | **≈ 0,4 Go** sans le worker | **jusqu'à ≈ 2,5 Go** pendant un OCR (`Déduit`) |
 
 Disque : l'image de l'API et du worker pèse **3,2 Go**, celle du frontend de développement 0,7 Go, et postgres, redis et nginx ≈ 0,3 Go. Il faut donc **≈ 4,2 Go**, plus l'archive d'import (`images.tar.gz`, plusieurs Go) pendant l'installation. On ne construit pas sur le VPS : PyTorch y demanderait de la mémoire et du disque en plus.
 
