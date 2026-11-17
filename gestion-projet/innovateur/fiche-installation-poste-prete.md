@@ -22,6 +22,7 @@ b. Sans Internet : `bash scripts/images_import.sh <clé>/ged237-images`, puis `d
 c. `cp .env.example .env`, puis renseigner `DB_PASSWORD` et `SECRET_KEY` (`openssl rand -hex 32`) **avant** le premier démarrage, et `APP_VERSION=1.0.0-rc.1`. Ne jamais copier `.env` ailleurs que sur ce poste.
 d. Démarrer : `docker compose up -d --build` (sans `--build` si les images viennent de la clé).
 e. `docker compose ps` : `api`, `postgres` et `redis` sont `healthy` ; `migrate` et `seed` sont `Exited (0)`.
+f. `docker compose exec api printenv ENVIRONMENT` doit donner `development`. En rc.1, ne pas le changer : avec `production`, le code de connexion n'est ni affiché ni envoyé et personne ne peut se connecter (l'envoi par e-mail arrive en V1.1).
 
 ## 3. Restaurer la base de démo
 
