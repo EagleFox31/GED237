@@ -263,29 +263,14 @@ async def _resolve_target_org_unit_id(
     return org_unit.id
 
 
-async def _within_unit_tree(db: AsyncSession, user: User, document: Document) -> bool:
-    """The document sits in the user's unit or in a unit below it (#202)."""
-    return bool(
-        user.org_unit_id
-        and document.org_unit_id
-        and await is_within_unit_tree(db, document.org_unit_id, user.org_unit_id)
-    )
-
-
 async def _in_reach(db: AsyncSession, user: User, document: Document) -> bool:
     """unit_admin acts only in its unit tree; the other roles keep their Casbin answer."""
-    if _role_code(user) not in UNIT_TREE_READ_ROLES:
-        return True
-    return await _within_unit_tree(db, user, document)
+    return await in_actor_unit_tree(db, user, document.org_unit_id)
 
 
 async def _ensure_unit_in_reach(db: AsyncSession, user: User, unit_id: UUID) -> None:
     """unit_admin cannot send a document to a unit outside its tree (#202)."""
-    if _role_code(user) not in UNIT_TREE_READ_ROLES:
-        return
-    if not (
-        user.org_unit_id and await is_within_unit_tree(db, unit_id, user.org_unit_id)
-    ):
+    if not await in_actor_unit_tree(db, user, unit_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Target unit is outside your own tree",
@@ -303,7 +288,7 @@ async def _can_read_document(db: AsyncSession, user: User, document: Document) -
         if role_code in ORG_UNIT_READ_ROLES:
             return bool(user.org_unit_id and document.org_unit_id == user.org_unit_id)
         if role_code in UNIT_TREE_READ_ROLES:
-            return await _within_unit_tree(db, user, document)
+            return await _in_reach(db, user, document)
         return True  # admin / auditor : accès tenant-wide
     return await can_perform(user, "documents", "read_own", ctx)
 

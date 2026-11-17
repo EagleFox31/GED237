@@ -270,8 +270,9 @@ async def test_reading_a_document_by_id_follows_the_listing_scope(
         ("tenant_admin", "a", WIDE),
         ("unit_admin", "a", {"a", "a1", "a2"}),
         ("unit_admin", "a1", {"a1", "a2"}),
+        ("unit_admin", "b", {"b", "own"}),
     ],
-    ids=["tenant_admin@a", "unit_admin@a", "unit_admin@a1"],
+    ids=["tenant_admin@a", "unit_admin@a", "unit_admin@a1", "unit_admin@b"],
 )
 async def test_changing_a_document_by_id_follows_the_listing_scope(
     client_as, db_seed, tree, role, unit, reach
@@ -312,7 +313,36 @@ async def test_changing_a_document_by_id_follows_the_listing_scope(
         "trash": reach,
         "restore": {k for k in ("a1_trash", "b_trash") if k.split("_")[0] in reach},
     }
-    assert {key for key, code in workflow.items() if code != 403} == reach
+    assert {key for key, code in workflow.items() if code not in (403, 404)} == reach
+
+
+@pytest.mark.asyncio
+async def test_a_unit_admin_of_another_branch_reaches_nothing_of_it(
+    client_as, db_session, db_seed, tree
+):
+    """Counter-test (#202): the unit_admin of B, beside A, reaches nothing in A."""
+    units, ids = tree["units"], tree["ids"]
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["b"]
+    ) as client:
+        reads = {
+            key: (await client.get(f"{DOCUMENTS}{ids[key]}")).status_code
+            for key in ("a", "a1", "a2", "b")
+        }
+    assert reads == {"a": 403, "a1": 403, "a2": 403, "b": 200}
+
+    user = SimpleNamespace(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["b"],
+        role=SimpleNamespace(code="unit_admin"),
+    )
+    for outside in ("a", "a1", "a2"):
+        with pytest.raises(HTTPException) as refused:
+            await imports._resolve_target_org_unit_id(
+                db_session, current_user=user, target_org_unit_id=units[outside]
+            )
+        assert refused.value.status_code == 403
 
 
 @pytest.mark.asyncio
