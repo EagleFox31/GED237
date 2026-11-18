@@ -19,6 +19,7 @@ const PendingAssignmentsInbox: React.FC = () => {
   const accountKey = accountKeyOf(userProfile);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('q') || '';
@@ -42,12 +43,13 @@ const PendingAssignmentsInbox: React.FC = () => {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
+      setLoadFailed(false);
       const data = await api.getPendingAssignments();
       setAssignments(data);
     } catch (e) {
-      if (!(e instanceof ApiError)) {
-        pushClientOperationError(e, { fallbackDetail: 'Impossible de charger les étapes en attente.' });
-      }
+      // Erreur HTTP déjà au bus global ; l'état d'échec évite le faux « Aucune étape orpheline ».
+      setLoadFailed(true);
+      if (!(e instanceof ApiError)) pushClientOperationError(e, { fallbackDetail: 'Chargement des étapes impossible.' });
     } finally {
       setLoading(false);
     }
@@ -140,10 +142,15 @@ const PendingAssignmentsInbox: React.FC = () => {
         <div className="col-span-12 lg:col-span-7 space-y-4">
           {loading ? (
              <div className="text-slate-500 italic p-8 text-center bg-white rounded-[2rem] shadow-sm">Chargement...</div>
+          ) : loadFailed ? (
+            <div role="alert" className="text-red-600 font-bold p-8 text-center bg-white rounded-[2rem] shadow-sm">
+              <p>Impossible de charger les étapes.</p>
+              <button type="button" onClick={fetchAssignments} className="mt-2 underline text-sm">Réessayer</button>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="text-slate-500 italic p-8 text-center bg-white rounded-[2rem] shadow-sm">
               <span className="material-symbols-outlined text-4xl mb-2 opacity-50">done_all</span>
-              <p>Aucune étape orpheline.</p>
+              <p>{search ? `Aucune étape ne correspond à « ${search} ».` : 'Aucune étape orpheline.'}</p>
             </div>
           ) : (
             filtered.map((item) => (

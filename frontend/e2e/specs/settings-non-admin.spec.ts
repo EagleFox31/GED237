@@ -42,7 +42,8 @@ test.describe('Paramètres : réglages personnels pour les non-admins (SET-01..0
     await page.goto('settings/display');
     await expect(page.getByRole('heading', { name: ORG_TITLE })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Unités Organisationnelles/i })).toBeVisible();
-    await page.getByRole('button', { name: CONFIG_TAB }).click();
-    await expect(page.getByRole('heading', { name: /Checklist de déploiement/i })).toBeVisible();
+    // La checklist de déploiement (statuts non réels) n'est plus proposée.
+    await expect(page.getByRole('button', { name: CONFIG_TAB })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Checklist de déploiement/i })).toHaveCount(0);
   });
 });

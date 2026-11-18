@@ -82,12 +82,12 @@ const NeedsReviewInbox: React.FC = () => {
     try {
       const docs = await api.getNeedsReviewDocuments();
       setDocuments(docs);
-      if (docs.length > 0 && !selectedDoc) handleSelectDoc(docs[0]);
-      else if (docs.length === 0) setSelectedDoc(null);
+      // Premier de la file restante : après une résolution, c'est le dossier suivant.
+      if (docs.length > 0) handleSelectDoc(docs[0]);
+      else setSelectedDoc(null);
     } catch (err) {
-      if (!(err instanceof ApiError)) {
-        pushClientOperationError(err, { fallbackDetail: 'Impossible de charger la bannette.' });
-      }
+      // Les erreurs HTTP sont déjà au bus global ; reste le cas local.
+      if (!(err instanceof ApiError)) pushClientOperationError(err, { fallbackDetail: 'Chargement de la bannette impossible.' });
     } finally {
       setLoadingDocs(false);
     }
@@ -126,13 +126,8 @@ const NeedsReviewInbox: React.FC = () => {
         writeStoredDestination(targetFolderId, accountKey);
       }
       showToast({ tone: 'success', message: 'Document traité et classé avec succès.' });
-      const remaining = documents.filter((d) => d.id !== selectedDoc.id);
-      setDocuments(remaining);
-      if (remaining[0]) {
-        void handleSelectDoc(remaining[0]);
-      } else {
-        setSelectedDoc(null);
-      }
+      setSelectedDoc(null);
+      fetchDocuments();
     } catch (err) {
       if (!(err instanceof ApiError)) {
         pushClientOperationError(err, { fallbackDetail: 'Erreur lors du traitement. Veuillez réessayer.' });

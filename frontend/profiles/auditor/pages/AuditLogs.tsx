@@ -319,7 +319,7 @@ const AuditLogs: React.FC = () => {
             label="Aide sur l'export du journal"
             tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
           >
-            L'export s'arrête à 50 000 lignes. Au-delà, réduisez la période ou ajoutez un filtre avant de recommencer.
+            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
           </HelpHint>
           <button
             type="button"

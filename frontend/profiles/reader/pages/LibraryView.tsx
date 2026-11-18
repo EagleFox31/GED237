@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../services/api';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
-import { Document, getFileTypeLabel, formatDate, getStatusLabel } from '../../../types';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { Document, getFileTypeLabel, formatDate, getStatusLabel } from '../../../types';
 import {
   extractLibraryCategories,
   extractLibraryFormats,
@@ -13,24 +13,28 @@ import {
 const LibraryView: React.FC = () => {
   const [docs, setDocs] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [query, setQuery] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
 
-  useEffect(() => {
-    const fetchDocs = async () => {
+  const fetchDocs = async () => {
+      setIsLoading(true);
+      setLoadFailed(false);
       try {
         const data = await api.getDocuments({ status: 'validated' });
         setDocs(data);
       } catch (err) {
-        if (!(err instanceof ApiError)) {
-          pushClientOperationError(err, { fallbackDetail: 'Impossible de charger la bibliothèque.' });
-        }
+        // Erreurs HTTP déjà au bus global ; on garde l'état d'échec pour ne pas afficher « Aucun document ».
+        setLoadFailed(true);
+        if (!(err instanceof ApiError)) pushClientOperationError(err, { fallbackDetail: 'Chargement de la bibliothèque impossible.' });
       } finally {
         setIsLoading(false);
       }
     };
+
+  useEffect(() => {
     fetchDocs();
   }, []);
 
@@ -60,14 +64,10 @@ const LibraryView: React.FC = () => {
       <div className="glass p-10 rounded-[3rem] bg-white/60 border-white">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8 pb-8 border-b border-slate-100">
           <div className="flex items-center gap-6">
+            {/* La bibliothèque ne charge que des documents validés : un seul compteur, celui de la liste affichée. */}
             <div className="text-center">
               <p className="text-2xl font-black italic">{isLoading ? '...' : filteredDocs.length}</p>
-              <p className="text-[8px] font-black uppercase text-slate-400">Documents affichés</p>
-            </div>
-            <div className="h-10 w-px bg-slate-100"></div>
-            <div className="text-center">
-              <p className="text-2xl font-black italic">{isLoading ? '...' : docs.filter((d) => d.status === 'validated').length}</p>
-              <p className="text-[8px] font-black uppercase text-slate-400">Validés</p>
+              <p className="text-[8px] font-black uppercase text-slate-400">Documents validés</p>
             </div>
           </div>
 
@@ -128,7 +128,14 @@ const LibraryView: React.FC = () => {
           </div>
         )}
 
-        {!isLoading && filteredDocs.length === 0 && (
+        {!isLoading && loadFailed && (
+          <div role="alert" className="text-center py-10 text-red-600 font-bold">
+            Impossible de charger la bibliothèque.{' '}
+            <button type="button" onClick={fetchDocs} className="underline">Réessayer</button>
+          </div>
+        )}
+
+        {!isLoading && !loadFailed && filteredDocs.length === 0 && (
           <div className="text-center py-10 text-slate-400 font-bold">
             {hasFilters ? 'Aucun document ne correspond à votre recherche.' : 'Aucun document disponible.'}
           </div>

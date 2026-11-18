@@ -1,7 +1,15 @@
+import pytest
 from PIL import Image
 
+from app.core.config import Settings, settings
 from app.services.ocr.base import OCRResult
 from app.services.ocr.strategy import DocumentType, OCRStrategy
+
+
+@pytest.fixture(autouse=True)
+def _fallback_enabled(monkeypatch):
+    # The shipped default is off; the existing scenarios exercise the fallback itself.
+    monkeypatch.setattr(settings, "OCR_FALLBACK_ENABLED", True)
 
 
 class FakeEngine:
@@ -173,7 +181,7 @@ def test_primary_engine_setting_is_validated():
     from app.core.config import Settings
 
     assert Settings(OCR_PRIMARY_ENGINE=" EasyOCR ").OCR_PRIMARY_ENGINE == "easyocr"
-    assert Settings(OCR_PRIMARY_ENGINE="").OCR_PRIMARY_ENGINE == "tesseract"
+    assert Settings(OCR_PRIMARY_ENGINE="").OCR_PRIMARY_ENGINE == "rapidocr"
     with pytest.raises(ValidationError):
         Settings(OCR_PRIMARY_ENGINE="paddle")
 
@@ -197,3 +205,81 @@ def test_easyocr_receives_an_image_of_at_most_2000_px(monkeypatch):
 
     assert seen[0] == (1500, 2000, 3)  # (height, width, channels), ratio kept
     assert seen[1] == (600, 800, 3)  # small image untouched
+
+
+# --- OCR_FALLBACK_ENABLED ----------------------------------------------------
+
+
+def test_fallback_is_disabled_by_default():
+    assert Settings().OCR_FALLBACK_ENABLED is False
+
+
+def test_disabled_fallback_keeps_weak_tesseract_text_and_never_loads_easyocr(
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "OCR_FALLBACK_ENABLED", False)
+    strategy = _photo_strategy("tesseract")
+    strategy.tesseract.result = _result("agrafeuses", 0.57, "tesseract")
+    monkeypatch.setattr(
+        strategy, "_detect_document_type", lambda _path: DocumentType.PHOTO
+    )
+
+    result = strategy.process_image("IMG_0413.jpg")
+
+    assert result.text == "agrafeuses"
+    assert result.engine_used == "tesseract"
+    assert strategy.easyocr.calls == 0
+
+
+def test_enabled_fallback_still_replaces_weak_text(monkeypatch):
+    monkeypatch.setattr(settings, "OCR_FALLBACK_ENABLED", True)
+    strategy = _photo_strategy("tesseract")
+    strategy.tesseract.result = _result("agrafeuses", 0.57, "tesseract")
+    monkeypatch.setattr(
+        strategy, "_detect_document_type", lambda _path: DocumentType.PHOTO
+    )
+
+    result = strategy.process_image("IMG_0413.jpg")
+
+    assert strategy.easyocr.calls == 1
+    assert result.engine_used == "easyocr"
+
+
+def test_disabled_fallback_never_loads_easyocr_for_scanned_pdf_pages(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(settings, "OCR_FALLBACK_ENABLED", False)
+    strategy = _photo_strategy("tesseract")
+    weak = _result("page faible", 0.30, "tesseract")
+
+    class _Tesseract:
+        def extract_from_pil_image(self, _image):
+            return weak
+
+    class _Easy:
+        calls = 0
+
+        def extract_from_pil_image(self, _image):
+            _Easy.calls += 1
+            return _result("autre", 0.99, "easyocr")
+
+    strategy.tesseract = _Tesseract()
+    strategy.easyocr = _Easy()
+    monkeypatch.setattr("app.services.ocr.strategy.PdfReader", _EmptyReader)
+    monkeypatch.setattr(
+        "app.services.ocr.strategy.convert_from_path",
+        lambda *_a, **_k: [Image.new("RGB", (10, 10))],
+    )
+
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    text, _confidence = strategy.process_pdf(str(pdf))
+
+    assert text == "page faible"
+    assert _Easy.calls == 0
+
+
+class _EmptyReader:
+    def __init__(self, _file):
+        self.pages = []
