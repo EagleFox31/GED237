@@ -1,21 +1,35 @@
 // frontend/components/UploadDocumentModal.tsx
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
+import {
+  readUploadPreferences,
+  resetForNextUpload,
+  resolveStoredCategory,
+  writeUploadPreferences,
+  type UploadProcessingMode,
+} from '../lib/uploadSeries';
+
+export interface UploadSuccessOptions {
+  keepOpen?: boolean;
+}
 
 interface UploadDocumentModalProps {
   onClose: () => void;
-  onSuccess: (doc: Document) => void;
+  onSuccess: (doc: Document, options?: UploadSuccessOptions) => void;
 }
 
 const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess }) => {
+  const initialPrefs = useMemo(() => readUploadPreferences(), []);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
-  const [processingMode, setProcessingMode] = useState<'archive' | 'process'>('process');
+  const [processingMode, setProcessingMode] = useState<UploadProcessingMode>(
+    initialPrefs.processingMode,
+  );
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,34 +37,57 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    categoriesApi.list(false).then(setCategories).catch(console.error);
-  }, []);
+    categoriesApi
+      .list(false)
+      .then((list) => {
+        setCategories(list);
+        setCategory((current) => resolveStoredCategory(current || initialPrefs.category, list));
+      })
+      .catch(() => {});
+  }, [initialPrefs.category]);
 
-  const handleFile = (f: File | null) => {
+  const handleModeChange = (nextMode: UploadProcessingMode) => {
+    setProcessingMode(nextMode);
+    writeUploadPreferences({ category, processingMode: nextMode });
+  };
+
+  const handleCategoryChange = (nextCategory: string) => {
+    setCategory(nextCategory);
+    writeUploadPreferences({ category: nextCategory, processingMode });
+  };
+
+  const handleFile = useCallback((f: File | null, currentTitle: string) => {
     if (!f) return;
     setFile(f);
     // Pré-remplir le titre avec le nom de fichier (sans extension)
-    if (!title) {
+    if (!currentTitle) {
       setTitle(f.name.replace(/\.[^/.]+$/, ''));
     }
     setError(null);
-  };
+  }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) handleFile(dropped);
-  }, [title]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const dropped = e.dataTransfer.files[0];
+      if (dropped) handleFile(dropped, title);
+    },
+    [handleFile, title],
+  );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitUpload = async (keepOpen: boolean) => {
     setError(null);
 
-    // Validation
-    if (!file) { setError('Veuillez sélectionner un fichier.'); return; }
+    if (!file) {
+      setError('Veuillez sélectionner un fichier.');
+      return;
+    }
     const trimmedTitle = title.trim();
-    if (!trimmedTitle) { setError('Le titre est obligatoire.'); return; }
+    if (!trimmedTitle) {
+      setError('Le titre est obligatoire.');
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -58,22 +95,40 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     formData.append('processing_mode', processingMode);
     if (category) formData.append('document_category_id', category);
     if (description.trim()) formData.append('description', description.trim());
-    // Nettoyage des tags CSV : split, trim, supprimer les vides
     const cleanTags = tags
       .split(',')
-      .map(t => t.trim())
+      .map((t) => t.trim())
       .filter(Boolean)
       .join(',');
     if (cleanTags) formData.append('tags', cleanTags);
 
+    writeUploadPreferences({ category, processingMode });
     setIsLoading(true);
     try {
-      const doc = await api.uploadDocument(formData) as Document;
-      onSuccess(doc);
-    } catch (err: any) {
-      if (err?.status === 409) {
+      const doc = (await api.uploadDocument(formData)) as Document;
+      if (keepOpen) {
+        const nextState = resetForNextUpload({
+          file,
+          title,
+          category,
+          processingMode,
+          tags,
+          description,
+        });
+        setFile(nextState.file);
+        setTitle(nextState.title);
+        setCategory(nextState.category);
+        setProcessingMode(nextState.processingMode);
+        setTags(nextState.tags);
+        setDescription(nextState.description);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+      onSuccess(doc, { keepOpen });
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 409) {
         setError('Un fichier identique existe déjà dans votre espace. Vérifiez vos doublons avant de réessayer.');
-      } else if (err?.status === 400) {
+      } else if (status === 400) {
         setError('Données invalides. Vérifiez le titre et la catégorie.');
       } else {
         setError("L'envoi a échoué. Vérifiez votre connexion et réessayez.");
@@ -83,12 +138,18 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitUpload(false);
+  };
+
   const handleClose = () => {
     if (!isLoading) onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
       {/* Backdrop */}
@@ -104,6 +165,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             <p className="text-sm text-slate-400 font-medium mt-0.5">Déposez un fichier puis choisissez s'il doit être archivé ou soumis au traitement</p>
           </div>
           <button
+            type="button"
             onClick={handleClose}
             disabled={isLoading}
             className="w-10 h-10 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors disabled:opacity-40"
@@ -127,7 +189,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
               ref={fileInputRef}
               type="file"
               className="hidden"
-              onChange={(e) => handleFile(e.target.files?.[0] || null)}
+              onChange={(e) => handleFile(e.target.files?.[0] || null, title)}
             />
             <span className={`material-symbols-outlined text-4xl ${file ? 'text-green-500' : 'text-slate-300'}`}>
               {file ? 'check_circle' : 'upload_file'}
@@ -153,7 +215,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             <div className="grid grid-cols-1 gap-2">
               <button
                 type="button"
-                onClick={() => setProcessingMode('archive')}
+                onClick={() => handleModeChange('archive')}
                 disabled={isLoading}
                 className={`text-left p-4 rounded-2xl border-2 transition-all flex items-start gap-3 ${processingMode === 'archive' ? 'border-rdpc-blue bg-blue-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
               >
@@ -172,7 +234,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
               </button>
               <button
                 type="button"
-                onClick={() => setProcessingMode('process')}
+                onClick={() => handleModeChange('process')}
                 disabled={isLoading}
                 className={`text-left p-4 rounded-2xl border-2 transition-all flex items-start gap-3 ${processingMode === 'process' ? 'border-rdpc-blue bg-blue-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
               >
@@ -215,7 +277,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             </label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none"
               disabled={isLoading}
             >
@@ -266,7 +328,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-wrap gap-3 pt-2">
             <button
               type="button"
               onClick={handleClose}
@@ -276,9 +338,18 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
               Annuler
             </button>
             <button
+              type="button"
+              onClick={() => submitUpload(true)}
+              disabled={isLoading || !file}
+              data-testid="upload-submit-another"
+              className="flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider text-rdpc-blue bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Déposer un autre
+            </button>
+            <button
               type="submit"
               disabled={isLoading || !file}
-              className="flex-2 flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
