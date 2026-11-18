@@ -60,6 +60,7 @@ export const workflowsApi = {
             `/workflows/document/${documentId}/steps`,
             {},
             'Récupération des étapes impossible',
+            { handledStatuses: [403, 404] },
         ),
 
     getWorkflowActions: (documentId: string): Promise<any[]> =>
@@ -67,6 +68,7 @@ export const workflowsApi = {
             `/workflows/document/${documentId}/actions`,
             {},
             'Récupération de l\'historique des actions impossible',
+            { handledStatuses: [403, 404] },
         ),
 
     getPendingWorkflows: (): Promise<PendingWorkflowTask[]> =>

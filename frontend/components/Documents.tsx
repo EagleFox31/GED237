@@ -86,14 +86,22 @@ const Documents: React.FC = () => {
     if (!openId) return undefined;
     let cancelled = false;
     api
-      .getDocument(openId)
+      .getDocument(openId, { handledStatuses: [404] })
       .then((doc) => {
         if (!cancelled) setSelectedDoc(doc);
       })
-      .catch(() => {
-        // Erreur HTTP déjà affichée par le bus d'erreurs ; on retire `open` de l'URL
-        // pour ne pas réessayer au rechargement. La liste reste utilisable.
+      .catch((err: unknown) => {
+        // Les erreurs HTTP autres que 404 sont déjà affichées par le bus d'erreurs. Un 404 est attendu
+        // (document hors de votre périmètre ou supprimé) : simple avertissement, pas d'erreur.
+        // On retire `open` de l'URL pour ne pas réessayer au rechargement ; la liste reste utilisable.
         if (cancelled) return;
+        if ((err as { status?: number })?.status === 404) {
+          pushClientOperationError(null, {
+            fallbackDetail: "Ce document n'est pas accessible avec votre profil.",
+            errorCode: 'DOCUMENT_OUT_OF_SCOPE',
+            severity: 'warning',
+          });
+        }
         setSearchParams(
           (prev) => {
             const nextParams = new URLSearchParams(prev);
