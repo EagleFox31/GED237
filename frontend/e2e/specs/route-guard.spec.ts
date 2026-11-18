@@ -11,10 +11,12 @@ import { TENANT_ADMIN_MENU } from '../../profiles/tenant-admin/menuConfig';
 
 const DENIED = 'Accès réservé aux administrateurs.';
 const USERS_API = /\/api\/v1\/users(\?|$)/;
+const AUDIT_DENIED = 'Accès réservé aux administrateurs et aux auditeurs.';
+const AUDIT_API = /\/api\/v1\/audit\/logs/;
 /** Titre de la page de repli (route inconnue), frontend/App.tsx NotFoundPage. */
 const NOT_FOUND = 'Espace en Travaux';
 
-test.describe('Garde des routes d’administration (GUARD-01..07)', () => {
+test.describe('Garde des routes d’administration (GUARD-01..09)', () => {
   test('GUARD-01 — Given lecteur, When /users, Then retour à /documents avec message, page non montée', async ({ loginAs, page }) => {
     await loginAs('reader');
     await page.goto('users');
@@ -71,6 +73,27 @@ test.describe('Garde des routes d’administration (GUARD-01..07)', () => {
     await expect(page).toHaveURL(/\/documents$/);
     await page.waitForLoadState('networkidle');
     expect(usersCalls, 'la page /users ne doit jamais être montée pour un lecteur').toEqual([]);
+  });
+
+  test('GUARD-08 — Given lecteur, When /audit, Then retour à /documents avec message, journal jamais demandé', async ({ loginAs, page }) => {
+    await loginAs('reader');
+    const auditCalls: string[] = [];
+    page.on('request', (r) => {
+      if (AUDIT_API.test(r.url())) auditCalls.push(r.url());
+    });
+    await page.goto('audit');
+    await expect(page).toHaveURL(/\/documents$/);
+    await expect(page.getByText(AUDIT_DENIED)).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    expect(auditCalls, 'la page /audit ne doit pas être montée pour un lecteur').toEqual([]);
+  });
+
+  test('GUARD-09 — Given auditeur, When /audit, Then le journal s’affiche sans message', async ({ loginAs, page }) => {
+    await loginAs('auditor');
+    await page.goto('audit');
+    await expect(page).toHaveURL(/\/audit$/);
+    await expect(page.getByText(AUDIT_DENIED)).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /registre des actions/i })).toBeVisible();
   });
 
   test('GUARD-07 — Given admin tenant, When chaque entrée du menu, Then jamais la page introuvable', async ({ loginAs, page }) => {
