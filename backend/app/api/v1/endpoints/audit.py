@@ -2,7 +2,7 @@
 import csv
 import io
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,6 +18,7 @@ from app.models.document import Document
 from app.models.user import User
 
 router = APIRouter()
+_T = TypeVar("_T")
 
 
 TABLE_LABELS = {
@@ -168,14 +169,14 @@ def _filtered_query(
     *,
     table_name: str | list[str] | None,
     action: str | list[str] | None,
-    user_id: Optional[UUID] = None,
+    user_id: UUID | list[UUID] | None = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     until: Optional[datetime] = None,
 ):
     """Tenant logs matching the screen filters; dates are local calendar days, both inclusive.
 
-    ``table_name`` and ``action`` take one value or several (any of them matches).
+    ``table_name``, ``action`` and ``user_id`` take one value or several (any of them matches).
     ``until`` freezes the result at an instant (same clock and type as created_at).
     """
     query = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
@@ -185,8 +186,9 @@ def _filtered_query(
     actions = [value.lower() for value in _values(action)]
     if actions:
         query = query.where(func.lower(AuditLog.action).in_(actions))
-    if user_id is not None:
-        query = query.where(AuditLog.user_id == user_id)
+    user_ids = _values(user_id)
+    if user_ids:
+        query = query.where(AuditLog.user_id.in_(user_ids))
     if date_from:
         query = query.where(AuditLog.created_at >= _utc_naive(date_from))
     if date_to:
@@ -198,7 +200,7 @@ def _filtered_query(
     return query
 
 
-def _values(value: str | list[str] | None) -> list[str]:
+def _values(value: _T | list[_T] | None) -> list[_T]:
     """One query value or a repeated one, empty strings dropped."""
     items = value if isinstance(value, list) else [value]
     return [item for item in items if item]
@@ -278,7 +280,7 @@ async def export_audit_logs(
     # Repeat the parameter for several values (?action=upload&action=delete), like the screen.
     table_name: Optional[list[str]] = Query(default=None),
     action: Optional[list[str]] = Query(default=None),
-    user_id: Optional[UUID] = Query(default=None),
+    user_id: Optional[list[UUID]] = Query(default=None),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
     current_user: User = Depends(get_current_user),
@@ -289,7 +291,7 @@ async def export_audit_logs(
     filters = {
         "table_name": _logged_filter(table_name),
         "action": _logged_filter(action),
-        "user_id": str(user_id) if user_id else None,
+        "user_id": _logged_filter([str(value) for value in user_id or []]),
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
     }

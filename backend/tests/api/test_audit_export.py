@@ -268,3 +268,67 @@ async def test_user_filter_keeps_only_that_user(
     assert len(mine) == 5
     assert "systeme" not in {row[4] for row in mine}
     assert nobody == [HEADER]
+
+
+@pytest.mark.asyncio
+async def test_several_users_match_any_of_them(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    """Repeated user_id, like table_name and action: rows of any listed agent."""
+    from app.core.security import hash_password
+    from app.models.user import User
+
+    await _seed_logs(test_engine, db_seed)
+    other_id, third_id = uuid.uuid4(), uuid.uuid4()
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with session_factory() as session:
+        for user_id, matricule in ((other_id, "TEST002"), (third_id, "TEST003")):
+            session.add(
+                User(
+                    id=user_id,
+                    tenant_id=db_seed["tenant_id"],
+                    org_unit_id=db_seed["org_unit_id"],
+                    role_id=db_seed["role_id"],
+                    matricule=matricule,
+                    email=f"{matricule.lower()}@testministry.gov.cm",
+                    first_name="Autre",
+                    last_name=matricule,
+                    password_hash=hash_password("testpassword123"),
+                    is_active=True,
+                )
+            )
+        await session.flush()
+        for user_id, title in ((other_id, "agent deux"), (third_id, "agent trois")):
+            session.add(
+                AuditLog(
+                    tenant_id=db_seed["tenant_id"],
+                    user_id=user_id,
+                    table_name="documents",
+                    record_id=uuid.uuid4(),
+                    action="upload",
+                    new_data={"title": title},
+                    created_at=datetime(2026, 11, 6),
+                )
+            )
+        await session.commit()
+
+    both = _rows(
+        await admin_client.get(
+            f"{EXPORT}?user_id={db_seed['user_id']}&user_id={other_id}"
+        )
+    )
+
+    # Header, the 3 seeded rows of the first agent and the row of the second.
+    assert len(both) == 5
+    assert "agent deux" in {row[4] for row in both}
+    assert "agent trois" not in {row[4] for row in both}
+    logged = (
+        await admin_client.get(
+            "/api/v1/audit/logs", params={"table_name": "audit_logs"}
+        )
+    ).json()
+    assert {"user_id": [str(db_seed["user_id"]), str(other_id)]} in [
+        entry["new_data"]["filters"] for entry in logged
+    ]
