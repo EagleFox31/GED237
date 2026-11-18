@@ -223,10 +223,13 @@ Après une fusion sur `$BR`, la branche n'est plus supprimée : on corrige par d
 | Classe | PR | Responsable | État le 18/11 à 14:00 |
 |---|---|---|---|
 | V1.0 à fusionner avant 18:00 | #203 | I | **fusionnée le 18/11 à 14:28 (17498b5)**, CI corrigée par ef144da. Avant : à 14:10 : `main` fusionnée par B sans rebase (2a890d0), 139 tests verts en Docker dont `stats_scope`, une seule tête alembic ; en file depuis 13:53 ; **CI rouge** (`audit-logs` 200 au lieu de 403 sur l'accès par étape), B corrige ; 13 fichiers, aucune migration. #358, #241 et #266 reciblées sur `main` par O ; #360 et #361 restent sur la branche de #358 |
-| | #358 | B | **dans la file depuis le 18/11 à 14:37**, base `main`. Avant : brouillon, base = branche de #203 ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
-| | #360 | B | brouillon, base = branche de #358, CLEAN ; 9 fichiers, aucune migration ; 25 tests verts en Docker |
+| | #358 | B | **fusionnée le 18/11 à 14:49 (4fcd8d9)**. Avant : dans la file depuis 14:37 ; brouillon, base = branche de #203 ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
+| | #360 | B | **fusionnée le 18/11 à 15:07 (8ceae3b)**. Avant : brouillon, base = branche de #358, CLEAN ; 9 fichiers, aucune migration ; 25 tests verts en Docker |
 | | #104 (point de coupe) | I | brouillon, DIRTY sur le distant (7302e3c). En local (8eca6b0) : 56 commits d'avance, 70 de retard, et `merge-tree` ne montre aucun conflit avec `main` |
-| V1.0 conditionnelle | PR RapidOCR | B | **aucune PR ni branche distante** : seulement un commit local (7cb2dd9). Restent les tests et la mesure mémoire |
+| V1.0 conditionnelle | #368 (RapidOCR) | B | ouverte le 18/11 à 14:56, BEHIND ; image ramenée à 1800 px (pic mesuré vers 630 Mo). Prise pour le 30/11 seulement si Q valide la lecture de la vraie photo de démo |
+| | #365 (repli EasyOCR coupé par défaut) | B | ouverte le 18/11 à 14:40, BLOCKED (CI ou relecture) ; étape 7 bis |
+| | #369 (relance de l'OCR d'un document, `DOCS/exploitation/relancer-ocr.md`) | B | ouverte le 18/11 à 14:56 ; la fiche UAT y renvoie (ligne « Lecture bloquée ») |
+| V1.2 | #370 (robustesse OCR : acquittement après coup, tentatives bornées, balayage) | B | brouillon, BEHIND ; c'est OCR-1 du plan V1.1, en tête de la V1.2 |
 | | #356 (e2e du scénario de démo) | F | brouillon, BEHIND ; tests seuls |
 | Release seulement (§ 0) | #121 | O | prête, BEHIND, CI verte ; jamais fusionnée sur `main` |
 | V1.1 / V1.2, brouillon, hors file | les 105 autres brouillons, dont #241, #266, #359, #361 et toute la série post-rc1 | auteurs | aucune fusion avant la coupe |
@@ -242,11 +245,11 @@ Les fusions passent une à une. Avec la règle `strict`, chaque PR demande une m
 | 1 | Reciblage de #358, #241 et #266 sur `main` | O | **fait le 18/11** | avant la fusion de #203 | `baseRefName` = `main` pour les trois | ne pas fusionner #203 |
 | 2 | Fusion de #203 | O | **fait le 18/11 à 14:28** (17498b5) | 15:00 | `ci_gate 203` : `draft=false`, CI Gate `COMPLETED SUCCESS` ; relecture de Q | V1.1, avec #358 et #360 |
 | 3 | #358 prête (B), puis reciblage de #360 et #361 sur `main` (O) | B, puis O | 12:00 | avant la fusion de #358 | 6 trous corrigés, puis `gh pr ready 358` | — |
-| 4 | Fusion de #358 | O | 12:30 ; **dans la file depuis le 18/11 à 14:37** | **15:30** | CI Gate vert, OK de Q | V1.1, avec #360. La fuite reste dans les limites connues (question 12 de la fiche jury) |
-| 5 | #360 prête, puis fusion | B, puis O | 13:30 | **16:00** | CI Gate vert, OK de Q | V1.1 |
-| 6 | PR RapidOCR : décision | O | — | **16:00** | étape 0 de `decision-vote-ocr.md` : PR prête, CI verte, OK de Q, Tesseract toujours moteur par défaut, aucune migration, trois tests de repli | V1.1 (§ 4 de la note) |
+| 4 | Fusion de #358 | O | **fait le 18/11 à 14:49** (4fcd8d9) | **15:30** | CI Gate vert, OK de Q | V1.1, avec #360. La fuite reste dans les limites connues (question 12 de la fiche jury) |
+| 5 | #360 prête, puis fusion | B, puis O | **fait le 18/11 à 15:07** (8ceae3b) | **16:00** | CI Gate vert, OK de Q | V1.1 |
+| 6 | #368 (RapidOCR) : décision | O | — | **16:00** | étape 0 de `decision-vote-ocr.md` : PR prête, CI verte, OK de Q, Tesseract toujours moteur par défaut, aucune migration, trois tests de repli. Pour le 30/11, Q valide en plus la lecture de la vraie photo de démo (1800 px) | V1.1 (§ 4 de la note) |
 | 7 | Fusion de RapidOCR, si l'étape 6 passe | O | 16:30 | **17:00** | CI Gate vert | V1.1 |
-| 7 bis | Correctif repli OCR (B) : PR 15:30, merge avant 17:15. Le repli EasyOCR fait tomber le worker par manque de mémoire ; Tesseract seul lit les 2 photos et les 9 mots (Q, 18/11) | B, puis O | 15:30 (PR) | **17:15** (fusion) | CI Gate vert, OK de Q | O décide : le défaut est noté dans les limites connues, et la démo garde Tesseract |
+| 7 bis | Correctif repli OCR (B, #365, ouverte à 14:40) : merge avant 17:15. Le repli EasyOCR fait tomber le worker par manque de mémoire ; Tesseract seul lit les 2 photos et les 9 mots (Q, 18/11) | B, puis O | 15:30 (PR) | **17:15** (fusion) | CI Gate vert, OK de Q | O décide : le défaut est noté dans les limites connues, et la démo garde Tesseract |
 | 8 | #356 (tests e2e seuls) | F, puis O | 14:00 | **15:00** (décision d'O) | CI verte et passe de F OK | V1.1 ; sans effet sur la coupe |
 | 9 | **Gel des fusions sur `main`** : O note la tête de `main` | O | — | **17:15** | `git rev-parse --short origin/main`, transmis à I | — |
 | 10 | Essai à blanc de #104 | I | 17:30 | 17:45 | `deroule-coupe-19-11.md` § 1, ligne de 17:55 : fusion locale de `origin/main` sans conflit, sur la tête notée à 17:15 | conflit : prévenir O avec la liste des fichiers ; ne rien pousser |
@@ -290,9 +293,9 @@ gh issue close 133 --repo $REPO --reason completed \
 
 ### 8.4 Risques pour 18:00
 
-1. **#203 : risque levé le 18/11.** Fusionnée à 14:28 (17498b5), après le correctif de B (ef144da : `audit-logs` reste hors de l'accès par étape). #358 est dans la file depuis 14:37 ; #360 suit. Reste ouvert : #358 et #360 avant 15:30 et 16:00 le 19 (étapes 4 et 5). Historique : la CI de 2a890d0 est rouge : `audit-logs` renvoie 200 au lieu de 403 sur l'accès par étape. Les 139 tests verts en Docker ne couvraient pas ce cas. B corrige ; Q relit le correctif. #358 et #360 attendent #203. Si la CI n'est pas verte à 15:00 le 19, O décide si les trois PR passent en V1.1. Objectif d'O inchangé : #203, #358 et #360 fusionnées le 18 ou le 19 au matin.
-2. **Fusions en série.** Trois PR empilées, puis peut-être RapidOCR et #356, à 15 à 20 minutes chacune. Entre 16:00 et 17:15, la marge ne couvre qu'une seule relance de CI.
-3. **RapidOCR** : aucune PR la veille à 14:00. Par défaut, elle passe en V1.1.
+1. **#203, #358 et #360 : risque levé le 18/11.** #203 fusionnée à 14:28 (17498b5), après le correctif de B (ef144da : `audit-logs` reste hors de l'accès par étape) ; #358 à 14:49 (4fcd8d9) ; #360 à 15:07 (8ceae3b). Le périmètre de l'Admin Service est donc dans la rc.1. Historique : la CI de 2a890d0 est rouge : `audit-logs` renvoie 200 au lieu de 403 sur l'accès par étape. Les 139 tests verts en Docker ne couvraient pas ce cas. B corrige ; Q relit le correctif. #358 et #360 attendent #203. Objectif d'O atteint : les trois PR fusionnées le 18.
+2. **Fusions en série.** Les trois PR empilées sont passées. Restent peut-être #365, #368, #369 et #356, à 15 à 20 minutes chacune. Entre 16:00 et 17:15, la marge ne couvre qu'une seule relance de CI.
+3. **RapidOCR (#368)** : PR ouverte le 18/11 à 14:56. Elle n'est prise pour le 30/11 que si Q valide la lecture de la vraie photo de démo. Sinon, elle passe en V1.1 et la démo garde Tesseract.
 4. **#356** (F, tests e2e seuls) : V1.0 si CI verte et passe de F OK avant le 19 à 15:00, sinon V1.1 (décision d'O). Sans effet sur la coupe.
 5. **#121** : confirmé par O, reciblée sur `release/v1.0.0` après la coupe ; jamais fusionnée sur `main` (contrôle 3 du § 2).
 6. **#104** a 70 commits de retard sur `main`. L'essai à blanc de 17:30 se fait sur la tête notée au gel de 17:15, et non plus sur `2f15b6e`.

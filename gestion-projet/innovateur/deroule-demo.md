@@ -84,7 +84,7 @@ Si la question porte sur un écart déjà dit : « c'est l'écart n° … annonc
 
 - **Étape photo** (5 bis, 1:00, prise sur les questions) : détail dans `scenario-demo-30-11.md` § 12. Elle n'est pas encore dans la chronologie du § 1 : à minuter à la répétition du 27.
 - **Plan B des mots de recherche** (le mot principal ne change pas ; Q, 18/11 : Tesseract seul trouve les 9 mots) : `IMG_0412` → `recenser`, `fonctionnement`, `appareil` ; `IMG_0413` → `fournitures`, `imputation`, `classeurs`.
-- **Moteur de lecture** : sur `main`, Tesseract par défaut, avec EasyOCR en secours. RapidOCR seulement s'il entre dans la rc.1 (PR prête le 19 à 16:00). Le moteur de la démo est fixé le 20 à 09:00 (fiche PO, questions 17 et 21).
+- **Moteur de lecture** : sur `main`, Tesseract par défaut, avec EasyOCR en secours. RapidOCR (#368, image ramenée à 1800 px) n'est pris pour le 30/11 que si Q valide la lecture de la vraie photo de démo, et s'il entre dans la rc.1 (décision le 19 à 16:00). Sinon, la démo garde Tesseract. Le moteur de la démo est fixé le 20 à 09:00 (fiche PO, questions 17 et 21).
 - **Pas de vote** entre plusieurs moteurs (décision d'O du 18/11, `decision-vote-ocr.md`).
 - **Pile** : la démo tourne sur la pile complète `docker-compose.yml`, qui a un worker et donc l'OCR. Elle ne tourne pas sur la pile e2e. La capture de secours de l'étape photo vient du test hors ligne du 25/11 (E6 bis), et non d'un run Playwright, parce que la pile e2e n'a pas de worker.
 - **Contournements de l'audit UX du parcours** (détail : `scenario-demo-30-11.md` § 13) :

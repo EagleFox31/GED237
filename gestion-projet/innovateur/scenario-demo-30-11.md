@@ -255,7 +255,7 @@ Source : PR #334 (`fix/v10-role-home-dead-controls`, ouverte, commits 0a9655f, b
 
 ## 12. Photo de document → recherche plein texte (OCR, demande de O du 18/11)
 
-Contexte (B, V1.0) : photos, captures et formulaires passent par RapidOCR v5 latin (image ramenée à 2000 px) ; les scans passent par Tesseract ; si RapidOCR échoue, Tesseract prend le relais. Mesures du banc de Q (18/11, part des mots retrouvés) : photo réelle d'un document imprimé 0,879 ; formulaires 0,743 ; manuscrit photographié 0,01 à 0,10.
+Contexte (B, V1.0) : photos, captures et formulaires passent par RapidOCR v5 latin (image ramenée à 1800 px, #368) ; les scans passent par Tesseract ; si RapidOCR échoue, Tesseract prend le relais. Mesures du banc de Q (18/11, part des mots retrouvés) : photo réelle d'un document imprimé 0,879 ; formulaires 0,743 ; manuscrit photographié 0,01 à 0,10.
 
 > **Mise à jour du 18/11** : RapidOCR n'est dans la rc.1 que si sa PR est verte et relue avant le 19 à 16:00. Sinon, la démo lit les photos avec Tesseract, le moteur par défaut sur `main`, avec EasyOCR en secours. Le moteur de la démo est fixé le 20 à 09:00 (fiche PO, questions 17 et 21). Pas de vote entre plusieurs moteurs (`decision-vote-ocr.md`).
 

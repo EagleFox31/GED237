@@ -11,8 +11,7 @@
   - l'auditeur arrive sur « Registre Des Actions », sans entrée « Audit » dans le menu ;
   - l'écriture à la main n'est pas lue : seul le texte imprimé l'est, en scan ou en photo.
 - **Réf.** : le numéro du critère du cahier des charges, pour Q. ⚠ = pas encore de test automatique : votre coche est la seule preuve.
-- **◇ Conditionnel** : à jouer seulement si #203, #358 et #360 sont dans la rc.1 (décision du 19/11 à 15:00). Sinon, cochez « non joué » : l'administrateur d'unité voit encore tout l'établissement, et c'est une limite annoncée.
-- **Mise à jour du 18/11** : cas photo (agent, 3 bis et 6 bis) et administrateur d'unité (§ 3 bis) ajoutés.
+- **Mise à jour du 18/11** : cas photo (agent, 3 bis et 6 bis) et administrateur d'unité (§ 3 bis) ajoutés. #203, #358 et #360 sont fusionnées sur `main` (17498b5, 4fcd8d9, 8ceae3b) : les cas de l'administrateur d'unité se jouent sans condition.
 
 ## 1. Agent — `MINFI002` (collaborateur, Direction des affaires financières)
 
@@ -52,14 +51,14 @@
 | 6 | Cherchez un mot présent **seulement** dans les documents du MINESUP | aucun résultat, aucun titre du MINESUP | ☐ | ☐ | SC-SEC-02 (testé côté serveur) |
 | 7 | Rechargez la page (F5) | même page, toujours connecté | ☐ | ☐ | GUARD-06 |
 
-## 3 bis. Administrateur d'unité — `UNIT001` (DRH) ◇
+## 3 bis. Administrateur d'unité — `UNIT001` (DRH)
 
 | # | Faites | Vous devez voir | OK | KO | Réf. |
 |---|---|---|---|---|---|
-| 1 ◇ | Ouvrez la liste des documents, puis le tableau de bord | les documents et les chiffres de la DRH et de ses sous-unités seulement | ☐ | ☐ | #203 |
-| 2 ◇ | Cherchez le mot-clé du jeu de démo (celui du chef, n° 4) | aucun résultat : ces documents sont à la DAF | ☐ | ☐ | #203 |
-| 3 ◇ | Collez l'adresse d'un document de la DAF (copiée par l'agent, n° 3) | « introuvable » ; ni titre ni contenu | ☐ | ☐ | #203 (404) |
-| 4 ◇ | Créez un utilisateur rattaché à la DAF ; puis déplacez un agent de la DRH vers la DAF | refusé les deux fois : personne n'est créé, l'agent reste à la DRH | ☐ | ☐ | #360 |
+| 1 | Ouvrez la liste des documents, puis le tableau de bord | les documents et les chiffres de la DRH et de ses sous-unités seulement | ☐ | ☐ | #203 |
+| 2 | Cherchez le mot-clé du jeu de démo (celui du chef, n° 4) | aucun résultat : ces documents sont à la DAF | ☐ | ☐ | #203 |
+| 3 | Collez l'adresse d'un document de la DAF (copiée par l'agent, n° 3) | « introuvable » ; ni titre ni contenu | ☐ | ☐ | #203 (404) |
+| 4 | Créez un utilisateur rattaché à la DAF ; puis déplacez un agent de la DRH vers la DAF | refusé les deux fois : personne n'est créé, l'agent reste à la DRH | ☐ | ☐ | #360 |
 
 ## 4. Auditeur — `AUDIT001`
 
@@ -93,9 +92,8 @@ Signature : ______________________ Date : 23/11/2026
 | E23 | Admin Service : « Gérer les Permissions » ne fait rien | passer par l'Admin Institution | réponse du PO (Q6) |
 | E24 | Accents manquants : « A verifier » (Explorateur), « Parametres » (menu du super admin) | aucun, simple libellé | réponse du PO (Q6) |
 | E25 | Auditeur : pas d'entrée « Audit » dans le menu ; il arrive sur « Registre Des Actions » | revenir par « Tableau de Bord » | réponse du PO (Q6) |
-| Admin Service | Il voit et cherche dans toute l'institution, pas seulement son service | limite annoncée dans les notes rc.1 ; **à retirer** si #203, #358 et #360 sont dans la rc.1 (décision du 19 à 15:00) : on joue alors le § 3 bis | V1.1 (#203, #358, #360) |
 | OCR | L'écriture à la main n'est pas lue | aucun : seul le texte imprimé est lu. Un seul moteur à la fois, choisi par configuration | moteur de la démo fixé le 20 à 09:00 |
-| Lecture bloquée | Un document reste « en cours » plus de 10 min | noter le nom du document et l'heure, puis relancer l'import. Attention : le même fichier redéposé est refusé comme doublon, et aucun écran ne supprime un document en rc.1. Prévenir Q, qui relance la lecture côté serveur | V1.2 (OCR-1) ; remonte en V1.1 si un arrêt brutal du worker est vu du 20 au 25 |
+| Lecture bloquée | Un document reste « en cours » plus de 10 min | noter le nom du document et l'heure, puis relancer l'import. Attention : le même fichier redéposé est refusé comme doublon, et aucun écran ne supprime un document en rc.1. Prévenir Q, qui relance la lecture côté serveur avec `DOCS/exploitation/relancer-ocr.md` (#369, en attente de fusion) | V1.2 (OCR-1, #370) ; remonte en V1.1 si un arrêt brutal du worker est vu du 20 au 25 |
 | Code de connexion | Le code n'est pas reçu : il est pré-rempli à l'écran ; le cadre « Espace Démo Interactif » est visible | cliquer sur « Confirmer l'identité » | après le 30 (#154) |
 | Hors rc.1 | Pas de corbeille à l'écran, pas de numérotation des rapports, pas de TOTP, pas de dépôt de version à l'écran | non joués | après le 30 |
 | Lien « Oublié ? » | Ne fait rien | demander un mot de passe à l'administrateur | V1.1 |
@@ -172,13 +170,13 @@ Signature : ______________________ Date : 23/11/2026
 | ○ SC-AUTH-02 | `MINFI002` | Connexion avec un code modifié à la main | « Code invalide » ; nouvelle saisie possible | | |
 | ○ SC-AUTH-02 E3 | `VERROU-23` (lecteur jetable créé par Q avant la séance), **pas** un compte de la démo | 3 codes faux | compte bloqué 15 min, compte à rebours à l'écran | | bloque le compte : à jouer en dernier |
 
-## 5 bis. `UNIT001` — Admin Service DRH ◇ (≈ 10 min, seulement si #203, #358 et #360 sont dans la rc.1)
+## 5 bis. `UNIT001` — Admin Service DRH (≈ 10 min)
 
 | ID | Compte | Geste | Résultat attendu | OK / KO | Remarque |
 |---|---|---|---|---|---|
-| ◇ Périmètre | `UNIT001` | Liste des documents, recherche, tableau de bord | DRH et ses sous-unités seulement (#203) ; rapports, circuits, imports, revues et règles limités de même (#358) | | |
-| ◇ Au-delà | `UNIT001` | URL d'un document de la DAF (Prépa 2) ; mot-clé de SC-LEC-01 | « introuvable » (404), aucun titre ; 0 résultat | | |
-| ◇ Comptes | `UNIT001` | Créer un utilisateur à la DAF ; déplacer un agent DRH vers la DAF ; organigramme | refus dans les deux cas, rien n'est écrit ; l'organigramme et les comptes se limitent à la DRH (#360) | | |
+| Périmètre | `UNIT001` | Liste des documents, recherche, tableau de bord | DRH et ses sous-unités seulement (#203) ; rapports, circuits, imports, revues et règles limités de même (#358) | | |
+| Au-delà | `UNIT001` | URL d'un document de la DAF (Prépa 2) ; mot-clé de SC-LEC-01 | « introuvable » (404), aucun titre ; 0 résultat | | |
+| Comptes | `UNIT001` | Créer un utilisateur à la DAF ; déplacer un agent DRH vers la DAF ; organigramme | refus dans les deux cas, rien n'est écrit ; l'organigramme et les comptes se limitent à la DRH (#360) | | |
 
 ## 6. Prouvés par Q, pas rejoués à la main
 
@@ -189,8 +187,8 @@ Signature : ______________________ Date : 23/11/2026
 | Q Corbeille exclue | document en corbeille absent de la recherche (API) | | |
 | Q SC-RED-05/06 | suppression puis restauration (pytest) | | |
 | Q SC-RED-04 | nouvelle version, ancienne lisible, écriture concurrente refusée (pytest) | | |
-| ◇ Q Titulaire d'étape | le titulaire d'une étape lit le document, son contenu et son texte lu, mais pas son historique (`audit-logs` refusé) ; pas d'écran pour cet historique, donc preuve par l'API (pytest de #203) | | |
-| ◇ Q Hors arbre | `UNIT001` : lecture hors de son arbre → 404 ; création ou déplacement d'un compte hors de son arbre → refus (pytest de #203 et #360) | | |
+| Q Titulaire d'étape | le titulaire d'une étape lit le document, son contenu et son texte lu, mais pas son historique (`audit-logs` refusé) ; pas d'écran pour cet historique, donc preuve par l'API (pytest de #203) | | |
+| Q Hors arbre | `UNIT001` : lecture hors de son arbre → 404 ; création ou déplacement d'un compte hors de son arbre → refus (pytest de #203 et #360) | | |
 
 ## Verdict
 

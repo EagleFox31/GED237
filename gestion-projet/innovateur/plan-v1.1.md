@@ -360,7 +360,7 @@ Garde-fous de O, avec ceux de l'innovateur marqués (I).
 
 | Ticket | Contenu | Coût (`Déduit`) | Dépendance |
 |---|---|---|---|
-| OCR-1 (à créer) | **Tâche OCR tuée = tâche perdue.** (a) `task_acks_late=True` et `task_reject_on_worker_lost=True`, pour la seule tâche OCR ou pour toute l'application selon la relecture de B. (b) Borne de tentatives : au-delà de N essais, le document passe à `failed` avec une raison lisible, sinon un document trop lourd tue le worker en boucle. (c) `process_document_ocr` doit pouvoir être rejouée sans effet en double (même `document_id`, même résultat). (d) Balayage périodique, avec le beat déjà lancé par `-B` : un document « en cours » depuis plus de X minutes passe à `failed`. | ≈ 1,25 : B 0,75, Q 0,5 | Après #284 (état `failed`) et #365 |
+| OCR-1 (#370, brouillon de B) | **Tâche OCR tuée = tâche perdue.** (a) `task_acks_late=True` et `task_reject_on_worker_lost=True`, pour la seule tâche OCR ou pour toute l'application selon la relecture de B. (b) Borne de tentatives : au-delà de N essais, le document passe à `failed` avec une raison lisible, sinon un document trop lourd tue le worker en boucle. (c) `process_document_ocr` doit pouvoir être rejouée sans effet en double (même `document_id`, même résultat). (d) Balayage périodique, avec le beat déjà lancé par `-B` : un document « en cours » depuis plus de X minutes passe à `failed`. | ≈ 1,25 : B 0,75, Q 0,5 | Après #284 (état `failed`) et #365 |
 
 **Preuve attendue (Q).** Un `kill -9` du worker pendant une lecture : après redémarrage, la tâche est relue une seule fois et le document finit `indexed` ou `failed`, jamais « en cours ». Un document qui fait tomber le worker à chaque essai finit `failed` après N essais. Un test unitaire vérifie la configuration Celery.
 
