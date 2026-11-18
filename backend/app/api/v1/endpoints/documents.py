@@ -319,6 +319,22 @@ async def _can_mutate_document(user: User, document: Document) -> bool:
     )
 
 
+async def _can_delete_document(user: User, document: Document) -> bool:
+    """
+    Suppression DÉFINITIVE (fichiers et versions) : Casbin ``delete`` (admins) ou
+    ``delete_own`` (propriétaire) — jamais ``update``/``update_own``, qui ouvrent la
+    modification, ni ``trash_own``, qui n'ouvre que la corbeille. Pour le propriétaire,
+    seuls les statuts modifiables (OWNER_MUTABLE_STATUSES) restent supprimables.
+    """
+    ctx = ctx_from_resource(document)
+    if await can_perform(user, "documents", "delete", ctx):
+        return True
+    return (
+        await can_perform(user, "documents", "delete_own", ctx)
+        and document.status in OWNER_MUTABLE_STATUSES
+    )
+
+
 async def _can_trash_document(user: User, document: Document) -> bool:
     """
     Casbin valide delete (admins) ou trash_own (propriétaire).
@@ -1299,7 +1315,7 @@ async def delete_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(current_user, document):
+    if not await _can_delete_document(current_user, document):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
         )

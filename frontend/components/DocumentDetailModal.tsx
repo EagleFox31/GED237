@@ -114,6 +114,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         comment: comment || undefined
       });
       await loadWorkflowSteps();
+      // Le statut du document change après un visa ou un rejet : on le relit pour l'affichage et la liste.
+      try {
+        const refreshed = await api.getDocument(document.id);
+        setDocument(refreshed);
+        onUpdated?.(refreshed);
+      } catch (refreshErr) {
+        // L'action a réussi ; l'erreur de relecture est déjà publiée par le client HTTP.
+        console.error('Refresh after action failed:', refreshErr);
+      }
     } catch (err) {
       console.error('Validation failed:', err);
       setActionError("L'action de workflow a échoué. Veuillez réessayer.");
@@ -241,7 +250,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-slate-400 font-medium">Propriétaire</p>
-                      <p className="font-bold text-slate-700">{document.owner_name || document.owner_id}</p>
+                      <p className="font-bold text-slate-700">{document.owner_name || 'Non renseigné'}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 font-medium">Date de création</p>

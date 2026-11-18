@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { DEFAULT_ROUTE_BY_PROFILE, defaultRouteForProfile } from './lib/defaultRoute';
 import { takePostLoginDestination, accountKeyOf } from './services';
 import { pushClientOperationError } from './lib/errors';
 
@@ -86,18 +87,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'reports': '/reports',
 };
 
-const DEFAULT_ROUTE_BY_PROFILE: Record<string, string> = {
-  super: '/tenants',
-  tenant: '/dashboard',
-  unit: '/dashboard',
-  manager: '/tasks',
-  collab: '/dashboard',
-  reader: '/documents',
-  audit: '/audit',
-};
-
-export const defaultRouteForProfile = (profileId?: string): string =>
-  (profileId && DEFAULT_ROUTE_BY_PROFILE[profileId]) || '/dashboard';
+export { defaultRouteForProfile };
 
 type ProfileId = keyof typeof DEFAULT_ROUTE_BY_PROFILE;
 
