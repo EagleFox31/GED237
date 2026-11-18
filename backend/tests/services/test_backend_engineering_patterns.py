@@ -795,6 +795,7 @@ async def test_workflow_service_patterns(monkeypatch):
         current_version_id=version_id,
         status="in_review",
         title="Note",
+        owner_id=uuid.uuid4(),
     )
     step = SimpleNamespace(
         id=uuid.uuid4(),
@@ -805,6 +806,7 @@ async def test_workflow_service_patterns(monkeypatch):
         expected_action_type=ActionType.visa,
         completed_at=None,
         comment=None,
+        label="Visa 1",
     )
     action = WorkflowActionCreate(
         action_type=ActionType.visa,
@@ -859,15 +861,32 @@ async def test_workflow_service_patterns(monkeypatch):
     assert step.status == "completed"
     assert next_step.status == "current"
     assert db.commits == 1 and db.refreshes == 1
-    dispatcher.dispatch.assert_awaited_with(
-        "WORKFLOW_ASSIGNED",
-        {
-            "user_id": str(next_step.assigned_to),
-            "tenant_id": str(document.tenant_id),
-            "document_title": document.title,
-            "step_name": next_step.label,
-        },
-    )
+
+    def depositor_payload(doc, status, comment="OK"):
+        return {
+            "tenant_id": str(doc.tenant_id),
+            "document_id": str(doc.id),
+            "document_title": doc.title,
+            "owner_id": str(doc.owner_id),
+            "status": status,
+            "actor_id": str(actor.id),
+            "step_name": step.label,
+            "comment": comment,
+        }
+
+    assert [c.args for c in dispatcher.dispatch.await_args_list] == [
+        (
+            "WORKFLOW_ASSIGNED",
+            {
+                "user_id": str(next_step.assigned_to),
+                "tenant_id": str(document.tenant_id),
+                "document_id": str(document.id),
+                "document_title": document.title,
+                "step_name": next_step.label,
+            },
+        ),
+        ("WORKFLOW_STEP_ACCEPTED", depositor_payload(document, "in_review")),
+    ]
 
     final_step = SimpleNamespace(
         **{**step.__dict__, "status": "current", "completed_at": None}
@@ -884,6 +903,9 @@ async def test_workflow_service_patterns(monkeypatch):
         step_id=final_step.id, action=action, actor=actor, db=final_db
     )
     assert final_doc.status == "validated"
+    dispatcher.dispatch.assert_awaited_with(
+        "WORKFLOW_COMPLETED", depositor_payload(final_doc, "validated")
+    )
 
     returned_step = SimpleNamespace(
         **{**step.__dict__, "status": "current", "completed_at": None}
@@ -907,6 +929,9 @@ async def test_workflow_service_patterns(monkeypatch):
     assert returned_step.status == "returned"
     assert returned_doc.status == "returned"
     assert pending.status == "cancelled"
+    dispatcher.dispatch.assert_awaited_with(
+        "WORKFLOW_RETURNED", depositor_payload(returned_doc, "returned")
+    )
 
     rejected_step = SimpleNamespace(
         **{**step.__dict__, "status": "current", "completed_at": None}
@@ -930,6 +955,9 @@ async def test_workflow_service_patterns(monkeypatch):
     assert rejected_step.status == "rejected"
     assert rejected_doc.status == "rejected"
     assert rejected_pending.status == "rejected"
+    dispatcher.dispatch.assert_awaited_with(
+        "WORKFLOW_REJECTED", depositor_payload(rejected_doc, "rejected")
+    )
 
     with pytest.raises(Exception) as missing_step:
         await use_case.execute(

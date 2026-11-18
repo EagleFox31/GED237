@@ -117,6 +117,11 @@ export async function mockApi(page: Page, { omit = [] }: MockApiOptions = {}): P
       await route.fulfill({ json: match.body });
       return;
     }
+    // Ticket de la connexion temps réel (#316), demandé à chaque ouverture de page.
+    if (request.method() === 'POST' && apiPath === '/auth/ws-ticket') {
+      await route.fulfill({ json: { ticket: 'visual-ticket', expires_in: 30 } });
+      return;
+    }
     unmocked.push(`${request.method()} ${apiPath}`);
     await route.fulfill({ status: 404, json: { detail: 'Not mocked' } });
   });

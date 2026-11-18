@@ -71,6 +71,7 @@ export const api = {
     verifyOTP: authApi.verifyOTP,
     logout: authApi.logout,
     changePassword: authApi.changePassword,
+    requestWsTicket: authApi.requestWsTicket,
 
     // Documents
     uploadDocument: documentsApi.uploadDocument,

@@ -76,6 +76,14 @@ export const authApi = {
         return response.json();
     },
 
+    /** Ticket à usage unique (30 s) pour ouvrir la connexion temps réel : le jeton ne passe plus dans l'URL (#316). */
+    requestWsTicket: (): Promise<{ ticket: string; expires_in: number }> =>
+        apiCall<{ ticket: string; expires_in: number }>(
+            '/auth/ws-ticket',
+            { method: 'POST' },
+            'Connexion temps réel impossible',
+        ),
+
     changePassword: async (current_password: string, new_password: string): Promise<true> => {
         await apiCall<any>(
             '/auth/change-password',

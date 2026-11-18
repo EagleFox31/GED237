@@ -193,9 +193,20 @@ async def test_commit_import_job_creates_documents(
 
 @pytest.mark.asyncio
 async def test_commit_import_job_handles_partial_validity(
-    auth_client, db_session: AsyncSession, db_seed, storage_tmp_path
+    auth_client, db_session: AsyncSession, db_seed, storage_tmp_path, monkeypatch
 ):
     await _seed_classification(db_session, db_seed)
+    from app.core.events.dispatcher import dispatcher
+
+    events = []
+    original_dispatch = dispatcher.dispatch
+
+    async def spy_dispatch(event_type, payload):
+        events.append((event_type, payload))
+        if event_type != "CLASSIFICATION_REVIEWS_PENDING":
+            await original_dispatch(event_type, payload)
+
+    monkeypatch.setattr(dispatcher, "dispatch", spy_dispatch)
 
     analyze = await auth_client.post(
         "/api/v1/imports/analyze",
@@ -229,6 +240,49 @@ async def test_commit_import_job_handles_partial_validity(
 
     reviews = await db_session.execute(select(ClassificationReview))
     assert len(reviews.scalars().all()) == 1
+
+    # One grouped "to review" event for the whole import, not one per document.
+    pending = [p for e, p in events if e == "CLASSIFICATION_REVIEWS_PENDING"]
+    assert pending == [
+        {
+            "tenant_id": str(db_seed["tenant_id"]),
+            "import_job_id": job_id,
+            "count": 1,
+            "actor_id": str(db_seed["user_id"]),
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_import_without_review_sends_no_review_notification(
+    auth_client, db_session: AsyncSession, db_seed, storage_tmp_path, monkeypatch
+):
+    from app.core.events.dispatcher import dispatcher
+
+    await _seed_classification(db_session, db_seed)
+    events = []
+    original_dispatch = dispatcher.dispatch
+
+    async def spy_dispatch(event_type, payload):
+        events.append(event_type)
+        await original_dispatch(event_type, payload)
+
+    monkeypatch.setattr(dispatcher, "dispatch", spy_dispatch)
+
+    analyze = await auth_client.post(
+        "/api/v1/imports/analyze",
+        files=[("files", ("reparation_batch.txt", io.BytesIO(b"ok"), "text/plain"))],
+        data={
+            "source_scope": "service",
+            "default_document_category_id": str(db_seed["category_id"]),
+            "processing_mode": "archive",
+        },
+    )
+    assert analyze.status_code == 201
+    commit = await auth_client.post(f"/api/v1/imports/{analyze.json()['id']}/commit")
+    assert commit.status_code == 200
+    assert commit.json()["pending_review_items"] == 0
+    assert "CLASSIFICATION_REVIEWS_PENDING" not in events
 
 
 @pytest.mark.asyncio
