@@ -197,6 +197,7 @@ services:
       OCR_STUCK_MINUTES: ${OCR_STUCK_MINUTES:-15}
       OCR_STUCK_MAX_REQUEUES: ${OCR_STUCK_MAX_REQUEUES:-3}
       OCR_STUCK_SWEEP_INTERVAL_SECONDS: ${OCR_STUCK_SWEEP_INTERVAL_SECONDS:-300}
+      OCR_FALLBACK_ENABLED: ${OCR_FALLBACK_ENABLED:-false}
     depends_on:
       redis:
         condition: service_healthy

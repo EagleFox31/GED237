@@ -45,7 +45,13 @@ class OCRStrategy:
 
     @staticmethod
     def _should_use_fallback(result: OCRResult) -> bool:
-        """Fallback when the primary engine failed or produced weak OCR."""
+        """Fallback when the primary engine failed or produced weak OCR.
+
+        Off by default (OCR_FALLBACK_ENABLED): the heavy fallback engine exceeds the
+        worker memory limit, which kills the task; the primary text is kept as is.
+        """
+        if not settings.OCR_FALLBACK_ENABLED:
+            return False
         return not result.text.strip() or not result.is_reliable
 
     @staticmethod

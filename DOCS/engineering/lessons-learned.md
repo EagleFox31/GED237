@@ -733,6 +733,20 @@ première requête utilisateur.
 **Prévention** — `test_unit_admin_write_scope.py` : chaque route concernée est jouée avec unit_admin d'une sous-unité et témoin tenant_admin ; `test_unit_admin_crawl` vérifie qu'aucun identifiant d'une autre unité ne sort.
 **Leçon généralisée** — Ajouter un rôle intermédiaire impose de relire chaque ensemble de rôles qui le contient et de jouer les routes avec ce rôle. Un ensemble « admin » n'est pas un périmètre.
 
+### LESSON-2026-058 — Repli automatique vers un moteur trop lourd : un texte déjà lu était perdu avec la tâche
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / ocr
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/strategy.py` (`_should_use_fallback`), `backend/app/core/config.py` (`OCR_FALLBACK_ENABLED`), `backend/tests/services/test_ocr_strategy.py`, [LESSON-2026-054](#lesson-2026-054)
+
+**Contexte** — Tesseract lit les photos de la démo en environ 1 s, mais avec une confiance de 57 % ; une confiance faible déclenchait le repli sur EasyOCR.
+**Échec / near miss** — Le worker (2 Go) était tué par SIGKILL en 3 s au chargement d'EasyOCR : la tâche était perdue, `ocr_content` restait vide et aucune photo n'était indexée (363 SIGKILL sur le corpus), alors que le texte de Tesseract était correct.
+**Cause racine** — Le repli était un chemin automatique sans réglage ni borne mémoire : un texte exploitable était remplacé par une tentative qui dépasse la limite du conteneur.
+**Résolution** — Réglage `OCR_FALLBACK_ENABLED` (défaut `false`, déclaré en config, compose et `.env.example`) : désactivé, le texte du premier moteur est conservé tel quel.
+**Prévention** — Tests : réglage à `false`, EasyOCR n'est jamais appelé (images et pages de PDF) ; à `true`, le comportement précédent est inchangé.
+**Leçon généralisée** — Un repli plus lourd que le chemin principal doit être configurable et borné par la mémoire disponible ; ne jamais le laisser remplacer un résultat déjà exploitable au risque de tuer la tâche. La perte d'une tâche tuée (pas d'`acks_late`) reste à traiter en V1.1.
+
 ### LESSON-2026-060 — Tâche OCR acquittée à la réception : un worker tué emportait le travail, le document restait « en traitement »
 
 - **Date :** 2026-11-20
