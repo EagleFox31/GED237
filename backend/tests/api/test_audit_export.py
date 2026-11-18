@@ -144,15 +144,30 @@ async def test_export_is_logged_with_row_count_and_filters(
 async def test_too_many_rows_is_422(
     admin_client: AsyncClient, test_engine, db_seed, monkeypatch
 ):
-    from app.api.v1.endpoints import audit
+    from app.core.config import settings
 
     await _seed_logs(test_engine, db_seed)
-    monkeypatch.setattr(audit, "EXPORT_MAX_ROWS", 2)
+    monkeypatch.setattr(settings, "AUDIT_EXPORT_MAX_ROWS", 2)
 
     response = await admin_client.get(EXPORT)
 
     assert response.status_code == 422
-    assert "affinez" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert "affinez" in detail and "limité à 2" in detail
+
+
+@pytest.mark.asyncio
+async def test_export_at_the_cap_is_allowed(
+    admin_client: AsyncClient, test_engine, db_seed, monkeypatch
+):
+    from app.core.config import settings
+
+    await _seed_logs(test_engine, db_seed)
+    # The first export is itself logged, so the next one counts one more row.
+    total = len((await admin_client.get(EXPORT)).text.splitlines()) - 1 + 1
+    monkeypatch.setattr(settings, "AUDIT_EXPORT_MAX_ROWS", total)
+
+    assert (await admin_client.get(EXPORT)).status_code == 200
 
 
 async def _add_log(test_engine, db_seed, *, title: str, created_at: datetime) -> None:
