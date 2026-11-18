@@ -47,7 +47,7 @@ RUN mkdir -p "$EASYOCR_MODEL_DIR" \
 ENV RAPIDOCR_MODEL_DIR=/opt/rapidocr
 COPY app/services/ocr/rapidocr_params.py /tmp/rapidocr_build/rapidocr_params.py
 RUN mkdir -p "$RAPIDOCR_MODEL_DIR" \
-    && PYTHONPATH=/tmp/rapidocr_build python -c "from rapidocr_params import rapidocr_params; from rapidocr import RapidOCR; RapidOCR(params=rapidocr_params('$RAPIDOCR_MODEL_DIR'))" \
+    && PYTHONPATH=/tmp/rapidocr_build python -c "from rapidocr_params import download_models; download_models('$RAPIDOCR_MODEL_DIR')" \
     && ls "$RAPIDOCR_MODEL_DIR" \
     && ls "$RAPIDOCR_MODEL_DIR" | grep -i latin \
     && rm -rf /tmp/rapidocr_build
