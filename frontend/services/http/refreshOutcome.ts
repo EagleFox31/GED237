@@ -1,5 +1,5 @@
 // Décision après l'appel de renouvellement de session (POST /auth/refresh).
-// Pur, sans navigateur : testé par e2e/specs/refresh-outcome.spec.ts.
+// Pur, sans navigateur : testé par e2e/unit/refresh-outcome.spec.ts.
 //
 // - renewed   : nouveaux jetons, on rejoue la requête d'origine.
 // - expired   : le serveur refuse le jeton (401/403) → déconnexion avec message.
