@@ -570,3 +570,18 @@ première requête utilisateur.
 **Résolution** — L'autostash a été retrouvé (`git fsck --no-reflog`, commit « WIP on main »). Chaque fichier a été rétabli dans l'état de l'autostash, puis les entrées ajoutées entre-temps par les autres sessions y ont été remises. Contrôle : uniquement des ajouts par rapport à `HEAD`, et `HEAD` inchangé. Une deuxième session a vérifié.
 **Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
 **Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
+
+### LESSON-2026-069 — File de fusion inscrite à la main : 8 PR ouvertes absentes, détectées avant la fenêtre
+
+- **Date :** 2026-11-18
+- **Catégorie :** process | release
+- **Statut :** prevention-added
+- **Liens :** `gestion-projet/innovateur/file-v1.1.md`, `gestion-projet/innovateur/verif-file.sh` (branche `docs/scenario-demo-30-11`, commits 972c2983 et 1ccacd9a)
+
+**Contexte** — La file de fusion V1.1 (ORDER par vagues, DEP, re-ciblages) est l'entrée du script de file d'O. Elle a été écrite à la main à partir du plan et d'un relevé `gh pr list` du 18/11, puis complétée à chaque message d'un pair qui signalait une nouvelle PR.
+**Échec / near miss** — Le 18/11 au soir, deux PR existantes manquaient à la file : #424 (pagination du journal, attendue « dès qu'elle aura un numéro » alors qu'elle en avait déjà un) et #426 (57 L10-1, repérée seulement par une paire de conflits de Q). Le contrôle exhaustif lancé ensuite en a trouvé six autres : #448, #419, #428 et #443 à placer ; #385 et #313 hors file. Sans ce contrôle, ces PR n'auraient pas été fusionnées dans la fenêtre V1.1 et pas livrées le 07/12. Aucune fusion n'avait encore eu lieu.
+**Cause racine** — L'inscription était manuelle et cumulative. Le seul contrôle (ordre et DEP) portait sur le contenu de la file, jamais sur sa complétude par rapport aux PR ouvertes. Une PR ouverte hors des messages des pairs, ou dont le numéro n'avait pas été rapproché de son issue ou de sa ligne du plan, restait invisible.
+**Résolution** — Les 8 PR ont été placées (ORDER, DEP, § 3) ou rangées dans la nouvelle ligne `HORS_FILE`. Le contrôle passe : 133 PR dans ORDER, 8 hors file, 0 absente.
+**Prévention** — `gestion-projet/innovateur/verif-file.sh` compare la file à `gh pr list --state open`. Il sort en **code 1**, avec le numéro et le titre, dès qu'une PR ouverte n'est ni dans ORDER, ni dans `HORS_FILE`, ni exclue par une règle écrite (Dependabot, `feat/v12-*`, étiquette `v1.2`). Il contrôle aussi les doublons et les DEP, et sa sortie en erreur a été vérifiée sur un faux DEP et sur une PR retirée. Il est lancé à chaque modification de la file (innovateur) et avant chaque lancement du script de file de fusion (orchestrateur).
+**Leçon généralisée** — Une liste tenue à la main qui doit couvrir un ensemble vivant (PR ouvertes, issues, migrations) a besoin d'un contrôle de complétude contre la source, qui échoue bruyamment. Un contrôle qui ne porte que sur la cohérence interne de la liste ne voit pas les absents.
+**Évolution de standard** — Pour tout inventaire dérivé (file, plan de migration, relevé de risques), prévoir un contrôle automatique « source ↔ inventaire » qui sort en code non nul. Candidat au registry (RAIDER, Idempotent / Durable).
