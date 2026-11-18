@@ -272,3 +272,13 @@ B et F restent dans leur capacité. Avec la sortie de #278, Q revient à 22,0, s
 
 Q retrouve ≈ 1,75 h-s de marge avant 22. F reste dans sa capacité.
 - **Décision de O (18/11)** : #278 reste en V1.2. Les ≈ 1,75 h-s de marge de Q sont réservés aux relances d'e2e et au dépilage des PR empilées après le tag ; on n'y prend rien.
+
+**Correctif du 18/11, lot #151 et audit (décision de O) : #309.** La frise de revue affichait « Autre action » pour les deux actions d'audit de #179 et #262. C'est la spec #310 qui a révélé le défaut. Comme ce n'est pas une fonction nouvelle, O l'accepte sans sortie.
+- Coût : F 0,25 (déjà fait), Q 0,1, pris sur la marge de Q, qui passe à ≈ 1,65.
+- Ordre de fusion : #179 → #262 → #309. #310 est empilée sur #262 ; elle est re-ciblée sur `main` avant la fusion de #262.
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Après le transfert de Q vers F | 22,4 | 17,25 | 20,25 | 0,5 | 60,4 |
+| #309 (correctif de la frise de revue) | — | + 0,25 | + 0,1 | — | + 0,35 |
+| **Total V1.1** | **≈ 22,4** | **≈ 17,5** | **≈ 20,35** | **0,5** | **≈ 60,75** |
