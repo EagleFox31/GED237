@@ -2,6 +2,9 @@
 
 - **Statut** : SQUELETTE, préparé par l'innovateur le 18/11, à la demande d'O. À finaliser le 06/12 sur l'état réel de `main`.
 - **Source** : `file-v1.1.md` (ORDER par vague, 18/11) et titres des PR ouvertes.
+- **Remplace** `squelette-notes-version-v1.1.0.md` (17/11, classé par thème). Ce fichier-ci, classé par vague, fait foi. De l'ancien, on garde :
+  - la liste des réglages coupés par défaut (section « Pour O ») : chacun est tranché au moment de la fusion de sa PR ;
+  - les issues V1.1 encore sans PR au 18/11 : #204 (alerte si l'application d'authentification n'est pas réenrôlée sous 24 h), #214 (un seul point d'accès pour les fonctions activées), #215 (responsable d'unité borné pour les revues et les validations ; recouvre en partie #203) et #216 (constats B6, couverts en partie par #222). Elles restent ici en « À vérifier » tant qu'aucune PR ne les porte.
 - **Règle de finalisation** :
   - une ligne ne reste que si toutes ses PR sont fusionnées ;
   - une ligne dont une PR manque part en « Reporté » ;
@@ -18,7 +21,11 @@
 ## Vague 0 : socle (24/11)
 
 - **Administrateur** : vous réglez le nombre de lignes de l'export du journal. (#383)
-- **Tous** : messages plus clairs quand une action est refusée ou qu'une limite est atteinte. Le texte exact est à reprendre de #403 avec F. (#403)
+- **Tous** (#403, formulation de B) :
+  - la tuile « Utilisateurs » du tableau de bord n'est cliquable que si vous pouvez ouvrir la gestion des utilisateurs ;
+  - un export du journal trop gros vous dit « ajoutez un filtre », au lieu d'échouer sans message ;
+  - la bannette « À revoir » affiche un message clair quand un service ne se charge pas.
+- **Exploitant** : aucun plafond d'envoi ne change ; un contrôle vérifie que la limite du serveur web reste au-dessus de celle de l'application. (#403)
 - *Sans effet visible* : contrôle de cohérence des réglages (#389).
 
 ## Vague 1 : comptes et réglages (24 et 25/11)
@@ -27,16 +34,20 @@
   - Vous débloquez vous-même un compte bloqué, depuis la fiche de l'agent. (#394, #405)
   - Chaque changement sur un compte d'agent est inscrit au journal. (#227)
   - Un rôle vide ou inconnu donne un message clair, et non plus une erreur du serveur. (#237)
-  - Corrections sur les comptes et les quotas d'usage. (#222) ‹ à formuler avec B ›
+  - Seuls les profils qui gèrent les agents voient la liste des rôles qu'on peut attribuer. (#222)
+  - L'e-mail, le rôle, le service, le supérieur, l'état actif, le mot de passe et la photo d'un agent restent réservés à l'administrateur. Une demande qui en touche un est refusée en entier, avec la liste des champs refusés. (#222)
   - Les fonctions désactivées pour votre institution n'apparaissent plus à l'écran. (#224, #234)
   - Une mise à jour ajoute les nouveaux droits sans effacer vos réglages. (#235, #238)
-- **Agent** : les lecteurs d'écran lisent toutes les colonnes de la vue détaillée des espaces. (#240)
+- **Agent**
+  - Vous modifiez vous-même votre prénom, votre nom et votre téléphone. (#222)
+  - Les lecteurs d'écran lisent toutes les colonnes de la vue détaillée des espaces. (#240)
+- **Exploitant** : la liste des champs que l'agent peut modifier se règle par `USER_SELF_EDITABLE_FIELDS`. (#222)
 - **Tous** : un compte désactivé ou une session fermée ne peut plus être prolongé en arrière-plan. (#414, issue en attente de PR)
 - **Exploitant** :
   - le serveur refuse de démarrer en production avec la clé secrète par défaut (#413, issue en attente de PR) ;
   - pile réduite pour le VPS, avec en-têtes de sécurité (#248, #267, #268) ;
   - réglage des adresses acceptées par le serveur de l'interface (#245).
-- **Si le PO la retient** : pagination du journal d'audit (idée du PO, en attente).
+- **Administrateur** : le journal d'audit se parcourt page par page, au-delà des 200 dernières lignes. (PR à ouvrir, GO du PO le 18/11 ; fin de vague 1 si elle est prête, sinon vague 5)
 - *Sans effet visible* : #243, #253, #268 (contrôles).
 
 ## Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -47,8 +58,9 @@
   - Le document s'affiche directement dans la fiche, sans le télécharger. (#338)
   - Les PDF mixtes (pages tapées et pages scannées) sont mieux lus, et les gros PDF ne bloquent plus la lecture. (#384, #386, #387)
   - Vous filtrez la liste par catégorie. (#388)
+  - Quand la lecture a échoué, la liste et la fiche l'affichent, et un bouton la relance. (#404, #355)
+- **Exploitant** : une lecture interrompue (redémarrage, coupure) est reprise, avec un nombre d'essais borné. (#370)
 - *Sans effet visible* : jeu de test (#311).
-- **Reporté en V1.2** : bouton « relancer la lecture » quand elle a échoué (#355, liée à #404).
 
 ## Vague 3 : chaque service voit ses documents (26/11)
 
@@ -58,9 +70,9 @@
 - **Administrateur** : les volumes de stockage s'affichent correctement dans les statistiques. (#282)
 - *Sans effet visible* : test (#308).
 
-## Vague 4 : nouvelles fonctions (30/11 au 02/12), sous réserve de la décision du PO
+## Vague 4 : nouvelles fonctions (30/11 au 02/12)
 
-Chaque ligne dépend de l'avis du PO (`plan-fusion-v1.1.md` § 6). Une fonction refusée part en « Reporté ».
+Le PO garde tout en V1.1 (18/11 : « on repousse rien »). Une ligne n'en sort que si sa PR n'est pas fusionnée le 06/12.
 
 - **Agent**
   - **Corbeille** : « Supprimer » met le document à la corbeille, d'où vous pouvez le restaurer. La touche Suppr met à la corbeille. Vous pouvez annuler la dernière suppression ou le dernier déplacement. (#152, #181, #184, #301)
@@ -69,7 +81,7 @@ Chaque ligne dépend de l'avis du PO (`plan-fusion-v1.1.md` § 6). Une fonction 
   - Un import de dossier interrompu reprend là où il s'est arrêté. (#186)
   - Vous annulez un reclassement. Le journal l'affiche en français. (#179, #262, #309)
   - Une seule file pour tout ce que vous avez à valider. (#153, #190)
-  - Notifications en temps réel. Ligne retenue seulement si le PO garde #155. (#155)
+  - Notifications en temps réel. (#155)
   - Code de connexion reçu par e-mail, avec un bouton « renvoyer le code ». (#154)
 - **Chef de service**
   - Rapport officiel en PDF, programmable, avec copie conforme et réimpression. (#197, #180, #209)
@@ -98,8 +110,13 @@ Chaque ligne dépend de l'avis du PO (`plan-fusion-v1.1.md` § 6). Une fonction 
   - Les erreurs de dépôt sont lisibles, avec le détail technique en infobulle. Sans réseau, un seul message s'affiche. (#373, #417)
   - Le dernier valideur choisi est proposé par défaut. (#393)
   - « Valider » et « Rejeter » affichent un état d'attente pendant l'envoi. (#416)
-  - Moins de gestes pour les tâches de tous les jours (audit UX, Lot 4). (#362) ‹ détailler avec F ›
-  - Archivage depuis l'aperçu de l'explorateur. (#407) ‹ préciser quels profils peuvent archiver ›
+  - Moins de gestes au quotidien (#362) :
+    - le dernier valideur est déjà choisi quand vous soumettez ;
+    - la bannette passe seule au dossier suivant et garde la dernière destination choisie ;
+    - « Tout marquer comme lu » en un clic sur les accusés de lecture ;
+    - vous visez ou rejetez directement depuis la fiche du document.
+  - Vous mettez plusieurs documents à la corbeille d'un coup, et vous pouvez annuler. Ctrl+Espace sélectionne dans l'explorateur. (suite de #211, PR à ouvrir)
+  - Vous vous reconnectez plus vite. (#359)
   - Accessibilité des lignes de l'explorateur. (#400)
 - **Chef de service**
   - Page « Mon équipe » : votre chaîne hiérarchique et vos agents directs. (#285, #297)
@@ -107,14 +124,18 @@ Chaque ligne dépend de l'avis du PO (`plan-fusion-v1.1.md` § 6). Une fonction 
   - Le tableau de bord compte les étapes en attente et les étapes terminées. (#399)
   - Motifs de rejet en un clic. (#395)
 - **Administrateur**
-  - Grille des droits par rôle et par action, en lecture seule, avec les changements inscrits au journal. (#294, #303)
+  - Vous archivez un document validé ou signé depuis l'aperçu de l'explorateur. Seuls l'administrateur de l'institution et l'administrateur de la plateforme voient « Archiver ». (#407)
+  - Grille des droits par rôle et par action, avec les changements inscrits au journal. Elle est en lecture seule dans la configuration par défaut ; seul l'administrateur de la plateforme peut la modifier, et seulement si les droits sont gérés en base. (#294, #303)
+  - Réglages à l'écran : durée des sessions, essais de connexion, taille maximale d'un envoi, fonctions activées. Le serveur e-mail reste réglé côté serveur. (lot 8a de #280, PR à ouvrir)
+  - Vous cherchez un mot dans le journal d'audit et dans son export. (#344)
+- **Auditeur** : même recherche libre dans le journal et dans son export. (#344)
   - Règles de classement :
     - vous testez une règle avant de l'activer (#377, #398) ;
     - l'onglet ouvert reste le même au rechargement (#367) ;
     - les erreurs du simulateur s'affichent (#366).
   - Liste des agents : Échap ferme, et une confirmation est demandée. (#342)
 - **Tous** : les profils de démonstration n'apparaissent plus sur la page de connexion en production. (#378)
-- *À qualifier* : #344 (brouillon sans description), #353 (test).
+- *Sans effet visible* : #353 (test).
 
 ## Vague 6 : outillage (03 et 04/12)
 
@@ -122,7 +143,8 @@ Chaque ligne dépend de l'avis du PO (`plan-fusion-v1.1.md` § 6). Une fonction 
 
 ## Reporté en V1.2 (liste à figer le 06/12)
 
-- Relance de la lecture à l'écran (#355) et sa base (#404, liée à #370).
+- Lecteur désigné hors du circuit (#254, partie 13 a : réponse du PO du 17/11, « 2 V1.2 »).
+- Alertes de qualité (#183, #194 : réponse du PO du 17/11).
 - Écran Corbeille de l'administrateur de la plateforme, avec choix de l'institution (DEC-2026-006).
 - Audit UX Lot 7 :
   - historique d'un document ;
@@ -131,18 +153,20 @@ Chaque ligne dépend de l'avis du PO (`plan-fusion-v1.1.md` § 6). Une fonction 
   - indicateur de retard ;
   - délégation pendant une absence.
 - Audit UX Lot 6 : barre d'actions fixe dans la fenêtre de dépôt, saisie gardée à la reconnexion, aide du premier jour.
-- Corbeille groupée avec annulation, et Ctrl+Espace (suite de #211 ; numéro de l'issue V1.2 à noter).
-- Selon la réponse du PO : #359, #155 et #169.
+- Les autres sorties décidées par O avant le 18/11 (Dependabot majeurs, #265, #279, #281, #278, phase 2 de #288, serveur e-mail à l'écran, OCR-1, glisser-déposer) : à confirmer par O après « on repousse rien » (`plan-v1.1.md`, dernier §).
 
-## À vérifier avant le 06/12 : engagements V1.1 du PO sans PR dans la file au 18/11
+## Engagements V1.1 du PO sans PR dans la file au 18/11 (état vérifié avec gh le 18/11)
 
-- Fiche PO du 19/11 :
-  - question 2 (#203) ;
-  - question 3 : trois accès fermés, dans une PR distincte ;
-  - question 10 : archivage par l'administrateur d'institution (#228) ;
-  - question 12 B : réglages à l'écran (durée des sessions, taille des envois, fonctions, serveur e-mail) ;
-  - question 13 A et A : lecture par une personne désignée hors de son service (#254).
-- Pour chacun : une PR fusionnée donne une ligne dans la bonne vague ; sinon, l'engagement passe en « Reporté », avec l'accord du PO.
+Le PO ne repousse rien : chaque ligne a un porteur et un jour. Coûts en h-s, `Déduit`.
+
+| Question | État vérifié | Ce qui manque | Porteur | Coût B / F / Q | Plan |
+|---|---|---|---|---|---|
+| Q2 : le responsable d'unité ne voit que son service | #203 et #196 fusionnées le 18/11 à 13:28 (17498b5), donc dans `main`. | Rien pour la V1.1. **Effet de bord** : elles seront dans la rc.1 si le tag est pris sur `main`, alors que le PO avait dit « après le 30 ». Les « Limites connues » des notes rc.1 (#104) sont à revoir. | O (rc.1), I (notes) | 0 / 0 / 0 | Vérifier les notes rc.1 avant le push de #104, le 19/11. |
+| Q3 : trois accès fermés | #358 (4fcd8d9, fusionnée le 18/11) ferme l'import au nom d'un autre agent et la vue de l'institution ; #360 (8ceae3b) couvre les comptes et les services. | Le lien direct : #213 et #263 (vague 3, ouvertes), et l'e2e #308. | B, Q | déjà compté (lot 11) | Fusion le 26/11, vague 3. |
+| Q10 : archivage par l'administrateur d'institution (réponse A : rc.1) | #231 fusionnée le 17/11 (99d06e9). #239 fermée sans fusion, remplacée par #246, fusionnée (2a1052b). #228 fermée « completed » à la fusion de #231, le 17/11 à 17:17 : pas une erreur. | Rien. L'archivage depuis l'aperçu de l'explorateur (#407) est un confort en plus, vague 5. | — | 0 / 0 / 0 | Ligne des notes rc.1. |
+| Q12 : réglages et écran des droits (réponse C) | Issue #280 ouverte. 8b = #294 et #303 (vague 5). La grille n'est modifiable que par le super_admin avec `AUTHZ_BACKEND` à `sql` ou `shadow` ; le défaut est `csv`, donc lecture seule. | 8a (réglages à l'écran) : aucune PR. Le serveur e-mail à l'écran est sorti par O le 17/11. | B (API), F (écran), Q | déjà compté (lot 8 : 8a 3,5) | B du 25 au 30/11, F les 01 et 02/12, relecture de Q le 02/12, fusion le 03/12. |
+| Q13 : accès par l'étape de circuit (partie 13 b ; 13 a en V1.2 par le PO) | Issue #254 ouverte, sans PR. L'étiquette `v1.2` vise la partie 13 a seulement. | Un EXISTS sur `WorkflowStep.assigned_to` dans `_in_perimeter`, `_can_read_document` et `visible_document_scope` : lecture seule, borné au tenant, accès gardé après l'étape. Après #247 et #263. | B, Q | déjà compté (B 1,5, lot 11) | B les 26 et 27/11, relecture de Q le 30/11, fusion le 01/12. |
+| Issues V1.1 sans PR de l'ancien squelette | #204, #214, #215 et #216 : OPEN le 18/11. | Une PR chacune, ou la preuve qu'une PR existante les couvre (#215 par #203, #216 par #222). | B (à confirmer par O) | à chiffrer par B | Réponse de B avant le 24/11. |
 
 ## Limites connues (à reprendre des notes rc.1, puis à mettre à jour)
 

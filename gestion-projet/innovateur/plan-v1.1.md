@@ -439,7 +439,7 @@ Correction du 18/11, soir, après le retour de B transmis par O : le barème de 
 
 **#335 reste en V1.1 (B, 18/11).** `main` n'a pas `ALLOW_TEXT_FALLBACK`, et sans ce réglage le générateur produit de faux PDF de 140 octets. B renumérote la leçon 054 (≈ 0,1 h-s, compté ci-dessus).
 
-**Ordre de sortie vers la V1.2**, si la réserve de Q passe sous 1 h-s avant le 03/12 : #359, puis #338, puis #371. Les 21 autres sont petites, ou sont la base d'une autre PR : #389, #372, #384 et #388 ouvrent les vagues 0 et 2.
+**Ordre de sortie vers la V1.2 (retiré par le PO le 18/11 : « on repousse rien », voir la fin du document)**, si la réserve de Q passe sous 1 h-s avant le 03/12 : #359, puis #338, puis #371. Les 21 autres sont petites, ou sont la base d'une autre PR : #389, #372, #384 et #388 ouvrent les vagues 0 et 2.
 
 **Règle « pas d'ajout sans sortie »** : ici, c'est le PO qui la lève, pour ce lot seulement. Elle reste en vigueur pour tout ajout suivant. #278 reste en V1.2 (décision de O) : le faire revenir prendrait Q 0,5 sur la réserve.
 
@@ -516,11 +516,11 @@ F revient sous 20,3, et la réserve de Q remonte à ≈ 1,65. Si (a) glisse en V
 | **Total V1.1** | **≈ 24,05** | **≈ 20,25** | **≈ 26,3** | **0,5** | **≈ 71,1** |
 
 **Verdict** :
-- **La réserve de Q passe sous 1 h-s** : ≈ 1,15 − 0,3 = **≈ 0,85**. Elle tombe à ≈ 0,60 si (a) glisse en V1.1. C'est le seuil prévu : **O porte au PO la sortie de #359** (Q − 0,5, F − 0,25). Avec cette sortie, la réserve remonte à ≈ 1,35 (≈ 1,10 si (a) glisse), et F revient à ≈ 20,0.
+- **La réserve de Q passe sous 1 h-s** : ≈ 1,15 − 0,3 = **≈ 0,85**. Elle tombe à ≈ 0,60 si (a) glisse en V1.1. C’était le seuil prévu pour porter au PO la sortie de #359 ; **le PO l’a refusée (18/11 : « on repousse rien ») et a retiré la règle** (Q − 0,5, F − 0,25). Avec cette sortie, la réserve remonte à ≈ 1,35 (≈ 1,10 si (a) glisse), et F revient à ≈ 20,0.
 - Sans le delta de #152, compté parce que la décision du PO date de ce soir, la réserve serait de ≈ 0,95 : elle passerait sous 1 de toute façon.
 - **B à ≈ 24,05** (+ 0,5) : aucune capacité de B n'est chiffrée dans ce plan, seulement « dans sa capacité » à 22,9. **À confirmer par O avec B.** Si B est juste, les points mineurs de Q sur #392 et #396 (non comptés) sortent les premiers.
   - **Confirmé (B, par O, 18/11)** : capacité ≈ 31 h-s (9 jours ouvrés × 3,5), charge déclarée par B 24,55, marge ≈ 6 h-s. Les points mineurs de #392 et #396 tiennent dans la marge.
-  - **#404 et #355 sortent en V1.2** (#404 ne se passe pas de #370). Gain `Déduit` des lignes déjà comptées : F − 0,25 et Q − 0,25 pour #355, plus Q ≈ − 0,15 pour la relecture de #404 (un tiers de la ligne #394, #399, #404). La réserve de Q passe de ≈ 0,85 à **≈ 1,25**, à confirmer par Q.
+  - ~~#404 et #355 sortent en V1.2~~ : **annulé par le PO (18/11)**, #370, #404 et #355 sont en V1.1. Le gain ci-après n’est donc pas pris (gain `Déduit` des lignes déjà comptées : F − 0,25 et Q − 0,25 pour #355, plus Q ≈ − 0,15 pour la relecture de #404 (un tiers de la ligne #394, #399, #404). La réserve de Q passe de ≈ 0,85 à ≈ 1,25 : caduc).
 - F inchangée à 20,25 : l'écran Corbeille du super_admin va en V1.2, et l'audit UX Lot 7 aussi (`plan-fusion-v1.1.md` § 7).
 
 **Audit UX Lot 7, points (1) et (2) : CDC et démo du 30/11** (demande de O, 18/11)
@@ -528,3 +528,62 @@ F revient sous 20,3, et la réserve de Q remonte à ≈ 1,65. Si (a) glisse en V
 - **Point (1)**, historique d'un document et plafond de 200 lignes : l'étape 6 de la démo montre l'historique par l'onglet « Historique des Versions », pas par le journal. Dans `/audit`, l'écran charge les 200 lignes les plus récentes (`AuditLogs.tsx:81`, tri par date décroissante côté API) et filtre « Effectuée par » sur ces 200 lignes. Les lignes de la séance sont les plus récentes : elles sont dans la fenêtre, sauf si plus de 200 lignes s'écrivent avant l'étape 6. La répétition du 17/11 est passée, et le scénario prévoit déjà le repli (l. 76 : retirer le filtre, trier par date).
 - **Point (2)**, export sur une période et PDF : le contrôle 11 n'attend qu'un CSV qui s'ouvre dans le tableur. L'export est fait côté serveur, par lots, sur tout le journal filtré : il n'est pas plafonné à 200.
 - **Verdict** : rien d'obligatoire en V1.1. Filet optionnel, si le PO le veut : passer `limit: 200` à `limit: 500` dans `AuditLogs.tsx` (maximum déjà permis par l'API) = **XS : F 0,1, Q 0,05**. La réserve de Q passerait alors de ≈ 0,85 à ≈ 0,80. Le filtre par identifiant de document (S : F 0,5, Q 0,25) reste en V1.2 avec le reste du Lot 7.
+
+## Mise à jour du 18/11 : on repousse rien (décision du PO, transmise par O)
+
+**Décision** : « on repousse rien ». La règle « réserve de Q < 1 h-s → sortie en V1.2 » est retirée. #359, #155 et #169 restent en V1.1. #370 entre en V1.1, et #404 et #355 reviennent. La suite de #211 revient en V1.1 (après #184, sur #401). La pagination du journal d'audit entre en V1.1 (GO du PO). Ordre et dépendances : `file-v1.1.md` ; lignes de fusion : `plan-fusion-v1.1.md`, § 2.
+
+**Ce qui était déjà compté** (aucun changement de charge) :
+- #359, #404 et #355 : leur sortie n'a jamais été appliquée au tableau du § précédent ;
+- #155 et #169 : dans le lot 1 depuis le 17/11 ;
+- réglages à l'écran (lot 8a, question 12) : dans le lot 8, sauf le serveur e-mail à l'écran, sorti par O le 17/11 (voir plus bas) ;
+- accès par l'étape de circuit (#254, partie 13 b, question 13) : B 1,5, dans le lot 11. La partie 13 a (lecteur désigné hors circuit) est en V1.2 par réponse du PO du 17/11 (« 2 V1.2 »).
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Total V1.1 du § précédent (B relevé par B : 24,55) | 24,55 | 20,25 | 26,3 | 0,5 | 71,6 |
+| #370 (brouillon, +678 lignes, 12 fichiers : rebase, OCR) | + 0,5 | — | + 0,5 | — | + 1 |
+| Suite de #211 (corbeille groupée avec annulation, Ctrl+Espace) | — | + 0,75 | + 0,25 | — | + 1 |
+| Pagination du journal (total côté API, contrôles de page dans `AuditLogs`) | + 0,25 | + 0,5 | + 0,25 | — | + 1 |
+| **Total V1.1 sans aucune sortie** | **≈ 25,3** | **≈ 21,5** | **≈ 27,3** | **0,5** | **≈ 74,6** |
+| Relecture croisée : B relit les PR front sans surface de sécurité (ci-dessous) | + 1,5 | — | − 1,5 | — | 0 |
+| **Total V1.1 après relecture croisée** | **≈ 26,8** | **≈ 21,5** | **≈ 25,8** | **0,5** | **≈ 74,6** |
+
+Chiffres `Déduit`, à confirmer par B, F et Q.
+
+- **B** : ≈ 26,8 pour ≈ 31 de capacité : marge ≈ 4,2.
+- **F** : ≈ 21,5 (+ 1,25). La capacité de F n'est pas chiffrée : **à demander à F par O**. Si F manque de temps, B prend la partie serveur de la pagination (déjà à lui) et rien d'autre ne bouge.
+- **Q** : ≈ 27,3 sans relecture croisée, soit ≈ 0,15 au-delà du budget qui laissait 0,85 de réserve (≈ 27,15). Avec la relecture croisée de B, Q revient à ≈ 25,8 : réserve ≈ 1,35. Le plafond de ≈ 34 h-s, marge de 20 % comprise, n'est approché dans aucun cas.
+
+**Relecture croisée (proposition, à valider par O, B et Q)** :
+- **B relit** (≈ 1,5 h-s) les PR front de la vague 5 sans surface de sécurité : #396, #392, #354, #351, #371, #416, #417, #393, #400, #367, #366, et la suite de #211. Q garde l'OK de fusion final sur la CI.
+- **Q garde** tout ce qui touche la sécurité, l'auth, les migrations, les droits ou l'OCR : #389, #403, #413, #414, #394, #405, #222, #227, #235, #238, #370, #404, #284, #372, les PR du périmètre (vague 3), #152, #181, #154, #193, #219, #254, #359, #155, #294, #303, le lot 8a et la pagination (export et filtre).
+- **F** ne relit pas : sa marge est la plus faible.
+
+**Planning de relecture et de fusion (jours ouvrés du 24/11 au 04/12)**
+
+| Jour | Fusions | Q relit | B relit (croisée) | B code | F code |
+|---|---|---|---|---|---|
+| Mar 24/11 | Vague 0 (#389, #403, #383), début de la vague 1 | #413, #414, #394, #405, #227, #222, #237 | — | #413, #414 ; total de la pagination | pagination (écran) |
+| Mer 25/11 | Fin de la vague 1, pagination si prête (sinon vague 5) | essai hors ligne (≈ 2,5 h-s), puis #235, #238, #248, #267, #268 | #224, #234, #240, #245 | rebase de #370 ; lot 8a | pagination ; rebase de #355 après #404 |
+| Jeu 26/11 | Vague 2 (#372, #370, #284, #311, #384 à #388, #404, #355, #290, #338), vague 3 | #370 (matin), #404, #284, #372 ; vague 3 (#241, #213, #261, #266, #361, #263) | #355, #290, #338, #388, #296 | #254 (13 b) ; lot 8a | #355 |
+| Ven 27/11 | Fin de la vague 3 | vague 4 : delta de #152, #181, #184, #153, #154 | — | #254 (13 b) ; lot 8a | suite de #211 (branche sur #401) |
+| Lun 30/11 | Démo ; vague 4 commence | #254, #359, #193, #219 (charge allégée : démo) | — | lot 8a (fin) | suite de #211 |
+| Mar 01/12 | Vague 4, début de la vague 5 | #155, #169, #192, #197, #180, #209 | #396, #392, #354, #351, #371 | corrections de relecture | lot 8a (écran) |
+| Mer 02/12 | Fin de la vague 4, vague 5 | lot 8a, #294, #303, #362, #407, #401 | #416, #417, #393, #400, #367, #366 | corrections de relecture | lot 8a (écran) ; corrections |
+| Jeu 03/12 | Fin de la vague 5 (lot 8a, pagination si elle n'est pas entrée en vague 1, suite de #211 après #401), début de la vague 6 | re-relectures sur têtes changées | suite de #211 | — | corrections |
+| Ven 04/12 | Vague 6 (#111, #112, #141, #335, #312, #189, #166) | Dependabot une à une, CI complète | — | — | — |
+
+- Le 30/11 est un jour de démo : Q n'y prend que des relectures courtes.
+- Les relectures du lot 8a et de la suite de #211 arrivent tard : ce sont les deux points à suivre chaque soir. Si l'une glisse au 03/12, elle se fusionne le 03 au soir, avant la vague 6.
+
+**Sorties antérieures, décidées par O avant « on repousse rien »** (à confirmer par O : le PO les vise-t-il aussi ?). Elles ne sont pas réintégrées ici. Coût si elles reviennent, d'après ce document :
+- versions majeures de Dependabot (#29, #30, #110, #113) : ≈ 3 h-s, dont Q 1 ;
+- #265, #279, #281 (nettoyage) : ≈ 1,25 h-s, dont Q 0,5 ;
+- #278 (PR #298, tableau de bord du manager) : F 0,5, Q 0,5 ;
+- phase 2 de #288 (accès public en HTTPS) : B 0,5, Q 0,25 ;
+- serveur e-mail à l'écran (lot 8a) : B 0,5 ;
+- OCR-1 : B 0,75, Q 0,5 ;
+- audit UX Lot 6, points M et S : F 1,5, Q 0,75 ;
+- glisser-déposer (#299) : F 1, Q 0,5.
+Toutes ensemble : B + 1,75, F + 3, Q + 4, soit Q ≈ 29,8 après relecture croisée, encore sous le plafond de ≈ 34. Les sorties décidées par le PO lui-même (#183 et #194 ; partie 13 a de #254) restent en V1.2.

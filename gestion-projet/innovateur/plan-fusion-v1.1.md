@@ -83,11 +83,13 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 | 22 | #386 pages scannées d'un PDF mixte (#380) | B | sur #384 | #384 | `strategy.py` (pile OCR) | non | — |
 | 23 | #387 pages d'un PDF rendues une à une (#379) | B | sur #386 | #386 | `strategy.py` (pile OCR) | non | — |
 | 24 | #388 filtre par catégorie sur la liste | B | main | — | `documents.py` | non | — |
-| 25 | ~~#355 « Lecture en échec » et relance à l’écran~~ : **sortie en V1.2** avec #404, dont elle dépend (B, 18/11 : #404 ne se passe pas de #370) | F | — | — | — | — | § 7 |
+| 24 bis | #370 tâche OCR acquittée après coup, nouvelle tentative bornée, balayage (`feat/v12-ocr-robustesse`, brouillon ; entrée en V1.1 par le PO le 18/11) | B | main | après #372 | `tasks.py`, configuration Celery | non | — |
+| 24 ter | #404 relancer une lecture en échec (côté serveur de #355) | B | main | #370, #372 | `documents.py`, `tasks.py` | non | — |
+| 25 | #355 « Lecture en échec » et relance à l’écran | F | main | #372, #404 | `Documents.tsx`, `DocumentDetailModal.tsx`, `documents.api.ts`, `services/index.ts` | non, CONFLICTING | — |
 | 26 | #290 texte reconnu dans la fiche (#276) | F | main | #284 | `DocumentDetailModal.tsx`, `documents.api.ts`, `services/index.ts` | non, CONFLICTING | 9 |
 | 27 | #338 aperçu intégré dans la fiche | F | main | après #290 | `DocumentDetailModal.tsx` | non | — |
 
-- **#372 passe avant tout lecteur de `ocr_status`**. #284 et #311 partent de son état failed, et #290 lit la route `/ocr`.
+- **#372 passe avant tout lecteur de `ocr_status`** : #355 lit le champ dans la liste et dans la fiche. **#370 passe avant #284 et #404** : #284 la recoupe, et #404 en dépend (B, 18/11). #284 et #311 partent de son état failed, et #290 lit la route `/ocr`.
 - **#388 passe avant le point 5 du Lot 5 bis** (filtre de la liste, côté interface), qui n'a pas encore de PR. #351 (filtre gardé dans l'URL) se place après #388, en vague 5.
 - **Palier 1 de l'OCR adaptatif (#382, lot 1)** : V1.2. B code après #284 ; spécification : `spec-ocr-adaptatif-lot1.md` (décision D1 prise : correction de la confiance dans le lot).
 - **#385 (bancs de mesure OCR)** : marquée « hors file » par son titre. On ne la fusionne pas, elle reste un outil en brouillon. Elle peut être fermée une fois les mesures reportées dans la décision OCR.
@@ -157,7 +159,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 50 | #367 onglet des règles gardé dans l'URL | F | main | après #366 | `playwright.unit.config.ts` | non | — |
 | 51 | #377 simuler une règle inactive (#210) | B | main | — | `classification.py`, `classification_rule_engine.py` | non | — |
 | 52 | #349 motifs de rejet fréquents en un clic | F | main | — | `playwright.unit.config.ts` | non, CONFLICTING | — |
-| 53 | #359 reconnexion plus rapide | F | main | — | `playwright.unit.config.ts` | non, CONFLICTING | — |
+| 53 | #359 reconnexion plus rapide (en V1.1, PO, 18/11 ; relecture de Q : surface de connexion) | F | main | après #378 (page de connexion) | `playwright.unit.config.ts` | non, CONFLICTING | — |
 | 54 | #378 profils de démonstration de la connexion derrière un réglage | F | main | #389 | `.env.example`, `docker-compose.yml` | non, CONFLICTING | — |
 | 55 | #342 échappement de la liste des agents | F | main | après #297 | `AgentsListTab.tsx` | non | — |
 | 56 | #344 recherche dans le journal d'audit | B | main | après #383 | `audit.py` | non | — |
@@ -174,6 +176,8 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 57 undecies | #396 téléchargement rapide sur les cartes et remise à zéro des filtres | F | main | — | `Documents.tsx`, **`document-detail.page.ts:65` (comme #391)** | **oui (93feb87)** | — |
 | 57 duodecies | **à ouvrir** (issue #413) : le garde de production de `SECRET_KEY` refuse aussi la clé par défaut du compose (XS sécurité) | B | main | — | `config.py`, `docker-compose.yml` ; passe le contrôle de parité (#389) | non | Q (O, 18/11) |
 | 57 terdecies | **à ouvrir** (issue #414) : `/auth/refresh` vérifie la blacklist et l'état du compte (XS sécurité) | B | main | — | `auth.py` | non | Q (O, 18/11) |
+| 57 quaterdecies | **à ouvrir** : pagination du journal d'audit (GO du PO, 18/11). `/audit/logs` a déjà `skip` et `limit` (1 à 500) mais ne renvoie aucun total : B ajoute le total, F les contrôles de page dans `AuditLogs` | F (B pour le total) | main | après #383 et #344 (même route) | `audit.py`, `AuditLogs.tsx` | non | PO, 18/11 |
+| 57 quindecies | **à ouvrir** : suite de #211, mise à la corbeille groupée avec annulation, et Ctrl+Espace dans l'explorateur (revient en V1.1, PO, 18/11) | F | sur #401 | après #184 et #401 | explorateur des espaces | non | PO, 18/11 |
 
 - **#303** : 36 fichiers, dont 29 en commun avec #220. Sa branche contient sans doute une autre pile. Il faut la re-cibler sur `main` après #294, puis vérifier que le diff ne contient plus que l'écran des droits.
 - **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F, en PR #407 (brouillon). La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
@@ -243,12 +247,12 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 | `backend/app/api/v1/endpoints/documents.py` | 17 | Fichier central : passer après #372 et #388, puis une PR à la fois. |
 | `frontend/services/index.ts` | 15 | Exports : conflits d'une ligne. |
 | `backend/.env.example` | 13 | Parité. |
-| `frontend/components/Documents.tsx` | 10 | #351, #354, #371, #296 : dans cet ordre (#355 sortie en V1.2). |
+| `frontend/components/Documents.tsx` | 10 | #355, #351, #354, #371, #296 : dans cet ordre. |
 | `backend/app/workers/tasks.py` | 9 | Pile OCR (#384, #284) avant le palier 1 de #382. |
 | `backend/app/schemas/document.py` | 9 | #372, #284, #283. |
 | `frontend/services/resources/documents.api.ts` | 9 | Vagues 2 et 5. |
 | `frontend/playwright.config.ts` | 9 | Passes e2e post-rc1. |
-| `frontend/components/DocumentDetailModal.tsx` | 8 | #290, #338, #293, #295, #362 (#355 sortie en V1.2). |
+| `frontend/components/DocumentDetailModal.tsx` | 8 | #355, #290, #338, #293, #295, #362. |
 | `reports.py`, `workflows.py`, `users.py`, `SpacesPage.tsx`, `router.py`, `main.py` | 8 chacun | Voir les vagues 1, 3 et 4. |
 
 ## 6. À décider par le PO : capacités post-rc1
@@ -277,7 +281,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 | #172 | Passe e2e L4 (renvoi du code) | B | main | non | 10 fichiers | **Fusionner** après #154. |
 | #193 | Application d'authentification (TOTP), obligatoire pour les administrateurs | B | main | périmé (61c2dd0, tête 8de284a) | 23 fichiers, CONFLICTING, migration | **Retravailler**, puis fusionner : sécurité des comptes administrateurs. Le PO confirme que la saisie devient obligatoire. |
 | #219 | Écrans de l'application d'authentification | F | sur #193 | code (5f2f6c2) | 16 fichiers | **Fusionner** avec #193. |
-| #155 | Notifications en temps réel sur plusieurs processus (L6) | B | main | non | 7 fichiers | **Retravailler** seulement si l'API tourne avec plusieurs processus en V1.1. Sinon, V1.2. |
+| #155 | Notifications en temps réel sur plusieurs processus (L6) | B | main | non | 7 fichiers | **Retravailler**, en V1.1 (PO, 18/11) : écart de jeton avec #148 à trancher avant la fusion (§ 9). |
 | #169 | Passe e2e L6 (authentification du WebSocket) | B | main | non | 10 fichiers | Suit #155. |
 | ~~#159~~ | Une seule règle de périmètre pour les rapports (L5a) | B | — | — | — | **Fermée le 18/11** : couverte par `main` (#358). |
 | #197 | Rapport officiel en PDF (L5) | B | main | code (l. 864, ancien) | 11 fichiers, migration | **Fusionner** : tête de la chaîne alembic, sur une relecture à jour. |
@@ -292,15 +296,15 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 | #186 | Reprise d'un import interrompu (L14) | B | main | code (l. 954, ancien) | 9 fichiers, migration | **Fusionner** : gros imports du lancement. |
 | #192 | Sauvegarde planifiée chaque nuit, avec rétention | B | main | oui (7c32940) | 16 fichiers, migration | **Fusionner** : protège les données dès la mise en service. |
 
-**Si le PO ne veut garder que l'essentiel** : #152 et #181 (corbeille, déjà promise par Suppr), #153, #154, #179, #192 et #193 avec #219. Tout le reste passe en V1.2. Gain à chiffrer par O. Sur les 6 PR de plus de 1 500 lignes qui font l'essentiel des 10 h-s de Q du lot 1, quatre sortiraient : #180, #182, #197 et #205. #183 est déjà sortie.
+**Réponse du PO (18/11) : « on repousse rien »** : toutes les capacités de ce tableau restent en V1.1. Une PR marquée « Retravailler » est retravaillée en V1.1, pas sortie. Hypothèse caduque, gardée pour mémoire : #152 et #181 (corbeille, déjà promise par Suppr), #153, #154, #179, #192 et #193 avec #219. Tout le reste passe en V1.2. Gain à chiffrer par O. Sur les 6 PR de plus de 1 500 lignes qui font l'essentiel des 10 h-s de Q du lot 1, quatre sortiraient : #180, #182, #197 et #205. #183 est déjà sortie.
 
 ## 7. Hors fenêtre
 
 - **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390 et #356. #368 est fusionnée le 18/11 (9b32c30), #356 aussi (dd232f6), et #390 est corrigée en 4be742b, en file après #375. Si l'une d'elles n'est pas fusionnée le 19, elle passe en vague 0, juste après #389.
 - **V1.2** :
-  - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
+  - branches `feat/v12-*` : #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
-  - autres : #313 (élément 8 de la V1.2), #298 (#278, sortie par O le 18/11), #404 (dépend de #370) et #355 (dépend de #404) : B, 18/11 ;
+  - autres : #313 (élément 8 de la V1.2) et #298 (#278, sortie par O le 18/11) ; #370, #404 et #355 sont revenues en V1.1 (PO, 18/11) ;
   - audit UX Lot 6 (F, à ouvrir) : point (c), barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % ; point M, saisie gardée à travers la reconnexion ; point S, orientation du premier jour et aide sur le code à la connexion (O, 18/11) ;
   - audit UX Lot 7, chef de service et auditeur (premier tri d'O, 19/11 : la V1.1 est pleine) :
     1. historique d'un document, et plafond de 200 lignes du journal d'audit (`AuditLogs`), M ;
@@ -309,7 +313,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
     4. indicateur de retard (J+) et confirmation allégée dans la file de validation (`ValidationHub`), S ;
     5. délégation pendant une absence, L ;
   - écran Corbeille du super_admin avec choix de l'institution (DEC-2026-006). En V1.1, le super_admin purge par l'API seulement ;
-  - suite de #211, fermée au profit de #401 (O, 18/11) : mise à la corbeille groupée avec annulation (après #184), et raccourci Ctrl+Espace dans l'explorateur. F ouvre l'issue V1.2 (numéro à noter).
+  - la suite de #211 n'est plus ici : elle revient en V1.1 (PO, 18/11), ligne 57 quindecies.
   Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
 - **Dependabot, versions majeures** (V1.2) : #29, #30, #110 et #113.
 - **#385** : outil de mesure, jamais fusionné.
@@ -336,8 +340,8 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 | À garder malgré tout | #282, #335 | #282 est à rebaser ; #335 reste en vague 6. |
 
 - **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). OK de Q sur le code en e27e01c : les droits de `main` sont gardés, seul l'effet change. **Avis du PO rendu le 18/11 (DEC-2026-006)** : DELETE vers la corbeille approuvé, purge réservée au super_admin. Reste à faire : delta de B (policy, tests 403, ciblage par `tenant_id` explicite, pris en compte seulement avec `tenants manage` : option 1 de B, 18/11), puis relecture de ce delta par Q. **Delta poussé par B en 987f08d, chez Q (18/11)** ; #401 aussi, en 650f7fb.
-- **Capacité de B en V1.1 (B, par O, 18/11)** : ≈ 31 h-s (9 jours ouvrés × 3,5), pour une charge déclarée de 24,55 : **marge ≈ 6 h-s**. `plan-v1.1.md` comptait 24,05 ; l'écart de 0,5 reste à détailler par B. Ordre de travail de B : l'issue #411 (premier administrateur), puis les issues #413 et #414. La marge couvre les points mineurs de Q sur #392 et #396 (§ Contraintes, point 7).
-- **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. À trancher avant la fusion : soit B aligne sur #148, soit O note l'écart comme accepté. Sinon elle reste en V1.2, comme prévu au § 6.
+- **Capacité de B en V1.1 (B, par O, 18/11)** : ≈ 31 h-s (9 jours ouvrés × 3,5), pour une charge déclarée de 24,55 : **marge ≈ 6 h-s**. `plan-v1.1.md` comptait 24,05 ; l'écart de 0,5 reste à détailler par B. Ordre de travail de B : l'issue #411 (premier administrateur), puis les issues #413 et #414. La marge couvre les points mineurs de Q sur #392 et #396 (§ Contraintes, point 7). **Recalcul après « on repousse rien » (PO, 18/11)** : #370 et la pagination du journal ajoutent ≈ 0,75 h-s à B (le lot 8a et la partie 13 b de #254 étaient déjà comptés), soit ≈ 25,3 ; avec la relecture croisée des PR front de la vague 5 (≈ 1,5), ≈ 26,8 pour ≈ 31 : marge ≈ 4,2. Détail, charge de F et de Q, et planning de relecture : `plan-v1.1.md`, § « Mise à jour du 18/11 : on repousse rien ».
+- **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. Elle reste en V1.1 (PO, 18/11 : « on repousse rien ») : avant la fusion, soit B aligne sur #148, soit O note l'écart comme accepté.
 - **Point 3 du § 8** : il ne reste que #361 et #266.
 
 ### Contraintes d'après la coupe (O, 18/11)
