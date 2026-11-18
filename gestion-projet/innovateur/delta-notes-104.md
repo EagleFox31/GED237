@@ -9,7 +9,7 @@
 ## 1. Fonctionnalités (à ajouter en fin de section)
 
 - Connexion : le code à 6 chiffres peut être collé d'un coup (#336).
-- Lecture des photos et des scans : modèles OCR inclus dans l'image et chargés à la demande, sans téléchargement au premier usage (#325). Moteur principal Tesseract par défaut, choisi par `OCR_PRIMARY_ENGINE` (#350). Le repli vers EasyOCR est coupé par défaut (`OCR_FALLBACK_ENABLED`, #365).
+- Lecture des photos et des scans : modèles OCR inclus dans l'image et chargés à la demande, sans téléchargement au premier usage (#325). Moteur principal choisi par `OCR_PRIMARY_ENGINE` (#350) : par défaut RapidOCR pour les photos, captures et formulaires, Tesseract pour les scans et les PDF, et en secours de RapidOCR (#368). Le repli vers EasyOCR est coupé par défaut (`OCR_FALLBACK_ENABLED`, #365).
 - Circuit de validation : la personne assignée à une étape lit le document, même s'il est d'un autre service (#340). « Voir le document » est disponible depuis ses assignations, et l'état est relu après un visa ou un rejet (#341).
 
 ## 2. Corrections (à ajouter en fin de section)
@@ -39,14 +39,14 @@ Ligne actuelle :
 Nouvelles lignes :
 
 > - L'écriture manuscrite n'est pas lue : seul le texte imprimé est reconnu, en scan ou en photo.
-> - Le moteur OCR se choisit par configuration (`OCR_PRIMARY_ENGINE`), pas à l'écran : Tesseract par défaut (#350), sans repli vers EasyOCR sauf si `OCR_FALLBACK_ENABLED` est activé (#365). Pour en changer, on modifie la variable puis on relance le worker. Un seul moteur à la fois : pas de vote entre plusieurs moteurs (décision du 18/11).
+> - Le moteur OCR se choisit par configuration (`OCR_PRIMARY_ENGINE`), pas à l'écran : par défaut RapidOCR pour les photos, captures et formulaires, Tesseract pour le reste (#350, #368), sans repli vers EasyOCR sauf si `OCR_FALLBACK_ENABLED` est activé (#365). Pour en changer, on modifie la variable puis on relance le worker. Un seul moteur à la fois : pas de vote entre plusieurs moteurs (décision du 18/11).
 
 ### 4.2 À compléter le 19 vers 16:30 (une seule des deux variantes par ligne)
 
 | Sujet | Si la PR est fusionnée avant 17:15 | Si elle passe en V1.1 |
 |---|---|---|
 | #203, #358, #360 (périmètre de l'Admin Service) | **Fusionnées le 18/11 (17498b5, 4fcd8d9, 8ceae3b)** : variante à appliquer. Remplacer la ligne « L'Admin Service : ses documents et sa recherche couvrent toute l'institution… (#215) » par : « L'Admin Service ne voit, ne cherche et ne compte que les documents de son service et de ses sous-services (#203). Même limite pour les rapports, les circuits, les imports, les revues et les règles (#358), et pour les comptes et l'organigramme (#360). » Puis déplacer la ligne de Limites vers Sécurité. | Ligne actuelle conservée. Remplacer « prévu en V1.1 (#215) » par « prévu en V1.1 (#203, #358, #360) ». |
-| RapidOCR | Fonctionnalités : « Photos, captures et formulaires lus par RapidOCR ; Tesseract en secours (#368). » Seulement si Q a validé la vraie photo de démo. Limites : « Moteur de la démonstration fixé le 20/11 (`OCR_PRIMARY_ENGINE`). » | Limites : « RapidOCR, moteur plus léger pour les photos, est reporté en V1.1. » |
+| RapidOCR | **Fusionnée le 18/11 (9b32c30), RapidOCR par défaut sur main** (`config.py:146`, `docker-compose.yml:193`) : la phrase est déjà portée par la ligne « Lecture des photos » du § 1. Limites : « Moteur de la démonstration fixé le 20/11 (`OCR_PRIMARY_ENGINE`). » Si Q ne valide pas la vraie photo de démo, la démo tourne avec `OCR_PRIMARY_ENGINE=tesseract`, sans changement de code. | — (sans objet : fusionnée) |
 | #363 (fichiers OCR de la démo, remise à zéro sur la pile complète) | **Fusionnée le 18/11 (9843e2f)** : ligne à ajouter telle quelle. Documentation : « Remise à zéro du jeu de démonstration sur la pile complète, rejouée le 18/11, et fichiers de l'étape photo (#363). » | — (sans objet) |
 | #375 (fiche d'astreinte backend pour la recette) | Documentation : « Fiche d'astreinte backend pour la recette (#375). » | — (sans objet : document interne, rien dans les limites) |
 | #390 (Lot 5 UX, F, 911b3c1 ; points a à e et g à j) | Corrections, texte pris de la PR : « Administration et fin de journée (#390) : après classement, la bannette « À revoir » se recharge et passe au document suivant ; une notification ouvre son document ; un fichier trop lourd affiche la taille maximale du serveur ; un échec de chargement n'est plus confondu avec une liste vide (bibliothèque, étapes orphelines, agents), avec un bouton Réessayer ; les tuiles du tableau de bord mènent à leur écran ; l'aide du journal d'audit indique les 200 dernières actions à l'écran et l'export complet, plafonné à 50 000 lignes ; le titre d'un dépôt suit le fichier choisi, sauf s'il a été saisi ; l'onglet statique « Configuration Système » est retiré des paramètres d'affichage. » Si seul le repli passe (points a à e), retirer les quatre derniers éléments (tableau de bord, journal d'audit, titre, onglet). | Lots non fusionnés : la ligne d'O la couvre |
