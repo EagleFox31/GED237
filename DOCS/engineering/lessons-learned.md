@@ -673,6 +673,38 @@ première requête utilisateur.
 **Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
 **Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.
 
+### LESSON-2026-054 — Moteur lourd en premier choix et deux processus dans 2 Go : le worker était tué, le document restait « en traitement »
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / capacity
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/strategy.py` (`_select_engines`), `backend/app/core/config.py` (`OCR_PRIMARY_ENGINE`), `docker-compose.yml` (worker `--concurrency=1`), `backend/tests/services/test_ocr_strategy.py`
+
+**Contexte** — Les photos et captures passaient d'abord par EasyOCR (torch), Tesseract n'étant que le repli. Le worker Celery tournait avec `--concurrency=2` et `mem_limit: 2g`.
+**Échec / near miss** — Chaque processus enfant charge son propre lecteur EasyOCR (~1,3 Go) : deux lecteurs dépassent 2 Go, le noyau tue le processus (OOM). La tâche est perdue et le document reste « en traitement » indéfiniment, sans erreur visible.
+**Cause racine** — Moteur le plus lourd choisi par défaut sans budget mémoire par processus, et concurrence réglée sur les CPU sans tenir compte de la mémoire par enfant.
+**Résolution** — `OCR_PRIMARY_ENGINE` (défaut `tesseract`) : EasyOCR n'est plus qu'un repli chargé à la demande, `easyocr` reste possible en option ; worker en `--concurrency=1`. Aucun moteur retiré.
+**Prévention** — Tests : une photo ne charge pas EasyOCR quand le moteur principal est tesseract ; avec `easyocr`, comportement inchangé ; valeur du réglage validée. Reste en V1.1 : un statut d'échec explicite quand une tâche OCR est perdue (un OOM ne doit plus laisser « en traitement »).
+**Leçon généralisée** — Concurrence × mémoire du composant le plus lourd doit rester sous la limite du conteneur ; le chemin par défaut utilise le moteur le plus léger, le lourd est un repli ou une option. Une tâche tuée doit laisser un état d'échec visible, jamais un état « en cours » éternel.
+
+### LESSON-2026-055 — Revue limitée aux diffs : les écrans non modifiés gardaient des contrôles morts et des fenêtres natives
+
+- **Date :** 2026-11-18
+- **Catégorie :** qualité / revue
+- **Statut :** prevention-added
+- **Liens :** `frontend/.eslintrc.json` (`no-alert`), `frontend/e2e/fixtures/noNativeDialog.ts`, `frontend/e2e/fixtures/auth.fixture.ts`, `frontend/e2e/fixtures/authenticated.fixture.ts`
+
+**Contexte** — Les relectures de PR portaient sur les fichiers modifiés. Des écrans d'accueil par rôle, jamais touchés par les PR récentes, contenaient des contrôles sans action et des `alert` / `confirm` / `prompt` natifs, visibles seulement en parcourant l'application comme un utilisateur de chaque rôle.
+**Échec / near miss** — Relevé en recette avant le gel V1.0 : la revue de diff ne pouvait pas voir ce qui n'était pas dans le diff.
+**Cause racine** — Angle mort de la revue limitée aux diffs ; règle `no-alert` désactivée, aucun garde-fou automatique contre les fenêtres natives.
+**Classification** — Couverture de revue ; near miss ; répétable à chaque nouvel écran.
+**Résolution** — Contrôles morts corrigés et fenêtres natives remplacées par `ConfirmationModal` / `RejectReasonDialog` (PR #334, #336). Écrans d'administration corrigés dans une PR dédiée.
+**Prévention** —
+1. `no-alert` en erreur, sans exception.
+2. Garde Playwright automatique (`noNativeDialog`) dans les fixtures communes : tout test qui ouvre une fenêtre native échoue.
+3. Grille de recette : parcours par persona sur l'accueil de chaque rôle, tout élément cliquable agit, aucune fenêtre native.
+**Leçon généralisée** — Une revue de diff ne couvre pas les écrans non modifiés : ce qu'on interdit doit l'être par une règle automatique, et la recette doit parcourir l'application par persona.
+
 ### LESSON-2026-056 — Périmètre restreint sur les listes, ouvert par id : unit_admin modifiait les documents d'autres unités
 
 - **Date :** 2026-11-18

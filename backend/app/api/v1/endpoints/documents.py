@@ -316,35 +316,42 @@ async def _ensure_in_unit_tree(
 
 
 async def _can_read_document(
-    user: User, document: Document, db: Optional[AsyncSession] = None
+    user: User,
+    document: Document,
+    db: Optional[AsyncSession] = None,
+    allow_step_access: bool = True,
 ) -> bool:
     """
     Casbin valide le TYPE de permission (read / read_own).
     Le périmètre d'unité reste ici (règle métier) : manager/reader lisent leur unité,
     unit_admin son sous-arbre (hors sous-arbre : 404).
-    Avec ``db``, une étape de circuit assignée ouvre la lecture (hors périmètre d'unité).
+    Avec ``db``, une étape de circuit assignée ouvre la lecture (hors périmètre d'unité),
+    sauf si ``allow_step_access`` est faux (ex. journal d'audit : lecture seule du document,
+    pas de son historique).
     """
     ctx = ctx_from_resource(document)
+    step_db = db if allow_step_access else None
     if await can_perform(user, "documents", "read", ctx):
         role_code = _role_code(user)
         if role_code in ORG_UNIT_READ_ROLES:
             if user.org_unit_id and document.org_unit_id == user.org_unit_id:
                 return True
-            return db is not None and await _has_workflow_step_access(
-                db, user, document
+            return step_db is not None and await _has_workflow_step_access(
+                step_db, user, document
             )
         if role_code in UNIT_TREE_READ_ROLES:
             if await _in_unit_tree(db, user, document) or (
-                db is not None and await _has_workflow_step_access(db, user, document)
+                step_db is not None
+                and await _has_workflow_step_access(step_db, user, document)
             ):
                 return True
             raise HTTPException(status_code=404, detail="Document not found")
         return True  # rôles institution : accès tenant-wide
     if await can_perform(user, "documents", "read_own", ctx):
         return True
-    if db is None or str(document.tenant_id) != str(user.tenant_id):
+    if step_db is None or str(document.tenant_id) != str(user.tenant_id):
         return False
-    return await _has_workflow_step_access(db, user, document)
+    return await _has_workflow_step_access(step_db, user, document)
 
 
 async def _can_mutate_document(
@@ -360,6 +367,26 @@ async def _can_mutate_document(
         return True
     return (
         await can_perform(user, "documents", "update_own", ctx)
+        and document.status in OWNER_MUTABLE_STATUSES
+    )
+
+
+async def _can_delete_document(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    Suppression DÉFINITIVE (fichiers et versions) : Casbin ``delete`` (admins) ou
+    ``delete_own`` (propriétaire) — jamais ``update``/``update_own``, qui ouvrent la
+    modification, ni ``trash_own``, qui n'ouvre que la corbeille. Pour le propriétaire,
+    seuls les statuts modifiables (OWNER_MUTABLE_STATUSES) restent supprimables.
+    unit_admin reste dans son sous-arbre (404).
+    """
+    await _ensure_in_unit_tree(db, user, document)
+    ctx = ctx_from_resource(document)
+    if await can_perform(user, "documents", "delete", ctx):
+        return True
+    return (
+        await can_perform(user, "documents", "delete_own", ctx)
         and document.status in OWNER_MUTABLE_STATUSES
     )
 
@@ -926,7 +953,9 @@ async def get_document_audit_logs(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document, db):
+    if not await _can_read_document(
+        current_user, document, db, allow_step_access=False
+    ):
         raise HTTPException(status_code=403, detail="Not enough privileges")
 
     query = (
@@ -1357,7 +1386,7 @@ async def delete_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(current_user, document, db):
+    if not await _can_delete_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
         )

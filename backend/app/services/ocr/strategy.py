@@ -8,6 +8,8 @@ from typing import Optional
 from pypdf import PdfReader
 from pdf2image import convert_from_path
 
+from app.core.config import settings
+
 from .base import OCREngine, OCRResult
 from .easyocr_engine import EasyOCREngine
 from .tesseract_engine import TesseractOCREngine
@@ -17,8 +19,8 @@ class DocumentType(Enum):
     """Document type classification"""
 
     SCANNED_DOCUMENT = "scanned_document"  # Clean scanned doc → Tesseract
-    PHOTO = "photo"  # Photo of document → EasyOCR
-    SCREENSHOT = "screenshot"  # Screenshot → EasyOCR
+    PHOTO = "photo"  # Photo → OCR_PRIMARY_ENGINE (Tesseract by default)
+    SCREENSHOT = "screenshot"  # Screenshot → OCR_PRIMARY_ENGINE (Tesseract by default)
     FORM = "form"  # Form/invoice → Tesseract
     UNKNOWN = "unknown"  # Unknown → Try both
 
@@ -31,13 +33,15 @@ class OCRStrategy:
 
     Decision Logic:
     - Scanned PDFs, forms, invoices → Tesseract (better for structured documents)
-    - Photos, screenshots, captures → EasyOCR (better for real-world images)
+    - Photos, screenshots, captures → OCR_PRIMARY_ENGINE (Tesseract by default;
+      EasyOCR only as fallback unless configured as primary)
     - Unknown → Try Tesseract first (faster), fallback to EasyOCR if low confidence
     """
 
-    def __init__(self):
+    def __init__(self, primary_engine: Optional[str] = None):
         self.tesseract = TesseractOCREngine()
         self.easyocr = EasyOCREngine()
+        self.primary_engine = (primary_engine or settings.OCR_PRIMARY_ENGINE).lower()
 
     @staticmethod
     def _should_use_fallback(result: OCRResult) -> bool:
@@ -210,9 +214,12 @@ class OCRStrategy:
         ]:
             return self.tesseract, self.easyocr
 
-        # EasyOCR-first scenarios
+        # Photos and screenshots: EasyOCR first only when explicitly configured;
+        # otherwise Tesseract first and EasyOCR (heavy, lazily loaded) as fallback.
         elif document_type in [DocumentType.PHOTO, DocumentType.SCREENSHOT]:
-            return self.easyocr, self.tesseract
+            if self.primary_engine == "easyocr":
+                return self.easyocr, self.tesseract
+            return self.tesseract, self.easyocr
 
         # Default
         return self.tesseract, self.easyocr
