@@ -43,10 +43,13 @@ test.describe('Aperçu dans la fiche document (DocumentDetailModal)', () => {
     await uploadModal.submitButton.click();
     await expect(uploadModal.submitButton).toBeHidden({ timeout: 15_000 });
 
-    await page.getByText(title).first().click();
+    // Click the card once the list has refreshed: a bare getByText may hit the upload toast instead.
+    const card = docsPage.documentCards.filter({ hasText: title });
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await card.click();
 
     const previewContainer = page.getByTestId('document-detail-preview');
-    await expect(previewContainer).toBeVisible();
+    await expect(previewContainer).toBeVisible({ timeout: 10_000 });
     const pdfFrame = previewContainer.locator('iframe[title^="Aperçu de "]');
     await expect(pdfFrame).toBeVisible({ timeout: 15_000 });
     await expect(pdfFrame).toHaveAttribute('src', /^blob:/);
