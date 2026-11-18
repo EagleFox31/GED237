@@ -4,6 +4,7 @@ import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { TrendCards } from '../../../components/TrendCards';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -101,6 +102,8 @@ const DraftWorkspace: React.FC = () => {
       </div>
 
       {/* Grid des documents */}
+      <div className="shrink-0"><TrendCards scope="mine" /></div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-y-auto p-1">
         {loading ? (
           <p className="text-slate-400 font-bold italic">Chargement de vos brouillons...</p>

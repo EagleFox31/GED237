@@ -11,4 +11,7 @@ export const analyticsApi = {
 
     getPlatformAnalytics: (): Promise<any> =>
         apiCall<any>('/analytics/platform', {}, 'Récupération des analytics plateforme impossible'),
+
+    getTrends: (scope: 'tenant' | 'unit' | 'mine', weeks = 12): Promise<any> =>
+        apiCall<any>(`/analytics/trends?scope=${scope}&weeks=${weeks}`, {}, 'Récupération des tendances impossible'),
 };

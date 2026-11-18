@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../../services/api';
+import { TrendCards } from '../../../components/TrendCards';
 import { TenantMetrics } from '../../../types';
 
 const ServiceDashboard: React.FC = () => {
@@ -31,6 +32,8 @@ const ServiceDashboard: React.FC = () => {
         <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">Chef <span className="text-blue-500">Unité</span></h2>
         <p className="text-slate-500 mt-1 font-medium italic">Supervisez les dossiers et la productivité de votre équipe.</p>
       </div>
+
+      <TrendCards scope="unit" />
 
       <div className="max-w-2xl">
         <div className="glass p-8 rounded-[2.5rem] bg-white border-white">
