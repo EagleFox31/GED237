@@ -18,8 +18,8 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Vague 0 : socle (24/11 matin)
 # Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
 ORDER_V0="389 403 383"
-# Vague 1 : petites PR sans migration (24 et 25/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268"
+# Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433"
 # Fin de vague 1, dès qu’elles ont un numéro : #413, #414, pagination du journal d’audit (F, GO du PO le 18/11)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
