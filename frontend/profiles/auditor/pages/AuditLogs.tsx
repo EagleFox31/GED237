@@ -8,6 +8,7 @@ import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import { HelpHint } from '../../../components/HelpHint';
 import { auditActorLabel, auditExportActors } from '../../../lib/auditExport';
+import { useAuthStore } from '../../../stores/authStore';
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('fr-CM', {
@@ -56,7 +57,12 @@ function getActionBadgeClass(action: string): string {
   return ACTION_STYLES[action.toLowerCase()] || 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
+// Profils qui lisent tout le journal ; les autres ne reçoivent que leurs propres actions (filtre serveur).
+const JOURNAL_PROFILES = ['super', 'tenant', 'audit'];
+
 const AuditLogs: React.FC = () => {
+  const profileId = useAuthStore((s) => s.userProfile?.id);
+  const ownOnly = !!profileId && !JOURNAL_PROFILES.includes(profileId);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,13 +73,10 @@ const AuditLogs: React.FC = () => {
     const action = searchParams.get('action');
     return action ? { action: [action] } : {};
   });
-  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>([
-    'created_at',
-    'resource',
-    'action',
-    'actor',
-    'detail',
-  ]);
+  // « Effectuée par » n'apporte rien quand toutes les lignes sont les siennes.
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>(() =>
+    ['created_at', 'resource', 'action', 'actor', 'detail'].filter((key) => !(ownOnly && key === 'actor')),
+  );
 
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
@@ -301,15 +304,18 @@ const AuditLogs: React.FC = () => {
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-blue-700">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-            Audit & Traçabilité
+            {ownOnly ? 'Mon activité' : 'Audit & Traçabilité'}
           </div>
           <h2 className="mb-1 text-3xl font-black uppercase tracking-tighter italic text-slate-900">
-            Registre Des Actions
+            {ownOnly ? 'Mes dernières actions' : 'Registre Des Actions'}
           </h2>
           <p className="text-sm font-medium text-slate-500">
-            Historique des consultations, modifications, arbitrages et autres actions sensibles.
+            {ownOnly
+              ? 'Ce que vous avez fait récemment : dépôts, modifications, validations.'
+              : 'Historique des consultations, modifications, arbitrages et autres actions sensibles.'}
           </p>
         </div>
+        {!ownOnly && (
         <div className="flex flex-col items-start gap-2 md:items-end">
           <div className="flex items-center gap-2">
           <HelpHint
@@ -339,10 +345,11 @@ const AuditLogs: React.FC = () => {
             Tableau filtrable et colonnes personnalisables
           </p>
         </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm lg:col-span-2">
+        <div className={`bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm ${ownOnly ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Activité affichée</p>
@@ -361,6 +368,7 @@ const AuditLogs: React.FC = () => {
           </div>
         </div>
 
+        {!ownOnly && (
         <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -371,6 +379,7 @@ const AuditLogs: React.FC = () => {
             <span className="material-symbols-outlined text-3xl text-slate-300">group</span>
           </div>
         </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
