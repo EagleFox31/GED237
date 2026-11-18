@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { ADMIN_ROUTES } from './lib/adminRoutes';
 import { DEFAULT_ROUTE_BY_PROFILE, defaultRouteForProfile } from './lib/defaultRoute';
 import { takePostLoginDestination, accountKeyOf } from './services';
 import { pushClientOperationError } from './lib/errors';
@@ -91,18 +92,8 @@ export { defaultRouteForProfile };
 
 type ProfileId = keyof typeof DEFAULT_ROUTE_BY_PROFILE;
 
-// Routes réservées aux administrateurs (liste blanche par profil). Confort d'interface :
-// le contrôle d'accès fait foi côté API ; cette table ne doit jamais être plus permissive qu'elle.
-export const ADMIN_ROUTES = {
-  '/tenants': ['super'],
-  '/tenants/:tenantId': ['super'],
-  '/platform-users': ['super'],
-  '/authz': ['super'],
-  '/org': ['super', 'tenant'],
-  '/rules': ['super', 'tenant'],
-  '/classement': ['super', 'tenant'],
-  '/users': ['super', 'tenant'],
-} as const satisfies Record<string, ReadonlyArray<ProfileId>>;
+// Table des routes d'administration : lib/adminRoutes.ts (lue aussi par les écrans), ré-exportée ici.
+export { ADMIN_ROUTES };
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
 

@@ -1,17 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { canOpenAdminRoute } from '../lib/adminRoutes';
 import { notificationTarget } from '../lib/notificationTarget';
 
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { TenantMetrics } from '../types';
 import { HelpHint } from './HelpHint';
-
-// Profils autorisés sur /users : même liste que ADMIN_ROUTES['/users'] dans App.tsx (confort
-// d'interface, le contrôle d'accès fait foi côté API). Les autres ne voient pas la tuile comme un lien.
-const USERS_PAGE_PROFILES: ReadonlyArray<string> = ['super', 'tenant'];
-
 
 type StatTone = 'blue' | 'red' | 'green' | 'slate';
 // Classes écrites en entier : Tailwind (compilé) ne génère pas une classe construite par concaténation.
@@ -27,7 +23,8 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const profileId = useAuthStore((s) => s.userProfile?.id);
-  const canOpenUsers = !!profileId && USERS_PAGE_PROFILES.includes(profileId);
+  // Tuile « Utilisateurs » en lien seulement pour les profils admis sur /users (même table que la garde des routes).
+  const canOpenUsers = canOpenAdminRoute('/users', profileId);
 
   useEffect(() => {
     const fetchData = async () => {

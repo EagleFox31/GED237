@@ -29,7 +29,7 @@ repos:
         name: settings, compose and .env.example agree
         entry: python scripts/check-config-parity.py
         language: python
-        files: ^(backend/app/core/config\.py|docker-compose\.yml|\.env\.example|frontend/|scripts/(check-config-parity\.py|config-parity-exceptions\.txt))
+        files: ^(backend/app/core/config\.py|docker-compose\.yml|\.env\.example|backend/\.env\.example|nginx/|frontend/|scripts/(check-config-parity\.py|config-parity-exceptions\.txt))
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
