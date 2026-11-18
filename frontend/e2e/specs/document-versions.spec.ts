@@ -19,7 +19,7 @@ test.describe('Nouvelle version depuis la fiche (#275)', () => {
    *
    *   GIVEN  un document déposé par l'admin
    *   WHEN   il ouvre l'historique, choisit un autre fichier, écrit une note et envoie
-   *   THEN   « Version N ajoutée. », la nouvelle version est « Actuelle » avec la note
+   *   THEN   « Version N.M ajoutée. » (ex. 1.1), la nouvelle version est « Actuelle » avec la note
    *   WHEN   il renvoie le même fichier
    *   THEN   « Ce fichier est identique à la version actuelle. » (message choisi par le code, pas le texte serveur)
    */
@@ -45,7 +45,7 @@ test.describe('Nouvelle version depuis la fiche (#275)', () => {
     await form.getByRole('button', { name: 'Envoyer' }).click();
 
     // THEN
-    await expect(form.getByRole('status')).toHaveText(/^Version \d+\.\d+ ajoutée\.$/,{ timeout: 15_000 });
+    await expect(form.getByRole('status')).toHaveText(/^Version \d+\.\d+ ajoutée\.$/, { timeout: 15_000 });
     const versions = page.getByTestId('document-version');
     await expect(versions).toHaveCount(2);
     await expect(versions.filter({ hasText: 'Actuelle' })).toContainText(`Note ${runId}`);
