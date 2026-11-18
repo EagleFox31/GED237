@@ -1,7 +1,7 @@
 # Plan de fusion V1.1 (24/11 au 04/12)
 
 - **Auteur** : innovateur (I), à la demande de O (18/11). Échéance : 21/11 18:00.
-- **Relevé** : 18/11 vers 17:00, 133 PR ouvertes. Ce plan doit être mis à jour le 21 sur la tête de `main` après le tag.
+- **Relevé** : 18/11 vers 17:00, 133 PR ouvertes (#368 fusionnée depuis, en 9b32c30). Ce plan doit être mis à jour le 21 sur la tête de `main` après le tag.
 - **Complète** `plan-v1.1.md` (lots et charges) et `plan-fusion-post-rc1.md` (§ 2 et § 8.6 : ordre et chaîne alembic). En cas d'écart sur une charge, `plan-v1.1.md` fait foi. Pour l'ordre de fusion, c'est ce fichier qui fait foi.
 
 ## 0. Méthode et lecture des colonnes
@@ -31,7 +31,7 @@ gh pr view <n> --json headRefOid -q .headRefOid     # tête, à comparer à l'OK
 ## 1. Règles de la fenêtre
 
 1. **Une fusion à la fois.** Avec la règle `strict`, chaque fusion oblige les suivantes à se remettre à jour. On fusionne donc dans l'ordre du § 2, sans lot parallèle sur les fichiers chauds du § 5.
-2. **#389 (parité des réglages) passe en premier.** Toute PR qui ajoute une variable doit ensuite passer ce contrôle. Elle doit déclarer la variable dans `config.py`, `docker-compose.yml` et `.env.example`. PR concernées : #383, #378, #245, #222, #212, #193, #192, #190, #183, #180, #165, #154, #153, #152 et #368 si elle passe en V1.1.
+2. **#389 (parité des réglages) passe en premier.** Toute PR qui ajoute une variable doit ensuite passer ce contrôle. Elle doit déclarer la variable dans `config.py`, `docker-compose.yml` et `.env.example`. PR concernées : #383, #378, #245, #222, #212, #193, #192, #190, #183, #180, #165, #154, #153 et #152.
 3. **Piles** : avant de fusionner la base d'une pile, re-cibler sur `main` les PR qui en dépendent (§ 3). Ne jamais fusionner une base tant qu'une PR empilée pointe encore sur sa branche.
 4. **Migrations** : une seule tête alembic. On suit l'ordre du § 4 et on repose `down_revision` à chaque fusion. Après chaque fusion, B lance `alembic upgrade head` sur `edossier` et `test_ged`.
 5. **Conditions de fusion** : OK de Q sur la tête, CI Gate verte et, pour une PR empilée, base déjà fusionnée.
@@ -48,8 +48,7 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 | Ordre | PR | Rôle | Base / pile | Dépend de | Conflit probable | OK de Q | Lot |
 |---|---|---|---|---|---|---|---|
 | 1 | #389 ci : parité réglages, compose et `.env.example` | Q | main | — | `.env.example`, `docker-compose.yml`, `ci.yml`, `appfactory-impact.json` | non | — |
-| 2 | #368 RapidOCR, seulement si elle n'est pas fusionnée le 19 | B | main | #389 | `config.py`, `.env.example`, `requirements.txt`, `lessons-learned.md` | non | chemin V1.0 |
-| 3 | #383 audit : plafond de l'export CSV (#136) | B | main | #389 | `config.py`, `.env.example`, `docker-compose.yml`, `audit.py` | oui (c19e95b) | — |
+| 2 | #383 audit : plafond de l'export CSV (#136) | B | main | #389 | `config.py`, `.env.example`, `docker-compose.yml`, `audit.py` | oui (c19e95b) | — |
 
 ### Vague 1 : 24 et 25/11, petites PR sans migration
 
@@ -79,9 +78,9 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 | 18 | #372 `ocr_status` exposé en lecture | B | main | — | `documents.py`, `schemas/document.py` | non | — |
 | 19 | #284 état failed et `low_confidence` sur `/ocr` (#276) | B | main | #372 | `documents.py`, `schemas/document.py`, `tasks.py` | non | 9 |
 | 20 | #311 jeu e2e : une lecture en échec, une peu sûre | Q | sur #284 | #284 | — | non | 9 |
-| 21 | #384 moteur réellement utilisé enregistré (#381) | B | main | #368 si V1.1 | `tasks.py` | non | — |
-| 22 | #386 pages scannées d'un PDF mixte (#380) | B | sur #384 | #384 | fichiers OCR, aussi touchés par #368 | non | — |
-| 23 | #387 pages d'un PDF rendues une à une (#379) | B | sur #386 | #386 | fichiers OCR, aussi touchés par #368 | non | — |
+| 21 | #384 moteur réellement utilisé enregistré (#381) | B | main | — | `tasks.py` | non | — |
+| 22 | #386 pages scannées d'un PDF mixte (#380) | B | sur #384 | #384 | `strategy.py` (pile OCR) | non | — |
+| 23 | #387 pages d'un PDF rendues une à une (#379) | B | sur #386 | #386 | `strategy.py` (pile OCR) | non | — |
 | 24 | #388 filtre par catégorie sur la liste | B | main | — | `documents.py` | non | — |
 | 25 | #355 « Lecture en échec » et relance à l'écran | F | main | #372 | `Documents.tsx`, `DocumentDetailModal.tsx`, `documents.api.ts`, `services/index.ts` | non, CONFLICTING | — |
 | 26 | #290 texte reconnu dans la fiche (#276) | F | main | #284 | `DocumentDetailModal.tsx`, `documents.api.ts`, `services/index.ts` | non, CONFLICTING | 9 |
@@ -280,7 +279,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 
 ## 7. Hors fenêtre
 
-- **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390, #356 et #368. Si l'une n'est pas fusionnée le 19, elle prend la place indiquée ci-dessus (#368 en vague 0). #375 et #390 sont prêtes : en cas de glissement, elles passent en vague 0, juste après #389.
+- **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390 et #356. #368 est fusionnée le 18/11 (9b32c30), et #390 est corrigée en 4be742b, en file après #375. Si l une d elles n est pas fusionnée le 19, elle passe en vague 0. #375 et #390 sont prêtes : en cas de glissement, elles passent en vague 0, juste après #389.
 - **V1.2** :
   - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
