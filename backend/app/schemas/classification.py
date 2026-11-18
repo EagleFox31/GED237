@@ -21,6 +21,8 @@ class ClassificationSimulationRequest(BaseModel):
     mime_type: Optional[str] = None
     # Stands for the OCR text when testing a rule with content keywords.
     content_sample: Optional[str] = Field(default=None, max_length=20_000)
+    # Also evaluate the rules that are not active yet (test a rule before turning it on).
+    include_inactive: bool = False
 
 
 class ClassificationRuleCheck(BaseModel):
@@ -61,6 +63,8 @@ class ClassificationSimulationResponse(BaseModel):
     rule_code: Optional[str] = None
     rule_name: Optional[str] = None
     rule_priority: Optional[int] = None
+    # False when the matched rule is not active: real uploads would not use it yet.
+    rule_is_active: Optional[bool] = None
     message: str
     logical_space_path: Optional[str] = None
     classification_scope: Optional[ClassificationTargetScope] = None

@@ -101,8 +101,11 @@ class ClassificationRuleEngine:
         filename: str,
         mime_type: Optional[str],
         content: Optional[str] = None,
+        include_inactive: bool = False,
     ) -> ClassificationResolution:
-        rules = await self._load_rules(tenant_id)
+        # include_inactive only serves the « Tester » action: an admin can check a rule
+        # before turning it on. Real classification always loads active rules only.
+        rules = await self._load_rules(tenant_id, include_inactive=include_inactive)
         matching_rules = []
         diagnostics: list[RuleDiagnostic] = []
         for rule in rules:
@@ -317,17 +320,19 @@ class ClassificationRuleEngine:
             mime_type=inputs.get("mime_type"),
         )
 
-    async def _load_rules(self, tenant_id: UUID) -> list[ClassificationRule]:
+    async def _load_rules(
+        self, tenant_id: UUID, *, include_inactive: bool = False
+    ) -> list[ClassificationRule]:
+        conditions = [ClassificationRule.tenant_id == tenant_id]
+        if not include_inactive:
+            conditions.append(ClassificationRule.is_active)
         result = await self.db.execute(
             select(ClassificationRule)
             .options(
                 selectinload(ClassificationRule.domain),
                 selectinload(ClassificationRule.activity),
             )
-            .where(
-                ClassificationRule.tenant_id == tenant_id,
-                ClassificationRule.is_active,
-            )
+            .where(*conditions)
             .order_by(
                 ClassificationRule.priority.asc(), ClassificationRule.created_at.asc()
             )
