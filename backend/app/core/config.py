@@ -145,6 +145,37 @@ class Settings(BaseSettings):
             raise ValueError("AUTHZ_METRICS_BACKEND must be one of: memory, redis")
         return value
 
+    # OCR engine tried first on photos, screenshots and forms: rapidocr (default,
+    # PP-OCRv5 latin ONNX, peak ~610-700 MB at 1600 px, ~630 MB at 1800), tesseract, or easyocr (torch,
+    # ~1.3 GB per worker child). Tesseract stays the fallback of rapidocr; clean PDF
+    # scans always start with Tesseract.
+    OCR_PRIMARY_ENGINE: str = "rapidocr"
+    # Kill switch: false routes everything to Tesseract without a rebuild.
+    OCR_RAPIDOCR_ENABLED: bool = True
+    # Longest side sent to RapidOCR. 1800 keeps the process peak near 630 MB in a
+    # 2 GB worker (2000 px measured 755-895 MB; recall -0.64 pt vs 2000 at 1800).
+    OCR_RAPIDOCR_MAX_SIDE: int = 1800
+    OCR_RAPIDOCR_TIMEOUT_SECONDS: float = 60
+    # Models baked into the image at build time; never downloaded at runtime.
+    RAPIDOCR_MODEL_DIR: str = "/opt/rapidocr"
+
+    @field_validator("OCR_PRIMARY_ENGINE", mode="before")
+    @classmethod
+    def validate_ocr_primary_engine(cls, v: Any) -> str:
+        if v is None or str(v).strip() == "":
+            return "rapidocr"
+        value = str(v).strip().lower()
+        if value not in {"rapidocr", "tesseract", "easyocr"}:
+            raise ValueError(
+                "OCR_PRIMARY_ENGINE must be one of: rapidocr, tesseract, easyocr"
+            )
+        return value
+
+    # Second-chance engine when the first result is empty or low-confidence. Off by
+    # default: EasyOCR (torch, ~1.3 GB) pushes a 2 GB worker over its limit and the
+    # task is killed, so the primary engine's text is kept as is.
+    OCR_FALLBACK_ENABLED: bool = False
+
     # Startup check that the database is at the Alembic head
     # fail : refuse to start (default) ; warn : log only ; off : skip
     SCHEMA_CHECK_MODE: str = "fail"

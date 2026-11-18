@@ -35,10 +35,10 @@ interface FlatUnitNode extends SpaceTreeNode {
 }
 
 const CLASSIFICATION_STATUS_LABELS: Record<string, string> = {
-  classified: 'Classe automatiquement',
+  classified: 'Classé automatiquement',
   needs_review: 'À vérifier',
   pending: 'En attente de classement',
-  rejected: 'Rejete',
+  rejected: 'Rejeté',
 };
 
 const CLASSIFICATION_STATUS_BADGES: Record<string, string> = {

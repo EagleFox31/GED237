@@ -533,7 +533,7 @@ première requête utilisateur.
 
 - **Date :** 2026-11-17
 - **Catégorie :** testing
-- **Statut :** captured (contrôle appliqué aux captures ponctuelles ; aucun script versionné concerné)
+- **Statut :** prevention-added (#138 : script versionné `frontend/e2e/visual/`, garde `screen-guard.ts` et test qui la prouve)
 - **Liens :** PR #122 (migration Tailwind compilé), `frontend/components/Dashboard.tsx`, `frontend/App.tsx` (`ProfileDashboard`)
 
 **Contexte** — Pour vérifier #122 sans pile complète, les écrans login, dashboard et règles ont été comparés (build CDN vs build compilé) avec une API simulée répondant `{}` ou `[]` à toute requête, sur la base de styles calculés et de captures.
@@ -585,6 +585,19 @@ première requête utilisateur.
 **Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
 **Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
 
+### LESSON-2026-041 — Table de fermeture des unités jamais alimentée : « unité et sous-unités » réduit en silence à « son unité »
+
+- **Date :** 2026-11-17
+- **Catégorie :** data / authz
+- **Statut :** test-added
+- **Liens :** #195, #196, `app/services/reports_scope.py`, `org_unit_closure`
+
+**Contexte** — La règle des rapports (D-L12-1) borne les rôles d'unité à leur unité et à ses sous-unités ; les sous-unités étaient lues dans `org_unit_closure`.
+**Échec / near miss** — Aucun chemin de l'application n'écrit cette table (ni migration, ni seed, ni création d'unité ; pas même la ligne de profondeur 0). Les tests l'alimentaient à la main. En production, la règle « unité et sous-unités » se réduisait donc à « son unité » sans erreur visible. Trouvé en préparant #195, avant tout signalement.
+**Cause racine** — Une structure dérivée (fermeture transitive) consommée sans propriétaire qui la tienne à jour ; les tests fabriquaient la donnée au lieu de passer par le chemin de création réel.
+**Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
+**Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
+**Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
 ### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
 
 - **Date :** 2026-11-17
@@ -626,3 +639,138 @@ première requête utilisateur.
 **Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
 **Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
 **Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-051 — Clé de stockage dérivée du nom de fichier : un dépôt de même nom écrasait un autre fichier
+
+- **Date :** 2026-11-18
+- **Catégorie :** data-loss / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/storage/base.py` (`unique_storage_name`), `local.py`, `s3.py`, `backend/tests/api/test_version_storage_keys.py`
+
+**Contexte** — `save_file_with_checksum` rangeait chaque dépôt sous `{tenant}/{unité}/{nom du fichier}`, en local comme en S3/MinIO.
+**Échec / near miss** — Relevé pendant le chantier de restauration de version (V1.2) : deux dépôts de même nom dans la même unité s'écrasaient. Une nouvelle version au nom identique détruisait les octets de la version précédente ; deux dépôts directs de même nom, ceux d'un autre document. Les branches « identique à la version courante » supprimaient ensuite le fichier partagé, donc la version courante elle-même.
+**Cause racine** — La clé de stockage venait d'une donnée utilisateur non unique (le nom), et aucun test ne déposait deux fois le même nom.
+**Résolution** — Clé `{uuid}_{nom}` (le motif de l'import) dans les deux backends, via un seul point (`unique_storage_name`). Aucune migration : les fichiers existants ne sont pas touchés.
+**Prévention** — Tests : même nom deux fois avec octets différents (deux chemins, deux lectures, sha256 = checksum), dépôt identique refusé sans perdre la version courante, retour à une ancienne version refusé, deux dépôts directs de même nom, clé S3 distincte.
+**Leçon généralisée** — Une clé de stockage ne se dérive jamais d'une donnée fournie par l'utilisateur sans élément unique. Tout stockage testé avec deux entrées de même nom, et toute suppression « de nettoyage » vérifie que le fichier n'est pas partagé.
+
+### LESSON-2026-052 — Disque C: saturé pendant une nuit de sessions parallèles : écritures et commits gelés
+
+- **Date :** 2026-11-18
+- **Catégorie :** infra / poste de développement
+- **Statut :** open
+- **Liens :** données Docker de WSL (`docker_data.vhdx`), scripts e2e, `images_export.sh`, builds compose. Numéro 051 laissé à la leçon en cours côté backend.
+
+**Contexte** — Cinq sessions de travail tournaient en parallèle sur un même poste au disque de 476 Go. Les données Docker vivent dans le disque virtuel de WSL (`docker_data.vhdx`). Vers 02:36, il ne restait plus que 0 à 300 Mo libres.
+**Échec / near miss** — Aucune perte constatée. Risques : objets git tronqués, base PostgreSQL abîmée en écriture, faux rouges en e2e. L'orchestration a gelé toute écriture locale et tout commit jusqu'au retour de l'espace.
+**Cause racine** — Personne ne surveille l'espace libre, et aucune tâche lourde (build, e2e, export d'images) ne le vérifie avant de démarrer. Le disque virtuel de WSL grossit et ne rend jamais la place : `docker system prune` libère de l'espace dans WSL, pas sur C:. S'y ajoutent les caches d'outils (paquets, navigateurs de test, compilations).
+**Classification** — Capacité de l'environnement ; near miss ; répétable tant que plusieurs piles tournent sur le même poste.
+**Résolution** — Place libérée par le PO sur le poste ; 49 Go libres (90 % utilisés) au contrôle du 18/11 au matin, au-dessus du seuil de 20 Go. Détail des éléments libérés : à compléter par le PO.
+**Prévention** —
+1. Garde réutilisable `scripts/ensure_free_space.sh`, seuil `MIN_FREE_GB` (20 par défaut). Elle contrôle le disque du dépôt et celui des données Docker, et elle est appelée par les scripts e2e, `images_export.sh` et les builds compose. En cas de refus, elle affiche un message qui dit quoi faire, et ne propose jamais `down -v`. Test : valeur simulée sous le seuil → code de sortie 1 ; au-dessus → 0. Porteur : backend, ≈ 0,25 h-s ; relecture : QA.
+2. `df -h` noté dans chaque passation et chaque point de reprise : alerte sous 50 Go, aucune charge lourde sous 20 Go.
+3. Le compactage de `docker_data.vhdx` est documenté comme une action du PO, jamais celle d'une session.
+4. Plafonds de journaux (`max-size`, `max-file`) vérifiés sur toutes les piles compose.
+**Leçon généralisée** — Une ressource partagée se vérifie avant chaque charge lourde. Une garde qui refuse coûte une ligne ; un disque plein coûte une nuit de travail gelée.
+
+### LESSON-2026-053 — Initialisation immédiate avec effet de bord réseau : un moteur facultatif faisait tomber toute la chaîne OCR
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/easyocr_engine.py`, `backend/app/services/ocr/strategy.py`, `backend/Dockerfile` (`EASYOCR_MODEL_DIR`), `backend/tests/services/test_ocr_strategy.py`
+
+**Contexte** — `OCRStrategy()` construit les deux moteurs ; `EasyOCREngine.__init__` chargeait ses modèles, que l'image ne contenait pas : ils se téléchargeaient au premier usage.
+**Échec / near miss** — Relevé par Q pour le 25/11 : sans réseau, `easyocr.Reader` lève `URLError` dans le constructeur, `OCRStrategy()` échoue et toute la tâche OCR tombe, Tesseract compris, alors qu'il aurait lu le scan seul. Sur un réseau coupé sans réponse, le téléchargement n'a pas de délai.
+**Cause racine** — Un composant de repli construit de façon immédiate, avec un effet de bord réseau, et une dépendance d'exécution (les modèles) absente de l'image.
+**Résolution** — Constructeur sans effet de bord ; lecteur chargé à la demande avec `download_enabled=False` ; modèles fr+en cuits dans l'image (couche cachée, `EASYOCR_MODEL_DIR`) ; modèle absent = un avertissement, résultat vide, repli sur Tesseract.
+**Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
+**Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.
+
+### LESSON-2026-054 — Moteur lourd en premier choix et deux processus dans 2 Go : le worker était tué, le document restait « en traitement »
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / capacity
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/strategy.py` (`_select_engines`), `backend/app/core/config.py` (`OCR_PRIMARY_ENGINE`), `docker-compose.yml` (worker `--concurrency=1`), `backend/tests/services/test_ocr_strategy.py`
+
+**Contexte** — Les photos et captures passaient d'abord par EasyOCR (torch), Tesseract n'étant que le repli. Le worker Celery tournait avec `--concurrency=2` et `mem_limit: 2g`.
+**Échec / near miss** — Chaque processus enfant charge son propre lecteur EasyOCR (~1,3 Go) : deux lecteurs dépassent 2 Go, le noyau tue le processus (OOM). La tâche est perdue et le document reste « en traitement » indéfiniment, sans erreur visible.
+**Cause racine** — Moteur le plus lourd choisi par défaut sans budget mémoire par processus, et concurrence réglée sur les CPU sans tenir compte de la mémoire par enfant.
+**Résolution** — `OCR_PRIMARY_ENGINE` (défaut `tesseract`) : EasyOCR n'est plus qu'un repli chargé à la demande, `easyocr` reste possible en option ; worker en `--concurrency=1`. Aucun moteur retiré.
+**Prévention** — Tests : une photo ne charge pas EasyOCR quand le moteur principal est tesseract ; avec `easyocr`, comportement inchangé ; valeur du réglage validée. Reste en V1.1 : un statut d'échec explicite quand une tâche OCR est perdue (un OOM ne doit plus laisser « en traitement »).
+**Leçon généralisée** — Concurrence × mémoire du composant le plus lourd doit rester sous la limite du conteneur ; le chemin par défaut utilise le moteur le plus léger, le lourd est un repli ou une option. Une tâche tuée doit laisser un état d'échec visible, jamais un état « en cours » éternel.
+
+### LESSON-2026-055 — Revue limitée aux diffs : les écrans non modifiés gardaient des contrôles morts et des fenêtres natives
+
+- **Date :** 2026-11-18
+- **Catégorie :** qualité / revue
+- **Statut :** prevention-added
+- **Liens :** `frontend/.eslintrc.json` (`no-alert`), `frontend/e2e/fixtures/noNativeDialog.ts`, `frontend/e2e/fixtures/auth.fixture.ts`, `frontend/e2e/fixtures/authenticated.fixture.ts`
+
+**Contexte** — Les relectures de PR portaient sur les fichiers modifiés. Des écrans d'accueil par rôle, jamais touchés par les PR récentes, contenaient des contrôles sans action et des `alert` / `confirm` / `prompt` natifs, visibles seulement en parcourant l'application comme un utilisateur de chaque rôle.
+**Échec / near miss** — Relevé en recette avant le gel V1.0 : la revue de diff ne pouvait pas voir ce qui n'était pas dans le diff.
+**Cause racine** — Angle mort de la revue limitée aux diffs ; règle `no-alert` désactivée, aucun garde-fou automatique contre les fenêtres natives.
+**Classification** — Couverture de revue ; near miss ; répétable à chaque nouvel écran.
+**Résolution** — Contrôles morts corrigés et fenêtres natives remplacées par `ConfirmationModal` / `RejectReasonDialog` (PR #334, #336). Écrans d'administration corrigés dans une PR dédiée.
+**Prévention** —
+1. `no-alert` en erreur, sans exception.
+2. Garde Playwright automatique (`noNativeDialog`) dans les fixtures communes : tout test qui ouvre une fenêtre native échoue.
+3. Grille de recette : parcours par persona sur l'accueil de chaque rôle, tout élément cliquable agit, aucune fenêtre native.
+**Leçon généralisée** — Une revue de diff ne couvre pas les écrans non modifiés : ce qu'on interdit doit l'être par une règle automatique, et la recette doit parcourir l'application par persona.
+
+### LESSON-2026-056 — Périmètre restreint sur les listes, ouvert par id : unit_admin modifiait les documents d'autres unités
+
+- **Date :** 2026-11-18
+- **Catégorie :** security / authz
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_ensure_in_unit_tree`, `_can_read_document`, `_can_mutate_document`, `_can_trash_document`, `_can_manage_lock`), `backend/tests/api/test_unit_admin_read_scope.py`
+
+**Contexte** — Le périmètre de unit_admin (son unité et les unités en dessous) était appliqué par le filtre des listes (`visible_document_scope`).
+**Échec / near miss** — Relevé en relecture avant fusion : les routes par id (`GET`, `PATCH`, `DELETE`, corbeille, verrou, nouvelle version) ne vérifiaient que le type de droit Casbin. Un unit_admin lisait, modifiait ou supprimait par id un document de toute l'institution.
+**Cause racine** — Deux chemins pour une même règle : le filtre de liste et les prédicats par objet. Seul le premier avait été adapté, et les tests ne couvraient que les listes.
+**Résolution** — Les prédicats par objet appliquent le sous-arbre à unit_admin ; hors sous-arbre, le document est traité comme inconnu (404). Une étape de circuit assignée ouvre toujours la lecture.
+**Prévention** — Tests 404 sur `GET` et `PATCH` par id hors sous-arbre, avec témoins 200 dans le sous-arbre.
+**Leçon généralisée** — Toute règle de périmètre se teste sur les deux chemins : la liste et l'accès par id (lecture et écriture). Un filtre de liste n'est pas un contrôle d'accès.
+
+### LESSON-2026-057 — Ensemble de rôles trop large : unit_admin lisait et écrivait à l'échelle de l'institution
+
+- **Date :** 2026-11-18
+- **Catégorie :** security / authz
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/unit_admin_scope.py`, `backend/app/api/v1/endpoints/analytics.py`, `classification.py`, `classification_reviews.py`, `imports.py`, `workflows.py`, `backend/tests/api/test_unit_admin_write_scope.py`
+
+**Contexte** — Le périmètre de unit_admin (unité et sous-unités) avait été posé sur les documents, la recherche et les rapports (#195, LESSON-2026-056).
+**Échec / near miss** — Relevé par l'audit de routes : `/analytics/tenant`, le circuit d'un document, la cible d'un import, la file de revue et les règles de classement acceptaient unit_admin avec la portée de l'institution, y compris en écriture (créer ou supprimer une règle valable pour toute l'institution).
+**Cause racine** — Ces routes testaient un ensemble de rôles (`ADMIN_ROLES`, `TENANT_WIDE_READ_ROLES`) qui range unit_admin avec tenant_admin ; l'ajout d'un rôle intermédiaire n'a pas relu les routes qui s'appuient sur ces ensembles.
+**Résolution** — Une seule définition de l'arbre (`reports_scope`), des aides asynchrones partagées ; analytics calculé sur le sous-arbre, hors arbre = 403/404, règles hors arbre en lecture seule ou masquées.
+**Prévention** — `test_unit_admin_write_scope.py` : chaque route concernée est jouée avec unit_admin d'une sous-unité et témoin tenant_admin ; `test_unit_admin_crawl` vérifie qu'aucun identifiant d'une autre unité ne sort.
+**Leçon généralisée** — Ajouter un rôle intermédiaire impose de relire chaque ensemble de rôles qui le contient et de jouer les routes avec ce rôle. Un ensemble « admin » n'est pas un périmètre.
+
+### LESSON-2026-058 — Repli automatique vers un moteur trop lourd : un texte déjà lu était perdu avec la tâche
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / ocr
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/strategy.py` (`_should_use_fallback`), `backend/app/core/config.py` (`OCR_FALLBACK_ENABLED`), `backend/tests/services/test_ocr_strategy.py`, [LESSON-2026-054](#lesson-2026-054)
+
+**Contexte** — Tesseract lit les photos de la démo en environ 1 s, mais avec une confiance de 57 % ; une confiance faible déclenchait le repli sur EasyOCR.
+**Échec / near miss** — Le worker (2 Go) était tué par SIGKILL en 3 s au chargement d'EasyOCR : la tâche était perdue, `ocr_content` restait vide et aucune photo n'était indexée (363 SIGKILL sur le corpus), alors que le texte de Tesseract était correct.
+**Cause racine** — Le repli était un chemin automatique sans réglage ni borne mémoire : un texte exploitable était remplacé par une tentative qui dépasse la limite du conteneur.
+**Résolution** — Réglage `OCR_FALLBACK_ENABLED` (défaut `false`, déclaré en config, compose et `.env.example`) : désactivé, le texte du premier moteur est conservé tel quel.
+**Prévention** — Tests : réglage à `false`, EasyOCR n'est jamais appelé (images et pages de PDF) ; à `true`, le comportement précédent est inchangé.
+**Leçon généralisée** — Un repli plus lourd que le chemin principal doit être configurable et borné par la mémoire disponible ; ne jamais le laisser remplacer un résultat déjà exploitable au risque de tuer la tâche. La perte d'une tâche tuée (pas d'`acks_late`) reste à traiter en V1.1.
+
+### LESSON-2026-059 — Modèles chargés à la première inférence : un build « réussi » n'embarquait pas les modèles attendus
+
+- **Date :** 2026-11-18
+- **Catégorie :** build / ocr
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/rapidocr_params.py` (`download_models`), `backend/app/services/ocr/rapidocr_engine.py`, `backend/Dockerfile`, `backend/tests/services/test_rapidocr_engine.py`
+
+**Contexte** — RapidOCR devait être livré avec ses modèles PP-OCRv5 latin dans l'image, sans téléchargement à l'exécution (hors ligne).
+**Échec / near miss** — Le premier build instanciait seulement le moteur : dossier de modèles vide (la version 3.10.0 charge chaque modèle à la première inférence, et le recognizer seulement si du texte est détecté). Les fichiers `.onnx` visibles dans le paquet étaient les modèles PP-OCRv6 intégrés à la roue, pas ceux choisis. L'étape de contrôle du Dockerfile a arrêté le build ; sans elle, le moteur aurait téléchargé au premier appel en production.
+**Cause racine** — Hypothèse non vérifiée : « instancier = télécharger ». Les paramètres de version n'étaient posés que pour le recognizer ; le détecteur gardait la version par défaut.
+**Résolution** — `download_models()` exécute une inférence sur une image contenant du texte, pour forcer les deux téléchargements ; versions et type de modèle posés pour le détecteur et le recognizer ; le build vérifie la présence du modèle latin.
+**Prévention** — Contrôle de présence dans le Dockerfile (`ls | grep -i latin`) ; essai réel avec `--network none` ; test unitaire de l'absence de modèle (moteur indisponible, aucun accès réseau).
+**Leçon généralisée** — Pour toute bibliothèque qui télécharge ses modèles, forcer l'usage réel au build et prouver l'absence de réseau à l'exécution. Mesurer la mémoire par le pic du conteneur (`memory.peak`) et régler la taille d'entrée en conséquence : 2000 px donnait 755 à 895 Mo, 1600 px 609 à 695 Mo, 1800 px 626 Mo (défaut retenu après le banc de Q : rappel -0,64 point par rapport à 2000).
