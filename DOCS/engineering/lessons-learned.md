@@ -760,3 +760,17 @@ première requête utilisateur.
 **Résolution** — `download_models()` exécute une inférence sur une image contenant du texte, pour forcer les deux téléchargements ; versions et type de modèle posés pour le détecteur et le recognizer ; le build vérifie la présence du modèle latin.
 **Prévention** — Contrôle de présence dans le Dockerfile (`ls | grep -i latin`) ; essai réel avec `--network none` ; test unitaire de l'absence de modèle (moteur indisponible, aucun accès réseau).
 **Leçon généralisée** — Pour toute bibliothèque qui télécharge ses modèles, forcer l'usage réel au build et prouver l'absence de réseau à l'exécution. Mesurer la mémoire par le pic du conteneur (`memory.peak`) et régler la taille d'entrée en conséquence : 2000 px donnait 755 à 895 Mo, 1600 px 609 à 695 Mo, 1800 px 626 Mo (défaut retenu après le banc de Q : rappel -0,64 point par rapport à 2000).
+
+### LESSON-2026-066 — Motif `testMatch` sur une seule ligne : 30 PR V1.1 en conflit sur la même ligne
+
+- **Date :** 2026-11-18
+- **Catégorie :** testing / process
+- **Statut :** resolved (dossier `frontend/e2e/unit/`)
+- **Liens :** `frontend/playwright.unit.config.ts`, `frontend/e2e/unit/`, LESSON-2026-036
+
+**Contexte** — Les specs purs étaient enregistrés dans une seule regex `testMatch` (ligne 7 de `playwright.unit.config.ts`).
+**Échec / near miss** — Chaque PR qui ajoutait un spec pur modifiait cette même ligne : 30 PR V1.1 en conflit sur ce fichier, résolues une à une par union manuelle.
+**Cause racine** — Un registre centralisé sur une ligne unique pour une liste qui grandit à chaque PR.
+**Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
+**Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
+**Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
