@@ -176,3 +176,24 @@ def test_primary_engine_setting_is_validated():
     assert Settings(OCR_PRIMARY_ENGINE="").OCR_PRIMARY_ENGINE == "tesseract"
     with pytest.raises(ValidationError):
         Settings(OCR_PRIMARY_ENGINE="paddle")
+
+
+def test_easyocr_receives_an_image_of_at_most_2000_px(monkeypatch):
+    """A 12 MP photo must not reach torch at full size (worker OOM)."""
+    from app.services.ocr.easyocr_engine import EasyOCREngine
+
+    seen = []
+
+    class FakeReader:
+        def readtext(self, array):
+            seen.append(array.shape)
+            return []
+
+    monkeypatch.setattr(EasyOCREngine, "_unavailable", set())
+    monkeypatch.setattr(EasyOCREngine, "reader", property(lambda _self: FakeReader()))
+
+    EasyOCREngine().extract_from_pil_image(Image.new("RGB", (4000, 3000)))
+    EasyOCREngine().extract_from_pil_image(Image.new("RGB", (800, 600)))
+
+    assert seen[0] == (1500, 2000, 3)  # (height, width, channels), ratio kept
+    assert seen[1] == (600, 800, 3)  # small image untouched
