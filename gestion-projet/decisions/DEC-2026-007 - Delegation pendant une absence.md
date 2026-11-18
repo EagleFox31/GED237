@@ -12,7 +12,7 @@
 
 ## 2. Décision
 
-1. **Le chef de service désigne l'intérimaire.** L'agent absent ne le fait pas lui-même, et l'intérimaire ne peut pas se désigner seul.
+1. **Le chef de service désigne l'intérimaire** (l'administrateur de l'institution le peut aussi : § 5). L'agent absent ne le fait pas lui-même, et l'intérimaire ne peut pas se désigner seul.
 2. **Les droits de l'intérimaire se limitent à deux choses** :
    - les validations de l'agent absent ;
    - les documents liés à ces validations.
@@ -36,18 +36,18 @@
 | Qui | Ce qui change | Porteur |
 |---|---|---|
 | Serveur | Table des délégations et colonne « au nom de » dans le journal, dans une migration d'ordre 9 (fin de chaîne, après l'ordre 8 « recherche sans accents »). Droits limités aux tâches du circuit de l'agent absent et aux documents liés. Créer, lister, révoquer ; fin automatique à la date de fin. | aide-api (O, 18/11) |
-| Écran | Écran de délégation pour le chef de service : désigner, dates, révoquer. Mention « au nom de » dans les tâches et dans le journal. | aide-api (O, 18/11, proposition 3) |
+| Écran | Écran de délégation pour le chef de service : désigner, dates, révoquer. Mention « au nom de » dans les tâches et dans le journal. | aide-api (O, 18/11, proposition 3) ; relu par F |
 | Tests | Isolation : l'intérimaire ne voit rien en dehors du périmètre délégué, ni avant le début, ni après la fin ou la révocation ; aucune délégation entre deux institutions. Audit de la création, de la révocation et de chaque action. | aide-api ; relecture sécurité par Q |
-| Charge | aide-api : une note de conception (1 h-s), puis la réalisation (6 à 7 h-s). Le chiffrage de l'écran est à recevoir. | O |
+| Charge | aide-api : une note de conception (1 h-s), la réalisation côté serveur (6 à 7 h-s) et l'écran (3 à 4 h-s). F : relecture de l'écran (0,25 h-s). | O |
 
-## 5. Points à confirmer avant de coder (non tranchés par le PO)
+## 5. Points complémentaires : défaut retenu par O, PO informé (18/11)
 
-Ces points sont proposés, pas décidés. aide-api les fixe dans sa note de conception et O les valide.
+Le PO n'a pas tranché ces points. O a retenu les défauts ci-dessous et en a informé le PO, qui peut s'y opposer. aide-api les reprend dans sa note de conception.
 
-- **Rôle du chef de service** : le profil `manager` sur son propre service. Le `tenant_admin` peut-il aussi désigner un intérimaire ? À vérifier.
-- **Choix de l'intérimaire** : par défaut, seulement un agent du même service ou de la même institution, jamais d'une autre institution.
-- **Redélégation** : par défaut, l'intérimaire ne peut pas redéléguer.
-- **Validations en cours au début de la délégation** : sont-elles toutes incluses, ou seulement celles qui arrivent pendant la période ? Par défaut : toutes celles de l'agent absent tant que la délégation est active.
+- **Qui désigne** : le chef de service (profil `manager`, sur son propre service). L'administrateur de l'institution (`tenant_admin`) peut aussi désigner un intérimaire.
+- **Choix de l'intérimaire** : seulement un agent du même service. Jamais d'un autre service, ni d'une autre institution.
+- **Redélégation** : interdite. L'intérimaire ne peut pas redéléguer.
+- **Validations déjà en attente** : incluses. L'intérimaire reçoit toutes les validations de l'agent absent, en attente ou nouvelles, tant que la délégation est active.
 
 ## 6. Retour arrière
 

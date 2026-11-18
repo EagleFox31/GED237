@@ -125,11 +125,11 @@ Avant tout, **une revue de recouvrement par B** (≈ 0,25 h-s). #203, #358 et #3
 
 Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR que le PO aura fermées, puis on repose `down_revision` (§ 4).
 
-1. #179 → #262 → #309, puis #310 (re-ciblée sur `main` avant #262). #262 et #309 sont des correctifs V1.1 qui dépendent de #179.
-2. #153, #155, #147.
-3. #197 → #162 → #180 → #154 → #212 → #193 → #219 → #186 → #165 → #192.
-4. #209 et #205.
-5. #152 → #181 → #184 → #211 → #301 → #302, puis #182 et #190 ; #171 → #199.
+1. #152 → #181 → #184 → #211 → #301 → #302, puis #182 et #190 ; #171 → #199. **Mise à jour (O, 18/11 au soir, § 10)** : #152 est passée en tête de la vague 2 (`file-v1.1.md`). #181, #184 et #301 la suivent juste après, en vague 2. #302 dépend aussi de #262 (vague 4) : elle passe donc juste après #262.
+2. #179 → #262 → #302 → #309, puis #310 (re-ciblée sur `main` avant #262). #262 et #309 sont des correctifs V1.1 qui dépendent de #179.
+3. #153, #155, #147.
+4. #197 → #162 → #180 → #154 → #212 → #193 → #219 → #186 → #165 → #192.
+5. #209 et #205.
 
 | PR hors section PO dans cette vague | Rôle | Base / pile | Dépend de | OK de Q | Lot |
 |---|---|---|---|---|---|
@@ -212,7 +212,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | Ordre | PR | Rôle | Note |
 |---|---|---|---|
 | 58 | #111, #112, #141 (Dependabot, lot 7) | Q | Une à une, CI complète entre chaque. |
-| 58 bis | Versions majeures de Dependabot : #113 (Starlette 1.x), #110 (Python 3.15), #29 (TypeScript 7), #30 (ESLint 10) ; **revenues en V1.1** (O, 18/11) | aide-api (#113, #110 ; O, 18/11), Q (#29, #30 ; O, 18/11) | Une à une après 58, CI complète entre chaque ; aide-api 3,5 à 4 (#113 : FastAPI à monter aussi, starlette étant figée sous 0.49 ; #110 : torch 2.6 et asyncpg 0.29 sans wheels pour 3.15, aide-api propose de viser 3.12 ou 3.13, à trancher par O), Q 2. |
+| 58 bis | Versions majeures de Dependabot : #113 (Starlette 1.x), #110 (Python 3.15), #29 (TypeScript 7), #30 (ESLint 10) ; **revenues en V1.1** (O, 18/11) | aide-api (#113, #110 ; O, 18/11), Q (#29, #30 ; O, 18/11) | Une à une après 58, CI complète entre chaque ; aide-api 3,5 à 4 (#113 : FastAPI à monter aussi, starlette étant figée sous 0.49 ; #110 : torch 2.6 et asyncpg 0.29 sans wheels pour 3.15, O, 18/11 : viser 3.13 par une PR manuelle ; #110 fermée avec un commentaire après sa fusion, et `ignore` Dependabot pour python ≥ 3.14), Q 2. |
 | 59 | #335 générateur d'export de test sans faux repli | B | Outil de test, CONFLICTING ; à rebaser. Gardée (B, 18/11) : sans elle, faux PDF de 140 octets. |
 | 60 | #312 garde d'espace disque avant une charge | doc | Script local ; sans risque. |
 | 61 | #189 leçon 038, #166 carnet de la suite | doc | « Hors chaîne » dans le lot 1. Les fermer si leur contenu est déjà sur `main`. |
@@ -384,3 +384,54 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 5. **#400 et #401** : elles sont en conflit. La PR fusionnée en second résout le conflit.
 6. **#391 et #396** : elles modifient la même ligne (`document-detail.page.ts:65`). La PR fusionnée en second **garde le sélecteur par `testid`**, et, pour le conflit de #391 avec #396, **la ligne commentée** (O, 18/11, nuit). OK de Q pour #391 en 9a943d3, pour #392 en fc71aad et pour #396 en 93feb87.
 7. **Points mineurs de Q, non bloquants** : B les traite en fin de V1.1, seulement s'il reste de la capacité. #392 : remettre à zéro `titleEditedByHand`, et ajouter un e2e du flux en série. #396 : un test des nouveaux boutons.
+
+## 10. Paires de conflit (Q, 18/11 au soir)
+
+Q a croisé les fichiers modifiés par les 109 PR V1.1 : 216 paires de PR touchent au moins un fichier en commun, sur 32 fichiers. Règles et contraintes d'O, 18/11 au soir.
+
+**Règles**
+1. **Chaque auteur fusionne `main` dans sa branche juste avant d'entrer en file**, sans rebase. Il relance la CI, puis demande l'OK de Q sur la nouvelle tête.
+2. **La pile #181 → #302 suit #152 immédiatement**, en tête de la vague 2 : #152, #181, #184, #301. #302 est aussi empilée sur #262 (vague 4) : elle passe juste après #262 (§ 2, vague 4). `file-v1.1.md` est mis à jour.
+3. **Ordre imposé** :
+   - #403 avant #389 : **à confirmer par O**. #403 est empilée sur la branche de #389 (base `ci/v11-parite-config`, relevé `gh` du 18/11) : la fusionner d’abord ferait entrer #389 avec elle. D’ici la réponse d’O, l’ordre du § 9 point 2 (#389, puis #403) reste dans `file-v1.1.md`.
+   - #404 avant #415 : **sans objet**. #415 est déjà fusionnée (b1a69f5). #404 fusionne `main` avant d’entrer en file (règle 1).
+   - #407 avant #401 (§ 9, point 4).
+   - #400 après #401. C'est donc #400 qui résout le conflit (§ 9, point 5).
+4. **Fichiers chauds où l'on garde l'union des entrées** : `backend/app/workers/celery_app.py`, `backend/app/workers/tasks.py` et `backend/app/core/config.py`. En cas de conflit, on garde toutes les entrées des deux côtés : aucune tâche, aucune route Celery ni aucun réglage n'est perdu. Dans `config.py`, chaque nouveau réglage va aussi dans `docker-compose.yml` et dans `.env.example` (contrôle de parité de #389).
+
+**Fichiers en commun** (PR rangées par numéro, pas dans l'ordre de fusion ; l'ordre est celui du § 2)
+
+| Fichier | PR | Liste |
+|---|---|---|
+| `backend/app/core/config.py` | 18 | #147, #152, #153, #154, #155, #165, #181, #182, #184, #193, #199, #205, #211, #212, #219, #222, #301, #302 |
+| `backend/app/workers/tasks.py` | 15 | #152, #180, #181, #182, #184, #190, #192, #199, #209, #211, #284, #301, #302, #311, #404 |
+| `frontend/services/resources/documents.api.ts` | 13 | #181, #182, #184, #190, #199, #211, #290, #295, #296, #301, #302, #355, #401 |
+| `backend/app/workers/celery_app.py` | 13 | #152, #180, #181, #182, #184, #190, #192, #199, #209, #211, #301, #302, #404 |
+| `frontend/profiles/tenant-admin/pages/SpacesPage.tsx` | 12 | #181, #182, #184, #190, #199, #211, #240, #301, #302, #400, #401, #407 |
+| `docker-compose.yml` | 12 | #152, #153, #155, #180, #190, #209, #212, #222, #245, #378, #389, #403 |
+| `frontend/App.tsx` | 11 | #181, #182, #184, #190, #199, #205, #211, #301, #302, #303, #403 |
+| `backend/app/api/v1/endpoints/documents.py` | 10 | #152, #165, #205, #283, #284, #293, #295, #311, #372, #404 |
+| `frontend/components/DocumentDetailModal.tsx` | 9 | #181, #301, #302, #338, #355, #362, #391, #401, #407 |
+| `frontend/components/TrashPage.tsx` | 6 | #181, #182, #184, #211, #301, #302 |
+| `frontend/components/Documents.tsx` | 6 | #296, #351, #354, #371, #392, #396 |
+| `backend/app/services/reports_scope.py` | 6 | #213, #241, #261, #263, #266, #308 |
+| `backend/app/models/__init__.py` | 6 | #180, #192, #193, #197, #209, #219 |
+| `frontend/services/index.ts` | 5 | #219, #290, #295, #297, #355 |
+| `frontend/profiles/collaborator/pages/DraftWorkspace.tsx` | 5 | #354, #357, #362, #392, #393 |
+| `backend/app/schemas/document.py` | 5 | #283, #293, #295, #372, #404 |
+| `.env.example` | 5 | #152, #155, #383, #389, #403 |
+| `frontend/services/resources/authz.api.ts` | 4 | #181, #301, #302, #303 |
+| `backend/tests/test_compose_shared_settings.py` | 4 | #165, #180, #205, #209 |
+| `backend/tests/api/test_document_ocr_status.py` | 4 | #284, #311, #372, #404 |
+| `backend/app/api/v1/router.py` | 4 | #165, #192, #205, #224 |
+| `.github/workflows/ci.yml` | 4 | #253, #268, #389, #403 |
+| `frontend/types.ts` | 3 | #293, #295, #355 |
+| `frontend/e2e/specs/explorer-keys.spec.ts` | 3 | #211, #301, #302 |
+| `backend/tests/api/test_users.py` | 3 | #222, #227, #237 |
+| `backend/app/main.py` | 3 | #165, #197, #205 |
+| `frontend/profiles/tenant-admin/pages/gedrules/SimulatorTab.tsx` | 2 | #366, #398 |
+| `frontend/profiles/manager/pages/ValidationHub.tsx` | 2 | #190, #362 |
+| `frontend/e2e/pages/document-detail.page.ts` | 2 | #391, #396 |
+| `frontend/components/workflow/RejectReasonDialog.tsx` | 2 | #349, #395 |
+| `frontend/components/WorkflowTasks.tsx` | 2 | #362, #416 |
+| `backend/.env.example` | 2 | #212, #222 |

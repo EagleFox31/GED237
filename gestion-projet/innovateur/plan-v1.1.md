@@ -715,8 +715,8 @@ Décisions d’O : les propositions 1 à 3 sont acceptées (57 L7-3, #113 et #11
 | 57 L7-5, écran | 3 à 4 (liste, création avec dates, révocation, Vitest, un e2e) | F 1,5 |
 | 57 L7-3 | 1 | 1 |
 | #113 (Starlette 1.x, avec FastAPI) | 2 | 1 (avec #110) |
-| #110 (Python) | 1,5 à 2 en visant 3.12 ou 3.13 ; 3 à 4 en visant 3.15 (torch, asyncpg sans wheels) | — |
-| **Total** | **20,5 à 23** (22 à 25 en visant 3.15) | 17 |
+| #110 (Python) | 1,5 à 2 : Python 3.13 par une PR manuelle (O, 18/11) ; 3.15 écarté (torch, asyncpg sans wheels) | — |
+| **Total** | **20,5 à 23** | 17 |
 
 | | B | F | Q | aide-api | Équipe |
 |---|---|---|---|---|---|
@@ -730,3 +730,9 @@ Décisions d’O : les propositions 1 à 3 sont acceptées (57 L7-3, #113 et #11
 - **La charge de l’équipe monte de 3,75 à 6,25 h-s** : les chiffres d’aide-api sont plus réalistes que les estimations précédentes. Les deux montées de version passent de 1 à 3,5 ou 4, et l’écran de la délégation de 1,5 à 3 ou 4.
 - **À trancher par O pour #110** : viser 3.12 ou 3.13. Dans ce cas, #110 (3.15) est fermée et remplacée par une PR manuelle. Sinon, viser 3.15 coûte + 1,5 à 2 et oblige à monter torch et easyocr en cascade : risque élevé sur l’OCR juste avant le 04/12.
 - **Ordre d’aide-api** : L10-1, L10-3, L7-3, puis la note de la délégation, son serveur et son écran, puis L11-1 dès la fusion de la PR « état OCR » de B, enfin #113 puis #110.
+
+**Décisions d’O (18/11 au soir)** :
+- **#110** : on vise Python 3.13 (choix technique : 3.15 entraîne la cascade torch et easyocr, trop risquée pour l’OCR). aide-api fait une PR manuelle (1,5 à 2 h-s, déjà compté dans le tableau). Une fois cette PR fusionnée, elle ferme #110 avec un commentaire et ajoute un `ignore` Dependabot pour python ≥ 3.14, pour que #110 ne revienne pas.
+- **Relecture de l’écran de la délégation par F** (+ 0,25, déjà compté : F 29,5).
+- **DEC-2026-007 § 5** : défauts retenus par O, PO informé. L’administrateur de l’institution peut aussi désigner un intérimaire ; l’intérimaire vient du même service ; pas de redélégation ; validations déjà en attente incluses.
+- Le tableau ci-dessus vaut donc pour l’option 3.13 : **aide-api 20,5 à 23**, équipe 121,1 à 123,6.
