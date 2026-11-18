@@ -256,7 +256,8 @@ async def _resolve_target_org_unit_id(
 
 
 # Étapes de circuit qui ouvrent la lecture à leur assigné : en cours, ou déjà traitées.
-# Une étape pas encore atteinte (pending) ou annulée n'ouvre rien.
+# Une étape pas encore atteinte (pending) ou annulée n'ouvre rien. La lecture reste ouverte
+# après completed/rejected/returned : voulu, le valideur doit pouvoir relire ce qu'il a visé.
 READ_GRANTING_STEP_STATUSES = ("current", "completed", "rejected", "returned")
 
 
@@ -267,8 +268,10 @@ async def _has_workflow_step_access(
     du circuit de ce document, quelle que soit son unité. N'ouvre ni écriture ni liste."""
     row = await db.execute(
         select(WorkflowStep.id)
+        .join(Document, Document.id == WorkflowStep.document_id)
         .where(
             WorkflowStep.document_id == document.id,
+            Document.tenant_id == user.tenant_id,
             WorkflowStep.assigned_to == user.id,
             WorkflowStep.status.in_(READ_GRANTING_STEP_STATUSES),
         )

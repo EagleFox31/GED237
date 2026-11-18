@@ -65,6 +65,9 @@ async def test_assigned_manager_reads_document_outside_unit(
     async with client_as("manager", **_manager(db_seed, assigned=True)) as client:
         assert (await client.get(f"{DOCUMENTS}/{doc_id}")).status_code == 200
         assert (await client.get(f"{DOCUMENTS}/{doc_id}/versions")).status_code == 200
+        # /content : 404 « fichier introuvable » (pas de fichier réel), jamais 403/404 de périmètre.
+        assert (await client.get(f"{DOCUMENTS}/{doc_id}/ocr")).status_code != 403
+        assert (await client.get(f"{DOCUMENTS}/{doc_id}/content")).status_code != 403
 
 
 @pytest.mark.asyncio
@@ -99,3 +102,17 @@ async def test_step_access_is_read_only(client_as, db_session, db_seed):
             404,
         )
         assert (await client.get(f"{DOCUMENTS}/{doc_id}/audit-logs")).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_assignee_of_another_tenant_gets_404(client_as, db_session, db_seed):
+    doc_id = await _document_with_step(db_session, db_seed, "current")
+    fields = {
+        "tenant_id": uuid.uuid4(),
+        "org_unit_id": uuid.uuid4(),
+        "id": db_seed["user_id"],
+    }
+    async with client_as("manager", **fields) as client:
+        assert (await client.get(f"{DOCUMENTS}/{doc_id}")).status_code == 404
+        assert (await client.get(f"{DOCUMENTS}/{doc_id}/content")).status_code == 404
+        assert (await client.get(f"{DOCUMENTS}/{doc_id}/ocr")).status_code == 404
