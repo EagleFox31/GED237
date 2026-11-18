@@ -45,3 +45,6 @@ export const filesDropVerdict = (profileId: string | undefined, count: number): 
 /** Garde les vrais fichiers : un dossier glissé apparaît avec une taille nulle et sans type. */
 export const droppedFiles = (list: ArrayLike<File>): File[] =>
   Array.from(list).filter((f) => f.size > 0 || f.type !== '');
+
+/** Titre proposé pour un fichier : son nom sans l'extension. */
+export const titleFromFileName = (name: string): string => name.replace(/\.[^/.]+$/, '');

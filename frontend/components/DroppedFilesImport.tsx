@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
+import { titleFromFileName } from '../lib/explorerDrag';
 
 interface Props {
   files: File[];
@@ -10,7 +11,7 @@ interface Props {
   onImported: () => void;
 }
 
-type Result = 'waiting' | 'sending' | 'done' | 'duplicate' | 'forbidden' | 'failed';
+type Result = 'waiting' | 'sending' | 'done' | 'duplicate' | 'forbidden' | 'toolarge' | 'unsupported' | 'failed';
 
 const LABELS: Record<Result, string> = {
   waiting: 'En attente',
@@ -18,8 +19,16 @@ const LABELS: Record<Result, string> = {
   done: 'Envoyé',
   duplicate: 'Déjà présent : refusé',
   forbidden: "Pas le droit d'envoyer dans ce dossier",
+  toolarge: 'Fichier trop volumineux',
+  unsupported: 'Type de fichier non accepté',
   failed: "L'envoi a échoué",
 };
+
+const resultOf = (status?: number): Result =>
+  status === 409 ? 'duplicate' : status === 403 ? 'forbidden' : status === 413 ? 'toolarge' : status === 415 || status === 422 ? 'unsupported' : 'failed';
+
+/** Seul un échec « technique » mérite d'être relancé : doublon, droit et fichier refusé ne changeront pas. */
+const isRetryable = (r: Result) => r === 'failed';
 
 /** Import de plusieurs fichiers déposés : la liste, puis un envoi après confirmation. */
 const DroppedFilesImport: React.FC<Props> = ({ files, orgUnitId, onClose, onImported }) => {
@@ -29,16 +38,19 @@ const DroppedFilesImport: React.FC<Props> = ({ files, orgUnitId, onClose, onImpo
 
   const setOne = (index: number, value: Result) => setResults((prev) => prev.map((r, i) => (i === index ? value : r)));
 
-  const send = async () => {
+  const retryable = results.filter(isRetryable).length;
+
+  /** Envoie les fichiers dont l'index est donné (tous au premier envoi, les échecs à la relance). */
+  const send = async (indexes: number[]) => {
     setBusy(true);
     let sent = 0;
-    for (let i = 0; i < files.length; i += 1) {
+    for (const i of indexes) {
       const file = files[i];
       if (!file) continue;
       setOne(i, 'sending');
       const form = new FormData();
       form.append('file', file);
-      form.append('title', file.name.replace(/\.[^/.]+$/, ''));
+      form.append('title', titleFromFileName(file.name));
       form.append('processing_mode', 'process');
       form.append('org_unit_id', orgUnitId);
       try {
@@ -48,7 +60,7 @@ const DroppedFilesImport: React.FC<Props> = ({ files, orgUnitId, onClose, onImpo
         setOne(i, 'done');
       } catch (err: unknown) {
         const status = (err as { status?: number })?.status;
-        setOne(i, status === 409 ? 'duplicate' : status === 403 ? 'forbidden' : 'failed');
+        setOne(i, resultOf(status));
       }
     }
     setBusy(false);
@@ -66,7 +78,7 @@ const DroppedFilesImport: React.FC<Props> = ({ files, orgUnitId, onClose, onImpo
             // eslint-disable-next-line react/no-array-index-key
             <li key={`${file.name}-${i}`} data-testid="dropped-file" data-result={results[i]} className="flex justify-between gap-3 py-2">
               <span className="truncate font-semibold text-slate-700">{file.name}</span>
-              <span className={`shrink-0 text-xs font-bold ${results[i] === 'done' ? 'text-emerald-600' : results[i] === 'duplicate' || results[i] === 'forbidden' || results[i] === 'failed' ? 'text-red-600' : 'text-slate-400'}`}>
+              <span className={`shrink-0 text-xs font-bold ${results[i] === 'done' ? 'text-emerald-600' : results[i] !== 'waiting' && results[i] !== 'sending' ? 'text-red-600' : 'text-slate-400'}`}>
                 {LABELS[results[i] ?? 'waiting']}
               </span>
             </li>
@@ -77,8 +89,13 @@ const DroppedFilesImport: React.FC<Props> = ({ files, orgUnitId, onClose, onImpo
             {finished ? 'Fermer' : 'Annuler'}
           </button>
           {!finished && (
-            <button type="button" onClick={send} disabled={busy} className="px-5 py-2.5 text-sm font-bold text-white bg-rdpc-blue hover:opacity-90 rounded-2xl disabled:opacity-60">
+            <button type="button" onClick={() => send(files.map((_, i) => i))} disabled={busy} className="px-5 py-2.5 text-sm font-bold text-white bg-rdpc-blue hover:opacity-90 rounded-2xl disabled:opacity-60">
               {busy ? 'Envoi…' : `Envoyer ${files.length} fichiers`}
+            </button>
+          )}
+          {finished && retryable > 0 && (
+            <button type="button" onClick={() => send(results.flatMap((r, i) => (isRetryable(r) ? [i] : [])))} disabled={busy} className="px-5 py-2.5 text-sm font-bold text-white bg-rdpc-blue hover:opacity-90 rounded-2xl disabled:opacity-60">
+              {busy ? 'Envoi…' : `Relancer ${retryable} ${retryable > 1 ? 'échecs' : 'échec'}`}
             </button>
           )}
         </div>

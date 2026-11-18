@@ -2,6 +2,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
+import { titleFromFileName } from '../lib/explorerDrag';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 
 interface UploadDocumentModalProps {
@@ -15,7 +16,7 @@ interface UploadDocumentModalProps {
 
 const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess, initialFile, orgUnitId }) => {
   const [file, setFile] = useState<File | null>(initialFile ?? null);
-  const [title, setTitle] = useState(initialFile ? initialFile.name.replace(/\.[^/.]+$/, '') : '');
+  const [title, setTitle] = useState(initialFile ? titleFromFileName(initialFile.name) : '');
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
@@ -35,7 +36,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     setFile(f);
     // Pré-remplir le titre avec le nom de fichier (sans extension)
     if (!title) {
-      setTitle(f.name.replace(/\.[^/.]+$/, ''));
+      setTitle(titleFromFileName(f.name));
     }
     setError(null);
   };

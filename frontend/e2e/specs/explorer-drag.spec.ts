@@ -9,6 +9,7 @@ import {
   filesDropVerdict,
   isFileDrag,
   isDocumentDrag,
+  titleFromFileName,
 } from '../../lib/explorerDrag';
 
 test.describe('Explorateur : glisser pour classer', () => {
@@ -65,4 +66,10 @@ test.describe('Explorateur : fichiers glissés depuis Windows (élément 20)', (
     const folder = new File([], 'Dossier', { type: '' });
     expect(droppedFiles([real, folder])).toEqual([real]);
   });
+});
+
+test('le titre proposé est le nom du fichier sans son extension', () => {
+  expect(titleFromFileName('Courrier 2026.pdf')).toBe('Courrier 2026');
+  expect(titleFromFileName('archive.tar.gz')).toBe('archive.tar');
+  expect(titleFromFileName('sans-extension')).toBe('sans-extension');
 });
