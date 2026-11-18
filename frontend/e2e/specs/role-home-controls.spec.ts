@@ -72,10 +72,8 @@ test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () 
     }
   });
 
-  // Dérogation documentée : GET /documents/{id} renvoie 403 au manager quand le document de
-  // sa tâche est hors de son unité (_can_read_document, règle org_unit). Bug backend signalé ;
-  // à réactiver (retirer fixme) dès que l'assigné d'une étape peut lire le document.
-  test.fixme('manager : « Voir le document » ouvre le détail avant de valider', async ({ loginAs, page }) => {
+  // L'assigné d'une étape lit le document de sa tâche même hors de son unité (correctif backend #340).
+  test('manager : « Voir le document » ouvre le détail avant de valider', async ({ loginAs, page }) => {
     await loginAs('manager');
     await expect(page.getByText('Espace Manager')).toBeVisible({ timeout: 10_000 });
     const view = page.getByRole('button', { name: 'Voir le document' }).first();
