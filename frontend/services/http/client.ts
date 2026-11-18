@@ -112,6 +112,7 @@ export const apiCallVoid = async (
     path: string,
     init: RequestInit = {},
     fallback = 'Requête échouée',
+    options: ApiCallOptions = {},
 ): Promise<void> => {
     const isMultipart = init.body instanceof FormData;
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
@@ -121,7 +122,7 @@ export const apiCallVoid = async (
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     });
-    if (!response.ok) throw await buildApiError(response, fallback);
+    if (!response.ok) throw await buildApiError(response, fallback, options.handledStatuses);
 };
 
 /**
