@@ -15,19 +15,25 @@ import type { DocumentPreviewProps } from '../../components/preview/DocumentPrev
  * `{ __pw_type: 'jsx', type, props, key }` pour les fichiers `.tsx`. Ce helper les
  * convertit récursivement en éléments React standards avant `renderToStaticMarkup`.
  */
+interface PwJsxNode {
+  __pw_type: unknown;
+  type: string | React.ComponentType<Record<string, unknown>>;
+  props?: Record<string, unknown>;
+  key?: React.Key | null;
+}
+
+function isPwJsxNode(value: unknown): value is PwJsxNode {
+  return typeof value === 'object' && value !== null && '__pw_type' in value;
+}
+
 function toReactNode(node: unknown): React.ReactNode {
   if (node === null || node === undefined || typeof node === 'boolean') return null;
   if (typeof node === 'string' || typeof node === 'number') return node;
   if (Array.isArray(node)) return node.map((child) => toReactNode(child));
-  if (typeof node === 'object' && node !== null && '__pw_type' in node) {
-    const pw = node as {
-      type: string | React.ComponentType<Record<string, unknown>>;
-      props?: Record<string, unknown>;
-      key?: React.Key | null;
-    };
-    const { children, ...rest } = pw.props ?? {};
-    if (typeof pw.type === 'function') {
-      const rendered = (pw.type as (p: Record<string, unknown>) => unknown)(pw.props ?? {});
+  if (isPwJsxNode(node)) {
+    const { children, ...rest } = node.props ?? {};
+    if (typeof node.type === 'function') {
+      const rendered = (node.type as (p: Record<string, unknown>) => unknown)(node.props ?? {});
       return toReactNode(rendered);
     }
     const reactChildren = Array.isArray(children)
@@ -36,8 +42,8 @@ function toReactNode(node: unknown): React.ReactNode {
         ? [toReactNode(children)]
         : [];
     return React.createElement(
-      pw.type,
-      { ...rest, key: pw.key ?? undefined },
+      node.type,
+      { ...rest, key: node.key ?? undefined },
       ...reactChildren,
     );
   }
@@ -178,7 +184,7 @@ test.describe('Aperçu intégré de la fiche document — affichage du composant
 
     expect(html).not.toContain('data-testid="document-preview-download"');
     expect(captured).toHaveLength(1);
-    expect(captured[0].enabled).toBe(false);
+    expect(captured[0]?.enabled).toBe(false);
   });
 
   test('affiche le message court en français simple lorsque le format n’est pas pris en charge', () => {
