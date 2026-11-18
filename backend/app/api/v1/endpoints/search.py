@@ -10,9 +10,11 @@ from app.core.search.factory import get_search_engine
 from app.api.v1.endpoints.documents import (
     ORG_UNIT_READ_ROLES,
     TENANT_WIDE_READ_ROLES,
+    UNIT_TREE_READ_ROLES,
     _role_code,
 )
 from app.core.search.interfaces import SearchQuery, SortOrder
+from app.services.reports_scope import unit_subtree_ids
 from app.schemas.search import SearchResponse, SearchHitResponse, SortOrderEnum
 
 router = APIRouter()
@@ -43,12 +45,17 @@ async def perform_search(
     search_engine = get_search_engine(db, engine_type="postgres")
 
     # Same read scope as GET /documents: tenant-wide roles see the tenant,
-    # org-unit roles see their own unit, everyone else only their documents.
+    # unit_admin its unit and sub-units, manager and reader their own unit,
+    # everyone else only their documents.
     role_code = _role_code(current_user)
     scope_org_unit_id = None
+    scope_org_unit_ids = None
     scope_owner_id = None
     if role_code in TENANT_WIDE_READ_ROLES:
         pass
+    elif role_code in UNIT_TREE_READ_ROLES and current_user.org_unit_id:
+        subtree = await db.execute(unit_subtree_ids(current_user.org_unit_id))
+        scope_org_unit_ids = list(subtree.scalars())
     elif role_code in ORG_UNIT_READ_ROLES and current_user.org_unit_id:
         scope_org_unit_id = current_user.org_unit_id
     else:
@@ -69,6 +76,7 @@ async def perform_search(
         status=status,
         org_unit_id=org_unit_id,
         scope_org_unit_id=scope_org_unit_id,
+        scope_org_unit_ids=scope_org_unit_ids,
         scope_owner_id=scope_owner_id,
         file_type=file_type,
         tags=tags or [],

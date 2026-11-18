@@ -94,7 +94,7 @@ test.describe('Feature: Explorateur de documents', () => {
    *   GIVEN  le modal de détail est ouvert
    *   WHEN   l'onglet "Détails & Aperçu" est actif
    *   THEN   les métadonnées sont visibles (propriétaire, date, type, taille, catégorie, version)
-   *   AND    les boutons Télécharger et Partager sont présents
+   *   AND    le bouton Télécharger est présent
    */
   test('Given modal ouvert, When onglet info, Then métadonnées visibles', async ({ page }) => {
     const docsPage = new DocumentsPage(page);
@@ -113,7 +113,12 @@ test.describe('Feature: Explorateur de documents', () => {
 
     // AND
     await expect(detailModal.downloadButton).toBeVisible();
-    await expect(detailModal.shareButton).toBeVisible();
+
+    // WHEN — on clique sur Télécharger
+    const [download] = await Promise.all([page.waitForEvent('download'), detailModal.downloadButton.click()]);
+
+    // THEN — le fichier part vraiment
+    expect(download.suggestedFilename()).toMatch(/\.[A-Za-z0-9]+$/);
   });
 
   /**

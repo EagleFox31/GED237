@@ -33,7 +33,6 @@ export class DocumentDetailModal {
   readonly fileSizeField: Locator;
   readonly tags: Locator;
   readonly downloadButton: Locator;
-  readonly shareButton: Locator;
 
   // Workflow tab content
   readonly workflowSteps: Locator;
@@ -72,7 +71,6 @@ export class DocumentDetailModal {
     this.fileSizeField = page.locator('text=Taille').locator('..').locator('p.font-bold');
     this.tags = page.locator('span:has-text("#")');
     this.downloadButton = page.getByRole('button', { name: /télécharger/i });
-    this.shareButton = page.getByRole('button', { name: /partager/i });
 
     // Workflow content
     this.workflowSteps = page.locator('.relative.flex.items-start.gap-8');
