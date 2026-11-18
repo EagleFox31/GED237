@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { notificationTarget } from '../lib/notificationTarget';
+import { canSeeReports } from '../lib/reportsAccess';
 import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
@@ -238,6 +239,8 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
       { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
       { id: 'documents', label: 'Mes Documents', icon: 'folder_open' },
       { id: 'tasks', label: 'Tâches', icon: 'checklist' },
+      // Super admin : menu plateforme sans Rapports (comme sa barre latérale), la route reste ouverte.
+      ...(userProfile?.id !== 'super' && canSeeReports(userProfile?.id) ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }] : []),
       ...(userProfile?.id === 'audit' ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }] : []),
     ];
   };

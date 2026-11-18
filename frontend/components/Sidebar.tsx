@@ -5,6 +5,7 @@ import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
 import { Logo } from './Logo';
 import { APP_VERSION } from '../constants';
+import { canSeeReports } from '../lib/reportsAccess';
 
 interface SidebarProps {
   activeTab: string;
@@ -97,8 +98,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
                 { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
                 { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
               ]),
-          // Manager : rapports de son service (le serveur limite les données au service).
-          ...(userProfile?.id === 'manager'
+          // Rapports : tous les profils qui y ont droit (le serveur limite les données au périmètre de chacun).
+          ...(canSeeReports(userProfile?.id)
             ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
             : []),
           // Auditeur : journal d'audit (la page et la route /audit existent déjà).
