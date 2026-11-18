@@ -882,3 +882,20 @@ Les trois bloquants de démo (V1.0, F et B) sont hors charge V1.1 : `risques-dem
 | **Écart** | **− 1,95** | **− 0,75** | **− 2,95** | **− 2 à 0** | **− 7,65 à − 5,65** |
 
 Tous restent à 0 ou moins. Le déclencheur de F vers Q (2 h-s de tests si la démo mord sur le week-end de F) reste couvert par la marge de Q : 2,95.
+
+### Ajouts d’O du 18/11 au soir : `pg_trgm` et réparation du hook
+
+| Ligne | Ce qui est fait | Porteur | Chiffrage (h-s) |
+|---|---|---|---|
+| 57 L10-3 bis | Recherche par trigrammes : requêtes réécrites, index, test `EXPLAIN`. PR séparée de #436, après « L4 » d’aide-api | aide-api | 2 |
+| 57 hook | Réparer le hook pre-commit du poste (Python absent) ; après #433 | Q | 0,5 |
+
+Tableau calculé par `gestion-projet/outils/charges.sh` sur `charges-v1.1.csv` :
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | 39,55 | 31,25 | 35,3 | 35 à 37 | 141,1 à 143,1 |
+| Capacité | 41,5 | 32 | 37,75 | 35 | 146,25 |
+| **Écart** | −1,95 | −0,75 | −2,45 | 0 à +2 | −5,15 à −3,15 |
+
+**aide-api dépasse sa capacité de 0 à 2 h-s.** Répartition proposée à O le 18/11 au soir, en attente de sa décision. La marge de Q tombe à 2,45, ce qui couvre encore le déclencheur de F vers Q (2 h-s).

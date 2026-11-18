@@ -12,3 +12,6 @@ ch;socle 18/11;aide-api;33;35
 # Audit UX Lot 14 (19/11)
 ch;57 L14-1;Q;0,5
 ch;57 L14-2;B;0,75
+# Ajouts V1.1 (O, 18/11 au soir)
+ch;57 L10-3 bis pg_trgm;aide-api;2
+ch;réparation hook pre-commit;Q;0,5
