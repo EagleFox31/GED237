@@ -1,0 +1,128 @@
+# File de fusion V1.1 : entrée prête à coller (après la coupe)
+
+- **Pour** : O, file de fusion V1.1. Préparé par l'innovateur le 18/11 au soir, à partir de `plan-fusion-v1.1.md` (§ 2 à § 6 et § 9) et du relevé `gh pr list` des PR ouvertes du 18/11.
+- **Aucune fusion V1.1 avant le 19/11 après 18:00** (O).
+- **Exclus** : #359 (attend le PO), les branches `feat/v12-*` et l'étiquette `v1.2`, Dependabot (#111, #112, #141, #402, et les versions majeures #29, #30, #110, #113).
+- **Hors file V1.1** : #104, #121, #408, #409, #412 et #415 suivent le chemin V1.0. Si l'une d'elles n'est pas fusionnée le 19, elle passe en tête de la vague 0, juste après #389 (`plan-fusion` § 7).
+- **Capacités post-rc1 (§ 6)** : elles sont placées selon la recommandation du plan. Sans réponse du PO le 23/11, on applique cette recommandation (§ 4 ci-dessous).
+
+## 1. ORDER
+
+Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
+
+```bash
+# Vague 0 : socle (24/11 matin)
+ORDER_V0="389 403 383"
+# Vague 1 : petites PR sans migration (24 et 25/11)
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 235 238 248 267 268"
+# Vague 2 : lecture des documents, OCR (25 et 26/11)
+ORDER_V2="372 284 311 384 386 387 388 404 355 290 338"
+# Vague 3 : périmètre et audit, lot 11 (26/11)
+ORDER_V3="241 213 261 263 308 296 266 221 361 282"
+# Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12) ; le groupe corbeille (#152) est déplacé en fin de vague 5
+ORDER_V4="179 262 309 310 153 147 197 162 180 209 154 212 172 193 219 186 165 205 192"
+# Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
+ORDER_V5="283 293 295 285 297 342 294 303 347 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 349 378 344 353 393 399 416 417"
+# Vague 5, fin : corbeille (DEC-2026-006), après #401 (ordre d'O)
+ORDER_V5B="152 168 181 182 184 211 301 302 190 170 171 199"
+# Vague 6 : outils et documentation (03 et 04/12)
+ORDER_V6="335 312 189 166"
+ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V5B $ORDER_V6"
+```
+
+Écarts avec `plan-fusion-v1.1.md`, à valider par O :
+- **Ajoutées** : ces PR étaient ouvertes mais absentes des vagues.
+  - #394 et #405 (déblocage d'un compte, #135) : après #237, car elles touchent aussi `users.py`. #405 est empilée sur #394.
+  - #404 (relance de lecture) : entre #388 et #355, puisque #355 l'appelle.
+  - #398 : la partie écran de #377, juste après #377.
+  - #393, #399, #416 et #417 en fin de vague 5. #416 et #417 sont les deux XS du Lot 6 (lignes 57 quinquies et 57 sexies du plan).
+  - #361 : en vague 3, après #221.
+- **#152 et sa pile passent de la vague 4 à la fin de la vague 5**. O a fixé « #152 après #401 ». Or #401 suit #407, qui suit #293 et #362 (vague 5).
+- **#155 et #169 sont retirées** : la recommandation du § 6 les met en V1.2, sauf si l'API tourne avec plusieurs processus en V1.1.
+- **À ouvrir, sans numéro** : #413 et #414 (XS de sécurité, B) et le filet du journal à 500 lignes (si le PO l'accepte). On les insère en fin de vague 1, dès qu'elles ont un numéro.
+
+## 2. DEP
+
+`DEP[n]="a b"` : la PR n attend la fusion de a et de b. Une seule clé par PR.
+
+```bash
+declare -a DEP
+# Piles (la base doit être fusionnée)
+DEP[403]="389"; DEP[401]="407"; DEP[405]="394"
+DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
+DEP[267]="248"; DEP[268]="248 389"
+DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
+DEP[262]="179"; DEP[310]="262"; DEP[309]="179 262"
+DEP[293]="283"; DEP[295]="293"; DEP[297]="285"; DEP[303]="294 293"
+DEP[181]="152"; DEP[184]="181"; DEP[211]="184"; DEP[301]="152 181"; DEP[302]="301 262"
+DEP[190]="181 153"; DEP[199]="181 171"
+DEP[212]="154"; DEP[219]="193"; DEP[209]="180"; DEP[205]="165"
+# Chaîne alembic (une seule tête ; down_revision reposé à chaque fusion)
+DEP[180]="197"; DEP[193]="180"; DEP[186]="193"; DEP[165]="186"; DEP[192]="165"
+# Dépendances fonctionnelles (colonne « Dépend de » du plan)
+DEP[383]="389"; DEP[222]="389"; DEP[245]="389"; DEP[253]="389"; DEP[378]="389"
+DEP[227]="222"; DEP[237]="227"; DEP[285]="222"; DEP[234]="224"; DEP[394]="237"
+DEP[284]="372"; DEP[404]="372"; DEP[355]="372 404"; DEP[290]="284"; DEP[338]="290"
+DEP[296]="263"; DEP[347]="221"; DEP[342]="297"; DEP[294]="238"
+DEP[351]="388"; DEP[344]="383"; DEP[398]="377"
+DEP[152]="401"; DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"
+```
+
+Les contraintes « après X » du plan qui servent seulement à éviter un conflit de fichier (#407 après #293 et #362, #362 après #390, #354 après #351…) ne sont pas dans DEP : l'ORDER les respecte déjà.
+
+## 3. Re-ciblage sur `main` AVANT la fusion de la base
+
+| Avant de fusionner | Re-cibler d'abord sur `main` |
+|---|---|
+| #389 | #403 |
+| #394 | #405 |
+| #235 | #238 |
+| #248 | #267, #268 |
+| #384 | #386 ; puis, avant #386 : #387 |
+| #284 | #311 |
+| #241 | #213 ; puis, avant #213 : #221, #261, #263 ; puis, avant #263 : #308 et #315 (V1.2) |
+| #179 | #262 ; puis, avant #262 : #310 |
+| #283 | #293 ; puis, avant #293 : #295 ; puis, avant #295 : #313 (V1.2) |
+| #285 | #343 (V1.2) |
+| #297 | #333 (V1.2) |
+| #294 | #303 ; puis, avant #303 : #352 (V1.2) |
+| #407 | #401 |
+| #152 | #181 ; puis, avant #181 : #184, #190, #199, #301 ; puis, avant #184 : #211 ; avant #301 : #302 |
+| #154 | #212 |
+| #193 | #219 |
+| #180 | #209 |
+| #165 | #205 |
+
+Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n'est fusionnée avant le 04/12.
+
+## 4. Avant la fusion : avis du PO ou delta relu par Q
+
+**Avis du PO**
+- **Capacités post-rc1 (§ 6)** : #147, #152, #153, #154, #162, #165, #168, #170, #171, #172, #179, #180, #181, #182, #184, #186, #190, #192, #193, #197, #199, #205, #209, #211, #212, #219. Sans réponse le 23/11, on applique la recommandation du plan. Les lignes « retravailler » (#184, #182, #190, #212, #193, #180, #205) attendent leur rebase.
+- **#155 et #169** : hors file, sauf si l'API tourne avec plusieurs processus en V1.1. Il faut aussi trancher le jeton dans l'URL du WebSocket, qui s'écarte de #148 (§ 9).
+- **#359** et le **filet de 500 lignes du journal d'audit** : O les porte au PO le 18/11.
+
+**À trancher par O avant la fusion**
+- **#404 dépend de #370**, une branche `feat/v12-*` (la description de #404 le dit). Deux options : B rebase #404 sur `main` sans #370, ou #370 entre en V1.1. Sans l'une ou l'autre, #404 et #355 sortent de la vague 2.
+- **#349 et #395 font la même chose** : des motifs de rejet en un clic dans `RejectReasonDialog.tsx`. En garder une et fermer l'autre. L'ORDER garde #349, déjà dans le plan.
+- **#211 (F, sur #184) et #401 (B)** ajoutent toutes deux la sélection multiple dans l'explorateur. F et B doivent dire laquelle reste, ou comment elles se partagent le travail.
+- **#283 et #152** : le plan met #283 « après #152 si elle est gardée », mais #152 passe maintenant après #401, donc après #283 (cycle #283 → #293 → #407 → #401 → #152). Je propose que #283 passe d'abord et que #152 se rebase sur `documents.py` et `schemas/document.py`. Sinon, il faut lever la contrainte « #152 après #401 ».
+- **#284** est peut-être obsolète, car elle recoupe #370 et #372 (§ 9). B confirme. Si elle est fermée : re-cibler #311 sur `main`, vérifier ce que #290 lit sur `/ocr`, et retirer #284 de l'ORDER et des DEP (#311, #290).
+
+**Delta relu par Q** (règle : si la tête change, l'OK tombe ; toute PR CONFLICTING repasse donc chez Q après son rebase)
+- **Deltas connus** :
+  - #152 : DEC-2026-006 (ligne 59 de `policy.csv` retirée, tests 403, `tenant_id` pris en compte seulement avec `tenants manage`, test « tenant_admin + autre `tenant_id` », audit qui nomme le tenant visé) ;
+  - #168 : 403 au lieu de 200 ;
+  - #241 et #213 : réduites par B, nouvelle relecture ;
+  - #238 ou #389 : la seconde fusionnée retire `AUTHZ_BACKEND` des exceptions de parité ;
+  - #248 : changements demandés à relire sur 2d73db6 ;
+  - #308 : rouge en 8a5c0e5 ;
+  - #303 et #205 : diff à réduire ;
+  - #180 : vérifier qu'il ne reste rien de #183 ;
+  - #182 : ne garder que les tests ;
+  - #361 et #266 : revue de recouvrement de B d'abord ;
+  - #401 : re-relecture après le re-ciblage, avec le conflit #400/#401 ;
+  - #391 et #396 : le conflit sur la ligne 65 de `document-detail.page.ts` (on garde la ligne commentée).
+- **Sans OK de Q** : #253, #372, #284, #311, #384, #386, #387, #388, #404, #355, #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, #349, #378, #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #417, #309, #147, #155, #168, #170, #172, #212.
+- **OK sur un code ancien, périmé ou sans SHA noté** : #235, #238, #267, #268, #261, #263, #266, #296, #221, #262, #310, #301, #302, #293, #295, #297, #294, #303, #179, #162, #193, #197, #180, #209, #165, #205, #186, #181, #184, #211, #190, #182, #199.
+- **OK valides sur la tête au 18/11** : #389 (3d3ad2e), #403 (4228d7a), #383 (c19e95b), #222 (99d3d09), #224 (0b8eb15), #237 (ae555e4), #240 (1798847), #407 (98d2317), #391 (9a943d3), #392 (fc71aad), #396 (93feb87), #153 (cbf28bc), #154 (720a30f), #171 (3198885), #192 (7c32940). Ceux de #227, #234, #243 et #245 tomberont au rebase (CONFLICTING).
