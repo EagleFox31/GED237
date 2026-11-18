@@ -167,12 +167,15 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 57 quater | #400 accessibilité de l'explorateur (`aria-labelledby`, #167) | à confirmer | main | — | **conflit avec #401** : la PR fusionnée en second le résout | non | — |
 | 57 quinquies | **à ouvrir** : audit UX Lot 6, « Validation… » sur Valider et Rejeter (XS) | F | main | — | écran des tâches | non | lot 6 UX |
 | 57 sexies | **à ouvrir** : audit UX Lot 6, une seule erreur hors ligne au dépôt (XS) | F | main | — | fenêtre de dépôt | non | lot 6 UX |
-| 57 septies | **à ouvrir** : audit UX Lot 6, orientation du premier jour et aide sur le code à la connexion (S) ; V1.2 proposée (`plan-v1.1.md`, § « nuit du 18/11 ») | F | main | — | `LoginPage.tsx`, tableau de bord du collaborateur | non | lot 6 UX |
-| 57 octies | **à ouvrir** : audit UX Lot 6, saisie gardée à travers la reconnexion (M) ; V1.2 proposée avec #359 | F | main | avec #359 (même code de session) | `services/http/client.ts`, `session.ts` | non | lot 6 UX |
+| ~~57 septies~~ | audit UX Lot 6, orientation du premier jour (S) : **passée en V1.2** (O, 18/11), voir § 7 | — | — | — | — | — | — |
+| ~~57 octies~~ | audit UX Lot 6, saisie gardée à travers la reconnexion (M) : **passée en V1.2** (O, 18/11), voir § 7 | — | — | — | — | — | — |
+| 57 nonies | #391 aperçu dans l'onglet « Informations » de la fiche | F | main | — | `DocumentDetailModal.tsx`, **`document-detail.page.ts:65` (comme #396)** | non | — |
+| 57 decies | #392 « Envoyer et déposer un autre » (dépôt en série) | F | main | — | fenêtre de dépôt | **oui (fc71aad)** | — |
+| 57 undecies | #396 téléchargement rapide sur les cartes et remise à zéro des filtres | F | main | — | `Documents.tsx`, **`document-detail.page.ts:65` (comme #391)** | **oui (93feb87)** | — |
 
 - **#303** : 36 fichiers, dont 29 en commun avec #220. Sa branche contient sans doute une autre pile. Il faut la re-cibler sur `main` après #294, puis vérifier que le diff ne contient plus que l'écran des droits.
 - **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F, en PR #407 (brouillon). La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
-- **Audit UX Lot 6** (O, 18/11) : le point (a), pas de déconnexion sur une coupure réseau pendant le renouvellement de session et message « Votre session a expiré… » sur un 401, vise la V1.0 (relecture de Q le 19/11 à 14:00, go/no-go à 15:30). S'il n'est pas retenu, il devient une ligne de cette vague, juste avant 57 octies. Le point (c), la barre d'actions fixe en bas de la fenêtre de dépôt, va en V1.2 (§ 7). Charge : `plan-v1.1.md`, § « Mise à jour du 18/11, nuit ».
+- **Audit UX Lot 6** (O, 18/11) : le point (a), pas de déconnexion sur une coupure réseau pendant le renouvellement de session et message « Votre session a expiré… » sur un 401, vise la V1.0 (relecture de Q le 19/11 à 14:00, go/no-go à 15:30). S'il n'est pas retenu, il devient une ligne de cette vague, après 57 sexies. Les points M et S passent en V1.2 ; #359 reste en V1.1 (O, 18/11). Le point (c), la barre d'actions fixe en bas de la fenêtre de dépôt, va en V1.2 (§ 7). Charge : `plan-v1.1.md`, § « Mise à jour du 18/11, nuit ».
 - **`playwright.unit.config.ts`** : 33 PR l'éditent, chacune pour y ajouter son fichier de test. Ce sont des conflits d'une ligne : un rebase les règle, sans risque fonctionnel.
 
 ### Vague 6 : 03 et 04/12
@@ -296,7 +299,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
   - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
   - autres : #313 (élément 8 de la V1.2) et #298 (#278, sortie par O le 18/11) ;
-  - audit UX Lot 6, point (c) : barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % (F, à ouvrir).
+  - audit UX Lot 6 (F, à ouvrir) : point (c), barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % ; point M, saisie gardée à travers la reconnexion ; point S, orientation du premier jour et aide sur le code à la connexion (O, 18/11).
   Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
 - **Dependabot, versions majeures** (V1.2) : #29, #30, #110 et #113.
 - **#385** : outil de mesure, jamais fusionné.
@@ -333,3 +336,5 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 3. **#238 et #389** : la PR fusionnée en second retire `AUTHZ_BACKEND` des exceptions du contrôle de parité des réglages. Le contrôle doit rester vert sans cette exception.
 4. **#407 puis #401** : OK de Q pour #407 en 98d2317. B empile #401 sur #407. On re-cible d'abord #401 sur `main`, puis on fusionne #407, puis #401.
 5. **#400 et #401** : elles sont en conflit. La PR fusionnée en second résout le conflit.
+6. **#391 et #396** : elles modifient la même ligne (`document-detail.page.ts:65`). La PR fusionnée en second **garde le sélecteur par `testid`**. OK de Q pour #392 en fc71aad et pour #396 en 93feb87.
+7. **Points mineurs de Q, non bloquants** : B les traite en fin de V1.1, seulement s'il reste de la capacité. #392 : remettre à zéro `titleEditedByHand`, et ajouter un e2e du flux en série. #396 : un test des nouveaux boutons.

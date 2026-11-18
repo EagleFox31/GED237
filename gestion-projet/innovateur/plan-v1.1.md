@@ -479,3 +479,21 @@ Correction du 18/11, soir, après le retour de B transmis par O : le barème de 
 | **Total V1.1** | **≈ 23,55** | **≈ 20,0** | **≈ 25,5** | **0,5** | **≈ 69,55** |
 
 F revient sous 20,3, et la réserve de Q remonte à ≈ 1,65. Si (a) glisse en V1.1, F passe à ≈ 20,5 : il faut alors sortir aussi #338 (deuxième candidate). **À trancher par O**, et par le PO pour le lot 6 qu'il a demandé.
+
+**Décision de O (18/11, nuit)** :
+- Le point M (saisie gardée à travers la reconnexion) et le point S (orientation du premier jour) du lot 6 passent en **V1.2**.
+- **#359 reste en V1.1** : c'est une décision du PO, et les chiffres tiennent sans la sortir.
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Total V1.1 si (a) entre en V1.0 (tableau ci-dessus) | 23,55 | 21,75 | 26,75 | 0,5 | 72,55 |
+| Lot 6 M et S vers la V1.2 | — | − 1,5 | − 0,75 | — | − 2,25 |
+| **Total V1.1** | **≈ 23,55** | **≈ 20,25** | **≈ 26,0** | **0,5** | **≈ 70,3** |
+
+- **F** : 20,25 pour une capacité d'environ 20,3. Il ne reste presque plus de marge.
+- **Q** : la réserve remonte à ≈ 1,15.
+- **Si (a) glisse en V1.1** (F + 0,5, Q + 0,25), F passe à ≈ 20,75. O porte alors au PO la sortie de #359 (F 0,25, Q 0,5).
+
+**#391, #392 et #396** (OK de Q pour #392 en fc71aad et pour #396 en 93feb87) :
+- ces trois PR ne sont comptées dans aucun lot ; le temps de relecture que Q y a déjà passé est à confirmer par Q ;
+- les points mineurs relevés par Q sont confiés à B en fin de V1.1, **seulement s'il reste de la capacité**, et ne sont pas comptés : pour #392, remettre à zéro `titleEditedByHand` et ajouter un e2e du flux en série ; pour #396, un test des nouveaux boutons.
