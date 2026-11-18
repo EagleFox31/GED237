@@ -117,13 +117,6 @@ const WorkflowTasks: React.FC = () => {
         onCancel={() => setRejecting(null)}
       />
 
-      {/* Visual Workflow Chart */}
-      <div className="glass p-8 rounded-[2rem] border-white">
-        <h3 className="text-lg font-bold text-slate-800 mb-8">Efficacité du Service (Délai moyen de validation)</h3>
-        <div className="h-64 bg-slate-100/50 rounded-3xl flex items-center justify-center border border-dashed border-slate-200">
-            <p className="text-slate-400 font-bold italic">Graphique de performance analytique bientôt disponible</p>
-        </div>
-      </div>
     </div>
   );
 };
