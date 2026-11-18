@@ -103,6 +103,10 @@ async def test_workspace_and_tree(auth_client: AsyncClient):
     tree_resp = await auth_client.get("/api/v1/documents/tree")
     assert tree_resp.status_code == 200
     assert isinstance(tree_resp.json(), list)
+    # Deprecated in favour of /spaces/tree: announced, not removed.
+    assert tree_resp.headers["Deprecation"] == "true"
+    assert "Sunset" in tree_resp.headers
+    assert "/spaces/tree" in tree_resp.headers["Link"]
 
     # Test workspace
     ws_resp = await auth_client.get("/api/v1/documents/workspace")
