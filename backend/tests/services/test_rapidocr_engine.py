@@ -207,3 +207,27 @@ def test_disabled_engine_never_loads_models(monkeypatch, tmp_path):
 def test_default_max_side_keeps_the_memory_peak_bounded():
     # 2000 px measured 755-895 MB, 1600 px 609-695 MB (memory.peak, 2 GB worker).
     assert Settings().OCR_RAPIDOCR_MAX_SIDE == 1600
+
+
+def test_fallback_switch_off_keeps_the_light_rapidocr_to_tesseract_fallback(
+    monkeypatch,
+):
+    """OCR_FALLBACK_ENABLED only governs the heavy EasyOCR fallback."""
+    monkeypatch.setattr(settings, "OCR_FALLBACK_ENABLED", False)
+    strategy = _strategy()
+    strategy.rapidocr.result = _result("", 0.0, "RapidOCR")  # engine failed
+    result = strategy.process_image("photo.jpg", DocumentType.PHOTO)
+
+    assert result.engine_used == "Tesseract"
+    assert strategy.tesseract.calls == 1
+    assert strategy.easyocr.calls == 0
+
+
+def test_fallback_switch_off_still_blocks_easyocr_after_weak_tesseract(monkeypatch):
+    monkeypatch.setattr(settings, "OCR_FALLBACK_ENABLED", False)
+    strategy = _strategy(primary="tesseract")
+    strategy.tesseract.result = _result("agrafeuses", 0.57, "Tesseract")
+    result = strategy.process_image("photo.jpg", DocumentType.SCANNED_DOCUMENT)
+
+    assert result.engine_used == "Tesseract"
+    assert strategy.easyocr.calls == 0

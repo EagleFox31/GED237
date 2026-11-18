@@ -45,9 +45,18 @@ class OCRStrategy:
         self.rapidocr = RapidOCREngine()
         self.primary_engine = (primary_engine or settings.OCR_PRIMARY_ENGINE).lower()
 
-    @staticmethod
-    def _should_use_fallback(result: OCRResult) -> bool:
-        """Fallback when the primary engine failed or produced weak OCR."""
+    def _should_use_fallback(self, result: OCRResult, fallback_engine=None) -> bool:
+        """Fallback when the primary engine failed or produced weak OCR.
+
+        The heavy fallback (EasyOCR) is off by default (OCR_FALLBACK_ENABLED): it exceeds
+        the worker memory limit, which kills the task, so the primary text is kept as is.
+        The light fallback to Tesseract is never switched off by that setting.
+        """
+        heavy = fallback_engine is getattr(self, "easyocr", None) or (
+            getattr(fallback_engine, "name", "").lower() == "easyocr"
+        )
+        if heavy and not settings.OCR_FALLBACK_ENABLED:
+            return False
         return not result.text.strip() or not result.is_reliable
 
     @staticmethod
@@ -89,7 +98,7 @@ class OCRStrategy:
         result = primary_engine.extract_from_image(image_path)
 
         # Try fallback if the primary result is empty or unreliable.
-        if try_fallback and self._should_use_fallback(result):
+        if try_fallback and self._should_use_fallback(result, fallback_engine):
             print(
                 f"⚠️ Primary OCR weak/empty ({result.confidence:.2%}), "
                 f"trying fallback engine: {fallback_engine.name}"
@@ -138,7 +147,7 @@ class OCRStrategy:
             for page_number, page_image in enumerate(pages, start=1):
                 result = self.tesseract.extract_from_pil_image(page_image)
 
-                if self._should_use_fallback(result):
+                if self._should_use_fallback(result, self.easyocr):
                     fallback_result = self.easyocr.extract_from_pil_image(page_image)
                     if self._prefer_fallback(result, fallback_result):
                         result = fallback_result

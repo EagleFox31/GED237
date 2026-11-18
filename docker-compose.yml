@@ -194,6 +194,7 @@ services:
       OCR_RAPIDOCR_ENABLED: ${OCR_RAPIDOCR_ENABLED:-true}
       OCR_RAPIDOCR_MAX_SIDE: ${OCR_RAPIDOCR_MAX_SIDE:-1600}
       OCR_RAPIDOCR_TIMEOUT_SECONDS: ${OCR_RAPIDOCR_TIMEOUT_SECONDS:-60}
+      OCR_FALLBACK_ENABLED: ${OCR_FALLBACK_ENABLED:-false}
     depends_on:
       redis:
         condition: service_healthy
