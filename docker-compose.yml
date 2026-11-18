@@ -137,6 +137,12 @@ services:
       # Watched folders: read here only for GET /documents/ingest-watch/status.
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      # Per-file upload cap (MB), every upload path.
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
+      # Account e-mails (off unless a key is set).
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
@@ -192,6 +198,8 @@ services:
       INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
       OCR_PRIMARY_ENGINE: ${OCR_PRIMARY_ENGINE:-tesseract}
       OCR_FALLBACK_ENABLED: ${OCR_FALLBACK_ENABLED:-false}
+      # Same upload cap as the api: watched-folder imports go through the storage layer.
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
     depends_on:
       redis:
         condition: service_healthy
