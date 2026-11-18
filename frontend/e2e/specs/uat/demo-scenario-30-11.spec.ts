@@ -70,9 +70,11 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     if ((await service.count()) > 0) await service.first().selectOption({ index: 1 });
     await page.getByRole('button', { name: 'Continuer vers la vérification' }).click();
 
+    await page.getByRole('button', { name: 'Vérifier le classement', exact: true }).click();
     for (const card of ['Fichiers analysés', 'Prêts', 'À revoir']) {
       await expect(page.getByText(card, { exact: false }).first()).toBeVisible({ timeout: 30_000 });
     }
+    await page.getByRole('button', { name: /Continuer vers l.import/ }).click();
     await page.getByRole('button', { name: /Importer les documents/ }).click();
     for (const card of ['Importés', 'À arbitrer', 'Doublons', 'Erreurs']) {
       await expect(page.getByText(card, { exact: false }).first()).toBeVisible({ timeout: 60_000 });
