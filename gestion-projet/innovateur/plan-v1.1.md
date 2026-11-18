@@ -409,18 +409,22 @@ Tailles relevées le 18/11 (`gh pr view --json additions,deletions`) ; toutes le
 | #353 test propriétaire / assigné | Q | +25/−2 | — | 0,1 |
 | #335 générateur d'export de test | B | +23/−1 | 0,25 | 0,05 |
 | #312 garde d'espace disque | doc | +88/−0 | — | 0,05 |
-| **Total** | | | **B 1,05, F 2,3** | **Q ≈ 4,1** |
+| **Total** | | | **B 0,9 (barème de B ; 1,05 au barème Déduit), F 2,3** | **Q ≈ 4,1** |
 
 | | B | F | Q | I | Total |
 |---|---|---|---|---|---|
 | Avant (§ « #309 ») | 22,4 | 17,5 | 20,35 | 0,5 | 60,75 |
-| 25 PR hors lot (décision du PO) | + 1,05 | + 2,3 | + 4,1 | — | + 7,45 |
-| **Total V1.1** | **≈ 23,45** | **≈ 19,8** | **≈ 24,45** | **0,5** | **≈ 68,2** |
+| 25 PR hors lot (décision du PO), barème de B corrigé | + 0,9 | + 2,3 | + 4,1 | — | + 7,3 |
+| #335 conservée : renumérotation de la leçon 054 (B) | + 0,1 | — | — | — | + 0,1 |
+| Relecture de Q pour #394, #399 et #404, non comptée jusqu'ici | — | — | + 0,5 | — | + 0,5 |
+| Relecture de Q pour #362 (lot 4 UX, après le tag) | — | — | + 0,5 | — | + 0,5 |
+| **Total V1.1** | **≈ 23,4** | **≈ 19,8** | **≈ 25,45** | **0,5** | **≈ 69,15** |
+
+Correction du 18/11, soir, après le retour de B transmis par O : le barème de B passe de 1,05 à 0,9 h-s, #335 reste, et deux relectures de Q sont ajoutées.
 
 **Verdict** :
 - **B et F tiennent, F de justesse.** Ils avaient ≈ 4 à 5 h-s de marge chacun quand F était à 15,5. Il reste ≈ 2 h-s à B et ≈ 0,5 à F (`Déduit`).
-- **Q dépasse les ≈ 22 h-s hors réserve de ≈ 2,45 h-s.** O réserve les ≈ 1,65 h-s restants aux relances d'e2e et au dépilage des piles. Les 4,1 h-s viennent donc **entièrement de la réserve de 6,8 (03 et 04/12)**, et il en reste ≈ 2,7.
-- La relecture de Q du lot 4 UX (#362, ≈ 0,5 h-s, décision de O : « après le tag ») ne figure dans aucun total. Si elle s'ajoute, il reste ≈ 2,2.
+- **Q dépasse les ≈ 22 h-s hors réserve.** O réserve les ≈ 1,65 h-s restants aux relances d'e2e et au dépilage des piles. Les 5,1 h-s ajoutés viennent donc **entièrement de la réserve de 6,8 (03 et 04/12)**, et il en reste **≈ 1,7**.
 - **Le 04/12 tient, mais sans filet** : une seule reprise lourde (migration, Dependabot, pile à re-cibler) consomme le reste de la réserve.
 
 **PR qui risquent de ne pas passer avant le 04/12.** Elles sont au bout d'une chaîne sur un fichier chaud, ou demandent une relecture lourde, et tombent donc les 03 et 04/12 :
@@ -431,8 +435,10 @@ Tailles relevées le 18/11 (`gh pr view --json additions,deletions`) ; toutes le
 | #359 reconnexion plus rapide | Touche la connexion (2FA, jetons) : relecture de sécurité, 476 lignes, CONFLICTING | 1re candidate à la V1.2 |
 | #338 aperçu intégré | Après #290 dans la chaîne de la fiche (#290 → #293 → #295) | 2e candidate |
 | #371 liste vide expliquée | Bout de la chaîne `Documents.tsx` : #388 → #351 → #354 → #371, plus #355 et #296 sur le même fichier | Petite, elle peut passer le 04 au matin. Sinon 3e candidate. |
-| #335 générateur d'export de test | CONFLICTING. C'est un outil de test sans valeur pour les agents. | À fermer plutôt qu'à rebaser, si B confirme qu'il ne sert plus. |
 
-**Ordre de sortie vers la V1.2**, si la réserve de Q passe sous 1 h-s avant le 03/12 : #335 (fermeture), puis #359, #338 et #371. Les 21 autres sont petites, ou sont la base d'une autre PR : #389, #372, #384 et #388 ouvrent les vagues 0 et 2.
+
+**#335 reste en V1.1 (B, 18/11).** `main` n'a pas `ALLOW_TEXT_FALLBACK`, et sans ce réglage le générateur produit de faux PDF de 140 octets. B renumérote la leçon 054 (≈ 0,1 h-s, compté ci-dessus).
+
+**Ordre de sortie vers la V1.2**, si la réserve de Q passe sous 1 h-s avant le 03/12 : #359, puis #338, puis #371. Les 21 autres sont petites, ou sont la base d'une autre PR : #389, #372, #384 et #388 ouvrent les vagues 0 et 2.
 
 **Règle « pas d'ajout sans sortie »** : ici, c'est le PO qui la lève, pour ce lot seulement. Elle reste en vigueur pour tout ajout suivant. #278 reste en V1.2 (décision de O) : le faire revenir prendrait Q 0,5 sur la réserve.

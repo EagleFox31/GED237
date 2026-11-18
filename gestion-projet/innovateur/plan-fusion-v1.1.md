@@ -37,7 +37,7 @@ gh pr view <n> --json headRefOid -q .headRefOid     # tête, à comparer à l'OK
 5. **Conditions de fusion** : OK de Q sur la tête, CI Gate verte et, pour une PR empilée, base déjà fusionnée.
 6. **Dependabot en dernier** (lot 7) : #111, #112 et #141. Les versions majeures #29, #30, #110 et #113 sont sorties vers la V1.2 (O, 17/11).
 7. **Démo du 30/11** : si elle tourne sur `main` et non sur le tag, aucune fusion du 27 à 18:00 au 30 au soir. **Par défaut (O, 18/11) : la démo tourne sur le tag rc.1 (`release/v1.0.0`) et `main` n'est pas gelé.** Le § 8a est encore en discussion avec le PO. L'ordre ci-dessous en tient compte : rien de lourd n'est prévu le 27.
-8. **Règle « pas d'ajout sans sortie »** (`plan-v1.1.md`) : 25 PR V1.1 n'étaient rattachées à aucun lot chiffré (§ 2, colonne Lot « — »). **Tranché par le PO le 18/11 : toutes en V1.1.** La charge est recalculée dans `plan-v1.1.md`, § « Mise à jour du 18/11, soir » : Q + 4,1 h-s pris sur sa réserve. #359, #338, #371 et #362 risquent de glisser après le 04/12.
+8. **Règle « pas d'ajout sans sortie »** (`plan-v1.1.md`) : 25 PR V1.1 n'étaient rattachées à aucun lot chiffré (§ 2, colonne Lot « — »). **Tranché par le PO le 18/11 : toutes en V1.1.** La charge est recalculée dans `plan-v1.1.md`, § « Mise à jour du 18/11, soir » : Q + 5,1 h-s pris sur sa réserve (relectures de #362, #394, #399 et #404 comprises), il en reste ≈ 1,7. Ordre de sortie si besoin : #359, #338, #371.
 
 ## 2. Ordre de fusion proposé (PR V1.1, hors section PO)
 
@@ -170,7 +170,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | Ordre | PR | Rôle | Note |
 |---|---|---|---|
 | 58 | #111, #112, #141 (Dependabot, lot 7) | Q | Une à une, CI complète entre chaque. |
-| 59 | #335 générateur d'export de test sans faux repli | B | Outil de test, CONFLICTING ; à rebaser ou à fermer. |
+| 59 | #335 générateur d'export de test sans faux repli | B | Outil de test, CONFLICTING ; à rebaser. Gardée (B, 18/11) : sans elle, faux PDF de 140 octets. |
 | 60 | #312 garde d'espace disque avant une charge | doc | Script local ; sans risque. |
 | 61 | #189 leçon 038, #166 carnet de la suite | doc | « Hors chaîne » dans le lot 1. Les fermer si leur contenu est déjà sur `main`. |
 
