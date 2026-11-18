@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../../services/api';
 import { categoriesApi } from '../../../../services/categories.api';
+import { inactiveRuleBadgeText } from '../../../../lib/simulatorInactiveBadge';
 
 const ACTION_LABELS: Record<string, string> = {
   visa: 'Visa',
@@ -62,6 +63,7 @@ const SimulatorTab: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [results, setResults] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [includeInactive, setIncludeInactive] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -103,6 +105,7 @@ const SimulatorTab: React.FC = () => {
         document_category_id: documentCategoryId,
         org_unit_id: orgUnitId || null,
         owner_id: ownerId || null,
+        ...(includeInactive ? { include_inactive: true } : {}),
       });
       setResults(res);
     } catch {
@@ -173,6 +176,16 @@ const SimulatorTab: React.FC = () => {
                 Sélectionnez l'auteur réel du document pour tester les cas d'auto-rédaction et d'auto-validation interdite.
               </p>
             </div>
+
+            <label className="flex items-center gap-2.5 cursor-pointer select-none pt-1">
+              <input
+                type="checkbox"
+                checked={includeInactive}
+                onChange={(e) => setIncludeInactive(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+              />
+              <span className="text-xs font-bold text-slate-600">Inclure les règles désactivées</span>
+            </label>
           </div>
 
           <button
@@ -250,7 +263,14 @@ const SimulatorTab: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Règle d'aiguillage trouvée</p>
-                    <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">{results.matched_rule_name}</h2>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">{results.matched_rule_name}</h2>
+                      {inactiveRuleBadgeText(results.rule_is_active) && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-0.5 text-[11px] font-bold text-amber-800">
+                          {inactiveRuleBadgeText(results.rule_is_active)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
