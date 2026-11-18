@@ -36,6 +36,8 @@ async def update_document_ocr(
 
     Single Responsibility: Database update only
     """
+    from app.services import ocr_recovery
+
     async with AsyncSessionLocal() as session:
         document = await session.get(Document, document_id)
         if document:
@@ -47,12 +49,9 @@ async def update_document_ocr(
             # Store OCR metadata in extra_data. A new dict, not an in-place change: the
             # JSONB column is not change-tracked, so mutating it would never be written.
             # A finished OCR resets the delivery counter and the failure flag.
+            ocr_recovery.reset_ocr_attempts(document)
             document.extra_data = {
-                **{
-                    k: v
-                    for k, v in (document.extra_data or {}).items()
-                    if k not in ("ocr_deliveries", "ocr_failed")
-                },
+                **(document.extra_data or {}),
                 "ocr_confidence": confidence,
                 "ocr_engine": engine_used,
             }

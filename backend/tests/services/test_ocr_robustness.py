@@ -260,3 +260,33 @@ def test_a_task_delivered_again_and_again_stops_after_the_cap(tmp_path, monkeypa
 
     assert len(runs) == 3  # never more than N runs
     assert store["failed"] == "3 deliveries without a result"
+
+
+def test_reset_clears_every_attempt_marker_and_keeps_the_rest():
+    doc = Document(
+        extra_data={
+            ocr_recovery.DELIVERIES_KEY: 4,
+            ocr_recovery.FAILED_KEY: {"reason": "x"},
+            ocr_recovery.REQUEUE_COUNT_KEY: 3,
+            ocr_recovery.REQUEUE_AT_KEY: "2026-11-18T10:00:00+00:00",
+            "ocr_engine": "RapidOCR",
+        },
+    )
+    previous = doc.extra_data
+    ocr_recovery.reset_ocr_attempts(doc)
+    assert doc.extra_data == {"ocr_engine": "RapidOCR"}
+    assert doc.extra_data is not previous  # replaced, so the JSONB change is written
+
+
+def test_reset_on_a_document_without_extra_data():
+    doc = Document(extra_data=None)
+    ocr_recovery.reset_ocr_attempts(doc)
+    assert doc.extra_data == {}
+
+
+@pytest.mark.asyncio
+async def test_a_failed_document_is_swept_again_after_the_reset(db_seed, test_engine):
+    doc = _doc(db_seed, extra_data={ocr_recovery.FAILED_KEY: {"reason": "x"}})
+    ocr_recovery.reset_ocr_attempts(doc)
+    count, sent, _ = await _sweep(test_engine, [doc])
+    assert count == 1 and len(sent) == 1

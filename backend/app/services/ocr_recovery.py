@@ -21,6 +21,7 @@ REQUEUE_COUNT_KEY = "ocr_requeues"
 REQUEUE_AT_KEY = "ocr_last_requeue_at"
 DELIVERIES_KEY = "ocr_deliveries"
 FAILED_KEY = "ocr_failed"
+ATTEMPT_KEYS = (REQUEUE_COUNT_KEY, REQUEUE_AT_KEY, DELIVERIES_KEY, FAILED_KEY)
 BATCH_SIZE = 50
 
 
@@ -65,6 +66,18 @@ async def mark_failed(session_factory, document_id: str, reason: str) -> None:
             },
         }
         await session.commit()
+
+
+def reset_ocr_attempts(document: Document) -> None:
+    """Forget every OCR attempt counter and the failure flag of a document.
+
+    Single entry point used when the OCR succeeds and by the manual retry tools
+    (backend/scripts/reocr.py): the document starts again with a clean slate.
+    A new dict, not an in-place change: the JSONB column is not change-tracked.
+    """
+    document.extra_data = {
+        k: v for k, v in (document.extra_data or {}).items() if k not in ATTEMPT_KEYS
+    }
 
 
 def delivery_cap_reached(count: int) -> bool:
