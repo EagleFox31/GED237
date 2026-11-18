@@ -136,12 +136,16 @@ async def test_refresh_refused_after_logout(async_client: AsyncClient, db_seed):
 
 
 @pytest.mark.asyncio
-async def test_logout_without_body_still_works(async_client: AsyncClient, db_seed):
-    """Former clients send no body: the access token is still revoked."""
+@pytest.mark.parametrize("body", [None, {"refresh_token": None}])
+async def test_logout_without_refresh_token_still_works(
+    async_client: AsyncClient, db_seed, body
+):
+    """Former clients send no body, the front sends null when nothing is
+    stored: the access token is still revoked."""
     tokens = await _full_login(async_client, db_seed)
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     assert (
-        await async_client.post("/api/v1/auth/logout", headers=headers)
+        await async_client.post("/api/v1/auth/logout", headers=headers, json=body)
     ).status_code == 200
     assert (
         await async_client.get("/api/v1/users/me", headers=headers)
