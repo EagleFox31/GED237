@@ -107,19 +107,69 @@ async def _run_sql(test_engine, statement) -> None:
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_is_single_use(async_client: AsyncClient, db_seed):
-    """#414: a rotated refresh token cannot be replayed."""
+async def test_parallel_refreshes_share_one_pair(async_client: AsyncClient, db_seed):
+    """#414: calls sent together at expiry all succeed with the same new pair,
+    so a replay never opens a second chain."""
+    import asyncio
+
+    tokens = await _full_login(async_client, db_seed)
+    responses = await asyncio.gather(
+        *(_refresh(async_client, tokens["refresh_token"]) for _ in range(3))
+    )
+    assert [r.status_code for r in responses] == [200, 200, 200]
+    pairs = {(r.json()["access_token"], r.json()["refresh_token"]) for r in responses}
+    assert len(pairs) == 1
+    assert responses[0].json()["refresh_token"] != tokens["refresh_token"]
+
+
+@pytest.mark.asyncio
+async def test_replay_after_the_window_is_refused(
+    async_client: AsyncClient, db_seed, monkeypatch
+):
+    """#414: once the reuse window is over, the rotated token is refused."""
+    import asyncio
+
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "REFRESH_REUSE_WINDOW_SECONDS", 1)
     tokens = await _full_login(async_client, db_seed)
     first = await _refresh(async_client, tokens["refresh_token"])
     assert first.status_code == 200
-    assert first.json()["refresh_token"] != tokens["refresh_token"]
+    await asyncio.sleep(1.3)
 
-    replay = await _refresh(async_client, tokens["refresh_token"])
-    assert replay.status_code == 401
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 401
     # The rotated token keeps working.
     assert (
         await _refresh(async_client, first.json()["refresh_token"])
     ).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_window_zero_is_strict_single_use(
+    async_client: AsyncClient, db_seed, monkeypatch
+):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "REFRESH_REUSE_WINDOW_SECONDS", 0)
+    tokens = await _full_login(async_client, db_seed)
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 200
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_ends_the_reuse_window(async_client: AsyncClient, db_seed):
+    """#414: after logout, replaying the previous refresh token within the
+    window does not hand the revoked pair back."""
+    tokens = await _full_login(async_client, db_seed)
+    new = (await _refresh(async_client, tokens["refresh_token"])).json()
+    logout = await async_client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": new["refresh_token"]},
+        headers={"Authorization": f"Bearer {new['access_token']}"},
+    )
+    assert logout.status_code == 200
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 401
+    assert (await _refresh(async_client, new["refresh_token"])).status_code == 401
 
 
 @pytest.mark.asyncio

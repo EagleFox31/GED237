@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # A rotated refresh token replayed within this window gets back the pair
+    # already issued (parallel calls at access-token expiry); after it, the
+    # replay is refused. 0 = strict single use.
+    REFRESH_REUSE_WINDOW_SECONDS: int = Field(default=30, ge=0, le=300)
 
     # Auth rate limits (slowapi syntax: "<count>/<minute|hour|day>"), keyed by
     # client IP. Demo stacks raise them (docker-compose.yml); tests set them high.

@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
+import hashlib
+import json
 import logging
 import re
 import secrets
@@ -313,7 +315,8 @@ class AuthService:
     ) -> Dict[str, str]:
         """
         Rotate a refresh token: the old one is consumed, the account is re-read.
-        Refused (401) after logout, on reuse, or for a deactivated or moved account.
+        Refused (401) after logout, on reuse after REFRESH_REUSE_WINDOW_SECONDS,
+        or for a deactivated or moved account.
         """
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
@@ -334,8 +337,18 @@ class AuthService:
         if user is None or str(user.tenant_id) != payload.get("tenant_id"):
             raise AuthenticationError("Invalid refresh token")
 
-        if not await self._revoke(redis, refresh_token, payload.get("exp")):
-            raise AuthenticationError("Invalid refresh token")
+        window = settings.REFRESH_REUSE_WINDOW_SECONDS
+        digest = hashlib.sha256(refresh_token.encode()).hexdigest()
+        reuse_key, used_key = f"refresh_reuse:{digest}", f"refresh_used:{digest}"
+
+        # Parallel calls at access-token expiry all send the same refresh token:
+        # within the window they get back the pair already issued, never a new one.
+        if window > 0:
+            issued = await redis.get(reuse_key)
+            if issued:
+                return await self._reissued_pair(redis, issued)
+            if await redis.get(used_key):
+                raise AuthenticationError("Invalid refresh token")
 
         result = await db.execute(select(Role).where(Role.id == user.role_id))
         role = result.scalar_one()
@@ -346,11 +359,44 @@ class AuthService:
             "role": role.code,
             "matricule": user.matricule,
         }
-        return {
+        pair = {
             "access_token": create_access_token(token_data),
             "refresh_token": create_refresh_token(token_data),
             "token_type": "bearer",
         }
+
+        if window <= 0:
+            if not await self._mark_used(redis, used_key, payload.get("exp")):
+                raise AuthenticationError("Invalid refresh token")
+            return pair
+
+        # SET NX stores the pair and elects the rotation in one step: a concurrent
+        # call that loses reads the winner's pair back.
+        if not await redis.set(reuse_key, json.dumps(pair), ex=window, nx=True):
+            issued = await redis.get(reuse_key)
+            if not issued:
+                raise AuthenticationError("Invalid refresh token")
+            return await self._reissued_pair(redis, issued)
+        # After the window, a replay finds this mark and is refused.
+        await self._mark_used(redis, used_key, payload.get("exp"))
+        return pair
+
+    @staticmethod
+    async def _mark_used(redis, key: str, exp: Any) -> bool:
+        """Mark a rotated refresh token until it expires; False if already marked."""
+        remaining = int(exp - time.time()) if exp else 0
+        if remaining <= 0:
+            return False
+        return bool(await redis.set(key, "1", ex=remaining, nx=True))
+
+    @staticmethod
+    async def _reissued_pair(redis, issued: Any) -> Dict[str, str]:
+        """The pair issued at the first rotation, unless a logout revoked it since."""
+        pair = json.loads(issued)
+        for token in (pair["refresh_token"], pair["access_token"]):
+            if await redis.get(f"blacklist:{token}"):
+                raise AuthenticationError("Invalid refresh token")
+        return pair
 
     async def logout(
         self, access_token: str, refresh_token: Optional[str] = None
