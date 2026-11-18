@@ -99,7 +99,7 @@
 
 **Points de vigilance** :
 - **Un seul processus d'API** aujourd'hui (`uvicorn` sans `--workers`) : un gestionnaire en mémoire suffit. Si une notification naît dans le worker Celery (import en tâche de fond) ou si l'API passe à plusieurs processus, il faut un relais par Redis (déjà présent, pas de nouvelle bibliothèque). `À vérifier` par B : où naissent les revues pendant un import.
-- **Jeton dans l'adresse du WebSocket** (`?token=`, `useNotifications.ts` l. 38) : il peut finir dans les journaux d'accès du relais. Existant, hors périmètre, mais à noter pour la relecture de sécurité.
+- **Jeton dans l'adresse du WebSocket** (`?token=`, `useNotifications.ts` l. 38) : il peut finir dans les journaux d'accès du relais. Existant, suivi par le ticket **#316** (security, v1.2) : ticket de courte durée ou jeton envoyé dans le premier message. **À traiter avant ou avec l'élément 23**, qui fait reposer davantage de trafic sur ce WebSocket.
 - HTTPS requis pour l'API `Notification` (même limite qu'à l'élément 21).
 - Isolation : le destinataire est résolu côté serveur, dans le `tenant_id` de l'événement ; jamais d'envoi à un identifiant fourni par le navigateur.
 
