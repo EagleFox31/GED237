@@ -612,3 +612,17 @@ première requête utilisateur.
 **Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
 **Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
 **Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-050 — `page.goto('/…')` sortait de l'application : un test e2e rouge, une CI verte
+
+- **Date :** 2026-11-18
+- **Catégorie :** testing / e2e
+- **Statut :** prevention-added
+- **Liens :** `frontend/e2e/specs/document-open-link.spec.ts`, `frontend/playwright.config.ts` (`baseURL`), `.github/workflows/frontend.yml` (étape « E2E specs navigate relative to baseURL »), PR #296
+
+**Contexte** — #296 ajoute une spec qui ouvre `/documents?open=<id inconnu>` et attend le message « Ce document n'existe pas ou ne vous est pas accessible. ».
+**Échec / near miss** — Campagne e2e du 18/11 sur e08d9d4 : test en échec, retry compris (le message n'apparaît jamais). La CI GitHub de la PR était verte, car elle ne lance pas cette spec.
+**Cause racine** — `page.goto('/documents…')` : un chemin qui commence par `/` remplace le chemin de `baseURL` (`http://127.0.0.1:5173/edossier/`). La page ouverte, `/documents`, est hors de l'application. Toutes les autres specs écrivent `goto('documents…')`.
+**Résolution** — `page.goto('documents?open=…')`, puis le passage relancé seul sur une pile isolée.
+**Prévention** — Étape CI dans le job « Lint & Typecheck » : `git grep -nE "goto\(['\"]/" -- frontend/e2e` fait échouer le job si un chemin absolu réapparaît.
+**Leçon généralisée** — Une spec e2e ajoutée doit être exécutée avant fusion, même quand la CI est verte : la CI peut ne pas la lancer. Une convention que toutes les specs respectent sauf une mérite un contrôle automatique plutôt qu'un rappel.
