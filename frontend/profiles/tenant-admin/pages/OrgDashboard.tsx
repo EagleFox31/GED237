@@ -35,13 +35,14 @@ const OrgDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   // Tâches qui m'attendent, distinctes des visas en cours dans tout le ministère.
-  const [myTasks, setMyTasks] = useState<number | null>(null);
+  // null : en cours de lecture ; 'error' : compteur indisponible, affiché « — » plutôt qu'un faux 0.
+  const [myTasks, setMyTasks] = useState<number | null | 'error'>(null);
 
   useEffect(() => {
     let cancelled = false;
     api.getMyWorkflowCounters()
       .then((counters) => { if (!cancelled) setMyTasks(counters.tasks); })
-      .catch(() => { if (!cancelled) setMyTasks(0); });
+      .catch(() => { if (!cancelled) setMyTasks('error'); });
     return () => { cancelled = true; };
   }, []);
 
@@ -85,7 +86,7 @@ const OrgDashboard: React.FC = () => {
           iconColor="text-rdpc-blue"
           iconBg="bg-blue-50"
           label="Mes visas"
-          value={myTasks === null ? '...' : String(myTasks)}
+          value={myTasks === null ? '...' : myTasks === 'error' ? '—' : String(myTasks)}
           subtext={myTasks === 1 ? 'Document vous attend' : 'Documents vous attendent'}
           onClick={() => navigate('/tasks')}
           actionLabel="Ouvrir mes tâches"

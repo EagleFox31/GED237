@@ -55,6 +55,15 @@ test.describe('Accueil : documents à corriger et mes visas', () => {
     await expect(page).toHaveURL(/\/tasks$/);
   });
 
+  test('compteur indisponible : la tuile affiche « — », pas un faux 0', async ({ page, loginAs }) => {
+    await page.route('**/workflows/my-counters', (route) => route.fulfill({ status: 403, body: '{}' }));
+    await loginAs('tenant_admin');
+    await page.goto('dashboard');
+
+    const tile = page.getByText('Mes visas', { exact: true }).locator('..');
+    await expect(tile.getByRole('heading', { level: 4 })).toHaveText('—');
+  });
+
   test('sans simulation, la tuile lit le vrai compteur sans alerte', async ({ page, loginAs }) => {
     await loginAs('tenant_admin');
     await page.goto('dashboard');
