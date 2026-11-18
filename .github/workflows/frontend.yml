@@ -34,7 +34,7 @@ jobs:
       # LESSON-2026-050: page.goto('/…') ignores baseURL /edossier/ and leaves the app.
       - name: E2E specs navigate relative to baseURL
         run: |
-          if git grep -nE "goto\(['\"]/" -- frontend/e2e; then
+          if git grep -nE "goto\(['\"\`]/" -- frontend/e2e; then
             echo "::error::page.goto('/…') leaves baseURL /edossier/: write goto('documents…'), without the leading slash"
             exit 1
           fi

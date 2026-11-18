@@ -624,5 +624,5 @@ première requête utilisateur.
 **Échec / near miss** — Campagne e2e du 18/11 sur e08d9d4 : test en échec, retry compris (le message n'apparaît jamais). La CI GitHub de la PR était verte, car elle ne lance pas cette spec.
 **Cause racine** — `page.goto('/documents…')` : un chemin qui commence par `/` remplace le chemin de `baseURL` (`http://127.0.0.1:5173/edossier/`). La page ouverte, `/documents`, est hors de l'application. Toutes les autres specs écrivent `goto('documents…')`.
 **Résolution** — `page.goto('documents?open=…')`, puis le passage relancé seul sur une pile isolée.
-**Prévention** — Étape CI dans le job « Lint & Typecheck » : `git grep -nE "goto\(['\"]/" -- frontend/e2e` fait échouer le job si un chemin absolu réapparaît.
+**Prévention** — Étape CI dans le job « Lint & Typecheck » : `git grep -nE "goto\(['\"\`]/" -- frontend/e2e` fait échouer le job si un chemin absolu réapparaît (guillemets simples, doubles ou gabarit).
 **Leçon généralisée** — Une spec e2e ajoutée doit être exécutée avant fusion, même quand la CI est verte : la CI peut ne pas la lancer. Une convention que toutes les specs respectent sauf une mérite un contrôle automatique plutôt qu'un rappel.
