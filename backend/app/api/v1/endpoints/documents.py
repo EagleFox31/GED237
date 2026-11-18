@@ -1195,6 +1195,11 @@ async def get_org_unit_tree(
         .order_by(OrgUnit.level, OrgUnit.name)
     )
 
+    # unit_admin: its own unit and the units below it; its unit becomes the root.
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if unit_ids is not None:
+        query = query.where(OrgUnit.id.in_(unit_ids))
+
     result = await db.execute(query)
     units = result.scalars().all()
 
@@ -1210,6 +1215,11 @@ async def get_org_unit_tree(
         }
         for u in units
     }
+
+    if unit_ids is not None and current_user.org_unit_id:
+        own = nodes.get(str(current_user.org_unit_id))
+        if own:
+            own["parent_id"] = None
 
     tree = []
     for unit_id, node in nodes.items():
