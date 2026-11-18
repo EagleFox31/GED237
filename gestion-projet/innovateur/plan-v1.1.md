@@ -253,3 +253,21 @@ B et F restent dans leur capacité. Avec la sortie de #278, Q revient à 22,0, s
 
 - Q a ≈ 0,25 h-s devant lui avant d'atteindre 22.
 - **#278 reste en V1.2** : le faire revenir coûterait Q + 0,5, soit ≈ 22,25, au-dessus de 22.
+
+**Transfert du 18/11 (décision de O) : 1,5 h-s passent de Q à F.** Q garde les verdicts ; F écrit et fait tourner les tests suivants :
+
+| Tâche transférée | h-s |
+|---|---|
+| Spec e2e du 404 hors périmètre (#263) | 0,5 |
+| E2e de l'audit (#262 et #179) | 0,4 |
+| Jeu de documents OCR (#284) | 0,3 |
+| Mesure à l'écran de l'import, sur la version compilée (réserve du scénario de démo, § 10) | 0,3 |
+| **Total** | **1,5** |
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Après le retrait de #300 | 22,4 | 15,75 | 21,75 | 0,5 | 60,4 |
+| Transfert de Q vers F | — | + 1,5 | − 1,5 | — | 0 |
+| **Total V1.1** | **≈ 22,4** | **≈ 17,25** | **≈ 20,25** | **0,5** | **≈ 60,4** |
+
+Q retrouve ≈ 1,75 h-s de marge avant 22. F reste dans sa capacité.
