@@ -613,6 +613,20 @@ première requête utilisateur.
 **Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
 **Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
 
+### LESSON-2026-051 — Clé de stockage dérivée du nom de fichier : un dépôt de même nom écrasait un autre fichier
+
+- **Date :** 2026-11-18
+- **Catégorie :** data-loss / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/storage/base.py` (`unique_storage_name`), `local.py`, `s3.py`, `backend/tests/api/test_version_storage_keys.py`
+
+**Contexte** — `save_file_with_checksum` rangeait chaque dépôt sous `{tenant}/{unité}/{nom du fichier}`, en local comme en S3/MinIO.
+**Échec / near miss** — Relevé pendant le chantier de restauration de version (V1.2) : deux dépôts de même nom dans la même unité s'écrasaient. Une nouvelle version au nom identique détruisait les octets de la version précédente ; deux dépôts directs de même nom, ceux d'un autre document. Les branches « identique à la version courante » supprimaient ensuite le fichier partagé, donc la version courante elle-même.
+**Cause racine** — La clé de stockage venait d'une donnée utilisateur non unique (le nom), et aucun test ne déposait deux fois le même nom.
+**Résolution** — Clé `{uuid}_{nom}` (le motif de l'import) dans les deux backends, via un seul point (`unique_storage_name`). Aucune migration : les fichiers existants ne sont pas touchés.
+**Prévention** — Tests : même nom deux fois avec octets différents (deux chemins, deux lectures, sha256 = checksum), dépôt identique refusé sans perdre la version courante, retour à une ancienne version refusé, deux dépôts directs de même nom, clé S3 distincte.
+**Leçon généralisée** — Une clé de stockage ne se dérive jamais d'une donnée fournie par l'utilisateur sans élément unique. Tout stockage testé avec deux entrées de même nom, et toute suppression « de nettoyage » vérifie que le fichier n'est pas partagé.
+
 ### LESSON-2026-052 — Disque C: saturé pendant une nuit de sessions parallèles : écritures et commits gelés
 
 - **Date :** 2026-11-18

@@ -1,3 +1,4 @@
+import uuid
 from abc import ABC, abstractmethod
 from fastapi import UploadFile
 from typing import Optional, Tuple
@@ -62,3 +63,12 @@ class IStorageService(ABC):
         Read the entire file content into memory.
         """
         pass
+
+
+def unique_storage_name(filename: str | None) -> str:
+    """Stored name of an upload: ``<uuid>_<name>``, the import pattern.
+
+    A key derived from the bare file name made two uploads with the same name in
+    the same directory overwrite each other (other documents, previous versions).
+    """
+    return f"{uuid.uuid4().hex}_{filename or 'document'}"
