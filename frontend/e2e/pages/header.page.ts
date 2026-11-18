@@ -91,6 +91,33 @@ export class HeaderPage {
     await this.searchInput.clear();
   }
 
+  /**
+   * Result row of the global search (#256): a button named « Ouvrir <titre> ».
+   * The global list only exists outside /documents, /spaces, /users and /pending-assignments,
+   * where the same bar filters the page instead.
+   */
+  searchResult(title: string): Locator {
+    return this.page.getByRole('button', { name: `Ouvrir ${title}` });
+  }
+
+  /** Types the query, then waits for the result (500 ms debounce, 2 characters minimum). */
+  async searchFor(query: string, expectedTitle: string) {
+    await this.searchInput.fill(query);
+    await expect(this.searchResult(expectedTitle)).toBeVisible({ timeout: 10_000 });
+  }
+
+  /** Searches a title and clicks its result: the app goes to /documents?open=<id>. */
+  async searchAndOpen(title: string) {
+    await this.searchFor(title, title);
+    await this.searchResult(title).click();
+  }
+
+  /** Searches a title and presses Enter in the field: the first result opens. */
+  async searchAndOpenWithEnter(title: string) {
+    await this.searchFor(title, title);
+    await this.searchInput.press('Enter');
+  }
+
   // --- Notifications ---
 
   async openNotifications() {

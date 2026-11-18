@@ -32,7 +32,7 @@ class DashboardFacade:
         ``units``: ids of the units counted (``unit_subtree_ids``); None, the
         whole institution. Same keys either way.
         Documents in the recycle bin are left out, as in get_manager_metrics:
-        they are no longer among the institution files (#218).
+        they are no longer among the institution files (#218, #256).
         """
         # 1. User Statistics
         stmt_users = select(func.count(User.id)).where(User.tenant_id == tenant_id)
@@ -190,7 +190,7 @@ class DashboardFacade:
         stmt_global_docs = select(
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
-        ).where(Document.deleted_at.is_(None))  # recycle bin left out (#218)
+        ).where(Document.deleted_at.is_(None))
         global_doc_res = (await self.db.execute(stmt_global_docs)).first()
 
         total_docs = global_doc_res.total_docs if global_doc_res else 0
