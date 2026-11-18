@@ -70,6 +70,8 @@ class DocumentRead(DocumentBase):
     updated_at: datetime
     owner_name: Optional[str] = None
     current_version_number: Optional[str] = None
+    # not_processed | processing | completed | failed (read only, derived).
+    ocr_status: str = "not_processed"
 
     class Config:
         from_attributes = True
