@@ -78,12 +78,16 @@ const withoutPerRequest = (value: unknown): unknown => {
   return value;
 };
 
-/** Corps comparable : JSON sans les champs propres à la requête, sinon texte brut. */
-const comparableBody = (raw: string): unknown => {
+/**
+ * Corps comparable : JSON sans les champs propres à la requête, sinon texte brut.
+ * L'id demandé (repris par exemple dans `instance`) est remplacé par {id} : l'appelant l'a envoyé, il ne révèle rien.
+ */
+const comparableBody = (raw: string, id: string): unknown => {
+  const text = raw.split(id).join('{id}');
   try {
-    return withoutPerRequest(JSON.parse(raw));
+    return withoutPerRequest(JSON.parse(text));
   } catch {
-    return raw;
+    return text;
   }
 };
 const ROLES: UserRole[] = ['collaborator', 'reader', 'manager'];
@@ -117,7 +121,8 @@ test.describe('Périmètre : un document caché répond comme un document inexis
           wrong.push(`${route.label} → ${hidden.status()} (succès hors périmètre)`);
         } else if (
           hidden.status() !== missing.status()
-          || JSON.stringify(comparableBody(hiddenBody)) !== JSON.stringify(comparableBody(missingBody))
+          || JSON.stringify(comparableBody(hiddenBody, target.id))
+            !== JSON.stringify(comparableBody(missingBody, NONEXISTENT_ID))
         ) {
           wrong.push(`${route.label} → caché ${hidden.status()} ${hiddenBody} ≠ inexistant ${missing.status()} ${missingBody}`);
         } else if (hidden.status() !== expected) {
