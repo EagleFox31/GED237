@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../../services/api';
+import { api, accountKeyOf } from '../../../services/api';
 import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { useAuthStore } from '../../../stores/authStore';
+import {
+  readStoredValidator,
+  resolveInitialValidator,
+  writeStoredValidator,
+} from '../../../lib/draftWorkspace';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -13,6 +19,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const DraftWorkspace: React.FC = () => {
+  const userProfile = useAuthStore((s) => s.userProfile);
+  const accountKey = accountKeyOf(userProfile);
   const [documents, setDocuments] = useState<any[]>([]);
   const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +47,7 @@ const DraftWorkspace: React.FC = () => {
       setDocuments(docsResp);
       setValidators(validatorsResp);
     } catch (error) {
-      console.error("Failed to fetch data", error);
+      pushClientOperationError(error, { fallbackDetail: 'Impossible de charger vos documents.' });
     } finally {
       setLoading(false);
     }
@@ -47,6 +55,7 @@ const DraftWorkspace: React.FC = () => {
 
   const openSubmitModal = (id: string) => {
     setDocumentToSubmit(id);
+    setSelectedValidator(resolveInitialValidator(validators, readStoredValidator(accountKey)));
     setShowSubmitModal(true);
   };
 
@@ -69,9 +78,9 @@ const DraftWorkspace: React.FC = () => {
       ];
 
       await api.createWorkflowSteps(documentToSubmit, steps);
+      writeStoredValidator(selectedValidator, accountKey);
       setShowSubmitModal(false);
       setDocumentToSubmit(null);
-      setSelectedValidator('');
       fetchData();
     } catch (e) {
       // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
