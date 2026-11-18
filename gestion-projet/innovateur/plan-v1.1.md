@@ -616,17 +616,17 @@ Après 1 à 3 : **B ≈ 30,55** (marge 0,45), **F ≈ 25,25** (− 1,25), **Q �
 
 - **Décisions d'O** : la répartition 1 à 3 ci-dessus est validée. Le reste de F (− 1,25) attend sa capacité réelle ; s'il manque encore, 1,25 h-s de F passe à Q (candidats isolés : 57 L7-4 `ValidationHub.tsx`, déjà touché par Q pour le Lot 8 point 4 ; #298 accueil du manager). Le Lot 7 revient en V1.1 (même logique que « on repousse rien »). Les Lots 10 et 11 entrent en V1.1, hors points V1.0 faits par F avant le 19/11 à 17:15.
 - **Lignes** : `plan-fusion-v1.1.md`, 57 L7-1 à 57 L11-3 ; deux migrations ajoutées en fin de chaîne alembic (ordres 8 et 9).
-- **Estimations (h-s)** : colonne B des Lots 10 et 11 = chiffrage de B (18/11, tests en conteneur compris) ; le reste = innovateur, à confirmer par B et F. B chiffre les Lots 10 et 11 à 11,5 contre 3,5 dans ma première estimation : la part de B dans le Lot 7 (5) est sans doute sous-estimée elle aussi, et B doit la chiffrer.
+- **Estimations (h-s)** : colonne B = chiffrage de B (18/11, tests en conteneur compris : Lots 10 et 11 = 11,5, Lot 7 = 8,5 ou 10,5) ; colonnes F et Q = innovateur, à confirmer par F et Q.
 
 | Ligne | Contenu | B | F | Q |
 |---|---|---|---|---|
 | 57 L7-1 | historique dans la fiche | — | 0,5 | 0,25 |
-| 57 L7-2 | journal « Du / Au » et PDF officiel | 1 | 0,5 | 0,5 |
-| 57 L7-3 | recherche par date et par auteur | 0,5 | 0,75 | 0,5 |
+| 57 L7-2 | journal « Du / Au » (déjà côté serveur) et PDF officiel : impression du navigateur (B 0) ou PDF produit par le serveur (B 2,5, à trancher par le PO) | 0 | 0,5 | 0,5 |
+| 57 L7-3 | recherche par date et par auteur | 1 | 0,75 | 0,5 |
 | 57 L7-4 | « J+ », erreur réseau, visa allégé | — | 0,75 | — |
-| 57 L7-5 | délégation (L, migration ; choix du PO avant de coder) | 3 | 1,5 | 1,5 |
+| 57 L7-5 | délégation (L, migration ; choix du PO avant de coder) | 7 | 1,5 | 1,5 |
 | Lot 7 | relecture croisée par B | 0,5 | — | — |
-| **Lot 7** | | **5** | **4** | **2,75** |
+| **Lot 7** | (+ 2 pour B si PDF produit par le serveur) | **8,5** | **4** | **2,75** |
 | 57 L10-1 | `/documents?q=` dans le texte OCR (index existant, pas de migration) | 1 | — | 0,25 |
 | 57 L10-2 | statut OCR écrit par le worker, avec un état « échec » qui manque aujourd’hui ; pastille | 2 | 0,5 | — |
 | 57 L10-3 | recherche sans accents (migration, vecteurs recalculés par lots) | 3 | — | 0,5 |
@@ -640,16 +640,16 @@ Après 1 à 3 : **B ≈ 30,55** (marge 0,45), **F ≈ 25,25** (− 1,25), **Q �
 | | B | F | Q |
 |---|---|---|---|
 | Après la répartition 1 à 3 | 30,55 | 25,25 | 31,55 |
-| Lot 7 | + 5 | + 4 | + 2,75 |
+| Lot 7 | + 8,5 | + 4 | + 2,75 |
 | Lots 10 et 11 | + 11,75 | + 1,5 | + 1,5 |
-| **Total** | **47,3** | **30,75** | **35,8** |
+| **Total** | **50,8** | **30,75** | **35,8** |
 | Capacité | 31 | 24 | 34 |
-| **Dépassement** | **+ 16,3** | **+ 6,75** | **+ 1,8** |
-| Dépassement sans la délégation (57 L7-5) | + 13,3 | + 5,25 | + 0,3 |
+| **Dépassement** | **+ 19,8** | **+ 6,75** | **+ 1,8** |
+| Dépassement sans la délégation (57 L7-5) | + 12,8 | + 5,25 | + 0,3 |
 
-- **En clair, pour le PO** : tout remettre en V1.1 demande ≈ 25 h-s de plus que ce que l'équipe peut faire d'ici au 04/12 : environ cinq jours de travail de B, deux jours et demi de F, et une demi-journée de Q. Le transfert de 1,25 h-s de F vers Q ne règle plus rien : Q dépasse aussi.
-- **La délégation (57 L7-5) pèse 6 h-s à elle seule** et ne peut pas démarrer sans trois choix du PO : qui désigne l'intérimaire, quels droits il reçoit, ce que le journal trace.
-- **Rien ne sort sans décision du PO.** Ce que le PO peut trancher : allonger la fenêtre V1.1 d’environ cinq jours ouvrés (B est le goulot) ; ou choisir lui-même des lignes qui passent en V1.2 ; ou combiner les deux.
+- **En clair, pour le PO** : tout remettre en V1.1 demande ≈ 28 h-s de plus que ce que l'équipe peut faire d'ici au 04/12 : près de six jours de travail de B, deux jours et demi de F, et une demi-journée de Q. Le transfert de 1,25 h-s de F vers Q ne règle plus rien : Q dépasse aussi.
+- **La délégation (57 L7-5) pèse 10 h-s à elle seule** (B 7 : table, migration, droits, circuit de validation, expiration, tests d’isolation) et ne peut pas démarrer sans trois choix du PO : qui désigne l'intérimaire, quels droits il reçoit, ce que le journal trace.
+- **Rien ne sort sans décision du PO.** Ce que le PO peut trancher : allonger la fenêtre V1.1 d’environ cinq jours ouvrés après les transferts (B est le goulot) ; ou choisir lui-même des lignes qui passent en V1.2 ; ou combiner les deux.
 
 ### Tableau consolidé pour le PO (O, 18/11)
 
@@ -657,22 +657,22 @@ Périmètre : toutes les sorties remises en V1.1 (« on repousse rien »), plus 
 
 | | B | F | Q | Équipe |
 |---|---|---|---|---|
-| Charge | 47,3 | 30,75 | 35,8 | 113,85 |
+| Charge | 50,8 | 30,75 | 35,8 | 117,35 |
 | Capacité au 04/12 | 31 | 24 | 34 | 89 |
-| **Écart** | **+ 16,3** | **+ 6,75** | **+ 1,8** | **+ 24,85** |
+| **Écart** | **+ 19,8** | **+ 6,75** | **+ 1,8** | **+ 28,35** |
 | Transferts proposés (ci-dessous) | − 2,75 | 0 | + 2,75 | 0 |
-| **Écart après transferts** | **+ 13,55** | **+ 6,75** | **+ 4,55** | **+ 24,85** |
+| **Écart après transferts** | **+ 17,05** | **+ 6,75** | **+ 4,55** | **+ 28,35** |
 
 Transferts proposés, de B vers Q (lignes isolées, sans fichier chaud) :
 1. #113 (Starlette 1.x) et #110 (Python 3.15), ligne 58 bis : montées de version, CI complète entre chaque : B − 1, Q + 1.
 2. Mesure sur un PDF de 100 pages et tests en conteneur de l'OCR page par page (57 L10-4) : B − 1, Q + 1.
 3. Tests de l'extraction `.docx` et `.xlsx` (57 L11-1) : B − 0,75, Q + 0,75.
 
-F ne peut rien prendre à B : F dépasse déjà (+ 6,75), et ses parts d'écran du Lot 7 et du Lot 10 sont déjà à son nom. Les transferts répartissent l'écart, ils ne le réduisent pas : il manque ≈ 25 h-s à l'équipe, soit 28 % de sa capacité.
+F ne peut rien prendre à B : F dépasse déjà (+ 6,75), et ses parts d'écran du Lot 7 et du Lot 10 sont déjà à son nom. Les transferts répartissent l'écart, ils ne le réduisent pas : il manque ≈ 28 h-s à l’équipe, soit 32 % de sa capacité (≈ 30 si le PDF officiel est produit par le serveur).
 
 **Ce que le PO tranche** (rien ne sort sans sa décision) :
-- **Allonger la fenêtre V1.1** : B reste le goulot ; à ≈ 3,4 h-s par jour, il faut ≈ 4 jours ouvrés de plus après les transferts (fin vers le 10/12).
-- **Ou passer des lignes en V1.2**, au choix du PO. Les plus lourdes : délégation (57 L7-5) 6 h-s (B 3, F 1,5, Q 1,5), qui attend de toute façon trois choix du PO ; recherche sans accents (57 L10-3) 3,5 ; texte des `.docx` et `.xlsx` (57 L11-1) 2,75.
+- **Allonger la fenêtre V1.1** : B reste le goulot ; à ≈ 3,4 h-s par jour, il faut ≈ 5 jours ouvrés de plus après les transferts (fin vers le 11/12).
+- **Ou passer des lignes en V1.2**, au choix du PO. Les plus lourdes : délégation (57 L7-5) 10 h-s (B 7, F 1,5, Q 1,5), qui attend de toute façon trois choix du PO ; recherche sans accents (57 L10-3) 3,5 ; texte des `.docx` et `.xlsx` (57 L11-1) 2,75.
 - **Ou un mélange des deux.**
 
-Réserve : la part de B dans le Lot 7 (5 h-s) vient de mon estimation et n'est pas confirmée. B a chiffré les Lots 10 et 11 à 3 fois mon estimation : l'écart réel de B peut encore grossir.
+Réserve : toute la colonne B est chiffrée par B. Les colonnes F et Q restent mes estimations, non confirmées ; si elles sont aussi basses que mes premiers chiffres pour B, l’écart de F peut encore grossir. Choix à poser au PO pour 57 L7-2 : « PDF officiel » = impression du navigateur (B 0) ou PDF produit par le serveur, avec empreinte SHA-256 (B + 2,5, nouvelle dépendance, image reconstruite).
