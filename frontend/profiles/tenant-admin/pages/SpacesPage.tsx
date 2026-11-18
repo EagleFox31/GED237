@@ -141,7 +141,9 @@ const SpacesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recursive, setRecursive] = useState(false);
+  // Coché par défaut : un service de tête (Cabinet) n'a souvent aucun document
+  // en propre, la page s'ouvrirait sur « 0 document ».
+  const [recursive, setRecursive] = useState(true);
   // La recherche par texte est portée par l'URL (`?q=`) — la barre de
   // recherche globale (Header) écrit dedans.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -398,7 +400,8 @@ const SpacesPage: React.FC = () => {
     // En mode recherche : on lève la contrainte de portée (le tenant entier
     // visible) — l'utilisateur veut voir tous les matches, pas seulement
     // ceux strictement rattachés au service courant.
-    if (isSearchMode) return filteredDocuments;
+    // Sous-services inclus : la case demande justement leurs documents.
+    if (isSearchMode || recursive) return filteredDocuments;
     if (!selectedUnitId) {
       return filteredDocuments;
     }
@@ -411,7 +414,7 @@ const SpacesPage: React.FC = () => {
       const targetOrgUnitId = doc.classification_target_org_unit_id || doc.org_unit_id;
       return targetOrgUnitId === selectedUnitId;
     });
-  }, [childUnits.length, filteredDocuments, isSearchMode, selectedUnitId]);
+  }, [childUnits.length, filteredDocuments, isSearchMode, recursive, selectedUnitId]);
 
   const hiddenDescendantDocumentsCount = Math.max(
     filteredDocuments.length - visibleDocuments.length,

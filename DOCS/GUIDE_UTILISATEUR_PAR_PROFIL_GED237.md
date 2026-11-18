@@ -31,12 +31,12 @@ Bon à savoir :
 - Le code est valable 5 minutes. Expiré ? Cliquez sur « Utiliser une autre méthode » et recommencez.
 - Après 3 codes faux, le compte est bloqué 15 minutes. L'écran affiche le temps restant.
 - « Trop de tentatives » : attendez une minute.
-- Mot de passe perdu : le lien « Oublié ? » ne fait rien dans cette version. Demandez un nouveau mot de passe à l'administrateur de votre institution.
+- Mot de passe perdu : demandez un nouveau mot de passe à l'administrateur de votre institution.
 - Le cadre « Espace Démo Interactif », sous le formulaire, sert aux démonstrations. Ne vous en servez pas.
 
 ## Se repérer
 
-- **Le menu** est à gauche. L'administrateur peut le placer en haut (« Paramètres », « Menu Supérieur »).
+- **Le menu** est à gauche. Chacun peut le placer en haut : roue dentée du bandeau, puis « Menu Supérieur ». Ce choix n'est pas gardé : le menu revient à gauche quand la page est rechargée. En haut, seuls « Dashboard », « Mes Documents » et « Tâches » s'affichent (plus « Audit » pour l'Auditeur), sauf pour l'Admin Institution, qui garde tout son menu.
 - **La barre de recherche** est en haut de l'écran.
   - Sur « Mes Documents », « Explorateur documentaire », « Agents & Rôles » et « À distribuer », elle cherche dans la page ouverte.
   - Ailleurs, elle cherche dans les documents que votre profil peut voir (voir ci-dessous), y compris le texte des fichiers scannés. Les résultats s'affichent sous la barre.
@@ -49,7 +49,7 @@ Chaque profil ne voit que ce qui le concerne. C'est voulu : l'administrateur pr�
 - **Collaborateur** : vos propres documents seulement, dans « Mes Documents » comme dans la recherche.
 - **Responsable et Lecteur** : les documents de votre service.
 - **Admin Institution, Admin Service et Auditeur** : toute l'institution.
-- **Importer pour d'autres agents** (« Import en masse »), l'« Explorateur documentaire » et « Ma bannette » : réservés à l'administrateur. Le Responsable et le Collaborateur n'importent que leurs propres fichiers.
+- **Importer pour d'autres agents** (« Import en masse »), l'« Explorateur documentaire » et « Ma bannette » : réservés au Super Admin et à l'Admin Institution. Les autres profils demandent les imports en masse à leur administrateur.
 
 ---
 
@@ -130,10 +130,10 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
 - **« Audit & Traçabilité »** : le journal des actions. Voir [7. Auditeur](#7-auditeur).
 - **« Rapports & Statistiques »** : les chiffres de toute l'institution.
   - Onglets « Synthèse », « Activité documentaire », « Traitement & délais », « Services ».
-  - Choisissez la « Période » et le « Périmètre » (institution entière ou un service).
+  - La période et le service se choisissent dans la fenêtre « Générer un rapport » (champs « Période » et « Service ou direction »).
   - « Exporter la vue » produit un fichier Excel ; sur l'onglet « Activité documentaire », un fichier CSV.
   - « Générer un rapport » produit un fichier Excel, CSV ou PDF. Pour le PDF, la fenêtre d'impression s'ouvre : choisissez « Enregistrer au format PDF ».
-- **« Paramètres »** : guide des rôles, position du menu (à gauche ou en haut), liste des unités, liste de contrôle de l'installation. Les sous-titres affichés sous ce menu ne correspondent pas encore à la page.
+- **« Paramètres »** : guide des rôles, position du menu (à gauche ou en haut), liste des unités.
 - **Rechercher un agent** : ouvrez « Agents & Rôles » et tapez dans la barre du haut. Le rôle de chaque agent se choisit aussi là.
 
 ### Bon à savoir
@@ -143,7 +143,7 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
   - « À distribuer » : elle ne sait pas **à qui le confier**.
 - Un document peut être bien rangé mais sans destinataire, ou l'inverse. Vérifiez les deux.
 - Traitez « Ma bannette » vite : un document mal rangé est difficile à retrouver.
-- **Archiver un document** : ouvrez le document, cliquez sur « Archiver », puis sur « Oui, archiver ». Seul un document validé ou signé peut être archivé ; son badge passe à « Archivé ». Dans « Mes Documents », le filtre « Archivé » retrouve les documents archivés.
+- **Archiver un document** (Admin Institution et Super Admin) : tapez son titre dans la barre de recherche du bandeau, choisissez « Ouvrir <titre> », cliquez sur « Archiver », puis sur « Oui, archiver ». Seul un document validé ou signé peut être archivé ; son badge passe à « Archivé ». Pour retrouver les documents archivés : page « Explorateur GED », menu « Statut : Tous », choix « Archivé ».
 
 ---
 
@@ -165,7 +165,7 @@ Vous suivez l'activité de votre service.
 
 ### Bon à savoir
 
-- Vous ne créez pas de document. Dans « Ranger / Importer », seul « Ranger sur mon poste » vous concerne.
+- Vous ne créez pas de document. « Ranger / Importer » est verrouillé pour votre profil dans cette version : les imports passent par l'Admin Institution.
 - Un problème de rangement, de circuit ou d'import concerne toute l'institution : signalez-le à l'Admin Institution.
 
 ---
@@ -211,7 +211,7 @@ Vous déposez les documents et les envoyez en validation.
 
 ### Votre menu
 
-« Tableau de Bord », « Mes Documents », « Tâches & Suivi », « Ranger / Importer », « Bibliothèque locale ».
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi ».
 
 ### Bon à savoir
 
@@ -236,12 +236,11 @@ Vous consultez les documents. Vous ne les modifiez pas.
 
 ### Votre menu
 
-« Tableau de Bord », « Mes Documents », « Tâches & Suivi », « Ranger / Importer », « Bibliothèque locale ».
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi ».
 
 ### Bon à savoir
 
 - Vous ne voyez pas de bouton d'action : c'est normal.
-- Dans « Ranger / Importer », seul « Ranger sur mon poste » vous concerne.
 - Un document attendu n'apparaît pas ? Il n'est peut-être pas encore validé, rangé ou partagé avec vous. Demandez à l'administrateur.
 
 ---
@@ -254,9 +253,9 @@ Vous vérifiez qui a fait quoi, et quand.
 
 ### Vos 3 gestes
 
-1. **Filtrer** : par date, action, personne (« Effectuée par ») ou registre.
+1. **Filtrer** : par action, personne (« Effectuée par ») ou registre. La colonne « Date et heure » se trie d'un clic.
 2. **Reconstituer** l'histoire d'un document, d'une personne ou d'un import, ligne par ligne.
-3. **Exporter** : « Exporter (CSV) » télécharge les lignes affichées, avec vos filtres.
+3. **Exporter** : « Exporter (CSV) » télécharge tout le journal qui correspond à vos filtres, pas seulement les 200 dernières lignes affichées.
 
 ### Votre menu
 
@@ -265,10 +264,10 @@ Vous vérifiez qui a fait quoi, et quand.
 ### Bon à savoir
 
 - Si vous filtrez sur des personnes, l'export n'en accepte qu'une à la fois.
-- L'export s'arrête à 50 000 lignes. Au-delà, réduisez la période ou ajoutez un filtre.
+- L'export s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre.
 - Filtrez avant de conclure.
 - Une ligne sans nom de personne est une action automatique de l'application. Ce n'est pas forcément une anomalie.
-- Dans « Ranger / Importer », seul « Ranger sur mon poste » vous concerne.
+- « Ranger / Importer » est verrouillé pour votre profil dans cette version.
 
 ---
 
@@ -278,8 +277,8 @@ Vous vérifiez qui a fait quoi, et quand.
 
 La page s'appelle « Explorateur GED ». Elle liste les documents que vous pouvez voir.
 
-- Filtrez par catégorie (« Catégorie : Toutes »). Pour chercher, utilisez la barre du haut.
-- « Nouveau Document » apparaît seulement pour l'Admin Institution, le Responsable et le Collaborateur.
+- Filtrez par catégorie (« Catégorie : Toutes ») ou par état (« Statut : Tous »). Pour chercher, utilisez la barre du haut.
+- « Nouveau Document » apparaît seulement pour le Super Admin, l'Admin Institution, le Responsable et le Collaborateur.
 
 ### « Tâches & Suivi »
 
@@ -287,10 +286,10 @@ La page s'appelle « Tâches & Validations ». Elle liste les étapes qui vous a
 
 ### Ranger / Importer
 
-L'entrée s'appelle « Ranger / Importer », ou « Import en masse » pour les administrateurs. Deux choix :
+L'entrée s'appelle « Ranger / Importer », ou « Import en masse » pour les administrateurs. Dans cette version, les deux choix ci-dessous sont réservés au Super Admin et à l'Admin Institution. Les autres profils voient l'écran verrouillé (« Bientôt disponible ») et confient leurs imports en masse à leur administrateur ; le Collaborateur et le Lecteur n'ont pas cette entrée.
 
-- **« Ranger sur mon poste »** : l'application range les fichiers dans un dossier de votre ordinateur. Rien n'entre dans E-Dossier. Tous les profils peuvent s'en servir.
-- **« Importer dans le Serveur de l'Application »** : les fichiers entrent dans E-Dossier. Réservé à l'Admin Institution, au Responsable et au Collaborateur. Le Responsable et le Collaborateur n'importent que leurs propres fichiers, à leur nom.
+- **« Ranger sur mon poste »** : l'application range les fichiers dans un dossier de votre ordinateur. Rien n'entre dans E-Dossier.
+- **« Importer dans le Serveur de l'Application »** : les fichiers entrent dans E-Dossier.
 
 L'import se fait en deux temps : l'application analyse les fichiers et propose un rangement ; vous vérifiez, puis vous cliquez sur « Importer les documents ».
 
@@ -299,7 +298,7 @@ L'import se fait en deux temps : l'application analyse les fichiers et propose u
 
 Pour un document courant, utilisez plutôt « Nouveau Document ».
 
-**Doublons** : un fichier déjà présent dans E-Dossier est refusé. À l'import, il est marqué « Doublon » et n'entre pas ; au dépôt d'un seul document, un message le signale. La tuile « Doublons refusés » du tableau de bord les compte. Il n'y a pas encore d'écran pour trier les doublons.
+**Doublons** : un fichier déjà présent dans E-Dossier est refusé. À l'import, il est marqué « Doublon » et n'entre pas ; au dépôt d'un seul document, un message le signale. La tuile « Doublons refusés » du tableau de bord de l'Admin Institution les compte ; un clic dessus ouvre le journal des actions filtré sur les doublons.
 
 ### « Bibliothèque locale »
 
