@@ -2,9 +2,9 @@
 
 Ces brouillons iront dans `DOCS/engineering/lessons-learned.md` **après la coupe du 19/11, pas avant**. Ils suivent le même format que ce fichier.
 
-Numéros : 056 et 057 sont déjà pris sur les branches de #203, #358 et #360 (non fusionnées). Les numéros libres au 18/11 à 14:30 sont **058 et 059**, après vérification sur toutes les branches distantes et locales. Il faut les revérifier au moment de l'insertion.
+Numéros (renumérotés le 18/11 vers 15:00) : `main` s'arrête à 056 (#203 fusionnée). 057 est pris par les PR ouvertes #358, #360 et #361. 058 est pris par #365 (repli OCR, B), qui entre en V1.0 avant ces brouillons. Ces brouillons prennent donc **059 et 060**, après vérification sur toutes les branches distantes et les PR ouvertes. Il faut les revérifier au moment de l'insertion. La leçon sur le repli OCR est celle de #365 : pas de brouillon en double ici.
 
-### LESSON-2026-058 — PR de base entrée dans la file alors que trois PR la ciblaient encore
+### LESSON-2026-059 — PR de base entrée dans la file alors que trois PR la ciblaient encore
 
 - **Date :** 2026-11-18
 - **Catégorie :** process / file de fusion
@@ -21,7 +21,7 @@ Numéros : 056 et 057 sont déjà pris sur les branches de #203, #358 et #360 (n
 **Prévention** — Dans le script de file, avant `gh pr merge` : `gh pr list --repo $REPO --base <headRefName> --state open --json number -q 'length'` doit renvoyer `0`. Sinon, refus avec la liste des PR à recibler. Vérifiable : lancer le script à blanc sur #358 tant que #360 la cible, il doit refuser.
 **Leçon généralisée** — On ne fusionne jamais une branche qui sert encore de base à une PR ouverte. Le contrôle doit être dans l'outil de fusion, pas dans la mémoire de l'opérateur : une PR qui cible une branche non protégée échappe aux contrôles obligatoires.
 
-### LESSON-2026-059 — Procédure d'exploitation écrite par déduction : le rejeu a trouvé un écart
+### LESSON-2026-060 — Procédure d'exploitation écrite par déduction : le rejeu a trouvé un écart
 
 - **Date :** 2026-11-18
 - **Catégorie :** documentation / exploitation

@@ -348,3 +348,20 @@ Garde-fous de O, avec ceux de l'innovateur marqués (I).
 | G11 | Aucun fichier `backend/` modifié | `git diff --stat origin/main` |
 
 **Coût** (`Déduit`) : la relecture par Q coûte ≈ 0,5 h-s, et les quick wins 1, 2, 5, 6 et 7 se relisent dans la même passe. **Décision de O (18/11)** : la PR est en V1.1, et Q la relit après le tag du 24, dans la fenêtre qui court jusqu'au 04/12. Rien n'est pris sur la marge de Q d'ici le 24.
+
+## Mise à jour du 18/11 : tâche OCR tuée = tâche perdue (pas d'`acks_late`)
+
+**Contexte.** Au rejeu de Q du 18/11, le repli EasyOCR a fait tuer le worker 363 fois (SIGKILL, limite `mem_limit: 2g`, `--concurrency=1`). Aucune photo n'a été indexée et rien ne l'a signalé à l'écran. #365 (B, V1.0) désactive ce repli par défaut et porte la leçon LESSON-2026-058. Le défaut de fond reste : une tâche tuée est perdue.
+
+**Constat sur `main` (17498b5).**
+- `backend/app/workers/celery_app.py` ne règle ni `task_acks_late` ni `task_reject_on_worker_lost`. Le message est donc acquitté dès sa réception, et un worker tué en cours de tâche le perd.
+- `process_document_ocr` (`backend/app/workers/tasks.py`) n'a ni relance ni borne de tentatives.
+- L'état `failed` de #284 (#276) est écrit dans un `except` Python. Un SIGKILL ne passe pas par là : le document reste « en cours » sans fin.
+
+| Ticket | Contenu | Coût (`Déduit`) | Dépendance |
+|---|---|---|---|
+| OCR-1 (à créer) | **Tâche OCR tuée = tâche perdue.** (a) `task_acks_late=True` et `task_reject_on_worker_lost=True`, pour la seule tâche OCR ou pour toute l'application selon la relecture de B. (b) Borne de tentatives : au-delà de N essais, le document passe à `failed` avec une raison lisible, sinon un document trop lourd tue le worker en boucle. (c) `process_document_ocr` doit pouvoir être rejouée sans effet en double (même `document_id`, même résultat). (d) Balayage périodique, avec le beat déjà lancé par `-B` : un document « en cours » depuis plus de X minutes passe à `failed`. | ≈ 1,25 : B 0,75, Q 0,5 | Après #284 (état `failed`) et #365 |
+
+**Preuve attendue (Q).** Un `kill -9` du worker pendant une lecture : après redémarrage, la tâche est relue une seule fois et le document finit `indexed` ou `failed`, jamais « en cours ». Un document qui fait tomber le worker à chaque essai finit `failed` après N essais. Un test unitaire vérifie la configuration Celery.
+
+**Capacité.** C'est un ajout net (B + 0,75, Q + 0,5). Q est déjà à 22,0, donc la règle « pas d'ajout sans sortie » s'applique : à O de choisir la sortie, ou un passage en tête de la V1.2.
