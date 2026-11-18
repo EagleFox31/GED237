@@ -701,3 +701,32 @@ Chiffres d’aide-api `À recevoir` : en attendant, ses lignes gardent le chiffr
 Après 1 à 3, avec le transfert 2 (mesure de L10-4 vers Q) : **B ≈ 34,3 (+ 3,3)**, **F ≈ 29,25 (+ 5,25)**, **Q ≈ 36,8 (+ 2,8)**, **aide-api ≈ 17**. Le total de l’équipe ne change pas (117,35). Le renfort ne règle le dépassement de F que pour l’écran de la délégation : F reste le premier goulot.
 
 **Docker à partir du 19/11 à 18:00 (O)** : une charge lourde à la fois pour F, pour B et pour aide-api (3 au plus en même temps, `/c/tmp/wait_slot.sh`), chacune plafonnée à 3 Go et 4 CPU.
+
+#### Recalcul avec les chiffres d’aide-api (O et aide-api, 18/11 au soir)
+
+Décisions d’O : les propositions 1 à 3 sont acceptées (57 L7-3, #113 et #110, écran de la délégation vers aide-api). La proposition 4 attend le choix du PO sur le « PDF officiel ». Le transfert 2 vers Q (mesure et tests de 57 L10-4) est maintenu. La délégation est débloquée : choix du PO consignés dans `DEC-2026-007`.
+
+| Ligne d’aide-api | Chiffrage d’aide-api (h-s) | Avant (B, ou F pour l’écran) |
+|---|---|---|
+| 57 L10-1 | 1 | 1 |
+| 57 L10-3 | 2,5 | 3 |
+| 57 L11-1 | 2,5 | 2,5 |
+| 57 L7-5, serveur | 1 (note de conception) + 6 à 7 | 7 |
+| 57 L7-5, écran | 3 à 4 (liste, création avec dates, révocation, Vitest, un e2e) | F 1,5 |
+| 57 L7-3 | 1 | 1 |
+| #113 (Starlette 1.x, avec FastAPI) | 2 | 1 (avec #110) |
+| #110 (Python) | 1,5 à 2 en visant 3.12 ou 3.13 ; 3 à 4 en visant 3.15 (torch, asyncpg sans wheels) | — |
+| **Total** | **20,5 à 23** (22 à 25 en visant 3.15) | 17 |
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | **34,3** | **29,5** | **36,8** | **20,5 à 23** | **121,1 à 123,6** |
+| Capacité au 04/12 | 31 | 24 | 34 | `À recevoir` | 89 + aide-api |
+| **Écart** | **+ 3,3** | **+ 5,5** | **+ 2,8** | `À recevoir` | **+ 32,1 à 34,6 − capacité d’aide-api** |
+
+- **B** : 50,8 − 15,5 (lignes passées à aide-api, au chiffrage de B) − 1 (transfert 2) = 34,3.
+- **F** : 30,75 − 1,5 (écran de la délégation) + 0,25 (relecture de cet écran, demandée par aide-api) = 29,5. F ne relisait rien jusqu’ici, faute de marge : **à confirmer par O**. Sinon, c’est Q qui relit, à + 0,25.
+- **Q** : 35,8 + 1 (transfert 2) = 36,8.
+- **La charge de l’équipe monte de 3,75 à 6,25 h-s** : les chiffres d’aide-api sont plus réalistes que les estimations précédentes. Les deux montées de version passent de 1 à 3,5 ou 4, et l’écran de la délégation de 1,5 à 3 ou 4.
+- **À trancher par O pour #110** : viser 3.12 ou 3.13. Dans ce cas, #110 (3.15) est fermée et remplacée par une PR manuelle. Sinon, viser 3.15 coûte + 1,5 à 2 et oblige à monter torch et easyocr en cascade : risque élevé sur l’OCR juste avant le 04/12.
+- **Ordre d’aide-api** : L10-1, L10-3, L7-3, puis la note de la délégation, son serveur et son écran, puis L11-1 dès la fusion de la PR « état OCR » de B, enfin #113 puis #110.
