@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
+import logging
 import re
 import secrets
 import time
@@ -25,6 +26,8 @@ from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.services.audit_trail import audit_entry
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -120,7 +123,11 @@ class AuthService:
             "expires_in": self.OTP_EXPIRY_SECONDS,
         }
         if settings.ENVIRONMENT == "development":
-            response["otp"] = otp
+            if settings.LOGIN_DEMO_HINTS:
+                response["otp"] = otp
+            else:
+                # No SMS or e-mail channel yet: the presenter reads the code here.
+                logger.warning("Code OTP de demonstration : %s pour %s", otp, matricule)
         return response
 
     @staticmethod

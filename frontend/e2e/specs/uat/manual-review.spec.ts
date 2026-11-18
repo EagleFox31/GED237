@@ -20,6 +20,8 @@ test.describe('SC-ADM-07 — Documents à revoir', () => {
     const title = `Note sans règle ${runId}`;
     const doc = await adminApi.uploadDocument(`zz-sans-regle-${runId}.txt`, title, `Contenu à revoir ${runId}`);
     expect(doc.classification_status).not.toBe('classified');
+    // Un second dossier garantit qu'il reste une revue ouverte après la résolution.
+    await adminApi.uploadDocument(`zz-sans-regle-suite-${runId}.txt`, `Note suivante ${runId}`, `Suite à revoir ${runId}`);
 
     const reviews = await adminApi.listReviews();
     expect(
@@ -46,6 +48,15 @@ test.describe('SC-ADM-07 — Documents à revoir', () => {
 
     // Étape 7 : le document sort de la file.
     await expect(row).toHaveCount(0);
+
+    // Non-régression (répétition démo, étape 5) : le panneau passe au dossier suivant
+    // au lieu de rester sur celui qui vient d'être classé.
+    const selectedRow = page.getByRole('button', { pressed: true });
+    await expect(selectedRow).toHaveCount(1);
+    await expect(selectedRow).not.toContainText(title);
+    const nextTitle = (await selectedRow.locator('p').first().innerText()).trim();
+    await expect(page.getByRole('heading', { level: 3, name: nextTitle, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: title, exact: true })).toHaveCount(0);
 
     const after = await adminApi.getDocument(doc.id);
     expect(after.classification_status).toBe('classified');

@@ -195,3 +195,37 @@ async def test_refresh_reads_current_role(
     response = await _refresh(async_client, tokens["refresh_token"])
     assert response.status_code == 200
     assert decode_token(response.json()["access_token"])["role"] == "reader"
+
+
+@pytest.mark.asyncio
+async def test_login_without_demo_hints_keeps_the_code_out_of_the_response(
+    async_client: AsyncClient, db_seed, monkeypatch, caplog
+):
+    """LOGIN_DEMO_HINTS=false: the code is in the API log, not in the response."""
+    import logging
+
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "LOGIN_DEMO_HINTS", False)
+    with caplog.at_level(logging.WARNING, logger="app.services.auth_service"):
+        response = await async_client.post(
+            "/api/v1/auth/login",
+            json={
+                "institution": "TESTMIN",
+                "matricule": "TEST001",
+                "password": "testpassword123",
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    step1 = response.json()
+    # LoginResponse always serializes the field: null here.
+    assert step1.get("otp") is None
+    logged = [r.getMessage() for r in caplog.records if "Code OTP" in r.getMessage()]
+    assert len(logged) == 1 and "TEST001" in logged[0]
+    code = logged[0].split(" : ")[1].split(" ")[0]
+    otp_resp = await async_client.post(
+        "/api/v1/auth/verify-otp",
+        json={"session_token": step1["session_token"], "otp": code},
+    )
+    assert otp_resp.status_code == 200, otp_resp.text

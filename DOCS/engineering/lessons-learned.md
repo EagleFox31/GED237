@@ -760,3 +760,125 @@ première requête utilisateur.
 **Résolution** — `download_models()` exécute une inférence sur une image contenant du texte, pour forcer les deux téléchargements ; versions et type de modèle posés pour le détecteur et le recognizer ; le build vérifie la présence du modèle latin.
 **Prévention** — Contrôle de présence dans le Dockerfile (`ls | grep -i latin`) ; essai réel avec `--network none` ; test unitaire de l'absence de modèle (moteur indisponible, aucun accès réseau).
 **Leçon généralisée** — Pour toute bibliothèque qui télécharge ses modèles, forcer l'usage réel au build et prouver l'absence de réseau à l'exécution. Mesurer la mémoire par le pic du conteneur (`memory.peak`) et régler la taille d'entrée en conséquence : 2000 px donnait 755 à 895 Mo, 1600 px 609 à 695 Mo, 1800 px 626 Mo (défaut retenu après le banc de Q : rappel -0,64 point par rapport à 2000).
+
+### LESSON-2026-061 — PR de base entrée dans la file alors que trois PR la ciblaient encore
+
+- **Date :** 2026-11-18
+- **Catégorie :** process
+- **Statut :** captured (contrôle à ajouter par O dans le script de file)
+- **Liens :** `gestion-projet/innovateur/runbook-coupe-19-11.md` § 8.2 (étape 1) et § 8.4, PR #203, #358, #266, #241
+
+**Contexte** — Il n'y a pas de file de fusion GitHub. Un script d'O met la branche à jour, attend que le CI Gate soit vert, puis lance `gh pr merge --merge`. Le ruleset ne protège que la branche par défaut. Le 18/11, #203 (`feat/post-rc1-195-unit-admin-scope`) est entrée dans la file alors que #358, #266 et #241 avaient encore cette branche comme base.
+**Échec / near miss** — La relecture du runbook (§ 8.2, étape 1) l'a détecté, et O a reciblé les trois PR sur `main` avant la fusion. Sans cela :
+- si la branche avait été supprimée à la main (`git push --delete`), les PR qui la ciblent auraient pu être fermées. GitHub ne retarget automatiquement que si la branche est supprimée après la fusion de sa PR ([changelog GitHub, 19/05/2020](https://github.blog/changelog/2020-05-19-pull-request-retargeting)). Ici, `delete_branch_on_merge` vaut `false` ;
+- **risque plus probable, et silencieux** : les trois PR restent ouvertes sur une branche déjà fusionnée. Leur fusion ultérieure atterrit sur cette branche et pas sur `main`, hors du ruleset, donc sans CI Gate obligatoire. Les changements manquent alors à la release sans aucune erreur.
+**Cause racine** — Le script de file ne regarde que la PR à fusionner, pas les PR qui dépendent de sa branche. Le reciblage des PR empilées était une règle orale (mémoire « re-cibler avant fusion »), sans contrôle automatique.
+**Classification** — Processus ; near miss ; répétable à chaque pile de PR. La règle de reciblage existait déjà, mais sans contrôle : il faut donc un contrôle plus fort.
+**Résolution** — #358, #266 et #241 reciblées sur `main` par O le 18/11, avant la fusion de #203. #360 et #361, empilées sur #358, ont été reciblées sur `main` avant sa fusion ; #358 et #360 sont fusionnées le 18/11.
+**Prévention** — Dans le script de file, avant `gh pr merge` : `gh pr list --repo $REPO --base <headRefName> --state open --json number -q 'length'` doit renvoyer `0`. Sinon, refus avec la liste des PR à recibler. Vérifiable : lancer le script à blanc sur #358 tant que #360 la cible, il doit refuser.
+**Leçon généralisée** — On ne fusionne jamais une branche qui sert encore de base à une PR ouverte. Le contrôle doit être dans l'outil de fusion, pas dans la mémoire de l'opérateur : une PR qui cible une branche non protégée échappe aux contrôles obligatoires.
+
+### LESSON-2026-062 — Procédure d'exploitation écrite par déduction : le rejeu a trouvé un écart
+
+- **Date :** 2026-11-18
+- **Catégorie :** process
+- **Statut :** captured (point à ajouter à la grille de relecture de Q)
+- **Liens :** `DOCS/exploitation/donnees-demo.md` (étape 2), PR #363, PR #408 (item 31, #273), `docker-compose.yml` (`name: edossier`, `container_name: edossier_*`)
+
+**Contexte** — La remise à zéro du jeu de démo sur la pile complète a été écrite à partir de la lecture de `docker-compose.yml`, sans l'exécuter. Le texte le disait (« procédure déduite, pas encore rejouée »).
+**Échec / near miss** — Le rejeu de Q (18/11 : 26 s, 408 documents) a buté sur un cas que la lecture n'avait pas vu : une autre pile tourne déjà sur le poste. La première correction proposée, lancer avec un autre nom de projet (`-p`), était elle aussi déduite et elle ne suffit pas. `container_name` fixe le nom du conteneur quel que soit le projet, donc les noms `edossier_*` restent en conflit. La version poussée sur #363 demande une copie du fichier sans `container_name`, avec `-p` et un autre `APP_PORT`.
+**Cause racine** — Une procédure d'exploitation déduite a été traitée comme une procédure prête. La correction est passée par le même chemin (déduction), sans rejeu.
+**Classification** — Documentation ; near miss, corrigé avant la fusion ; répétable sur toute procédure d'exploitation (installation, remise à zéro, sauvegarde, test hors ligne).
+**Résolution** — #363 corrigée (dbca5d0) avec le résultat du rejeu et la note sur une pile concurrente. La même correction est reportée sur `docs/scenario-demo-30-11` et dans le runbook (f5f5d25). #363 est fusionnée le 18/11.
+**Suivi (18/11, item 31)** — Le même manuel d'installation, relu sur papier contre le compose et la config, comptait 3 écarts bloquants, 9 gênants et 8 mineurs (corrigés par #408). `docker compose config` a confirmé que `-p` ne change pas les `container_name`. Le rejeu sur poste neuf du 20/11 passe donc par une surcharge hors dépôt (`container_name: !reset null`, port de l'hôte déplacé), vérifiée elle aussi avec `config` avant le lancement.
+**Prévention** —
+1. Aucune procédure d'exploitation (`DOCS/exploitation/`, runbooks, protocoles) n'est fusionnée sans la mention explicite « rejouée le JJ/MM : résultat » ou « non rejouée ».
+2. Q vérifie ce point dans sa grille de relecture.
+3. Une correction de procédure suit la même règle que la procédure : elle est rejouée, ou marquée « non rejouée ».
+4. Contrôle plus fort, à décider : un hook pre-commit ou un job CI qui échoue si un fichier modifié sous `DOCS/exploitation/` ne contient ni « rejouée le » ni « non rejouée ».
+**Leçon généralisée** — Une procédure qu'on n'a pas exécutée est une hypothèse. Elle le dit, et on ne la fusionne qu'avec l'état de son rejeu. Le correctif d'une procédure est lui aussi une procédure.
+
+### LESSON-2026-063 — Pools d'adresses Docker épuisés : un KO e2e sans test en échec est un faux rouge
+
+- **Date :** 2026-11-18
+- **Catégorie :** infrastructure / testing
+- **Statut :** captured (surcharge compose et consigne de lecture des logs, à porter par F et Q)
+- **Liens :** piles e2e lancées en parallèle par session, mémoire « charges Docker en parallèle » (3 au plus)
+
+**Contexte** — Plusieurs sessions lancent chacune une pile compose e2e, jusqu'à 3 en parallèle. Compose crée un réseau par projet. Les pools d'adresses par défaut du démon Docker n'offrent qu'une trentaine de réseaux : les /16 de 172.17 à 172.31, plus 192.168.0.0/16 découpé en /20. Les réseaux des piles précédentes, jamais supprimés, s'y ajoutent.
+**Échec / near miss** — Le démarrage d'une pile a échoué sur « all predefined address pools have been fully subnetted ». La passe e2e a été lue comme KO, alors qu'aucun test n'avait tourné : c'est un faux rouge. Le temps est passé à chercher une régression dans le code, pas dans l'environnement.
+**Cause racine** — Les réseaux compose s'accumulent : la pile est arrêtée sans être supprimée, ou chaque session prend un nom de projet différent. L'adressage est laissé au pool par défaut. La conclusion « échec de test » a été tirée du code de retour, sans lire le log.
+**Classification** — Environnement et diagnostic ; faux rouge ; répétable dès que plusieurs piles tournent sur le même poste.
+**Résolution** (F, 18/11) — Le premier lot e2e de #364 était tombé en KO, sans aucun test en échec, alors qu'environ 32 réseaux étaient présents, dont certains de projets arrêtés.
+- Seuls les réseaux de F (préfixe `gedtest-f`) ont été supprimés. Aucun réseau d'un autre pair n'a été touché.
+- Un sous-réseau fixe dédié a été ajouté dans la surcharge compose de la passe : `networks.default.ipam.config`, subnet `10.231.77.0/24`, dont on a vérifié qu'il était libre.
+- Relance : #364 est verte (`notifications.spec` : 9 passed ; tsc et tests unitaires OK).
+**Prévention** —
+1. Chaque session déclare un sous-réseau fixe dans sa surcharge compose, par exemple `10.231.77.0/24` (un /24 distinct par session). La pile ne puise plus dans le pool par défaut.
+2. En fin de passe, `docker compose -p <projet de session> down -v --remove-orphans` est obligatoire. C'est valable pour les piles de session uniquement : la pile `edossier_*` reste gelée jusqu'au 22/11, sans `down -v` ni redémarrage.
+3. Avant de conclure à un échec de test, on lit le log : un KO sans test en échec dans le rapport est classé « environnement », pas « régression ».
+4. Contrôle vérifiable : le script e2e échoue avec un message explicite si le rapport ne contient aucun test exécuté. Cela distingue « pile non démarrée » de « tests rouges ».
+**Leçon généralisée** — Un rouge sans test en échec n'est pas un résultat de test. Les ressources partagées d'un poste (réseaux, ports, noms de conteneurs) s'attribuent de façon fixe par session et se libèrent en fin de passe.
+
+### LESSON-2026-064 — Boucle `echo | while read` : docker avale l'entrée standard et la passe s'arrête sans erreur
+
+- **Date :** 2026-11-18
+- **Catégorie :** automation / testing
+- **Statut :** captured (règle d'écriture des boucles, à porter par F et Q)
+- **Liens :** passes e2e en série sur une liste de PR
+
+**Contexte** — Une passe de vérification parcourt une table de PR avec `echo "$table" | while read ...; do ...; done`. Le corps de la boucle appelle une commande docker.
+**Échec / near miss** — La passe s'est arrêtée après 2 PR, sans erreur et avec un code de retour 0. Les PR suivantes n'ont pas été vérifiées, et rien ne le signalait.
+**Cause racine** — La commande docker du corps de boucle hérite de l'entrée standard de la boucle. C'est le cas de `docker compose exec` sans `-T`, de `docker run -i`, et aussi de `ssh`. Elle lit donc le reste de la table, et le `read` suivant trouve une entrée vide : la boucle se termine normalement.
+**Classification** — Outillage ; échec silencieux, un faux vert par omission ; répétable avec toute commande qui lit l'entrée standard dans une boucle `while read`.
+**Résolution** (F, 18/11) — La passe s'était arrêtée après #353. #355, #356, #357 et #361 n'avaient pas été lancées, et `summary.txt` comptait 2 lignes au lieu de 6.
+- Correctif : la table est lue sur un descripteur dédié, `while read -u 3 ...; done 3<<<"$TABLE"`.
+- Relance : toutes les PR sont de nouveau parcourues (#364, #355 et #356 lancées ensuite).
+- À noter, sans lien avec la leçon : le KO de #355 venait d'un paramètre du spec (`undefined` redevenait `true`), pas du code. Deux lancements du même script ont aussi tourné en parallèle par erreur, car `pkill` est absent sous Git Bash. L'un a été tué par PID et ses conteneurs nettoyés. Un seul lot de F tourne à la fois.
+**Prévention** —
+1. On lit la table par un descripteur dédié : `while read -u 3 ...; do ...; done 3< fichier` (ou `3< <(commande)`). Sinon, on coupe l'entrée de chaque commande du corps : `docker ... </dev/null`, `docker compose exec -T`.
+2. En fin de passe, on compare le nombre d'éléments traités au nombre de lignes de la table. Un écart fait échouer le script.
+3. Contrôle vérifiable : une table de 5 lignes factices avec un corps qui appelle `docker compose exec` doit afficher 5 traitements.
+**Leçon généralisée** — Une boucle qui se termine sans erreur n'a pas forcément tout traité. Toute boucle d'outillage compte ses éléments et isole son entrée standard des commandes qu'elle appelle.
+
+### LESSON-2026-065 — Réglage ajouté au code et à la doc, mais jamais transmis par Docker (deux fois le 18/11)
+
+- **Date :** 2026-11-18
+- **Catégorie :** release-deployment / ci-cd
+- **Statut :** captured (contrôle écrit dans #389, à fusionner en V1.1 après la coupe)
+- **Liens :** PR #378 (`VITE_DEMO_PROFILES`), PR #383 (`AUDIT_EXPORT_MAX_ROWS`), PR #389 (contrôle de parité), `backend/app/core/config.py`, `docker-compose.yml`, `.env.example` racine, mémoire « grille de relecture Q » (compose et `.env.example`)
+
+**Contexte** — Les services `api` et `worker` de `docker-compose.yml` ont un bloc `environment` explicite. Une variable du `.env` n'atteint donc le conteneur que si le compose la cite. Côté frontend, une variable `VITE_*` est figée au build : elle doit être déclarée en `ARG` dans le Dockerfile et passée par `build.args` dans le compose. Sur `main`, `Settings` compte 45 champs et le `.env.example` racine 11 variables.
+**Échec / near miss** — La même erreur est arrivée deux fois dans la journée :
+- #378 : `VITE_DEMO_PROFILES` a été ajoutée au code sans être passée au Dockerfile ni au compose ;
+- #383 : `AUDIT_EXPORT_MAX_ROWS` a été ajoutée à `Settings` sans être reprise dans le bloc `environment` du service `api` ni dans le `.env.example` racine.
+Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Docker. L'application tourne avec la valeur par défaut, sans erreur ni avertissement.
+**Cause racine** — Ajouter un réglage touche trois ou quatre fichiers (code, `.env.example`, compose, Dockerfile pour `VITE_*`). Rien ne relie ces fichiers. Les tests tournent hors Docker ou avec la valeur par défaut, donc ils restent verts. La seule barrière était la relecture : la grille de Q cite bien compose et `.env.example`, mais à la main.
+**Classification** — Configuration ; défaut silencieux, attrapé en relecture avant la fusion ; **répété deux fois le même jour**. Une checklist existait déjà : il faut un contrôle automatique.
+**Résolution** — Les deux PR, encore ouvertes, sont corrigées avant leur fusion. #378 passe la variable par le Dockerfile du frontend, le compose et les deux `.env.example`. #383 la reprend dans le compose et les deux `.env.example`.
+**Prévention** — Un test CI de « parité de configuration », écrit dans #389 (`scripts/check-config-parity.py`, exceptions dans `scripts/config-parity-exceptions.txt`, tests dans `scripts/test_check_config_parity.py`, OK de Q en 3d3ad2e). Il est fusionné en premier en V1.1 : toute PR qui ajoute une variable passe ensuite ce contrôle. Ce qu'il vérifie :
+1. **Inventaire** :
+   - lire les champs de `Settings` dans `backend/app/core/config.py`, par analyse statique, sans importer l'application ;
+   - lire les `import.meta.env.VITE_*` utilisés dans `frontend/`.
+2. **Contrôles** :
+   - chaque champ `Settings` est présent dans le `.env.example` racine et transmis par le compose au service qui le lit (`api` ou `worker`, ou les deux) ;
+   - chaque `VITE_*` est présent dans le `.env.example`, déclaré en `ARG` dans le Dockerfile du frontend et passé par `build.args` dans le compose.
+3. **Exceptions explicites** : un fichier versionné, une ligne par variable avec sa raison. Exemples : réglage interne à valeur fixe, variable fournie par la plateforme, variable propre aux tests. Une exception sans raison fait échouer le test.
+4. **Reprise de l'existant** : au premier passage, les écarts actuels (environ 34 champs `Settings` absents du `.env.example`) sont triés un par un. Chacun est ajouté au compose et au `.env.example`, ou passe en exception justifiée. On ne met pas d'exception en masse sans tri.
+5. **Périmètre d'exécution** : le test est un gate de la carte d'impact. Il se déclenche sur `config.py`, `docker-compose*.yml`, `.env.example`, le Dockerfile du frontend et tout fichier du frontend qui lit `import.meta.env`. Il tourne aussi en pre-commit, car il est rapide et ne dépend pas de Docker.
+6. **Preuve que le test fonctionne** : un cas qui ajoute un champ factice à `Settings` sans le compose doit échouer, avec un message qui nomme la variable et le fichier à compléter.
+**Leçon généralisée** — Un réglage existe pour l'utilisateur seulement s'il traverse tous les fichiers qui le transportent jusqu'au conteneur. Quand une erreur de liaison entre fichiers se répète, la checklist ne suffit plus : un test qui compare ces fichiers et n'accepte que des exceptions écrites doit la remplacer.
+
+### LESSON-2026-066 — Motif `testMatch` sur une seule ligne : 30 PR V1.1 en conflit sur la même ligne
+
+- **Date :** 2026-11-18
+- **Catégorie :** testing / process
+- **Statut :** resolved (dossier `frontend/e2e/unit/`)
+- **Liens :** `frontend/playwright.unit.config.ts`, `frontend/e2e/unit/`, LESSON-2026-036
+
+**Contexte** — Les specs purs étaient enregistrés dans une seule regex `testMatch` (ligne 7 de `playwright.unit.config.ts`).
+**Échec / near miss** — Chaque PR qui ajoutait un spec pur modifiait cette même ligne : 30 PR V1.1 en conflit sur ce fichier, résolues une à une par union manuelle.
+**Cause racine** — Un registre centralisé sur une ligne unique pour une liste qui grandit à chaque PR.
+**Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
+**Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
+**Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
