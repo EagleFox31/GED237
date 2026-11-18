@@ -25,7 +25,7 @@ const TrendChart: React.FC<{ weeks: string[]; lines: TrendLine[]; ariaLabel: str
             <polyline points={tail} strokeDasharray="4 3" />
             {pts.map(([x, y], i) => (
               <circle key={i} cx={x} cy={y} r="3" fill={line.color} stroke="none">
-                <title>{`${line.label} — ${pointTitle(weeks, i, line.values[i])}`}</title>
+                <title>{`${line.label} — ${pointTitle(weeks, i, line.values[i] ?? 0)}`}</title>
               </circle>
             ))}
           </g>
@@ -48,7 +48,7 @@ const Legend: React.FC<{ lines: TrendLine[] }> = ({ lines }) => (
 
 const Card: React.FC<{ title: string; testId: string; children: React.ReactNode }> = ({ title, testId, children }) => (
   <section data-testid={testId} className="glass p-6 rounded-[2rem] bg-white border-white space-y-3">
-    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest italic">{title}</h3>
+    <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest italic">{title}</h3>
     {children}
   </section>
 );
