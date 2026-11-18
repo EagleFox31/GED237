@@ -38,6 +38,7 @@ test.describe('Feature: tuile doublons → journal', () => {
 
     await expect(page).toHaveURL(/\/audit\?action=dup_detected/);
     await expect(page.getByText('fichier-a1.pdf').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Ouvrir fichier-a1.pdf' })).toBeVisible();
     await expect(page.getByText('fichier-b2.pdf')).toHaveCount(0);
   });
 });
