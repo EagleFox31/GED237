@@ -47,6 +47,25 @@ test.describe('Revue de classement : libellés lisibles', () => {
     expect(line).not.toContain('uuid');
   });
 
+  test('modification du document : nouveau titre, jamais les codes de champs', () => {
+    const line = auditDetailsLine({
+      changed: ['title', 'tags'],
+      before: { title: 'Brouillon', tags: [] },
+      after: { title: 'Arrêté final', tags: ['rh'] },
+    });
+    expect(line).toBe('renommé en « Arrêté final »');
+    expect(line).not.toMatch(/changed|before|after|tags/);
+  });
+
+  test('reclassement : nouvel emplacement ; identifiants masqués', () => {
+    const line = auditDetailsLine({
+      before: { classification_domain_id: '11aa-uuid', logical_space_path: 'DAF / À classer' },
+      after: { classification_domain_id: '22bb-uuid', logical_space_path: 'DAF / Courrier / 2026' },
+    });
+    expect(line).toBe('rangé dans DAF / Courrier / 2026');
+    expect(line).not.toContain('uuid');
+  });
+
   test('aucune clé connue : pas de ligne', () => {
     expect(auditDetailsLine({ classification_year: 2026, foo: 'bar' })).toBeNull();
     expect(auditDetailsLine(null)).toBeNull();

@@ -58,6 +58,8 @@ const ACTION_LABELS: Record<string, { label: string; icon: string; color: string
   upload: { label: 'Dépôt du document', icon: 'upload_file', color: 'bg-slate-100 text-slate-600' },
   classification: { label: 'Tentative de classement', icon: 'folder_open', color: 'bg-amber-100 text-amber-700' },
   needs_review: { label: 'Mise en attente', icon: 'pending', color: 'bg-orange-100 text-orange-700' },
+  reclassify: { label: 'Reclassement', icon: 'drive_file_move', color: 'bg-violet-100 text-violet-700' },
+  document_updated: { label: 'Modification du document', icon: 'edit', color: 'bg-slate-100 text-slate-600' },
 };
 
 const SCOPE_OPTIONS: Array<{ value: ReviewFormState['scope']; label: string }> = [
