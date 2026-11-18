@@ -33,6 +33,24 @@ def _result(text: str, confidence: float, engine: str = "fake") -> OCRResult:
     )
 
 
+def _fake_render(monkeypatch, page_count):
+    """Stand-in for poppler: records each render call, one image per requested page."""
+    calls = []
+
+    def fake_convert(_path, dpi=200, first_page=None, last_page=None, **_k):
+        calls.append((first_page, last_page))
+        first = first_page or 1
+        last = last_page or page_count
+        return [Image.new("RGB", (10, 10)) for _ in range(first, last + 1)]
+
+    monkeypatch.setattr("app.services.ocr.strategy.convert_from_path", fake_convert)
+    monkeypatch.setattr(
+        "app.services.ocr.strategy.pdfinfo_from_path",
+        lambda _path: {"Pages": page_count},
+    )
+    return calls
+
+
 def test_fallback_is_used_when_primary_result_is_empty(monkeypatch):
     strategy = OCRStrategy.__new__(OCRStrategy)
     primary = FakeEngine(_result("", 0.0, "primary"))
@@ -266,10 +284,7 @@ def test_disabled_fallback_never_loads_easyocr_for_scanned_pdf_pages(
     strategy.tesseract = _Tesseract()
     strategy.easyocr = _Easy()
     monkeypatch.setattr("app.services.ocr.strategy.PdfReader", _EmptyReader)
-    monkeypatch.setattr(
-        "app.services.ocr.strategy.convert_from_path",
-        lambda *_a, **_k: [Image.new("RGB", (10, 10))],
-    )
+    _fake_render(monkeypatch, 1)
 
     pdf = tmp_path / "scan.pdf"
     pdf.write_bytes(b"%PDF-1.4")
@@ -306,10 +321,7 @@ def _pdf_strategy(monkeypatch, pages, tesseract_result):
             self.pages = [_Page(t) for t in pages]
 
     monkeypatch.setattr("app.services.ocr.strategy.PdfReader", _Reader)
-    monkeypatch.setattr(
-        "app.services.ocr.strategy.convert_from_path",
-        lambda *_a, **_k: [Image.new("RGB", (10, 10))],
-    )
+    _fake_render(monkeypatch, 1)
     return strategy
 
 
@@ -406,10 +418,7 @@ def test_mixed_pdf_keeps_native_page_and_ocrs_the_image_only_page(
             return _result("Page scannée", 0.8, "Tesseract")
 
     strategy.tesseract = _Tesseract()
-    monkeypatch.setattr(
-        "app.services.ocr.strategy.convert_from_path",
-        lambda *_a, **_k: [Image.new("RGB", (10, 10)), Image.new("RGB", (10, 10))],
-    )
+    _fake_render(monkeypatch, 2)
 
     text, confidence, engine = strategy.process_pdf_with_engine(str(pdf))
 
@@ -418,3 +427,24 @@ def test_mixed_pdf_keeps_native_page_and_ocrs_the_image_only_page(
     assert len(ocr_calls) == 1  # only the image-only page is OCRed
     assert engine == "pypdf (native) + Tesseract"
     assert confidence == pytest.approx((0.95 + 0.8) / 2)
+
+
+def test_scanned_pdf_is_rendered_one_page_at_a_time(monkeypatch, tmp_path):
+    strategy = OCRStrategy.__new__(OCRStrategy)
+
+    class _Tesseract:
+        def extract_from_pil_image(self, _image):
+            return _result("page", 0.9, "Tesseract")
+
+    strategy.tesseract = _Tesseract()
+    monkeypatch.setattr("app.services.ocr.strategy.PdfReader", _EmptyReader)
+    calls = _fake_render(monkeypatch, 3)
+    pdf = tmp_path / "long.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    text, _confidence, engine = strategy.process_pdf_with_engine(str(pdf))
+
+    # Never the whole document at once: one render call per page.
+    assert calls == [(1, 1), (2, 2), (3, 3)]
+    assert text == "\n\n".join(["page"] * 3)
+    assert engine == "Tesseract"

@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Optional
 
 from pypdf import PdfReader
-from pdf2image import convert_from_path
+from pdf2image import convert_from_path, pdfinfo_from_path
 
 from app.core.config import settings
 
@@ -141,23 +141,29 @@ class OCRStrategy:
                 print("PDF: Native text extraction successful")
                 return "\n".join(native) + "\n", 0.95, NATIVE_PDF_ENGINE
 
-            # Pages without native text: render and OCR them (all pages if none has text).
+            # Pages without native text: render and OCR them (all pages if none has text),
+            # one page at a time so memory stays bounded on long scans.
             print("PDF: Running OCR on pages without native text.")
-            pages = convert_from_path(pdf_path, dpi=200)
             if not native:
-                native = [""] * len(pages)
-                missing = list(range(len(pages)))
+                page_count = int(pdfinfo_from_path(pdf_path)["Pages"])
+                native = [""] * page_count
+                missing = list(range(page_count))
             texts = list(native)
             confidences = [0.95 for t in native if t]
             engines: list[str] = [NATIVE_PDF_ENGINE] if any(native) else []
 
             for index in missing:
-                if index >= len(pages):
+                rendered = convert_from_path(
+                    pdf_path, dpi=200, first_page=index + 1, last_page=index + 1
+                )
+                if not rendered:
                     continue
-                result = self.tesseract.extract_from_pil_image(pages[index])
+                page_image = rendered[0]
+                del rendered
+                result = self.tesseract.extract_from_pil_image(page_image)
 
                 if self._should_use_fallback(result):
-                    fallback_result = self.easyocr.extract_from_pil_image(pages[index])
+                    fallback_result = self.easyocr.extract_from_pil_image(page_image)
                     if self._prefer_fallback(result, fallback_result):
                         result = fallback_result
 
