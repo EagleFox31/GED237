@@ -25,6 +25,9 @@ class DocumentType(Enum):
     UNKNOWN = "unknown"  # Unknown → Try both
 
 
+NATIVE_PDF_ENGINE = "pypdf (native)"
+
+
 class OCRStrategy:
     """
     OCR Strategy - Chooses the best engine for each document type
@@ -119,6 +122,11 @@ class OCRStrategy:
         Returns:
             Tuple of (text, confidence)
         """
+        text, confidence, _engine = self.process_pdf_with_engine(pdf_path)
+        return text, confidence
+
+    def process_pdf_with_engine(self, pdf_path: str) -> tuple[str, float, str]:
+        """Same as process_pdf, also naming the engine(s) that produced the text."""
         try:
             # Try native text extraction first (fast).
             text = ""
@@ -131,13 +139,14 @@ class OCRStrategy:
 
             if text.strip():
                 print("PDF: Native text extraction successful")
-                return text, 0.95
+                return text, 0.95, NATIVE_PDF_ENGINE
 
             # No native text: render pages and OCR them.
             print("PDF: No native text found. Running OCR on scanned pages.")
             pages = convert_from_path(pdf_path, dpi=200)
             extracted_pages: list[str] = []
             confidences: list[float] = []
+            engines: list[str] = []
 
             for page_number, page_image in enumerate(pages, start=1):
                 result = self.tesseract.extract_from_pil_image(page_image)
@@ -150,18 +159,24 @@ class OCRStrategy:
                 if result.text.strip():
                     extracted_pages.append(result.text.strip())
                     confidences.append(result.confidence)
+                    if result.engine_used not in engines:
+                        engines.append(result.engine_used)
                 else:
                     print(f"PDF: No OCR text extracted from page {page_number}")
 
             if not extracted_pages:
-                return "", 0.0
+                return "", 0.0, "none"
 
             average_confidence = sum(confidences) / len(confidences)
-            return "\n\n".join(extracted_pages), average_confidence
+            return (
+                "\n\n".join(extracted_pages),
+                average_confidence,
+                " + ".join(engines),
+            )
 
         except Exception as e:
             print(f"PDF extraction error: {e}")
-            return "", 0.0
+            return "", 0.0, "none"
 
     def _detect_document_type(self, image_path: str) -> DocumentType:
         """

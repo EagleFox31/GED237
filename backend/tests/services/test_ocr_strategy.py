@@ -283,3 +283,64 @@ def test_disabled_fallback_never_loads_easyocr_for_scanned_pdf_pages(
 class _EmptyReader:
     def __init__(self, _file):
         self.pages = []
+
+
+def _pdf_strategy(monkeypatch, pages, tesseract_result):
+    strategy = OCRStrategy.__new__(OCRStrategy)
+
+    class _Tesseract:
+        def extract_from_pil_image(self, _image):
+            return tesseract_result
+
+    strategy.tesseract = _Tesseract()
+
+    class _Page:
+        def __init__(self, text):
+            self._text = text
+
+        def extract_text(self):
+            return self._text
+
+    class _Reader:
+        def __init__(self, _file):
+            self.pages = [_Page(t) for t in pages]
+
+    monkeypatch.setattr("app.services.ocr.strategy.PdfReader", _Reader)
+    monkeypatch.setattr(
+        "app.services.ocr.strategy.convert_from_path",
+        lambda *_a, **_k: [Image.new("RGB", (10, 10))],
+    )
+    return strategy
+
+
+def test_pdf_with_native_text_reports_the_native_engine(monkeypatch, tmp_path):
+    strategy = _pdf_strategy(monkeypatch, ["Bonjour"], _result("", 0.0, "Tesseract"))
+    pdf = tmp_path / "native.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    text, confidence, engine = strategy.process_pdf_with_engine(str(pdf))
+
+    assert text.strip() == "Bonjour"
+    assert engine == "pypdf (native)"
+    assert strategy.process_pdf(str(pdf)) == (text, confidence)
+
+
+def test_scanned_pdf_reports_the_ocr_engine_not_pypdf(monkeypatch, tmp_path):
+    strategy = _pdf_strategy(
+        monkeypatch, [None], _result("Texte scanné", 0.9, "Tesseract")
+    )
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    text, _confidence, engine = strategy.process_pdf_with_engine(str(pdf))
+
+    assert text == "Texte scanné"
+    assert engine == "Tesseract"
+
+
+def test_pdf_without_any_text_reports_no_engine(monkeypatch, tmp_path):
+    strategy = _pdf_strategy(monkeypatch, [None], _result("", 0.0, "Tesseract"))
+    pdf = tmp_path / "blank.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    assert strategy.process_pdf_with_engine(str(pdf)) == ("", 0.0, "none")
