@@ -19,7 +19,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
 ORDER_V0="389 403 383"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 438 440 439 442"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 438 444 440 439 442"
 # Fin de vague 1, dès qu’elles ont un numéro : #413, #414, pagination du journal d’audit (F, GO du PO le 18/11)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -46,6 +46,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
     - #429, une seule règle pour décider quelles étapes sont les tâches de l'utilisateur ; elle sert de base à #438 et à #445 ;
     - #437, garde de la route /audit (L13-5) ;
     - #438, motif de rejet et nouvelle soumission (L12-B), empilée sur #429 ;
+    - #444, nom du valideur, empilée sur #438, juste après elle (OK de Q sur 531fec72, O, 18/11 au soir) ;
     - #440, filtre « À corriger » (L12-2), après #438 ;
     - #439, recherche sur tous les documents depuis le filtre d'une page (L14-2, B) ;
     - #442, pastille du menu Tâches (L13-3).
@@ -72,7 +73,7 @@ DEP[403]="389"; DEP[401]="407"; DEP[405]="394"
 # Après la chaîne OCR (O, 18/11 au soir)
 DEP[436]="387"
 # Piles et suites ouvertes le 18/11 au soir (O) ; #445 porte une migration (chaîne alembic, plan-fusion § 4)
-DEP[438]="429"; DEP[440]="438"; DEP[445]="429 436"
+DEP[438]="429"; DEP[444]="438"; DEP[440]="438"; DEP[445]="429 436"
 DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
 DEP[267]="248"; DEP[268]="248 389"
 DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
@@ -117,7 +118,7 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 | #193 | #219 |
 | #180 | #209 |
 | #165 | #205 |
-| #429 | #438, #445 |
+| #429 | #438, #445 ; puis, avant #438 : #444 |
 
 Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n’est fusionnée avant la fin de la fenêtre V1.1 (05/12, 18:00).
 
@@ -154,4 +155,4 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
   - #391 et #396 : le conflit sur la ligne 65 de `document-detail.page.ts` (on garde la ligne commentée).
 - **Sans OK de Q** : #253, #372, #370, #404, #355, #359, #284, #311, #384, #386, #387, #388, #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, ~~#378~~ (fermée), #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #309, #147, #155, #168, #170, #172, #212.
 - **OK sur un code ancien, périmé ou sans SHA noté** : #235, #238, #267, #268, #261, #263, #266, #296, #221, #262, #310, #301, #302, #293, #295, #297, #294, #303, #179, #162, #193, #197, #180, #209, #165, #205, #186, #181, #184, #211, #190, #182, #199.
-- **OK valides sur la tête au 18/11** : #152 (a47df85), #389 (3d3ad2e), #403 (4228d7a), #383 (c19e95b), #222 (99d3d09), #224 (0b8eb15), #237 (ae555e4), #240 (1798847), #407 (98d2317), #391 (9a943d3), #392 (fc71aad), #396 (93feb87), #153 (cbf28bc), #154 (720a30f), #171 (3198885), #192 (7c32940), #395 (OK de Q selon O, SHA à noter), #417 (24d86bf, OK de code de Q, O 18/11). Ceux de #227, #234, #243 et #245 tomberont au rebase (CONFLICTING).
+- **OK valides sur la tête au 18/11** : #152 (a47df85), #389 (3d3ad2e), #403 (4228d7a), #383 (c19e95b), #222 (99d3d09), #224 (0b8eb15), #237 (ae555e4), #240 (1798847), #407 (98d2317), #391 (9a943d3), #392 (fc71aad), #396 (93feb87), #153 (cbf28bc), #154 (720a30f), #171 (3198885), #192 (7c32940), #395 (OK de Q selon O, SHA à noter), #417 (24d86bf, OK de code de Q, O 18/11), #444 (531fec72, O 18/11 au soir ; l’OK tombe au re-ciblage si la tête change). Ceux de #227, #234, #243 et #245 tomberont au rebase (CONFLICTING).
