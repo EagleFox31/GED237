@@ -671,9 +671,9 @@ première requête utilisateur.
 **Échec / near miss** — Relevé en recette avant le gel V1.0 : la revue de diff ne pouvait pas voir ce qui n'était pas dans le diff.
 **Cause racine** — Angle mort de la revue limitée aux diffs ; règle `no-alert` désactivée, aucun garde-fou automatique contre les fenêtres natives.
 **Classification** — Couverture de revue ; near miss ; répétable à chaque nouvel écran.
-**Résolution** — Contrôles morts corrigés et fenêtres natives remplacées par `ConfirmationModal` / `RejectReasonDialog` (PR #334, #336). Quatre écrans d'administration reportés en V1.2, listés en exception.
+**Résolution** — Contrôles morts corrigés et fenêtres natives remplacées par `ConfirmationModal` / `RejectReasonDialog` (PR #334, #336). Écrans d'administration corrigés dans une PR dédiée.
 **Prévention** —
-1. `no-alert` en erreur ; exceptions limitées aux 4 écrans reportés, commentées dans `.eslintrc.json`.
+1. `no-alert` en erreur, sans exception.
 2. Garde Playwright automatique (`noNativeDialog`) dans les fixtures communes : tout test qui ouvre une fenêtre native échoue.
 3. Grille de recette : parcours par persona sur l'accueil de chaque rôle, tout élément cliquable agit, aucune fenêtre native.
 **Leçon généralisée** — Une revue de diff ne couvre pas les écrans non modifiés : ce qu'on interdit doit l'être par une règle automatique, et la recette doit parcourir l'application par persona.
