@@ -22,10 +22,8 @@ export const RETRY_READ_LABEL = 'Relancer la lecture';
 export const RETRY_READ_STARTED = 'Lecture relancée.';
 export const RETRY_READ_BUSY = 'Lecture déjà en cours, réessayez dans quelques minutes';
 
-// Droit de modifier le document (documents:update) : le serveur tranche, l'interface masque
-// le bouton aux profils qui n'ont aucune modification (le lecteur).
-const NO_UPDATE_PROFILES: ReadonlySet<string> = new Set(['reader']);
-
-export function canRetryRead(ocrStatus: string | null | undefined, profileId: string | undefined): boolean {
-  return readStateOf(ocrStatus) === 'failed' && !!profileId && !NO_UPDATE_PROFILES.has(profileId);
+// Droit de relancer = document.can_update (serveur : même règle que PATCH et retry, droit et périmètre).
+// Absent ou non booléen vrai → bouton masqué (sûr par défaut).
+export function canRetryRead(ocrStatus: string | null | undefined, canUpdate: boolean | null | undefined): boolean {
+  return readStateOf(ocrStatus) === 'failed' && canUpdate === true;
 }

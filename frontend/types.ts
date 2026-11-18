@@ -37,6 +37,7 @@ export interface Document {
   import_job_id?: string | null;
   /** Lecture du texte : not_processed | processing | completed | failed ; toute autre valeur = en traitement. */
   ocr_status?: string | null;
+  can_update?: boolean | null;
 }
 
 export type ClassificationReviewStatus = 'open' | 'resolved' | 'cancelled';

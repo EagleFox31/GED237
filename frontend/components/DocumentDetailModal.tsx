@@ -28,7 +28,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [document, setDocument] = useState<Document>(initialDocument);
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
-  const canRetry = canRetryRead(document.ocr_status, profileId);
+  const canRetry = canRetryRead(document.ocr_status, document.can_update);
   const [retrying, setRetrying] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);

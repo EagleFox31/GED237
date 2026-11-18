@@ -18,8 +18,9 @@ test('aucun libellé ne montre le mot OCR', () => {
 });
 
 test('le bouton de relance n\'apparaît qu\'en échec et pas pour le lecteur', () => {
-  expect(canRetryRead('failed', 'manager')).toBe(true);
-  expect(canRetryRead('failed', 'reader')).toBe(false);
-  expect(canRetryRead('completed', 'manager')).toBe(false);
+  expect(canRetryRead('failed', true)).toBe(true);
+  expect(canRetryRead('failed', false)).toBe(false);
+  expect(canRetryRead('completed', true)).toBe(false);
   expect(canRetryRead('failed', undefined)).toBe(false);
+  expect(canRetryRead('failed', null)).toBe(false);
 });
