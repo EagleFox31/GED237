@@ -4,6 +4,7 @@ import type { RulesImportReport } from '../../../../services/resources/classific
 import { ApiError } from '../../../../lib/errors';
 import { pushClientOperationError } from '../../../../lib/errors/clientOperationError';
 import { HelpHint } from '../../../../components/HelpHint';
+import { useAuthStore } from '../../../../stores/authStore';
 
 interface RulesTransferControlsProps {
   /** Appelé après un import appliqué, pour recharger la liste des règles. */
@@ -23,6 +24,8 @@ const ACTION_LABELS: Record<string, string> = {
  * l'utilisateur n'a pas confirmé le résumé.
  */
 export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ onImported }) => {
+  // Export et import des règles : réservés à l'administrateur d'institution (et à la plateforme).
+  const profileId = useAuthStore((s) => s.userProfile?.id);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const titleId = useId();
   const [busy, setBusy] = useState(false);
@@ -108,6 +111,8 @@ export const RulesTransferControls: React.FC<RulesTransferControlsProps> = ({ on
   const report = pending?.report ?? null;
   const problems = report?.items.filter((item) => item.action === 'reject') ?? [];
   const canConfirm = report !== null && report.rejected === 0 && report.created + report.updated > 0;
+
+  if (profileId !== 'super' && profileId !== 'tenant') return null;
 
   return (
     <>

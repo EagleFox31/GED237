@@ -331,7 +331,13 @@ const ClassificationReviewPage: React.FC = () => {
       await loadReviews();
     } catch (error) {
       console.error(error);
-      showToast({ tone: 'error', message: 'La résolution manuelle a échoué. Vérifiez les champs saisis.' });
+      if ((error as { status?: number })?.status === 404) {
+        // Revue hors de votre périmètre ou déjà traitée : la liste est rechargée, sans message d'erreur technique.
+        showToast({ tone: 'error', message: "Cette revue n'est plus disponible pour vous." });
+        await loadReviews();
+      } else {
+        showToast({ tone: 'error', message: 'La résolution manuelle a échoué. Vérifiez les champs saisis.' });
+      }
     } finally {
       setSubmitting(false);
     }
