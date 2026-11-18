@@ -18,7 +18,7 @@ const REPORTS_API = /\/api\/v1\/reports\//;
 /** Titre de la page de repli (route inconnue), frontend/App.tsx NotFoundPage. */
 const NOT_FOUND = 'Espace en Travaux';
 
-test.describe('Garde des routes d’administration (GUARD-01..11)', () => {
+test.describe('Garde des routes d’administration (GUARD-01..13)', () => {
   test('GUARD-01 — Given lecteur, When /users, Then retour à /documents avec message, page non montée', async ({ loginAs, page }) => {
     await loginAs('reader');
     await page.goto('users');
@@ -117,6 +117,25 @@ test.describe('Garde des routes d’administration (GUARD-01..11)', () => {
     await expect(page).toHaveURL(/\/reports$/);
     await expect(page.getByText(PROFILE_DENIED)).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 1, name: /rapports/i })).toBeVisible();
+  });
+
+  // Menu Rapports : même liste de profils que la garde de /reports (lib/reportsAccess.ts).
+  for (const role of ['unit_admin', 'manager', 'collaborator', 'auditor'] as const) {
+    test(`GUARD-12 — Given ${role}, When menu Rapports, Then la page des rapports s’affiche`, async ({ loginAs, page }) => {
+      await loginAs(role);
+      await page.goto('documents');
+      await page.getByRole('navigation').getByRole('button', { name: /Rapports$/ }).click();
+      await expect(page).toHaveURL(/\/reports$/);
+      await expect(page.getByText(PROFILE_DENIED)).toHaveCount(0);
+      await expect(page.getByRole('heading', { level: 1, name: /rapports/i })).toBeVisible();
+    });
+  }
+
+  test('GUARD-13 — Given lecteur, When menu, Then pas d’entrée Rapports', async ({ loginAs, page }) => {
+    await loginAs('reader');
+    await page.goto('documents');
+    await expect(page.getByRole('navigation').getByRole('button', { name: /Mes Documents$/ })).toBeVisible();
+    await expect(page.getByRole('navigation').getByRole('button', { name: /Rapports$/ })).toHaveCount(0);
   });
 
   test('GUARD-07 — Given admin tenant, When chaque entrée du menu, Then jamais la page introuvable', async ({ loginAs, page }) => {

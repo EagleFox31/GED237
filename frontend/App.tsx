@@ -38,6 +38,7 @@ import PendingAssignmentsInbox from './profiles/tenant-admin/pages/PendingAssign
 import SpacesPage from './profiles/tenant-admin/pages/SpacesPage';
 import ClassificationReviewPage from './profiles/tenant-admin/pages/ClassificationReviewPage';
 import ReportsPage from './profiles/tenant-admin/pages/ReportsPage';
+import { REPORTS_PROFILES } from './lib/reportsAccess';
 import LocalLibraryPage from './profiles/tenant-admin/pages/LocalLibraryPage';
 
 // Route → activeTab mapping (pour la compatibilité Sidebar/Header)
@@ -105,7 +106,7 @@ export const ADMIN_ROUTES = {
   // Lecture du journal : super_admin, tenant_admin, auditor (backend/app/core/authz/policy.csv).
   '/audit': ['super', 'tenant', 'audit'],
   // Statistiques (analytics.tenant, read) : tous les profils sauf le lecteur (policy.csv).
-  '/reports': ['super', 'tenant', 'unit', 'manager', 'collab', 'audit'],
+  '/reports': REPORTS_PROFILES,
 } as const satisfies Record<string, ReadonlyArray<ProfileId>>;
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
