@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
+from app.services.unit_admin_scope import assert_unit_admin_in_tree
 from app.models.document import Document
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.role import Role
@@ -157,11 +158,14 @@ def _validate_step_order(
     return sorted_steps
 
 
-async def _authorize_workflow_read(user: User, document: Document) -> None:
+async def _authorize_workflow_read(
+    user: User, document: Document, db: AsyncSession
+) -> None:
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
+        await assert_unit_admin_in_tree(db, document.org_unit_id, user)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -246,7 +250,7 @@ async def get_workflow_steps(
 ):
     """Get all workflow steps for a document in the current tenant."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
     result = await db.execute(
         select(WorkflowStep)
         .where(WorkflowStep.document_id == document_id)
@@ -371,7 +375,7 @@ async def get_document_action_history(
     """Récupérer l'historique complet des actions métier posées sur un document."""
     # Vérifier que le document appartient au tenant
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
 
     # Récupérer toutes les actions via les steps du document
     result = await db.execute(

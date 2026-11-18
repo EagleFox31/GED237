@@ -6,7 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import String, cast, select
+from sqlalchemy import String, cast, exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -60,10 +60,27 @@ class ClassificationReviewService:
         self.path_builder = SpacePathBuilder(db)
         self.storage_service = get_storage_service()
 
+    @staticmethod
+    def _in_units(org_unit_ids):
+        """Reviews whose document, or whose import batch target, sits in the units."""
+        return or_(
+            exists().where(
+                Document.id == ClassificationReview.document_id,
+                Document.org_unit_id.in_(org_unit_ids),
+            ),
+            exists().where(
+                ImportJobItem.id == ClassificationReview.import_job_item_id,
+                ImportJobItem.import_job_id == ImportJob.id,
+                ImportJob.target_org_unit_id.in_(org_unit_ids),
+            ),
+        )
+
     async def list_open_reviews(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, org_unit_ids=None
     ) -> List[ClassificationReviewRead]:
-        reviews = await self._load_open_reviews(tenant_id=tenant_id)
+        reviews = await self._load_open_reviews(
+            tenant_id=tenant_id, org_unit_ids=org_unit_ids
+        )
         return [self._to_review_read(review) for review in reviews]
 
     async def list_legacy_needs_review_documents(
@@ -134,11 +151,13 @@ class ClassificationReviewService:
         review_id: UUID,
         payload: ClassificationReviewResolvePayload,
         current_user: User,
+        org_unit_ids=None,
     ) -> ClassificationReviewResolutionOutcome:
         review = await self._get_review_or_404(
             review_id=review_id,
             tenant_id=current_user.tenant_id,
             for_update=True,
+            org_unit_ids=org_unit_ids,
         )
         if review.review_status != "open":
             raise HTTPException(
@@ -528,9 +547,9 @@ class ClassificationReviewService:
         )
 
     async def _load_open_reviews(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, org_unit_ids=None
     ) -> list[ClassificationReview]:
-        result = await self.db.execute(
+        stmt = (
             select(ClassificationReview)
             .options(
                 selectinload(ClassificationReview.document).selectinload(
@@ -558,6 +577,9 @@ class ClassificationReviewService:
             )
             .order_by(ClassificationReview.updated_at.desc())
         )
+        if org_unit_ids is not None:
+            stmt = stmt.where(self._in_units(org_unit_ids))
+        result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def _load_reviewable_documents(self, *, tenant_id: UUID) -> List[Document]:
@@ -646,11 +668,14 @@ class ClassificationReviewService:
         review_id: UUID,
         tenant_id: UUID,
         for_update: bool = False,
+        org_unit_ids=None,
     ) -> ClassificationReview:
         stmt = select(ClassificationReview).where(
             ClassificationReview.id == review_id,
             ClassificationReview.tenant_id == tenant_id,
         )
+        if org_unit_ids is not None:
+            stmt = stmt.where(self._in_units(org_unit_ids))
         if for_update:
             stmt = stmt.with_for_update()
         result = await self.db.execute(stmt)
