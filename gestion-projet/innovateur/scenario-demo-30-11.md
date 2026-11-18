@@ -201,4 +201,13 @@ Chemin : `/imports`, « Juste les ranger », service MINFI-DAF, dossier `live` d
 - Compteurs identiques sur les deux passages : après l'analyse, 16 prêts, 12 à revoir, 2 ignorés ou déjà présents ; après l'import, Importés 16, À arbitrer 12, Doublons 2, Erreurs 0 ; accueil de 351 à 367.
 - L'analyse prend 0,4 à 0,45 s au lieu de 0,3 s par l'API, car le navigateur envoie lui-même les 30 fichiers. L'affichage ajoute 60 à 100 ms.
 - Limites de la mesure : navigateur sans fenêtre, page servie en mode développement (pas la version compilée), serveur sur le même poste. Un serveur distant ajoute le temps d'envoi des 30 fichiers par le réseau (`Déduit`). La répétition sur le poste de démo le confirmera.
+- **Version compilée (F, 18/11, contrôlé par Q, `Mesuré`)** : même SHA et même lot, page de production servie par `vite preview`. Deux passages :
+
+  | Mesure | 1er passage | 2e passage |
+  |---|---|---|
+  | Analyse, du clic à la réponse | 440 ms | 602 ms |
+  | Import, du clic à la réponse | 253 ms | 176 ms |
+  | Total, du clic sur l'analyse aux cartes finales | 807 ms | 884 ms |
+
+  Mêmes compteurs (16, 12, 2, 0 erreur ; accueil de 351 à 367). La version compilée ne change pas sensiblement les temps, qui dépendent surtout du serveur. L'affichage ne prend que 17 à 26 ms après la réponse. Avec 2 passages par mode, l'écart de 411 à 602 ms sur l'analyse est du bruit de mesure. **La réserve sur le mode développement est levée.** Reste à confirmer à la répétition : le temps d'envoi avec le serveur sur une autre machine.
 - **Conséquence pour l'étape 1 (`Déduit`)** : l'attente machine est inférieure à 1 s sur les 3:00 prévues. Le temps passe dans les clics, le choix du dossier et la phrase du narrateur. Le budget de 3:00 est tenu avec de la marge ; le repli « si l'import dépasse 4:00 » (§ 1) ne sert qu'en cas de panne ou de réseau lent.
