@@ -9,6 +9,7 @@
 - **Refus en V1.1 du 17/11** : la surcouche P8 (élément 17, B 0,25), décision de O.
 - **Sortie de la V1.1 du 18/11** : le glisser-déposer de #151 (élément 18, #299), décision de O. #278 sort aussi (élément 19, décision de O) : il passe en tête de la V1.2, avant l'élément 10 qui en dépend.
 - **Ajout du 18/11** : « comme Windows », éléments 20 à 23 (≈ 7 h-s), détail dans `spec-windows-feel-v1.2.md`.
+- **Décision du PO du 18/11** : les éléments 20 à 23 entrent en V1.2 (+7 h-s, total ≈ 38,25). F commence par l'élément 21 (application installable), en brouillon.
 
 ## Les éléments
 
