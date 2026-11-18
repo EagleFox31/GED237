@@ -80,7 +80,8 @@ test.describe('Garde des routes d’administration (GUARD-01..07)', () => {
     const menu = page.getByRole('navigation').filter({ hasText: firstSection as string });
     for (const item of TENANT_ADMIN_MENU.flatMap((section) => section.items)) {
       // Le nom accessible inclut le texte de l'icône : on ancre sur la fin du libellé.
-      const label = new RegExp(`${item.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+      // Pastille possible après le libellé (« Tâches & Validations 3 en attente »).
+      const label = new RegExp(`${item.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s*\\d+\\+?\\s*en attente)?$`);
       const entry = menu.getByRole('button', { name: label });
       await entry.click();
       // Attendre que la navigation soit rendue : sinon l'assertion négative peut passer trop tôt.

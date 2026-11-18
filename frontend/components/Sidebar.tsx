@@ -5,6 +5,8 @@ import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
 import { Logo } from './Logo';
 import { APP_VERSION } from '../constants';
+import { usePendingTaskCount } from '../hooks/usePendingTaskCount';
+import { taskBadgeLabel } from '../lib/taskCount';
 
 interface SidebarProps {
   activeTab: string;
@@ -15,8 +17,20 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+/** Pastille du nombre de tâches en attente ; « en attente » n'est lu que par les lecteurs d'écran. */
+const TaskBadge: React.FC<{ count: number }> = ({ count }) => {
+  const label = taskBadgeLabel(count);
+  if (!label) return null;
+  return (
+    <span data-testid="task-badge" className="ml-auto min-w-[1.25rem] rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black text-white">
+      {label}<span className="sr-only"> en attente</span>
+    </span>
+  );
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, open = false, onClose }) => {
   const [tenantLabel, setTenantLabel] = useState<string>('');
+  const pendingTasks = usePendingTaskCount();
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -65,6 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
               <span className={`text-[11px] font-bold uppercase tracking-tight ${activeTab === item.id ? 'font-black' : ''}`}>
                 {item.label}
               </span>
+              {item.id === 'tasks' && <TaskBadge count={pendingTasks} />}
             </button>
           ))}
         </div>
@@ -113,6 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           >
             <span className="material-symbols-outlined text-xl">{item.icon}</span>
             <span className="text-[11px] font-bold uppercase">{item.label}</span>
+            {item.id === 'tasks' && <TaskBadge count={pendingTasks} />}
           </button>
         ))}
       </div>
