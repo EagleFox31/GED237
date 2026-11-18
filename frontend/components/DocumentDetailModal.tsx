@@ -6,6 +6,8 @@ import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { ReassignStepDialog } from './workflow/ReassignStepDialog';
+import { canReassignStep } from '../lib/reassign';
 import { downloadName } from '../lib/downloadName';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
@@ -37,6 +39,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [commentFor, setCommentFor] = useState<{ stepId: string; actionType: string; outcome: "rejected" | "returned" } | null>(null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
+  const [reassigning, setReassigning] = useState<WorkflowStep | null>(null);
 
   // Même route que le visualiseur ; l'erreur éventuelle est déjà publiée par apiCallBlob.
   const handleDownload = async () => {
@@ -383,6 +386,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                             <button onClick={() => handleValidate(step.id, step.expected_action_type || 'visa', 'rejected')} className="px-4 py-2 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all">Rejeter</button>
                           </div>
                         )}
+                        {canReassignStep(profileId, step) && (
+                          <button
+                            type="button"
+                            onClick={() => setReassigning(step)}
+                            title="Confier cette étape à quelqu'un d'autre"
+                            className="mt-3 inline-flex items-center gap-1 px-4 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:border-slate-300 hover:text-slate-800 transition-all"
+                          >
+                            <span className="material-symbols-outlined text-base" aria-hidden="true">person_search</span>
+                            Réassigner
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -467,6 +481,14 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
           const pending = commentFor;
           setCommentFor(null);
           if (pending) void handleValidate(pending.stepId, pending.actionType, pending.outcome, reason);
+        }}
+      />
+      <ReassignStepDialog
+        step={reassigning}
+        onCancel={() => setReassigning(null)}
+        onDone={() => {
+          setReassigning(null);
+          void loadWorkflowSteps();
         }}
       />
     </div>
