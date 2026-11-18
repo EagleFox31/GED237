@@ -315,7 +315,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <div className="space-y-2 group">
                       <div className="flex justify-between px-1">
                         <label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Mot de Passe</label>
-                        <button type="button" className="text-[10px] font-black text-rdpc-blue uppercase hover:underline">Oublié ?</button>
                       </div>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
