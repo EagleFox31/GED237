@@ -16,7 +16,16 @@ export interface SeedManifest {
     rules: { code: string; name: string }[];
   };
   workflows: { code: string; name: string; routing: { code: string; name: string } }[];
-  documents: { code: string; title: string; owner: string; category: string; trashed?: boolean; versions?: number }[];
+  documents: {
+    code: string;
+    title: string;
+    owner: string;
+    category: string;
+    trashed?: boolean;
+    versions?: number;
+    /** Reading state written by the seed (#284): a failure, or a text with its confidence. */
+    ocr?: { status: 'failed'; error: string } | { content: string; confidence: number };
+  }[];
   expected: {
     categories: string[];
     domains: string[];
@@ -27,6 +36,8 @@ export interface SeedManifest {
     pendingTasks: Record<string, string[]>;
     trash: string[];
     versions: Record<string, number>;
+    /** GET /documents/{id}/ocr, per title. */
+    ocr: Record<string, { status: string; error: string | null; lowConfidence: boolean | null }>;
   };
 }
 
