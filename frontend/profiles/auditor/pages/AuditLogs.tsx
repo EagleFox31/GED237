@@ -7,6 +7,7 @@ import type { AuditLogEntry } from '../../../types';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import { HelpHint } from '../../../components/HelpHint';
+import { auditPageQuery, hasNextAuditPage } from '../../../lib/auditPagination';
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('fr-CM', {
@@ -74,11 +75,13 @@ const AuditLogs: React.FC = () => {
     'detail',
   ]);
 
+  const [page, setPage] = useState(0);
+
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getAuditLogs({ limit: 200 });
+      const data = await api.getAuditLogs(auditPageQuery(page));
       setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
@@ -86,7 +89,7 @@ const AuditLogs: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     fetchLogs();
@@ -197,7 +200,10 @@ const AuditLogs: React.FC = () => {
 
   const setColumnFilter = (key: string, values: string[]) => {
     setColumnFilters((current) => ({ ...current, [key]: values }));
+    setPage(0);
   };
+
+  const hasNextPage = hasNextAuditPage(logs.length);
 
   const toggleSort = (key: string) => {
     setSort((current) => {
@@ -399,6 +405,25 @@ const AuditLogs: React.FC = () => {
             />
           </div>
         )}
+        <nav aria-label="Pages du registre" className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-3">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={isLoading || page === 0}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-700 disabled:opacity-40"
+          >
+            Précédent
+          </button>
+          <span className="text-xs font-bold text-slate-500" aria-live="polite">Page {page + 1}</span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={isLoading || !hasNextPage}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-700 disabled:opacity-40"
+          >
+            Suivant
+          </button>
+        </nav>
       </div>
     </div>
   );
