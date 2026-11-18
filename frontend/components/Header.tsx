@@ -7,6 +7,7 @@ import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../stores/authStore';
 import { Avatar } from './ui/Avatar';
+import { HighlightedExcerpt } from './HighlightedExcerpt';
 import { getStatusLabel } from '../types';
 
 /** Résultat de `GET /search` (SearchHitResponse côté serveur). */
@@ -19,6 +20,8 @@ interface SearchHit {
   status: string;
   category?: string | null;
   file_type?: string | null;
+  /** Extrait du contenu lu, mot trouvé entre <mark> (jamais injecté comme HTML). */
+  highlight?: string | null;
 }
 
 /**
@@ -50,7 +53,9 @@ const ROUTE_SEARCH_CONFIG: Record<string, RouteSearchConfig> = {
   },
   '/documents': {
     mode: 'page-local',
-    placeholder: 'Rechercher par nom, métadonnées ou contenu…',
+    // GET /documents?q= filtre titre, mots-clés, classement et catégorie ; le texte lu dans les scans
+    // n'est cherché que par la recherche globale (GET /search).
+    placeholder: 'Rechercher par titre, mot-clé ou catégorie…',
   },
   '/pending-assignments': {
     mode: 'page-local',
@@ -323,6 +328,10 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                           <p className="text-[10px] text-slate-400 font-medium truncate">
                             {result.category ? `${result.category} • ` : ''}{getStatusLabel(result.status)}
                           </p>
+                          <HighlightedExcerpt
+                            highlight={result.highlight}
+                            className="text-xs text-slate-600 mt-1 line-clamp-2 break-words"
+                          />
                         </div>
                       </button>
                     ))}
