@@ -31,8 +31,14 @@ class WorkflowActionPolicy:
         # 0. A unit-bounded role (unit_admin) does not see a step outside its unit
         # tree unless it is assigned to it (#215): answered like a missing step,
         # before the state or the rights reveal anything about it.
-        if step.assigned_to != actor.id and not await in_actor_unit_tree(
-            db, actor, document.org_unit_id
+        # Same for every other role outside its document perimeter (#308): a step
+        # of a hidden document answers like a missing one, never 400/403.
+        # Lazy import: the endpoints module imports this service (cycle).
+        from app.api.v1.endpoints.documents import _in_perimeter
+
+        if step.assigned_to != actor.id and (
+            not await in_actor_unit_tree(db, actor, document.org_unit_id)
+            or not await _in_perimeter(db, actor, document)
         ):
             raise HTTPException(status_code=404, detail="Workflow step not found")
 
