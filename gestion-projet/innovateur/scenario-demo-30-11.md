@@ -79,6 +79,8 @@ Règle commune (`checklist-demo.md` § C) : une tentative (F5), sinon on bascule
 
 Le risque du menu admin « Recherche » (page introuvable sur c216141) est levé : le correctif #198 est dans b701314 (`Vérifié`). Le contrôle reste au § 5 n° 17.
 
+La liste courte (10 risques, chacun avec son repli, y compris l'OCR, la mémoire du poste et le certificat) est dans `risques-demo-30-11.md`.
+
 ## 5. À vérifier pendant la recette (20 au 23/11)
 
 | # | Point | Qui | Preuve attendue |
