@@ -782,6 +782,6 @@ Constats qui changent le travail prévu :
 - **B** : 34,3 + 4 (57 L12-B, chiffrage confirmé par B : auteur de l’envoi lu dans le journal, compteurs et tests de portée) = 38,3. **F** : 29,5 + 2 = 31,5. **Q** : 36,8 + 1 = 37,8. **aide-api** : 28 à 30 (son chiffrage) + 5,5 = 33,5 à 35,5.
 - Le chiffrage des lignes 57 L12 et 57 L13 est une estimation de l’innovateur, **à confirmer par chaque porteur** ; B a confirmé 57 L12-B à 4 (18/11).
 - aide-api est la seule colonne sans dépassement : elle n’a plus de marge pour reprendre une ligne de F.
-- **Ordre** : 57 L12-B d’abord (B), puis les écrans ; 57 L12-B avant 57 L7-5 (même `workflows.py`) ; 57 L13-4 après #155 et après le correctif V1.0 de la cloche.
+- **Ordre** : 57 L12-B d’abord (B), puis les écrans ; 57 L12-B avant 57 L7-5 (même `workflows.py`) ; 57 L13-4 après #155 et après #427 (correctif V1.0 de la cloche, F).
 
 **Démo (rejeu du 20/11)** : les menus DOMAINE et ACTIVITÉ de `/classification-reviews` sont remplis après `sh scripts/e2e_reset.sh demo` (4 domaines pour MINFI, depuis `demo-manifest.json`). Ils restent vides avec `seed_db.py` seul. Le rejeu doit donc partir de ce reset, comme le prévoit déjà `checklist-demo.md`.
