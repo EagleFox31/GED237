@@ -35,6 +35,7 @@ export interface Document {
   logical_space_path?: string | null;
   source_relative_path?: string | null;
   import_job_id?: string | null;
+  ocr_status?: 'not_processed' | 'processing' | 'completed' | 'failed';
 }
 
 export type ClassificationReviewStatus = 'open' | 'resolved' | 'cancelled';

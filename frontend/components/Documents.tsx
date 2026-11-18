@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
+import { resolveOcrStatusBadge } from '../lib/ocrStatusBadge';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -228,9 +229,24 @@ const Documents: React.FC = () => {
 
             <div className="flex-1 space-y-1">
               <h4 className="font-bold text-slate-800 line-clamp-1 group-hover:text-rdpc-blue transition-colors text-lg tracking-tight">{doc.title}</h4>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {doc.category_name && <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-tighter">{doc.category_name}</span>}
                 <span className="text-[10px] font-medium text-slate-400">V{doc.current_version_number} • {getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
+                {(() => {
+                  const ocrBadge = resolveOcrStatusBadge(doc.ocr_status);
+                  if (!ocrBadge) return null;
+                  return (
+                    <span
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                        ocrBadge.tone === 'failed'
+                          ? 'bg-red-50 text-red-600'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}
+                    >
+                      {ocrBadge.label}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 

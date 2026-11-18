@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import { resolveOcrStatusBadge } from '../lib/ocrStatusBadge';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -209,6 +210,25 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                     </span>
                   </>
                 )}
+                {(() => {
+                  const ocrBadge = resolveOcrStatusBadge(document.ocr_status);
+                  if (!ocrBadge) return null;
+                  return (
+                    <>
+                      <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                      <span
+                        data-testid="document-ocr-badge"
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          ocrBadge.tone === 'failed'
+                            ? 'bg-red-50 text-red-600'
+                            : 'bg-amber-50 text-amber-700'
+                        }`}
+                      >
+                        {ocrBadge.label}
+                      </span>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
