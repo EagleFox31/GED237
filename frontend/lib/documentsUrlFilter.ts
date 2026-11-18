@@ -19,3 +19,12 @@ export function writeCategoryFilter(
   else next.delete(CATEGORY_PARAM);
   return next;
 }
+
+export function sanitizeCategoryFilter(
+  categoryId: string,
+  availableCategories: ReadonlyArray<{ id: string }>,
+): string {
+  const trimmed = categoryId.trim();
+  if (!trimmed) return '';
+  return availableCategories.some((cat) => cat.id === trimmed) ? trimmed : '';
+}

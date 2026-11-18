@@ -9,7 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
-import { readCategoryFilter, writeCategoryFilter } from '../lib/documentsUrlFilter';
+import { readCategoryFilter, writeCategoryFilter, sanitizeCategoryFilter } from '../lib/documentsUrlFilter';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -28,6 +28,7 @@ const Documents: React.FC = () => {
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canCreate = !!profileId && CAN_CREATE_DOCUMENT.has(profileId);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('');
   // Recherche (`?q=`) et filtre de catégorie (`?category=`) pilotés par l'URL.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,14 +59,28 @@ const Documents: React.FC = () => {
 
   useEffect(() => {
     // Les catégories ne servent qu'au filtre : leur échec (ex. 403) ne doit pas masquer la liste.
-    categoriesApi.list().then(setCategories).catch(() => {
-      pushClientOperationError(null, {
-        fallbackDetail: 'Catégories indisponibles : le filtre par catégorie est désactivé.',
-        errorCode: 'CATEGORIES_UNAVAILABLE',
-        severity: 'warning',
+    categoriesApi.list()
+      .then((list) => {
+        setCategories(list);
+        setCategoriesLoaded(true);
+      })
+      .catch(() => {
+        pushClientOperationError(null, {
+          fallbackDetail: 'Catégories indisponibles : le filtre par catégorie est désactivé.',
+          errorCode: 'CATEGORIES_UNAVAILABLE',
+          severity: 'warning',
+        });
       });
-    });
   }, []);
+
+  // Une fois les catégories chargées, si l'id n'existe plus, on retire le paramètre de l'URL.
+  useEffect(() => {
+    if (!categoriesLoaded || !filterCategory) return;
+    const valid = sanitizeCategoryFilter(filterCategory, categories);
+    if (!valid) {
+      setSearchParams((prev) => writeCategoryFilter(prev, ''), { replace: true });
+    }
+  }, [categoriesLoaded, categories, filterCategory, setSearchParams]);
 
   // Seule la dernière requête met la liste à jour (frappe rapide, réponses dans le désordre).
   const latestRequestRef = useRef(0);

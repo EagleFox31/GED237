@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 import {
   readCategoryFilter,
   writeCategoryFilter,
+  sanitizeCategoryFilter,
 } from '../../lib/documentsUrlFilter';
 
 test.describe('Filtre de catégorie dans l’URL (/documents)', () => {
@@ -24,5 +25,20 @@ test.describe('Filtre de catégorie dans l’URL (/documents)', () => {
     expect(cleared.has('category')).toBe(false);
     expect(cleared.get('q')).toBe('budget');
     expect(cleared.get('open')).toBe('doc-9');
+  });
+
+  test('valide la catégorie chargée et retire le paramètre si l id n existe plus', () => {
+    const available = [{ id: 'cat-rh' }, { id: 'cat-finances' }];
+
+    expect(sanitizeCategoryFilter('cat-rh', available)).toBe('cat-rh');
+    expect(sanitizeCategoryFilter('cat-perimee', available)).toBe('');
+    expect(sanitizeCategoryFilter('', available)).toBe('');
+
+    const initial = new URLSearchParams('category=cat-perimee&q=budget');
+    const valid = sanitizeCategoryFilter(readCategoryFilter(initial), available);
+    const cleaned = writeCategoryFilter(initial, valid);
+
+    expect(cleaned.has('category')).toBe(false);
+    expect(cleaned.get('q')).toBe('budget');
   });
 });
