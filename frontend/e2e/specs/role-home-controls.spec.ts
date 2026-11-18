@@ -37,8 +37,10 @@ test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () 
     );
     // L'accueil lecteur ne liste que les documents validés : circuit de visa à une étape, accepté par le manager.
     const managerApi = await apiAs(request, 'manager');
-    const [step] = await adminApi.submitForVisa(created.id, (await managerApi.me()).id, 'Visa du manager');
-    await managerApi.acceptVisa(step.id, created.current_version_id as string);
+    const steps = await adminApi.submitForVisa(created.id, (await managerApi.me()).id, 'Visa du manager');
+    const step = steps[0];
+    if (!step || !created.current_version_id) throw new Error('circuit de visa ou version courante manquants');
+    await managerApi.acceptVisa(step.id, created.current_version_id);
     // Échoue (HTTP 403/404) si le lecteur ne peut pas lire le document créé.
     await readerApi.getDocument(created.id);
 
