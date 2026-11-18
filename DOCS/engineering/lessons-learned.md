@@ -901,4 +901,5 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Cause racine** — Le chemin était déduit du nom de l'écran et le libellé était recopié d'un message, sans être cherché dans le code. Rien ne vérifiait les citations d'un document de pilotage.
 **Résolution** — Les chemins et le libellé sont corrigés dans le plan et dans le script de démo.
 **Prévention** — `verif-chemins.sh` sur chaque plan modifié ; `verif-libelles.sh` sur chaque consigne d'écran ; les deux sont des étapes du modèle `triage-audit-ux.md`.
+Le contrôle des mots interdits devient une **étape explicite avant chaque commit**, dans toutes les sessions : `scripts/check-forbidden-words.sh` lancé à la main après `git add` (O, 18/11). Le hook pre-commit ne suffit pas sur ce poste, car son Python est absent et les sessions commitent après un rejeu dans Docker. Sa réparation est un point V1.1 de Q.
 **Leçon généralisée** — Un document que d'autres exécutent (plan, script de démo) se vérifie comme du code : chaque nom de fichier et chaque libellé d'écran doit être trouvé dans la branche de référence avant publication.

@@ -69,6 +69,18 @@ Décisions déjà en attente du PO : B6 (`assignable-roles`, `users:update_own`,
   Toute branche de travail vit dans un worktree `../GED237-<sujet>` (`git worktree add ../GED237-<sujet> -b
   <branche> origin/main`) ; commit, push et PR se font depuis ce worktree. Incident du 2026-11-09 :
   un `git switch` dans le checkout partagé a déplacé la branche de toutes les sessions (LESSON-2026-019).
+- **Mots interdits avant chaque commit** (O, 18/11 ; LESSON-2026-067) : après `git add`, lancer
+  `scripts/check-forbidden-words.sh` sans argument depuis le worktree. Code 0 = OK ; 1 = une ligne
+  ajoutée est refusée (le message donne le fichier et le n° de règle, jamais le contenu) ; 2 = pas de
+  liste `~/.config/forbidden-words`, donc rien n'a été vérifié. Le hook pre-commit n'en dispense pas
+  tant que Q ne l'a pas réparé (V1.1). Rôle par rôle :
+  - **orchestrateur, innovateur** : avant chaque commit de plan, décision, point ou walkthrough ;
+  - **dev-backend** : avant chaque commit ; `backend/*seed_db.py` est exempté pour la règle du domaine
+    des mots de passe de démo, mais pas pour les autres règles ;
+  - **dev-frontend** : avant chaque commit ; `LoginPage.tsx` et `e2e/fixtures/auth.fixture.ts` sont
+    exemptés pour la même règle seulement ;
+  - **ci-qa** : avant chaque commit, y compris les correctifs de tests poussés sur une PR relue ;
+  - **aide-api** : avant chaque commit ; mêmes exemptions que dev-backend s'il touche au seed.
 - Le PO humain parle à l'orchestrateur ; il peut parler directement à l'innovateur pour une question
   de fond. Les devs ne sollicitent le PO que via l'orchestrateur.
 
