@@ -29,7 +29,8 @@ export const TREND_UNAVAILABLE = 'Tendance indisponible';
 const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
 /** « 3 nov. » à partir de « 2026-11-03 » (pas de fuseau : la date est déjà celle de Douala). */
-export function shortDate(iso: string): string {
+export function shortDate(iso: string | undefined): string {
+  if (!iso) return '';
   const [, m, d] = iso.split('-').map(Number);
   if (!m || !d) return iso;
   return `${d} ${MONTHS[m - 1]}`;
