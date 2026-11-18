@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { api, accountKeyOf } from '../../../services/api';
+import { api, accountKeyOf } from '../../../services';
 import { useAuthStore } from '../../../stores/authStore';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';

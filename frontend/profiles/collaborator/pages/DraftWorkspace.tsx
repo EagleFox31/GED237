@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, accountKeyOf } from '../../../services/api';
+import { api, accountKeyOf } from '../../../services';
 import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';

@@ -17,7 +17,7 @@ export interface LibraryFilterableDoc {
 export function extractLibraryFormats(docs: ReadonlyArray<LibraryFilterableDoc>): string[] {
   const formats = new Set<string>();
   for (const doc of docs) {
-    const label = getFileTypeLabel(doc.mime_type || doc.file_type);
+    const label = getFileTypeLabel((doc.mime_type || doc.file_type) ?? null);
     if (label) formats.add(label);
   }
   return Array.from(formats).sort();
@@ -47,7 +47,7 @@ export function filterLibraryDocuments<T extends LibraryFilterableDoc>(
       if (!titleMatch && !catMatch) return false;
     }
     if (wantedFormat) {
-      const label = getFileTypeLabel(doc.mime_type || doc.file_type);
+      const label = getFileTypeLabel((doc.mime_type || doc.file_type) ?? null);
       if (label !== wantedFormat) return false;
     }
     if (wantedCategory && (doc.category_name || '').trim() !== wantedCategory) {

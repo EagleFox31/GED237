@@ -1,7 +1,7 @@
 // frontend/profiles/tenant-admin/pages/PendingAssignmentsInbox.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, accountKeyOf } from '../../../services/api';
+import { api, accountKeyOf } from '../../../services';
 import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
 import { useAuthStore } from '../../../stores/authStore';
 import { ApiError } from '../../../lib/errors';
