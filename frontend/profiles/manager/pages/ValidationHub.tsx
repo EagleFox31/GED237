@@ -12,9 +12,11 @@ import {
   countTasksByActionType,
   executeBatchReadAck,
   filterTasksByActionType,
+  formatBatchReadAckSummary,
   isBatchReadAckAvailable,
   type TaskActionFilter,
 } from '../../../lib/workflowBatch';
+import { taskWithDetailVersion } from '../../../lib/taskDecisionFromDetail';
 
 const ValidationHub: React.FC = () => {
   const [documents, setDocuments] = useState<PendingWorkflowTask[]>([]);
@@ -25,6 +27,7 @@ const ValidationHub: React.FC = () => {
   const [actionFilter, setActionFilter] = useState<TaskActionFilter>('all');
   const [confirmBatchAck, setConfirmBatchAck] = useState(false);
   const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchSummary, setBatchSummary] = useState<string | null>(null);
 
   const actionCounts = useMemo(() => countTasksByActionType(documents), [documents]);
   const visibleDocuments = useMemo(
@@ -77,21 +80,21 @@ const ValidationHub: React.FC = () => {
   const runBatchReadAck = async () => {
     setConfirmBatchAck(false);
     setBatchProcessing(true);
+    setBatchSummary(null);
     try {
       const { succeededIds, failedCount } = await executeBatchReadAck(
         visibleDocuments,
-        (task) => api.decideWorkflowStep(task, 'accept'),
+        (task, comment) => api.decideWorkflowStep(task, 'accept', comment),
       );
-      if (succeededIds.length > 0) {
-        const doneSet = new Set(succeededIds);
-        setDocuments((prev) => prev.filter((d) => !doneSet.has(d.id)));
-      }
+      const summary = formatBatchReadAckSummary(succeededIds.length, failedCount);
+      setBatchSummary(summary);
       if (failedCount > 0) {
         pushClientOperationError(null, {
-          fallbackDetail: `${failedCount} prise(s) de connaissance ont échoué.`,
+          fallbackDetail: summary,
           severity: 'warning',
         });
       }
+      await fetchWorkflows();
     } finally {
       setBatchProcessing(false);
     }
@@ -150,6 +153,12 @@ const ValidationHub: React.FC = () => {
         )}
       </div>
 
+      {batchSummary && (
+        <p role="status" className="px-4 py-3 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">
+          {batchSummary}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto p-1">
         {loading ? (
           <p className="text-slate-400 font-bold italic">Chargement du parapheur...</p>
@@ -174,23 +183,23 @@ const ValidationHub: React.FC = () => {
                 <ViewDocumentButton
                   documentId={item.document_id}
                   approveLabel={getActionLabel(item.expected_action_type)}
-                  onApprove={() => setAccepting(item)}
-                  onReject={() => setRejecting(item)}
-                  decisionDisabled={processingId === item.id}
+                  onApprove={(versionId) => setAccepting(taskWithDetailVersion(item, versionId))}
+                  onReject={(versionId) => setRejecting(taskWithDetailVersion(item, versionId))}
+                  decisionDisabled={processingId === item.id || batchProcessing}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setRejecting(item)}
-                  disabled={processingId === item.id}
+                  disabled={processingId === item.id || batchProcessing}
                   className="py-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
                 >
                   Rejeter
                 </button>
                 <button
                   onClick={() => setAccepting(item)}
-                  disabled={processingId === item.id}
+                  disabled={processingId === item.id || batchProcessing}
                   className="py-3 bg-rdpc-blue text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all hover:bg-blue-800 disabled:opacity-50"
                 >
                   {processingId === item.id ? '...' : getActionLabel(item.expected_action_type)}

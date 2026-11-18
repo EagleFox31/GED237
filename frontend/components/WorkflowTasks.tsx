@@ -13,9 +13,11 @@ import {
   countTasksByActionType,
   executeBatchReadAck,
   filterTasksByActionType,
+  formatBatchReadAckSummary,
   isBatchReadAckAvailable,
   type TaskActionFilter,
 } from '../lib/workflowBatch';
+import { taskWithDetailVersion } from '../lib/taskDecisionFromDetail';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -26,6 +28,7 @@ const WorkflowTasks: React.FC = () => {
   const [actionFilter, setActionFilter] = useState<TaskActionFilter>('all');
   const [confirmBatchAck, setConfirmBatchAck] = useState(false);
   const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchSummary, setBatchSummary] = useState<string | null>(null);
 
   const actionCounts = useMemo(() => countTasksByActionType(tasks), [tasks]);
   const visibleTasks = useMemo(
@@ -69,21 +72,21 @@ const WorkflowTasks: React.FC = () => {
   const runBatchReadAck = async () => {
     setConfirmBatchAck(false);
     setBatchProcessing(true);
+    setBatchSummary(null);
     try {
       const { succeededIds, failedCount } = await executeBatchReadAck(
         visibleTasks,
-        (task) => api.decideWorkflowStep(task, 'accept'),
+        (task, comment) => api.decideWorkflowStep(task, 'accept', comment),
       );
-      if (succeededIds.length > 0) {
-        const doneSet = new Set(succeededIds);
-        setTasks((prev) => prev.filter((t) => !doneSet.has(t.id)));
-      }
+      const summary = formatBatchReadAckSummary(succeededIds.length, failedCount);
+      setBatchSummary(summary);
       if (failedCount > 0) {
         pushClientOperationError(null, {
-          fallbackDetail: `${failedCount} prise(s) de connaissance ont échoué.`,
+          fallbackDetail: summary,
           severity: 'warning',
         });
       }
+      await fetchTasks();
     } finally {
       setBatchProcessing(false);
     }
@@ -139,6 +142,12 @@ const WorkflowTasks: React.FC = () => {
         )}
       </div>
 
+      {batchSummary && (
+        <p role="status" className="px-4 py-3 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">
+          {batchSummary}
+        </p>
+      )}
+
       {isLoading && (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rdpc-blue"></div>
@@ -177,9 +186,9 @@ const WorkflowTasks: React.FC = () => {
                 <ViewDocumentButton
                   documentId={task.document_id}
                   approveLabel="Valider"
-                  onApprove={() => void decide(task, 'accept')}
-                  onReject={() => setRejecting(task)}
-                  decisionDisabled={processingId === task.id}
+                  onApprove={(versionId) => void decide(taskWithDetailVersion(task, versionId), 'accept')}
+                  onReject={(versionId) => setRejecting(taskWithDetailVersion(task, versionId))}
+                  decisionDisabled={processingId === task.id || batchProcessing}
                 />
               </div>
             </div>
@@ -187,14 +196,14 @@ const WorkflowTasks: React.FC = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => decide(task, 'accept')}
-                disabled={processingId === task.id}
+                disabled={processingId === task.id || batchProcessing}
                 className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-green-100 disabled:opacity-50"
               >
                 Valider
               </button>
               <button
                 onClick={() => setRejecting(task)}
-                disabled={processingId === task.id}
+                disabled={processingId === task.id || batchProcessing}
                 className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-red-100 disabled:opacity-50"
               >
                 Rejeter

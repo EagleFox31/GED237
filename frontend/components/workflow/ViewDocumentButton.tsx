@@ -8,8 +8,8 @@ interface ViewDocumentButtonProps {
   documentId: string;
   className?: string;
   approveLabel?: string;
-  onApprove?: () => void;
-  onReject?: () => void;
+  onApprove?: (detailVersionId?: string | null) => void;
+  onReject?: (detailVersionId?: string | null) => void;
   decisionDisabled?: boolean;
 }
 

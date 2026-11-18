@@ -222,7 +222,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   type="button"
                   disabled={taskDecision.disabled}
                   data-testid="detail-decision-reject"
-                  onClick={() => triggerDetailDecision('reject', taskDecision, onClose)}
+                  onClick={() => triggerDetailDecision('reject', taskDecision, onClose, document.current_version_id)}
                   className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
                 >
                   Rejeter
@@ -231,7 +231,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   type="button"
                   disabled={taskDecision.disabled}
                   data-testid="detail-decision-approve"
-                  onClick={() => triggerDetailDecision('approve', taskDecision, onClose)}
+                  onClick={() => triggerDetailDecision('approve', taskDecision, onClose, document.current_version_id)}
                   className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-rdpc-blue text-white hover:bg-blue-800 shadow-sm transition-colors disabled:opacity-50"
                 >
                   {taskDecision.approveLabel}
