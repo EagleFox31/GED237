@@ -295,3 +295,4 @@ gh issue close 133 --repo $REPO --reason completed \
 4. **#356** (F, tests e2e seuls) : V1.0 si CI verte et passe de F OK avant le 19 à 15:00, sinon V1.1 (décision d'O). Sans effet sur la coupe.
 5. **#121** : confirmé par O, reciblée sur `release/v1.0.0` après la coupe ; jamais fusionnée sur `main` (contrôle 3 du § 2).
 6. **#104** a 70 commits de retard sur `main`. L'essai à blanc de 17:30 se fait sur la tête notée au gel de 17:15, et non plus sur `2f15b6e`.
+7. **Remise à zéro du jeu de démo sur la pile complète** (#363, `DOCS/exploitation/donnees-demo.md`) : rejouée le 18/11 par Q, en 26 s, 408 documents (contrôle « demo baseline matches expected »), montée de la pile en environ 2 min 30. Sur un poste où une autre pile tourne déjà, `docker-compose.yml` fixe les `container_name` `edossier_*` : `-p` seul ne suffit pas, il faut une copie du fichier sans `container_name`.
