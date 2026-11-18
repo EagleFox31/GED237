@@ -58,7 +58,7 @@ test.describe('Explorateur — réflexes clavier', () => {
     await loginAs('tenant_admin');
     await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
 
-    const doc = page.getByLabel(new RegExp(`^${title} — `));
+    const doc = page.getByRole('row', { name: title });
     await expect(doc).toBeVisible();
     await doc.focus();
     await page.keyboard.press('Enter');

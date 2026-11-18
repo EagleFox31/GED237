@@ -1000,7 +1000,7 @@ const SpacesPage: React.FC = () => {
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                               tabIndex={0}
                               data-explorer-item
-                              aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                              aria-labelledby={`space-doc-title-${doc.id}`}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && event.target === event.currentTarget) {
                                   event.preventDefault();
@@ -1011,7 +1011,7 @@ const SpacesPage: React.FC = () => {
                             >
                               <td className="px-6 py-5">
                                 <div className="space-y-2">
-                                  <p className="text-sm font-bold text-slate-800">{doc.title}</p>
+                                  <p id={`space-doc-title-${doc.id}`} className="text-sm font-bold text-slate-800">{doc.title}</p>
                                   <div className="flex flex-wrap gap-2 text-[11px] font-medium text-slate-500">
                                     <span className="rounded-full bg-slate-100 px-3 py-1">{doc.category_name || 'Non classé'}</span>
                                     <span className="rounded-full bg-slate-100 px-3 py-1">{getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
