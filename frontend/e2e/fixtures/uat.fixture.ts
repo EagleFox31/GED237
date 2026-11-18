@@ -148,6 +148,14 @@ export class UatApi {
     return ok(await this.request.get(`${API_URL}/documents/${id}`, { headers: this.headers }), `get document ${id}`);
   }
 
+  /** PATCH /documents/{id}, comme l'écran : renommage, reclassement, statut. */
+  async updateDocument(id: string, patch: Record<string, unknown>): Promise<UploadedDocument> {
+    return ok(
+      await this.request.patch(`${API_URL}/documents/${id}`, { headers: this.headers, data: patch }),
+      `update document ${id}`,
+    );
+  }
+
   async listReviews(): Promise<ReviewItem[]> {
     return ok(await this.request.get(`${API_URL}/classification-reviews`, { headers: this.headers }), 'list reviews');
   }
