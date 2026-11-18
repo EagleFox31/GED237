@@ -18,6 +18,7 @@ import {
   ImportSourceScope,
 } from '../../../types';
 import { errorMessage } from '../../../utils/errors';
+import { formatImportError } from '../../../lib/importErrorMessage';
 import {
   applyLocalFolderPathOverrides,
   arrangeFiles,
@@ -301,6 +302,7 @@ const DirectoryIngestion: React.FC = () => {
   const [analyzedJob, setAnalyzedJob] = useState<ImportJobWithItems | null>(null);
   const [commitResult, setCommitResult] = useState<ImportCommitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   /** Manifeste rejoué depuis la bibliothèque : aperçu OK, écriture/ZIP interdits jusqu’à nouvelle sélection disque. */
   const [libraryReplayStubMode, setLibraryReplayStubMode] = useState(false);
 
@@ -977,7 +979,9 @@ const DirectoryIngestion: React.FC = () => {
       setCurrentStep('review');
       setProgress(null);
     } catch (analyzeError) {
-      setError(errorMessage(analyzeError, 'Analyse des fichiers impossible.'));
+      const formatted = formatImportError(analyzeError, 'Analyse des fichiers impossible.');
+      setError(formatted.message);
+      setErrorDetail(formatted.technicalDetail);
       setProgress(null);
     } finally {
       setIsAnalyzing(false);
@@ -1009,7 +1013,9 @@ const DirectoryIngestion: React.FC = () => {
       setCurrentStep('confirm');
       setProgress(null);
     } catch (commitError) {
-      setError(errorMessage(commitError, 'Import final impossible.'));
+      const formatted = formatImportError(commitError, 'Import final impossible.');
+      setError(formatted.message);
+      setErrorDetail(formatted.technicalDetail);
       setProgress(null);
     } finally {
       setIsCommitting(false);
@@ -1233,7 +1239,7 @@ const DirectoryIngestion: React.FC = () => {
         </div>
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
+          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3" title={errorDetail ?? undefined}>
             <span className="material-symbols-outlined text-red-500">error</span>
             <p className="text-sm font-bold text-red-600">{error}</p>
           </div>
