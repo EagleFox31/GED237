@@ -837,3 +837,31 @@ Il n’y a plus de transfert de F vers Q. B reprend :
 **Tous à 0 ou moins.** C’est le seul cas qui ferme l’écart sans travail de Q le week-end. Il reporte de deux jours la dernière fusion, mais pas le tag.
 
 **Risque commun aux deux cas** : le week-end des 28-29/11 précède la démo du lundi 30/11. B et F doivent y laisser la priorité à la répétition et aux correctifs de démo. Ce qui ne se fait pas ce week-end retombe sur la semaine du 01/12.
+
+### Cas retenu par O : dernière fusion le samedi 05/12 à 18:00 (`DEC-2026-008`)
+
+Calendrier :
+- dernière fusion le samedi 05/12 à 18:00 ;
+- gel le dimanche 06/12 : CI complète, rejeu de l’UAT, notes de version ;
+- tag le lundi 07/12.
+
+Capacité comptée en plus, au rythme des jours ouvrés de chacun :
+
+| Jours ajoutés | B (3,5 par jour) | F (2,67 par jour) | Q (3,75 par jour) |
+|---|---|---|---|
+| Week-end des 28-29/11, après la démo | 7 | 5,33 | — |
+| Samedi 05/12 | 3,5 | 2,67 | 3,75 |
+
+B confirme 57 L12-7 et 57 L13-6 à 1,5 chacune. Le résumé d’étape tient en une seule requête groupée, et un test compte les requêtes. La portée « mes lignes » est forcée dans le filtre commun de `audit.py`.
+
+57 L12-3 (0,5) passe d’aide-api à B, pour ramener le haut de la fourchette d’aide-api à 0. Pas de transfert de F vers Q.
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | **38,8** | **31,25** | **34,3** | **33 à 35** | **137,35 à 139,35** |
+| Capacité | 41,5 | 32 | 37,75 | 35 | 146,25 |
+| **Écart** | **− 2,7** | **− 0,75** | **− 3,45** | **− 2 à 0** | **− 8,9 à − 6,9** |
+
+- **Tous à 0 ou moins.** La marge de F est faible : 0,75 h-s, environ un tiers de journée.
+- **Déclencheur F → Q** : si la démo prend à F plus d’un tiers de journée sur le week-end des 28-29/11, F donne à Q 2 h-s de tests (e2e et Vitest de 57 L7-1, L7-4, L11-2, L11-3 et L13-3). F confirme la liste. Q a la marge pour les absorber : 3,45.
+- **À confirmer** : Q pour les 3,5 h-s libérées par la contre-vérification de G (`Déduit`).

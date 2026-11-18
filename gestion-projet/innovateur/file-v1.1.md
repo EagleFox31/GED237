@@ -2,6 +2,7 @@
 
 - **Pour** : O, file de fusion V1.1. Préparé par l'innovateur le 18/11 au soir, à partir de `plan-fusion-v1.1.md` (§ 2 à § 6 et § 9) et du relevé `gh pr list` des PR ouvertes du 18/11.
 - **Aucune fusion V1.1 avant le 19/11 après 18:00** (O).
+- **Fenêtre de fusion V1.1 jusqu’au samedi 05/12 à 18:00, gel le dimanche 06/12, tag le lundi 07/12** (O, 18/11, nuit ; `DEC-2026-008`). Le 06/12 : CI complète sur `main`, rejeu UAT, notes de version ; aucune fusion.
 - **Liste du 19/11 à 18:00** : re-cibler #181 sur `main` avant de fusionner #152 (§ 3 ; O, 18/11).
 - **Consignes aux auteurs (O, 18/11)** : #421 (convention `e2e/unit/`, OK de Q) est en file. Une PR qui ajoute une spec et entre en conflit sur `playwright.unit.config.ts` garde la configuration de #421 telle quelle et déplace sa spec dans `e2e/unit/` avec `git mv`.
 - **Décision du PO (18/11) : « on repousse rien ».** #359, #155, #169, #370, #404, #355, la suite de #211 et la pagination du journal sont en V1.1. La règle « réserve de Q < 1 → sortie en V1.2 » est retirée.
@@ -29,7 +30,7 @@ ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 ORDER_V4="309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170 171 199"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
 ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 417"
-# Vague 6 : outils et documentation (03 et 04/12)
+# Vague 6 : outils et documentation (03 au 05/12, 18:00)
 ORDER_V6="335 312 189 166"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 ```
@@ -102,7 +103,7 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 | #180 | #209 |
 | #165 | #205 |
 
-Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n'est fusionnée avant le 04/12.
+Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n’est fusionnée avant la fin de la fenêtre V1.1 (05/12, 18:00).
 
 ## 4. Avant la fusion : avis du PO ou delta relu par Q
 

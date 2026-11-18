@@ -1,4 +1,4 @@
-# Plan de fusion V1.1 (24/11 au 04/12)
+# Plan de fusion V1.1 (24/11 au 05/12, 18:00 ; gel le 06/12, tag le 07/12 : DEC-2026-008)
 
 - **Auteur** : innovateur (I), à la demande de O (18/11). Échéance : 21/11 18:00.
 - **Relevé** : 18/11 vers 17:00, 133 PR ouvertes (#368 fusionnée depuis, en 9b32c30). Ce plan doit être mis à jour le 21 sur la tête de `main` après le tag.
@@ -219,7 +219,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 - **Répartition validée par O (18/11)** : Q prend #29 et #30 (58 bis) et le Lot 8, points 4 et 5 (57 septdecies et 57 octodecies) ; B prend la part de F du Lot 9, point 5 (57 novodecies).
 - **`playwright.unit.config.ts`** : 33 PR l'éditent, chacune pour y ajouter son fichier de test. Ce sont des conflits d'une ligne : un rebase les règle, sans risque fonctionnel. **Mise à jour (O, 18/11)** : #421 (convention `e2e/unit/`, OK de Q) est en file. Règle de conflit pour toute PR qui ajoute une spec : garder la configuration de #421 et déplacer la spec dans `e2e/unit/` avec `git mv` (`file-v1.1.md`, consignes aux auteurs).
 
-### Vague 6 : 03 et 04/12
+### Vague 6 : 03 au 05/12 (dernière fusion le 05/12 à 18:00)
 
 | Ordre | PR | Rôle | Note |
 |---|---|---|---|
@@ -346,7 +346,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
   - autres : #313 (élément 8 de la V1.2) ; #370, #404 et #355 sont revenues en V1.1 (PO, 18/11) ;
   - écran Corbeille du super_admin avec choix de l'institution (DEC-2026-006). En V1.1, le super_admin purge par l'API seulement ;
   - la suite de #211 n'est plus ici : elle revient en V1.1 (PO, 18/11), ligne 57 quindecies.
-  Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
+  Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n’est fusionnée avant la fin de la fenêtre V1.1 (05/12, 18:00).
 - **Sorties antérieures revenues en V1.1 (O, 18/11 : « on repousse rien »)**. Aucune n'a de blocage technique réel ; chacune a seulement une place dans l'ordre :
   - versions majeures de Dependabot (#113, #110, #29, #30) : vague 6, ligne 58 bis ;
   - #281 (#279, dépréciation de `GET /documents/tree`) : vague 1, avec les petites PR de B ;
