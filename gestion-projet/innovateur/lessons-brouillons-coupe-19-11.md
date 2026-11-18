@@ -51,10 +51,13 @@ Numéros (renumérotés le 18/11 à 15:15 ; 063 et 064 ajoutés le 18/11, source
 **Échec / near miss** — Le démarrage d'une pile a échoué sur « all predefined address pools have been fully subnetted ». La passe e2e a été lue comme KO, alors qu'aucun test n'avait tourné : c'est un faux rouge. Le temps est passé à chercher une régression dans le code, pas dans l'environnement.
 **Cause racine** — Les réseaux compose s'accumulent : la pile est arrêtée sans être supprimée, ou chaque session prend un nom de projet différent. L'adressage est laissé au pool par défaut. La conclusion « échec de test » a été tirée du code de retour, sans lire le log.
 **Classification** — Environnement et diagnostic ; faux rouge ; répétable dès que plusieurs piles tournent sur le même poste.
-**Résolution** — Constat et prévention transmis par F le 18/11. Le détail de la remise en état (réseaux libérés, passe relancée et son résultat) est à compléter par F avant l'insertion.
+**Résolution** (F, 18/11) — Le premier lot e2e de #364 était tombé en KO, sans aucun test en échec, alors qu'environ 32 réseaux étaient présents, dont certains de projets arrêtés.
+- Seuls les réseaux de F (préfixe `gedtest-f`) ont été supprimés. Aucun réseau d'un autre pair n'a été touché.
+- Un sous-réseau fixe dédié a été ajouté dans la surcharge compose de la passe : `networks.default.ipam.config`, subnet `10.231.77.0/24`, dont on a vérifié qu'il était libre.
+- Relance : #364 est verte (`notifications.spec` : 9 passed ; tsc et tests unitaires OK).
 **Prévention** —
 1. Chaque session déclare un sous-réseau fixe dans sa surcharge compose, par exemple `10.231.77.0/24` (un /24 distinct par session). La pile ne puise plus dans le pool par défaut.
-2. En fin de passe, `docker compose -p <projet de session> down -v` est obligatoire. C'est valable pour les piles de session uniquement : la pile `edossier_*` reste gelée jusqu'au 22/11, sans `down -v` ni redémarrage.
+2. En fin de passe, `docker compose -p <projet de session> down -v --remove-orphans` est obligatoire. C'est valable pour les piles de session uniquement : la pile `edossier_*` reste gelée jusqu'au 22/11, sans `down -v` ni redémarrage.
 3. Avant de conclure à un échec de test, on lit le log : un KO sans test en échec dans le rapport est classé « environnement », pas « régression ».
 4. Contrôle vérifiable : le script e2e échoue avec un message explicite si le rapport ne contient aucun test exécuté. Cela distingue « pile non démarrée » de « tests rouges ».
 **Leçon généralisée** — Un rouge sans test en échec n'est pas un résultat de test. Les ressources partagées d'un poste (réseaux, ports, noms de conteneurs) s'attribuent de façon fixe par session et se libèrent en fin de passe.
@@ -70,7 +73,10 @@ Numéros (renumérotés le 18/11 à 15:15 ; 063 et 064 ajoutés le 18/11, source
 **Échec / near miss** — La passe s'est arrêtée après 2 PR, sans erreur et avec un code de retour 0. Les PR suivantes n'ont pas été vérifiées, et rien ne le signalait.
 **Cause racine** — La commande docker du corps de boucle hérite de l'entrée standard de la boucle. C'est le cas de `docker compose exec` sans `-T`, de `docker run -i`, et aussi de `ssh`. Elle lit donc le reste de la table, et le `read` suivant trouve une entrée vide : la boucle se termine normalement.
 **Classification** — Outillage ; échec silencieux, un faux vert par omission ; répétable avec toute commande qui lit l'entrée standard dans une boucle `while read`.
-**Résolution** — Constat et prévention transmis par F le 18/11. La relance complète de la passe et son résultat sont à compléter par F avant l'insertion.
+**Résolution** (F, 18/11) — La passe s'était arrêtée après #353. #355, #356, #357 et #361 n'avaient pas été lancées, et `summary.txt` comptait 2 lignes au lieu de 6.
+- Correctif : la table est lue sur un descripteur dédié, `while read -u 3 ...; done 3<<<"$TABLE"`.
+- Relance : toutes les PR sont de nouveau parcourues (#364, #355 et #356 lancées ensuite).
+- À noter, sans lien avec la leçon : le KO de #355 venait d'un paramètre du spec (`undefined` redevenait `true`), pas du code. Deux lancements du même script ont aussi tourné en parallèle par erreur, car `pkill` est absent sous Git Bash. L'un a été tué par PID et ses conteneurs nettoyés. Un seul lot de F tourne à la fois.
 **Prévention** —
 1. On lit la table par un descripteur dédié : `while read -u 3 ...; do ...; done 3< fichier` (ou `3< <(commande)`). Sinon, on coupe l'entrée de chaque commande du corps : `docker ... </dev/null`, `docker compose exec -T`.
 2. En fin de passe, on compare le nombre d'éléments traités au nombre de lignes de la table. Un écart fait échouer le script.
