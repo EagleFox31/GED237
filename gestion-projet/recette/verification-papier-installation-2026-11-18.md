@@ -3,13 +3,13 @@
 - **Quand** : 18/11 au soir, sur `main` dd232f6, sans Docker. C'est l'étape 1 de la feuille de route de l'item 31. Le vrai rejeu sur poste neuf a lieu le 20/11 et son compte rendu sera `rejeu-installation-2026-11-20.md`.
 - **Cible** : `DOCS/exploitation/installation.md`, et les fiches vers lesquelles il renvoie.
 - **Méthode** : chaque commande, prérequis, variable, port et nom de service est comparé à `docker-compose.yml`, au `.env.example` racine, à `backend/app/core/config.py`, aux Dockerfiles et aux scripts.
-- **Résultat** : 3 écarts bloquants, 9 gênants et 7 mineurs. Colonne « Suite » : **PR** = corrigé dans la PR de l'item 31 ; **B** = demande un changement de code ; **tag** = se règle avec la pose du tag.
+- **Résultat** : 3 écarts bloquants, 9 gênants et 8 mineurs. Colonne « Suite » : **PR** = corrigé dans la PR de l'item 31 ; **B** = demande un changement de code ; **tag** = se règle avec la pose du tag.
 
 ## Écarts bloquants (le rejeu échoue)
 
 | # | Où | Constat | Suite |
 |---|---|---|---|
-| 1 | L74, renvoi vers `donnees-demo.md` § « Plateforme vide » | La variante « plateforme vide » ne se rejoue pas. Aucune route de l'API ne crée un premier compte sans être connecté. `scripts/init_db.py` crée le tenant de démonstration, pas un administrateur, et ne fait rien si un tenant existe déjà. | **B** (commande « premier administrateur »), ou retirer la variante de la rc.1 (décision d'O) |
+| 1 | L74, renvoi vers `donnees-demo.md` § « Plateforme vide » | La variante « plateforme vide » ne se rejoue pas. Aucune route de l'API ne crée un premier compte sans être connecté. `scripts/init_db.py` crée le tenant de démonstration, pas un administrateur, et ne fait rien si un tenant existe déjà. | **Décision d'O (18/11)** : variante retirée de la rc.1 (PR) ; commande « premier administrateur » en V1.1 (B : commande, test, doc) |
 | 2 | L142, export des images avec le profil `tls` | `docker-compose.tls.yml` exige `TLS_CERT_DIR` : sans elle, `docker compose config --images` échoue. Le profil `tls` n'ajoute de toute façon aucune image (`nginx:alpine` est déjà dans la pile de base). | **PR** : retirer l'exemple |
 | 3 | L28 et L136, `v1.0.0-rc.1` | Le tag n'existe pas encore : `git checkout` et `git archive` échouent avant le 24/11. | **tag** (rejeu du 20 : remplacer par le SHA de la release) |
 
@@ -38,6 +38,7 @@
 | 17 | Le `worker` ne reçoit pas `SECRET_KEY`. Aucun usage n'a été repéré côté worker. | signalé à B |
 | 18 | La pile de référence tourne en mode développement (`--reload`, frontend `development`, code à usage unique affiché par l'API). | à assumer dans la doc de la rc.1 (PR) |
 | 19 | « Code affiché par l'API » : exact sur cette pile. | rien à faire |
+| 20 | **Une seule pile par hôte** : `docker-compose.yml` fixe `container_name` (`edossier_*`) sur tous les services. Une seconde pile sur le même hôte (rejeu, poste de secours, recette) entre en conflit, même avec `-p`. Le rejeu du 20/11 passe par un override hors dépôt (sans `container_name`, ports de l'hôte déplacés). | constaté ; correctif de fond à décider (V1.1) |
 
 ## Vérifié sans écart
 
