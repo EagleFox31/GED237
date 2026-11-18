@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../../services/api';
 import { categoriesApi } from '../../../../services/categories.api';
+import { reportSimulatorLoadError } from '../../../../lib/simulatorError';
 
 const ACTION_LABELS: Record<string, string> = {
   visa: 'Visa',
@@ -75,7 +76,7 @@ const SimulatorTab: React.FC = () => {
         setCategories(cats);
         setUsers((tenantUsers || []).filter((user: any) => user?.is_active !== false));
       } catch (e) {
-        console.error(e);
+        reportSimulatorLoadError(e);
       }
     };
     fetchInitialData();
