@@ -83,11 +83,11 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 | 22 | #386 pages scannées d'un PDF mixte (#380) | B | sur #384 | #384 | `strategy.py` (pile OCR) | non | — |
 | 23 | #387 pages d'un PDF rendues une à une (#379) | B | sur #386 | #386 | `strategy.py` (pile OCR) | non | — |
 | 24 | #388 filtre par catégorie sur la liste | B | main | — | `documents.py` | non | — |
-| 25 | #355 « Lecture en échec » et relance à l'écran | F | main | #372 | `Documents.tsx`, `DocumentDetailModal.tsx`, `documents.api.ts`, `services/index.ts` | non, CONFLICTING | — |
+| 25 | ~~#355 « Lecture en échec » et relance à l’écran~~ : **sortie en V1.2** avec #404, dont elle dépend (B, 18/11 : #404 ne se passe pas de #370) | F | — | — | — | — | § 7 |
 | 26 | #290 texte reconnu dans la fiche (#276) | F | main | #284 | `DocumentDetailModal.tsx`, `documents.api.ts`, `services/index.ts` | non, CONFLICTING | 9 |
 | 27 | #338 aperçu intégré dans la fiche | F | main | après #290 | `DocumentDetailModal.tsx` | non | — |
 
-- **#372 passe avant tout lecteur de `ocr_status`** : #355 lit le champ dans la liste et dans la fiche. #284 et #311 partent de son état failed, et #290 lit la route `/ocr`.
+- **#372 passe avant tout lecteur de `ocr_status`**. #284 et #311 partent de son état failed, et #290 lit la route `/ocr`.
 - **#388 passe avant le point 5 du Lot 5 bis** (filtre de la liste, côté interface), qui n'a pas encore de PR. #351 (filtre gardé dans l'URL) se place après #388, en vague 5.
 - **Palier 1 de l'OCR adaptatif (#382, lot 1)** : V1.2. B code après #284 ; spécification : `spec-ocr-adaptatif-lot1.md` (décision D1 prise : correction de la confiance dans le lot).
 - **#385 (bancs de mesure OCR)** : marquée « hors file » par son titre. On ne la fusionne pas, elle reste un outil en brouillon. Elle peut être fermée une fois les mesures reportées dans la décision OCR.
@@ -243,12 +243,12 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 | `backend/app/api/v1/endpoints/documents.py` | 17 | Fichier central : passer après #372 et #388, puis une PR à la fois. |
 | `frontend/services/index.ts` | 15 | Exports : conflits d'une ligne. |
 | `backend/.env.example` | 13 | Parité. |
-| `frontend/components/Documents.tsx` | 10 | #355, #351, #354, #371, #296 : dans cet ordre. |
+| `frontend/components/Documents.tsx` | 10 | #351, #354, #371, #296 : dans cet ordre (#355 sortie en V1.2). |
 | `backend/app/workers/tasks.py` | 9 | Pile OCR (#384, #284) avant le palier 1 de #382. |
 | `backend/app/schemas/document.py` | 9 | #372, #284, #283. |
 | `frontend/services/resources/documents.api.ts` | 9 | Vagues 2 et 5. |
 | `frontend/playwright.config.ts` | 9 | Passes e2e post-rc1. |
-| `frontend/components/DocumentDetailModal.tsx` | 8 | #355, #290, #338, #293, #295, #362. |
+| `frontend/components/DocumentDetailModal.tsx` | 8 | #290, #338, #293, #295, #362 (#355 sortie en V1.2). |
 | `reports.py`, `workflows.py`, `users.py`, `SpacesPage.tsx`, `router.py`, `main.py` | 8 chacun | Voir les vagues 1, 3 et 4. |
 
 ## 6. À décider par le PO : capacités post-rc1
@@ -300,7 +300,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 - **V1.2** :
   - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
-  - autres : #313 (élément 8 de la V1.2) et #298 (#278, sortie par O le 18/11) ;
+  - autres : #313 (élément 8 de la V1.2), #298 (#278, sortie par O le 18/11), #404 (dépend de #370) et #355 (dépend de #404) : B, 18/11 ;
   - audit UX Lot 6 (F, à ouvrir) : point (c), barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % ; point M, saisie gardée à travers la reconnexion ; point S, orientation du premier jour et aide sur le code à la connexion (O, 18/11) ;
   - audit UX Lot 7, chef de service et auditeur (premier tri d'O, 19/11 : la V1.1 est pleine) :
     1. historique d'un document, et plafond de 200 lignes du journal d'audit (`AuditLogs`), M ;
@@ -335,7 +335,8 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 | Réduites le 18/11 | #241, #213 | Pile `main` ← #241 ← #213 ← #221, #261, #263 ; #241 mise à jour après la coupe (§ 2, vague 3). |
 | À garder malgré tout | #282, #335 | #282 est à rebaser ; #335 reste en vague 6. |
 
-- **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). OK de Q sur le code en e27e01c : les droits de `main` sont gardés, seul l'effet change. **Avis du PO rendu le 18/11 (DEC-2026-006)** : DELETE vers la corbeille approuvé, purge réservée au super_admin. Reste à faire : delta de B (policy, tests 403, ciblage par `tenant_id` explicite, pris en compte seulement avec `tenants manage` : option 1 de B, 18/11), puis relecture de ce delta par Q.
+- **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). OK de Q sur le code en e27e01c : les droits de `main` sont gardés, seul l'effet change. **Avis du PO rendu le 18/11 (DEC-2026-006)** : DELETE vers la corbeille approuvé, purge réservée au super_admin. Reste à faire : delta de B (policy, tests 403, ciblage par `tenant_id` explicite, pris en compte seulement avec `tenants manage` : option 1 de B, 18/11), puis relecture de ce delta par Q. **Delta poussé par B en 987f08d, chez Q (18/11)** ; #401 aussi, en 650f7fb.
+- **Capacité de B en V1.1 (B, par O, 18/11)** : ≈ 31 h-s (9 jours ouvrés × 3,5), pour une charge déclarée de 24,55 : **marge ≈ 6 h-s**. `plan-v1.1.md` comptait 24,05 ; l'écart de 0,5 reste à détailler par B. Ordre de travail de B : l'issue #411 (premier administrateur), puis les issues #413 et #414. La marge couvre les points mineurs de Q sur #392 et #396 (§ Contraintes, point 7).
 - **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. À trancher avant la fusion : soit B aligne sur #148, soit O note l'écart comme accepté. Sinon elle reste en V1.2, comme prévu au § 6.
 - **Point 3 du § 8** : il ne reste que #361 et #266.
 

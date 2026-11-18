@@ -519,6 +519,8 @@ F revient sous 20,3, et la réserve de Q remonte à ≈ 1,65. Si (a) glisse en V
 - **La réserve de Q passe sous 1 h-s** : ≈ 1,15 − 0,3 = **≈ 0,85**. Elle tombe à ≈ 0,60 si (a) glisse en V1.1. C'est le seuil prévu : **O porte au PO la sortie de #359** (Q − 0,5, F − 0,25). Avec cette sortie, la réserve remonte à ≈ 1,35 (≈ 1,10 si (a) glisse), et F revient à ≈ 20,0.
 - Sans le delta de #152, compté parce que la décision du PO date de ce soir, la réserve serait de ≈ 0,95 : elle passerait sous 1 de toute façon.
 - **B à ≈ 24,05** (+ 0,5) : aucune capacité de B n'est chiffrée dans ce plan, seulement « dans sa capacité » à 22,9. **À confirmer par O avec B.** Si B est juste, les points mineurs de Q sur #392 et #396 (non comptés) sortent les premiers.
+  - **Confirmé (B, par O, 18/11)** : capacité ≈ 31 h-s (9 jours ouvrés × 3,5), charge déclarée par B 24,55, marge ≈ 6 h-s. Les points mineurs de #392 et #396 tiennent dans la marge.
+  - **#404 et #355 sortent en V1.2** (#404 ne se passe pas de #370). Gain `Déduit` des lignes déjà comptées : F − 0,25 et Q − 0,25 pour #355, plus Q ≈ − 0,15 pour la relecture de #404 (un tiers de la ligne #394, #399, #404). La réserve de Q passe de ≈ 0,85 à **≈ 1,25**, à confirmer par Q.
 - F inchangée à 20,25 : l'écran Corbeille du super_admin va en V1.2, et l'audit UX Lot 7 aussi (`plan-fusion-v1.1.md` § 7).
 
 **Audit UX Lot 7, points (1) et (2) : CDC et démo du 30/11** (demande de O, 18/11)

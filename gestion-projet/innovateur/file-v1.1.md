@@ -18,7 +18,6 @@ ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 235 238 248 267 268"
 # Fin de vague 1, dès qu'elles ont un numéro : #413, #414, pagination du journal d'audit (idée du PO, en attente)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
 ORDER_V2="372 284 311 384 386 387 388 290 338"
-# Si B rebase #404 sans #370 : insérer "404 355" après 388 (par défaut, les deux passent en V1.2)
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
@@ -42,7 +41,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
   - #395 gardée, #349 fermée (F, 18/11) ;
   - #401 gardée, #211 fermée ; sa suite (corbeille groupée avec annulation, Ctrl+Espace) va au backlog V1.2 ;
   - dans les deux cas, ce qui manque est porté avant la fermeture.
-- **#404 et #355** : en V1.2 par défaut, sauf si B rebase #404 sans #370.
+- **#404 et #355** : en V1.2. B confirme que #404 ne se passe pas de #370 (O, 18/11). Elles sont au backlog V1.2 (`plan-fusion-v1.1.md` § 7).
 
 ## 2. DEP
 
@@ -66,7 +65,6 @@ DEP[180]="197"; DEP[193]="180"; DEP[186]="193"; DEP[165]="186"; DEP[192]="165"
 DEP[383]="389"; DEP[222]="389"; DEP[245]="389"; DEP[253]="389"; DEP[378]="389"
 DEP[227]="222"; DEP[237]="227"; DEP[285]="222"; DEP[234]="224"; DEP[394]="237"
 DEP[284]="372"; DEP[290]="284"; DEP[338]="290"
-# Si #404 et #355 restent en V1.1 : DEP[404]="372"; DEP[355]="372 404"
 DEP[296]="263"; DEP[347]="221"; DEP[342]="297"; DEP[294]="238"
 DEP[351]="388"; DEP[344]="383"; DEP[398]="377"
 DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[283]="152"
@@ -110,8 +108,10 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
 - **#359** et la **pagination du journal d'audit** (idée du PO, qui remplace le filet de 500 lignes) : O les porte au PO.
 
 **Arbitrages en cours**
-- **#404 dépend de #370**, une branche `feat/v12-*`. O demande à B si #404 peut se rebaser sans #370. Par défaut, #404 et #355 passent en V1.2 : elles sont hors de l'ORDER, avec la ligne à réinsérer en commentaire.
-- **#349 et #395** (motifs de rejet en un clic) et **#211 et #401** (sélection multiple) : F et B tranchent. Par défaut, on garde #395 (OK de Q) et #401 (relue par Q). L'autre PR est fermée après le portage de ce qui manque, et l'ORDER applique ce choix par défaut.
+- **#404 et #355 en V1.2 (réglé, 18/11)** : #404 dépend de #370 (`feat/v12-*`) et B ne peut pas la rebaser sans elle.
+- **#349 et #395, #211 et #401 (réglé, 18/11)** : #395 et #401 gardées ; #349 fermée par F, #211 à fermer.
+- **Têtes envoyées à Q (B, 18/11)** : #401 en 650f7fb ; #152 en 987f08d (delta de DEC-2026-006). L'OK de Q est à noter quand il arrive.
+- **Ordre de travail de B** : l'issue #411 (commande « premier administrateur »), puis les issues #413 et #414. Elles n'ont pas encore de PR ; #413 et #414 entrent en fin de vague 1 avec leur numéro de PR.
 - **#284** est peut-être obsolète, car elle recoupe #370 et #372 (§ 9). B confirme. Si elle est fermée : re-cibler #311 sur `main`, vérifier ce que #290 lit sur `/ocr`, et retirer #284 de l'ORDER et des DEP (#311, #290).
 
 **Delta relu par Q** (règle : si la tête change, l'OK tombe ; toute PR CONFLICTING repasse donc chez Q après son rebase)
@@ -128,6 +128,6 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
   - #361 et #266 : revue de recouvrement de B d'abord ;
   - #401 : re-relecture après le re-ciblage, avec le conflit #400/#401 ;
   - #391 et #396 : le conflit sur la ligne 65 de `document-detail.page.ts` (on garde la ligne commentée).
-- **Sans OK de Q** : #253, #372, #284, #311, #384, #386, #387, #388, #404 et #355 (si elles restent en V1.1), #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, #378, #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #417, #309, #147, #155, #168, #170, #172, #212.
+- **Sans OK de Q** : #253, #372, #284, #311, #384, #386, #387, #388, #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, #378, #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #417, #309, #147, #155, #168, #170, #172, #212.
 - **OK sur un code ancien, périmé ou sans SHA noté** : #235, #238, #267, #268, #261, #263, #266, #296, #221, #262, #310, #301, #302, #293, #295, #297, #294, #303, #179, #162, #193, #197, #180, #209, #165, #205, #186, #181, #184, #211, #190, #182, #199.
 - **OK valides sur la tête au 18/11** : #389 (3d3ad2e), #403 (4228d7a), #383 (c19e95b), #222 (99d3d09), #224 (0b8eb15), #237 (ae555e4), #240 (1798847), #407 (98d2317), #391 (9a943d3), #392 (fc71aad), #396 (93feb87), #153 (cbf28bc), #154 (720a30f), #171 (3198885), #192 (7c32940), #395 (OK de Q selon O, SHA à noter). Ceux de #227, #234, #243 et #245 tomberont au rebase (CONFLICTING).
