@@ -334,7 +334,7 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 | Réduites le 18/11 | #241, #213 | Pile `main` ← #241 ← #213 ← #221, #261, #263 ; #241 mise à jour après la coupe (§ 2, vague 3). |
 | À garder malgré tout | #282, #335 | #282 est à rebaser ; #335 reste en vague 6. |
 
-- **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). OK de Q sur le code en e27e01c : les droits de `main` sont gardés, seul l'effet change. **Avis du PO rendu le 18/11 (DEC-2026-006)** : DELETE vers la corbeille approuvé, purge réservée au super_admin. Reste à faire : delta de B (policy, tests 403, ciblage du tenant pour le super_admin), puis relecture de ce delta par Q.
+- **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). OK de Q sur le code en e27e01c : les droits de `main` sont gardés, seul l'effet change. **Avis du PO rendu le 18/11 (DEC-2026-006)** : DELETE vers la corbeille approuvé, purge réservée au super_admin. Reste à faire : delta de B (policy, tests 403, ciblage par `tenant_id` explicite, pris en compte seulement avec `tenants manage` : option 1 de B, 18/11), puis relecture de ce delta par Q.
 - **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. À trancher avant la fusion : soit B aligne sur #148, soit O note l'écart comme accepté. Sinon elle reste en V1.2, comme prévu au § 6.
 - **Point 3 du § 8** : il ne reste que #361 et #266.
 
