@@ -9,18 +9,36 @@ import uuid
 
 import pytest
 
+from app.core.security import hash_password
 from app.models.document import Document
+from app.models.user import User
 from app.models.workflow import WorkflowStep
 
 DOCUMENTS = "/api/v1/documents"
 
 
 async def _document_with_step(db_session, db_seed, step_status):
+    # Propriétaire distinct de l'assigné : le propriétaire peut mettre à la corbeille,
+    # l'assigné ne doit rien obtenir de plus que la lecture.
+    owner = User(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+        role_id=3,
+        matricule=f"OWN-{uuid.uuid4().hex[:8]}",
+        email=f"owner-{uuid.uuid4().hex[:8]}@testministry.gov.cm",
+        first_name="Proprio",
+        last_name="Document",
+        password_hash=hash_password("testpassword123"),
+        is_active=True,
+    )
+    db_session.add(owner)
+    await db_session.flush()
     document = Document(
         id=uuid.uuid4(),
         tenant_id=db_seed["tenant_id"],
         org_unit_id=db_seed["org_unit_id"],
-        owner_id=db_seed["user_id"],
+        owner_id=owner.id,
         title="Note à valider",
         file_path=f"tenant/unit/{uuid.uuid4()}.pdf",
         file_type="pdf",
@@ -97,7 +115,12 @@ async def test_step_access_is_read_only(client_as, db_session, db_seed):
         assert (
             await client.patch(f"{DOCUMENTS}/{doc_id}", json={"title": "x"})
         ).status_code in (403, 404)
-        # (pas de test de corbeille : l'utilisateur de test est ici aussi le propriétaire.)
+        # L'assigné n'est pas le propriétaire : pas de mise à la corbeille ni de suppression.
+        assert (await client.post(f"{DOCUMENTS}/{doc_id}/trash")).status_code in (
+            403,
+            404,
+        )
+        assert (await client.delete(f"{DOCUMENTS}/{doc_id}")).status_code in (403, 404)
         assert (await client.get(f"{DOCUMENTS}/{doc_id}/audit-logs")).status_code == 403
 
 
