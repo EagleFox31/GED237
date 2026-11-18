@@ -4,6 +4,7 @@
 // SRP : change uniquement si le contrat /authz/* évolue.
 
 import { apiCall } from '../http/client';
+import { parseAccessScopes, type AccessScopeRow, type Scope } from '../../lib/accessScopes';
 
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
 
@@ -28,6 +29,24 @@ export interface AuthzMetricsFilters {
 // ── API ─────────────────────────────────────────────────────────────────────
 
 export const authzApi = {
+    // Périmètres réglables (contrat 9.5) : les refus sont affichés par l'écran, pas par le bus global.
+    getAccessScopes: async (): Promise<AccessScopeRow[]> =>
+        parseAccessScopes(
+            await apiCall<unknown>('/admin/access-scopes', {}, 'Récupération des périmètres impossible', {
+                handledStatuses: [403, 404, 503],
+            }),
+        ),
+
+    setAccessScope: async (role: string, resource: string, scope: Scope): Promise<AccessScopeRow | undefined> =>
+        parseAccessScopes([
+            await apiCall<unknown>(
+                '/admin/access-scopes',
+                { method: 'PUT', body: JSON.stringify({ role, resource, scope }) },
+                'Changement du périmètre impossible',
+                { handledStatuses: [403, 422, 503] },
+            ),
+        ])[0],
+
     // La grille des droits (RightsGridTab) affiche elle-même ces refus : pas de toast global en double.
     getAuthzPolicies: (): Promise<any[]> =>
         apiCall<any[]>('/authz/policies', {}, 'Récupération des droits impossible', {

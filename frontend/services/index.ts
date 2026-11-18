@@ -178,6 +178,8 @@ export const api = {
 
     // AuthZ
     getAuthzPolicies: authzApi.getAuthzPolicies,
+    getAccessScopes: authzApi.getAccessScopes,
+    setAccessScope: authzApi.setAccessScope,
     addAuthzPolicy: authzApi.addAuthzPolicy,
     deleteAuthzPolicy: authzApi.deleteAuthzPolicy,
     getAuthzRoles: authzApi.getAuthzRoles,

@@ -6,6 +6,7 @@ import { api } from '../../../services/api';
 import { ApiError } from '../../../lib/errors';
 import { useAuthStore } from '../../../stores/authStore';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import AccessScopesPanel from './AccessScopesPanel';
 import {
   actionLabel,
   applyChange,
@@ -183,6 +184,7 @@ const RightsGridTab: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <AccessScopesPanel />
     </div>
   );
 };
