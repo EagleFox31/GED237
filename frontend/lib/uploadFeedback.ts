@@ -26,3 +26,37 @@ export function uploadErrorMessage(status: number | undefined, detail?: string):
   }
   return "L'envoi a échoué. Vérifiez votre connexion et réessayez.";
 }
+
+/** Limite par défaut, identique à `MAX_UPLOAD_SIZE` côté API (backend/app/core/config.py). */
+export const DEFAULT_MAX_UPLOAD_MB = 100;
+
+/** Limite lue au build (`VITE_MAX_UPLOAD_SIZE_MB`) ; valeur absente ou invalide : défaut. */
+export function maxUploadMb(raw: string | undefined): number {
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_UPLOAD_MB;
+}
+
+const MB = 1024 * 1024;
+
+/** Taille lisible : « 850 Ko », « 12,3 Mo ». */
+export function formatFileSize(bytes: number): string {
+  if (bytes < MB) return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
+  return `${(bytes / MB).toFixed(1).replace('.', ',')} Mo`;
+}
+
+/** Refus avant envoi d'un fichier au-delà de la limite (même calcul que l'API : Mo = 1024 × 1024 octets). */
+export function fileTooLargeMessage(sizeBytes: number, maxMb: number): string | null {
+  if (sizeBytes <= maxMb * MB) return null;
+  return `Fichier trop volumineux (${formatFileSize(sizeBytes)}). Maximum : ${maxMb} Mo. Compressez-le ou découpez-le.`;
+}
+
+/**
+ * Avertissement (non bloquant) pour un format que l'application ne sait ni lire
+ * (texte cherchable : PDF et images) ni afficher en aperçu.
+ */
+export function unreadableFormatNotice(mime: string, canPreview: boolean): string | null {
+  const type = mime.toLowerCase();
+  const readable = type === 'application/pdf' || type.startsWith('image/');
+  if (readable || canPreview) return null;
+  return 'Ce format sera archivé, mais sans aperçu ni recherche dans son contenu.';
+}
