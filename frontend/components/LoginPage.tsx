@@ -118,6 +118,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   const [matricule, setMatricule] = useState(() => readStoredMatricule());
   const [rememberMatricule, setRememberMatricule] = useState(() => Boolean(readStoredMatricule()));
+  const [usedDemoProfile, setUsedDemoProfile] = useState(false);
   const [password, setPassword] = useState('');
   const passwordInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -136,6 +137,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   const handleMatriculeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMatricule(e.target.value);
+    setUsedDemoProfile(false);
   };
 
   const handleRememberMatriculeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +156,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       setInstitution(label);
       persistDemoSelection(label);
       setMatricule(creds.matricule);
+      setUsedDemoProfile(true);
       setPassword(creds.password);
       setError(null);
       return;
@@ -186,6 +189,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           matricule,
           rememberMatricule,
           loginSucceeded: true,
+          isDemo: usedDemoProfile,
         });
         setTempToken(response.session_token);
         setStep('otp');

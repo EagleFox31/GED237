@@ -159,19 +159,19 @@ test.describe('Connexion rapide (Tâche H)', () => {
     persistLoginAttempt(
       {
         institution: 'Ministère des Finances (MINFI)',
-        matricule: 'MINFI001',
+        matricule: '752458-M',
         rememberMatricule: true,
         loginSucceeded: true,
       },
       storage,
     );
-    expect(readStoredMatricule(storage)).toBe('MINFI001');
+    expect(readStoredMatricule(storage)).toBe('752458-M');
 
     // Tentative suivante avec case décochée (même échouée) : le matricule est effacé
     persistLoginAttempt(
       {
         institution: 'Ministère des Finances (MINFI)',
-        matricule: 'MINFI001',
+        matricule: '752458-M',
         rememberMatricule: false,
         loginSucceeded: false,
       },
@@ -192,5 +192,49 @@ test.describe('Connexion rapide (Tâche H)', () => {
     persistDemoSelection('Plateforme Nationale (PLATFORM)', storage);
     expect(readStoredInstitution(storage)).toBe('Plateforme Nationale (PLATFORM)');
     expect(readStoredMatricule(storage)).toBe('AGENT777');
+  });
+
+  test('ne mémorise jamais le matricule de démo même si la case est cochée et la connexion réussit', () => {
+    const storage = new MemoryStorage();
+
+    // Profil de démo utilisé avec case cochée et connexion réussie -> matricule non mémorisé
+    persistLoginAttempt(
+      {
+        institution: 'Ministère des Finances (MINFI)',
+        matricule: 'MINFI001',
+        rememberMatricule: true,
+        loginSucceeded: true,
+        isDemo: true,
+      },
+      storage,
+    );
+    expect(readStoredInstitution(storage)).toBe('Ministère des Finances (MINFI)');
+    expect(readStoredMatricule(storage)).toBe('');
+
+    // Même sans le flag isDemo, un matricule de démo connu n'est jamais mémorisé
+    persistLoginAttempt(
+      {
+        institution: 'Plateforme Nationale (PLATFORM)',
+        matricule: 'SUPER001',
+        rememberMatricule: true,
+        loginSucceeded: true,
+      },
+      storage,
+    );
+    expect(readStoredMatricule(storage)).toBe('');
+
+    // Si un vrai matricule était mémorisé auparavant, une connexion démo ne l'écrase pas
+    writeStoredMatricule('752458-M', storage);
+    persistLoginAttempt(
+      {
+        institution: 'Ministère des Finances (MINFI)',
+        matricule: 'MINFI002',
+        rememberMatricule: true,
+        loginSucceeded: true,
+        isDemo: true,
+      },
+      storage,
+    );
+    expect(readStoredMatricule(storage)).toBe('752458-M');
   });
 });
