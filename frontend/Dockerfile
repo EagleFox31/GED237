@@ -25,10 +25,16 @@ RUN HUSKY=0 npm ci
 
 COPY . .
 
+# Login screen demo profiles: same LOGIN_DEMO_HINTS as the API (false hides them).
+ARG VITE_LOGIN_DEMO_HINTS=true
+ENV VITE_LOGIN_DEMO_HINTS=${VITE_LOGIN_DEMO_HINTS}
 ARG VITE_API_URL=/api/v1
 ENV VITE_API_URL=${VITE_API_URL}
 ARG VITE_APP_VERSION=
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
+# Per-file upload cap shown and checked before sending; keep equal to the API's MAX_UPLOAD_SIZE_MB.
+ARG VITE_MAX_UPLOAD_SIZE_MB=100
+ENV VITE_MAX_UPLOAD_SIZE_MB=${VITE_MAX_UPLOAD_SIZE_MB}
 RUN npm run build
 
 
