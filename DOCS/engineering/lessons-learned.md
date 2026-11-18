@@ -719,6 +719,20 @@ première requête utilisateur.
 **Prévention** — Tests 404 sur `GET` et `PATCH` par id hors sous-arbre, avec témoins 200 dans le sous-arbre.
 **Leçon généralisée** — Toute règle de périmètre se teste sur les deux chemins : la liste et l'accès par id (lecture et écriture). Un filtre de liste n'est pas un contrôle d'accès.
 
+### LESSON-2026-057 — Ensemble de rôles trop large : unit_admin lisait et écrivait à l'échelle de l'institution
+
+- **Date :** 2026-11-18
+- **Catégorie :** security / authz
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/unit_admin_scope.py`, `backend/app/api/v1/endpoints/analytics.py`, `classification.py`, `classification_reviews.py`, `imports.py`, `workflows.py`, `backend/tests/api/test_unit_admin_write_scope.py`
+
+**Contexte** — Le périmètre de unit_admin (unité et sous-unités) avait été posé sur les documents, la recherche et les rapports (#195, LESSON-2026-056).
+**Échec / near miss** — Relevé par l'audit de routes : `/analytics/tenant`, le circuit d'un document, la cible d'un import, la file de revue et les règles de classement acceptaient unit_admin avec la portée de l'institution, y compris en écriture (créer ou supprimer une règle valable pour toute l'institution).
+**Cause racine** — Ces routes testaient un ensemble de rôles (`ADMIN_ROLES`, `TENANT_WIDE_READ_ROLES`) qui range unit_admin avec tenant_admin ; l'ajout d'un rôle intermédiaire n'a pas relu les routes qui s'appuient sur ces ensembles.
+**Résolution** — Une seule définition de l'arbre (`reports_scope`), des aides asynchrones partagées ; analytics calculé sur le sous-arbre, hors arbre = 403/404, règles hors arbre en lecture seule ou masquées.
+**Prévention** — `test_unit_admin_write_scope.py` : chaque route concernée est jouée avec unit_admin d'une sous-unité et témoin tenant_admin ; `test_unit_admin_crawl` vérifie qu'aucun identifiant d'une autre unité ne sort.
+**Leçon généralisée** — Ajouter un rôle intermédiaire impose de relire chaque ensemble de rôles qui le contient et de jouer les routes avec ce rôle. Un ensemble « admin » n'est pas un périmètre.
+
 ### LESSON-2026-058 — Repli automatique vers un moteur trop lourd : un texte déjà lu était perdu avec la tâche
 
 - **Date :** 2026-11-18
