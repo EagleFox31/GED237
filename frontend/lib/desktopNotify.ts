@@ -102,6 +102,9 @@ export const connectNotificationSocket = (
   let socket: WebSocket | null = null;
   let cancelRetry: (() => void) | undefined;
   let stopped = false;
+  // Un ticket refusé (1008) a droit à un seul nouvel essai, avec un ticket neuf (ex. Redis redémarré
+  // entre l'émission et l'usage) ; un second refus d'affilée arrête tout, sinon on tournerait en boucle.
+  let refusalRetried = false;
 
   const retryLater = () => {
     cancelRetry = schedule(() => void open(), reconnectDelay(attempt));
@@ -120,12 +123,17 @@ export const connectNotificationSocket = (
     socket = new WebSocket(`${base}/notifications/ws?ticket=${encodeURIComponent(ticket)}`);
     socket.onopen = () => {
       handlers.onOpen(attempt);
+      refusalRetried = false;
       attempt = 0;
     };
     socket.onmessage = (event) => handlers.onMessage(String(event.data));
     socket.onclose = (event) => {
-      // 1008 : ticket refusé (inconnu, expiré ou déjà utilisé) ; insister tournerait en boucle.
-      if (stopped || event.code === POLICY_VIOLATION) return;
+      if (stopped) return;
+      // 1008 : ticket refusé (inconnu, expiré ou déjà utilisé).
+      if (event.code === POLICY_VIOLATION) {
+        if (refusalRetried) return;
+        refusalRetried = true;
+      }
       retryLater();
     };
   }

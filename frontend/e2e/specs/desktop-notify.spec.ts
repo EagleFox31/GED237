@@ -63,14 +63,23 @@ test.describe('Connexion temps réel par ticket (#316)', () => {
   const realSocket = globalThis.WebSocket;
   // Délais demandés par la connexion ; la minuterie est injectée, jamais celle du lanceur de tests.
   let scheduled: number[] = [];
-  const schedule = (_fn: () => void, ms: number) => {
+  let pending: (() => void)[] = [];
+  const schedule = (fn: () => void, ms: number) => {
     scheduled.push(ms);
+    pending.push(fn);
     return () => undefined;
+  };
+  /** Exécute le prochain essai programmé, comme si son délai était écoulé. */
+  const runNextRetry = () => {
+    const fn = pending.shift();
+    if (!fn) throw new Error('aucun essai programmé');
+    fn();
   };
 
   test.beforeEach(() => {
     FakeSocket.opened = [];
     scheduled = [];
+    pending = [];
     (globalThis as any).WebSocket = FakeSocket;
   });
 
@@ -108,13 +117,39 @@ test.describe('Connexion temps réel par ticket (#316)', () => {
     expect(scheduled).toEqual([1000]);
   });
 
-  test('coupure : nouvel essai ; ticket refusé (1008) : arrêt', async () => {
+  test('coupure : nouvel essai à chaque fois', async () => {
     connectNotificationSocket(async () => 't', handlers, schedule);
     await flush();
     lastSocket().onclose?.({ code: 1006 });
-    expect(scheduled).toEqual([1000]);
+    runNextRetry();
+    await flush();
+    lastSocket().onclose?.({ code: 1006 });
+    expect(scheduled).toEqual([1000, 2000]);
+  });
+
+  test('ticket refusé (1008) : un seul nouvel essai avec un ticket neuf, puis arrêt', async () => {
+    let tickets = 0;
+    connectNotificationSocket(async () => `t${++tickets}`, handlers, schedule);
+    await flush();
     lastSocket().onclose?.({ code: 1008 });
     expect(scheduled).toEqual([1000]);
+    runNextRetry();
+    await flush();
+    expect(tickets).toBe(2);
+    expect(lastSocket().url).toMatch(/ticket=t2$/);
+    lastSocket().onclose?.({ code: 1008 });
+    expect(scheduled).toEqual([1000]);
+  });
+
+  test('ticket refusé après une connexion réussie : de nouveau un essai', async () => {
+    connectNotificationSocket(async () => 't', handlers, schedule);
+    await flush();
+    lastSocket().onclose?.({ code: 1008 });
+    runNextRetry();
+    await flush();
+    lastSocket().onopen?.();
+    lastSocket().onclose?.({ code: 1008 });
+    expect(scheduled).toEqual([1000, 1000]);
   });
 
   test('fermeture pendant la demande de ticket : rien ne s\'ouvre', async () => {
