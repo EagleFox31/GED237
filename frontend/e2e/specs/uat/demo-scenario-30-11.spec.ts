@@ -23,7 +23,7 @@ const MAIN_MENU = (page: Page, name: string | RegExp) => page.getByRole('button'
 test.describe('Démo 30/11 — le classement automatique, de bout en bout', () => {
   test.slow();
 
-  let rule: { keyword: string; domainName: string; activityName: string };
+  let rule: { keyword: string; ruleName: string; domainName: string; activityName: string };
 
   test.beforeAll(async ({ playwright }, testInfo) => {
     // Données propres au run, créées par l'API de l'administrateur (même chemin que les specs UAT).
@@ -32,10 +32,10 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     const id = `${Date.now().toString(36)}`;
     const domain = await admin.createDomain(`demo-${id}`, `Courriers démo ${id}`);
     const activity = await admin.createActivity(domain.id, `demo-a-${id}`, `Entrants démo ${id}`);
-    rule = { keyword: `demo${id}`, domainName: domain.name, activityName: activity.name };
+    rule = { keyword: `demo${id}`, ruleName: `Règle démo ${id}`, domainName: domain.name, activityName: activity.name };
     await admin.createRule({
       code: `demo-rule-${id}`,
-      name: `Règle démo ${id}`,
+      name: rule.ruleName,
       filenamePattern: rule.keyword,
       domainId: domain.id,
       activityId: activity.id,
@@ -88,8 +88,12 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     await loginAs('tenant_admin');
     await MAIN_MENU(page, /Explorateur documentaire/).click();
     await expect(page).toHaveURL(/\/spaces/);
-    await expect(page.getByText(rule.domainName).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Toutes les années/).first()).toBeVisible();
+    // Le document reste visible une fois l'explorateur filtré sur le domaine de la règle : il y est bien rangé.
+    const domainFilter = page.getByRole('combobox', { name: 'Filtre domaine' });
+    await domainFilter.selectOption({ label: rule.domainName });
+    await expect(domainFilter.locator('option:checked')).toHaveText(rule.domainName);
+    await expect(page.getByText('Rangement ' + rule.keyword).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('combobox', { name: 'Filtre année' })).toBeVisible();
   });
 
   test('3. Les règles : lecture en clair puis simulateur sans rien déplacer', async ({ page, loginAs, adminApi }) => {
@@ -98,10 +102,12 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     await loginAs('tenant_admin');
     await MAIN_MENU(page, /Plan de classement/).click();
     await expect(page).toHaveURL(/\/classement/);
-    await page.getByRole('tab', { name: /Règles de classement/ }).click();
-    await expect(page.getByText(new RegExp(rule.keyword)).first()).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('tab', { name: /Simulateur/ }).click();
-    await expect(page.getByRole('tabpanel')).toBeVisible();
+    // Les sections du plan de classement sont des boutons numérotés (1 à 4), pas des onglets ARIA.
+    await page.getByRole('button', { name: /Règles de classement/ }).first().click();
+    // La liste des règles affiche leur nom (le motif de fichier n'est lu qu'en détail).
+    await expect(page.getByText(rule.ruleName).first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: /Simulateur/ }).first().click();
+    await expect(page.getByText('Pré-remplir depuis un document existant')).toBeVisible();
     expect(await snapshot(), 'le simulateur ne déplace rien').toEqual(before);
   });
 
@@ -118,12 +124,12 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
   });
 
   test('5. Recherche et droits : deux listes pour la même requête, menu réduit du lecteur', async ({ loginAs, page }) => {
-    // E : manager DAF (page d'arrivée « Tâches & Validations »), recherche dans le bandeau.
+    // E : manager DAF (loginAs ouvre /dashboard : « Espace Manager »), recherche dans le bandeau.
     await loginAs('manager');
-    await expect(page.getByText(/Tâches & Validations/).first()).toBeVisible();
-    await page.getByRole('searchbox').or(page.getByPlaceholder(/Rechercher/)).first().fill('courrier');
-    await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/q=courrier|search/);
+    await expect(page.getByRole('heading', { name: /Espace Manager/ })).toBeVisible();
+    // Hors des pages à filtre local, la barre de l'en-tête liste les résultats sous le champ (#256).
+    await page.locator('[data-global-search]').fill('courrier');
+    await expect(page.getByText(/^\d+ résultats?$|Aucun document trouvé/).first()).toBeVisible({ timeout: 10_000 });
 
   });
 
@@ -147,7 +153,8 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
 
   test('6. Historique : versions du document, puis registre des actions et export CSV (auditeur)', async ({ page, loginAs }) => {
     await loginAs('auditor');
-    await page.getByRole('button', { name: /^Audit$/ }).click();
+    // Le nom accessible du menu inclut le nom de l'icône (« analytics Audit »).
+    await page.getByRole('button', { name: /(^|\s)Audit$/ }).first().click();
     await expect(page).toHaveURL(/\/audit/);
     await expect(page.getByText('Registre Des Actions')).toBeVisible();
     const download = page.waitForEvent('download');
