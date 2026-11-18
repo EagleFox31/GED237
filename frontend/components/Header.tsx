@@ -350,6 +350,8 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
           <div className="flex items-center" ref={notifRef}>
             <div className="relative">
               <button
+                type="button"
+                aria-label="Notifications"
                 onClick={() => setShowNotifications(!showNotifications)}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-all relative ${showNotifications ? 'bg-slate-100 text-rdpc-blue' : 'text-slate-400'}`}
               >
@@ -400,6 +402,8 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
             </div>
 
             <button
+              type="button"
+              aria-label="Aide"
               onClick={() => setShowHelp(true)}
               className="w-10 h-10 rounded-xl text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-rdpc-blue transition-all"
               title="Aide"
@@ -407,6 +411,8 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               <span className="material-symbols-outlined text-xl">help_outline</span>
             </button>
             <button
+              type="button"
+              aria-label="Paramètres"
               onClick={onOpenSettings}
               className="w-10 h-10 rounded-xl text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-rdpc-blue transition-all group"
             >
@@ -501,6 +507,8 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 <h3 className="text-2xl font-black text-slate-800 tracking-tighter italic uppercase">E-Dossier — Support</h3>
               </div>
               <button
+                type="button"
+                aria-label="Fermer l'aide"
                 onClick={() => setShowHelp(false)}
                 className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center"
               >
