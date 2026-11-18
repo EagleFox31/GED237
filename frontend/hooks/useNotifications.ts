@@ -1,5 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
+import {
+    connectNotificationSocket,
+    currentPermission,
+    desktopText,
+    shouldShowDesktop,
+    targetPath,
+} from '../lib/desktopNotify';
 
 export interface Notification {
     id: string;
@@ -10,55 +17,67 @@ export interface Notification {
     created_at: string;
 }
 
-export const useNotifications = () => {
+interface Options {
+    /** L'agent a activé « Prévenir sur le bureau ». */
+    desktopEnabled?: boolean;
+    /** Appelé au clic sur la notification Windows (ouvre le document). */
+    onOpenPath?: (path: string) => void;
+}
+
+/** Événement de simulation (mode développement) tant que le serveur n'émet pas tous les événements de visa. */
+export const MOCK_NOTIFICATION_EVENT = 'ged:mock-notification';
+
+export const useNotifications = ({ desktopEnabled = false, onOpenPath }: Options = {}) => {
     const token = sessionStorage.getItem('token');
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const ws = useRef<WebSocket | null>(null);
+    // Réglages lus au moment du message, sans rouvrir la connexion à chaque changement.
+    const settings = useRef({ desktopEnabled, onOpenPath });
+    settings.current = { desktopEnabled, onOpenPath };
 
-    // Fetch initial notifications
-    const loadNotifications = async () => {
+    const loadNotifications = useCallback(async () => {
         try {
             const response = await api.getNotifications();
-            if (Array.isArray(response)) {
-                setNotifications(response);
-            } else {
-                setNotifications(response.data || []);
-            }
+            setNotifications(Array.isArray(response) ? response : response.data || []);
         } catch (error) {
             console.error("Failed to load notifications", error);
         }
-    };
+    }, []);
+
+    const receive = useCallback((data: Notification) => {
+        setNotifications((prev) => (prev.some((n) => n.id === data.id) ? prev : [data, ...prev]));
+        const { desktopEnabled: enabled, onOpenPath: open } = settings.current;
+        if (!shouldShowDesktop({ enabled, permission: currentPermission(), hasFocus: document.hasFocus(), isRead: data.is_read })) return;
+        const { title, body } = desktopText(data);
+        const popup = new window.Notification(title, { body, tag: data.id });
+        popup.onclick = () => {
+            window.focus();
+            popup.close();
+            open?.(targetPath(data));
+        };
+    }, []);
 
     useEffect(() => {
         if (!token) return;
-
         loadNotifications();
+        return connectNotificationSocket(token, {
+            // Après une coupure, on recharge la liste : rien n'est perdu pendant l'absence.
+            onOpen: (attempt) => { if (attempt > 0) loadNotifications(); },
+            onMessage: (raw) => {
+                try {
+                    receive(JSON.parse(raw));
+                } catch (err) {
+                    console.error('Failed to parse WebSocket message', err);
+                }
+            },
+        });
+    }, [token, loadNotifications, receive]);
 
-        const API_WS_URL = import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8000/api/v1';
-        ws.current = new WebSocket(`${API_WS_URL}/notifications/ws?token=${token}`);
-
-        ws.current.onopen = () => {
-            console.log('Notification WebSocket connected');
-        };
-
-        ws.current.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                // Prepend new notification
-                setNotifications((prev) => [data, ...prev]);
-            } catch (err) {
-                console.error('Failed to parse WebSocket message', err);
-            }
-        };
-
-        ws.current.onclose = () => {
-            console.log('Notification WebSocket closed');
-        };
-
-        return () => {
-            ws.current?.close();
-        };
-    }, [token]);
+    useEffect(() => {
+        if (!import.meta.env.DEV) return;
+        const onMock = (e: Event) => receive((e as CustomEvent<Notification>).detail);
+        window.addEventListener(MOCK_NOTIFICATION_EVENT, onMock);
+        return () => window.removeEventListener(MOCK_NOTIFICATION_EVENT, onMock);
+    }, [receive]);
 
     const markAsRead = async (id: string) => {
         try {

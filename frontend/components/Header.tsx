@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
+import { askPermission, currentPermission, readPreference, writePreference } from '../lib/desktopNotify';
 import { useAuthStore } from '../stores/authStore';
 import { Avatar } from './ui/Avatar';
 import { getStatusLabel } from '../types';
@@ -176,7 +177,26 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const [desktopOn, setDesktopOn] = useState(() => readPreference() && currentPermission() === 'granted');
+  const [desktopHint, setDesktopHint] = useState<string | null>(null);
+  const { notifications, markAsRead, markAllAsRead } = useNotifications({
+    desktopEnabled: desktopOn,
+    onOpenPath: (path) => navigate(path),
+  });
+  // La permission est demandée ici, au clic, jamais au chargement de la page.
+  const toggleDesktop = async () => {
+    if (desktopOn) { writePreference(false); setDesktopOn(false); setDesktopHint(null); return; }
+    const permission = await askPermission();
+    if (permission === 'granted') {
+      writePreference(true);
+      setDesktopOn(true);
+      setDesktopHint(null);
+      return;
+    }
+    setDesktopHint(permission === 'unsupported'
+      ? "Ce navigateur ne sait pas afficher de notifications."
+      : "Autorisez les notifications pour ce site dans votre navigateur, puis recommencez.");
+  };
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   useEffect(() => {
@@ -357,6 +377,17 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                     {unreadCount > 0 && (
                       <button onClick={markAllAsRead} className="text-[10px] font-bold text-rdpc-blue hover:underline pr-2">Tout marquer comme lu</button>
                     )}
+                  </div>
+                  <div className="px-4 py-2 border-b border-slate-50">
+                    <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                      <input type="checkbox" data-testid="desktop-notify-toggle" checked={desktopOn} onChange={toggleDesktop} />
+                      Prévenir sur le bureau
+                      <span
+                        className="material-symbols-outlined text-sm text-slate-400"
+                        title="Fonctionne quand GED237 est ouvert, même en arrière-plan."
+                      >help</span>
+                    </label>
+                    {desktopHint && <p role="status" data-testid="desktop-notify-hint" className="text-[10px] text-amber-700 mt-1">{desktopHint}</p>}
                   </div>
                   <div className="max-h-96 overflow-y-auto">
                     {notifications.length > 0 ? (

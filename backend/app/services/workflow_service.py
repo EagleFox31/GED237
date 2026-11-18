@@ -148,30 +148,40 @@ class SubmitWorkflowActionUseCase:
         await db.refresh(action_trace)
 
         # Dispatch d'événements de domaine
-        if (
-            action.outcome in [OutcomeType.accepted, OutcomeType.acknowledged]
-            and next_step is not None
-        ):
-            await self.dispatcher.dispatch(
-                "WORKFLOW_ASSIGNED",
-                {
-                    "user_id": str(next_step.assigned_to)
-                    if next_step.assigned_to
-                    else None,
-                    "tenant_id": str(document.tenant_id),
-                    "document_title": document.title,
-                    "step_name": next_step.label,
-                },
-            )
-        else:
-            await self.dispatcher.dispatch(
-                "WORKFLOW_COMPLETED_OR_RETURNED",
-                {
-                    "tenant_id": str(document.tenant_id),
-                    "document_id": str(document.id),
-                    "status": document.status,
-                },
-            )
+        # Contrat commun des événements adressés au déposant (voir listeners.py).
+        depositor_payload = {
+            "tenant_id": str(document.tenant_id),
+            "document_id": str(document.id),
+            "document_title": document.title,
+            "owner_id": str(document.owner_id) if document.owner_id else None,
+            "status": document.status,
+            "actor_id": str(actor.id),
+            "step_name": step.label,
+            "comment": action.comment,
+        }
+        if action.outcome in [OutcomeType.accepted, OutcomeType.acknowledged]:
+            if next_step is not None:
+                await self.dispatcher.dispatch(
+                    "WORKFLOW_ASSIGNED",
+                    {
+                        "user_id": str(next_step.assigned_to)
+                        if next_step.assigned_to
+                        else None,
+                        "tenant_id": str(document.tenant_id),
+                        "document_id": str(document.id),
+                        "document_title": document.title,
+                        "step_name": next_step.label,
+                    },
+                )
+                await self.dispatcher.dispatch(
+                    "WORKFLOW_STEP_ACCEPTED", depositor_payload
+                )
+            else:
+                await self.dispatcher.dispatch("WORKFLOW_COMPLETED", depositor_payload)
+        elif action.outcome == OutcomeType.returned:
+            await self.dispatcher.dispatch("WORKFLOW_RETURNED", depositor_payload)
+        elif action.outcome == OutcomeType.rejected:
+            await self.dispatcher.dispatch("WORKFLOW_REJECTED", depositor_payload)
 
         return action_trace
 
