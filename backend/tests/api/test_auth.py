@@ -220,6 +220,25 @@ async def test_refresh_refused_for_deactivated_account(
 
 
 @pytest.mark.asyncio
+async def test_deactivated_account_is_refused_within_the_window(
+    async_client: AsyncClient, db_seed, test_engine
+):
+    """#414: the pair kept for the reuse window is not served again once the
+    account is deactivated; the account is re-read before every reuse."""
+    from sqlalchemy import update
+
+    from app.models.user import User
+
+    tokens = await _full_login(async_client, db_seed)
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 200
+    await _run_sql(
+        test_engine,
+        update(User).where(User.id == db_seed["user_id"]).values(is_active=False),
+    )
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_refresh_reads_current_role(
     async_client: AsyncClient, db_seed, test_engine
 ):
