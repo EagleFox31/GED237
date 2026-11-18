@@ -157,3 +157,30 @@ async def test_restore_and_purge_answer_403_inside_the_perimeter_404_outside(
     assert reader_in == (403, 403)
     assert reader_out == (HIDDEN, HIDDEN)
     assert collaborator_out == (HIDDEN, HIDDEN)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role,unit", [("manager", "a1"), ("reader", "a1"), ("collaborator", "b")]
+)
+async def test_workflow_routes_answer_a_hidden_document_like_a_missing_one(
+    client_as,
+    db_seed,
+    tree,  # noqa: F811
+    role,
+    unit,
+):
+    """Steps and actions by document id: 404 outside the perimeter, never 403 (#308)."""
+    ids = tree["ids"]
+    hidden = ids["a"] if role != "collaborator" else ids["a1"]
+    missing = uuid.uuid4()
+    async with _as(client_as, db_seed, tree, role, unit) as client:
+        for target in (hidden, missing):
+            base = f"/api/v1/workflows/document/{target}"
+            step = {"document_id": str(target), "step_order": 1, "label": "Visa"}
+            answers = [
+                _code(await client.get(f"{base}/steps")),
+                _code(await client.get(f"{base}/actions")),
+                _code(await client.post(f"{base}/steps", json=[step])),
+            ]
+            assert answers == [HIDDEN] * 3, (target, answers)

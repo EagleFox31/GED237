@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.api.v1.endpoints.documents import visible_document_scope
+from app.api.v1.endpoints.documents import _in_perimeter, visible_document_scope
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
@@ -169,6 +169,10 @@ async def _assert_in_actor_unit_tree(
 async def _authorize_workflow_read(
     db: AsyncSession, user: User, document: Document
 ) -> None:
+    # Outside the caller's perimeter the document answers like a missing one,
+    # before any right check reveals that it exists (#247, #308).
+    if not await _in_perimeter(db, user, document):
+        raise HTTPException(status_code=404, detail="Document not found")
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
@@ -192,6 +196,8 @@ async def create_workflow_steps(
     """Define a validation workflow for a document."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
     # Propriétaire (update_own) ou admin (manage) peut soumettre
+    if not await _in_perimeter(db, current_user, document):
+        raise HTTPException(status_code=404, detail="Document not found")
     is_owner = document.owner_id == current_user.id
     if not is_owner:
         await _assert_in_actor_unit_tree(db, current_user, document)
