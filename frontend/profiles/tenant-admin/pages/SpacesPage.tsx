@@ -1097,7 +1097,7 @@ const SpacesPage: React.FC = () => {
                             }}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
-                            aria-selected={isSelected}
+                            aria-pressed={isSelected}
                             data-explorer-item
                             className={`group w-full rounded-[1.5rem] border px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${isSelected ? 'border-rdpc-blue bg-blue-50/70 ring-2 ring-rdpc-blue/40' : 'border-slate-200 bg-white'} ${EXPLORER_ITEM_FOCUS}`}
                           >
