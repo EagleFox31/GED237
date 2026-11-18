@@ -193,11 +193,13 @@ def _filtered_query(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     until: Optional[datetime] = None,
+    on_behalf: bool = False,
 ):
     """Tenant logs matching the screen filters; dates are local calendar days, both inclusive.
 
     ``table_name`` and ``action`` take one value or several (any of them matches).
     ``until`` freezes the result at an instant (same clock and type as created_at).
+    ``on_behalf`` keeps only the actions a stand-in did for an absent agent.
     """
     query = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
     table_names = _values(table_name)
@@ -219,6 +221,8 @@ def _filtered_query(
         )
     if until is not None:
         query = query.where(AuditLog.created_at <= until)
+    if on_behalf:
+        query = query.where(AuditLog.on_behalf_of.is_not(None))
     return query
 
 
@@ -317,6 +321,7 @@ async def export_audit_logs(
     user_id: Optional[UUID] = Query(default=None),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
+    on_behalf: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -328,6 +333,7 @@ async def export_audit_logs(
         "user_id": str(user_id) if user_id else None,
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
+        "on_behalf": on_behalf,
     }
     # Rows logged after this instant (by anyone) would shift the offset pages: freeze them out.
     # localtimestamp is the clock created_at is filled from (now() stored without zone).
@@ -340,6 +346,7 @@ async def export_audit_logs(
         date_from=date_from,
         date_to=date_to,
         until=snapshot,
+        on_behalf=on_behalf,
     )
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
     if total > EXPORT_MAX_ROWS:
@@ -399,13 +406,17 @@ async def list_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     table_name: Optional[str] = Query(default=None),
     action: Optional[str] = Query(default=None),
+    on_behalf: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "audit_logs", "read")
 
     query = _filtered_query(
-        current_user.tenant_id, table_name=table_name, action=action
+        current_user.tenant_id,
+        table_name=table_name,
+        action=action,
+        on_behalf=on_behalf,
     )
     query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
