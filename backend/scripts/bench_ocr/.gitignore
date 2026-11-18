@@ -1,0 +1,10 @@
+# Photos réelles et résultats : jamais dans le dépôt (voir README.md, « Photos réelles »).
+photo-whatsapp*/
+photo-reel*/
+real/
+B/
+truth/
+results*/
+*.jpg
+*.jpeg
+*.png
