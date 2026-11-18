@@ -279,7 +279,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 
 ## 7. Hors fenêtre
 
-- **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390 et #356. #368 est fusionnée le 18/11 (9b32c30), et #390 est corrigée en 4be742b, en file après #375. Si l une d elles n est pas fusionnée le 19, elle passe en vague 0. #375 et #390 sont prêtes : en cas de glissement, elles passent en vague 0, juste après #389.
+- **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390 et #356. #368 est fusionnée le 18/11 (9b32c30), et #390 est corrigée en 4be742b, en file après #375. Si l'une d'elles n'est pas fusionnée le 19, elle passe en vague 0, juste après #389.
 - **V1.2** :
   - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
