@@ -100,18 +100,18 @@ async def get_current_user(
     return user
 
 
-async def get_current_user_ws(token: str) -> Optional[User]:
-    """Authenticate a WebSocket connection from a raw token string."""
-    payload = decode_token(token)
-    if payload is None:
-        return None
+async def get_current_user_ws(ticket: str) -> Optional[User]:
+    """Authenticate a WebSocket connection from a single-use ticket (see
+    ``app.services.ws_ticket``). The ticket is burnt on first use; the user must
+    still be active and in the tenant the ticket was issued for."""
+    from app.services.ws_ticket import redeem_ws_ticket
 
-    user_id_str: str = payload.get("sub")
-    if user_id_str is None:
+    owner = await redeem_ws_ticket(await get_redis(), ticket)
+    if owner is None:
         return None
 
     try:
-        user_uuid = UUID(user_id_str)
+        user_uuid = UUID(owner.user_id)
     except ValueError:
         return None
 
@@ -119,7 +119,10 @@ async def get_current_user_ws(token: str) -> Optional[User]:
         result = await db.execute(
             select(User).where(User.id == user_uuid, User.is_active.is_(True))
         )
-        return result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+    if user is None or str(user.tenant_id) != owner.tenant_id:
+        return None
+    return user
 
 
 # Dependency aliases
