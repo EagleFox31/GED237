@@ -912,3 +912,13 @@ Tableau calculé par `gestion-projet/outils/charges.sh` sur `charges-v1.1.csv` :
 | **Charge** | 40,55 | 31,25 | 35,3 | 34 à 36 | 141,1 à 143,1 |
 | Capacité | 41,5 | 32 | 37,75 | 35 | 146,25 |
 | **Écart** | −0,95 | −0,75 | −2,45 | −1 à +1 | −5,15 à −3,15 |
+
+**Capacité d’aide-api (18/11 au soir)** : elle annonce 8 à 10 h-s du 19 au 23/11 (serveur de « L4 », puis « 57 tests rapides », puis `pg_trgm`), si le PO garde la session ouverte. On compte 7 h-s utiles : capacité 42.
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | 40,55 | 31,25 | 35,3 | 34 à 36 | 141,1 à 143,1 |
+| Capacité | 41,5 | 32 | 37,75 | 42 | 153,25 |
+| **Écart** | −0,95 | −0,75 | −2,45 | −8 à −6 | −12,15 à −10,15 |
+
+Plus aucun porteur au-dessus de sa capacité. Si la session d’aide-api n’est pas ouverte du 19 au 23/11, on revient au tableau précédent (aide-api de −1 à +1).
