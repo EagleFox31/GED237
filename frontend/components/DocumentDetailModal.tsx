@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { DocumentPreview } from './preview';
 import { downloadName } from '../lib/downloadName';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
@@ -243,8 +244,19 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">
           {activeTab === 'info' && (
-            <div className="grid grid-cols-1 gap-8 h-full">
-              <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full">
+              <div
+                className="lg:col-span-3 min-h-[380px] h-full rounded-3xl border border-slate-200 bg-white overflow-hidden"
+                data-testid="document-detail-preview"
+              >
+                <DocumentPreview
+                  documentId={document.id}
+                  filename={downloadName(document)}
+                  mimeType={document.mime_type || document.file_type}
+                  onDownload={handleDownload}
+                />
+              </div>
+              <div className="lg:col-span-2 space-y-6">
                 <div className="glass p-6 rounded-3xl border-white space-y-4">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Métadonnées Officielles</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
