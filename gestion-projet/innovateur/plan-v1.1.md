@@ -442,3 +442,40 @@ Correction du 18/11, soir, après le retour de B transmis par O : le barème de 
 **Ordre de sortie vers la V1.2**, si la réserve de Q passe sous 1 h-s avant le 03/12 : #359, puis #338, puis #371. Les 21 autres sont petites, ou sont la base d'une autre PR : #389, #372, #384 et #388 ouvrent les vagues 0 et 2.
 
 **Règle « pas d'ajout sans sortie »** : ici, c'est le PO qui la lève, pour ce lot seulement. Elle reste en vigueur pour tout ajout suivant. #278 reste en V1.2 (décision de O) : le faire revenir prendrait Q 0,5 sur la réserve.
+
+## Mise à jour du 18/11, nuit : audit UX Lot 6, #407, #400 et #401 (demande de O)
+
+**Entrées** (O, 18/11) :
+- **Audit UX Lot 6** (connexion instable et premier jour), travail de F :
+  - **(a) V1.0** si la relecture de Q est faite le 19/11 à 14:00 et si le go/no-go de 15:30 l'accepte : une coupure réseau pendant le renouvellement de session ne déconnecte plus ; un 401 au renouvellement mène à `/login` avec le message « Votre session a expiré… ». Sinon, (a) passe en V1.1.
+  - **(b) V1.1** : « Validation… » sur Valider et Rejeter (XS) ; une seule erreur hors ligne au dépôt (XS) ; orientation du premier jour et aide sur le code à la connexion (S) ; saisie gardée à travers la reconnexion (M).
+  - **(c) V1.2** : barre d'actions fixe en bas de la fenêtre de dépôt, à 1366×768 et zoom 125 %.
+- **#407** (F, brouillon, OK de Q en 98d2317) : « Archiver » depuis l'aperçu de l'explorateur. C'est la ligne 57 bis du plan de fusion.
+- **#400** (accessibilité de l'explorateur, +19/−6) et **#401** (sélection multiple et actions groupées, #150, +472/−16, 8 fichiers) : contrainte d'ordre donnée par O. Ces deux PR n'étaient comptées dans aucun lot.
+
+**Barème** (`Déduit`, à confirmer par F et B) : XS = F 0,1 et Q 0,05 ; S = F 0,5 et Q 0,25 ; M = F 1,0 et Q 0,5 (la saisie gardée touche la session, donc relecture de sécurité). Pour les PR déjà écrites, l'auteur ne compte que le re-ciblage et le rebasage.
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Avant (§ « 25 PR hors lot ») | 23,4 | 19,8 | 25,45 | 0,5 | 69,15 |
+| #407, ligne 57 bis (déjà écrite : rebasage, variante e2e de l'étape 8) ; relecture de Q dans le temps de la vague 5 (O) | — | + 0,25 | — | — | + 0,25 |
+| Lot 6 (b) : 2 XS, 1 S, 1 M | — | + 1,7 | + 0,85 | — | + 2,55 |
+| #400 et #401 (re-ciblage, relecture) | + 0,15 | — | + 0,45 | — | + 0,6 |
+| **Total V1.1, si (a) entre en V1.0** | **≈ 23,55** | **≈ 21,75** | **≈ 26,75** | **0,5** | **≈ 72,55** |
+| Si (a) glisse en V1.1 (F 0,5, Q 0,25) | 23,55 | 22,25 | 27,0 | 0,5 | 73,3 |
+
+**Verdict** :
+- **F dépasse sa capacité.** Elle était à ≈ 0,5 h-s de marge à 19,8, donc vers 20,3. À 21,75, F dépasse de ≈ 1,45 (≈ 1,95 si (a) glisse).
+- **La réserve de Q passe sous 1 h-s** : il restait ≈ 1,7, il reste ≈ 0,4 (≈ 0,15 si (a) glisse). L'ordre de sortie prévu se déclenche donc, en commençant par #359.
+- La règle « pas d'ajout sans sortie » s'applique : le PO ne l'a levée que pour les 25 PR hors lot.
+
+**Recommandation** :
+1. **Sortir ensemble #359 (reconnexion plus rapide) et la saisie gardée (M) vers la V1.2.** Les deux touchent la connexion et la session : une seule conception, une seule relecture de sécurité. #359 était déjà la première candidate. Gain : F 1,25, Q 1,0.
+2. **Mettre l'orientation du premier jour (S) en V1.2**, sauf si F donne un chiffre plus bas. Gain : F 0,5, Q 0,25.
+3. On garde en V1.1 : les deux XS, #407, #400 et #401.
+
+| Avec 1 et 2, (a) en V1.0 | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| **Total V1.1** | **≈ 23,55** | **≈ 20,0** | **≈ 25,5** | **0,5** | **≈ 69,55** |
+
+F revient sous 20,3, et la réserve de Q remonte à ≈ 1,65. Si (a) glisse en V1.1, F passe à ≈ 20,5 : il faut alors sortir aussi #338 (deuxième candidate). **À trancher par O**, et par le PO pour le lot 6 qu'il a demandé.

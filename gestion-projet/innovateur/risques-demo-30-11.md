@@ -8,7 +8,7 @@
 |---|---|---|
 | 1 | Code à usage unique refusé, ou compte verrouillé après trois essais | Passer sur la fenêtre B, déjà connectée, et commenter le verrou comme une protection. Sinon, capture `auth-2fa`. |
 | 2 | Code à usage unique visible à l'écran projeté (pile de démonstration) | Connecter A avant la séance et ne montrer l'écran de connexion que sans le valider. Ou bien saisir la connexion sur l'écran non projeté (mode « étendre »). |
-| 3 | Session expirée sur une fenêtre préconnectée | Reconnecter ce compte (≈ 40 s). Si deux fenêtres expirent, passer aux captures pour les étapes restantes. |
+| 3 | Session expirée sur une fenêtre préconnectée. Sans le point (a) de l'audit UX Lot 6, une micro-coupure réseau pendant le renouvellement de session déconnecte aussi, et la saisie en cours est perdue. | Ne rien saisir à l'avance dans un formulaire : remplir le dépôt en séance. Reconnecter ce compte (≈ 40 s). Si deux fenêtres expirent, passer aux captures pour les étapes restantes. Si (a) entre en V1.0 (go/no-go du 19/11 à 15:30), une coupure ne déconnecte plus et une vraie expiration affiche « Votre session a expiré… » sur `/login`. |
 | 4 | Photo non lue à l'étape 5 bis (worker arrêté ou lecture lente) | À H-90 : ping du worker, et `rapidocr` et `false` lus dans l'environnement. En séance : relancer la lecture par le nom du fichier (fiche d'astreinte). Sinon, montrer `SCAN_0412`, déjà lu. |
 | 5 | Import long ou en erreur | Importer le sous-dossier de 5 fichiers préparé, dont 1 doublon. Sinon, capture `directory-import`. |
 | 6 | Chiffres différents de ceux annoncés, ou bannette vide | Lire les nombres affichés sans les commenter. Ouvrir un « à revoir » du jeu. Remise à zéro la veille et après chaque répétition. |

@@ -162,10 +162,17 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 55 | #342 échappement de la liste des agents | F | main | après #297 | `AgentsListTab.tsx` | non | — |
 | 56 | #344 recherche dans le journal d'audit | B | main | après #383 | `audit.py` | non | — |
 | 57 | #353 test : propriétaire distinct de l'assigné | Q | main | — | — | non | — |
-| 57 bis | **à ouvrir** : « Archiver » depuis l'aperçu de l'explorateur des espaces, puis une variante de l'étape 8 du scénario e2e par ce chemin (suite de #356) | F | main | après #293 et #362 (fiche document) | aperçu de l'explorateur, `demo-scenario-30-11.spec.ts` | non | — |
+| 57 bis | #407 « Archiver » depuis l'aperçu de l'explorateur des espaces (écart 9), puis une variante de l'étape 8 du scénario e2e par ce chemin (suite de #356) | F | main ; **#401 empilée dessus** : re-cibler #401 sur `main` avant de fusionner #407 | après #293 et #362 (fiche document) | aperçu de l'explorateur, `demo-scenario-30-11.spec.ts` | **oui (98d2317)** | — |
+| 57 ter | #401 sélection multiple et actions groupées dans l'explorateur (#150) | B | sur #407 | **après #407** | explorateur des espaces ; **conflit avec #400** | non | — |
+| 57 quater | #400 accessibilité de l'explorateur (`aria-labelledby`, #167) | à confirmer | main | — | **conflit avec #401** : la PR fusionnée en second le résout | non | — |
+| 57 quinquies | **à ouvrir** : audit UX Lot 6, « Validation… » sur Valider et Rejeter (XS) | F | main | — | écran des tâches | non | lot 6 UX |
+| 57 sexies | **à ouvrir** : audit UX Lot 6, une seule erreur hors ligne au dépôt (XS) | F | main | — | fenêtre de dépôt | non | lot 6 UX |
+| 57 septies | **à ouvrir** : audit UX Lot 6, orientation du premier jour et aide sur le code à la connexion (S) ; V1.2 proposée (`plan-v1.1.md`, § « nuit du 18/11 ») | F | main | — | `LoginPage.tsx`, tableau de bord du collaborateur | non | lot 6 UX |
+| 57 octies | **à ouvrir** : audit UX Lot 6, saisie gardée à travers la reconnexion (M) ; V1.2 proposée avec #359 | F | main | avec #359 (même code de session) | `services/http/client.ts`, `session.ts` | non | lot 6 UX |
 
 - **#303** : 36 fichiers, dont 29 en commun avec #220. Sa branche contient sans doute une autre pile. Il faut la re-cibler sur `main` après #294, puis vérifier que le diff ne contient plus que l'écran des droits.
-- **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F. La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
+- **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F, en PR #407 (brouillon). La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
+- **Audit UX Lot 6** (O, 18/11) : le point (a), pas de déconnexion sur une coupure réseau pendant le renouvellement de session et message « Votre session a expiré… » sur un 401, vise la V1.0 (relecture de Q le 19/11 à 14:00, go/no-go à 15:30). S'il n'est pas retenu, il devient une ligne de cette vague, juste avant 57 octies. Le point (c), la barre d'actions fixe en bas de la fenêtre de dépôt, va en V1.2 (§ 7). Charge : `plan-v1.1.md`, § « Mise à jour du 18/11, nuit ».
 - **`playwright.unit.config.ts`** : 33 PR l'éditent, chacune pour y ajouter son fichier de test. Ce sont des conflits d'une ligne : un rebase les règle, sans risque fonctionnel.
 
 ### Vague 6 : 03 et 04/12
@@ -183,6 +190,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 |---|---|---|
 | #384 | #386 → #387 | Re-cibler #386 sur `main` ; #387 suit. |
 | #389 | #403 | Re-cibler #403 sur `main` **avant** de fusionner #389 ; puis fusionner #389, puis #403 (O, 18/11). |
+| #407 | #401 | Re-cibler #401 sur `main` **avant** de fusionner #407 ; puis fusionner #407, puis #401 (O, 18/11). |
 | #235 | #238 | Re-cibler #238. |
 | #248 | #267, #268 | Re-cibler les deux. |
 | #284 | #311 | Re-cibler #311. |
@@ -287,7 +295,8 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 - **V1.2** :
   - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
-  - autres : #313 (élément 8 de la V1.2) et #298 (#278, sortie par O le 18/11).
+  - autres : #313 (élément 8 de la V1.2) et #298 (#278, sortie par O le 18/11) ;
+  - audit UX Lot 6, point (c) : barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % (F, à ouvrir).
   Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
 - **Dependabot, versions majeures** (V1.2) : #29, #30, #110 et #113.
 - **#385** : outil de mesure, jamais fusionné.
@@ -322,3 +331,5 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 1. **OK de Q** : #389 en 3d3ad2e et #403 en 4228d7a. Si la tête change, l'OK tombe et Q relit la nouvelle tête.
 2. **Ordre de fusion** : #403 est empilée sur #389. On re-cible d'abord #403 sur `main`, puis on fusionne #389, puis #403. Sinon, la fusion de #389 laisse #403 sans base.
 3. **#238 et #389** : la PR fusionnée en second retire `AUTHZ_BACKEND` des exceptions du contrôle de parité des réglages. Le contrôle doit rester vert sans cette exception.
+4. **#407 puis #401** : OK de Q pour #407 en 98d2317. B empile #401 sur #407. On re-cible d'abord #401 sur `main`, puis on fusionne #407, puis #401.
+5. **#400 et #401** : elles sont en conflit. La PR fusionnée en second résout le conflit.
