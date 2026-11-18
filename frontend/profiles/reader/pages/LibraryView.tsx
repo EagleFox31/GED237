@@ -1,11 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '../../../services/api';
+import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import { Document, getFileTypeLabel, formatDate, getStatusLabel } from '../../../types';
 
 const LibraryView: React.FC = () => {
   const [docs, setDocs] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 
   useEffect(() => {
     const fetchDocs = async () => {
@@ -58,7 +60,13 @@ const LibraryView: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {docs.map((doc) => (
-            <div key={doc.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-50 hover:border-slate-200 transition-all cursor-pointer">
+            <button
+              type="button"
+              key={doc.id}
+              onClick={() => setSelectedDoc(doc)}
+              aria-label={`Ouvrir ${doc.title}`}
+              className="w-full text-left flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-50 hover:border-slate-200 transition-all cursor-pointer"
+            >
               <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 italic font-black text-xs">
                 {getFileTypeLabel(doc.mime_type || doc.file_type)}
               </div>
@@ -67,10 +75,11 @@ const LibraryView: React.FC = () => {
                 <p className="text-[10px] font-bold text-slate-400">{formatDate(doc.created_at)} • {getStatusLabel(doc.status)}</p>
               </div>
               <span className="material-symbols-outlined text-slate-300">visibility</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+      {selectedDoc && <DocumentDetailModal document={selectedDoc} onClose={() => setSelectedDoc(null)} />}
     </div>
   );
 };

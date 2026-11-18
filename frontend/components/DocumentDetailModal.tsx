@@ -5,6 +5,7 @@ import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, f
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
+import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
@@ -33,6 +34,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [versions, setVersions] = useState<any[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [commentFor, setCommentFor] = useState<{ stepId: string; actionType: string; outcome: "rejected" | "returned" } | null>(null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
 
@@ -89,13 +91,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
     }
   };
 
-  const handleValidate = async (stepId: string, actionType: string, outcomeType: 'accepted' | 'acknowledged' | 'rejected' | 'returned') => {
+  type StepOutcome = 'accepted' | 'acknowledged' | 'rejected' | 'returned';
+  const handleValidate = async (stepId: string, actionType: string, outcomeType: StepOutcome, comment?: string) => {
     let finalOutcome = outcomeType;
     if (outcomeType === 'accepted' && actionType === 'read_ack') finalOutcome = 'acknowledged';
-    const comment = (outcomeType === 'rejected' || outcomeType === 'returned') ? prompt('Saisir un commentaire explicatif :') : null;
-
-    // User cancelled the prompt?
-    if ((outcomeType === 'rejected' || outcomeType === 'returned') && comment === null) return;
+    // Rejet ou renvoi : le commentaire se saisit d'abord dans la boîte dédiée.
+    if ((outcomeType === 'rejected' || outcomeType === 'returned') && !comment) {
+      setCommentFor({ stepId, actionType, outcome: outcomeType });
+      return;
+    }
     if (!document.current_version_id) {
       setActionError("Impossible d'exécuter l'action: version courante introuvable pour ce document.");
       return;
@@ -110,6 +114,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         comment: comment || undefined
       });
       await loadWorkflowSteps();
+      // Le statut du document change après un visa ou un rejet : on le relit pour l'affichage et la liste.
+      try {
+        const refreshed = await api.getDocument(document.id);
+        setDocument(refreshed);
+        onUpdated?.(refreshed);
+      } catch (refreshErr) {
+        // L'action a réussi ; l'erreur de relecture est déjà publiée par le client HTTP.
+        console.error('Refresh after action failed:', refreshErr);
+      }
     } catch (err) {
       console.error('Validation failed:', err);
       setActionError("L'action de workflow a échoué. Veuillez réessayer.");
@@ -237,7 +250,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-slate-400 font-medium">Propriétaire</p>
-                      <p className="font-bold text-slate-700">{document.owner_name || document.owner_id}</p>
+                      <p className="font-bold text-slate-700">{document.owner_name || 'Non renseigné'}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 font-medium">Date de création</p>
@@ -444,6 +457,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
           handleArchive();
         }}
         onCancel={() => setConfirmArchive(false)}
+      />
+      <RejectReasonDialog
+        documentTitle={commentFor ? document.title : null}
+        heading={commentFor?.outcome === 'returned' ? 'Renvoyer pour correction' : 'Rejeter le document'}
+        confirmLabel={commentFor?.outcome === 'returned' ? 'Confirmer le renvoi' : 'Confirmer le rejet'}
+        onCancel={() => setCommentFor(null)}
+        onConfirm={(reason) => {
+          const pending = commentFor;
+          setCommentFor(null);
+          if (pending) void handleValidate(pending.stepId, pending.actionType, pending.outcome, reason);
+        }}
       />
     </div>
   );
