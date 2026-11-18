@@ -868,3 +868,17 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 5. **Périmètre d'exécution** : le test est un gate de la carte d'impact. Il se déclenche sur `config.py`, `docker-compose*.yml`, `.env.example`, le Dockerfile du frontend et tout fichier du frontend qui lit `import.meta.env`. Il tourne aussi en pre-commit, car il est rapide et ne dépend pas de Docker.
 6. **Preuve que le test fonctionne** : un cas qui ajoute un champ factice à `Settings` sans le compose doit échouer, avec un message qui nomme la variable et le fichier à compléter.
 **Leçon généralisée** — Un réglage existe pour l'utilisateur seulement s'il traverse tous les fichiers qui le transportent jusqu'au conteneur. Quand une erreur de liaison entre fichiers se répète, la checklist ne suffit plus : un test qui compare ces fichiers et n'accepte que des exceptions écrites doit la remplacer.
+
+### LESSON-2026-066 — Motif `testMatch` sur une seule ligne : 30 PR V1.1 en conflit sur la même ligne
+
+- **Date :** 2026-11-18
+- **Catégorie :** testing / process
+- **Statut :** resolved (dossier `frontend/e2e/unit/`)
+- **Liens :** `frontend/playwright.unit.config.ts`, `frontend/e2e/unit/`, LESSON-2026-036
+
+**Contexte** — Les specs purs étaient enregistrés dans une seule regex `testMatch` (ligne 7 de `playwright.unit.config.ts`).
+**Échec / near miss** — Chaque PR qui ajoutait un spec pur modifiait cette même ligne : 30 PR V1.1 en conflit sur ce fichier, résolues une à une par union manuelle.
+**Cause racine** — Un registre centralisé sur une ligne unique pour une liste qui grandit à chaque PR.
+**Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
+**Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
+**Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
