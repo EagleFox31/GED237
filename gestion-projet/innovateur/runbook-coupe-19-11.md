@@ -246,6 +246,7 @@ Les fusions passent une à une. Avec la règle `strict`, chaque PR demande une m
 | 5 | #360 prête, puis fusion | B, puis O | 13:30 | **16:00** | CI Gate vert, OK de Q | V1.1 |
 | 6 | PR RapidOCR : décision | O | — | **16:00** | étape 0 de `decision-vote-ocr.md` : PR prête, CI verte, OK de Q, Tesseract toujours moteur par défaut, aucune migration, trois tests de repli | V1.1 (§ 4 de la note) |
 | 7 | Fusion de RapidOCR, si l'étape 6 passe | O | 16:30 | **17:00** | CI Gate vert | V1.1 |
+| 7 bis | Correctif repli OCR (B) : PR 15:30, merge avant 17:15. Le repli EasyOCR fait tomber le worker par manque de mémoire ; Tesseract seul lit les 2 photos et les 9 mots (Q, 18/11) | B, puis O | 15:30 (PR) | **17:15** (fusion) | CI Gate vert, OK de Q | O décide : le défaut est noté dans les limites connues, et la démo garde Tesseract |
 | 8 | #356 (tests e2e seuls) | F, puis O | 14:00 | **15:00** (décision d'O) | CI verte et passe de F OK | V1.1 ; sans effet sur la coupe |
 | 9 | **Gel des fusions sur `main`** : O note la tête de `main` | O | — | **17:15** | `git rev-parse --short origin/main`, transmis à I | — |
 | 10 | Essai à blanc de #104 | I | 17:30 | 17:45 | `deroule-coupe-19-11.md` § 1, ligne de 17:55 : fusion locale de `origin/main` sans conflit, sur la tête notée à 17:15 | conflit : prévenir O avec la liste des fichiers ; ne rien pousser |
