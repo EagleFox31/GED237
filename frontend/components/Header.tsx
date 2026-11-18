@@ -1,7 +1,7 @@
 // frontend/components/Header.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { notificationTarget } from '../lib/notificationTarget';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { notificationTarget } from '../lib/notificationTarget';
 import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
