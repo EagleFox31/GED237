@@ -64,6 +64,38 @@ async def on_workflow_completed(payload: Dict[str, Any]):
         )
 
 
+async def on_import_reviews_pending(payload: Dict[str, Any]):
+    """
+    One notification per committed import that left files to review (not one per
+    file). Payload expected:
+    - user_id: UUID string (who committed the import)
+    - tenant_id: UUID string
+    - import_job_id: UUID string
+    - review_count: int
+    """
+    user_id = payload.get("user_id")
+    tenant_id = payload.get("tenant_id")
+    count = int(payload.get("review_count") or 0)
+
+    if not user_id or not tenant_id or count <= 0:
+        return
+
+    noun = "fichier attend" if count == 1 else "fichiers attendent"
+    message = f"{count} {noun} votre revue après l'import."
+    notifier = NotificationFactory.get_notifier("in_app")
+
+    async with async_session_maker() as session:
+        await notifier.send(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            event_type="IMPORT_REVIEWS_PENDING",
+            message=message,
+            meta_data=payload,
+            session=session,
+        )
+
+
 def register_all_listeners():
+    dispatcher.subscribe("IMPORT_REVIEWS_PENDING", on_import_reviews_pending)
     dispatcher.subscribe("WORKFLOW_ASSIGNED", on_workflow_assigned)
     dispatcher.subscribe("WORKFLOW_COMPLETED", on_workflow_completed)

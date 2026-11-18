@@ -306,3 +306,103 @@ async def test_import_job_commit_wrong_status_is_rejected(
 
     second_commit = await auth_client.post(f"/api/v1/imports/{job_id}/commit")
     assert second_commit.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_commit_dispatches_one_grouped_review_notification(
+    auth_client, db_session: AsyncSession, db_seed, storage_tmp_path, monkeypatch
+):
+    from app.core.events.dispatcher import dispatcher
+
+    await _seed_classification(db_session, db_seed)
+    events = []
+
+    async def spy(event, payload):
+        events.append((event, payload))
+
+    monkeypatch.setattr(dispatcher, "dispatch", spy)
+
+    analyze = await auth_client.post(
+        "/api/v1/imports/analyze",
+        files=[
+            ("files", ("reparation_batch.txt", io.BytesIO(b"ok"), "text/plain")),
+            ("files", ("inconnu.txt", io.BytesIO(b"unknown"), "text/plain")),
+            ("files", ("autre.txt", io.BytesIO(b"other"), "text/plain")),
+        ],
+        data={
+            "source_scope": "service",
+            "default_document_category_id": str(db_seed["category_id"]),
+            "processing_mode": "archive",
+        },
+    )
+    job_id = analyze.json()["id"]
+    commit = await auth_client.post(f"/api/v1/imports/{job_id}/commit")
+    assert commit.status_code == 200
+
+    pending = commit.json()["pending_review_items"]
+    assert pending >= 2
+    grouped = [p for e, p in events if e == "IMPORT_REVIEWS_PENDING"]
+    assert len(grouped) == 1
+    assert grouped[0]["review_count"] == pending
+    assert grouped[0]["import_job_id"] == job_id
+    assert grouped[0]["user_id"] == str(db_seed["user_id"])
+
+
+@pytest.mark.asyncio
+async def test_no_review_means_no_grouped_notification(
+    auth_client, db_session: AsyncSession, db_seed, storage_tmp_path, monkeypatch
+):
+    from app.core.events.dispatcher import dispatcher
+
+    await _seed_classification(db_session, db_seed)
+    events = []
+
+    async def spy(event, payload):
+        events.append(event)
+
+    monkeypatch.setattr(dispatcher, "dispatch", spy)
+    analyze = await auth_client.post(
+        "/api/v1/imports/analyze",
+        files=[("files", ("reparation_batch.txt", io.BytesIO(b"ok"), "text/plain"))],
+        data={
+            "source_scope": "service",
+            "default_document_category_id": str(db_seed["category_id"]),
+            "processing_mode": "archive",
+        },
+    )
+    commit = await auth_client.post(f"/api/v1/imports/{analyze.json()['id']}/commit")
+    assert commit.status_code == 200
+    assert commit.json()["pending_review_items"] == 0
+    assert "IMPORT_REVIEWS_PENDING" not in events
+
+
+@pytest.mark.asyncio
+async def test_listener_saves_one_notification_with_the_count(monkeypatch):
+    from app.services.notifications import listeners
+
+    saved = []
+
+    class FakeNotifier:
+        async def send(self, **kwargs):
+            saved.append(kwargs)
+            return True
+
+    class FakeSession:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(
+        listeners.NotificationFactory, "get_notifier", lambda _k: FakeNotifier()
+    )
+    monkeypatch.setattr(listeners, "async_session_maker", lambda: FakeSession())
+
+    base = {"user_id": str(uuid4()), "tenant_id": str(uuid4()), "import_job_id": "j"}
+    await listeners.on_import_reviews_pending({**base, "review_count": 3})
+    await listeners.on_import_reviews_pending({**base, "review_count": 0})
+
+    (only,) = saved
+    assert only["event_type"] == "IMPORT_REVIEWS_PENDING"
+    assert only["message"].startswith("3 fichiers attendent")
