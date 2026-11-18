@@ -736,3 +736,13 @@ Décisions d’O : les propositions 1 à 3 sont acceptées (57 L7-3, #113 et #11
 - **Relecture de l’écran de la délégation par F** (+ 0,25, déjà compté : F 29,5).
 - **DEC-2026-007 § 5** : défauts retenus par O, PO informé. L’administrateur de l’institution peut aussi désigner un intérimaire ; l’intérimaire vient du même service ; pas de redélégation ; validations déjà en attente incluses.
 - Le tableau ci-dessus vaut donc pour l’option 3.13 : **aide-api 20,5 à 23**, équipe 121,1 à 123,6.
+
+**PDF officiel (57 L7-2) : choix du PO, 18/11 au soir.** Option 2 : PDF produit par le serveur, avec une empreinte SHA-256 (reportlab, image de l’API reconstruite). La proposition 4 s’applique : **aide-api le prend** (+ 2,5, au chiffrage de B ; `audit.py`, isolé). F garde l’écran « Du / Au » (0,5) et Q sa part (0,5), déjà comptés.
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | **34,3** | **29,5** | **36,8** | **23 à 25,5** | **123,6 à 126,1** |
+| Capacité au 04/12 | 31 | 24 | 34 | `À recevoir` | 89 + aide-api |
+| **Écart** | **+ 3,3** | **+ 5,5** | **+ 2,8** | `À recevoir` | **+ 34,6 à 37,1 − capacité d’aide-api** |
+
+**Ordre de fusion (O, 18/11 au soir)** : #179 et #262 remontent en vague 2, après #301, puis #302 (`file-v1.1.md` ; contrôle : 112 PR, aucune violation). #389 puis #403 : ordre confirmé ; O re-cible #403 sur `main` avant de fusionner #389.

@@ -22,11 +22,11 @@ ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268"
 # Fin de vague 1, dès qu’elles ont un numéro : #413, #414, pagination du journal d’audit (F, GO du PO le 18/11)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
-ORDER_V2="152 181 184 301 372 370 284 311 384 386 387 388 404 355 290 338"
+ORDER_V2="152 181 184 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338"
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
-ORDER_V4="179 262 302 309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170 171 199"
+ORDER_V4="309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170 171 199"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
 ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 378 359 344 353 393 399 416 417"
 # Vague 6 : outils et documentation (03 et 04/12)
@@ -47,7 +47,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
   - #401 gardée, #211 fermée ; sa suite (corbeille groupée avec annulation, Ctrl+Espace) revient en V1.1, empilée sur #401, après #184 (PO, 18/11) ;
   - dans les deux cas, ce qui manque est porté avant la fermeture.
 - **#370, #404 et #355 en V1.1** (PO, 18/11) : #370 (`feat/v12-ocr-robustesse`, brouillon) entre en vague 2 après #372 ; #404 la suit, puis #355. #284 passe après #370, car elle la recoupe (§ 9 de `plan-fusion`).
-- **Paires de conflit de Q (O, 18/11 au soir ; `plan-fusion` § 10)** : #181, #184 et #301 suivent #152 en tête de la vague 2 ; #302, empilée aussi sur #262, passe juste après #262 en vague 4 ; `DEP[400]="401"`. Chaque auteur fusionne `main` juste avant d’entrer en file. « #403 avant #389 » attend la confirmation d’O (#403 est empilée sur #389) ; « #404 avant #415 » est sans objet (#415 fusionnée). Contrôle relancé : 112 PR, aucune violation.
+- **Paires de conflit de Q (O, 18/11 au soir ; `plan-fusion` § 10)** : #181, #184 et #301 suivent #152 en tête de la vague 2, puis #179, #262 et #302 (remontées de la vague 4, O, 18/11 au soir) ; `DEP[400]="401"`. Chaque auteur fusionne `main` juste avant d’entrer en file. #389 puis #403 confirmé par O (O re-cible #403 sur `main` avant la fusion de #389) ; « #404 avant #415 » est sans objet (#415 fusionnée). Contrôle relancé : 112 PR, aucune violation.
 
 ## 2. DEP
 

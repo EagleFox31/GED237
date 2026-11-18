@@ -125,8 +125,8 @@ Avant tout, **une revue de recouvrement par B** (≈ 0,25 h-s). #203, #358 et #3
 
 Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR que le PO aura fermées, puis on repose `down_revision` (§ 4).
 
-1. #152 → #181 → #184 → #211 → #301 → #302, puis #182 et #190 ; #171 → #199. **Mise à jour (O, 18/11 au soir, § 10)** : #152 est passée en tête de la vague 2 (`file-v1.1.md`). #181, #184 et #301 la suivent juste après, en vague 2. #302 dépend aussi de #262 (vague 4) : elle passe donc juste après #262.
-2. #179 → #262 → #302 → #309, puis #310 (re-ciblée sur `main` avant #262). #262 et #309 sont des correctifs V1.1 qui dépendent de #179.
+1. #152 → #181 → #184 → #211 → #301 → #302, puis #182 et #190 ; #171 → #199. **Mise à jour (O, 18/11 au soir, § 10)** : #152 est passée en tête de la vague 2 (`file-v1.1.md`). #181, #184 et #301 la suivent juste après, en vague 2, puis #179, #262 et #302 (O, 18/11 au soir : #302 dépend aussi de #262).
+2. #309, puis #310 (re-ciblée sur `main` avant #262). #309 dépend de #179 et #262, passées en vague 2.
 3. #153, #155, #147.
 4. #197 → #162 → #180 → #154 → #212 → #193 → #219 → #186 → #165 → #192.
 5. #209 et #205.
@@ -186,7 +186,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 57 vicies | #298 tableau de bord du manager (#278) ; **revenue en V1.1** (O, 18/11) | F | main | après #347 (accueil) | accueil du manager | non | — |
 | 57 unvicies | **à ouvrir** : #299 glisser-déposer = reclassement par la boîte « Classer » ; **revenue en V1.1** (O, 18/11) | F | main | après #179 et #262 (vague 4) | explorateur des espaces | non | — |
 | 57 L7-1 | **à ouvrir** : audit UX Lot 7, point 1, onglet « Historique » dans la fiche (`api.getDocumentAuditLogs` existe déjà côté client) ; le plafond de 200 lignes est réglé par 57 quaterdecies ; **revenu en V1.1** (O, 18/11) | F | main | après 57 quaterdecies | `DocumentDetailModal.tsx` | non | lot 7 UX |
-| 57 L7-2 | **à ouvrir** : audit UX Lot 7, point 2, champs « Du / Au » à l'écran et export du journal en PDF officiel ; « Du / Au » existe déjà côté serveur (`audit.py:172` et `282`), donc F seul ; « PDF officiel » à trancher par le PO : impression du navigateur (B 0) ou PDF produit par le serveur avec empreinte SHA-256 (B 2,5, reportlab, image reconstruite) | F (B si PDF serveur) | main | après 57 L7-3 (ordre de B) et 57 novodecies (même route) ; après #197 si PDF serveur | `audit.py`, `AuditLogs.tsx` | non | lot 7 UX |
+| 57 L7-2 | **à ouvrir** : audit UX Lot 7, point 2, champs « Du / Au » à l'écran et export du journal en PDF officiel ; « Du / Au » existe déjà côté serveur (`audit.py:172` et `282`), donc F seul ; **« PDF officiel » : PDF produit par le serveur avec empreinte SHA-256 (choix du PO, option 2, 18/11 au soir ; 2,5 h-s, reportlab, image reconstruite)** | F (écran) ; aide-api (PDF serveur, O, 18/11) | main | après 57 L7-3 (ordre de B) et 57 novodecies (même route) ; après #197 si PDF serveur | `audit.py`, `AuditLogs.tsx` | non | lot 7 UX |
 | 57 L7-3 | **à ouvrir** : audit UX Lot 7, point 3, recherche de documents par date et par auteur ; `list_documents` n'accepte aujourd'hui que `skip`, `limit`, `status` et `q` | aide-api (O, 18/11 ; écran F) | main | après 57 L10-1 (même route) et 57 sexdecies (`Documents.tsx`) | `documents.py`, `Documents.tsx` (chaud) | non | lot 7 UX |
 | 57 L7-4 | **à ouvrir** : audit UX Lot 7, point 4, retard « J+ », message d'erreur réseau et visa allégé dans la file de validation | F (candidat au transfert vers Q) | main | après 57 septdecies (`ValidationHub.tsx`) | `ValidationHub.tsx` | non | lot 7 UX |
 | 57 L7-5 | **à ouvrir** : audit UX Lot 7, point 5, délégation pendant une absence (L ; rien sur `main` ; B 7 : table `delegations` et colonne `on_behalf_of` du journal dans une migration, droits Casbin et lecture des documents, tâches du circuit visibles par le délégué, créer, lister, révoquer, expiration, tests d’isolation ; relecture sécurité par Q). **Choix du PO rendus (18/11)** : `DEC-2026-007` ; note de conception d’aide-api avant de coder | aide-api, serveur et écran (O, 18/11) | main | après la note de conception (DEC-2026-007 § 5) ; migration en fin de chaîne (§ 4, ordre 9) | modèles des droits, validation, nouvel écran | **oui** | lot 7 UX |
@@ -378,7 +378,7 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 ### Contraintes d'après la coupe (O, 18/11)
 
 1. **OK de Q** : #389 en 3d3ad2e et #403 en 4228d7a. Si la tête change, l'OK tombe et Q relit la nouvelle tête.
-2. **Ordre de fusion** : #403 est empilée sur #389. On re-cible d'abord #403 sur `main`, puis on fusionne #389, puis #403. Sinon, la fusion de #389 laisse #403 sans base.
+2. **Ordre de fusion** : #403 est empilée sur #389. On re-cible d'abord #403 sur `main`, puis on fusionne #389, puis #403. Sinon, la fusion de #389 laisse #403 sans base. **Confirmé par O (18/11 au soir)** : c’est O qui re-cible #403 juste avant la fusion de #389.
 3. **#238 et #389** : la PR fusionnée en second retire `AUTHZ_BACKEND` des exceptions du contrôle de parité des réglages. Le contrôle doit rester vert sans cette exception.
 4. **#407 puis #401** : OK de Q pour #407 en 98d2317. B empile #401 sur #407. On re-cible d'abord #401 sur `main`, puis on fusionne #407, puis #401.
 5. **#400 et #401** : elles sont en conflit. La PR fusionnée en second résout le conflit.
@@ -391,9 +391,9 @@ Q a croisé les fichiers modifiés par les 109 PR V1.1 : 216 paires de PR touche
 
 **Règles**
 1. **Chaque auteur fusionne `main` dans sa branche juste avant d'entrer en file**, sans rebase. Il relance la CI, puis demande l'OK de Q sur la nouvelle tête.
-2. **La pile #181 → #302 suit #152 immédiatement**, en tête de la vague 2 : #152, #181, #184, #301. #302 est aussi empilée sur #262 (vague 4) : elle passe juste après #262 (§ 2, vague 4). `file-v1.1.md` est mis à jour.
+2. **La pile #181 → #302 suit #152 immédiatement**, en tête de la vague 2 : #152, #181, #184, #301, puis #179 et #262 (remontées de la vague 4, car #302 est aussi empilée sur #262), puis #302. `file-v1.1.md` est mis à jour.
 3. **Ordre imposé** :
-   - #403 avant #389 : **à confirmer par O**. #403 est empilée sur la branche de #389 (base `ci/v11-parite-config`, relevé `gh` du 18/11) : la fusionner d’abord ferait entrer #389 avec elle. D’ici la réponse d’O, l’ordre du § 9 point 2 (#389, puis #403) reste dans `file-v1.1.md`.
+   - **#389 puis #403** (O, 18/11 au soir : la contrainte inverse venait de Q ; `gh` montre #403 empilée sur la branche de #389). O re-cible #403 sur `main` avant la fusion de #389 (§ 9, point 2).
    - #404 avant #415 : **sans objet**. #415 est déjà fusionnée (b1a69f5). #404 fusionne `main` avant d’entrer en file (règle 1).
    - #407 avant #401 (§ 9, point 4).
    - #400 après #401. C'est donc #400 qui résout le conflit (§ 9, point 5).
