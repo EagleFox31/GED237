@@ -18,6 +18,10 @@ except ImportError:  # pragma: no cover - depends on optional runtime install
 
 logger = logging.getLogger(__name__)
 
+# Longest side sent to EasyOCR. A 12 MP photo makes torch allocate enough memory to
+# get the 2 GB worker killed; Tesseract is not affected and keeps the full resolution.
+MAX_IMAGE_SIDE = 2000
+
 
 class EasyOCREngine(OCREngine):
     """
@@ -41,6 +45,16 @@ class EasyOCREngine(OCREngine):
     _readers: dict[tuple[tuple[str, ...], bool], easyocr.Reader] = {}
     # Keys whose models could not be loaded: warn once, then answer empty at once.
     _unavailable: set[tuple[tuple[str, ...], bool]] = set()
+
+    @staticmethod
+    def _limit_size(image: Image.Image) -> Image.Image:
+        """Shrink so the longest side is at most MAX_IMAGE_SIDE (aspect ratio kept)."""
+        longest = max(image.size)
+        if longest <= MAX_IMAGE_SIDE:
+            return image
+        ratio = MAX_IMAGE_SIDE / longest
+        size = (max(1, round(image.width * ratio)), max(1, round(image.height * ratio)))
+        return image.resize(size, Image.Resampling.LANCZOS)
 
     @staticmethod
     def _empty_result(start_time: float) -> OCRResult:
@@ -164,7 +178,7 @@ class EasyOCREngine(OCREngine):
                 return self._empty_result(start_time)
 
             # Convert PIL Image to numpy array
-            image_np = np.array(image)
+            image_np = np.array(self._limit_size(image))
 
             # Perform OCR
             results = reader.readtext(image_np)
