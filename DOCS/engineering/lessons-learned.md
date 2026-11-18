@@ -645,3 +645,17 @@ première requête utilisateur.
 3. Le compactage de `docker_data.vhdx` est documenté comme une action du PO, jamais celle d'une session.
 4. Plafonds de journaux (`max-size`, `max-file`) vérifiés sur toutes les piles compose.
 **Leçon généralisée** — Une ressource partagée se vérifie avant chaque charge lourde. Une garde qui refuse coûte une ligne ; un disque plein coûte une nuit de travail gelée.
+
+### LESSON-2026-053 — Initialisation immédiate avec effet de bord réseau : un moteur facultatif faisait tomber toute la chaîne OCR
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/easyocr_engine.py`, `backend/app/services/ocr/strategy.py`, `backend/Dockerfile` (`EASYOCR_MODEL_DIR`), `backend/tests/services/test_ocr_strategy.py`
+
+**Contexte** — `OCRStrategy()` construit les deux moteurs ; `EasyOCREngine.__init__` chargeait ses modèles, que l'image ne contenait pas : ils se téléchargeaient au premier usage.
+**Échec / near miss** — Relevé par Q pour le 25/11 : sans réseau, `easyocr.Reader` lève `URLError` dans le constructeur, `OCRStrategy()` échoue et toute la tâche OCR tombe, Tesseract compris, alors qu'il aurait lu le scan seul. Sur un réseau coupé sans réponse, le téléchargement n'a pas de délai.
+**Cause racine** — Un composant de repli construit de façon immédiate, avec un effet de bord réseau, et une dépendance d'exécution (les modèles) absente de l'image.
+**Résolution** — Constructeur sans effet de bord ; lecteur chargé à la demande avec `download_enabled=False` ; modèles fr+en cuits dans l'image (couche cachée, `EASYOCR_MODEL_DIR`) ; modèle absent = un avertissement, résultat vide, repli sur Tesseract.
+**Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
+**Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.

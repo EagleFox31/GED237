@@ -16,7 +16,7 @@ const GroupsTab: React.FC = () => (
         « Cellule réforme ») pour distribuer un document ou une tâche à
         plusieurs personnes en une action.
       </p>
-      <p className="text-[11px] text-slate-400 italic mt-4">Sprint C — à venir.</p>
+      <p className="text-[11px] text-slate-400 italic mt-4">Bientôt disponible.</p>
     </div>
   </div>
 );

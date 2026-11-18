@@ -44,14 +44,6 @@ const LibraryView: React.FC = () => {
                <p className="text-[8px] font-black uppercase text-slate-400">Validés</p>
              </div>
           </div>
-          <div className="flex gap-2">
-            <button className="p-3 bg-slate-50 rounded-xl text-slate-400 hover:bg-rdpc-blue hover:text-white transition-all">
-              <span className="material-symbols-outlined">grid_view</span>
-            </button>
-            <button className="p-3 bg-slate-50 rounded-xl text-slate-400">
-              <span className="material-symbols-outlined">list</span>
-            </button>
-          </div>
         </div>
 
         {isLoading && (
