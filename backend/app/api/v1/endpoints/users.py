@@ -17,6 +17,7 @@ from app.core.authz import (
 from app.core.errors.domain import AuthorizationError, ConflictError
 from app.core.tenant_guard import assert_org_unit_scope
 from app.services.reports_scope import unit_subtree_ids
+from app.services.unit_admin_scope import assert_unit_admin_in_tree
 from app.models.user import User
 from app.models.document import Document
 from app.models.tenant import Tenant
@@ -143,6 +144,8 @@ async def create_user(
         AuthzContext(tenant_id=user_in.tenant_id),
     )
     assert_org_unit_scope(user_in.org_unit_id, current_user)
+    # unit_admin: the new account lands in own unit or below.
+    await assert_unit_admin_in_tree(db, user_in.org_unit_id, current_user)
 
     # Resolve role_code -> role_id when the client sent role_code instead of role_id.
     if user_in.role_id is None:
@@ -407,6 +410,8 @@ async def update_user(
 
     if "org_unit_id" in update_data:
         assert_org_unit_scope(update_data["org_unit_id"], current_user)
+        # unit_admin: a user can only be moved inside the tree.
+        await assert_unit_admin_in_tree(db, update_data["org_unit_id"], current_user)
 
     if "reports_to_user_id" in update_data:
         await _validate_reports_to(

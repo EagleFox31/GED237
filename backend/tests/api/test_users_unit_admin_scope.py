@@ -131,3 +131,34 @@ async def test_tenant_admin_still_sees_every_unit(client_as, db_seed, tree):
 
     assert str(tree["outside"]) in {row["id"] for row in listed}
     assert one.status_code == 200
+
+
+def _new_user(db_seed, unit_id):
+    return {
+        "matricule": f"NEW-{uuid.uuid4().hex[:6]}",
+        "first_name": "Nouveau",
+        "last_name": "Compte",
+        "role_code": "reader",
+        "tenant_id": str(db_seed["tenant_id"]),
+        "org_unit_id": str(unit_id),
+    }
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_cannot_create_a_user_outside_the_tree(
+    client_as, db_seed, tree
+):
+    async with _caller(client_as, db_seed, tree) as client:
+        outside = await client.post(USERS, json=_new_user(db_seed, tree["b"]))
+
+    assert outside.status_code in (403, 404), outside.text
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_cannot_move_a_user_outside_the_tree(client_as, db_seed, tree):
+    async with _caller(client_as, db_seed, tree) as client:
+        outside = await client.patch(
+            USERS + str(tree["inside"]), json={"org_unit_id": str(tree["b"])}
+        )
+
+    assert outside.status_code in (403, 404), outside.text
