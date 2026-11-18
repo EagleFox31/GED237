@@ -1,13 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api, type SpaceTreeNode } from '../../../services/api';
+import { api, type SpaceDocumentSort, type SpaceTreeNode } from '../../../services/api';
 import type { Document } from '../../../types';
 import { formatDate, formatFileSize, getFileTypeLabel, getStatusLabel } from '../../../types';
 import { ClassificationSlideOver } from '../../../components/ClassificationSlideOver';
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { accountKeyOf } from '../../../services/http/accountKey';
+import { useAuthStore } from '../../../stores/authStore';
 import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import {
+  clampColumnWidth,
+  loadExplorerPrefs,
+  nextSort,
+  saveExplorerPrefs,
+  type DetailsColumn,
+  type ExplorerPrefs,
+  type ViewMode,
+} from './explorerPrefs';
 
 interface UserNode {
   id: string;
@@ -120,7 +131,20 @@ const FILTER_SELECT =
 const EXPLORER_ITEM_FOCUS =
   'outline-none focus-visible:border-rdpc-blue focus-visible:bg-blue-50 focus-visible:ring-4 focus-visible:ring-rdpc-blue/20';
 
-type ViewMode = 'details' | 'icons';
+// Vue Détails (V1.2, élément 22) : tri serveur (la liste est paginée), largeurs
+// de colonnes et vue retenues dans le navigateur (explorerPrefs.ts).
+const SORTABLE_COLUMNS: Partial<Record<DetailsColumn, SpaceDocumentSort>> = {
+  document: 'title',
+  taille: 'size',
+  maj: 'updated_at',
+};
+const DETAILS_COLUMNS: { key: DetailsColumn; label: string }[] = [
+  { key: 'document', label: 'Document' },
+  { key: 'classement', label: 'Classement' },
+  { key: 'cible', label: 'Cible métier' },
+  { key: 'taille', label: 'Taille' },
+  { key: 'maj', label: 'Mise à jour' },
+];
 
 type ContextMenuState =
   | { kind: 'document'; x: number; y: number; document: Document }
@@ -197,7 +221,51 @@ const SpacesPage: React.FC = () => {
     const current = new Date().getFullYear();
     return Array.from({ length: 12 }, (_, i) => current + 1 - i);
   }, []);
-  const [viewMode, setViewMode] = useState<ViewMode>('icons');
+  const accountKey = useAuthStore((s) => accountKeyOf(s.userProfile));
+  const [initialPrefs] = useState(() => loadExplorerPrefs(accountKey));
+  const [viewMode, setViewMode] = useState<ViewMode>(initialPrefs.view);
+  const [sortKey, setSortKey] = useState<SpaceDocumentSort>(initialPrefs.sort);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialPrefs.order);
+  const [columnWidths, setColumnWidths] = useState<ExplorerPrefs['widths']>(initialPrefs.widths);
+  useEffect(() => {
+    saveExplorerPrefs({ view: viewMode, sort: sortKey, order: sortOrder, widths: columnWidths }, accountKey);
+  }, [viewMode, sortKey, sortOrder, columnWidths, accountKey]);
+  // Retour en page 1 : la page courante n'a plus de sens dans le nouvel ordre.
+  const toggleSort = (key: SpaceDocumentSort) => {
+    const next = nextSort({ sort: sortKey, order: sortOrder }, key);
+    setSortKey(next.sort);
+    setSortOrder(next.order);
+    updateParams({});
+  };
+  const startColumnResize = (column: DetailsColumn, event: React.PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const handle = event.currentTarget;
+    const header = handle.closest('th');
+    if (!header) return;
+    const startX = event.clientX;
+    const startWidth = header.getBoundingClientRect().width;
+    handle.setPointerCapture(event.pointerId);
+    const onMove = (move: PointerEvent) => {
+      const width = clampColumnWidth(startWidth + move.clientX - startX);
+      setColumnWidths((prev) => ({ ...prev, [column]: width }));
+    };
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  };
+  // Double-clic sur la poignée : la colonne reprend la largeur de son contenu.
+  const fitColumn = (column: DetailsColumn) =>
+    setColumnWidths((prev) => {
+      const next = { ...prev };
+      delete next[column];
+      return next;
+    });
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -316,6 +384,8 @@ const SpacesPage: React.FC = () => {
             status: statusFilter || undefined,
             classificationStatus: classificationFilter || undefined,
             q: debouncedQuery || undefined,
+            sort: sortKey,
+            order: sortOrder,
             limit: SPACES_PAGE_SIZE,
             offset: (page - 1) * SPACES_PAGE_SIZE,
           },
@@ -350,7 +420,7 @@ const SpacesPage: React.FC = () => {
     // searchQuery participe à la dep : on recharge si l'utilisateur active
     // ou désactive une recherche, pour bénéficier du mode récursif forcé.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUnitId, recursive, debouncedQuery, domainFilter, activityFilter, yearFilter, classificationFilter, statusFilter, page]);
+  }, [selectedUnitId, recursive, debouncedQuery, domainFilter, activityFilter, yearFilter, classificationFilter, statusFilter, page, sortKey, sortOrder]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -486,6 +556,14 @@ const SpacesPage: React.FC = () => {
         event.preventDefault();
         search.focus();
         search.select();
+      }
+      return;
+    }
+    // Alt+↑ : dossier parent, comme dans l'Explorateur Windows.
+    if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.key === 'ArrowUp') {
+      if (parentUnit) {
+        event.preventDefault();
+        openFolder(parentUnit.id);
       }
       return;
     }
@@ -627,8 +705,9 @@ const SpacesPage: React.FC = () => {
                     onClick={() => openFolder(parentUnit.id)}
                     className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-700"
                     aria-label={`Retour vers ${parentUnit.name}`}
+                    title={`Dossier parent : ${parentUnit.name} (Alt+↑)`}
                   >
-                    <span className="material-symbols-outlined text-2xl">arrow_back</span>
+                    <span className="material-symbols-outlined text-2xl">arrow_upward</span>
                   </button>
                 )}
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-white text-rdpc-blue shadow-sm">
@@ -900,10 +979,8 @@ const SpacesPage: React.FC = () => {
 
               {!error && !documentsLoading && visibleDocuments.length > 0 && viewMode === 'icons' && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                  {visibleDocuments
-                    .slice()
-                    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                    .map((doc) => {
+                  {/* Même ordre serveur que la vue Détails (par défaut : dernière mise à jour d'abord). */}
+                  {visibleDocuments.map((doc) => {
                       const isTitleTruncated = doc.title.length > 26;
                       // Chemin du service de rattachement du doc — affiché en
                       // mode recherche pour donner le contexte de l'origine.
@@ -979,19 +1056,50 @@ const SpacesPage: React.FC = () => {
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <tr>
-                        <th className="px-6 py-4">Document</th>
-                        <th className="px-6 py-4">Classement</th>
-                        <th className="px-6 py-4">Cible métier</th>
-                        <th className="px-6 py-4">Taille</th>
-                        <th className="px-6 py-4">Mise à jour</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
+                        {DETAILS_COLUMNS.map(({ key, label }) => {
+                          const sortField = SORTABLE_COLUMNS[key];
+                          const active = sortField !== undefined && sortField === sortKey;
+                          return (
+                            <th
+                              key={key}
+                              scope="col"
+                              className="relative px-6 py-4"
+                              style={columnWidths[key] ? { width: columnWidths[key] } : undefined}
+                              aria-sort={active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                            >
+                              {sortField ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSort(sortField)}
+                                  className={`inline-flex items-center gap-1 uppercase tracking-widest transition-colors hover:text-slate-700 ${active ? 'text-slate-700' : ''}`}
+                                  title={`Trier par ${label.toLowerCase()}`}
+                                >
+                                  {label}
+                                  <span className="material-symbols-outlined text-sm" aria-hidden="true">
+                                    {active ? (sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
+                                  </span>
+                                </button>
+                              ) : (
+                                label
+                              )}
+                              <span
+                                role="separator"
+                                aria-orientation="vertical"
+                                aria-label={`Largeur de la colonne ${label}`}
+                                title="Glisser pour élargir, double-clic pour ajuster"
+                                onPointerDown={(event) => startColumnResize(key, event)}
+                                onDoubleClick={() => fitColumn(key)}
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize touch-none select-none hover:bg-slate-200"
+                              />
+                            </th>
+                          );
+                        })}
+                        <th scope="col" className="px-6 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {visibleDocuments
-                        .slice()
-                        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                        .map((doc) => {
+                      {/* Ordre du serveur : il porte sur toutes les pages, pas seulement celle affichée. */}
+                      {visibleDocuments.map((doc) => {
                           const targetUnitName = getTargetLabel(doc);
                           return (
                             <tr

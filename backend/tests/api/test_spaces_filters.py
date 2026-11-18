@@ -5,6 +5,7 @@ import uuid
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import update
 
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
@@ -202,6 +203,9 @@ async def test_foreign_tenant_sees_nothing(client_as, db_seed, filter_seed):
         {"limit": "201"},
         {"offset": "-1"},
         {"q": "x" * 121},
+        {"sort": "file_path"},
+        {"sort": "title; drop table documents"},
+        {"order": "up"},
     ],
 )
 async def test_invalid_values_are_rejected_with_422(
@@ -211,3 +215,68 @@ async def test_invalid_values_are_rejected_with_422(
         SPACE_DOCS, params={"org_unit_id": str(db_seed["org_unit_id"]), **params}
     )
     assert response.status_code == 422, response.text
+
+
+def _ordered(response):
+    assert response.status_code == 200, response.text
+    return [d["id"] for d in response.json()]
+
+
+@pytest.mark.asyncio
+async def test_sort_by_size_spans_pages_with_empty_sizes_last(
+    auth_client: AsyncClient, db_session, db_seed, filter_seed
+):
+    docs = filter_seed["docs"]
+    sizes = {"marche_2026": 300, "marche_2025": 100, "budget_2026": 200}
+    for key, size in sizes.items():
+        await db_session.execute(
+            update(Document)
+            .where(Document.id == uuid.UUID(docs[key]))
+            .values(file_size=size)
+        )
+    await db_session.commit()
+
+    base = {"org_unit_id": str(db_seed["org_unit_id"]), "sort": "size", "limit": "3"}
+    expected = {
+        "asc": ["marche_2025", "budget_2026", "marche_2026", "unclassified"],
+        "desc": ["marche_2026", "budget_2026", "marche_2025", "unclassified"],
+    }
+    for order, keys in expected.items():
+        page1 = await auth_client.get(SPACE_DOCS, params={**base, "order": order})
+        page2 = await auth_client.get(
+            SPACE_DOCS, params={**base, "order": order, "offset": "3"}
+        )
+        # Page 2 continues page 1: no row skipped or repeated across pages.
+        assert _ordered(page1) + _ordered(page2) == [docs[k] for k in keys], order
+        assert page1.headers["x-total-count"] == "4"
+
+
+@pytest.mark.asyncio
+async def test_sort_by_title_is_case_insensitive(
+    auth_client: AsyncClient, db_seed, filter_seed
+):
+    docs = filter_seed["docs"]
+    base = {"org_unit_id": str(db_seed["org_unit_id"]), "sort": "title"}
+    taux = {docs["budget_2026"], docs["unclassified"]}
+
+    asc = _ordered(await auth_client.get(SPACE_DOCS, params={**base, "order": "asc"}))
+    assert asc[:2] == [docs["marche_2025"], docs["marche_2026"]]
+    assert set(asc[2:]) == taux
+
+    desc = _ordered(await auth_client.get(SPACE_DOCS, params={**base, "order": "desc"}))
+    assert set(desc[:2]) == taux
+    assert desc[2:] == [docs["marche_2026"], docs["marche_2025"]]
+
+
+@pytest.mark.asyncio
+async def test_without_sort_keeps_newest_first(
+    auth_client: AsyncClient, db_seed, filter_seed
+):
+    params = {"org_unit_id": str(db_seed["org_unit_id"])}
+    default = _ordered(await auth_client.get(SPACE_DOCS, params=params))
+    explicit = _ordered(
+        await auth_client.get(
+            SPACE_DOCS, params={**params, "sort": "created_at", "order": "desc"}
+        )
+    )
+    assert default == explicit

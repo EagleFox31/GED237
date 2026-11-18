@@ -26,7 +26,7 @@ export type {
     AuthSession,
 } from './resources/auth.api';
 
-export type { SpaceTreeNode } from './resources/spaces.api';
+export type { SpaceDocumentSort, SpaceTreeNode } from './resources/spaces.api';
 
 export type {
     ClassificationDomainPayload,
