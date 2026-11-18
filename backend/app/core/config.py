@@ -144,7 +144,11 @@ class Settings(BaseSettings):
     OCR_PRIMARY_ENGINE: str = "tesseract"
     # Robustness of the OCR task. A worker killed mid-task (OOM) must not lose the job:
     # the task is acked after it ends and requeued when its process dies.
-    OCR_TASK_MAX_RETRIES: int = 3  # retries after an unexpected error (0 = none)
+    OCR_TASK_MAX_RETRIES: int = 2  # retries after an unexpected error (0 = none)
+    # Hard cap of our own, counted and saved BEFORE each OCR run: a document whose OCR
+    # kills the worker is delivered again by the broker; past this many deliveries it is
+    # marked failed without OCR. 0 disables the cap.
+    OCR_MAX_DELIVERIES: int = 3
     OCR_TASK_RETRY_BACKOFF_SECONDS: int = 30  # doubled at each retry
     # Beat sweep: a document still without text after this many minutes (image or PDF)
     # is sent to OCR again, at most OCR_STUCK_MAX_REQUEUES times. 0 disables the sweep.

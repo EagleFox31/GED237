@@ -46,8 +46,13 @@ async def update_document_ocr(
 
             # Store OCR metadata in extra_data. A new dict, not an in-place change: the
             # JSONB column is not change-tracked, so mutating it would never be written.
+            # A finished OCR resets the delivery counter and the failure flag.
             document.extra_data = {
-                **(document.extra_data or {}),
+                **{
+                    k: v
+                    for k, v in (document.extra_data or {}).items()
+                    if k not in ("ocr_deliveries", "ocr_failed")
+                },
                 "ocr_confidence": confidence,
                 "ocr_engine": engine_used,
             }
@@ -94,6 +99,11 @@ def process_document_ocr(self, document_id: str, file_path: str, file_type: str)
 
     if not os.path.exists(full_path):
         print(f"❌ File not found for OCR: {full_path}")
+        return False
+
+    # 1b. Own delivery cap, saved before the OCR: a document that kills the worker is
+    # delivered again by the broker, and must stop being tried after N deliveries.
+    if not _within_delivery_cap(document_id):
         return False
 
     # 2. Initialize OCR Strategy lazily so API/tests don't import heavy OCR deps at startup
@@ -166,6 +176,44 @@ def process_document_ocr(self, document_id: str, file_path: str, file_type: str)
         traceback.print_exc()
         _retry_or_give_up(self, e, document_id)
         return False
+
+
+def _run_async(coro):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+
+def _within_delivery_cap(document_id: str) -> bool:
+    """Count this delivery; past the cap, mark the document failed and refuse the run."""
+    from app.services import ocr_recovery
+
+    try:
+        count = _run_async(
+            ocr_recovery.register_delivery(AsyncSessionLocal, document_id)
+        )
+        if ocr_recovery.delivery_cap_reached(count):
+            _run_async(
+                ocr_recovery.mark_failed(
+                    AsyncSessionLocal,
+                    document_id,
+                    f"{settings.OCR_MAX_DELIVERIES} deliveries without a result",
+                )
+            )
+            logger.error(
+                "OCR refused for document %s: %s deliveries (cap %s)",
+                document_id,
+                count - 1,
+                settings.OCR_MAX_DELIVERIES,
+            )
+            return False
+    except Exception:
+        # The counter must never block OCR on a database hiccup.
+        logger.exception("OCR delivery counter failed for document %s", document_id)
+    return True
 
 
 def _retry_or_give_up(task, error: Exception, document_id: str) -> None:

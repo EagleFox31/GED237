@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 REQUEUE_COUNT_KEY = "ocr_requeues"
 REQUEUE_AT_KEY = "ocr_last_requeue_at"
+DELIVERIES_KEY = "ocr_deliveries"
+FAILED_KEY = "ocr_failed"
 BATCH_SIZE = 50
 
 
@@ -31,8 +33,48 @@ def _is_ocr_type(document: Document) -> bool:
     return kind.startswith("image/") or kind == "application/pdf"
 
 
+async def register_delivery(session_factory, document_id: str) -> int:
+    """Count one OCR delivery for the document and save it BEFORE the OCR runs.
+
+    The count survives a killed worker: that is what makes the cap ours and not the
+    broker's. Returns the new count (0 when the document does not exist).
+    """
+    async with session_factory() as session:
+        document = await session.get(Document, document_id)
+        if document is None:
+            return 0
+        extra = document.extra_data or {}
+        count = int(extra.get(DELIVERIES_KEY) or 0) + 1
+        # A new dict: the JSONB column is not change-tracked.
+        document.extra_data = {**extra, DELIVERIES_KEY: count}
+        await session.commit()
+        return count
+
+
+async def mark_failed(session_factory, document_id: str, reason: str) -> None:
+    """Flag the document as failed: no OCR, no sweep, no more deliveries."""
+    async with session_factory() as session:
+        document = await session.get(Document, document_id)
+        if document is None:
+            return
+        document.extra_data = {
+            **(document.extra_data or {}),
+            FAILED_KEY: {
+                "reason": reason,
+                "at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
+        await session.commit()
+
+
+def delivery_cap_reached(count: int) -> bool:
+    return settings.OCR_MAX_DELIVERIES > 0 and count > settings.OCR_MAX_DELIVERIES
+
+
 def _due(document: Document, cutoff: datetime) -> bool:
     extra = document.extra_data or {}
+    if extra.get(FAILED_KEY):
+        return False  # failed for good: only an explicit retry may start it again
     if int(extra.get(REQUEUE_COUNT_KEY) or 0) >= settings.OCR_STUCK_MAX_REQUEUES:
         return False
     last = extra.get(REQUEUE_AT_KEY)

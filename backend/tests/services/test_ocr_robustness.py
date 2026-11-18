@@ -35,7 +35,8 @@ def test_sweep_is_scheduled_by_default_and_follows_the_interval():
 def test_defaults_are_declared_for_compose_and_env_example():
     assert settings.OCR_STUCK_MINUTES == 15
     assert settings.OCR_STUCK_MAX_REQUEUES == 3
-    assert settings.OCR_TASK_MAX_RETRIES == 3
+    assert settings.OCR_TASK_MAX_RETRIES == 2
+    assert settings.OCR_MAX_DELIVERIES == 3
 
 
 # --- bounded retry -----------------------------------------------------------
@@ -59,6 +60,7 @@ class _Task:
 
 def test_retry_uses_exponential_backoff(monkeypatch):
     monkeypatch.setattr(settings, "OCR_TASK_RETRY_BACKOFF_SECONDS", 30)
+    monkeypatch.setattr(settings, "OCR_TASK_MAX_RETRIES", 3)
     for attempt, expected in [(0, 30), (1, 60), (2, 120)]:
         task = _Task(retries=attempt)
         with pytest.raises(RuntimeError, match="retry scheduled"):
@@ -176,3 +178,85 @@ async def test_sweep_off_does_nothing(db_seed, test_engine, monkeypatch):
     monkeypatch.setattr(settings, "OCR_STUCK_MINUTES", 0)
     count, sent, _ = await _sweep(test_engine, [_doc(db_seed)])
     assert (count, sent) == (0, [])
+
+
+# --- delivery cap of our own --------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_deliveries_are_counted_and_saved_before_the_ocr(db_seed, test_engine):
+    doc = _doc(db_seed)
+    factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with factory() as session:
+        session.add(doc)
+        await session.commit()
+
+    counts = [
+        await ocr_recovery.register_delivery(factory, str(doc.id)) for _ in range(4)
+    ]
+    assert counts == [1, 2, 3, 4]
+    assert [ocr_recovery.delivery_cap_reached(c) for c in counts] == [
+        False,
+        False,
+        False,
+        True,
+    ]
+
+    await ocr_recovery.mark_failed(factory, str(doc.id), "4 deliveries")
+    async with factory() as session:
+        stored = await session.get(Document, doc.id)
+    assert stored.extra_data[ocr_recovery.DELIVERIES_KEY] == 4
+    assert stored.extra_data[ocr_recovery.FAILED_KEY]["reason"] == "4 deliveries"
+
+
+@pytest.mark.asyncio
+async def test_failed_document_is_never_swept_again(db_seed, test_engine):
+    doc = _doc(db_seed, extra_data={ocr_recovery.FAILED_KEY: {"reason": "x"}})
+    count, _, _ = await _sweep(test_engine, [doc])
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_unknown_document_does_not_count(db_seed, test_engine):
+    factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    assert await ocr_recovery.register_delivery(factory, str(uuid.uuid4())) == 0
+
+
+def test_a_task_delivered_again_and_again_stops_after_the_cap(tmp_path, monkeypatch):
+    """The broker keeps redelivering a task that kills the worker: after N deliveries
+    the OCR is no longer run and the document is marked failed."""
+    store = {"count": 0, "failed": None}
+
+    async def fake_register(_factory, _document_id):
+        store["count"] += 1
+        return store["count"]
+
+    async def fake_mark(_factory, _document_id, reason):
+        store["failed"] = reason
+
+    monkeypatch.setattr(ocr_recovery, "register_delivery", fake_register)
+    monkeypatch.setattr(ocr_recovery, "mark_failed", fake_mark)
+    monkeypatch.setattr(settings, "OCR_MAX_DELIVERIES", 3)
+    monkeypatch.setattr(settings, "STORAGE_PATH", str(tmp_path))
+    (tmp_path / "scan.pdf").write_bytes(b"%PDF-1.4")
+
+    runs = []
+
+    class _Strategy:
+        def process_pdf(self, _path):
+            runs.append(1)
+            raise MemoryError  # stands for a run that ends with the worker killed
+
+    import app.services.ocr as ocr_package
+
+    monkeypatch.setattr(ocr_package, "OCRStrategy", _Strategy)
+
+    for _ in range(3 + 2):  # N + 2 deliveries of the same task
+        tasks.process_document_ocr("doc-1", "scan.pdf", "application/pdf")
+
+    assert len(runs) == 3  # never more than N runs
+    assert store["failed"] == "3 deliveries without a result"
