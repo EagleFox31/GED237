@@ -443,7 +443,7 @@ const SpacesPage: React.FC = () => {
     setSelectedDocIds([]);
     setSelectionAnchorId(null);
     setBulkSummary(null);
-  }, [selectedUnitId, pageOffset]);
+  }, [selectedUnitId]);
 
   const handleDocumentSelect = (event: React.MouseEvent, docId: string) => {
     const next = applyExplorerSelection({
