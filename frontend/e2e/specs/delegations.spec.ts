@@ -153,7 +153,7 @@ test.describe('Remplacements pendant une absence (L4)', () => {
     await expect(page.getByTestId('delegation-outgoing')).toContainText(`Vos tâches vont à ${INTERIM.full_name}`);
   });
 
-  test('DLG-06 — Given journal d’audit, When « Au nom de quelqu’un », Then seules les actions d’un remplaçant restent et l’export est bloqué', async ({ loginAs, page }) => {
+  test('DLG-06 — Given journal d’audit, When « Au nom de quelqu’un », Then la liste et l’export sont filtrés par le serveur', async ({ loginAs, page }) => {
     const log = (id: string, over: Record<string, unknown> = {}) => ({
       id,
       tenant_id: 't-1',
@@ -170,19 +170,43 @@ test.describe('Remplacements pendant une absence (L4)', () => {
       created_at: '2026-11-20T09:00:00+01:00',
       ...over,
     });
-    await page.route(/\/api\/v1\/audit\/logs(\?|$)/, (route) =>
-      json(route, [log('a'), log('b', { on_behalf_of: ABSENT.id, on_behalf_of_name: ABSENT.full_name })]),
-    );
+    const onBehalf = log('b', { on_behalf_of: ABSENT.id, on_behalf_of_name: ABSENT.full_name });
+    const listCalls: URL[] = [];
+    await page.route(/\/api\/v1\/audit\/logs(\?|$)/, (route) => {
+      const url = new URL(route.request().url());
+      listCalls.push(url);
+      return json(route, url.searchParams.get('on_behalf') === 'true' ? [onBehalf] : [log('a'), onBehalf]);
+    });
+    const exportCalls: URL[] = [];
+    await page.route(/\/api\/v1\/audit\/logs\/export(\?|$)/, (route) => {
+      exportCalls.push(new URL(route.request().url()));
+      return route.fulfill({
+        status: 200,
+        contentType: 'text/csv',
+        headers: { 'Content-Disposition': 'attachment; filename="journal-audit.csv"' },
+        body: '﻿Date;Action\n',
+      });
+    });
 
     await loginAs('auditor');
     await page.goto('audit');
     await expect(page.getByText('Note a')).toBeVisible();
+    expect(listCalls[listCalls.length - 1]?.searchParams.has('on_behalf')).toBe(false);
+
     const toggle = page.getByRole('button', { name: /Au nom de quelqu'un/ });
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByText('Note a')).toHaveCount(0);
     await expect(page.getByText('Note b')).toBeVisible();
     await expect(page.getByTestId('audit-on-behalf')).toContainText(ABSENT.full_name);
-    await expect(page.getByRole('button', { name: /Exporter/ })).toBeDisabled();
+    expect(listCalls[listCalls.length - 1]?.searchParams.get('on_behalf')).toBe('true');
+
+    const exportButton = page.getByRole('button', { name: /Exporter/ });
+    await expect(exportButton).toBeEnabled();
+    const download = page.waitForEvent('download');
+    await exportButton.click();
+    await download;
+    expect(exportCalls).toHaveLength(1);
+    expect(exportCalls[0]?.searchParams.get('on_behalf')).toBe('true');
   });
 });

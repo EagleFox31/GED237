@@ -9,13 +9,14 @@ import { buildApiError } from '../http/errorAdapter';
 
 export const auditApi = {
     getAuditLogs: (
-        params: { skip?: number; limit?: number; table_name?: string; action?: string } = {},
+        params: { skip?: number; limit?: number; table_name?: string; action?: string; on_behalf?: boolean } = {},
     ): Promise<any[]> => {
         const q = new URLSearchParams();
         if (typeof params.skip === 'number') q.append('skip', String(params.skip));
         if (typeof params.limit === 'number') q.append('limit', String(params.limit));
         if (params.table_name) q.append('table_name', params.table_name);
         if (params.action) q.append('action', params.action);
+        if (params.on_behalf) q.append('on_behalf', 'true');
         const qs = q.toString();
         return apiCall<any[]>(
             `/audit/logs${qs ? `?${qs}` : ''}`,
@@ -36,13 +37,14 @@ export const auditApi = {
             user_id?: string;
             date_from?: string;
             date_to?: string;
+            on_behalf?: boolean;
         } = {},
     ): Promise<{ blob: Blob; filename: string }> => {
         // Les listes sont envoyées en paramètres répétés (?action=a&action=b).
         const q = new URLSearchParams();
         Object.entries(params).forEach(([key, value]) => {
             if (Array.isArray(value)) value.forEach((v) => v && q.append(key, v));
-            else if (value) q.append(key, value);
+            else if (value) q.append(key, String(value));
         });
         const qs = q.toString();
         const response = await fetchWithRefresh(`${API_URL}/audit/logs/export${qs ? `?${qs}` : ''}`, {

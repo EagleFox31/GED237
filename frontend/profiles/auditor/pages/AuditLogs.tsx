@@ -74,11 +74,14 @@ const AuditLogs: React.FC = () => {
     'detail',
   ]);
 
+  // « Au nom de quelqu'un » : actions faites par un remplaçant, filtrées par le serveur (liste et export).
+  const [onBehalfOnly, setOnBehalfOnly] = useState(false);
+
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getAuditLogs({ limit: 200 });
+      const data = await api.getAuditLogs({ limit: 200, on_behalf: onBehalfOnly });
       setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
@@ -86,7 +89,7 @@ const AuditLogs: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [onBehalfOnly]);
 
   useEffect(() => {
     fetchLogs();
@@ -133,10 +136,7 @@ const AuditLogs: React.FC = () => {
     logs.filter((log) => actorLabels.includes(getActorLabel(log))).map((log) => log.user_id).filter(Boolean),
   );
   const exportUserId = actorLabels.length === 1 && actorIds.size === 1 ? ([...actorIds][0] ?? undefined) : undefined;
-  // « Au nom de quelqu'un » : lignes faites par un remplaçant. Filtre local (200 dernières actions) ;
-  // l'export serveur ne sait pas le reprendre, il est donc bloqué tant que ce filtre est actif.
-  const [onBehalfOnly, setOnBehalfOnly] = useState(false);
-  const exportBlocked = onBehalfOnly || actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
+  const exportBlocked = actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
   const [exporting, setExporting] = useState(false);
 
   const exportCsv = async () => {
@@ -146,6 +146,7 @@ const AuditLogs: React.FC = () => {
         table_name: tableValues,
         action: actionValues,
         user_id: exportUserId,
+        on_behalf: onBehalfOnly,
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -175,11 +176,9 @@ const AuditLogs: React.FC = () => {
       const actorFilter = columnFilters.actor ?? [];
       if (actorFilter.length > 0 && !actorFilter.includes(getActorLabel(log))) return false;
 
-      if (onBehalfOnly && !log.on_behalf_of) return false;
-
       return true;
     });
-  }, [columnFilters, logs, onBehalfOnly]);
+  }, [columnFilters, logs]);
 
   const nothingToExport = !isLoading && filteredLogs.length === 0;
 
@@ -341,7 +340,7 @@ const AuditLogs: React.FC = () => {
             label="Aide sur l'export du journal"
             tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
           >
-            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
+            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent, « Au nom de quelqu'un ») et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
           </HelpHint>
           <button
             type="button"
@@ -350,9 +349,7 @@ const AuditLogs: React.FC = () => {
             title={
               nothingToExport
                 ? 'Rien à exporter'
-                : onBehalfOnly
-                  ? "Retirez le filtre « Au nom de quelqu'un » pour exporter."
-                  : exportBlocked
+                : exportBlocked
                   ? 'Choisissez un seul utilisateur pour exporter.'
                   : 'Télécharger le journal (fichier CSV)'
             }
