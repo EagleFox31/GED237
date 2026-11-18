@@ -279,7 +279,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
             </div>
           )}
 
-          <div className="max-w-xl min-w-[200px] md:min-w-[400px] relative" ref={searchRef}>
+          <div data-global-search-box className="max-w-xl min-w-[200px] md:min-w-[400px] relative" ref={searchRef}>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 {isSearching ? (
