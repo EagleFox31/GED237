@@ -64,6 +64,28 @@ const BY_ID_ROUTES: Route[] = [
 ];
 
 const NONEXISTENT_ID = '00000000-0000-4000-8000-000000000000';
+
+/** Champs propres à chaque requête (handlers.py, domain.py) : retirés avant comparaison. */
+const PER_REQUEST_FIELDS = new Set(['correlation_id']);
+
+const withoutPerRequest = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(withoutPerRequest);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => !PER_REQUEST_FIELDS.has(key))
+      .map(([key, inner]) => [key, withoutPerRequest(inner)]));
+  }
+  return value;
+};
+
+/** Corps comparable : JSON sans les champs propres à la requête, sinon texte brut. */
+const comparableBody = (raw: string): unknown => {
+  try {
+    return withoutPerRequest(JSON.parse(raw));
+  } catch {
+    return raw;
+  }
+};
 const ROLES: UserRole[] = ['collaborator', 'reader', 'manager'];
 
 test.describe('Périmètre : un document caché répond comme un document inexistant (#247)', () => {
@@ -93,7 +115,10 @@ test.describe('Périmètre : un document caché répond comme un document inexis
         const expected = route.rightCheckedFirst ? missing.status() : 404;
         if (hidden.status() >= 200 && hidden.status() < 300) {
           wrong.push(`${route.label} → ${hidden.status()} (succès hors périmètre)`);
-        } else if (hidden.status() !== missing.status() || hiddenBody !== missingBody) {
+        } else if (
+          hidden.status() !== missing.status()
+          || JSON.stringify(comparableBody(hiddenBody)) !== JSON.stringify(comparableBody(missingBody))
+        ) {
           wrong.push(`${route.label} → caché ${hidden.status()} ${hiddenBody} ≠ inexistant ${missing.status()} ${missingBody}`);
         } else if (hidden.status() !== expected) {
           wrong.push(`${route.label} → ${hidden.status()}, attendu 404`);
