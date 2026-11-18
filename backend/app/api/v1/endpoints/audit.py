@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.authz import authorize_or_403
+from app.core.authz import authorize_or_403, can_perform
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.user import User
@@ -368,17 +368,22 @@ async def list_audit_logs(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "audit_logs", "read")
+    # Lot 13 (« Mes dernières actions ») : sans droit de lecture du journal, chacun voit
+    # ses propres lignes, sans le contenu brut, l'adresse IP ni le navigateur.
+    own_only = not await can_perform(current_user, "audit_logs", "read")
 
     query = _filtered_query(
-        current_user.tenant_id, table_name=table_name, action=action
+        current_user.tenant_id,
+        table_name=table_name,
+        action=action,
+        user_id=current_user.id if own_only else None,
     )
     query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     logs = list(result.scalars().all())
     actors_by_id, documents_by_id = await _load_references(db, logs)
 
-    return [
+    entries = [
         _serialize_audit_log(
             log,
             actors_by_id=actors_by_id,
@@ -386,3 +391,7 @@ async def list_audit_logs(
         )
         for log in logs
     ]
+    if own_only:
+        for entry in entries:
+            entry.update(old_data=None, new_data=None, ip_address=None, user_agent=None)
+    return entries
