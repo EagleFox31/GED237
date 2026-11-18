@@ -870,6 +870,7 @@ async def list_documents(
     limit: int = 100,
     document_status: Optional[str] = Query(default=None, alias="status"),
     q: Optional[str] = Query(default=None, max_length=120),
+    document_category_id: Optional[UUID] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -880,6 +881,9 @@ async def list_documents(
 
     if document_status:
         query = query.where(Document.status == document_status)
+    # Category filter runs on the whole scope; another tenant's category id matches nothing.
+    if document_category_id:
+        query = query.where(Document.document_category_id == document_category_id)
     # Search runs on the whole scope, not on the page the client already holds.
     if q and q.strip():
         query = _apply_text_filter(query, q.strip())
