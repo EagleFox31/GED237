@@ -56,8 +56,8 @@ const PendingAssignmentsInbox: React.FC = () => {
       setSelectedAssignment(null);
       setSelectedUserId('');
     } catch (e) {
+      // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
       console.error(e);
-      alert('Erreur lors de l\'assignation.');
     } finally {
       setAssigning(false);
     }
