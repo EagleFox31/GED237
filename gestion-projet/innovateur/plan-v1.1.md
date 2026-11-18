@@ -364,4 +364,10 @@ Garde-fous de O, avec ceux de l'innovateur marqués (I).
 
 **Preuve attendue (Q).** Un `kill -9` du worker pendant une lecture : après redémarrage, la tâche est relue une seule fois et le document finit `indexed` ou `failed`, jamais « en cours ». Un document qui fait tomber le worker à chaque essai finit `failed` après N essais. Un test unitaire vérifie la configuration Celery.
 
-**Capacité.** C'est un ajout net (B + 0,75, Q + 0,5). Q est déjà à 22,0, donc la règle « pas d'ajout sans sortie » s'applique : à O de choisir la sortie, ou un passage en tête de la V1.2.
+**Capacité.** C'est un ajout net (B + 0,75, Q + 0,5). Q est déjà à 22,0, donc la règle « pas d'ajout sans sortie » s'applique.
+
+**Décision de O (18/11).** OCR-1 passe **en tête de la V1.2**, pas en V1.1. Avec #365, le repli lourd est coupé par défaut, et RapidOCR vise moins de 800 Mo : le risque de SIGKILL devient faible. Q est déjà saturé en V1.1. Les totaux de la V1.1 ne changent pas.
+
+**Condition de remontée.** Si un SIGKILL du worker est observé pendant la recette (du 20 au 23/11) ou pendant l'essai hors ligne du 25/11, OCR-1 remonte en V1.1. O choisit alors ce qui en sort. Le constat se lit dans les journaux du worker (`signal 9` ou `SIGKILL`), et on note l'heure et le document.
+
+**Contournement manuel en attendant** (fiche UAT, anomalies connues) : un document reste « en cours » plus de 10 min → noter le nom, relancer l'import. Le même fichier redéposé est refusé comme doublon (contrôle par empreinte), et aucun écran ne supprime un document en rc.1 : la relance se fait côté serveur, par Q.

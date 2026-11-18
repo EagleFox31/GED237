@@ -25,7 +25,7 @@
 | 4 | Recommencez avec un fichier de plus de 100 Mo | un message qui donne la limite ; rien n'est déposé | ☐ | ☐ | SC-RED-01 ⚠ (le refus est testé, pas le message) |
 | 5 | Sur votre brouillon : « Soumettre » → « Soumettre au visa » vers `MGR001` | le statut change : le document part en validation | ☐ | ☐ | SC-VAL-01 (test de nuit) |
 | 6 | Cherchez un mot présent dans vos documents | les documents attendus ; un clic ouvre la fiche | ☐ | ☐ | SC-LEC-01 |
-| 6 bis | Cherchez `photocopieurs`, puis `agrafeuses` (sans accent). Notez l'heure du premier résultat | `photocopieurs` : 1 résultat, `IMG_0412.jpg` ; `agrafeuses` : 1 résultat, `IMG_0413.jpg`. Attente : le texte est prêt en moins d'une minute après l'envoi (limite 30 s par photo) ; à ce stade, il l'est déjà | ☐ | ☐ | OCR ⚠ (si le moteur est Tesseract, `agrafeuses` peut manquer : KO connu) |
+| 6 bis | Cherchez `photocopieurs`, puis `agrafeuses` (sans accent). Notez l'heure du premier résultat | `photocopieurs` : 1 résultat, `IMG_0412.jpg` ; `agrafeuses` : 1 résultat, `IMG_0413.jpg`. Attente : le texte est prêt en moins d'une minute après l'envoi (limite 30 s par photo) ; à ce stade, il l'est déjà | ☐ | ☐ | OCR ⚠ (document « en cours » plus de 10 min : anomalie « Lecture bloquée ») |
 | 7 | Déconnectez-vous, puis bouton « Précédent » du navigateur | vous restez sur l'écran de connexion | ☐ | ☐ | SC-AUTH-03 |
 
 ## 2. Manager — `MGR001` (responsable DAF)
@@ -94,7 +94,8 @@ Signature : ______________________ Date : 23/11/2026
 | E24 | Accents manquants : « A verifier » (Explorateur), « Parametres » (menu du super admin) | aucun, simple libellé | réponse du PO (Q6) |
 | E25 | Auditeur : pas d'entrée « Audit » dans le menu ; il arrive sur « Registre Des Actions » | revenir par « Tableau de Bord » | réponse du PO (Q6) |
 | Admin Service | Il voit et cherche dans toute l'institution, pas seulement son service | limite annoncée dans les notes rc.1 ; **à retirer** si #203, #358 et #360 sont dans la rc.1 (décision du 19 à 15:00) : on joue alors le § 3 bis | V1.1 (#203, #358, #360) |
-| OCR | L'écriture à la main n'est pas lue ; avec Tesseract, `agrafeuses` (formulaire) peut ne rien donner | aucun : seul le texte imprimé est lu. Un seul moteur à la fois, choisi par configuration | moteur de la démo fixé le 20 à 09:00 |
+| OCR | L'écriture à la main n'est pas lue | aucun : seul le texte imprimé est lu. Un seul moteur à la fois, choisi par configuration | moteur de la démo fixé le 20 à 09:00 |
+| Lecture bloquée | Un document reste « en cours » plus de 10 min | noter le nom du document et l'heure, puis relancer l'import. Attention : le même fichier redéposé est refusé comme doublon, et aucun écran ne supprime un document en rc.1. Prévenir Q, qui relance la lecture côté serveur | V1.2 (OCR-1) ; remonte en V1.1 si un arrêt brutal du worker est vu du 20 au 25 |
 | Code de connexion | Le code n'est pas reçu : il est pré-rempli à l'écran ; le cadre « Espace Démo Interactif » est visible | cliquer sur « Confirmer l'identité » | après le 30 (#154) |
 | Hors rc.1 | Pas de corbeille à l'écran, pas de numérotation des rapports, pas de TOTP, pas de dépôt de version à l'écran | non joués | après le 30 |
 | Lien « Oublié ? » | Ne fait rien | demander un mot de passe à l'administrateur | V1.1 |
@@ -163,7 +164,7 @@ Signature : ______________________ Date : 23/11/2026
 | ★ SC-AUTH-01 | `MINFI002` | Connexion normale | « Tableau de Bord » (page « Mon Atelier ») en < 5 s ; institution MINFI | | |
 | ★ SC-RED-01 | `MINFI002` | « Mes Documents » → « Nouveau Document » : titre, catégorie, PDF < 1 Mo | document en **Brouillon**, visible par son auteur | | |
 | ★ OCR 1 | `MINFI002` | « Nouveau Document » : `IMG_0412.jpg`, puis `IMG_0413.jpg` ; noter l'heure de chaque envoi | deux documents créés ; la lecture se fait dans le worker, l'écran reste libre | | |
-| ★ OCR 2 | `MINFI002` | En fin de section : recherche `photocopieurs`, puis `agrafeuses` ; noter l'heure du premier résultat | 1 résultat chacun (`IMG_0412.jpg`, `IMG_0413.jpg`). Délai envoi → résultat : ≤ 30 s par photo, worker à un seul processus, donc ≤ 1 min pour les deux. Au-delà, le signaler à O. Avec Tesseract, `agrafeuses` peut manquer (formulaire, 0,465 des mots au banc) : KO connu | | |
+| ★ OCR 2 | `MINFI002` | En fin de section : recherche `photocopieurs`, puis `agrafeuses` ; noter l'heure du premier résultat | 1 résultat chacun (`IMG_0412.jpg`, `IMG_0413.jpg`). Délai envoi → résultat : ≤ 30 s par photo, worker à un seul processus, donc ≤ 1 min pour les deux. Au-delà, le signaler à O. Tesseract seul trouve les deux mots (rejeu de Q du 18/11). Un document « en cours » plus de 10 min : anomalie « Lecture bloquée » | | |
 | ○ OCR 3 | `READ001` | Mêmes recherches | 0 résultat : les photos sont à la DAF | | |
 | ○ SC-RED-01 E1 | `MINFI002` | Fichier au-delà de la limite | message qui donne la limite | | |
 | ★ SC-VAL-04 | `MINFI002` | Ouvrir le document rejeté en SC-VAL-03 | statut **Rejeté** et motif visibles ; aucune action de modification | | |
