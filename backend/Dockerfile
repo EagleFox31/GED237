@@ -34,6 +34,13 @@ RUN for attempt in 1 2 3; do \
     done \
     && pip install --no-cache-dir -r requirements.txt
 
+# EasyOCR models (fr + en, the engine's default languages) baked into the image:
+# the container never downloads at runtime (offline-safe). Own cached layer, placed
+# before the application code so a code change does not re-download them.
+ENV EASYOCR_MODEL_DIR=/opt/easyocr
+RUN mkdir -p "$EASYOCR_MODEL_DIR" \
+    && python -c "import easyocr; easyocr.Reader(['fr', 'en'], gpu=False, model_storage_directory='$EASYOCR_MODEL_DIR', user_network_directory='$EASYOCR_MODEL_DIR', download_enabled=True, verbose=False)"
+
 # Copy application code
 COPY . .
 
