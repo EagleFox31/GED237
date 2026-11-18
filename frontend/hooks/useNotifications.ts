@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
+import { ApiError } from '../lib/errors';
 import {
     connectNotificationSocket,
     currentPermission,
@@ -26,6 +27,16 @@ interface Options {
 
 /** Événement de simulation (mode développement) tant que le serveur n'émet pas tous les événements de visa. */
 export const MOCK_NOTIFICATION_EVENT = 'ged:mock-notification';
+
+/** Ticket neuf à chaque connexion ; session refusée (401, déjà gérée par le transport) : on arrête. */
+const requestTicket = async (): Promise<string | null> => {
+    try {
+        return (await api.requestWsTicket()).ticket;
+    } catch (err) {
+        if (err instanceof ApiError && err.status === 401) return null;
+        throw err;
+    }
+};
 
 export const useNotifications = ({ desktopEnabled = false, onOpenPath }: Options = {}) => {
     const token = sessionStorage.getItem('token');
@@ -59,7 +70,7 @@ export const useNotifications = ({ desktopEnabled = false, onOpenPath }: Options
     useEffect(() => {
         if (!token) return;
         loadNotifications();
-        return connectNotificationSocket(token, {
+        return connectNotificationSocket(requestTicket, {
             // Après une coupure, on recharge la liste : rien n'est perdu pendant l'absence.
             onOpen: (attempt) => { if (attempt > 0) loadNotifications(); },
             onMessage: (raw) => {

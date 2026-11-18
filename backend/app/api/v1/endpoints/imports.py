@@ -304,6 +304,19 @@ async def commit_import_job(
 
         for payload in summary.dispatch_payloads:
             await dispatcher.dispatch("DOCUMENT_CREATED", payload)
+    if summary.pending_review_items:
+        from app.core.events.dispatcher import dispatcher
+
+        # One notification per import, not one per document to review.
+        await dispatcher.dispatch(
+            "CLASSIFICATION_REVIEWS_PENDING",
+            {
+                "tenant_id": str(job.tenant_id),
+                "import_job_id": str(job.id),
+                "count": summary.pending_review_items,
+                "actor_id": str(current_user.id),
+            },
+        )
     if summary.ocr_payloads:
         from app.workers.tasks import process_document_ocr
 

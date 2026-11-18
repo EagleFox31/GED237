@@ -214,3 +214,94 @@ async def test_rejection_and_return_emit_their_event(outcome, event):
     calls, _ = await _run(outcome, None)
     assert [c[0] for c in calls] == [event]
     assert calls[0][1]["comment"] == "ok"
+
+
+# --- Import left documents to review: one grouped notification per admin ---
+
+
+@pytest.mark.asyncio
+async def test_reviews_pending_is_one_notification_per_admin(wired, monkeypatch):
+    saved, pushed = wired
+    admins = [str(uuid.uuid4()), str(uuid.uuid4())]
+
+    async def fake_reviewers(tenant_id):
+        assert tenant_id == TENANT
+        return admins + [ACTOR]
+
+    monkeypatch.setattr(listeners, "find_reviewer_ids", fake_reviewers)
+    await listeners.on_classification_reviews_pending(
+        {"tenant_id": TENANT, "import_job_id": "job", "count": 12, "actor_id": ACTOR}
+    )
+
+    # The admin who ran the import is not told about their own import.
+    assert [n["user_id"] for n in saved] == admins
+    assert {n["message"] for n in saved} == {"12 documents importés sont à revoir."}
+    assert {n["event_type"] for n in saved} == {"CLASSIFICATION_REVIEWS_PENDING"}
+    assert pushed == []
+
+
+@pytest.mark.asyncio
+async def test_reviews_pending_without_count_notifies_nobody(wired, monkeypatch):
+    saved, _ = wired
+    lookup = AsyncMock(return_value=[str(uuid.uuid4())])
+    monkeypatch.setattr(listeners, "find_reviewer_ids", lookup)
+    await listeners.on_classification_reviews_pending({"tenant_id": TENANT, "count": 0})
+    assert saved == []
+    lookup.assert_not_awaited()
+
+
+def test_reviews_pending_message_singular():
+    assert listeners.reviews_pending_message(1) == "1 document importé est à revoir."
+
+
+@pytest.mark.asyncio
+async def test_reviewers_are_the_active_tenant_admins_of_the_tenant(
+    test_engine, db_seed, monkeypatch
+):
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.core.security import hash_password
+    from app.models.role import Role
+    from app.models.tenant import Tenant
+    from app.models.user import User
+
+    maker = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+    other_tenant = uuid.uuid4()
+    async with maker() as session:
+        session.add(Role(id=2, code="tenant_admin", label="Admin", hierarchy_level=1))
+        session.add(
+            Tenant(
+                id=other_tenant,
+                name="Other",
+                short_name="OTHER",
+                domain=f"other-{other_tenant}.gov.cm",
+                is_active=True,
+            )
+        )
+        await session.flush()
+
+        def user(matricule, tenant_id, active=True):
+            u = User(
+                id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                role_id=2,
+                matricule=matricule,
+                email=f"{matricule.lower()}@test.gov.cm",
+                first_name="A",
+                last_name="B",
+                password_hash=hash_password("x-unused-x"),
+                is_active=active,
+            )
+            session.add(u)
+            return u
+
+        admin = user("ADM1", db_seed["tenant_id"])
+        user("ADM2", db_seed["tenant_id"], active=False)
+        user("ADM3", other_tenant)
+        await session.commit()
+
+    monkeypatch.setattr(listeners, "async_session_maker", maker)
+    # The seeded collaborator of the same tenant is not a reviewer either.
+    assert await listeners.find_reviewer_ids(str(db_seed["tenant_id"])) == [
+        str(admin.id)
+    ]

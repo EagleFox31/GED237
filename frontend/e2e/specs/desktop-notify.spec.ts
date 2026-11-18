@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { desktopText, reconnectDelay, shouldShowDesktop, targetPath } from '../../lib/desktopNotify';
+import {
+  connectNotificationSocket,
+  desktopText,
+  reconnectDelay,
+  shouldShowDesktop,
+  targetPath,
+} from '../../lib/desktopNotify';
 
 // Spec pur : exécuté par `npm run test:unit`.
 test.describe('Notifications Windows : règles', () => {
@@ -25,6 +31,7 @@ test.describe('Notifications Windows : règles', () => {
     expect(body('WORKFLOW_COMPLETED')).toBe('Un de vos documents a été visé.');
     expect(body('WORKFLOW_REJECTED')).toBe('Un de vos documents a été rejeté.');
     expect(body('WORKFLOW_RETURNED')).toBe('Un de vos documents vous est renvoyé pour correction.');
+    expect(body('CLASSIFICATION_REVIEWS_PENDING')).toBe('Des documents importés sont à revoir.');
     expect(body('AUTRE')).toBe('Vous avez une nouvelle notification.');
     expect(desktopText({ event_type: 'WORKFLOW_REJECTED' }).title).toBe('GED237');
   });
@@ -32,5 +39,84 @@ test.describe('Notifications Windows : règles', () => {
   test('clic : ouvre le document s\'il est connu, sinon la liste', () => {
     expect(targetPath({ event_type: 'X', meta_data: { document_id: 'a b' } })).toBe('/documents?open=a%20b');
     expect(targetPath({ event_type: 'X' })).toBe('/documents');
+    expect(targetPath({ event_type: 'CLASSIFICATION_REVIEWS_PENDING', meta_data: { document_id: 'x' } })).toBe(
+      '/classification-reviews',
+    );
+  });
+});
+
+test.describe('Connexion temps réel par ticket (#316)', () => {
+  class FakeSocket {
+    static opened: FakeSocket[] = [];
+    onopen?: () => void;
+    onmessage?: (e: { data: string }) => void;
+    onclose?: (e: { code: number }) => void;
+    closed = false;
+    constructor(public url: string) {
+      FakeSocket.opened.push(this);
+    }
+    close() {
+      this.closed = true;
+    }
+  }
+
+  const realSocket = globalThis.WebSocket;
+  const realTimeout = globalThis.setTimeout;
+  let scheduled: number[] = [];
+
+  test.beforeEach(() => {
+    FakeSocket.opened = [];
+    scheduled = [];
+    (globalThis as any).WebSocket = FakeSocket;
+    (globalThis as any).setTimeout = (_fn: () => void, ms: number) => {
+      scheduled.push(ms);
+      return 0;
+    };
+  });
+
+  test.afterEach(() => {
+    (globalThis as any).WebSocket = realSocket;
+    (globalThis as any).setTimeout = realTimeout;
+  });
+
+  const handlers = { onMessage: () => undefined, onOpen: () => undefined };
+  const flush = () => new Promise((resolve) => realTimeout(resolve, 0));
+
+  test('le ticket va dans l\'URL, jamais le jeton de session', async () => {
+    connectNotificationSocket(async () => 'a/b', handlers);
+    await flush();
+    expect(FakeSocket.opened).toHaveLength(1);
+    expect(FakeSocket.opened[0].url).toMatch(/\/notifications\/ws\?ticket=a%2Fb$/);
+    expect(FakeSocket.opened[0].url).not.toContain('token=');
+  });
+
+  test('session refusée (pas de ticket) : aucune connexion, aucun nouvel essai', async () => {
+    connectNotificationSocket(async () => null, handlers);
+    await flush();
+    expect(FakeSocket.opened).toHaveLength(0);
+    expect(scheduled).toEqual([]);
+  });
+
+  test('panne passagère du ticket : nouvel essai plus tard', async () => {
+    connectNotificationSocket(async () => { throw new Error('down'); }, handlers);
+    await flush();
+    expect(FakeSocket.opened).toHaveLength(0);
+    expect(scheduled).toEqual([1000]);
+  });
+
+  test('coupure : nouvel essai ; ticket refusé (1008) : arrêt', async () => {
+    connectNotificationSocket(async () => 't', handlers);
+    await flush();
+    FakeSocket.opened[0].onclose?.({ code: 1006 });
+    expect(scheduled).toEqual([1000]);
+    FakeSocket.opened[0].onclose?.({ code: 1008 });
+    expect(scheduled).toEqual([1000]);
+  });
+
+  test('fermeture pendant la demande de ticket : rien ne s\'ouvre', async () => {
+    const stop = connectNotificationSocket(async () => 't', handlers);
+    stop();
+    await flush();
+    expect(FakeSocket.opened).toHaveLength(0);
   });
 });

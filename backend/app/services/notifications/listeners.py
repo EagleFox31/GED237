@@ -138,9 +138,57 @@ async def on_workflow_returned(payload: Dict[str, Any]):
     )
 
 
+REVIEWER_ROLE_CODES = ("tenant_admin",)
+
+
+async def find_reviewer_ids(tenant_id: str) -> list[str]:
+    """Active users of the tenant who handle the classification review queue."""
+    from sqlalchemy import select
+
+    from app.models.role import Role
+    from app.models.user import User
+
+    async with async_session_maker() as session:
+        rows = await session.execute(
+            select(User.id)
+            .join(Role, Role.id == User.role_id)
+            .where(
+                User.tenant_id == tenant_id,
+                User.is_active.is_(True),
+                Role.code.in_(REVIEWER_ROLE_CODES),
+            )
+        )
+        return [str(user_id) for user_id in rows.scalars().all()]
+
+
+def reviews_pending_message(count: int) -> str:
+    if count == 1:
+        return "1 document importé est à revoir."
+    return f"{count} documents importés sont à revoir."
+
+
+async def on_classification_reviews_pending(payload: Dict[str, Any]):
+    """An import left documents to classify by hand: one notification per admin."""
+    tenant_id = payload.get("tenant_id")
+    count = int(payload.get("count") or 0)
+    if not tenant_id or count <= 0:
+        return
+    for user_id in await find_reviewer_ids(tenant_id):
+        await _notify(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            event_type="CLASSIFICATION_REVIEWS_PENDING",
+            message=reviews_pending_message(count),
+            payload=payload,
+        )
+
+
 def register_all_listeners():
     dispatcher.subscribe("WORKFLOW_ASSIGNED", on_workflow_assigned)
     dispatcher.subscribe("WORKFLOW_COMPLETED", on_workflow_completed)
     dispatcher.subscribe("WORKFLOW_STEP_ACCEPTED", on_workflow_step_accepted)
     dispatcher.subscribe("WORKFLOW_REJECTED", on_workflow_rejected)
     dispatcher.subscribe("WORKFLOW_RETURNED", on_workflow_returned)
+    dispatcher.subscribe(
+        "CLASSIFICATION_REVIEWS_PENDING", on_classification_reviews_pending
+    )
