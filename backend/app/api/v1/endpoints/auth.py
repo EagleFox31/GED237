@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -12,6 +13,7 @@ from app.core.rate_limit import limiter
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
+    LogoutRequest,
     LogoutResponse,
     OTPVerifyRequest,
     RefreshTokenRequest,
@@ -106,11 +108,13 @@ async def verify_otp(
 async def refresh_token(
     request: Request,
     token_data: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
 ):
     """Refresh access token using refresh token."""
     try:
         result = await auth_service.refresh_access_token(
             refresh_token=token_data.refresh_token,
+            db=db,
         )
         return RefreshTokenResponse(**result)
     except AuthenticationError as exc:
@@ -157,11 +161,15 @@ async def change_password(
 
 @router.post("/logout", response_model=LogoutResponse)
 async def logout(
+    payload: Optional[LogoutRequest] = None,
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
-    """Logout user by blacklisting the current access token."""
+    """Logout: blacklist the access token and, when sent, the refresh token."""
     try:
-        result = await auth_service.logout(access_token=credentials.credentials)
+        result = await auth_service.logout(
+            access_token=credentials.credentials,
+            refresh_token=payload.refresh_token if payload else None,
+        )
         return LogoutResponse(**result)
     except Exception as exc:
         raise HTTPException(

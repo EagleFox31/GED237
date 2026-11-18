@@ -759,14 +759,26 @@ async def test_auth_service_patterns(monkeypatch, fake_redis_factory):
             "tenant_id": str(tenant.id),
             "role": "collaborator",
             "matricule": "A001",
+            "exp": time.time() + 120,
         },
     )
-    refreshed = await service.refresh_access_token("refresh")
+    refresh_db = QueueDB(results=[FakeResult(scalar=user), FakeResult(scalar=role)])
+    refreshed = await service.refresh_access_token("refresh", refresh_db)
     assert refreshed["token_type"] == "bearer"
+    # Consumed: the same refresh token is refused the second time.
+    with pytest.raises(AuthenticationError):
+        await service.refresh_access_token(
+            "refresh", QueueDB(results=[FakeResult(scalar=user)])
+        )
+    # Deactivated account: the query filters is_active and returns nothing.
+    with pytest.raises(AuthenticationError):
+        await service.refresh_access_token(
+            "other-refresh", QueueDB(results=[FakeResult(scalar=None)])
+        )
 
     monkeypatch.setattr(module, "decode_token", lambda _token: {"type": "access"})
     with pytest.raises(AuthenticationError):
-        await service.refresh_access_token("bad-refresh")
+        await service.refresh_access_token("bad-refresh", QueueDB())
 
     monkeypatch.setattr(module, "decode_token", lambda _token: None)
     assert await service.logout("bad") == {"message": "Logged out successfully"}

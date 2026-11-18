@@ -72,6 +72,12 @@ class RefreshTokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class LogoutRequest(BaseModel):
+    """Logout request schema; the refresh token is revoked with the access token."""
+
+    refresh_token: Optional[str] = None
+
+
 class LogoutResponse(BaseModel):
     """Logout response schema"""
 

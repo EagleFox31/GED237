@@ -68,6 +68,8 @@ export const authApi = {
         const response = await fetchWithRefresh(`${API_URL}/auth/logout`, {
             method: 'POST',
             headers: getHeaders(),
+            // Révoque aussi le jeton de rafraîchissement : sinon il resterait utilisable.
+            body: JSON.stringify({ refresh_token: sessionStorage.getItem('refresh_token') }),
         });
         // On vide la session côté client avant même de vérifier le statut
         // pour ne jamais laisser des tokens invalides en place.

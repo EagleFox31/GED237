@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 import re
 import secrets
+import time
 import unicodedata
 
 from fastapi import Request
@@ -287,44 +288,85 @@ class AuthService:
                 await db.commit()
         await self._raise_if_locked(redis, user_id)
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, str]:
+    @staticmethod
+    async def _revoke(redis, token: str, exp: Any) -> bool:
+        """Blacklist a token until it expires. False if it was already revoked or expired.
+
+        time.time(): datetime.utcnow().timestamp() is shifted by the local offset when
+        the server clock is not on UTC.
         """
-        Refresh access token using refresh token.
-        Returns a rotated refresh token so the frontend contract stays coherent.
+        remaining = int(exp - time.time()) if exp else 0
+        if remaining <= 0:
+            return False
+        # SET NX: of two concurrent uses of the same token, only one gets True.
+        return bool(await redis.set(f"blacklist:{token}", "1", ex=remaining, nx=True))
+
+    async def refresh_access_token(
+        self, refresh_token: str, db: AsyncSession
+    ) -> Dict[str, str]:
+        """
+        Rotate a refresh token: the old one is consumed, the account is re-read.
+        Refused (401) after logout, on reuse, or for a deactivated or moved account.
         """
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
             raise AuthenticationError("Invalid refresh token")
 
-        token_data = {
-            "sub": payload["sub"],
-            "tenant_id": payload["tenant_id"],
-            "role": payload["role"],
-            "matricule": payload["matricule"],
-        }
-        new_access_token = create_access_token(token_data)
-        new_refresh_token = create_refresh_token(token_data)
+        redis = await get_redis()
+        if await redis.get(f"blacklist:{refresh_token}"):
+            raise AuthenticationError("Invalid refresh token")
 
+        try:
+            user_id = UUID(str(payload.get("sub")))
+        except ValueError as exc:
+            raise AuthenticationError("Invalid refresh token") from exc
+        result = await db.execute(
+            select(User).where(User.id == user_id, User.is_active.is_(True))
+        )
+        user = result.scalar_one_or_none()
+        if user is None or str(user.tenant_id) != payload.get("tenant_id"):
+            raise AuthenticationError("Invalid refresh token")
+
+        if not await self._revoke(redis, refresh_token, payload.get("exp")):
+            raise AuthenticationError("Invalid refresh token")
+
+        result = await db.execute(select(Role).where(Role.id == user.role_id))
+        role = result.scalar_one()
+        # Role and matricule from the database: a changed role applies at the next refresh.
+        token_data = {
+            "sub": str(user.id),
+            "tenant_id": str(user.tenant_id),
+            "role": role.code,
+            "matricule": user.matricule,
+        }
         return {
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
+            "access_token": create_access_token(token_data),
+            "refresh_token": create_refresh_token(token_data),
             "token_type": "bearer",
         }
 
-    async def logout(self, access_token: str) -> Dict[str, str]:
+    async def logout(
+        self, access_token: str, refresh_token: Optional[str] = None
+    ) -> Dict[str, str]:
         """
-        Logout user by blacklisting the access token in Redis.
-        The token is stored with its remaining TTL so it auto-expires.
+        Blacklist the access token and, when given, the refresh token of the same
+        account, each until its own expiry.
         """
         payload = decode_token(access_token)
         if not payload:
             return {"message": "Logged out successfully"}
 
-        exp = payload.get("exp")
-        if exp:
-            remaining = int(exp - datetime.utcnow().timestamp())
-            if remaining > 0:
-                redis = await get_redis()
-                await redis.setex(f"blacklist:{access_token}", remaining, "1")
+        redis = await get_redis()
+        await self._revoke(redis, access_token, payload.get("exp"))
+
+        if refresh_token:
+            refresh_payload = decode_token(refresh_token)
+            # Same account only: a logout must not revoke somebody else's session.
+            if (
+                refresh_payload
+                and refresh_payload.get("type") == "refresh"
+                and refresh_payload.get("sub") == payload.get("sub")
+            ):
+                await self._revoke(redis, refresh_token, refresh_payload.get("exp"))
 
         return {"message": "Logged out successfully"}

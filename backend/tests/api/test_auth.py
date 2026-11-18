@@ -90,3 +90,104 @@ async def test_refresh_token(async_client: AsyncClient, db_seed):
     assert "access_token" in data
     assert "refresh_token" in data
     assert data["token_type"] == "bearer"
+
+
+async def _refresh(client: AsyncClient, refresh_token: str):
+    return await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
+    )
+
+
+async def _run_sql(test_engine, statement) -> None:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    async with async_sessionmaker(test_engine, class_=AsyncSession)() as session:
+        await session.execute(statement)
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_is_single_use(async_client: AsyncClient, db_seed):
+    """#414: a rotated refresh token cannot be replayed."""
+    tokens = await _full_login(async_client, db_seed)
+    first = await _refresh(async_client, tokens["refresh_token"])
+    assert first.status_code == 200
+    assert first.json()["refresh_token"] != tokens["refresh_token"]
+
+    replay = await _refresh(async_client, tokens["refresh_token"])
+    assert replay.status_code == 401
+    # The rotated token keeps working.
+    assert (
+        await _refresh(async_client, first.json()["refresh_token"])
+    ).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_refresh_refused_after_logout(async_client: AsyncClient, db_seed):
+    """#414: logout with the refresh token revokes it."""
+    tokens = await _full_login(async_client, db_seed)
+    logout = await async_client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": tokens["refresh_token"]},
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert logout.status_code == 200
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_without_body_still_works(async_client: AsyncClient, db_seed):
+    """Former clients send no body: the access token is still revoked."""
+    tokens = await _full_login(async_client, db_seed)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    assert (
+        await async_client.post("/api/v1/auth/logout", headers=headers)
+    ).status_code == 200
+    assert (
+        await async_client.get("/api/v1/users/me", headers=headers)
+    ).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_refused_for_deactivated_account(
+    async_client: AsyncClient, db_seed, test_engine
+):
+    """#414: a deactivated account cannot extend its session."""
+    from sqlalchemy import update
+
+    from app.models.user import User
+
+    tokens = await _full_login(async_client, db_seed)
+    await _run_sql(
+        test_engine,
+        update(User).where(User.id == db_seed["user_id"]).values(is_active=False),
+    )
+    assert (await _refresh(async_client, tokens["refresh_token"])).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_reads_current_role(
+    async_client: AsyncClient, db_seed, test_engine
+):
+    """#414: a role changed after login applies at the next refresh."""
+    from sqlalchemy import select, update
+
+    from app.core.security import decode_token
+    from app.models.role import Role
+    from app.models.user import User
+
+    tokens = await _full_login(async_client, db_seed)
+    await _run_sql(
+        test_engine,
+        update(Role)
+        .where(
+            Role.id
+            == select(User.role_id)
+            .where(User.id == db_seed["user_id"])
+            .scalar_subquery()
+        )
+        .values(code="reader"),
+    )
+    response = await _refresh(async_client, tokens["refresh_token"])
+    assert response.status_code == 200
+    assert decode_token(response.json()["access_token"])["role"] == "reader"
