@@ -9,6 +9,34 @@ export function auditPageQuery(page: number, pageSize: number = AUDIT_PAGE_SIZE)
   return { skip: safePage * pageSize, limit: pageSize };
 }
 
+/**
+ * Filtres transmis au serveur : il n'accepte qu'une valeur par colonne (type, action).
+ * Une seule valeur choisie filtre donc tout le journal ; plusieurs restent un filtre de la page.
+ */
+export function auditServerFilters(
+  columnFilters: Record<string, string[] | undefined>,
+): { table_name?: string; action?: string } {
+  const single = (key: string) => {
+    const values = columnFilters[key] ?? [];
+    return values.length === 1 ? values[0] : undefined;
+  };
+  const filters: { table_name?: string; action?: string } = {};
+  const table = single('table_name');
+  const action = single('action');
+  if (table) filters.table_name = table;
+  if (action) filters.action = action;
+  return filters;
+}
+
+/** Vrai si un filtre actif ne s'applique qu'aux lignes de la page (plusieurs valeurs, ou agent). */
+export function hasPageOnlyFilter(columnFilters: Record<string, string[] | undefined>): boolean {
+  return Object.entries(columnFilters).some(([key, values]) => {
+    const count = values?.length ?? 0;
+    if (count === 0) return false;
+    return key === 'table_name' || key === 'action' ? count > 1 : true;
+  });
+}
+
 /** « Suivant » n'est actif que si la page reçue est pleine. */
 export function hasNextAuditPage(rowCount: number, pageSize: number = AUDIT_PAGE_SIZE): boolean {
   return rowCount >= pageSize;

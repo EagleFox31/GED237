@@ -26,11 +26,13 @@ const row = (id: string, action: string, label: string) => ({
 
 test.describe('Feature: tuile doublons → journal', () => {
   test('Given tenant_admin, When clic sur la tuile doublons, Then journal filtré sur les doublons', async ({ loginAs, page }) => {
-    await page.route('**/audit/logs*', (route) =>
-      route.fulfill({
+    const actionsAsked: (string | null)[] = [];
+    await page.route('**/audit/logs*', (route) => {
+      actionsAsked.push(new URL(route.request().url()).searchParams.get('action'));
+      return route.fulfill({
         json: [row('a1', 'dup_detected', 'Doublon refusé'), row('b2', 'upload', 'Dépôt de document')],
-      }),
-    );
+      });
+    });
     await loginAs('tenant_admin');
     await expect(page.getByText('Doublons refusés')).toBeVisible({ timeout: 10_000 });
 
@@ -39,5 +41,7 @@ test.describe('Feature: tuile doublons → journal', () => {
     await expect(page).toHaveURL(/\/audit\?action=dup_detected/);
     await expect(page.getByText('fichier-a1.pdf').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('fichier-b2.pdf')).toHaveCount(0);
+    // Une seule action choisie : le serveur filtre tout le journal, pas seulement la page.
+    expect(actionsAsked).toContain('dup_detected');
   });
 });
