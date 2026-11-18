@@ -188,3 +188,60 @@ Elle peut passer avant ou après l'élément 13, sans dépendance.
 5. Grille par institution (F 1, après le contrat du serveur et #303).
 
 Total : B 2 à 2,5, Q 1,5, F 1, dans l'enveloppe déjà comptée de 5 h-s.
+
+## 8. Annexe : rendre le périmètre réglable depuis l'interface (demande du PO, 18/11)
+
+**Le problème.** La grille de l'élément 13 règle ce qu'un rôle **peut faire**. Les données sur lesquelles il agit, son **périmètre**, sont encore décidées dans le code, par des listes de rôles :
+
+- dans `documents.py` : `TENANT_WIDE_READ_ROLES` et `ORG_UNIT_READ_ROLES` ;
+- dans `assert_org_unit_scope` : manager et reader ;
+- dans #203 : `INSTITUTION_WIDE_ROLES`.
+
+Tant que ces listes restent dans le code, une case de périmètre dans la grille ne changerait rien.
+
+**Le principe.** Le périmètre devient une **donnée**, au même titre qu'un droit.
+
+1. **Quatre niveaux, en langage simple :**
+   - `own` : « ses documents » ;
+   - `unit` : « son unité » ;
+   - `unit_tree` : « son unité et ses sous-unités » ;
+   - `tenant` : « toute l'institution ».
+2. **Une table de valeurs par défaut** (rôle, ressource → niveau), dans le code. Elle reprend exactement le comportement actuel.
+3. **Des surcharges par institution**, dans la même couche que l'option B : une colonne `scope` sur les surcharges, ou une petite table voisine, avec le même cache `overrides_version`.
+4. **Un seul point de décision.**
+   - `resolve_scope(user, resource)` donne le niveau.
+   - `scope_filter(query, model, user, resource)` l'applique à une liste ; `in_scope(user, obj, resource)` l'applique à un objet seul.
+   - Ces fonctions s'appuient sur les helpers de #203 (`unit_subtree_ids`, `is_within_unit_tree`).
+   - Les listes de rôles disparaissent des endpoints.
+5. **Dans la grille (#303)**, la case de périmètre devient une liste déroulante à quatre choix. Ce sont les mêmes mots qu'au point 1.
+
+**Les garde-fous**, en plus de ceux de la section 3 :
+
+- **Plafond par rôle :** une institution ne peut pas donner un périmètre plus large que celui de tenant_admin. Un plafond par rôle est fixé dans le code (par exemple, collaborator ne dépasse pas `unit`).
+- **L'écriture ne dépasse jamais la lecture :** le périmètre d'écriture (`update`, `delete`) est toujours inclus dans celui de lecture.
+  - Aujourd'hui, la modification et la suppression d'un document ne vérifient que l'institution, pas l'unité. Ce point a été relevé dans la revue de l'inventaire.
+  - Il faut le corriger **avant** d'ouvrir le réglage.
+- **Hors de portée, c'est 404** (#247), quel que soit le niveau.
+- **Garde-fou de non-retour :** un test d'architecture échoue si une liste de rôles de périmètre réapparaît dans un endpoint au lieu de passer par `resolve_scope`.
+- **Audit :** chaque changement de périmètre est journalisé, comme les droits.
+
+**L'ordre**, après l'élément 13 (option B) et la fusion de #203 :
+
+| Étape | Contenu | Effort (h-s) |
+| --- | --- | --- |
+| 1 | Table des valeurs par défaut et `resolve_scope`, sans changement de comportement, avec des tests d'équivalence rôle × ressource avant et après | B 1, Q 0,5 |
+| 2 | Bascule des endpoints, ressource par ressource : documents, users et org-units, rapports, circuits ; écriture incluse dans la lecture | B 1 à 1,5, Q 0,5 |
+| 3 | Surcharges de périmètre, plafonds et audit | B 0,5 |
+| 4 | Liste déroulante dans la grille | F 1 |
+
+**Total : environ 5 h-s.** C'est un chantier V1.2+ ou V2, hors de l'enveloppe de l'élément 13.
+
+**Le risque principal** est d'oublier un endroit du code qui décide encore du périmètre lui-même : il y aurait alors une fuite ou un réglage sans effet. Deux protections couvrent ce risque :
+
+- l'inventaire de l'élément 13, étendu pour suivre aussi les helpers importés depuis un autre module ;
+- le test de non-retour décrit plus haut.
+
+**Recommandation :** ne pas ouvrir le réglage du périmètre en V1.x.
+
+- Étape 1 seule : elle met de l'ordre sans rien changer de visible.
+- Étapes 2 à 4 : seulement si une institution pilote en exprime le besoin.
