@@ -1077,6 +1077,12 @@ async def get_org_unit_tree(
         current_user.id,
         TREE_SUNSET,
     )
+    return await build_org_unit_tree(current_user, db)
+
+
+async def build_org_unit_tree(current_user: User, db: AsyncSession):
+    """Tenant-scoped organization unit hierarchy, shared by /documents/tree
+    (deprecated) and /spaces/tree."""
     from app.models.org_unit import OrgUnit
 
     query = (

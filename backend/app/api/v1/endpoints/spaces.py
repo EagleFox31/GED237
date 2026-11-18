@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.documents import (
     WorkspaceDocumentFilters,
-    get_org_unit_tree,
+    build_org_unit_tree,
     list_workspace_documents,
 )
 from app.core.authz import authorize_or_403
@@ -28,7 +28,7 @@ async def get_spaces_tree(
     # Reuse the workspace tree builder, which only builds the tenant-scoped tree.
     # Calling the org-units HTTP endpoint here would apply a second,
     # contradictory org_units:read authorization after spaces:read succeeded.
-    return await get_org_unit_tree(current_user=current_user, db=db)
+    return await build_org_unit_tree(current_user, db)
 
 
 @router.get("/documents", response_model=List[DocumentRead])

@@ -19,6 +19,9 @@ async def test_spaces_tree_and_documents(auth_client: AsyncClient, db_seed):
 
     tree_response = await auth_client.get("/api/v1/spaces/tree")
     assert tree_response.status_code == 200
+    assert (
+        "Deprecation" not in tree_response.headers
+    )  # only the old route is deprecated
     tree = tree_response.json()
     assert isinstance(tree, list)
     assert tree
