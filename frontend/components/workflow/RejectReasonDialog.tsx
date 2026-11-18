@@ -7,6 +7,14 @@ export const QUICK_REJECT_REASONS = [
   'À reformuler',
 ] as const;
 
+/** A quick reason adds to what is already typed (one reason per line) and is never added twice. */
+export function appendQuickReason(current: string, quickReason: string): string {
+  const typed = current.trimEnd();
+  if (!typed) return quickReason;
+  if (typed.split('\n').some((line) => line.trim() === quickReason)) return current;
+  return `${typed}\n${quickReason}`;
+}
+
 interface RejectReasonDialogProps {
   /** Titre du document rejeté ; null ferme la boîte. */
   documentTitle: string | null;
@@ -67,13 +75,13 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
         <label htmlFor={fieldId} className="mt-5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
           Motif du rejet
         </label>
-        <div className="mt-2 flex flex-wrap gap-2" aria-label="Motifs rapides">
+        <div role="group" className="mt-2 flex flex-wrap gap-2" aria-label="Motifs rapides">
           {QUICK_REJECT_REASONS.map((quickReason) => (
             <button
               key={quickReason}
               type="button"
               disabled={submitting}
-              onClick={() => setReason(quickReason)}
+              onClick={() => setReason((current) => appendQuickReason(current, quickReason))}
               className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
             >
               {quickReason}
