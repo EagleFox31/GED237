@@ -612,3 +612,31 @@ première requête utilisateur.
 **Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
 **Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
 **Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-048 — PR en doublon : l'audit du PATCH existait déjà dans deux brouillons post-rc1
+
+- **Date :** 2026-11-18
+- **Catégorie :** process / coordination
+- **Statut :** rule-added
+- **Liens :** PR #300 (fermée), #179 (`feat/post-rc1-l4-undo`, action `reclassify`), #262 (`fix/post-rc1-250-patch-audit`, action `document_updated`), `backend/app/api/v1/endpoints/documents.py` (`update_document`)
+
+**Contexte** — Pour #151 (F2), le front demandait une trace d'audit des renommages et des changements de classement faits par `PATCH /documents/{id}`.
+**Échec / near miss** — #300 a ajouté `document_renamed` et `classification_updated` sur ce PATCH. Or #179 écrivait déjà `reclassify` sur les champs `classification_*` et #262 `document_updated` sur le titre. Une fois les trois PR fusionnées, un renommage aurait écrit deux lignes d'audit. Le doublon a été repéré avant toute fusion, et #300 a été fermée.
+**Cause racine** — La recherche de l'existant n'a porté que sur `main`. Avant le tag, le travail V1.1 reste dans des brouillons post-rc1 non fusionnés : `main` ne dit pas ce qui est déjà fait.
+**Résolution** — #300 fermée comme doublon de #179 et #262. Le front lit `document_updated`, avec `title` dans `new_data.changed`.
+**Prévention** — Avant d'ouvrir une PR qui touche un endpoint, chercher aussi dans les PR ouvertes : `gh pr list --state open --search "<issue> OR <endpoint>"`, puis `git grep -n "<fonction ou action>" $(git branch -r --list 'origin/*post-rc1*' 'origin/feat/v11-*')`.
+**Leçon généralisée** — Tant qu'une file de brouillons attend un tag, la source de vérité de « déjà fait ? » est l'ensemble des PR ouvertes, pas la branche principale.
+
+### LESSON-2026-049 — Réseau lent : un wheel tronqué fait échouer le build sur le contrôle d'empreinte de pip
+
+- **Date :** 2026-11-18
+- **Catégorie :** build / supply chain
+- **Statut :** mitigated
+- **Liens :** image de mesure OCR du VPS (#248), wheel `rapidocr-3.10.0-py3-none-any.whl`
+
+**Contexte** — Build local d'une image OCR allégée pour la mesure sur le VPS. Le débit vers PyPI se situait entre 15 et 35 kB/s.
+**Échec / near miss** — Après 2 h de téléchargement, pip a échoué avec `THESE PACKAGES DO NOT MATCH THE HASHES`. Le journal montrait le wheel rapidocr de 27,3 Mo arrêté à 18,4 Mo. L'empreinte attendue était celle publiée par PyPI : ce n'était pas une altération.
+**Cause racine** — Une connexion coupée en cours de transfert a laissé à pip un fichier incomplet, qui ne reprend pas un téléchargement partiel. Le contrôle d'empreinte a joué son rôle.
+**Résolution** — Le wheel a été téléchargé à part avec reprise (`curl -C -`), puis vérifié contre l'empreinte de l'API JSON de PyPI. Le build le copie et le revérifie (`sha256sum -c`) avant `pip install`. Le cache BuildKit a gardé les autres wheels, et le 3e build a pris quelques minutes.
+**Prévention** — Sur un lien lent, télécharger les gros wheels (> 10 Mo) avec reprise et une empreinte de référence venue de PyPI ou du fichier de verrouillage, jamais celle d'un fichier déjà reçu. Sinon, précharger le cache pip. Un pas `pip install` doit toujours utiliser `--mount=type=cache`.
+**Leçon généralisée** — Un échec d'empreinte se diagnostique avant d'être contourné : comparer avec la source publiée, puis chercher une troncature. On ne désactive jamais le contrôle.
