@@ -1,4 +1,5 @@
 # backend/tests/conftest.py
+import asyncio
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -96,22 +97,55 @@ async def test_engine():
     await engine.dispose()
 
 
+_schema_ready = False
+
+# A test that leaves a transaction open would make the next TRUNCATE wait
+# forever: fail with a clear lock error instead.
+_RESET_LOCK_TIMEOUT = "30s"
+
+
+def _truncate_all_sql() -> str:
+    tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+    return f"TRUNCATE {tables} RESTART IDENTITY CASCADE"
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def prepare_database(test_engine):
-    """Reset application tables before and after every test.
+    """Give every test empty application tables.
 
     CI runs Alembic migrations before pytest, and some migrations seed reference
-    data such as roles. A bare ``create_all`` therefore preserves those rows and
-    makes test fixtures that use deterministic primary keys fail on the very
-    first test. Drop/create gives each test the same clean starting state,
-    independent of whether the database was freshly migrated or reused locally.
+    data such as roles: fixtures with deterministic primary keys need those rows
+    gone. The schema is rebuilt once per session (drop/create, so it matches the
+    models whether the database was freshly migrated or reused locally); each
+    test then starts from ``TRUNCATE ... RESTART IDENTITY CASCADE``, the same
+    state as a fresh ``create_all`` (no DDL event seeds data) at a fraction of
+    the cost. The schema is dropped at the end of the session.
     """
+    global _schema_ready
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.exec_driver_sql(f"SET LOCAL lock_timeout = '{_RESET_LOCK_TIMEOUT}'")
+        if not _schema_ready:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        else:
+            await conn.exec_driver_sql(_truncate_all_sql())
+    _schema_ready = True
     yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+
+
+async def _drop_schema() -> None:
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+    finally:
+        await engine.dispose()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Leave the test database as before: no application tables after the run."""
+    if _schema_ready:
+        asyncio.run(_drop_schema())
 
 
 @pytest_asyncio.fixture
