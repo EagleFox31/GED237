@@ -7,6 +7,7 @@ stand-in sees, reads and acts on exactly the same steps.
 A delegation counts while ``starts_at <= now() < ends_at`` and it is not revoked,
 read in each query: the automatic end and a revocation take effect at once. The
 clause is never recursive, so a delegation does not chain (no redelegation).
+Acting also re-checks that the stand-in's role still allows resolving reviews.
 """
 
 from typing import Optional
@@ -15,6 +16,7 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.authz import can_perform
 from app.models.delegation import Delegation
 from app.models.user import User
 from app.models.workflow import WorkflowStep
@@ -70,6 +72,9 @@ async def resolve_step_actor(
         )
     )
     if row.first() is None:
+        return False, None
+    # The stand-in's role was checked at designation; it may have changed since.
+    if not user.is_active or not await can_perform(user, "workflows", "resolve_review"):
         return False, None
     return True, step.assigned_to
 

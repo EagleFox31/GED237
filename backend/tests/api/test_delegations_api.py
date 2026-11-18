@@ -155,6 +155,26 @@ async def test_overlap_conflicts_but_back_to_back_is_fine(delegation_world, as_a
     assert next_.status_code == 201, next_.text
 
 
+@pytest.mark.asyncio
+async def test_notification_shows_cameroon_time(db_session, delegation_world, as_agent):
+    """Stored in UTC, shown in local time (UTC+1): 23:30 UTC is 00:30 the next day."""
+    world = delegation_world
+    start = datetime.now(timezone.utc) + timedelta(days=1)
+    start = start.replace(hour=23, minute=30, second=0, microsecond=0)
+    async with as_agent("manager_u") as client:
+        response = await client.post(
+            URL, json=_payload(world, start=start, end=start + 2 * H)
+        )
+    assert response.status_code == 201, response.text
+    note = (
+        await db_session.execute(
+            select(Notification).where(Notification.event_type == "DELEGATION_GRANTED")
+        )
+    ).scalar_one()
+    local_start = (start + H).strftime("%d/%m/%Y 00:30")
+    assert f"du {local_start} au" in note.message, note.message
+
+
 # ── Revocation ────────────────────────────────────────────────────────────────
 
 

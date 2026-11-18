@@ -7,12 +7,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
+from app.core.timezone import LOCAL_TZ
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.user import User
@@ -68,8 +69,6 @@ ACTION_LABELS = {
     "delegation_revoked": "Fin anticipée d'une délégation",
 }
 
-# Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.
-LOCAL_TZ = timezone(timedelta(hours=1), "WAT")
 EXPORT_MAX_ROWS = 50_000
 _EXPORT_BATCH = 2_000
 EXPORT_COLUMNS = (
@@ -207,7 +206,10 @@ def _filtered_query(
     if actions:
         query = query.where(func.lower(AuditLog.action).in_(actions))
     if user_id is not None:
-        query = query.where(AuditLog.user_id == user_id)
+        # An agent's journal includes what a stand-in did on their behalf.
+        query = query.where(
+            or_(AuditLog.user_id == user_id, AuditLog.on_behalf_of == user_id)
+        )
     if date_from:
         query = query.where(AuditLog.created_at >= _utc_naive(date_from))
     if date_to:

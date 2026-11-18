@@ -1,7 +1,7 @@
 """delegations and audit_logs.on_behalf_of
 
 Revision ID: 7680f303299d
-Revises: a7c8d9e0f1b2
+Revises: 0f6f64260460
 Create Date: 2026-11-18
 
 Delegation during an absence (DEC-2026-007): a ``delegations`` table and an
@@ -15,7 +15,7 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "7680f303299d"
-down_revision = "a7c8d9e0f1b2"
+down_revision = "0f6f64260460"
 branch_labels = None
 depends_on = None
 

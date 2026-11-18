@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
 from app.core.authz import can_perform
+from app.core.timezone import LOCAL_TZ
 from app.models.delegation import Delegation
 from app.models.notification import Notification
 from app.models.user import User
@@ -108,7 +109,10 @@ def _notify_delegate(d: Delegation, delegator: User, event_type: str, message: s
 
 
 def _fmt(moment: datetime) -> str:
-    return moment.strftime("%d/%m/%Y %H:%M")
+    """Local (Cameroon) time for a user-facing message; naive values are UTC."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(LOCAL_TZ).strftime("%d/%m/%Y %H:%M")
 
 
 async def _load_user(db: AsyncSession, tenant_id: UUID, user_id: UUID) -> User:

@@ -188,6 +188,36 @@ async def test_stand_in_action_is_logged_on_behalf_of(
     assert entry["on_behalf_of"] == str(users["absent"].id)
     assert entry["on_behalf_of_name"] == "Awa Absente"
 
+    # Filtering on either agent finds the action: the absent agent's journal
+    # includes what was done on their behalf.
+    async with as_agent("admin") as client:
+        for name in ("absent", "standin"):
+            found = (
+                await client.get(
+                    "/api/v1/audit/logs",
+                    params={"table_name": "documents", "user_id": str(users[name].id)},
+                )
+            ).json()
+            assert [e["action"] for e in found] == ["workflow_approved"], name
+
+
+@pytest.mark.asyncio
+async def test_stand_in_whose_role_changed_can_no_longer_act(
+    db_session, delegation_world, client_as
+):
+    """The role is checked at designation and again at each action."""
+    world = delegation_world
+    await _delegate(db_session, world, "absent", "standin")
+    standin = world["users"]["standin"]
+    async with client_as(
+        "reader",
+        id=standin.id,
+        tenant_id=standin.tenant_id,
+        org_unit_id=standin.org_unit_id,
+    ) as client:
+        assert (await _act(client, world)).status_code == 403
+    assert await _circuit_audit(db_session, world) == []
+
 
 @pytest.mark.asyncio
 async def test_assignee_action_is_not_on_behalf_of(
