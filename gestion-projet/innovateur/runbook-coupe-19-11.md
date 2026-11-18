@@ -222,8 +222,8 @@ Après une fusion sur `$BR`, la branche n'est plus supprimée : on corrige par d
 
 | Classe | PR | Responsable | État le 18/11 à 14:00 |
 |---|---|---|---|
-| V1.0 à fusionner avant 18:00 | #203 | I | prête ; à 14:10 : `main` fusionnée par B sans rebase (2a890d0), 139 tests verts en Docker dont `stats_scope`, une seule tête alembic ; en file depuis 13:53 ; **CI rouge** (`audit-logs` 200 au lieu de 403 sur l'accès par étape), B corrige ; 13 fichiers, aucune migration. #358, #241 et #266 reciblées sur `main` par O ; #360 et #361 restent sur la branche de #358 |
-| | #358 | B | brouillon, base = branche de #203, CLEAN ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
+| V1.0 à fusionner avant 18:00 | #203 | I | **fusionnée le 18/11 à 14:28 (17498b5)**, CI corrigée par ef144da. Avant : à 14:10 : `main` fusionnée par B sans rebase (2a890d0), 139 tests verts en Docker dont `stats_scope`, une seule tête alembic ; en file depuis 13:53 ; **CI rouge** (`audit-logs` 200 au lieu de 403 sur l'accès par étape), B corrige ; 13 fichiers, aucune migration. #358, #241 et #266 reciblées sur `main` par O ; #360 et #361 restent sur la branche de #358 |
+| | #358 | B | **dans la file depuis le 18/11 à 14:37**, base `main`. Avant : brouillon, base = branche de #203 ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
 | | #360 | B | brouillon, base = branche de #358, CLEAN ; 9 fichiers, aucune migration ; 25 tests verts en Docker |
 | | #104 (point de coupe) | I | brouillon, DIRTY sur le distant (7302e3c). En local (8eca6b0) : 56 commits d'avance, 70 de retard, et `merge-tree` ne montre aucun conflit avec `main` |
 | V1.0 conditionnelle | PR RapidOCR | B | **aucune PR ni branche distante** : seulement un commit local (7cb2dd9). Restent les tests et la mesure mémoire |
@@ -240,9 +240,9 @@ Les fusions passent une à une. Avec la règle `strict`, chaque PR demande une m
 |---|---|---|---|---|---|---|
 | 0 | Fusion de `main` dans #203 (merge, sans rebase) ; retrait de `TENANT_ANALYTICS_ROLES` ; alignement de `test_stats_scope` ; tests en Docker | B | — | **fait le 18/11** | 2a890d0 : 139 tests verts, une seule tête alembic | — |
 | 1 | Reciblage de #358, #241 et #266 sur `main` | O | **fait le 18/11** | avant la fusion de #203 | `baseRefName` = `main` pour les trois | ne pas fusionner #203 |
-| 2 | Fusion de #203 | O | 11:00 | **15:00** | `ci_gate 203` : `draft=false`, CI Gate `COMPLETED SUCCESS` ; relecture de Q | V1.1, avec #358 et #360 |
+| 2 | Fusion de #203 | O | **fait le 18/11 à 14:28** (17498b5) | 15:00 | `ci_gate 203` : `draft=false`, CI Gate `COMPLETED SUCCESS` ; relecture de Q | V1.1, avec #358 et #360 |
 | 3 | #358 prête (B), puis reciblage de #360 et #361 sur `main` (O) | B, puis O | 12:00 | avant la fusion de #358 | 6 trous corrigés, puis `gh pr ready 358` | — |
-| 4 | Fusion de #358 | O | 12:30 | **15:30** | CI Gate vert, OK de Q | V1.1, avec #360. La fuite reste dans les limites connues (question 12 de la fiche jury) |
+| 4 | Fusion de #358 | O | 12:30 ; **dans la file depuis le 18/11 à 14:37** | **15:30** | CI Gate vert, OK de Q | V1.1, avec #360. La fuite reste dans les limites connues (question 12 de la fiche jury) |
 | 5 | #360 prête, puis fusion | B, puis O | 13:30 | **16:00** | CI Gate vert, OK de Q | V1.1 |
 | 6 | PR RapidOCR : décision | O | — | **16:00** | étape 0 de `decision-vote-ocr.md` : PR prête, CI verte, OK de Q, Tesseract toujours moteur par défaut, aucune migration, trois tests de repli | V1.1 (§ 4 de la note) |
 | 7 | Fusion de RapidOCR, si l'étape 6 passe | O | 16:30 | **17:00** | CI Gate vert | V1.1 |
@@ -290,7 +290,7 @@ gh issue close 133 --repo $REPO --reason completed \
 
 ### 8.4 Risques pour 18:00
 
-1. **#203 : risque rouvert le 18/11.** La CI de 2a890d0 est rouge : `audit-logs` renvoie 200 au lieu de 403 sur l'accès par étape. Les 139 tests verts en Docker ne couvraient pas ce cas. B corrige ; Q relit le correctif. #358 et #360 attendent #203. Si la CI n'est pas verte à 15:00 le 19, O décide si les trois PR passent en V1.1. Objectif d'O inchangé : #203, #358 et #360 fusionnées le 18 ou le 19 au matin.
+1. **#203 : risque levé le 18/11.** Fusionnée à 14:28 (17498b5), après le correctif de B (ef144da : `audit-logs` reste hors de l'accès par étape). #358 est dans la file depuis 14:37 ; #360 suit. Reste ouvert : #358 et #360 avant 15:30 et 16:00 le 19 (étapes 4 et 5). Historique : la CI de 2a890d0 est rouge : `audit-logs` renvoie 200 au lieu de 403 sur l'accès par étape. Les 139 tests verts en Docker ne couvraient pas ce cas. B corrige ; Q relit le correctif. #358 et #360 attendent #203. Si la CI n'est pas verte à 15:00 le 19, O décide si les trois PR passent en V1.1. Objectif d'O inchangé : #203, #358 et #360 fusionnées le 18 ou le 19 au matin.
 2. **Fusions en série.** Trois PR empilées, puis peut-être RapidOCR et #356, à 15 à 20 minutes chacune. Entre 16:00 et 17:15, la marge ne couvre qu'une seule relance de CI.
 3. **RapidOCR** : aucune PR la veille à 14:00. Par défaut, elle passe en V1.1.
 4. **#356** (F, tests e2e seuls) : V1.0 si CI verte et passe de F OK avant le 19 à 15:00, sinon V1.1 (décision d'O). Sans effet sur la coupe.
