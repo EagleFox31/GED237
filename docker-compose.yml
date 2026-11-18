@@ -165,9 +165,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: edossier_worker
-    # OCR (EasyOCR/torch) is the heaviest consumer; one child per CPU granted.
+    # OCR (EasyOCR/torch) is the heaviest consumer: each child loads its own reader
+    # (~1.3 GB), so two children exceed mem_limit. One child only.
     # -B: embedded beat for the watched folders (single worker: no second scheduler).
-    command: celery -A app.workers.celery_app worker -B --schedule=/tmp/celerybeat-schedule --loglevel=info --concurrency=2
+    command: celery -A app.workers.celery_app worker -B --schedule=/tmp/celerybeat-schedule --loglevel=info --concurrency=1
     mem_limit: 2g
     memswap_limit: 2g
     cpus: 2.0
@@ -189,6 +190,11 @@ services:
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       # Demo live import folder: never watched, even through a parent folder.
       INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
+      OCR_PRIMARY_ENGINE: ${OCR_PRIMARY_ENGINE:-rapidocr}
+      OCR_RAPIDOCR_ENABLED: ${OCR_RAPIDOCR_ENABLED:-true}
+      OCR_RAPIDOCR_MAX_SIDE: ${OCR_RAPIDOCR_MAX_SIDE:-1800}
+      OCR_RAPIDOCR_TIMEOUT_SECONDS: ${OCR_RAPIDOCR_TIMEOUT_SECONDS:-60}
+      OCR_FALLBACK_ENABLED: ${OCR_FALLBACK_ENABLED:-false}
     depends_on:
       redis:
         condition: service_healthy
@@ -208,6 +214,7 @@ services:
       args:
         VITE_APP_VERSION: ${APP_VERSION:-dev}
     container_name: edossier_frontend
+    restart: unless-stopped
     mem_limit: 768m
     memswap_limit: 768m
     cpus: 1.0

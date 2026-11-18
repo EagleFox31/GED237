@@ -52,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
+              aria-current={activeTab === item.id ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 group ${
                 activeTab === item.id
                   ? 'bg-blue-50 text-rdpc-blue shadow-sm'
@@ -88,8 +89,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           { id: 'dashboard', label: 'Tableau de Bord', icon: 'dashboard' },
           { id: 'documents', label: 'Mes Documents', icon: 'description' },
           { id: 'tasks', label: 'Tâches & Suivi', icon: 'notifications' },
-          { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
-          { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
+          // Outils de rangement local : masqués pour reader et collab (miroir des rôles : ils lisent ou déposent
+          // dans leurs brouillons, sans classer en masse). Les autres profils gardent ces entrées.
+          ...(userProfile?.id === 'reader' || userProfile?.id === 'collab'
+            ? []
+            : [
+                { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
+                { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
+              ]),
+          // Manager : rapports de son service (le serveur limite les données au service).
+          ...(userProfile?.id === 'manager'
+            ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
+            : []),
+          // Auditeur : journal d'audit (la page et la route /audit existent déjà).
+          ...(userProfile?.id === 'audit'
+            ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
+            : []),
         ].map(item => (
           <button
             key={item.id}

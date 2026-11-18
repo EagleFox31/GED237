@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/auth.fixture';
 
 /**
  * Item CDC 19 : la tuile « Doublons refusés » ouvre le journal d'audit
- * déjà filtré sur l'action « Doublon refuse ». Le journal est simulé
+ * déjà filtré sur l'action « Doublon refusé ». Le journal est simulé
  * pour rester indépendant des données de la pile.
  */
 const row = (id: string, action: string, label: string) => ({
@@ -28,7 +28,7 @@ test.describe('Feature: tuile doublons → journal', () => {
   test('Given tenant_admin, When clic sur la tuile doublons, Then journal filtré sur les doublons', async ({ loginAs, page }) => {
     await page.route('**/audit/logs*', (route) =>
       route.fulfill({
-        json: [row('a1', 'dup_detected', 'Doublon refuse'), row('b2', 'upload', 'Depot de document')],
+        json: [row('a1', 'dup_detected', 'Doublon refusé'), row('b2', 'upload', 'Dépôt de document')],
       }),
     );
     await loginAs('tenant_admin');

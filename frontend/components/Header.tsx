@@ -6,6 +6,19 @@ import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../stores/authStore';
 import { Avatar } from './ui/Avatar';
+import { getStatusLabel } from '../types';
+
+/** Résultat de `GET /search` (SearchHitResponse côté serveur). */
+// Borne de `q` côté serveur pour GET /documents (au-delà : 422).
+const SEARCH_MAX_LENGTH = 120;
+
+interface SearchHit {
+  document_id: string;
+  title: string;
+  status: string;
+  category?: string | null;
+  file_type?: string | null;
+}
 
 /**
  * Configuration de la barre de recherche par route.
@@ -45,7 +58,7 @@ const ROUTE_SEARCH_CONFIG: Record<string, RouteSearchConfig> = {
 };
 const DEFAULT_SEARCH_CONFIG: RouteSearchConfig = {
   mode: 'global',
-  placeholder: 'Rechercher avec le Moteur Avancé (Documents, Intérieur OCR)…',
+  placeholder: 'Rechercher un document (titre ou contenu)…',
 };
 
 const resolveSearchConfig = (pathname: string): RouteSearchConfig => {
@@ -78,28 +91,67 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   // la valeur est portée par l'URL (?q=...) → pas de duplication de state.
   const urlQuery = searchParams.get('q') || '';
   const [globalQuery, setGlobalQuery] = useState('');
-  const searchQuery = isPageLocalSearch ? urlQuery : globalQuery;
+  // Mode "page-local" : le champ affiche une saisie locale, poussée vers l'URL.
+  // La mise à jour de l'URL est différée par le routeur : lier le champ directement
+  // à l'URL faisait perdre les touches frappées avant le rendu suivant (#163).
+  const [pageDraft, setPageDraft] = useState(urlQuery);
+  const pendingUrlQueryRef = useRef<string | null>(null);
+  const lastPathRef = useRef(location.pathname);
+  useEffect(() => {
+    const pathChanged = lastPathRef.current !== location.pathname;
+    lastPathRef.current = location.pathname;
+    const pending = pendingUrlQueryRef.current;
+    // Changement venu d'ailleurs (lien, navigation, retour) : l'URL fait foi.
+    if (pathChanged || pending === null) {
+      pendingUrlQueryRef.current = null;
+      setPageDraft(urlQuery);
+    } else if (urlQuery === pending) {
+      // L'URL a rattrapé la saisie ; les valeurs intermédiaires sont ignorées.
+      pendingUrlQueryRef.current = null;
+    }
+  }, [urlQuery, location.pathname]);
+  const searchQuery = isPageLocalSearch ? pageDraft : globalQuery;
   const setSearchQuery = (next: string) => {
     if (isPageLocalSearch) {
+      setPageDraft(next);
+      // Valeur déjà dans l'URL (lettre tapée puis effacée avant le rendu) : l'URL ne
+      // changera pas et l'effet ne repassera pas ; rien n'est donc en attente.
+      pendingUrlQueryRef.current = next === urlQuery ? null : next;
       // `replace: true` pour ne pas polluer l'historique du navigateur à
       // chaque frappe — on garde une seule entrée pour la session de filtrage.
-      const nextParams = new URLSearchParams(searchParams);
-      if (next) nextParams.set('q', next);
-      else nextParams.delete('q');
-      setSearchParams(nextParams, { replace: true });
+      setSearchParams(
+        (current) => {
+          const nextParams = new URLSearchParams(current);
+          if (next) nextParams.set('q', next);
+          else nextParams.delete('q');
+          return nextParams;
+        },
+        { replace: true }
+      );
     } else {
       setGlobalQuery(next);
     }
   };
 
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  // Requête qui a produit `searchResults` : Entrée n'ouvre un résultat que s'il
+  // correspond au texte saisi (pas de résultat périmé pendant le délai de frappe).
+  const [resultsQuery, setResultsQuery] = useState('');
+  const latestSearchRef = useRef(0);
   const [showResults, setShowResults] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+
+  // Un résultat ouvre la fiche du document dans « Mes documents » (?open=<id>).
+  const openSearchResult = (hit: SearchHit) => {
+    setShowResults(false);
+    setGlobalQuery('');
+    navigate(`/documents?open=${encodeURIComponent(hit.document_id)}`);
+  };
 
   // Au changement de route, on nettoie l'état UI hérité (dropdown global) :
   // pas de sens d'afficher des résultats /spaces quand on arrive sur /users.
@@ -145,17 +197,23 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
     // d'appel API global à déclencher.
     if (isPageLocalSearch) return;
     const delayDebounceFn = setTimeout(async () => {
+      latestSearchRef.current += 1;
+      const request = latestSearchRef.current;
       if (searchQuery.length >= 2) {
         setIsSearching(true);
         try {
           const data = await api.searchDocuments(searchQuery);
+          if (request !== latestSearchRef.current) return;
           setSearchResults(data.hits || data.results || []);
+          setResultsQuery(searchQuery);
           setShowResults(true);
         } catch (error) {
+          if (request !== latestSearchRef.current) return;
           console.error("Search failed:", error);
           setSearchResults([]);
+          setResultsQuery('');
         } finally {
-          setIsSearching(false);
+          if (request === latestSearchRef.current) setIsSearching(false);
         }
       } else {
         setSearchResults([]);
@@ -174,6 +232,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
       { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
       { id: 'documents', label: 'Mes Documents', icon: 'folder_open' },
       { id: 'tasks', label: 'Tâches', icon: 'checklist' },
+      ...(userProfile?.id === 'audit' ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }] : []),
     ];
   };
 
@@ -222,8 +281,20 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 onFocus={() => {
                   if (!isPageLocalSearch && searchQuery.length >= 2) setShowResults(true);
                 }}
+                onKeyDown={(e) => {
+                  // Entrée : ouvre le premier résultat de la recherche globale, seulement
+                  // s'il correspond au texte saisi (sinon on attend les nouveaux résultats).
+                  const first = searchResults[0];
+                  const resultsAreCurrent = !isSearching && resultsQuery === searchQuery;
+                  if (e.key === 'Enter' && !isPageLocalSearch && showResults && first && resultsAreCurrent) {
+                    e.preventDefault();
+                    openSearchResult(first);
+                  }
+                }}
+                maxLength={SEARCH_MAX_LENGTH}
                 placeholder={searchConfig.placeholder}
                 aria-label={searchConfig.placeholder}
+                data-global-search
                 className="block w-full pl-12 pr-4 py-2.5 bg-slate-100/50 border border-transparent rounded-2xl focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-200 transition-all outline-none text-[13px] font-medium"
               />
             </div>
@@ -233,18 +304,26 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 {searchResults.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">
                     <div className="p-2 border-b border-slate-50">
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 pt-1">{searchResults.length} RÉSULTATS (FULL-TEXT)</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 pt-1">{searchResults.length} {searchResults.length > 1 ? 'résultats' : 'résultat'}</p>
                     </div>
                     {searchResults.map((result) => (
-                      <div key={result.id} className="p-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-3 group transition-colors">
+                      <button
+                        type="button"
+                        key={result.document_id}
+                        onClick={() => openSearchResult(result)}
+                        aria-label={`Ouvrir ${result.title}`}
+                        className="w-full text-left p-3 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-3 group transition-colors"
+                      >
                         <div className="w-10 h-10 rounded-xl bg-blue-50 text-rdpc-blue flex items-center justify-center shrink-0 group-hover:bg-rdpc-blue group-hover:text-white transition-colors">
                           <span className="material-symbols-outlined text-lg">{result.file_type?.includes('pdf') ? 'picture_as_pdf' : 'description'}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-bold text-slate-800 truncate">{result.title}</h4>
-                          <p className="text-[10px] text-slate-400 font-medium truncate">Catégorie: {result.category_name || 'Non classé'} • Statut: {result.status}</p>
+                          <p className="text-[10px] text-slate-400 font-medium truncate">
+                            {result.category ? `${result.category} • ` : ''}{getStatusLabel(result.status)}
+                          </p>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -419,10 +498,6 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Raccourcis</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
-                  <span className="text-slate-600">Rechercher</span>
-                  <kbd className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-bold text-slate-700">/</kbd>
-                </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
                   <span className="text-slate-600">Fermer une modale</span>
                   <kbd className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-bold text-slate-700">Esc</kbd>
                 </div>
@@ -435,19 +510,6 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
 
             <div className="space-y-3">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Liens utiles</h4>
-              <a
-                href={`${(import.meta as any).env?.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') || ''}/api/docs`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-blue-50 rounded-xl transition-colors group"
-              >
-                <span className="material-symbols-outlined text-slate-400 group-hover:text-rdpc-blue">description</span>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-slate-700">Documentation API (Swagger)</p>
-                  <p className="text-[10px] text-slate-400">OpenAPI interactive — endpoints et schémas</p>
-                </div>
-                <span className="material-symbols-outlined text-slate-300 text-sm">open_in_new</span>
-              </a>
               <a
                 href="mailto:support@edossier.cm"
                 className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-blue-50 rounded-xl transition-colors group"
