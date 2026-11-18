@@ -533,7 +533,7 @@ première requête utilisateur.
 
 - **Date :** 2026-11-17
 - **Catégorie :** testing
-- **Statut :** captured (contrôle appliqué aux captures ponctuelles ; aucun script versionné concerné)
+- **Statut :** prevention-added (#138 : script versionné `frontend/e2e/visual/`, garde `screen-guard.ts` et test qui la prouve)
 - **Liens :** PR #122 (migration Tailwind compilé), `frontend/components/Dashboard.tsx`, `frontend/App.tsx` (`ProfileDashboard`)
 
 **Contexte** — Pour vérifier #122 sans pile complète, les écrans login, dashboard et règles ont été comparés (build CDN vs build compilé) avec une API simulée répondant `{}` ou `[]` à toute requête, sur la base de styles calculés et de captures.
@@ -598,3 +598,77 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
+
+- **Date :** 2026-11-17
+- **Catégorie :** security / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/users.py` (`_assert_role_grantable`, `update_user`), `backend/tests/api/test_users.py`
+
+**Contexte** — POST et PATCH /users acceptent `role_id` (ou `role_code` à la création). Le droit `users:create`/`users:update` était le seul contrôle.
+**Échec / near miss** — Relevé en revue de #222 : un tenant_admin pouvait donner le rôle super_admin à un agent ou à lui-même, donc l'accès à toutes les institutions.
+**Cause racine** — L'autorisation portait sur l'action (« modifier un agent »), pas sur la valeur écrite. Le rôle attribué n'était comparé à rien.
+**Résolution** — Seul un super_admin attribue super_admin ; personne n'attribue un rôle plus élevé que le sien (`hierarchy_level` plus bas) ; personne ne change son propre rôle. Refus en 403 explicite (`ROLE_GRANT_FORBIDDEN`, `OWN_ROLE_CHANGE_FORBIDDEN`). PATCH refuse aussi un e-mail déjà pris (409 `USER_EMAIL_TAKEN`).
+**Prévention** — Tests de non-régression en POST et en PATCH : tenant_admin vers super_admin refusé (sur lui-même et sur un agent), rôle inférieur et super_admin autorisés.
+**Leçon généralisée** — Un droit d'écriture sur une ressource ne couvre pas les champs qui portent eux-mêmes un privilège (rôle, institution, rattachement). Chaque champ de ce type a son contrôle de valeur et son test de refus.
+
+### LESSON-2026-046 — Données e2e partagées consommées par une spec : la suite dépendait de l'ordre de lancement
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / e2e
+- **Statut :** prevention-added
+- **Liens :** `frontend/e2e/specs/uat/validation-cycle.spec.ts`, `frontend/e2e/specs/seed.spec.ts`, `frontend/e2e/data/seed-manifest.json` (`pendingTasks`), `frontend/e2e/specs/demo-counters.spec.ts`, `frontend/e2e/data/demo.ts` (`DEMO_P8_TITLES`)
+
+**Contexte** — Le seed e2e crée 3 tâches de visa pour MGR001 (`E2E-VAL-*`). `seed.spec` vérifie qu'elles sont en attente ; `validation-cycle` les validait et les rejetait. Cette spec est dans deux projets (`smoke` et `uat`).
+**Échec / near miss** — Suite complète du 17/11 sur f8f1d75 : `seed.spec:58` et SC-VAL-01 [smoke] en échec. MGR001 n'avait plus qu'une tâche sur trois : le 1er passage de `validation-cycle` avait consommé les deux autres. Même jour, `demo-counters:113` attendait 357 documents et en trouvait 359 : les 2 documents P8, ajoutés après le jeu de démo par `e2e_reset.sh demo`.
+**Cause racine** — Une spec qui modifie l'état consommait des données partagées, créées une seule fois par remise à zéro. Le passage n'était donc ni rejouable ni indépendant de l'ordre. Pour demo-counters : le manifeste P8 annonce que ses documents ne comptent pas dans `expected`, mais la spec ne les excluait pas.
+**Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
+**Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
+**Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-051 — Clé de stockage dérivée du nom de fichier : un dépôt de même nom écrasait un autre fichier
+
+- **Date :** 2026-11-18
+- **Catégorie :** data-loss / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/storage/base.py` (`unique_storage_name`), `local.py`, `s3.py`, `backend/tests/api/test_version_storage_keys.py`
+
+**Contexte** — `save_file_with_checksum` rangeait chaque dépôt sous `{tenant}/{unité}/{nom du fichier}`, en local comme en S3/MinIO.
+**Échec / near miss** — Relevé pendant le chantier de restauration de version (V1.2) : deux dépôts de même nom dans la même unité s'écrasaient. Une nouvelle version au nom identique détruisait les octets de la version précédente ; deux dépôts directs de même nom, ceux d'un autre document. Les branches « identique à la version courante » supprimaient ensuite le fichier partagé, donc la version courante elle-même.
+**Cause racine** — La clé de stockage venait d'une donnée utilisateur non unique (le nom), et aucun test ne déposait deux fois le même nom.
+**Résolution** — Clé `{uuid}_{nom}` (le motif de l'import) dans les deux backends, via un seul point (`unique_storage_name`). Aucune migration : les fichiers existants ne sont pas touchés.
+**Prévention** — Tests : même nom deux fois avec octets différents (deux chemins, deux lectures, sha256 = checksum), dépôt identique refusé sans perdre la version courante, retour à une ancienne version refusé, deux dépôts directs de même nom, clé S3 distincte.
+**Leçon généralisée** — Une clé de stockage ne se dérive jamais d'une donnée fournie par l'utilisateur sans élément unique. Tout stockage testé avec deux entrées de même nom, et toute suppression « de nettoyage » vérifie que le fichier n'est pas partagé.
+
+### LESSON-2026-052 — Disque C: saturé pendant une nuit de sessions parallèles : écritures et commits gelés
+
+- **Date :** 2026-11-18
+- **Catégorie :** infra / poste de développement
+- **Statut :** open
+- **Liens :** données Docker de WSL (`docker_data.vhdx`), scripts e2e, `images_export.sh`, builds compose. Numéro 051 laissé à la leçon en cours côté backend.
+
+**Contexte** — Cinq sessions de travail tournaient en parallèle sur un même poste au disque de 476 Go. Les données Docker vivent dans le disque virtuel de WSL (`docker_data.vhdx`). Vers 02:36, il ne restait plus que 0 à 300 Mo libres.
+**Échec / near miss** — Aucune perte constatée. Risques : objets git tronqués, base PostgreSQL abîmée en écriture, faux rouges en e2e. L'orchestration a gelé toute écriture locale et tout commit jusqu'au retour de l'espace.
+**Cause racine** — Personne ne surveille l'espace libre, et aucune tâche lourde (build, e2e, export d'images) ne le vérifie avant de démarrer. Le disque virtuel de WSL grossit et ne rend jamais la place : `docker system prune` libère de l'espace dans WSL, pas sur C:. S'y ajoutent les caches d'outils (paquets, navigateurs de test, compilations).
+**Classification** — Capacité de l'environnement ; near miss ; répétable tant que plusieurs piles tournent sur le même poste.
+**Résolution** — Place libérée par le PO sur le poste ; 49 Go libres (90 % utilisés) au contrôle du 18/11 au matin, au-dessus du seuil de 20 Go. Détail des éléments libérés : à compléter par le PO.
+**Prévention** —
+1. Garde réutilisable `scripts/ensure_free_space.sh`, seuil `MIN_FREE_GB` (20 par défaut). Elle contrôle le disque du dépôt et celui des données Docker, et elle est appelée par les scripts e2e, `images_export.sh` et les builds compose. En cas de refus, elle affiche un message qui dit quoi faire, et ne propose jamais `down -v`. Test : valeur simulée sous le seuil → code de sortie 1 ; au-dessus → 0. Porteur : backend, ≈ 0,25 h-s ; relecture : QA.
+2. `df -h` noté dans chaque passation et chaque point de reprise : alerte sous 50 Go, aucune charge lourde sous 20 Go.
+3. Le compactage de `docker_data.vhdx` est documenté comme une action du PO, jamais celle d'une session.
+4. Plafonds de journaux (`max-size`, `max-file`) vérifiés sur toutes les piles compose.
+**Leçon généralisée** — Une ressource partagée se vérifie avant chaque charge lourde. Une garde qui refuse coûte une ligne ; un disque plein coûte une nuit de travail gelée.
+
+### LESSON-2026-053 — Initialisation immédiate avec effet de bord réseau : un moteur facultatif faisait tomber toute la chaîne OCR
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/easyocr_engine.py`, `backend/app/services/ocr/strategy.py`, `backend/Dockerfile` (`EASYOCR_MODEL_DIR`), `backend/tests/services/test_ocr_strategy.py`
+
+**Contexte** — `OCRStrategy()` construit les deux moteurs ; `EasyOCREngine.__init__` chargeait ses modèles, que l'image ne contenait pas : ils se téléchargeaient au premier usage.
+**Échec / near miss** — Relevé par Q pour le 25/11 : sans réseau, `easyocr.Reader` lève `URLError` dans le constructeur, `OCRStrategy()` échoue et toute la tâche OCR tombe, Tesseract compris, alors qu'il aurait lu le scan seul. Sur un réseau coupé sans réponse, le téléchargement n'a pas de délai.
+**Cause racine** — Un composant de repli construit de façon immédiate, avec un effet de bord réseau, et une dépendance d'exécution (les modèles) absente de l'image.
+**Résolution** — Constructeur sans effet de bord ; lecteur chargé à la demande avec `download_enabled=False` ; modèles fr+en cuits dans l'image (couche cachée, `EASYOCR_MODEL_DIR`) ; modèle absent = un avertissement, résultat vide, repli sur Tesseract.
+**Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
+**Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.

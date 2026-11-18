@@ -4,6 +4,7 @@ Best for: Photos, screenshots, real-world images, scene text
 """
 
 import logging
+import os
 import time
 from PIL import Image
 import numpy as np
@@ -38,6 +39,19 @@ class EasyOCREngine(OCREngine):
 
     # Cache readers by (languages, gpu_mode) to avoid rebuilding models.
     _readers: dict[tuple[tuple[str, ...], bool], easyocr.Reader] = {}
+    # Keys whose models could not be loaded: warn once, then answer empty at once.
+    _unavailable: set[tuple[tuple[str, ...], bool]] = set()
+
+    @staticmethod
+    def _empty_result(start_time: float) -> OCRResult:
+        return OCRResult(
+            text="",
+            confidence=0.0,
+            engine_used="EasyOCR",
+            char_count=0,
+            word_count=0,
+            processing_time=time.time() - start_time,
+        )
 
     def __init__(self, languages: list[str] = None, use_gpu: bool | None = None):
         """
@@ -50,7 +64,8 @@ class EasyOCREngine(OCREngine):
         self.languages = languages or ["fr", "en"]
         self.use_gpu = self._resolve_gpu_mode(use_gpu)
         self._reader_key = (tuple(self.languages), self.use_gpu)
-        self._ensure_reader()
+        # No model loading here: building the engine must never touch the network
+        # or the disk (OCRStrategy builds it for every OCR task, Tesseract included).
 
     @staticmethod
     def _resolve_gpu_mode(requested: bool | None) -> bool:
@@ -74,16 +89,22 @@ class EasyOCREngine(OCREngine):
                 ",".join(self.languages),
                 mode,
             )
-            logger.info(
-                "EasyOCR first initialization may take time while models download."
-            )
+            # Models are baked into the image (EASYOCR_MODEL_DIR, see the
+            # Dockerfile): never download at runtime. A missing model raises
+            # and the caller falls back to Tesseract.
+            model_dir = os.environ.get("EASYOCR_MODEL_DIR") or None
             EasyOCREngine._readers[self._reader_key] = easyocr.Reader(
-                self.languages, gpu=self.use_gpu
+                self.languages,
+                gpu=self.use_gpu,
+                model_storage_directory=model_dir,
+                user_network_directory=model_dir,
+                download_enabled=False,
             )
             logger.info("EasyOCR reader ready in %s mode", mode)
 
     @property
     def reader(self) -> easyocr.Reader:
+        self._ensure_reader()
         return EasyOCREngine._readers[self._reader_key]
 
     @property
@@ -125,12 +146,28 @@ class EasyOCREngine(OCREngine):
         """
         start_time = time.time()
 
+        if self._reader_key in EasyOCREngine._unavailable:
+            return self._empty_result(start_time)
+
         try:
+            # Load the models on first use; a failure here is "EasyOCR unavailable".
+            try:
+                reader = self.reader
+            except Exception as exc:
+                EasyOCREngine._unavailable.add(self._reader_key)
+                logger.warning(
+                    "EasyOCR unavailable (models missing or not loadable: %s): "
+                    "falling back to Tesseract. Models are expected in %s.",
+                    exc,
+                    os.environ.get("EASYOCR_MODEL_DIR") or "~/.EasyOCR",
+                )
+                return self._empty_result(start_time)
+
             # Convert PIL Image to numpy array
             image_np = np.array(image)
 
             # Perform OCR
-            results = self.reader.readtext(image_np)
+            results = reader.readtext(image_np)
 
             # Extract text and confidences
             text_parts = []

@@ -37,6 +37,7 @@ from app.models.document_category import DocumentCategory
 from app.models.document_version import DocumentVersion
 from app.models.org_unit import OrgUnit
 from app.models.user import User
+from app.models.workflow import WorkflowStep
 from app.schemas.document import (
     ClassificationStatus,
     DirectoryIngestRequest,
@@ -128,6 +129,38 @@ def _escape_like(value: str) -> str:
     )
 
 
+def _apply_text_filter(query, text: str):
+    """Literal, case-insensitive match on title, tags, domain, activity or category name."""
+    pattern = f"%{_escape_like(text)}%"
+
+    def _match(column):
+        return column.ilike(pattern, escape=_LIKE_ESCAPE)
+
+    return (
+        query.outerjoin(
+            ClassificationDomain,
+            Document.classification_domain_id == ClassificationDomain.id,
+        )
+        .outerjoin(
+            ClassificationActivity,
+            Document.classification_activity_id == ClassificationActivity.id,
+        )
+        .outerjoin(
+            DocumentCategory,
+            Document.document_category_id == DocumentCategory.id,
+        )
+        .where(
+            or_(
+                _match(Document.title),
+                _match(func.array_to_string(Document.tags, " ")),
+                _match(ClassificationDomain.name),
+                _match(ClassificationActivity.name),
+                _match(DocumentCategory.name),
+            )
+        )
+    )
+
+
 class WorkspaceDocumentFilters:
     """Server-side filters for workspace/space document listings.
 
@@ -170,34 +203,7 @@ class WorkspaceDocumentFilters:
                 Document.classification_status == self.classification_status
             )
         if self.q:
-            pattern = f"%{_escape_like(self.q)}%"
-
-            def _match(column):
-                return column.ilike(pattern, escape=_LIKE_ESCAPE)
-
-            query = (
-                query.outerjoin(
-                    ClassificationDomain,
-                    Document.classification_domain_id == ClassificationDomain.id,
-                )
-                .outerjoin(
-                    ClassificationActivity,
-                    Document.classification_activity_id == ClassificationActivity.id,
-                )
-                .outerjoin(
-                    DocumentCategory,
-                    Document.document_category_id == DocumentCategory.id,
-                )
-                .where(
-                    or_(
-                        _match(Document.title),
-                        _match(func.array_to_string(Document.tags, " ")),
-                        _match(ClassificationDomain.name),
-                        _match(ClassificationActivity.name),
-                        _match(DocumentCategory.name),
-                    )
-                )
-            )
+            query = _apply_text_filter(query, self.q)
         return query
 
     def paginate(self, query):
@@ -261,18 +267,54 @@ async def _resolve_target_org_unit_id(
     return org_unit.id
 
 
-async def _can_read_document(user: User, document: Document) -> bool:
+# Étapes de circuit qui ouvrent la lecture à leur assigné : en cours, ou déjà traitées.
+# Une étape pas encore atteinte (pending) ou annulée n'ouvre rien. La lecture reste ouverte
+# après completed/rejected/returned : voulu, le valideur doit pouvoir relire ce qu'il a visé.
+READ_GRANTING_STEP_STATUSES = ("current", "completed", "rejected", "returned")
+
+
+async def _has_workflow_step_access(
+    db: AsyncSession, user: User, document: Document
+) -> bool:
+    """Lecture seule : l'utilisateur est assigné à une étape active (ou déjà traitée)
+    du circuit de ce document, quelle que soit son unité. N'ouvre ni écriture ni liste."""
+    row = await db.execute(
+        select(WorkflowStep.id)
+        .join(Document, Document.id == WorkflowStep.document_id)
+        .where(
+            WorkflowStep.document_id == document.id,
+            Document.tenant_id == user.tenant_id,
+            WorkflowStep.assigned_to == user.id,
+            WorkflowStep.status.in_(READ_GRANTING_STEP_STATUSES),
+        )
+        .limit(1)
+    )
+    return row.first() is not None
+
+
+async def _can_read_document(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
     """
     Casbin valide le TYPE de permission (read / read_own).
     La logique org_unit pour manager/reader reste ici (règle métier).
+    Avec ``db``, une étape de circuit assignée ouvre la lecture (hors périmètre d'unité).
     """
     ctx = ctx_from_resource(document)
     if await can_perform(user, "documents", "read", ctx):
         role_code = _role_code(user)
         if role_code in ORG_UNIT_READ_ROLES:
-            return bool(user.org_unit_id and document.org_unit_id == user.org_unit_id)
+            if user.org_unit_id and document.org_unit_id == user.org_unit_id:
+                return True
+            return db is not None and await _has_workflow_step_access(
+                db, user, document
+            )
         return True  # admin / auditor : accès tenant-wide
-    return await can_perform(user, "documents", "read_own", ctx)
+    if await can_perform(user, "documents", "read_own", ctx):
+        return True
+    if db is None or str(document.tenant_id) != str(user.tenant_id):
+        return False
+    return await _has_workflow_step_access(db, user, document)
 
 
 async def _can_mutate_document(user: User, document: Document) -> bool:
@@ -759,6 +801,7 @@ async def list_documents(
     skip: int = 0,
     limit: int = 100,
     document_status: Optional[str] = Query(default=None, alias="status"),
+    q: Optional[str] = Query(default=None, max_length=120),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -769,8 +812,14 @@ async def list_documents(
 
     if document_status:
         query = query.where(Document.status == document_status)
+    # Search runs on the whole scope, not on the page the client already holds.
+    if q and q.strip():
+        query = _apply_text_filter(query, q.strip())
 
-    query = query.options(*_document_load_options())
+    # Stable order: the most recent documents first, so pages do not shift.
+    query = query.order_by(Document.created_at.desc(), Document.id).options(
+        *_document_load_options()
+    )
     result = await db.execute(query.offset(skip).limit(limit))
     return [_serialize_document(document) for document in result.scalars().all()]
 
@@ -818,7 +867,7 @@ async def list_needs_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "review")
     service = ClassificationReviewService(db)
     documents = await service.list_legacy_needs_review_documents(
         tenant_id=current_user.tenant_id
@@ -1107,7 +1156,7 @@ async def get_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
@@ -1121,7 +1170,7 @@ async def get_document_versions(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
@@ -1185,7 +1234,7 @@ async def get_document_content(
         )
 
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(current_user, document, db):
         # 404 plutôt que 403 : on évite de signaler l'existence d'une ressource
         # à un utilisateur non autorisé (anti-énumération).
         raise HTTPException(status_code=404, detail="Document not found")
@@ -1329,7 +1378,7 @@ async def update_document(
                 status_code=400,
                 detail="Document status transitions must go through workflow endpoints",
             )
-        await authorize_or_403(current_user, "documents", "manage")
+        await authorize_or_403(current_user, "documents", "archive")
         if document.status not in ARCHIVABLE_SOURCE_STATUSES:
             raise HTTPException(
                 status_code=409,
@@ -1500,7 +1549,7 @@ async def get_document_ocr(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
