@@ -29,6 +29,7 @@ SCHEMA_CHECK_MODE | all | safety check, must stay fail in a stack; warn/off only
 INGEST_WATCH_SETTLE_SECONDS | all | internal delay before reading a file still being copied
 DEFAULT_TENANT_STORAGE_QUOTA_MB | all | default for new tenants only; per-tenant quota is set in administration
 MAX_UPLOAD_SIZE | all | derived from MAX_UPLOAD_SIZE_MB, which is the operator setting
+RAPIDOCR_MODEL_DIR | all | set by ENV in backend/Dockerfile, where the models are baked into the image
 
 # --- Not available in V1
 STORAGE_TYPE | all | only local storage is wired in the stack; S3 needs credentials that Settings does not carry yet
