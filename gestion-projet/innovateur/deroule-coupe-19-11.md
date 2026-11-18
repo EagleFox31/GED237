@@ -26,7 +26,7 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 
 | Heure | Commande (worktree `GED237-docs-notes-version`) | Contrôle attendu | Si KO |
 |---|---|---|---|
-| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | `2f15b6e` (main au gel, le 17/11 au soir ; #104 y est déjà recalée en local ; tête locale 8eca6b0 au 18/11, avec les notes pour les utilisateurs). Sinon, `main` a encore bougé : faire `git merge origin/main` en local avant le push | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
+| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | la tête de `main` notée par O au gel des fusions de 17:15 (runbook § 8.2, étape 9). La tête locale 8eca6b0 du 18/11 a 70 commits de retard sur dabeeb2 : faire `git merge origin/main` en local avant le push (essai à blanc à 17:30, `merge-tree` sans conflit le 18/11) | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
 | 17:56 | `git merge-tree --write-tree origin/main HEAD` | une seule ligne (un SHA d'arbre), sans `CONFLICT` | idem |
 | 17:57 | `for f in notes-version-v1.0.0-rc.1.md notes-version-rc1.md; do head -n 5 gestion-projet/innovateur/$f \| grep -Eiq 'brouillon\|Pour\**[[:space:]]*:' && echo "$f STOP" \|\| echo "$f OK"; done` | `OK` pour les deux fichiers (notes techniques et notes pour les utilisateurs) | `STOP` : corriger en local avant le push, qui reste unique |
 | 17:58 | `git diff origin/main...HEAD \| grep -cE '@20(25)'` | `0` : aucun mot de passe de démonstration | retirer la ligne, puis faire un nouveau commit local |

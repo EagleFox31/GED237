@@ -1,6 +1,6 @@
 # Runbook de la coupe du 19/11 : `release/v1.0.0`, ruleset, correctifs après la coupe
 
-- **Pour** : O, qui exécute toutes les écritures sur GitHub. Préparé par l'innovateur le 18/11, sur `main` 2f15b6e, en lecture seule : rien n'a été appliqué.
+- **Pour** : O, qui exécute toutes les écritures sur GitHub. Préparé par l'innovateur le 18/11, sur `main` 2f15b6e, en lecture seule : rien n'a été appliqué. **Mis à jour le 18/11 sur dabeeb2 : le § 8 (état réel et ordre du 19) fait foi pour les horaires.**
 - **Remplace** les § 3 et 4 de `deroule-coupe-19-11.md`. Les § 1 et 2 (push et fusion de #104) et les § 5 à 7 (tête alembic, DEC-2026-004, #179) restent valables.
 - **Sources** : `checklist-tag-rc1-24-11.md` (E1 à E5), `gestion-projet/releases/plan-tag-rc1.md`, ruleset 26190959 (lu le 18/11), dépôt `appfactory-project-automation` en e912a8a (`src/governance/policy.mjs`, `docs/repository-governance-quick-start.md`).
 - **Les commandes sont dans des blocs de code**, pas dans des tableaux : on peut les copier telles quelles, même depuis le fichier brut.
@@ -213,3 +213,85 @@ gh pr create --base main --title "fix(...): ... (recopie de #<n>)" --body-file <
 | Coupe à annuler entièrement, aucune fusion sur `$BR` | ruleset désactivé, puis `gh api -X DELETE repos/$REPO/git/refs/heads/$BR`. On revient au plan d'avant (tag sur `main`). Décision d'O seulement |
 
 Après une fusion sur `$BR`, la branche n'est plus supprimée : on corrige par des PR de revert.
+
+## 8. État réel du 18/11 (14:00, `main` dabeeb2) et ordre du 19
+
+**Cette section fait foi pour les horaires et l'ordre du 19.** Les § 1 à 7 restent valables pour les commandes. Relevé : `releve-prs-19-11.sh`, exécuté le 18/11 à 13:46. Son tableau META date d'avant la série V1.0 : l'inventaire complet vient de `gh pr list --state open` (118 PR).
+
+### 8.1 Classement des 118 PR ouvertes
+
+| Classe | PR | Responsable | État le 18/11 à 14:00 |
+|---|---|---|---|
+| V1.0 à fusionner avant 18:00 | #203 | I | prête, **en conflit avec `main` (DIRTY), donc sans CI** ; 13 fichiers, aucune migration. PR empilées dessus : #358, #241, #266, et par #358 : #360, #361 |
+| | #358 | B | brouillon, base = branche de #203, CLEAN ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
+| | #360 | B | brouillon, base = branche de #358, CLEAN ; 9 fichiers, aucune migration ; 25 tests verts en Docker |
+| | #104 (point de coupe) | I | brouillon, DIRTY sur le distant (7302e3c). En local (8eca6b0) : 56 commits d'avance, 70 de retard, et `merge-tree` ne montre aucun conflit avec `main` |
+| V1.0 conditionnelle | PR RapidOCR | B | **aucune PR ni branche distante** : seulement un commit local (7cb2dd9). Restent les tests et la mesure mémoire |
+| | #356 (e2e du scénario de démo) | F | brouillon, BEHIND ; tests seuls |
+| Release seulement (§ 0) | #121 | O | prête, BEHIND, CI verte ; jamais fusionnée sur `main` |
+| V1.1 / V1.2, brouillon, hors file | les 105 autres brouillons, dont #241, #266, #359, #361 et toute la série post-rc1 | auteurs | aucune fusion avant la coupe |
+| Dependabot | #29, #30, #110, #111, #112, #113, #141 | O | hors file (DEC-2026-001 : V1.2) |
+
+### 8.2 Ordre du 19 : heure au plus tard et critère de passage
+
+Les fusions passent une à une. Avec la règle `strict`, chaque PR demande une mise à jour de branche, une CI de 5 à 13 minutes, puis la fusion : 15 à 20 minutes en tout. **Avant de fusionner une PR qui sert de base, recibler d'abord sur `main` les PR empilées dessus.** Ne jamais supprimer une branche de base (`delete_branch_on_merge` est à `false`).
+
+| # | Étape | Qui | Cible | Au plus tard | Critère de passage | Sinon |
+|---|---|---|---|---|---|---|
+| 0 | Fusion de `main` dans #203 (merge, sans rebase) ; retrait de `TENANT_ANALYTICS_ROLES` ; alignement de `test_stats_scope` ; tests de périmètre en Docker | I, **avec le feu vert d'O** | 18/11 au soir | 19/11 à 11:00, poussé | conflit résolu, tests verts en Docker, aucune migration | #203 manque 18:00, et donc #358 et #360 aussi |
+| 1 | Reciblage de #358, #241 et #266 sur `main` | O | 19/11 à 09:00 | avant la fusion de #203 | `baseRefName` = `main` pour les trois | ne pas fusionner #203 |
+| 2 | Fusion de #203 | O | 11:00 | **15:00** | `ci_gate 203` : `draft=false`, CI Gate `COMPLETED SUCCESS` ; relecture de Q | V1.1, avec #358 et #360 |
+| 3 | #358 prête (B), puis reciblage de #360 et #361 sur `main` (O) | B, puis O | 12:00 | avant la fusion de #358 | 6 trous corrigés, puis `gh pr ready 358` | — |
+| 4 | Fusion de #358 | O | 12:30 | **15:30** | CI Gate vert, OK de Q | V1.1, avec #360. La fuite reste dans les limites connues (question 12 de la fiche jury) |
+| 5 | #360 prête, puis fusion | B, puis O | 13:30 | **16:00** | CI Gate vert, OK de Q | V1.1 |
+| 6 | PR RapidOCR : décision | O | — | **16:00** | étape 0 de `decision-vote-ocr.md` : PR prête, CI verte, OK de Q, Tesseract toujours moteur par défaut, aucune migration, trois tests de repli | V1.1 (§ 4 de la note) |
+| 7 | Fusion de RapidOCR, si l'étape 6 passe | O | 16:30 | **17:00** | CI Gate vert | V1.1 |
+| 8 | #356 (tests e2e seuls) | F, puis O | 15:00 | **17:00** | prête, CI verte, OK de Q | après la coupe, sur `main` |
+| 9 | **Gel des fusions sur `main`** : O note la tête de `main` | O | — | **17:15** | `git rev-parse --short origin/main`, transmis à I | — |
+| 10 | Essai à blanc de #104 | I | 17:30 | 17:45 | `deroule-coupe-19-11.md` § 1, ligne de 17:55 : fusion locale de `origin/main` sans conflit, sur la tête notée à 17:15 | conflit : prévenir O avec la liste des fichiers ; ne rien pousser |
+| 11 | Push unique de #104, puis `gh pr ready 104` | I | 18:00 | 18:05 | `deroule` § 1 | — |
+| 12 | Fusion de #104, **point de coupe** | O | 18:20 | **19:00** | `deroule` § 2 : CI Gate vert | à 19:00, O et le PO décident s'il faut couper sans les notes |
+| 13 | #121 reciblée sur la release, après la coupe | O | après le § 3 | 19:30 | `gh pr edit 121 --base "$BR"` | — |
+
+**« #121 en dernier »** désigne le reciblage de l'étape 13, pas une fusion sur `main`. Une fusion sur `main` avant la coupe bloquerait la coupe au contrôle 3 du § 2, et ferait passer `main` en `1.0.0-rc.1` (§ 0).
+
+Reciblage (O) :
+
+```bash
+for n in 358 241 266; do gh pr edit $n --repo $REPO --base main; done   # avant la fusion de #203
+for n in 360 361; do gh pr edit $n --repo $REPO --base main; done       # avant la fusion de #358
+for n in 358 241 266 360 361; do gh pr view $n --repo $REPO --json number,baseRefName -q '"#\(.number) \(.baseRefName)"'; done
+```
+
+### 8.3 Après 18:00 : commande ou responsable de chaque étape
+
+| Heure | Étape | Qui | Commande ou renvoi | Résultat attendu |
+|---|---|---|---|---|
+| 18:00 | Push de #104, puis `gh pr ready 104` | I | `deroule-coupe-19-11.md` § 1 | tête distante = tête locale |
+| 18:05 à 18:20 | Fusion de #104 | O | `deroule` § 2 | `M` = mergeCommit de #104 |
+| ≈ 18:25 | Contrôles avant la coupe | O | § 2, contrôles 1 à 6 | les 6 passent |
+| ≈ 18:30 | Création de `release/v1.0.0` sur `M` | O | § 3 | la branche existe, sur `M` |
+| ≈ 18:30 | Tête alembic de la release | Q | `deroule` § 5 | une seule ligne : `"a7c8d9e0f1b2"`. Vérifié sur dabeeb2 le 18/11 ; #203, #358 et #360 n'ajoutent aucune migration |
+| ≈ 18:35 | Ruleset `release/**` : plan, apply, plan | O | § 4.1, § 4.2, puis § 4.3 | le dernier plan n'a plus rien à faire ; le ruleset 26190959 vise toujours `~DEFAULT_BRANCH` |
+| ≈ 18:40 | Fermeture de #133 | O | bloc ci-dessous | issue CLOSED |
+| 18:40 | DEC-2026-004 sur `main` | I | `deroule` § 6. Branche `docs/dec-2026-004` : 143 commits de retard, aucun conflit. Faire `git merge origin/main` en local avant le push | PR ouverte vers `main`, fusionnée par O |
+| ≈ 18:45 | #121 reciblée sur la release | O | § 5 : `gh pr edit 121 --base "$BR"` | base = `release/v1.0.0` |
+| 18:45 à 19:10 | #179 | O | `deroule` § 7 | — |
+| 19:10 | Contrôle d'étanchéité | O | § 5 | — |
+
+Fermeture de #133. L'écart 2 de l'audit HTTPS est traité par la documentation seule (décision d'O), dans `deroule-demo-https.md` § 3, qui arrive avec #104 :
+
+```bash
+gh pr diff 104 --repo $REPO --name-only | grep -c deroule-demo-https   # doit afficher 1
+gh issue close 133 --repo $REPO --reason completed \
+  --comment "Écart 2 de l'audit HTTPS traité par la documentation : deroule-demo-https.md § 3, arrivé avec #104 ($M)."
+```
+
+### 8.4 Risques pour 18:00
+
+1. **#203 est en conflit avec `main` et n'a pas de CI.** La délégation à I prévoyait de fusionner `main` dans #203 *après* #358 ; or #203 passe désormais en premier. Il faut le feu vert d'O dès le 18 au soir, et un créneau Docker pour les tests. Sans cela, #203, #358 et #360 tombent ensemble.
+2. **Fusions en série.** Trois PR empilées, puis peut-être RapidOCR et #356, à 15 à 20 minutes chacune. Entre 16:00 et 17:15, la marge ne couvre qu'une seule relance de CI.
+3. **RapidOCR** : aucune PR la veille à 14:00. Par défaut, elle passe en V1.1.
+4. **#356** (F, tests e2e seuls) : la coupe n'en dépend pas. O tranche : V1.0 ou non.
+5. **#121** : « en dernier » veut dire reciblage sur la release, jamais une fusion sur `main` (contrôle 3 du § 2).
+6. **#104** a 70 commits de retard sur `main`. L'essai à blanc de 17:30 se fait sur la tête notée au gel de 17:15, et non plus sur `2f15b6e`.
