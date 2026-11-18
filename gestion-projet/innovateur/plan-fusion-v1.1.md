@@ -47,7 +47,8 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 
 | Ordre | PR | Rôle | Base / pile | Dépend de | Conflit probable | OK de Q | Lot |
 |---|---|---|---|---|---|---|---|
-| 1 | #389 ci : parité réglages, compose et `.env.example` | Q | main | — | `.env.example`, `docker-compose.yml`, `ci.yml`, `appfactory-impact.json` | non | — |
+| 1 | #389 ci : parité réglages, compose et `.env.example` | Q | main | — | `.env.example`, `docker-compose.yml`, `ci.yml`, `appfactory-impact.json` | **oui (3d3ad2e)** | — |
+| 1 bis | #403 suites UX du lot 5 (droits, plafonds, erreurs) | F | sur #389 : **re-cibler sur `main` avant de fusionner #389** | #389 | `ci.yml`, `appfactory-impact.json`, `App.tsx`, `Dashboard.tsx` | **oui (4228d7a)** | — |
 | 2 | #383 audit : plafond de l'export CSV (#136) | B | main | #389 | `config.py`, `.env.example`, `docker-compose.yml`, `audit.py` | oui (c19e95b) | — |
 
 ### Vague 1 : 24 et 25/11, petites PR sans migration
@@ -64,7 +65,7 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 | 11 | #245 hôtes acceptés par Vite (#145) | F | main | #389 | `.env.example`, `docker-compose.yml` | oui (23a0af2), CONFLICTING | 14 |
 | 12 | #253 test de `tag_preflight.sh` en CI | Q | main | #389 | `ci.yml`, `appfactory-impact.json` | non | 14 |
 | 13 | #235 synchronisation additive des droits CSV vers SQL | B | main | — | `casbin_enforcer.py` | code (SHA non noté) | 13 |
-| 14 | #238 règles écrites ligne par ligne | B | sur #235 | #235 | `casbin_enforcer.py`, `docker-compose.yml`, `installation.md` | code (SHA non noté) | 13 |
+| 14 | #238 règles écrites ligne par ligne (si elle passe après #389 : retirer `AUTHZ_BACKEND` des exceptions de parité, § 9) | B | sur #235 | #235 | `casbin_enforcer.py`, `docker-compose.yml`, `installation.md` | code (SHA non noté) | 13 |
 | 15 | #248 compose réduit pour le VPS | doc | main | — | `installation.md` | changements demandés (15b6e99, tête 2d73db6) | 12 |
 | 16 | #267 en-têtes de sécurité du proxy | doc | sur #248 | #248 | — | code (81ca7a3) | 12 |
 | 17 | #268 contrôle de la configuration du VPS en CI | Q | sur #248 | #248, #389 | `ci.yml`, `appfactory-impact.json` | code (3afe892) | 12 |
@@ -181,6 +182,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | Base | PR empilées dessus | À faire avant de fusionner la base |
 |---|---|---|
 | #384 | #386 → #387 | Re-cibler #386 sur `main` ; #387 suit. |
+| #389 | #403 | Re-cibler #403 sur `main` **avant** de fusionner #389 ; puis fusionner #389, puis #403 (O, 18/11). |
 | #235 | #238 | Re-cibler #238. |
 | #248 | #267, #268 | Re-cibler les deux. |
 | #284 | #311 | Re-cibler #311. |
@@ -314,3 +316,9 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 - **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). Il faut une relecture du delta de ce test par Q et un avis du PO avant la fusion, car elle change un comportement que la rc.1 garantit.
 - **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. À trancher avant la fusion : soit B aligne sur #148, soit O note l'écart comme accepté. Sinon elle reste en V1.2, comme prévu au § 6.
 - **Point 3 du § 8** : il ne reste que #361 et #266.
+
+### Contraintes d'après la coupe (O, 18/11)
+
+1. **OK de Q** : #389 en 3d3ad2e et #403 en 4228d7a. Si la tête change, l'OK tombe et Q relit la nouvelle tête.
+2. **Ordre de fusion** : #403 est empilée sur #389. On re-cible d'abord #403 sur `main`, puis on fusionne #389, puis #403. Sinon, la fusion de #389 laisse #403 sans base.
+3. **#238 et #389** : la PR fusionnée en second retire `AUTHZ_BACKEND` des exceptions du contrôle de parité des réglages. Le contrôle doit rester vert sans cette exception.
