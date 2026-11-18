@@ -759,7 +759,7 @@ Demande d’O : reporter les audits UX Lots 12 et 13 en V1.1, avec porteurs et c
 | 57 L12-1 | Motif à l’ouverture, bandeau masqué, « Corriger et renvoyer », choix du valideur dans l’onglet Circuit | aide-api | 2,5 |
 | 57 L12-2 | Filtre « Rejetés » dans Mes Documents | F | 0,25 |
 | 57 L12-3 | Demandeur et date d’envoi sur les cartes de `/tasks` | aide-api | 0,5 |
-| 57 L12-5 | Réassigner une tâche en cours (serveur et bouton) | aide-api | 1,5 |
+| 57 L12-5 | Réassigner une tâche en cours (serveur et bouton) | B (O, 18/11 dans la nuit ; empilée sur #445) | 1,5 |
 | 57 L13-2 | Bandeau des rejets et tuile « Mes visas » sur l’accueil | aide-api | 1 |
 | 57 L13-3 | Badge du menu, remise à jour après action, clic sur une notification, entrée `/tasks` pour l’administrateur | F | 1,25 |
 | 57 L13-4 | WebSocket par cookie et repli en polling | aide-api | 3 (déjà dans ses 28 à 30) |
@@ -924,3 +924,13 @@ Tableau calculé par `gestion-projet/outils/charges.sh` sur `charges-v1.1.csv` :
 Plus aucun porteur au-dessus de sa capacité.
 
 **Décision d’O (18/11 au soir)** : le PO laisse la session d’aide-api ouverte du 19 au 23/11. Ce tableau est retenu. aide-api est le **premier recours** si F déclenche son transfert de tests vers Q (2 h-s) ou si une ligne glisse.
+
+**Décision d’O (18/11 dans la nuit)** : 57 L12-5 (réassigner une tâche en cours, 1,5 h-s) passe d’aide-api à B. Elle sera empilée sur #445. Recalcul avec `charges.sh` :
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | 42,05 | 31,25 | 35,3 | 32,5 à 34,5 | 141,1 à 143,1 |
+| Capacité | 41,5 | 32 | 37,75 | 42 | 153,25 |
+| **Écart** | +0,55 | −0,75 | −2,45 | −9,5 à −7,5 | −12,15 à −10,15 |
+
+B dépasse sa capacité de 0,55 h-s. La charge de l’équipe ne change pas, et aide-api garde 7,5 à 9,5 h-s de marge. C’est à O de trancher : accepter le dépassement, ou rendre à aide-api une autre ligne de B qui n’est pas encore commencée (57 L14-2, déjà ouverte en #439, ne compte pas).

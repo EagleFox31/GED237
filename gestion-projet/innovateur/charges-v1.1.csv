@@ -20,3 +20,6 @@ ch;réparation hook pre-commit;Q;0,5
 ch;57 L13-2 vers B;aide-api;-1
 ch;57 L13-2 vers B;B;1
 # Tests rapides d’aide-api (A, B, C, D) : faits du 18 au 23/11, hors de sa fenêtre (24/11-04/12), donc 0 ici.
+# Décision d’O du 18/11 dans la nuit : 57 L12-5 (réassigner une tâche en cours) passe d’aide-api à B, empilée sur #445.
+ch;57 L12-5 vers B;aide-api;-1,5
+ch;57 L12-5 vers B;B;1,5
