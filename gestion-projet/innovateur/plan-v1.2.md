@@ -10,6 +10,7 @@
 - **Sortie de la V1.1 du 18/11** : le glisser-déposer de #151 (élément 18, #299), décision de O. #278 sort aussi (élément 19, décision de O) : il passe en tête de la V1.2, avant l'élément 10 qui en dépend.
 - **Ajout du 18/11** : « comme Windows », éléments 20 à 23 (≈ 7 h-s), détail dans `spec-windows-feel-v1.2.md`.
 - **Décision du PO du 18/11** : les éléments 20 à 23 entrent en V1.2 (+7 h-s, total ≈ 38,25). F commence par l'élément 21 (application installable), en brouillon.
+- **Réévaluation de #113 du 18/11** (élément 3) : B 0,5 → 2 h-s, Q 0,25 → 0,5. Total ≈ 40 h-s (B 14,25, Q 11,75).
 - **Réponses du PO du 18/11 au matin** (`decisions-po-en-attente.md`) :
   - question 2 = B : les droits par institution (élément 13) entrent en V1.2, sans changer le total, déjà compté ;
   - question 1 = B (confirmée par le PO via O) : les alertes de qualité (élément 9) restent en V1.2, sans changer le total, déjà compté. Un seul rebasage, en début de cycle, après l'étiquette V1.1 du 07/12.
@@ -20,7 +21,7 @@
 |---|---|---|---|---|---|---|
 | 1 | **#265** : supprimer la table `org_unit_closure`, inutilisée | aucune visible : moins de code mort, des migrations plus sûres | 0,5 (migration) | — | 0,25 | arbre des unités par `parent_id` (#266, V1.1) |
 | 2 | **#279 et #281** : déprécier `GET /documents/tree` au profit de `/spaces/tree` | aucune visible : une seule façon de parcourir les dossiers | 0,25 | — (F vérifie que l'écran n'appelle plus l'ancienne route) | 0,25 | — ; la suppression de la route se fera plus tard, après un cycle de dépréciation |
-| 3 | **#113** : Starlette 1.x | aucune visible : rester sur une version maintenue | 0,5 | — | 0,25 | compatibilité de FastAPI avec Starlette 1.x, à vérifier avant |
+| 3 | **#113** : Starlette 1.x, avec FastAPI ≥ 0.133 et Pydantic ≥ 2.7 dans le même brouillon (réévalué le 18/11) | aucune visible : rester sur une version maintenue | 2 (Starlette 1.x impose FastAPI ≥ 0.133, qui impose Pydantic ≥ 2.7) | — | 0,5 (sans jeton, les tests passent de 403 à 401 : toute la suite est à relire) | montée de Pydantic dans le même brouillon |
 | 4 | **#110** : image Python 3.15 | aucune visible : sécurité et performances de la base logicielle | 0,5 | — | 0,25 | paquets compilés disponibles en 3.15 (asyncpg, OCR) |
 | 5 | **TypeScript 6.0, version pont vers 7** (#29 reste ouverte pour la 7) ; décision de O du 18/11 | aucune visible : se rapprocher de la 7 sans casser les contrôles | — | 0,5 | 0,25 | 6 conseillé avant. La 7 est bloquée : typescript-eslint 8.73 s'arrête à TypeScript 6.0 (vérifié sur npm le 18/11). Passage à la 7 en suivi, sans coût tant que typescript-eslint ne suit pas |
 | 6 | **ESLint 9 en configuration « flat » avec airbnb-extended, étape vers 10** (#30 reste ouverte pour la 10) ; décision de O du 18/11 | aucune visible : outillage à jour | — | 0,5 | 0,25 | La 10 est bloquée : airbnb-extended et les extensions react, jsx-a11y et import s'arrêtent à ESLint 9 (vérifié sur npm le 18/11). Passage à la 10 en suivi, sans coût tant qu'elles ne suivent pas |
@@ -46,16 +47,18 @@
 
 | | B | F | Q | Total |
 |---|---|---|---|---|
-| Socle technique (1 à 6) | 1,75 | 1 | 1,5 | 4,25 |
+| Socle technique (1 à 6) | 3,25 | 1 | 1,75 | 6 |
 | Sorties et refus de la V1.1 (15 à 19) | 1,25 | 1,5 | 1,25 | 4 |
 | Valeur pour l'agent (7, 8, 14) | 2,75 | 3 | 1,5 | 7,25 |
 | Pilotage (9, 10) | 2 | 2 | 3 | 7 |
 | Hiérarchie (11, 12) | 1 | 2 | 0,75 | 3,75 |
 | Droits par institution (13) | 2,5 | 1 | 1,5 | 5 |
 | Comme Windows (20 à 23) | 1,5 | 3,5 | 2 | 7 |
-| **Total** | **12,75** | **14** | **11,5** | **≈ 38,25** |
+| **Total** | **14,25** | **14** | **11,75** | **≈ 40** |
 
-Avec les éléments 20 à 23, F devient la plus chargée (14 h-s) ; ils se décalent sans gêner les autres, car seul le 23 touche le serveur. Q reste le goulot des relectures, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q, et les droits par institution (13) en pèsent 1,5. Ce sont les deux leviers de la V1.2.
+Le total passe de ≈ 38,25 à ≈ 40 h-s le 18/11 : #113 (élément 3) coûte 1,5 h-s de plus à B et 0,25 à Q. La règle « pas d'ajout sans sortie équivalente » vaut pour la V1.1, pas pour la V1.2 : cette hausse ne demande donc pas de sortie.
+
+B devient la plus chargée (14,25 h-s), juste devant F (14 h-s). Les éléments 20 à 23 de F se décalent sans gêner les autres, car seul le 23 touche le serveur. Q reste le goulot des relectures, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q, et les droits par institution (13) en pèsent 1,5. Ce sont les deux leviers de la V1.2.
 
 ## Ordre proposé
 
