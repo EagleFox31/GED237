@@ -169,9 +169,11 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 57 sexies | **à ouvrir** : audit UX Lot 6, une seule erreur hors ligne au dépôt (XS) | F | main | — | fenêtre de dépôt | non | lot 6 UX |
 | ~~57 septies~~ | audit UX Lot 6, orientation du premier jour (S) : **passée en V1.2** (O, 18/11), voir § 7 | — | — | — | — | — | — |
 | ~~57 octies~~ | audit UX Lot 6, saisie gardée à travers la reconnexion (M) : **passée en V1.2** (O, 18/11), voir § 7 | — | — | — | — | — | — |
-| 57 nonies | #391 aperçu dans l'onglet « Informations » de la fiche | F | main | — | `DocumentDetailModal.tsx`, **`document-detail.page.ts:65` (comme #396)** | non | — |
+| 57 nonies | #391 aperçu dans l'onglet « Informations » de la fiche | F | main | — | `DocumentDetailModal.tsx`, **`document-detail.page.ts:65` (comme #396)** | **oui (9a943d3)** | — |
 | 57 decies | #392 « Envoyer et déposer un autre » (dépôt en série) | F | main | — | fenêtre de dépôt | **oui (fc71aad)** | — |
 | 57 undecies | #396 téléchargement rapide sur les cartes et remise à zéro des filtres | F | main | — | `Documents.tsx`, **`document-detail.page.ts:65` (comme #391)** | **oui (93feb87)** | — |
+| 57 duodecies | **à ouvrir** (issue #413) : le garde de production de `SECRET_KEY` refuse aussi la clé par défaut du compose (XS sécurité) | B | main | — | `config.py`, `docker-compose.yml` ; passe le contrôle de parité (#389) | non | Q (O, 18/11) |
+| 57 terdecies | **à ouvrir** (issue #414) : `/auth/refresh` vérifie la blacklist et l'état du compte (XS sécurité) | B | main | — | `auth.py` | non | Q (O, 18/11) |
 
 - **#303** : 36 fichiers, dont 29 en commun avec #220. Sa branche contient sans doute une autre pile. Il faut la re-cibler sur `main` après #294, puis vérifier que le diff ne contient plus que l'écran des droits.
 - **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F, en PR #407 (brouillon). La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
@@ -261,11 +263,11 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 | PR | Capacité | Rôle | Base / pile | OK de Q | État | Recommandation |
 |---|---|---|---|---|---|---|
 | #147 | Sonde de disponibilité `/health/ready` (L1) | B | main | non | 5 fichiers | **Fusionner** : petite, utile à la supervision du VPS. |
-| #152 | Corbeille : supprimer envoie à la corbeille, puis restaurer ou purger (L2) | B | main | périmé (5547c0d, tête 6788562) | 16 fichiers | **Fusionner** après relecture du delta. Elle porte #181, #184, #211 et #301 (Suppr de #151, déjà décidé en V1.1). |
-| #181 | Écran Corbeille | F | sur #152 | code, en attente (tag, CI, e2e) | 24 fichiers | **Fusionner** avec #152. |
+| #152 | Corbeille : supprimer envoie à la corbeille, puis restaurer ou purger (L2) | B | main | code (e27e01c), avant le retrait de la purge du tenant_admin | 16 fichiers | **Fusionner** après le delta de la décision du PO (DEC-2026-006, 18/11) : purge définitive et vidage **réservés au super_admin**, ligne `p, tenant_admin, documents, purge` retirée (`policy.csv:59`), tests 403. Ciblage du tenant par le super_admin vérifié par B. **Relecture du delta par Q à prévoir.** Ordre (O) : après #401, avant la commande « premier administrateur ». Elle porte #181, #184, #211 et #301 (Suppr de #151, déjà décidé en V1.1). |
+| #181 | Écran Corbeille | F | sur #152 | code, en attente (tag, CI, e2e) | 24 fichiers | **Fusionner** avec #152. Les boutons de purge sont masqués sans `documents purge` (vérifié par Q) : avec DEC-2026-006, ils disparaissent pour le tenant_admin. L'écran super_admin passe en V1.2 (§ 7). |
 | #184 | Annuler la dernière mise à la corbeille ou le dernier déplacement | F | sur #181 | code (726b8b7) | CONFLICTING | **Retravailler** : rebase après #181. |
 | #211 | Sélection multiple dans l'explorateur | F | sur #184 | code (974afd3) | 4 fichiers | **Fusionner** après #184. |
-| #168 | Passe e2e L2 (corbeille) | B/Q | main | non | 16 fichiers | **Fusionner** juste après #152 : garde de non-régression. |
+| #168 | Passe e2e L2 (corbeille) | B/Q | main | non | 16 fichiers | **Fusionner** juste après #152 : garde de non-régression. À ajuster à DEC-2026-006 : la purge par le tenant_admin attend 403, plus 200. |
 | #182 | Passe e2e L4 (annuler) | F/Q | main | code (50b684c) | 39 fichiers, 18 en commun avec #181 | **Retravailler** : rebase sur `main` après #181, pour ne garder que les tests. |
 | #153 | File de validation unifiée (L3) | B | main | oui (cbf28bc) | 6 fichiers | **Fusionner** : sert directement les agents. |
 | #190 | Écran de la file de validation à onglets | F | sur #181 | code (f23db8c) | CONFLICTING | **Retravailler** : elle dépend de #153. Si elle n'utilise rien de #181, la re-cibler sur `main` (à vérifier par F). |
@@ -299,7 +301,14 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
   - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
   - autres : #313 (élément 8 de la V1.2) et #298 (#278, sortie par O le 18/11) ;
-  - audit UX Lot 6 (F, à ouvrir) : point (c), barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % ; point M, saisie gardée à travers la reconnexion ; point S, orientation du premier jour et aide sur le code à la connexion (O, 18/11).
+  - audit UX Lot 6 (F, à ouvrir) : point (c), barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % ; point M, saisie gardée à travers la reconnexion ; point S, orientation du premier jour et aide sur le code à la connexion (O, 18/11) ;
+  - audit UX Lot 7, chef de service et auditeur (premier tri d'O, 19/11 : la V1.1 est pleine) :
+    1. historique d'un document, et plafond de 200 lignes du journal d'audit (`AuditLogs`), M ;
+    2. export du journal sur une période (du… au…) et en PDF officiel, M ;
+    3. recherche de documents par date et par auteur, M ;
+    4. indicateur de retard (J+) et confirmation allégée dans la file de validation (`ValidationHub`), S ;
+    5. délégation pendant une absence, L ;
+  - écran Corbeille du super_admin avec choix de l'institution (DEC-2026-006). En V1.1, le super_admin purge par l'API seulement.
   Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
 - **Dependabot, versions majeures** (V1.2) : #29, #30, #110 et #113.
 - **#385** : outil de mesure, jamais fusionné.
@@ -325,7 +334,7 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 | Réduites le 18/11 | #241, #213 | Pile `main` ← #241 ← #213 ← #221, #261, #263 ; #241 mise à jour après la coupe (§ 2, vague 3). |
 | À garder malgré tout | #282, #335 | #282 est à rebaser ; #335 reste en vague 6. |
 
-- **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). Il faut une relecture du delta de ce test par Q et un avis du PO avant la fusion, car elle change un comportement que la rc.1 garantit.
+- **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). OK de Q sur le code en e27e01c : les droits de `main` sont gardés, seul l'effet change. **Avis du PO rendu le 18/11 (DEC-2026-006)** : DELETE vers la corbeille approuvé, purge réservée au super_admin. Reste à faire : delta de B (policy, tests 403, ciblage du tenant pour le super_admin), puis relecture de ce delta par Q.
 - **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. À trancher avant la fusion : soit B aligne sur #148, soit O note l'écart comme accepté. Sinon elle reste en V1.2, comme prévu au § 6.
 - **Point 3 du § 8** : il ne reste que #361 et #266.
 
@@ -336,5 +345,5 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 3. **#238 et #389** : la PR fusionnée en second retire `AUTHZ_BACKEND` des exceptions du contrôle de parité des réglages. Le contrôle doit rester vert sans cette exception.
 4. **#407 puis #401** : OK de Q pour #407 en 98d2317. B empile #401 sur #407. On re-cible d'abord #401 sur `main`, puis on fusionne #407, puis #401.
 5. **#400 et #401** : elles sont en conflit. La PR fusionnée en second résout le conflit.
-6. **#391 et #396** : elles modifient la même ligne (`document-detail.page.ts:65`). La PR fusionnée en second **garde le sélecteur par `testid`**. OK de Q pour #392 en fc71aad et pour #396 en 93feb87.
+6. **#391 et #396** : elles modifient la même ligne (`document-detail.page.ts:65`). La PR fusionnée en second **garde le sélecteur par `testid`**, et, pour le conflit de #391 avec #396, **la ligne commentée** (O, 18/11, nuit). OK de Q pour #391 en 9a943d3, pour #392 en fc71aad et pour #396 en 93feb87.
 7. **Points mineurs de Q, non bloquants** : B les traite en fin de V1.1, seulement s'il reste de la capacité. #392 : remettre à zéro `titleEditedByHand`, et ajouter un e2e du flux en série. #396 : un test des nouveaux boutons.

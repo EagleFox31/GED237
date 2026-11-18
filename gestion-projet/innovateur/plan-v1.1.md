@@ -497,3 +497,32 @@ F revient sous 20,3, et la réserve de Q remonte à ≈ 1,65. Si (a) glisse en V
 **#391, #392 et #396** (OK de Q pour #392 en fc71aad et pour #396 en 93feb87) :
 - ces trois PR ne sont comptées dans aucun lot ; le temps de relecture que Q y a déjà passé est à confirmer par Q ;
 - les points mineurs relevés par Q sont confiés à B en fin de V1.1, **seulement s'il reste de la capacité**, et ne sont pas comptés : pour #392, remettre à zéro `titleEditedByHand` et ajouter un e2e du flux en série ; pour #396, un test des nouveaux boutons.
+
+## Mise à jour du 18/11, fin de soirée : relectures de Q, #413, #414 et #152 (demande de O)
+
+**Entrées** :
+- Q a passé ≈ 0,45 h-s sur les relectures de #391, #392, #393, #395, #396, #398, #400 et #401 (premier passage et re-relectures jusqu'à #391 en 9a943d3). Ce temps est pris sur sa réserve V1.1.
+- Le + 0,45 de Q compté plus haut pour #400 et #401 (« re-ciblage, relecture ») portait sur **la même relecture**, déjà faite. Pour ne pas la compter deux fois, le relevé de Q remplace cette ligne. Il reste à venir la re-relecture après le re-ciblage de #401 et la résolution du conflit #400/#401 : 2 × XS, Q 0,1.
+- Deux XS sécurité pour B, issues ouvertes par Q : #413 (le garde de production de `SECRET_KEY` laisse passer la clé par défaut du compose) et #414 (`/auth/refresh` ignore la blacklist et l'état du compte). Barème XS : B 0,1 et Q 0,05 chacune.
+- #152, décision du PO (DEC-2026-006) : retrait de la purge du tenant_admin, tests 403, vérification du ciblage du tenant par le super_admin, ajustement de #168. B 0,3 (`Déduit`, hors choix de conception : si B s'arrête sur un choix, O rechiffre). Relecture du delta par Q : 0,1.
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Total V1.1 (décision de O, 18/11, nuit) | 23,55 | 20,25 | 26,0 | 0,5 | 70,3 |
+| Relectures déjà faites des 8 PR (Q) − ligne #400/#401 comptée plus haut | — | — | ± 0 | — | ± 0 |
+| Re-relecture de #401 après re-ciblage, conflit #400/#401 | — | — | + 0,1 | — | + 0,1 |
+| #413 et #414 (XS) | + 0,2 | — | + 0,1 | — | + 0,3 |
+| Delta de #152 (DEC-2026-006), dont #168 | + 0,3 | — | + 0,1 | — | + 0,4 |
+| **Total V1.1** | **≈ 24,05** | **≈ 20,25** | **≈ 26,3** | **0,5** | **≈ 71,1** |
+
+**Verdict** :
+- **La réserve de Q passe sous 1 h-s** : ≈ 1,15 − 0,3 = **≈ 0,85**. Elle tombe à ≈ 0,60 si (a) glisse en V1.1. C'est le seuil prévu : **O porte au PO la sortie de #359** (Q − 0,5, F − 0,25). Avec cette sortie, la réserve remonte à ≈ 1,35 (≈ 1,10 si (a) glisse), et F revient à ≈ 20,0.
+- Sans le delta de #152, compté parce que la décision du PO date de ce soir, la réserve serait de ≈ 0,95 : elle passerait sous 1 de toute façon.
+- **B à ≈ 24,05** (+ 0,5) : aucune capacité de B n'est chiffrée dans ce plan, seulement « dans sa capacité » à 22,9. **À confirmer par O avec B.** Si B est juste, les points mineurs de Q sur #392 et #396 (non comptés) sortent les premiers.
+- F inchangée à 20,25 : l'écran Corbeille du super_admin va en V1.2, et l'audit UX Lot 7 aussi (`plan-fusion-v1.1.md` § 7).
+
+**Audit UX Lot 7, points (1) et (2) : CDC et démo du 30/11** (demande de O, 18/11)
+- **CDC** : aucun des deux points n'est un item. Le journal est l'item 11, déjà « fait » (`[Innovateur] Recalcul du taux CDC - 2026-11-10.md`) ; ni l'historique par document ni le PDF officiel n'y figurent.
+- **Point (1)**, historique d'un document et plafond de 200 lignes : l'étape 6 de la démo montre l'historique par l'onglet « Historique des Versions », pas par le journal. Dans `/audit`, l'écran charge les 200 lignes les plus récentes (`AuditLogs.tsx:81`, tri par date décroissante côté API) et filtre « Effectuée par » sur ces 200 lignes. Les lignes de la séance sont les plus récentes : elles sont dans la fenêtre, sauf si plus de 200 lignes s'écrivent avant l'étape 6. La répétition du 17/11 est passée, et le scénario prévoit déjà le repli (l. 76 : retirer le filtre, trier par date).
+- **Point (2)**, export sur une période et PDF : le contrôle 11 n'attend qu'un CSV qui s'ouvre dans le tableur. L'export est fait côté serveur, par lots, sur tout le journal filtré : il n'est pas plafonné à 200.
+- **Verdict** : rien d'obligatoire en V1.1. Filet optionnel, si le PO le veut : passer `limit: 200` à `limit: 500` dans `AuditLogs.tsx` (maximum déjà permis par l'API) = **XS : F 0,1, Q 0,05**. La réserve de Q passerait alors de ≈ 0,85 à ≈ 0,80. Le filtre par identifiant de document (S : F 0,5, Q 0,25) reste en V1.2 avec le reste du Lot 7.
