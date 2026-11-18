@@ -865,3 +865,20 @@ B confirme 57 L12-7 et 57 L13-6 à 1,5 chacune. Le résumé d’étape tient en 
 - **Tous à 0 ou moins.** La marge de F est faible : 0,75 h-s, environ un tiers de journée.
 - **Déclencheur F → Q** : si la démo prend à F plus d’un tiers de journée sur le week-end des 28-29/11, F donne à Q 2 h-s de tests (e2e et Vitest de 57 L7-1, L7-4, L11-2, L11-3 et L13-3). F confirme la liste. Q a la marge pour les absorber : 3,45.
 - **À confirmer** : Q pour les 3,5 h-s libérées par la contre-vérification de G (`Déduit`).
+
+### Audit UX Lot 14 : deux points en V1.1, sans charger F (O, 19/11)
+
+| Ligne | Ce qui est fait | Porteur | Chiffrage (h-s) |
+|---|---|---|---|
+| 57 L14-1 | Les 21 pastilles de formats du simulateur repliées par défaut (affichage seul) | Q | 0,5 |
+| 57 L14-2 | La recherche de l’en-tête marche depuis `/spaces`, ou y est clairement signalée ; un e2e. Après #423 | B, relu par Q | 0,75 |
+
+Les trois bloquants de démo (V1.0, F et B) sont hors charge V1.1 : `risques-demo-30-11.md`, risques 15 à 17.
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | **39,55** | **31,25** | **34,8** | **33 à 35** | **138,6 à 140,6** |
+| Capacité | 41,5 | 32 | 37,75 | 35 | 146,25 |
+| **Écart** | **− 1,95** | **− 0,75** | **− 2,95** | **− 2 à 0** | **− 7,65 à − 5,65** |
+
+Tous restent à 0 ou moins. Le déclencheur de F vers Q (2 h-s de tests si la démo mord sur le week-end de F) reste couvert par la marge de Q : 2,95.
