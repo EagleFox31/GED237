@@ -86,6 +86,14 @@ Si la question porte sur un écart déjà dit : « c'est l'écart n° … annonc
 - **Moteur de lecture** : sur `main`, Tesseract par défaut, avec EasyOCR en secours. RapidOCR seulement s'il entre dans la rc.1 (PR prête le 19 à 16:00). Le moteur de la démo est fixé le 20 à 09:00 (fiche PO, questions 17 et 21).
 - **Pas de vote** entre plusieurs moteurs (décision d'O du 18/11, `decision-vote-ocr.md`).
 - **Pile** : la démo tourne sur la pile complète `docker-compose.yml`, qui a un worker et donc l'OCR. Elle ne tourne pas sur la pile e2e. La capture de secours de l'étape photo vient du test hors ligne du 25/11 (E6 bis), et non d'un run Playwright, parce que la pile e2e n'a pas de worker.
+- **Contournements de l'audit UX du parcours** (détail : `scenario-demo-30-11.md` § 13) :
+  - D1 et D2 sont envoyés au tout début de l'import, en 2 ouvertures de « Nouveau Document », car la fenêtre se ferme après chaque fichier. Si la recherche est encore vide : « L'indexation tourne en arrière-plan. »
+  - Connexion : ne pas cliquer les profils de démo (écart 15, déjà au P1).
+  - « Traitement des documents » (`/rules`) s'ouvre sur « Types de documents » : prévoir 2 clics d'onglet, « Règles d'aiguillage » puis « Simulateur ».
+  - Import : le dossier `live` figé seulement, jamais un autre dossier.
+  - P5 : si `READ001` n'a aucun résultat, dire « c'est l'étanchéité entre services, voulue, pas une panne ».
+  - Tableau de bord de l'administrateur : ses cartes ne sont pas cliquables, sauf « Doublons refusés ». Naviguer par le menu latéral.
+  - Barre de recherche : le texte d'invite devient « Rechercher un document (titre ou contenu)… » (correctif de F avant le gel).
 
 ## Sources
 
