@@ -1,0 +1,17 @@
+import { test, expect } from '@playwright/test';
+import { downloadName } from '../../lib/downloadName';
+
+// Spec pur : exécuté par `npm run test:unit`.
+test.describe('Nom du fichier téléchargé', () => {
+  test('ajoute l\'extension du type quand le titre n\'en a pas', () => {
+    expect(downloadName({ title: 'Budget 2026', file_type: 'pdf' })).toBe('Budget 2026.pdf');
+  });
+  test('ne double pas l\'extension', () => {
+    expect(downloadName({ title: 'note.PDF', file_type: 'pdf' })).toBe('note.PDF');
+  });
+  test('retombe sur l\'extension du chemin stocké, puis sur le titre seul', () => {
+    expect(downloadName({ title: 'Courrier', file_type: null, file_path: 'a/b/c.docx' })).toBe('Courrier.docx');
+    expect(downloadName({ title: 'Courrier' })).toBe('Courrier');
+    expect(downloadName({ title: '  ' })).toBe('document');
+  });
+});

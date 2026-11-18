@@ -5,6 +5,7 @@ import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, f
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
+import { downloadName } from '../lib/downloadName';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -42,7 +43,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
       const url = URL.createObjectURL(blob);
       const a = window.document.createElement('a');
       a.href = url;
-      a.download = document.title || 'document';
+      a.download = downloadName(document);
       window.document.body.appendChild(a);
       a.click();
       a.remove();

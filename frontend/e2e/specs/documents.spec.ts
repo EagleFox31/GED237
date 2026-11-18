@@ -118,7 +118,7 @@ test.describe('Feature: Explorateur de documents', () => {
     const [download] = await Promise.all([page.waitForEvent('download'), detailModal.downloadButton.click()]);
 
     // THEN — le fichier part vraiment
-    expect(download.suggestedFilename()).not.toBe('');
+    expect(download.suggestedFilename()).toMatch(/\.[A-Za-z0-9]+$/);
   });
 
   /**
