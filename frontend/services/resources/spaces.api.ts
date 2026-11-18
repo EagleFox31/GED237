@@ -19,6 +19,9 @@ export interface SpaceTreeNode {
     children?: SpaceTreeNode[];
 }
 
+/** Clés de tri acceptées par GET /spaces/documents (toute autre valeur : 422). */
+export type SpaceDocumentSort = 'title' | 'size' | 'updated_at' | 'created_at';
+
 /** Filtres serveur de GET /spaces/documents (contrat Lot C9, #38). Valeur absente = pas de filtre. */
 export interface SpaceDocumentFilters {
     orgUnitId?: string;
@@ -31,6 +34,9 @@ export interface SpaceDocumentFilters {
     q?: string;
     limit?: number;
     offset?: number;
+    /** Tri serveur (liste blanche) ; absent = plus récents d'abord. */
+    sort?: SpaceDocumentSort;
+    order?: 'asc' | 'desc';
 }
 
 export interface SpaceDocumentsPage {
@@ -61,6 +67,8 @@ const filtersQuery = (f: SpaceDocumentFilters): string => {
     if (f.q) p.set('q', f.q);
     if (f.limit !== undefined) p.set('limit', String(f.limit));
     if (f.offset !== undefined) p.set('offset', String(f.offset));
+    if (f.sort) p.set('sort', f.sort);
+    if (f.order) p.set('order', f.order);
     const qs = p.toString();
     return qs ? `?${qs}` : '';
 };
