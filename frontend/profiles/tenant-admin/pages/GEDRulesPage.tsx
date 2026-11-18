@@ -1,11 +1,12 @@
 // frontend/profiles/tenant-admin/pages/GEDRulesPage.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import TemplatesTab from './gedrules/TemplatesTab';
 import RulesTab from './gedrules/RulesTab';
 import SimulatorTab from './gedrules/SimulatorTab';
 import CategoriesTab from './gedrules/CategoriesTab';
 import {
+  needsGedRulesTabCorrection,
   readGedRulesTab,
   writeGedRulesTab,
   type GedRulesTab,
@@ -14,6 +15,13 @@ import {
 const GEDRulesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = readGedRulesTab(searchParams);
+
+  useEffect(() => {
+    if (needsGedRulesTabCorrection(searchParams)) {
+      setSearchParams((prev) => writeGedRulesTab(prev, activeTab), { replace: true });
+    }
+  }, [activeTab, searchParams, setSearchParams]);
+
   const setActiveTab = (next: GedRulesTab) => {
     if (next === activeTab) return;
     setSearchParams((prev) => writeGedRulesTab(prev, next));

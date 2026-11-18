@@ -20,15 +20,21 @@ export function readGedRulesTab(params: URLSearchParams): GedRulesTab {
   return VALID_TABS.has(raw) ? raw : DEFAULT_GED_RULES_TAB;
 }
 
+/**
+ * Indique si `?tab=` est absent ou contient une valeur inconnue nécessitant
+ * une normalisation silencieuse de l'URL (`replace: true`).
+ */
+export function needsGedRulesTabCorrection(params: URLSearchParams): boolean {
+  const raw = params.get(GED_RULES_TAB_PARAM);
+  if (raw === null) return true;
+  return !VALID_TABS.has(raw.trim() as GedRulesTab);
+}
+
 export function writeGedRulesTab(
   current: URLSearchParams,
   tab: GedRulesTab,
 ): URLSearchParams {
   const next = new URLSearchParams(current);
-  if (tab === DEFAULT_GED_RULES_TAB) {
-    next.delete(GED_RULES_TAB_PARAM);
-  } else {
-    next.set(GED_RULES_TAB_PARAM, tab);
-  }
+  next.set(GED_RULES_TAB_PARAM, tab);
   return next;
 }
