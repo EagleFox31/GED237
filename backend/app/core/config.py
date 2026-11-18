@@ -153,6 +153,11 @@ class Settings(BaseSettings):
             raise ValueError("OCR_PRIMARY_ENGINE must be one of: tesseract, easyocr")
         return value
 
+    # Second-chance engine when the first result is empty or low-confidence. Off by
+    # default: EasyOCR (torch, ~1.3 GB) pushes a 2 GB worker over its limit and the
+    # task is killed, so the primary engine's text is kept as is.
+    OCR_FALLBACK_ENABLED: bool = False
+
     # Startup check that the database is at the Alembic head
     # fail : refuse to start (default) ; warn : log only ; off : skip
     SCHEMA_CHECK_MODE: str = "fail"
