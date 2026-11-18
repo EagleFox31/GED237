@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
+import { readCategoryFilter, writeCategoryFilter } from '../lib/documentsUrlFilter';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -27,16 +28,24 @@ const Documents: React.FC = () => {
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canCreate = !!profileId && CAN_CREATE_DOCUMENT.has(profileId);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
-  const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
-  // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
+  // Recherche (`?q=`) et filtre de catégorie (`?category=`) pilotés par l'URL.
   const [searchParams, setSearchParams] = useSearchParams();
+  const filterCategory = readCategoryFilter(searchParams);
+  const setFilterCategory = (next: string) => {
+    setSearchParams((prev) => writeCategoryFilter(prev, next), { replace: true });
+  };
   const searchQuery = searchParams.get('q') || '';
   const setSearchQuery = (next: string) => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (next) nextParams.set('q', next);
-    else nextParams.delete('q');
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const nextParams = new URLSearchParams(prev);
+        if (next) nextParams.set('q', next);
+        else nextParams.delete('q');
+        return nextParams;
+      },
+      { replace: true },
+    );
   };
 
   // La recherche et le statut sont filtrés par le serveur, sur tout le périmètre de
@@ -68,8 +77,7 @@ const Documents: React.FC = () => {
     try {
       const data = await api.getDocuments({ q: serverQuery, status: filterStatus, limit: DOCUMENTS_LIMIT });
       if (request === latestRequestRef.current) setDocs(data);
-    } catch (err) {
-      console.error('Failed to fetch documents:', err);
+    } catch {
       if (request === latestRequestRef.current) setError('Impossible de charger les documents.');
     } finally {
       if (request === latestRequestRef.current) setIsLoading(false);
@@ -147,6 +155,7 @@ const Documents: React.FC = () => {
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase">Explorateur <span className="text-rdpc-blue">GED</span></h2>
           {canCreate && (
           <button
+            type="button"
             onClick={() => setIsUploadModalOpen(true)}
             className="flex items-center gap-3 px-6 py-3 bg-rdpc-blue text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:scale-105 transition-transform">
             <span className="material-symbols-outlined text-lg">upload_file</span>
