@@ -45,7 +45,7 @@ test.describe('Nouvelle version depuis la fiche (#275)', () => {
     await form.getByRole('button', { name: 'Envoyer' }).click();
 
     // THEN
-    await expect(form.getByRole('status')).toHaveText(/^Version \d+ ajoutée\.$/, { timeout: 15_000 });
+    await expect(form.getByRole('status')).toHaveText(/^Version \d+\.\d+ ajoutée\.$/,{ timeout: 15_000 });
     const versions = page.getByTestId('document-version');
     await expect(versions).toHaveCount(2);
     await expect(versions.filter({ hasText: 'Actuelle' })).toContainText(`Note ${runId}`);
