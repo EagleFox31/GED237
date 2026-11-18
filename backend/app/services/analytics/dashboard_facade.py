@@ -162,17 +162,26 @@ class DashboardFacade:
         )
         needs_review = doc_res.needs_review if doc_res else 0
 
-        # 2. Workflow activity in this unit
+        # 2. Workflow activity in this unit (same step statuses as get_tenant_metrics)
         stmt_wf = (
             select(
                 func.count(WorkflowStep.id)
                 .filter(WorkflowStep.status == "current")
-                .label("active_workflows")
+                .label("pending"),
+                func.count(WorkflowStep.id)
+                .filter(WorkflowStep.status == "completed")
+                .label("completed"),
             )
             .join(Document, Document.id == WorkflowStep.document_id)
-            .where(Document.org_unit_id == org_unit_id, Document.deleted_at.is_(None))
+            .where(
+                Document.tenant_id == tenant_id,
+                Document.org_unit_id == org_unit_id,
+                Document.deleted_at.is_(None),
+            )
         )
         wf_res = (await self.db.execute(stmt_wf)).first()
+        pending = wf_res.pending if wf_res else 0
+        completed = wf_res.completed if wf_res else 0
 
         return {
             "org_unit_id": org_unit_id,
@@ -181,7 +190,9 @@ class DashboardFacade:
                 "storage_used_mb": round(storage_bytes / (1024 * 1024), 2),
                 "needs_review": needs_review,
             },
-            "active_workflows": wf_res.active_workflows if wf_res else 0,
+            # Kept for existing readers: same count as workflows.pending.
+            "active_workflows": pending,
+            "workflows": {"pending": pending, "completed": completed},
         }
 
     async def get_platform_metrics(self) -> Dict[str, Any]:
