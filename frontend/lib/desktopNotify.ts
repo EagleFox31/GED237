@@ -82,17 +82,29 @@ export interface SocketHandlers {
  */
 export type TicketProvider = () => Promise<string | null>;
 
+/** Programme `fn` dans `ms` millisecondes ; renvoie de quoi l'annuler. Injectable pour les tests. */
+export type Schedule = (fn: () => void, ms: number) => () => void;
+
+const defaultSchedule: Schedule = (fn, ms) => {
+  const id = setTimeout(fn, ms);
+  return () => clearTimeout(id);
+};
+
 const POLICY_VIOLATION = 1008;
 
-export const connectNotificationSocket = (getTicket: TicketProvider, handlers: SocketHandlers): (() => void) => {
+export const connectNotificationSocket = (
+  getTicket: TicketProvider,
+  handlers: SocketHandlers,
+  schedule: Schedule = defaultSchedule,
+): (() => void) => {
   const base = import.meta.env?.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8000/api/v1';
   let attempt = 0;
   let socket: WebSocket | null = null;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cancelRetry: (() => void) | undefined;
   let stopped = false;
 
   const retryLater = () => {
-    timer = setTimeout(open, reconnectDelay(attempt));
+    cancelRetry = schedule(() => void open(), reconnectDelay(attempt));
     attempt += 1;
   };
 
@@ -121,7 +133,7 @@ export const connectNotificationSocket = (getTicket: TicketProvider, handlers: S
 
   return () => {
     stopped = true;
-    if (timer) clearTimeout(timer);
+    cancelRetry?.();
     socket?.close();
   };
 };

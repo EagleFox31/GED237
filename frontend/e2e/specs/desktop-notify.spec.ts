@@ -61,60 +61,64 @@ test.describe('Connexion temps réel par ticket (#316)', () => {
   }
 
   const realSocket = globalThis.WebSocket;
-  const realTimeout = globalThis.setTimeout;
+  // Délais demandés par la connexion ; la minuterie est injectée, jamais celle du lanceur de tests.
   let scheduled: number[] = [];
+  const schedule = (_fn: () => void, ms: number) => {
+    scheduled.push(ms);
+    return () => undefined;
+  };
 
   test.beforeEach(() => {
     FakeSocket.opened = [];
     scheduled = [];
     (globalThis as any).WebSocket = FakeSocket;
-    (globalThis as any).setTimeout = (_fn: () => void, ms: number) => {
-      scheduled.push(ms);
-      return 0;
-    };
   });
 
   test.afterEach(() => {
     (globalThis as any).WebSocket = realSocket;
-    (globalThis as any).setTimeout = realTimeout;
   });
 
   const handlers = { onMessage: () => undefined, onOpen: () => undefined };
-  const flush = () => new Promise((resolve) => realTimeout(resolve, 0));
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const lastSocket = () => {
+    const socket = FakeSocket.opened.at(-1);
+    if (!socket) throw new Error('aucune connexion ouverte');
+    return socket;
+  };
 
   test('le ticket va dans l\'URL, jamais le jeton de session', async () => {
-    connectNotificationSocket(async () => 'a/b', handlers);
+    connectNotificationSocket(async () => 'a/b', handlers, schedule);
     await flush();
     expect(FakeSocket.opened).toHaveLength(1);
-    expect(FakeSocket.opened[0].url).toMatch(/\/notifications\/ws\?ticket=a%2Fb$/);
-    expect(FakeSocket.opened[0].url).not.toContain('token=');
+    expect(lastSocket().url).toMatch(/\/notifications\/ws\?ticket=a%2Fb$/);
+    expect(lastSocket().url).not.toContain('token=');
   });
 
   test('session refusée (pas de ticket) : aucune connexion, aucun nouvel essai', async () => {
-    connectNotificationSocket(async () => null, handlers);
+    connectNotificationSocket(async () => null, handlers, schedule);
     await flush();
     expect(FakeSocket.opened).toHaveLength(0);
     expect(scheduled).toEqual([]);
   });
 
   test('panne passagère du ticket : nouvel essai plus tard', async () => {
-    connectNotificationSocket(async () => { throw new Error('down'); }, handlers);
+    connectNotificationSocket(async () => { throw new Error('down'); }, handlers, schedule);
     await flush();
     expect(FakeSocket.opened).toHaveLength(0);
     expect(scheduled).toEqual([1000]);
   });
 
   test('coupure : nouvel essai ; ticket refusé (1008) : arrêt', async () => {
-    connectNotificationSocket(async () => 't', handlers);
+    connectNotificationSocket(async () => 't', handlers, schedule);
     await flush();
-    FakeSocket.opened[0].onclose?.({ code: 1006 });
+    lastSocket().onclose?.({ code: 1006 });
     expect(scheduled).toEqual([1000]);
-    FakeSocket.opened[0].onclose?.({ code: 1008 });
+    lastSocket().onclose?.({ code: 1008 });
     expect(scheduled).toEqual([1000]);
   });
 
   test('fermeture pendant la demande de ticket : rien ne s\'ouvre', async () => {
-    const stop = connectNotificationSocket(async () => 't', handlers);
+    const stop = connectNotificationSocket(async () => 't', handlers, schedule);
     stop();
     await flush();
     expect(FakeSocket.opened).toHaveLength(0);
