@@ -114,6 +114,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         comment: comment || undefined
       });
       await loadWorkflowSteps();
+      // Le statut du document change après un visa ou un rejet : on le relit pour l'affichage et la liste.
+      try {
+        const refreshed = await api.getDocument(document.id);
+        setDocument(refreshed);
+        onUpdated?.(refreshed);
+      } catch (refreshErr) {
+        // L'action a réussi ; l'erreur de relecture est déjà publiée par le client HTTP.
+        console.error('Refresh after action failed:', refreshErr);
+      }
     } catch (err) {
       console.error('Validation failed:', err);
       setActionError("L'action de workflow a échoué. Veuillez réessayer.");
