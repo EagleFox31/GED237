@@ -581,6 +581,8 @@ const ClassificationSettingsTab: React.FC = () => {
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
   const [showAdvancedRule, setShowAdvancedRule] = useState(false);
   const [showAdvancedSim, setShowAdvancedSim] = useState(false);
+  // Simulateur : seul le format retenu est affiché ; les 21 formats se déplient à la demande.
+  const [showAllFormats, setShowAllFormats] = useState(false);
   const [simulatorDocs, setSimulatorDocs] = useState<{
     id: string;
     title: string;
@@ -2492,17 +2494,23 @@ const ClassificationSettingsTab: React.FC = () => {
               <span className="material-symbols-outlined text-base text-amber-600">draft</span>
               Format du fichier
             </label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {FILE_FORMAT_OPTIONS.map((formatOption) => {
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {FILE_FORMAT_OPTIONS.filter(
+                (formatOption) => showAllFormats || formatOption.value === selectedSimulatorFormatToken,
+              ).map((formatOption) => {
                 const selected = selectedSimulatorFormatToken === formatOption.value;
                 return (
                   <button
                     key={formatOption.value}
                     type="button"
-                    onClick={() => setSimulationForm((prev) => ({
-                      ...prev,
-                      mime_type: FILE_FORMAT_TO_MIME[formatOption.value] || '',
-                    }))}
+                    aria-pressed={selected}
+                    onClick={() => {
+                      setSimulationForm((prev) => ({
+                        ...prev,
+                        mime_type: FILE_FORMAT_TO_MIME[formatOption.value] || '',
+                      }));
+                      setShowAllFormats(false);
+                    }}
                     className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
                       selected
                         ? 'bg-amber-600 text-white border-amber-600'
@@ -2513,6 +2521,15 @@ const ClassificationSettingsTab: React.FC = () => {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                aria-expanded={showAllFormats}
+                onClick={() => setShowAllFormats((open) => !open)}
+                className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-amber-700 transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">{showAllFormats ? 'expand_less' : 'expand_more'}</span>
+                {showAllFormats ? 'Réduire' : selectedSimulatorFormatToken ? 'Changer' : 'Choisir un format'}
+              </button>
             </div>
             <p className="text-[10px] text-slate-400 italic mt-2 ml-1">
               Proposé automatiquement depuis le nom du fichier. Ajustez ici si besoin.
