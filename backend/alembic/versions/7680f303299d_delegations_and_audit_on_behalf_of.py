@@ -106,9 +106,54 @@ def upgrade() -> None:
         ["on_behalf_of", "created_at"],
         postgresql_where=sa.text("on_behalf_of IS NOT NULL"),
     )
+    _sync_casbin_rules(add=True)
+
+
+# Same rules as ``app/core/authz/policy.csv`` (the default ``csv`` backend reads
+# that file). With ``AUTHZ_BACKEND=sql|shadow`` the rules live in ``casbin_rule``:
+# they are written there only when that table is already in use (non-empty), so a
+# base still on CSV is not half-seeded before its own cutover.
+_CASBIN_RULES = (
+    ("tenant_admin", "delegations", "manage"),
+    ("manager", "delegations", "read"),
+    ("manager", "delegations", "create"),
+    ("manager", "delegations", "update"),
+)
+
+
+def _sync_casbin_rules(add: bool) -> None:
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    if not inspector.has_table("casbin_rule"):
+        return
+    if conn.execute(sa.text("SELECT 1 FROM casbin_rule LIMIT 1")).first() is None:
+        return
+    for role, resource, action in _CASBIN_RULES:
+        params = {"role": role, "resource": resource, "action": action}
+        if add:
+            sql = (
+                "INSERT INTO casbin_rule (ptype, v0, v1, v2) "
+                "SELECT 'p', :role, :resource, :action WHERE NOT EXISTS ("
+                "SELECT 1 FROM casbin_rule WHERE ptype = 'p' AND v0 = :role "
+                "AND v1 = :resource AND v2 = :action)"
+            )
+        else:
+            sql = (
+                "DELETE FROM casbin_rule WHERE ptype = 'p' AND v0 = :role "
+                "AND v1 = :resource AND v2 = :action"
+            )
+        conn.execute(sa.text(sql), params)
+    # Running SQL enforcers reload when this version moves.
+    if inspector.has_table("authz_policy_version"):
+        conn.execute(
+            sa.text(
+                "UPDATE authz_policy_version SET version = version + 1 WHERE id = 1"
+            )
+        )
 
 
 def downgrade() -> None:
+    _sync_casbin_rules(add=False)
     op.drop_index("idx_audit_on_behalf_of", table_name="audit_logs")
     op.drop_column("audit_logs", "on_behalf_of")
     op.drop_index("ix_delegations_tenant_unit", table_name="delegations")
