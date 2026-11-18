@@ -330,7 +330,7 @@ const AuditLogs: React.FC = () => {
                 ? 'Rien à exporter'
                 : exportBlocked
                   ? 'Choisissez un seul utilisateur pour exporter.'
-                  : 'Télécharger le journal (fichier Excel)'
+                  : 'Télécharger le journal (fichier CSV)'
             }
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-700 hover:text-rdpc-blue disabled:opacity-50"
           >
