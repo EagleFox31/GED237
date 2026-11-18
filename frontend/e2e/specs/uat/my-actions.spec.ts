@@ -9,10 +9,19 @@ test.describe('Mes dernières actions', () => {
     await loginAs('collaborator');
     await page.getByRole('navigation').getByRole('button', { name: /Mes actions$/ }).click();
 
-    await expect(page).toHaveURL(/\/audit$/);
+    await expect(page).toHaveURL(/\/my-actions$/);
     await expect(page.getByRole('heading', { name: 'Mes dernières actions' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Exporter \(CSV\)/ })).toHaveCount(0);
     await expect(page.getByText('Impossible de charger le registre des actions.')).toHaveCount(0);
+  });
+
+  test('le lecteur ouvre /my-actions par URL, sans export', async ({ page, loginAs }) => {
+    await loginAs('reader');
+    await page.goto('my-actions');
+
+    await expect(page).toHaveURL(/\/my-actions$/);
+    await expect(page.getByRole('heading', { name: 'Mes dernières actions' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Exporter \(CSV\)/ })).toHaveCount(0);
   });
 
   test('l’auditeur garde le registre complet et l’export', async ({ page, loginAs }) => {

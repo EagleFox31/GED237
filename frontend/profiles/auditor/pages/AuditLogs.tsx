@@ -8,7 +8,6 @@ import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import { HelpHint } from '../../../components/HelpHint';
 import { auditActorLabel, auditExportActors } from '../../../lib/auditExport';
-import { useAuthStore } from '../../../stores/authStore';
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('fr-CM', {
@@ -57,12 +56,12 @@ function getActionBadgeClass(action: string): string {
   return ACTION_STYLES[action.toLowerCase()] || 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
-// Profils qui lisent tout le journal ; les autres ne reçoivent que leurs propres actions (filtre serveur).
-const JOURNAL_PROFILES = ['super', 'tenant', 'audit'];
+interface AuditLogsProps {
+  /** Page « Mes actions » (/my-actions) : les seules actions de l'utilisateur, filtrées par le serveur. */
+  ownOnly?: boolean;
+}
 
-const AuditLogs: React.FC = () => {
-  const profileId = useAuthStore((s) => s.userProfile?.id);
-  const ownOnly = !!profileId && !JOURNAL_PROFILES.includes(profileId);
+const AuditLogs: React.FC<AuditLogsProps> = ({ ownOnly = false }) => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +81,7 @@ const AuditLogs: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getAuditLogs({ limit: 200 });
+      const data = await api.getAuditLogs({ limit: 200, mine: ownOnly });
       setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
@@ -90,7 +89,7 @@ const AuditLogs: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [ownOnly]);
 
   useEffect(() => {
     fetchLogs();

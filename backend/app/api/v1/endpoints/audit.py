@@ -365,12 +365,14 @@ async def list_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     table_name: Optional[str] = Query(default=None),
     action: Optional[str] = Query(default=None),
+    mine: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Lot 13 (« Mes dernières actions ») : sans droit de lecture du journal, chacun voit
-    # ses propres lignes, sans le contenu brut, l'adresse IP ni le navigateur.
-    own_only = not await can_perform(current_user, "audit_logs", "read")
+    # Lot 13 (« Mes dernières actions », page /my-actions) : `mine=true`, ou l'absence de droit
+    # de lecture du journal, limite aux lignes de l'utilisateur, sans le contenu brut, l'adresse IP
+    # ni le navigateur.
+    own_only = mine or not await can_perform(current_user, "audit_logs", "read")
 
     query = _filtered_query(
         current_user.tenant_id,
@@ -382,6 +384,10 @@ async def list_audit_logs(
     result = await db.execute(query)
     logs = list(result.scalars().all())
     actors_by_id, documents_by_id = await _load_references(db, logs)
+    if own_only:
+        # Titre journalisé au moment de l'action, pas le titre actuel d'un document que
+        # l'utilisateur ne voit peut-être plus.
+        documents_by_id = {}
 
     entries = [
         _serialize_audit_log(

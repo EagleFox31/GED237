@@ -62,6 +62,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/ingestion': 'ingestion',
   '/local-library': 'local_library',
   '/audit': 'audit_central',
+  '/my-actions': 'my_actions',
   '/reports': 'reports',
 };
 
@@ -84,6 +85,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'ingestion': '/ingestion',
   'local_library': '/local-library',
   'audit_central': '/audit',
+  'my_actions': '/my-actions',
   'reports': '/reports',
 };
 
@@ -269,6 +271,8 @@ const AppLayout: React.FC = () => {
             <Route path="/audit" element={<AuditLogs />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/change-password" element={<ChangePassword />} />
+            {/* Ouverte à tous : le serveur limite aux actions de l'utilisateur (mine=true). */}
+            <Route path="/my-actions" element={<AuditLogs key="my-actions" ownOnly />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </div>
