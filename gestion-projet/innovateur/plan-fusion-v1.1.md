@@ -180,25 +180,39 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 57 quaterdecies | **à ouvrir** : pagination du journal d'audit (GO du PO, 18/11). `/audit/logs` a déjà `skip` et `limit` (1 à 500) mais ne renvoie aucun total : B ajoute le total, F les contrôles de page dans `AuditLogs` | F (B pour le total) | main | après #383 et #344 (même route) | `audit.py`, `AuditLogs.tsx` | non | PO, 18/11 |
 | 57 quindecies | **à ouvrir** : suite de #211, mise à la corbeille groupée avec annulation, et Ctrl+Espace dans l'explorateur (revient en V1.1, PO, 18/11) | F | sur #401 | après #184 et #401 | explorateur des espaces | non | PO, 18/11 |
 | 57 sexdecies | **à ouvrir** : audit UX Lot 8, points 1 à 3 (XS chacun, une seule PR) : cartes de `/documents` ouvrables au clavier et `Échap` qui ferme la fiche ; zone de dépôt au clavier et `Échap` qui ferme la fenêtre de dépôt (hors envoi en cours) ; `aria-label` des boutons icônes et `htmlFor` des champs (O, 18/11) | F | main | après #396, #371 (`Documents.tsx`) et #392, #417 (fenêtre de dépôt) | `Documents.tsx`, `DocumentDetailModal.tsx`, `UploadDocumentModal.tsx`, `Header.tsx` | non | lot 8 UX |
-| 57 septdecies | **à ouvrir** : audit UX Lot 8, point 4, contrastes des textes et des badges de statut (S) | F | main | après 57 sexdecies | `Documents.tsx`, `DocumentDetailModal.tsx`, `ValidationHub.tsx` | non | lot 8 UX |
-| 57 octodecies | **à ouvrir** : audit UX Lot 8, point 5, **fusionné avec le point 5 du Lot 6** (ex-point (c)) : barre « Annuler / Envoyer » fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 à 150 %, libellés utiles à 12 px au moins (S) | F | main | après 57 sexdecies | `UploadDocumentModal.tsx` | non | lot 8 UX |
-| 57 novodecies | **à ouvrir** : audit UX Lot 9, point 5, export CSV du journal avec plusieurs acteurs. B : `user_id` accepte une liste ; F : retirer le blocage de `AuditLogs.tsx:136` (O, 18/11) | B puis F | main | après #344 et 57 quaterdecies (même route) | `audit.py`, `AuditLogs.tsx` | non | lot 9 UX |
+| 57 septdecies | **à ouvrir** : audit UX Lot 8, point 4, contrastes des textes et des badges de statut (S) | Q (O, 18/11) | main | après 57 sexdecies | `Documents.tsx`, `DocumentDetailModal.tsx`, `ValidationHub.tsx` | non | lot 8 UX |
+| 57 octodecies | **à ouvrir** : audit UX Lot 8, point 5, **fusionné avec le point 5 du Lot 6** (ex-point (c)) : barre « Annuler / Envoyer » fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 à 150 %, libellés utiles à 12 px au moins (S) | Q (O, 18/11) | main | après 57 sexdecies | `UploadDocumentModal.tsx` | non | lot 8 UX |
+| 57 novodecies | **à ouvrir** : audit UX Lot 9, point 5, export CSV du journal avec plusieurs acteurs. B : `user_id` accepte une liste ; F : retirer le blocage de `AuditLogs.tsx:136` (O, 18/11) | B, back et front (O, 18/11) | main | après #344 et 57 quaterdecies (même route) | `audit.py`, `AuditLogs.tsx` | non | lot 9 UX |
 | 57 vicies | #298 tableau de bord du manager (#278) ; **revenue en V1.1** (O, 18/11) | F | main | après #347 (accueil) | accueil du manager | non | — |
 | 57 unvicies | **à ouvrir** : #299 glisser-déposer = reclassement par la boîte « Classer » ; **revenue en V1.1** (O, 18/11) | F | main | après #179 et #262 (vague 4) | explorateur des espaces | non | — |
+| 57 L7-1 | **à ouvrir** : audit UX Lot 7, point 1, onglet « Historique » dans la fiche (`api.getDocumentAuditLogs` existe déjà côté client) ; le plafond de 200 lignes est réglé par 57 quaterdecies ; **revenu en V1.1** (O, 18/11) | F | main | après 57 quaterdecies | `DocumentDetailModal.tsx` | non | lot 7 UX |
+| 57 L7-2 | **à ouvrir** : audit UX Lot 7, point 2, champs « Du / Au » à l'écran et export du journal en PDF officiel ; le serveur filtre déjà sur `date_from` et `date_to` (`audit.py:172`) | B puis F | main | après #197 (PDF officiel) et 57 novodecies (même route) | `audit.py`, `AuditLogs.tsx` | non | lot 7 UX |
+| 57 L7-3 | **à ouvrir** : audit UX Lot 7, point 3, recherche de documents par date et par auteur ; `list_documents` n'accepte aujourd'hui que `skip`, `limit`, `status` et `q` | B puis F | main | après 57 L10-1 (même route) et 57 sexdecies (`Documents.tsx`) | `documents.py`, `Documents.tsx` (chaud) | non | lot 7 UX |
+| 57 L7-4 | **à ouvrir** : audit UX Lot 7, point 4, retard « J+ », message d'erreur réseau et visa allégé dans la file de validation | F (candidat au transfert vers Q) | main | après 57 septdecies (`ValidationHub.tsx`) | `ValidationHub.tsx` | non | lot 7 UX |
+| 57 L7-5 | **à ouvrir** : audit UX Lot 7, point 5, délégation pendant une absence (L ; rien sur `main`). **Avant de coder** : le PO tranche qui désigne l'intérimaire, quels droits il reçoit et ce que le journal trace | B puis F | main | après la décision du PO ; migration en fin de chaîne (§ 4, ordre 9) | modèles des droits, validation, nouvel écran | **oui** | lot 7 UX |
+| 57 L10-1 | **à ouvrir** : audit UX Lot 10, point 2, `/documents?q=` cherche aussi dans le texte lu par l'OCR (aujourd'hui, seule la recherche du bandeau le fait) | B | main | après 57 L10-4 (sans elle, les pages scannées des PDF mixtes restent illisibles) | `documents.py` | non | lot 10 UX |
+| 57 L10-2 | **à ouvrir** : audit UX Lot 10, point 3, statut OCR et pastille sur la carte. **Défaut réel (B, 18/11)** : aucun état « échec » ; `GET /documents/{id}/ocr` (`documents.py:1641`) devine le statut, et un OCR qui plante reste « en cours » pour toujours. Le worker écrit l’état dans `extra_data` ; les anciens documents gardent la règle actuelle ; F peut partir du champ `ocr_status` déjà dans le schéma | B puis F | main | en tête des lignes OCR, avec 57 L10-4 ; pastille après 57 sexdecies | `documents.py`, `schemas/document.py`, `Documents.tsx` (chaud) | non | lot 10 UX |
+| 57 L10-3 | **à ouvrir** : audit UX Lot 10, point 4, recherche insensible aux accents (`unaccent` et configuration `french_unaccent`) ; migration qui recalcule les vecteurs par lots. **Risque (B)** : `CREATE EXTENSION` demande les droits de propriétaire de la base, à vérifier sur la cible avant de s’engager | B | main | après 57 L10-1 ; migration après #265 (§ 4, ordre 8) | `search`, migration | **oui** | lot 10 UX |
+| 57 L10-4 | **à ouvrir** : audit UX Lot 10, point 5, et Lot 11, point 2, OCR page par page (une seule PR). **Défaut réel (B, 18/11)** : dans un PDF mixte, dès qu’une page porte du texte natif, les pages scannées ne sont pas lues (`strategy.py:137`) ; et `convert_from_path` rend toutes les pages à 200 dpi d’un coup (`strategy.py:143`, worker à 2 Go). Mesure sur un PDF de 100 pages | B | main | après #370 et #404 (même fichier) | `strategy.py` | non | lots 10 et 11 UX |
+| 57 L11-1 | **à ouvrir** : audit UX Lot 11, point 3, extraction du texte des `.docx` et `.xlsx` ; deux dépendances Python nouvelles, donc image de l'API reconstruite | B | main | après 57 L10-4 | `documents.py:856-858`, `requirements.txt` | non | lot 11 UX |
+| 57 L11-2 | **à ouvrir** : audit UX Lot 11, point 4, aperçu XLSX chargé à la demande | F | main | — | `XlsxStrategy.tsx` | non | lot 11 UX |
+| 57 L11-3 | **à ouvrir** : audit UX Lot 11, point 5, taille affichée et progression du chargement de l'aperçu PDF (V1.1 selon O) | F | main | — | `DocumentPreview.tsx`, `usePreviewBlob.ts` | non | lot 11 UX |
 
 - **#303** : 36 fichiers, dont 29 en commun avec #220. Sa branche contient sans doute une autre pile. Il faut la re-cibler sur `main` après #294, puis vérifier que le diff ne contient plus que l'écran des droits.
 - **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F, en PR #407 (brouillon). La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
 - **Audit UX Lot 6** (O, 18/11) : le point (a), pas de déconnexion sur une coupure réseau pendant le renouvellement de session et message « Votre session a expiré… » sur un 401, vise la V1.0 (relecture de Q le 19/11 à 14:00, go/no-go à 15:30). S'il n'est pas retenu, il devient une ligne de cette vague, après 57 sexies. **Mise à jour** : fusionné en V1.0 par #410 (59e3eb3, 18/11 à 17:34) ; contrôle à la séance du 20/11 (`risques-demo-30-11.md`, risque 3).
 - **Audits UX Lots 8 et 9** (O, 18/11) : Lot 8, points 1 à 5 en V1.1 (F), lignes 57 sexdecies à 57 octodecies ; le point 5 du Lot 6 est fusionné avec le point 5 du Lot 8 (même fenêtre, même correction). Lot 9 : points 1 à 4 traités en V1.0 ou dans le scénario de la démo ; point 5 en V1.1, ligne 57 novodecies.
 - **Charge des lignes ajoutées le 18/11** (estimation de l'innovateur, à confirmer par F et B) : Lot 8, F ≈ 1,75 (3 XS en une PR ≈ 0,75, 2 S ≈ 1), relecture croisée de B ≈ 0,5 ; Lot 9 point 5, B ≈ 0,25, F ≈ 0,25, Q ≈ 0,25. Les points M et S passent en V1.2 ; #359 reste en V1.1 (O, 18/11). Le point (c), la barre d'actions fixe en bas de la fenêtre de dépôt, va en V1.2 (§ 7). Charge : `plan-v1.1.md`, § « Mise à jour du 18/11, nuit ».
-- **`playwright.unit.config.ts`** : 33 PR l'éditent, chacune pour y ajouter son fichier de test. Ce sont des conflits d'une ligne : un rebase les règle, sans risque fonctionnel.
+- **Audits UX Lots 7, 10 et 11 en V1.1** (O, 18/11) : lignes 57 L7-1 à 57 L11-3. La saisie gardée quand la session expire (Lot 10, demande d'O) est la ligne 57 octies, sans coût ajouté. **Hors charge V1.1**, faits par F en V1.0 avant le 19/11 à 17:15 : contrôle de taille (100 Mo) et aide sur les formats dans la fenêtre de dépôt ; extrait surligné dans la recherche du bandeau ; texte d'aide exact du champ de `/documents`. Parcours 6 du Lot 10 (recherche combinée) : couvert par 57 L7-3 et 57 L10-1. Restent en V1.2 : texte OCR visible dans la fiche (Lot 10, parcours 7) et photos (Lot 11, parcours 7). Charge : `plan-v1.1.md`, § « Lots 7, 10 et 11 ».
+- **Répartition validée par O (18/11)** : Q prend #29 et #30 (58 bis) et le Lot 8, points 4 et 5 (57 septdecies et 57 octodecies) ; B prend la part de F du Lot 9, point 5 (57 novodecies).
+- **`playwright.unit.config.ts`** : 33 PR l'éditent, chacune pour y ajouter son fichier de test. Ce sont des conflits d'une ligne : un rebase les règle, sans risque fonctionnel. **Mise à jour (O, 18/11)** : #421 (convention `e2e/unit/`, OK de Q) est en file. Règle de conflit pour toute PR qui ajoute une spec : garder la configuration de #421 et déplacer la spec dans `e2e/unit/` avec `git mv` (`file-v1.1.md`, consignes aux auteurs).
 
 ### Vague 6 : 03 et 04/12
 
 | Ordre | PR | Rôle | Note |
 |---|---|---|---|
 | 58 | #111, #112, #141 (Dependabot, lot 7) | Q | Une à une, CI complète entre chaque. |
-| 58 bis | Versions majeures de Dependabot : #113 (Starlette 1.x), #110 (Python 3.15), #29 (TypeScript 7), #30 (ESLint 10) ; **revenues en V1.1** (O, 18/11) | B (#113, #110), F (#29, #30), Q | Une à une après 58, CI complète entre chaque ; ≈ 3 h-s : B 1, F 1, Q 1. |
+| 58 bis | Versions majeures de Dependabot : #113 (Starlette 1.x), #110 (Python 3.15), #29 (TypeScript 7), #30 (ESLint 10) ; **revenues en V1.1** (O, 18/11) | B (#113, #110), Q (#29, #30 ; O, 18/11) | Une à une après 58, CI complète entre chaque ; ≈ 3 h-s : B 1, Q 2. |
 | 59 | #335 générateur d'export de test sans faux repli | B | Outil de test, CONFLICTING ; à rebaser. Gardée (B, 18/11) : sans elle, faux PDF de 140 octets. |
 | 60 | #312 garde d'espace disque avant une charge | doc | Script local ; sans risque. |
 | 61 | #189 leçon 038, #166 carnet de la suite | doc | « Hors chaîne » dans le lot 1. Les fermer si leur contenu est déjà sur `main`. |
@@ -243,6 +257,8 @@ Tête de `main` le 18/11 : `a7c8d9e0f1b2`. Seules les PR post-rc1 portent des mi
 | 5 | #165 | 8aed3f3826d7 | tête précédente |
 | 6 | #192 | c9f2a7d4e1b6 | tête précédente |
 | 7 | #265 (à ouvrir, B ; revenue en V1.1, O, 18/11) : suppression de `org_unit_closure`, après #266 | à créer | tête précédente (#192) |
+| 8 | 57 L10-3 (à ouvrir, B) : recherche insensible aux accents, index plein texte reconstruit | à créer | tête précédente (#265) |
+| 9 | 57 L7-5 (à ouvrir, B) : délégation pendant une absence, après la décision du PO | à créer | tête précédente |
 | hors fenêtre | #183 (V1.2) | c3e8a5d1f2b7 | après la V1.1 |
 
 Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précédente. **Contrôle après chaque fusion** : `alembic heads` doit afficher une seule ligne.
@@ -316,12 +332,6 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
   - branches `feat/v12-*` : #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #183, #194 (#281 revenue en V1.1, voir ci-dessous) ;
   - autres : #313 (élément 8 de la V1.2) ; #370, #404 et #355 sont revenues en V1.1 (PO, 18/11) ;
-  - audit UX Lot 7, chef de service et auditeur (premier tri d'O, 19/11 : la V1.1 est pleine) :
-    1. historique d'un document, et plafond de 200 lignes du journal d'audit (`AuditLogs`), M ;
-    2. export du journal sur une période (du… au…) et en PDF officiel, M ;
-    3. recherche de documents par date et par auteur, M ;
-    4. indicateur de retard (J+) et confirmation allégée dans la file de validation (`ValidationHub`), S ;
-    5. délégation pendant une absence, L ;
   - écran Corbeille du super_admin avec choix de l'institution (DEC-2026-006). En V1.1, le super_admin purge par l'API seulement ;
   - la suite de #211 n'est plus ici : elle revient en V1.1 (PO, 18/11), ligne 57 quindecies.
   Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
@@ -335,7 +345,8 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
   - serveur d'e-mail affiché à l'écran : retour dans le lot 8a (B), après #154 ;
   - OCR-1 : c'est #370, déjà revenue en V1.1 (ligne 24 bis, comptée le 18/11) ;
   - audit UX Lot 6, points M et S : lignes 57 octies et 57 septies ; point (c) fusionné avec le Lot 8, ligne 57 octodecies.
-- **Restent en V1.2, sur décision du PO lui-même** : #183 et #194 ; la partie 13 a de #254. **Audit UX Lot 7** (chef de service et auditeur) : trié par O le 19/11 en V1.2 « la V1.1 est pleine », ce qui est une raison de charge ; à confirmer par O (il ne figurait pas dans la liste des sorties à réintégrer).
+  - audit UX Lot 7 (chef de service et auditeur), d’abord trié en V1.2 par O « la V1.1 est pleine » : **revenu en V1.1** (O, 18/11, même logique), lignes 57 L7-1 à 57 L7-5 ; la délégation (57 L7-5) attend les choix du PO.
+- **Restent en V1.2, sur décision du PO lui-même** : #183 et #194 ; la partie 13 a de #254.
 - **#385** : outil de mesure, jamais fusionné.
 
 ## 8. Points ouverts pour O

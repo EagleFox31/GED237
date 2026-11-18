@@ -2,6 +2,8 @@
 
 - **Pour** : O, file de fusion V1.1. Préparé par l'innovateur le 18/11 au soir, à partir de `plan-fusion-v1.1.md` (§ 2 à § 6 et § 9) et du relevé `gh pr list` des PR ouvertes du 18/11.
 - **Aucune fusion V1.1 avant le 19/11 après 18:00** (O).
+- **Liste du 19/11 à 18:00** : re-cibler #181 sur `main` avant de fusionner #152 (§ 3 ; O, 18/11).
+- **Consignes aux auteurs (O, 18/11)** : #421 (convention `e2e/unit/`, OK de Q) est en file. Une PR qui ajoute une spec et entre en conflit sur `playwright.unit.config.ts` garde la configuration de #421 telle quelle et déplace sa spec dans `e2e/unit/` avec `git mv`.
 - **Décision du PO (18/11) : « on repousse rien ».** #359, #155, #169, #370, #404, #355, la suite de #211 et la pagination du journal sont en V1.1. La règle « réserve de Q < 1 → sortie en V1.2 » est retirée.
 - **Exclus de ORDER** : les branches `feat/v12-*` sauf #370, l’étiquette `v1.2` sauf #281 et #298 (revenues en V1.1, O, 18/11), et Dependabot (#111, #112, #141, #402, puis les versions majeures #113, #110, #29, #30, revenues en V1.1) : Dependabot passe en vague 6 hors ORDER, une à une (`plan-fusion` lignes 58 et 58 bis).
 - **Hors file V1.1** : #104, #121, #408, #409, #412 et #415 suivent le chemin V1.0. Si l'une d'elles n'est pas fusionnée le 19, elle passe en tête de la vague 0, juste après #389 (`plan-fusion` § 7).
@@ -13,7 +15,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 
 ```bash
 # Vague 0 : socle (24/11 matin)
-# Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). Numéro à noter.
+# Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
 ORDER_V0="389 403 383"
 # Vague 1 : petites PR sans migration (24 et 25/11)
 ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268"

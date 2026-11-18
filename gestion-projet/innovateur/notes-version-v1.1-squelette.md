@@ -146,17 +146,16 @@ Le PO garde tout en V1.1 (18/11 : « on repousse rien »). Une ligne n'en sort q
 - Lecteur désigné hors du circuit (#254, partie 13 a : réponse du PO du 17/11, « 2 V1.2 »).
 - Alertes de qualité (#183, #194 : réponse du PO du 17/11).
 - Écran Corbeille de l'administrateur de la plateforme, avec choix de l'institution (DEC-2026-006).
-- Audit UX Lot 7 :
-  - historique d'un document ;
-  - export du journal sur une période et en PDF ;
-  - recherche par date et par auteur ;
-  - indicateur de retard ;
-  - délégation pendant une absence.
+- Texte lu par l'OCR visible dans la fiche (audit UX Lot 10) ; photos prises au téléphone (audit UX Lot 11).
+- L'audit UX Lot 7 n'est plus ici : il revient en V1.1 (section suivante).
 
 ## Revenus en V1.1 le 18/11 (O : « on repousse rien »), lignes à placer dans leur vague à la fusion
 
 - *Accessibilité (audit UX Lot 8)* : les documents s'ouvrent au clavier et `Échap` ferme les fenêtres ; la zone de dépôt se pilote au clavier ; les boutons icônes ont un nom lu par le lecteur d'écran ; textes et badges plus contrastés ; boutons « Annuler / Envoyer » toujours visibles dans la fenêtre de dépôt, même sur un petit écran zoomé (avec le point 5 du Lot 6).
 - *Journal (audit UX Lot 9)* : export CSV possible avec plusieurs auteurs filtrés.
+- *Chef de service et auditeur (audit UX Lot 7)* : historique dans la fiche du document ; export du journal sur une période et en PDF officiel ; recherche de documents par date et par auteur ; retard « J+ » et visa allégé dans la file de validation ; délégation pendant une absence (portée à fixer par le PO).
+- *Recherche et OCR (audit UX Lot 10)* : les pages scannées d'un PDF mixte sont lues ; un OCR en échec l'affiche au lieu de rester « en cours » ; statut OCR sur chaque document ; la recherche de `/documents` lit aussi le texte des scans ; recherche sans tenir compte des accents.
+- *Formats (audit UX Lot 11)* : gros PDF lus page par page ; texte des `.docx` et `.xlsx` cherchable ; aperçu XLSX plus léger ; progression du chargement de l'aperçu PDF.
 - *Audit UX Lot 6* : aide du premier jour et « Renvoyer le code » ; saisie gardée à la reconnexion.
 - Tableau de bord du manager par service (#298, #278) ; glisser-déposer pour reclasser (#299) ; serveur d'e-mail réglable à l'écran (lot 8a).
 - *Sans effet visible* : versions majeures de Starlette, Python, TypeScript et ESLint ; suppression d'une table inutilisée (#265) ; dépréciation de `GET /documents/tree` (#281, #279) ; accès public en HTTPS sur le serveur (phase 2 de #288, sur accord du PO). La robustesse de l'OCR (OCR-1) est #370, déjà listée.
