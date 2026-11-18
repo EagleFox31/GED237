@@ -19,7 +19,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
 ORDER_V0="389 403 383"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 448 438 444 440 439 442 419 447 434 424 428 443"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 449 448 438 444 440 439 442 419 447 434 424 428 443"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -29,9 +29,9 @@ ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
 ORDER_V4="309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170 171 199"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
-ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 446 417 441"
+ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 446 417 441 450"
 # Vague 6 : outils et documentation (03 au 05/12, 18:00)
-ORDER_V6="335 312 189 166"
+ORDER_V6="335 312 189 166 451 452"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # Hors file V1.1 (chemin V1.0, voir plus haut). #385 : bancs de mesure OCR, hors file par son titre. #313 : V1.2, empilée sur #295 (§ 3). Dependabot, branches feat/v12-* et étiquette v1.2 : exclues par règle. Contrôle : verif-file.sh
 HORS_FILE="104 121 408 409 412 415 385 313"
@@ -57,7 +57,15 @@ HORS_FILE="104 121 408 409 412 415 385 313"
   - #424 (pagination du journal d’audit) en fin de vague 1 ; #426 (57 L10-1 : `/documents?q=` cherche aussi dans le texte OCR, aide-api) en vague 2, juste avant #436 ; #446 (accessibilité de la connexion et des tâches, F), empilée sur #416, juste après elle (O, 18/11 au soir).
   - Trouvées par le contrôle exhaustif (`verif-file.sh`, 18/11 au soir) : #448 (garde de /reports, empilée sur #437) juste après #437 ; en fin de vague 1, sans migration, #419 (commande « premier administrateur », issue #411, avant #447 selon l’ordre de travail de B), #428 (profils de démo masqués dans l’image de production, la petite PR de F après #423) et #443 (retrait de la page `NeedsReviewInbox` inutilisée). #385 (bancs OCR) et #313 (V1.2) vont dans `HORS_FILE`.
 - **Mise à jour attendue après fusion** (simulation à blanc de Q sur 20 PR, O, 18/11 au soir) : dans chaque paire, la seconde fusionnée fusionne `main` et se met à jour, puis repasse chez Q si sa tête change. #438 puis #445 (`workflows.py`) ; #426 puis #436 (`documents.py`) ; #433 puis #436 (`lessons-learned.md`) ; #440 puis #441 (`Documents.tsx`) ; #442 puis #441 (`DocumentDetailModal.tsx`).
-- **À ouvrir (O, 18/11 au soir), hors des vagues tant que la PR n’existe pas** : L13-6 « Mes dernières actions » (B), empilée sur #435 : juste derrière #435, avec #435 si celle-ci passe en vague 3, et à re-cibler sur `main` avant la fusion de #435 ; 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s) après #445 ; la réparation du hook pre-commit (Q, 0,5 h-s) après #433 ; 57 tests rapides (`conftest.py`, aide-api, relu par Q) en vague 1, écrite du 19 au 23/11.
+- **Ouvertes le 18/11 dans la nuit (O)** :
+  - #449, L13-6 « Mes dernières actions » (B). Elle est empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437, relevé par Q. Elle passe donc juste derrière #437, la plus tardive des deux, avec `DEP[449]="435 437"`. Il faut la re-cibler sur `main` avant la fusion de #435. Si #435 passe en vague 3, #449 la suit ;
+  - #450, fenêtre d'ajout sur petit écran (F). Elle est empilée sur #441 et passe juste derrière elle, en fin de vague 5 ;
+  - #451, tests backend plus rapides (aide-api, `tests/conftest.py` seul). Elle n'a pas de dépendance et va en vague 6, avec les outils ;
+  - #452, scénario de démo, file V1.1, `verif-file.sh` et LESSON-2026-069 (I), en vague 6. Elle est en brouillon jusqu'à la coupe, et Q relit la tête finale.
+- **À ouvrir, hors des vagues tant que la PR n’existe pas** :
+  - 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s), empilée sur #445. Elle aura `DEP` sur #445 et se placera entre #445 et #197 ; `DEP[197]` passera alors sur elle ;
+  - la PR L4 « remplacements » (F), après #445 ;
+  - la réparation du hook pre-commit (Q, 0,5 h-s), après #433.
 - **« #152 après #401 » est levé** : c'était l'ordre de travail de B, pas une contrainte de fusion. **Mise à jour (O, 18/11)** : #152 seule passe en tête de la vague 2 (OK du PO, a47df85, OK de Q). Le reste du groupe corbeille (#181, #184, #168, #171, #190, #199, #301, #302) reste en vague 4 ; #181, empilée sur #152, est re-ciblée sur `main` avant la fusion de #152 (plan-fusion § 3).
 - **#155 et #169 restent en V1.1** (PO, 18/11 : « on repousse rien »).
 - **Choix par défaut d'O, en attendant F et B** :
@@ -79,6 +87,8 @@ DEP[403]="389"; DEP[401]="407"; DEP[405]="394"
 DEP[436]="387"
 # Piles et suites ouvertes le 18/11 au soir (O) ; #445 porte une migration (chaîne alembic, plan-fusion § 4)
 DEP[438]="429"; DEP[448]="437"; DEP[444]="438"; DEP[446]="416"; DEP[440]="438"; DEP[445]="429 436"
+# Ouvertes le 18/11 dans la nuit (O) : #449 empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437 (Q) ; #450 empilée sur #441
+DEP[449]="435 437"; DEP[450]="441"
 DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
 DEP[267]="248"; DEP[268]="248 389"
 DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
@@ -126,6 +136,8 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 | #429 | #438, #445 ; puis, avant #438 : #444 |
 | #416 | #446 |
 | #437 | #448 |
+| #435 | #449 |
+| #441 | #450 |
 
 Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n’est fusionnée avant la fin de la fenêtre V1.1 (05/12, 18:00).
 
