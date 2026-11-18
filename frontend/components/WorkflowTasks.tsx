@@ -13,7 +13,9 @@ const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  // Décision en cours d'envoi : le bouton concerné change de libellé (réseau lent, audit lot 6).
+  const [processing, setProcessing] = useState<{ id: string; decision: WorkflowDecision } | null>(null);
+  const processingId = processing?.id ?? null;
   const [rejecting, setRejecting] = useState<PendingWorkflowTask | null>(null);
 
   const fetchTasks = async () => {
@@ -33,7 +35,7 @@ const WorkflowTasks: React.FC = () => {
   }, []);
 
   const decide = async (task: PendingWorkflowTask, decision: WorkflowDecision, comment?: string) => {
-    setProcessingId(task.id);
+    setProcessing({ id: task.id, decision });
     try {
       await api.decideWorkflowStep(task, decision, comment);
       setRejecting(null);
@@ -44,7 +46,7 @@ const WorkflowTasks: React.FC = () => {
         pushClientOperationError(err, { fallbackDetail: 'Décision impossible sur ce document.' });
       }
     } finally {
-      setProcessingId(null);
+      setProcessing(null);
     }
   };
 
@@ -96,16 +98,18 @@ const WorkflowTasks: React.FC = () => {
               <button
                 onClick={() => decide(task, 'accept')}
                 disabled={processingId === task.id}
+                aria-busy={processingId === task.id && processing?.decision === 'accept'}
                 className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-green-100 disabled:opacity-50"
               >
-                Valider
+                {processingId === task.id && processing?.decision === 'accept' ? 'Validation…' : 'Valider'}
               </button>
               <button
                 onClick={() => setRejecting(task)}
                 disabled={processingId === task.id}
+                aria-busy={processingId === task.id && processing?.decision === 'reject'}
                 className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-red-100 disabled:opacity-50"
               >
-                Rejeter
+                {processingId === task.id && processing?.decision === 'reject' ? 'Rejet…' : 'Rejeter'}
               </button>
             </div>
           </div>
