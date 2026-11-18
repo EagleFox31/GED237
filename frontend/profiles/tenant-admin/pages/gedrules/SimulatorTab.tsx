@@ -1,7 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../../../../services/api';
 import { categoriesApi } from '../../../../services/categories.api';
-import { reportSimulatorLoadError } from '../../../../lib/simulatorError';
+import { pushClientOperationError } from '../../../../lib/errors';
+import {
+  SIMULATOR_LOAD_ERROR_MESSAGE,
+  simulatorLoadErrorMessage,
+} from '../../../../lib/simulatorError';
 
 const ACTION_LABELS: Record<string, string> = {
   visa: 'Visa',
@@ -63,24 +67,31 @@ const SimulatorTab: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [results, setResults] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchInitialData = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const [units, cats, tenantUsers] = await Promise.all([
+        api.getOrgUnits(),
+        categoriesApi.list(false),
+        api.getUsers(),
+      ]);
+      setOrgUnits(units);
+      setCategories(cats);
+      setUsers((tenantUsers || []).filter((user: any) => user?.is_active !== false));
+    } catch (e) {
+      const msg = simulatorLoadErrorMessage(e);
+      if (msg) {
+        pushClientOperationError(e, { fallbackDetail: msg });
+      }
+      setLoadError(SIMULATOR_LOAD_ERROR_MESSAGE);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const [units, cats, tenantUsers] = await Promise.all([
-          api.getOrgUnits(),
-          categoriesApi.list(false),
-          api.getUsers(),
-        ]);
-        setOrgUnits(units);
-        setCategories(cats);
-        setUsers((tenantUsers || []).filter((user: any) => user?.is_active !== false));
-      } catch (e) {
-        reportSimulatorLoadError(e);
-      }
-    };
     fetchInitialData();
-  }, []);
+  }, [fetchInitialData]);
 
   const ownerOptions = useMemo(() => {
     if (!orgUnitId) {
@@ -126,6 +137,19 @@ const SimulatorTab: React.FC = () => {
           <p className="text-xs text-slate-500 font-medium mb-6">
             Testez l'aiguillage avant le déploiement réel.
           </p>
+
+          {loadError && (
+            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold text-red-700">{loadError}</p>
+              <button
+                type="button"
+                onClick={fetchInitialData}
+                className="shrink-0 rounded-xl bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+              >
+                Réessayer
+              </button>
+            </div>
+          )}
 
           <div className="space-y-5">
             <div>

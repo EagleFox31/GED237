@@ -1,8 +1,8 @@
 // frontend/lib/simulatorError.ts
-import { ApiError, pushClientOperationError } from './errors';
+import { ApiError } from './errors';
 
 export const SIMULATOR_LOAD_ERROR_MESSAGE =
-  'Impossible de charger les référentiels du simulateur.';
+  'Impossible de charger les données du simulateur.';
 
 /**
  * Retourne le message court à afficher pour une erreur de chargement du simulateur,
@@ -13,14 +13,4 @@ export function simulatorLoadErrorMessage(error: unknown): string | null {
     return null;
   }
   return SIMULATOR_LOAD_ERROR_MESSAGE;
-}
-
-export function reportSimulatorLoadError(error: unknown): ApiError | null {
-  const message = simulatorLoadErrorMessage(error);
-  if (!message) {
-    return null;
-  }
-  return pushClientOperationError(error, {
-    fallbackDetail: message,
-  });
 }

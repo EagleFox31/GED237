@@ -10,7 +10,7 @@ test.describe('Erreur de chargement du simulateur (SimulatorTab)', () => {
   test('renvoie un message court en français pour une erreur locale', () => {
     const msg = simulatorLoadErrorMessage(new Error('Network down'));
     expect(msg).toBe(SIMULATOR_LOAD_ERROR_MESSAGE);
-    expect(msg).toBe('Impossible de charger les référentiels du simulateur.');
+    expect(msg).toBe('Impossible de charger les données du simulateur.');
   });
 
   test('renvoie null pour une ApiError déjà publiée par le client HTTP', () => {
