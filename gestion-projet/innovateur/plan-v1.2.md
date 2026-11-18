@@ -17,8 +17,8 @@
 | 2 | **#279 et #281** : déprécier `GET /documents/tree` au profit de `/spaces/tree` | aucune visible : une seule façon de parcourir les dossiers | 0,25 | — (F vérifie que l'écran n'appelle plus l'ancienne route) | 0,25 | — ; la suppression de la route se fera plus tard, après un cycle de dépréciation |
 | 3 | **#113** : Starlette 1.x | aucune visible : rester sur une version maintenue | 0,5 | — | 0,25 | compatibilité de FastAPI avec Starlette 1.x, à vérifier avant |
 | 4 | **#110** : image Python 3.15 | aucune visible : sécurité et performances de la base logicielle | 0,5 | — | 0,25 | paquets compilés disponibles en 3.15 (asyncpg, OCR) |
-| 5 | **#29** : TypeScript 7 | aucune visible : contrôles plus rapides pour l'équipe | — | 0,5 | 0,25 | #30 conseillé avant |
-| 6 | **#30** : ESLint 10 | aucune visible : outillage à jour | — | 0,5 | 0,25 | — |
+| 5 | **TypeScript 6.0, version pont vers 7** (#29 reste ouverte pour la 7) ; décision de O du 18/11 | aucune visible : se rapprocher de la 7 sans casser les contrôles | — | 0,5 | 0,25 | 6 conseillé avant. La 7 est bloquée : typescript-eslint 8.73 s'arrête à TypeScript 6.0 (vérifié sur npm le 18/11). Passage à la 7 en suivi, sans coût tant que typescript-eslint ne suit pas |
+| 6 | **ESLint 9 en configuration « flat » avec airbnb-extended, étape vers 10** (#30 reste ouverte pour la 10) ; décision de O du 18/11 | aucune visible : outillage à jour | — | 0,5 | 0,25 | La 10 est bloquée : airbnb-extended et les extensions react, jsx-a11y et import s'arrêtent à ESLint 9 (vérifié sur npm le 18/11). Passage à la 10 en suivi, sans coût tant qu'elles ne suivent pas |
 | 7 | **#254, partie 13 a)** : lecteur désigné hors circuit | un agent peut donner à lire un document à une personne précise d'un autre service, sans lancer de circuit | 1,5 (table et migration) | 1 (écran de désignation) | 0,5 | partie V1.1 de #254 (accès par l'étape de circuit) |
 | 8 | **Versions** : restaurer une ancienne version, comparer deux versions | l'agent revient en arrière après une erreur sans redéposer le fichier, et voit ce qui a changé | 1,25 | 1,75 | 0,75 | #275 (V1.1) |
 | 9 | **#183 → #194** : alertes de qualité et onglet « Qualité » des rapports | la direction est prévenue quand le classement ou les délais se dégradent | 1 (confirmé par B : rebasage de ≈ 3 800 lignes, corrections, CI) | 0,5 (rebasage de #194, empilée sur #183) | 2,5 (chiffre du plan V1.1) | #162 ; à rebaser sur `main` V1.1 |
@@ -49,7 +49,7 @@ Q reste le goulot, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q
 
 ## Ordre proposé
 
-1. **Socle (1 à 6), en début de cycle**, quand la branche principale est calme. Les montées de version passent avant les fonctions, pour ne pas rebaser les fonctions deux fois. Ordre : #265, #281, #113, #110, puis #30 et #29.
+1. **Socle (1 à 6), en début de cycle**, quand la branche principale est calme. Les montées de version passent avant les fonctions, pour ne pas rebaser les fonctions deux fois. Ordre : #265, #281, #113, #110, puis ESLint 9 (6) et TypeScript 6.0 (5).
    **#278 (élément 19)** se relit aussi en début de cycle, avant l’élément 10 : son code est écrit (PR #298, en brouillon).
 2. **Valeur pour l'agent (7, 8, 14)** : ce que les agents utilisent chaque jour.
 3. **Pilotage (9, 10)**, selon la réponse du PO à la question 1. **#183 se dégrade chaque semaine** : il a ≈ 3 800 lignes de retard sur `main`. S'il est gardé, il passe en tête du pilotage, voire avant le point 2, pour ne pas payer son rebasage deux fois.
