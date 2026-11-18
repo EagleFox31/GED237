@@ -43,7 +43,7 @@ async def _user(db, db_seed, unit_id, name) -> uuid.UUID:
             org_unit_id=unit_id,
             role_id=seeded.role_id,
             matricule=f"{name}-{user_id.hex[:6]}",
-            email=f"{name}.{user_id.hex[:6]}@example.test",
+            email=f"{name}.{user_id.hex[:6]}@example.com",
             first_name=name,
             last_name="Test",
             password_hash="unused",
@@ -60,13 +60,15 @@ async def tree(db_session, db_seed):
     a = db_seed["org_unit_id"]
     a1 = await _unit(db_session, tenant_id, a)
     b = await _unit(db_session, tenant_id)
-    return {
+    found = {
         "a": a,
         "inside": await _user(db_session, db_seed, a1, "Dedans"),
         "outside": await _user(db_session, db_seed, b, "Dehors"),
         "b": b,
         "a1": a1,
     }
+    await db_session.commit()  # the API reads through its own session
+    return found
 
 
 def _caller(client_as, db_seed, tree):
