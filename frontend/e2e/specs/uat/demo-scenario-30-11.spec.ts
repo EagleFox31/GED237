@@ -177,7 +177,7 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     // Contrat #258 : recherche dans l'en-tête, résultat « Ouvrir <titre> », fiche via /documents?open=<id>.
     await page.locator('[data-global-search]').fill(title);
     await page.getByRole('button', { name: `Ouvrir ${title}` }).click();
-    await expect(page).toHaveURL(new RegExp(`/documents\?open=${doc.id}`));
+    await expect(page).toHaveURL(new RegExp(`/documents\\?open=${doc.id}`));
     await page.getByRole('button', { name: 'Archiver', exact: true }).click();
     await page.getByRole('button', { name: 'Oui, archiver', exact: true }).click();
     await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('archived');
