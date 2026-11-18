@@ -131,7 +131,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5">
+        <form onSubmit={handleSubmit} className="px-8 space-y-5">
 
           {/* Zone Drag & Drop */}
           <div
@@ -291,8 +291,8 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          {/* Actions : collées au bas de la fenêtre, visibles sans défiler sur petit écran (1366×768, zoom 125 %). */}
+          <div data-testid="upload-actions" className="sticky bottom-0 z-10 -mx-8 px-8 pt-4 pb-8 flex gap-3 bg-white border-t border-slate-100">
             <button
               type="button"
               onClick={handleClose}
