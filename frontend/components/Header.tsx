@@ -1,5 +1,6 @@
 // frontend/components/Header.tsx
 import React, { useState, useEffect, useRef } from 'react';
+import { notificationTarget } from '../lib/notificationTarget';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
@@ -363,7 +364,11 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                       notifications.map((notif) => (
                         <div
                           key={notif.id}
-                          onClick={() => { if (!notif.is_read) markAsRead(notif.id); }}
+                          onClick={() => {
+                            if (!notif.is_read) markAsRead(notif.id);
+                            setShowNotifications(false);
+                            navigate(notificationTarget(notif.meta_data));
+                          }}
                           className={`p-4 border-b border-slate-50 relative cursor-pointer hover:bg-slate-50 transition-colors ${!notif.is_read ? 'bg-blue-50/30' : ''}`}
                         >
                           {!notif.is_read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-rdpc-blue"></div>}
