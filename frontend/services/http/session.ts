@@ -28,6 +28,35 @@ export const redirectToLogin = (): void => {
 };
 
 const DESTINATION_KEY = 'post_login_destination';
+// Hors AUTH_STORAGE_KEYS : survit au nettoyage de la session pour être lu par l'écran de connexion.
+const SESSION_EXPIRED_KEY = 'post_login_session_expired';
+
+/** Marque une session refusée par le serveur : l'écran de connexion l'annoncera une fois. */
+export const markSessionExpired = (): void => {
+    try {
+        sessionStorage.setItem(SESSION_EXPIRED_KEY, '1');
+    } catch {
+        // Stockage indisponible : la redirection a lieu, sans message.
+    }
+};
+
+/** Lecture sans effet de bord (sûre dans un initialiseur React). */
+export const isSessionExpiredNoticePending = (): boolean => {
+    try {
+        return sessionStorage.getItem(SESSION_EXPIRED_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+
+/** Retire le marqueur une fois le message affiché : il n'apparaît qu'une fois. */
+export const clearSessionExpiredNotice = (): void => {
+    try {
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+    } catch {
+        // Rien à faire.
+    }
+};
 
 /**
  * Mémorise la page en cours quand la session expire, pour y revenir après la
@@ -71,6 +100,8 @@ export const persistAuthTokens = (accessToken: string, refreshToken: string): vo
     sessionStorage.setItem('access_token', accessToken);
     sessionStorage.setItem('refresh_token', refreshToken);
     sessionStorage.setItem('token', accessToken);
+    // Session de nouveau valide : pas de message « expirée » périmé à la prochaine déconnexion.
+    clearSessionExpiredNotice();
 };
 
 /** En-têtes HTTP (Authorization + Content-Type, sauf multipart). */
