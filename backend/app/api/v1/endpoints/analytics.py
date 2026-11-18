@@ -1,5 +1,5 @@
 # backend/app/api/v1/endpoints/analytics.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 
@@ -9,6 +9,7 @@ from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
 from app.models.user import User
 from app.services.analytics.dashboard_facade import DashboardFacade
+from app.services.analytics.trends import compute_trends
 
 router = APIRouter()
 
@@ -36,6 +37,33 @@ async def get_platform_analytics(
     await authorize_or_403(current_user, "analytics.platform", "read")
     facade = DashboardFacade(db)
     return await facade.get_platform_metrics()
+
+
+@router.get("/trends", response_model=Dict[str, Any])
+async def get_trends(
+    scope: str = "mine",
+    weeks: int = Query(12, ge=4, le=26),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Courbes hebdomadaires (dépôts, visas) : institution, unité ou soi-même."""
+    await authorize_or_403(current_user, "analytics.tenant", "read")
+    if scope == "tenant":
+        if _role_code(current_user) not in TENANT_WIDE_READ_ROLES:
+            raise HTTPException(status_code=403, detail="Privileges insuffisants")
+    elif scope == "unit":
+        if not current_user.org_unit_id:
+            raise HTTPException(status_code=403, detail="Aucune unité rattachée")
+    elif scope != "mine":
+        raise HTTPException(status_code=403, detail="Portée non autorisée")
+    return await compute_trends(
+        db,
+        scope=scope,
+        weeks=weeks,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        org_unit_id=current_user.org_unit_id,
+    )
 
 
 @router.get("/manager", response_model=Dict[str, Any])
