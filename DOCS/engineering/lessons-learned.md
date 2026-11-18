@@ -659,3 +659,18 @@ première requête utilisateur.
 **Résolution** — Constructeur sans effet de bord ; lecteur chargé à la demande avec `download_enabled=False` ; modèles fr+en cuits dans l'image (couche cachée, `EASYOCR_MODEL_DIR`) ; modèle absent = un avertissement, résultat vide, repli sur Tesseract.
 **Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
 **Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.
+
+### LESSON-2026-054 — Générateur de jeu de test : un repli silencieux écrivait du texte sous une extension .pdf
+
+- **Date :** 2026-11-18
+- **Catégorie :** testing / data
+- **Statut :** prevention-added
+- **Liens :** `backend/scripts/test_real_export_v2.py` (`write_text_fallback`)
+
+**Contexte** — Le lot A de la mesure OCR (20 PDF) venait de `test_real_export_v2.py`, lancé dans un environnement sans reportlab.
+**Échec / near miss** — Les « PDF » faisaient 133 à 168 octets : du texte `[PDF fallback]` sans page, illisible (`pdfinfo` échoue). Découvert par Q en pleine mesure sur le VPS, avec perte de temps dans le créneau.
+**Cause racine** — Quand une bibliothèque de génération manquait, le script écrivait un fichier texte sous l'extension demandée, sans erreur ni avertissement.
+**Classification** — Défaut de données de test ; repli silencieux ; détecté tard.
+**Résolution** — `write_text_fallback` lève `RuntimeError` avec la liste des paquets à installer ; le repli n'existe plus que sur demande explicite (`ALLOW_TEXT_FALLBACK=1`).
+**Prévention** — Échec bruyant à la génération ; tout lot de mesure est contrôlé (taille, `pdfinfo`) avant d'être livré.
+**Leçon généralisée** — Un générateur de données ne produit jamais un faux artefact en silence : il échoue, ou le repli est choisi explicitement.

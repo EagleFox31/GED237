@@ -394,7 +394,14 @@ def sanitize_filename(name: str) -> str:
 
 
 def write_text_fallback(path: Path, doc: Dict[str, Any], kind: str) -> None:
-    """Fallback minimaliste quand les bibliothèques de documents ne sont pas installées."""
+    """Refuse d'écrire un faux fichier : le texte brut sous une extension .pdf/.docx/.xlsx/.pptx
+    n'est lisible par aucun outil. Opt-in explicite : ALLOW_TEXT_FALLBACK=1."""
+    if os.environ.get("ALLOW_TEXT_FALLBACK") != "1":
+        raise RuntimeError(
+            f"Bibliothèque manquante pour générer un vrai .{kind} ({path.name}) : "
+            "installer reportlab, python-docx, openpyxl et python-pptx "
+            "(ou ALLOW_TEXT_FALLBACK=1 pour accepter des fichiers texte factices)."
+        )
     reference_seed = doc.get("filename_stem", doc["name"])
     content = [
         f"[{kind.upper()} fallback]",
