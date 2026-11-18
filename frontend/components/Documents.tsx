@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import DocumentDetailModal from './DocumentDetailModal';
+import { ReadStateBadge } from './ReadStateBadge';
 import UploadDocumentModal from './UploadDocumentModal';
 import { Document, DocumentCategory, formatFileSize, getFileTypeLabel, getStatusLabel, formatDate } from '../types';
 import { api } from '../services/api';
@@ -221,8 +222,11 @@ const Documents: React.FC = () => {
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${getTypeStyle(doc.mime_type || doc.file_type)}`}>
                 <span className="material-symbols-outlined text-3xl font-bold">{getTypeIcon(doc.mime_type || doc.file_type)}</span>
               </div>
-              <div className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${getStatusStyle(doc.status)}`}>
-                {getStatusLabel(doc.status)}
+              <div className="flex flex-col items-end gap-1">
+                <div className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${getStatusStyle(doc.status)}`}>
+                  {getStatusLabel(doc.status)}
+                </div>
+                <ReadStateBadge ocrStatus={doc.ocr_status} />
               </div>
             </div>
 

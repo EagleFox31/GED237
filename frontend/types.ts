@@ -35,6 +35,9 @@ export interface Document {
   logical_space_path?: string | null;
   source_relative_path?: string | null;
   import_job_id?: string | null;
+  /** Lecture du texte : not_processed | processing | completed | failed ; toute autre valeur = en traitement. */
+  ocr_status?: string | null;
+  can_update?: boolean | null;
 }
 
 export type ClassificationReviewStatus = 'open' | 'resolved' | 'cancelled';

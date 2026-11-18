@@ -7,6 +7,9 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import { pushClientOperationError } from '../lib/errors';
+import { canRetryRead, RETRY_READ_BUSY, RETRY_READ_LABEL, RETRY_READ_STARTED } from '../lib/readStatus';
+import { ReadStateBadge } from './ReadStateBadge';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -25,6 +28,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [document, setDocument] = useState<Document>(initialDocument);
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
+  const canRetry = canRetryRead(document.ocr_status, document.can_update);
+  const [retrying, setRetrying] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'workflow' | 'history'>('info');
@@ -37,6 +42,29 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [commentFor, setCommentFor] = useState<{ stepId: string; actionType: string; outcome: "rejected" | "returned" } | null>(null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
+
+  // 202 : la lecture repart ; 409 : déjà en cours (message simple). Les autres erreurs passent par le bus global.
+  const handleRetryRead = async () => {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      await api.retryDocumentRead(document.id);
+      const next = { ...document, ocr_status: 'processing' };
+      setDocument(next);
+      onUpdated?.(next);
+      pushClientOperationError(RETRY_READ_STARTED, {
+        fallbackDetail: RETRY_READ_STARTED, errorCode: 'READ_RETRY_STARTED', severity: 'info',
+      });
+    } catch (err) {
+      if ((err as { status?: number })?.status === 409) {
+        pushClientOperationError(RETRY_READ_BUSY, {
+          fallbackDetail: RETRY_READ_BUSY, errorCode: 'READ_RETRY_BUSY', severity: 'info',
+        });
+      }
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   // Même route que le visualiseur ; l'erreur éventuelle est déjà publiée par apiCallBlob.
   const handleDownload = async () => {
@@ -191,6 +219,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   document.status === 'in_review' ? 'bg-blue-100 text-blue-600' :
                   document.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'
                 }`}>{getStatusLabel(document.status)}</span>
+                <ReadStateBadge ocrStatus={document.ocr_status} />
                 {document.processing_mode === 'archive' && (
                   <>
                     <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
@@ -422,6 +451,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
 
         {/* Footer actions */}
         <div className="p-6 bg-slate-100/50 border-t border-slate-200/50 flex justify-end gap-3">
+          {canRetry && (
+            <button
+              type="button"
+              onClick={() => { handleRetryRead().catch(() => undefined); }}
+              disabled={retrying}
+              className="px-6 py-3 text-sm font-bold text-white bg-rdpc-blue hover:opacity-90 disabled:opacity-60 rounded-2xl transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
+              {RETRY_READ_LABEL}
+            </button>
+          )}
           {canArchive && (
             <button
               type="button"

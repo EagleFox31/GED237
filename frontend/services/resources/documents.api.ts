@@ -107,6 +107,15 @@ export const documentsApi = {
         return true;
     },
 
+    // ── Relance de la lecture du texte (202 ; 409 = déjà en cours, affiché par l'appelant) ──
+    retryDocumentRead: (id: string): Promise<void> =>
+        apiCallVoid(
+            `/documents/${id}/ocr/retry`,
+            { method: 'POST' },
+            'Relance de la lecture impossible',
+            { handledStatuses: [409] },
+        ),
+
     // ── Versions ──────────────────────────────────────────────────────────
 
     getDocumentVersions: (id: string): Promise<any[]> =>
