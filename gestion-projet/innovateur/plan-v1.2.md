@@ -10,6 +10,9 @@
 - **Sortie de la V1.1 du 18/11** : le glisser-déposer de #151 (élément 18, #299), décision de O. #278 sort aussi (élément 19, décision de O) : il passe en tête de la V1.2, avant l'élément 10 qui en dépend.
 - **Ajout du 18/11** : « comme Windows », éléments 20 à 23 (≈ 7 h-s), détail dans `spec-windows-feel-v1.2.md`.
 - **Décision du PO du 18/11** : les éléments 20 à 23 entrent en V1.2 (+7 h-s, total ≈ 38,25). F commence par l'élément 21 (application installable), en brouillon.
+- **Réponses du PO du 18/11 au matin** (`decisions-po-en-attente.md`) :
+  - question 2 = B : les droits par institution (élément 13) entrent en V1.2, sans changer le total, déjà compté ;
+  - question 1 = B (confirmée par le PO via O) : les alertes de qualité (élément 9) restent en V1.2, sans changer le total, déjà compté. Un seul rebasage, en début de cycle, après l'étiquette V1.1 du 07/12.
 
 ## Les éléments
 
@@ -27,7 +30,7 @@
 | 10 | **Tableaux de bord** des autres rôles, avec l'évolution dans le temps | chacun voit son activité et la tendance, pas seulement un chiffre du jour | 1 (séries dans le temps) | 1,5 | 0,5 | #278 (élément 19) |
 | 11 | **« Mon équipe » au-delà des N-1** : N-2 et plus, dépliables | un directeur voit toute sa branche, pas seulement ses chefs de service | 0,5 (profondeur et contrôle du périmètre en cascade) | 0,5 | 0,25 | #277 (PR #285) |
 | 12 | **Organigramme graphique** de l'institution | l'administrateur vérifie d'un coup d'œil qui rend compte à qui | 0,5 (route d'arbre complet) | 1,5 | 0,5 | 11 |
-| 13 | **Droits propres à chaque institution** | une institution règle ses droits sans toucher aux autres | 2,5 (domaine par institution dans le modèle de droits, migration de `casbin_rule`) | 1 (grille par institution, modifiable par son administrateur) | 1,5 (tests par rôle et par institution) | lot 8b et passage en `sql` (V1.1). **Seulement si le PO le demande.** |
+| 13 | **Droits propres à chaque institution** | une institution règle ses droits sans toucher aux autres | 2,5 (domaine par institution dans le modèle de droits, migration de `casbin_rule`) | 1 (grille par institution, modifiable par son administrateur) | 1,5 (tests par rôle et par institution) | lot 8b et passage en `sql` (V1.1). **Demandé par le PO le 18/11 (question 2 = B).** |
 | 14 | **Annuler pendant 5 s** après « Mettre à la corbeille » | rattraper un clic malheureux sans aller dans la corbeille | — | 0,25 | 0,25 | #181. **Seulement si F le sort de la V1.1** (écart 1 de `specs-corbeille-181.md`). |
 | 15 | **#288, phase 2** : accès public en HTTPS sur le VPS (production, site du proxy, nom de domaine, contrôle HTTPS) ; sortie de la V1.1 le 17/11 | les agents se connectent sans VPN | 0,5 | — | 0,25 | #154 et #212 ; phase 1 de #288. **Revient en V1.1 si #154 et #212 sont fusionnés avant le 01/12.** |
 | 16 | **Serveur e-mail à l'écran** (partie du lot 8a), sorti de la V1.1 le 17/11 | l'administrateur change le serveur d'envoi sans intervention technique | 0,5 | — | — | #154 ; en attendant, le réglage reste dans le fichier d'environnement |
@@ -56,15 +59,38 @@ Avec les éléments 20 à 23, F devient la plus chargée (14 h-s) ; ils se déca
 
 ## Ordre proposé
 
-1. **Socle (1 à 6), en début de cycle**, quand la branche principale est calme. Les montées de version passent avant les fonctions, pour ne pas rebaser les fonctions deux fois. Ordre : #265, #281, #113, #110, puis ESLint 9 (6) et TypeScript 6.0 (5).
+1. **Socle (1 à 6), en début de cycle**, juste après le rebasage de 9 (point 3), quand la branche principale est calme. Les montées de version passent avant les fonctions, pour ne pas rebaser les fonctions deux fois. Ordre : #265, #281, #113, #110, puis ESLint 9 (6) et TypeScript 6.0 (5).
    **#278 (élément 19)** se relit aussi en début de cycle, avant l’élément 10 : son code est écrit (PR #298, en brouillon).
 2. **Valeur pour l'agent (7, 8, 14)** : ce que les agents utilisent chaque jour.
-3. **Pilotage (9, 10)**, selon la réponse du PO à la question 1. **#183 se dégrade chaque semaine** : il a ≈ 3 800 lignes de retard sur `main`. S'il est gardé, il passe en tête du pilotage, voire avant le point 2, pour ne pas payer son rebasage deux fois.
+3. **Pilotage (9, 10)** : le PO garde 9 (question 1 = B). **#183 se dégrade chaque semaine** (≈ 3 800 lignes de retard sur `main`) : il passe en tête du pilotage et se rebase **une seule fois**, juste après l'étiquette V1.1 du 07/12, en tout début de cycle. Il fusionne avant ESLint 9 et TypeScript 6.0 (6 et 5), qui touchent tout le frontend, sinon il faudrait le rebaser une seconde fois. 10 suit, après #298.
 4. **Hiérarchie (11, puis 12)**.
-   **Comme Windows (20 à 23)**, demandé le 18/11 : 21, puis 22, puis 18 et 20 ensemble, puis 23. F en porte la moitié (3,5 h-s) ; ces éléments passent avant 13 si le PO ne demande pas de droits par institution.
-5. **Droits par institution (13)**, seulement si le PO le demande (question 2). C'est l'élément le plus risqué : il touche le modèle de droits de toute la plateforme.
+   **Comme Windows (20 à 23)**, demandé le 18/11 : 21, puis 22, puis 18 et 20 ensemble, puis 23. F en porte la moitié (3,5 h-s), en parallèle de 13, qui pèse surtout sur B.
+5. **Droits par institution (13)** : demandé par le PO le 18/11, il est remonté dans l'ordre (voir ci-dessous).
 
-## Questions au PO (deux)
+### Place de l'élément 13 (révision du 18/11)
+
+C'est l'élément le plus risqué : il change le modèle de droits de toute la plateforme. Aujourd'hui, `model.conf` vérifie (rôle, ressource, action), sans institution. Proposition :
+
+- **Juste après le socle (1 à 6), avant 7 et 11.**
+  - Plus tôt est impossible : il dépend du lot 8b et du passage en `sql` (V1.1), et le socle doit passer d'abord pour éviter un double rebasage.
+  - Plus tard coûterait plus : 7 (lecteur désigné) et 11 (périmètre en cascade) ajoutent des règles de droits. Faites après 13, elles s'écrivent directement dans le nouveau modèle, au lieu d'être migrées une seconde fois.
+  - Un problème découvert tôt laisse le temps de corriger, ou de reporter 13 sans rien casser.
+- **Migration additive, sans rupture.**
+  - Les règles actuelles deviennent les règles communes, valables pour toutes les institutions.
+  - Une institution ne fait qu'ajouter des surcharges.
+  - Sans surcharge, rien ne change. Le retour arrière consiste à supprimer les surcharges.
+  - Q le prouve par un test de non-régression : toutes les vérifications de droits existantes donnent le même résultat avant et après la migration.
+- **Ne pas empiler Q.** 9 (Q 2,5) et 13 (Q 1,5) sont les deux plus grosses relectures. 9 occupe Q en tout début de cycle, puis viennent les relectures du socle, puis 13 : jamais deux grosses relectures en parallèle.
+- **F n'est pas bloquée.** 13 pèse surtout sur B (2,5) ; pendant ce temps, F avance sur 21, 22, 18 et 20. La grille de 13 côté F (1) vient en dernier, une fois le contrat du serveur posé.
+
+Ordre révisé : étiquette V1.1 (07/12) → rebasage et relecture de 9 → socle (1 à 6) et relecture de #298 (19) → **13** → 7, 8, 14 → 10 → 11, puis 12. Les éléments 20 à 23 de F avancent en parallèle.
+
+## Questions au PO (deux) : réponses du 18/11
+
+- Question 1 : B, confirmée par le PO via O (« A- oui prévenir » était ambigu) ; l'élément 9 reste en V1.2.
+- Question 2 : oui (B), l'élément 13 entre en V1.2.
+
+Texte d'origine :
 
 1. **Alertes de qualité (#183 et #194)** : les voulez-vous toujours ?
    - Si oui, on les met en tête de la V1.2, car leur retard grossit chaque semaine.

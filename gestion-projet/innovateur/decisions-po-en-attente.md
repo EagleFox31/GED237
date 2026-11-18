@@ -1,5 +1,21 @@
 # Décisions en attente du PO (18/11)
 
+## Réponses du PO (18/11, matin)
+
+| Question | Réponse | Effet |
+|---|---|---|
+| 1. Alertes de qualité | **B** : garder en 1.2. Première réponse « A- oui prévenir », ambiguë ; le PO a confirmé B via O | élément 9 du plan V1.2 gardé (4 h-s, déjà compté) ; un seul rebasage, après l'étiquette V1.1 du 07/12 ; Q 2,5 h-s en début de cycle |
+| 2. Droits par institution | **B** : oui en 1.2 | élément 13 du plan V1.2 dans le périmètre (5 h-s, déjà compté dans les ≈ 38,25) |
+| 3. Nom de l'adresse publique | **A** : sous-domaine du domaine de l'entreprise | rien à acheter |
+| 4. Accès avant l'adresse publique | **A** : réseau privé (VPN) | jusqu'à l'adresse publique |
+| 5. Sauvegarde automatique | **A** : chaque nuit à 03:15, les 7 dernières gardées | — |
+| 6. Publication sur Internet | **A** : accord pour la 2e étape | HTTPS, sans toucher aux autres sites du serveur |
+| 7. Installation sur le serveur | **A** : accord après le 30/11, par le VPN, chaque étape annoncée avant d'être faite | — |
+
+Le PO confirme aussi que la démonstration du 30/11 se fait sur la machine prévue.
+
+Le texte ci-dessous est celui envoyé au PO, gardé tel quel.
+
 **Comment répondre** : une lettre par question, par exemple « 1A 2A 3A 4A 5A 6A 7A ».
 - L'option A est notre recommandation.
 - Les coûts sont en heures de travail de l'équipe (h-s).
