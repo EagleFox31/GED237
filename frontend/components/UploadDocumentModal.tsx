@@ -2,16 +2,21 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
+import { titleFromFileName } from '../lib/explorerDrag';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 
 interface UploadDocumentModalProps {
   onClose: () => void;
   onSuccess: (doc: Document) => void;
+  /** Fichier déjà choisi (déposé depuis Windows). */
+  initialFile?: File;
+  /** Service de destination imposé (dossier visé par le dépôt). */
+  orgUnitId?: string;
 }
 
-const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
+const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess, initialFile, orgUnitId }) => {
+  const [file, setFile] = useState<File | null>(initialFile ?? null);
+  const [title, setTitle] = useState(initialFile ? titleFromFileName(initialFile.name) : '');
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
@@ -31,7 +36,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     setFile(f);
     // Pré-remplir le titre avec le nom de fichier (sans extension)
     if (!title) {
-      setTitle(f.name.replace(/\.[^/.]+$/, ''));
+      setTitle(titleFromFileName(f.name));
     }
     setError(null);
   };
@@ -56,6 +61,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     formData.append('file', file);
     formData.append('title', trimmedTitle);
     formData.append('processing_mode', processingMode);
+    if (orgUnitId) formData.append('org_unit_id', orgUnitId);
     if (category) formData.append('document_category_id', category);
     if (description.trim()) formData.append('description', description.trim());
     // Nettoyage des tags CSV : split, trim, supprimer les vides
@@ -73,6 +79,8 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     } catch (err: any) {
       if (err?.status === 409) {
         setError('Un fichier identique existe déjà dans votre espace. Vérifiez vos doublons avant de réessayer.');
+      } else if (err?.status === 403 && orgUnitId) {
+        setError("Vous n'avez pas le droit d'envoyer dans ce dossier.");
       } else if (err?.status === 400) {
         setError('Données invalides. Vérifiez le titre et la catégorie.');
       } else {

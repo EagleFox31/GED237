@@ -9,10 +9,10 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
+import { CAN_CREATE_DOCUMENT } from '../lib/explorerDrag';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
-const CAN_CREATE_DOCUMENT = new Set(['super', 'tenant', 'manager', 'collab']);
 // Délai après la dernière frappe avant d'interroger le serveur.
 const SEARCH_DEBOUNCE_MS = 300;
 // Nombre de documents chargés (les plus récents) ; au-delà, passer par la recherche.

@@ -7,12 +7,18 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import UploadDocumentModal from '../../../components/UploadDocumentModal';
+import DroppedFilesImport from '../../../components/DroppedFilesImport';
+import { useAuthStore } from '../../../stores/authStore';
 import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 import {
   DOCUMENT_DRAG_TYPE,
   canClassify,
   currentUnitOf,
   dropTargetUnit,
+  droppedFiles,
+  filesDropVerdict,
+  isFileDrag,
   isDocumentDrag,
 } from '../../../lib/explorerDrag';
 
@@ -209,6 +215,10 @@ const SpacesPage: React.FC = () => {
   // Service imposé quand « Classer » s'ouvre par un dépôt sur un dossier (#299).
   const [classifyTarget, setClassifyTarget] = useState<string | null>(null);
   const [dropUnitId, setDropUnitId] = useState<string | null>(null);
+  // Fichiers déposés depuis Windows : l'import s'ouvre sur ce dossier (V1.2, élément 20).
+  const [fileDrop, setFileDrop] = useState<{ files: File[]; unitId: string } | null>(null);
+  const [dropNotice, setDropNotice] = useState<string | null>(null);
+  const profileId = useAuthStore((s) => s.userProfile?.id);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   // Zone des dossiers et documents : garde le focus clavier quand on change de dossier.
@@ -465,6 +475,19 @@ const SpacesPage: React.FC = () => {
 
   const folderDropProps = (unitId: string) => ({
     onDragOver: (event: React.DragEvent) => {
+      const types = Array.from(event.dataTransfer.types);
+      if (isFileDrag(types)) {
+        // Fichiers de Windows : copie si l'agent peut importer, curseur « interdit » sinon.
+        if (!filesDropVerdict(profileId, 1).ok) {
+          event.dataTransfer.dropEffect = 'none';
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = 'copy';
+        setDropUnitId(unitId);
+        return;
+      }
       if (!isDocumentDrag(Array.from(event.dataTransfer.types))) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
@@ -473,6 +496,20 @@ const SpacesPage: React.FC = () => {
     onDragLeave: () => setDropUnitId((current) => (current === unitId ? null : current)),
     onDrop: (event: React.DragEvent) => {
       setDropUnitId(null);
+      if (isFileDrag(Array.from(event.dataTransfer.types))) {
+        event.preventDefault();
+        event.stopPropagation();
+        const files = droppedFiles(event.dataTransfer.files);
+        const verdict = filesDropVerdict(profileId, files.length);
+        if (!verdict.ok) {
+          setDropNotice(verdict.message);
+          return;
+        }
+        setDropNotice(null);
+        setContextMenu(null);
+        setFileDrop({ files, unitId });
+        return;
+      }
       if (!isDocumentDrag(Array.from(event.dataTransfer.types))) return;
       event.preventDefault();
       const docId = event.dataTransfer.getData(DOCUMENT_DRAG_TYPE);
@@ -879,6 +916,7 @@ const SpacesPage: React.FC = () => {
               ref={itemsRegionRef}
               tabIndex={-1}
               aria-label="Contenu du dossier"
+              {...(selectedUnitId ? folderDropProps(selectedUnitId) : {})}
               onContextMenu={handleBackgroundContextMenu}
               className="min-h-[560px] px-8 py-8 outline-none"
             >
@@ -1342,6 +1380,33 @@ const SpacesPage: React.FC = () => {
             </aside>
           </div>
         </div>
+      )}
+
+      {dropNotice && (
+        <div role="status" data-testid="drop-notice" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-slate-800 px-5 py-3 text-sm font-semibold text-white shadow-xl">
+          {dropNotice}
+          <button type="button" onClick={() => setDropNotice(null)} aria-label="Fermer le message" className="ml-3 text-slate-300 hover:text-white">×</button>
+        </div>
+      )}
+
+      {fileDrop && fileDrop.files.length === 1 && fileDrop.files[0] && (
+        <UploadDocumentModal
+          initialFile={fileDrop.files[0]}
+          orgUnitId={fileDrop.unitId}
+          onClose={() => setFileDrop(null)}
+          onSuccess={() => {
+            setFileDrop(null);
+            loadDocuments();
+          }}
+        />
+      )}
+      {fileDrop && fileDrop.files.length > 1 && (
+        <DroppedFilesImport
+          files={fileDrop.files}
+          orgUnitId={fileDrop.unitId}
+          onClose={() => setFileDrop(null)}
+          onImported={loadDocuments}
+        />
       )}
 
       <ClassificationSlideOver

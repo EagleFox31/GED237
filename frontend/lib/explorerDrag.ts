@@ -21,3 +21,30 @@ export const currentUnitOf = (doc: {
 /** Cible du classement, ou null si le dépôt ne change rien (même dossier, cible vide). */
 export const dropTargetUnit = (currentUnitId: string | null, folderUnitId: string | null | undefined): string | null =>
   folderUnitId && folderUnitId !== currentUnitId ? folderUnitId : null;
+
+// ── Fichiers glissés depuis l'Explorateur Windows (V1.2, élément 20) ─────────────────────────
+// Distincts du reclassement ci-dessus : ici `dataTransfer.types` contient « Files ».
+
+/** Profils autorisés à importer (même règle que le bouton d'import de l'écran Documents). */
+export const CAN_CREATE_DOCUMENT: ReadonlySet<string> = new Set(['super', 'tenant', 'manager', 'collab']);
+
+/** Vrai si le glisser en cours vient du bureau (fichiers), pas de l'explorateur de l'application. */
+export const isFileDrag = (types: readonly string[]): boolean =>
+  types.includes('Files') && !types.includes(DOCUMENT_DRAG_TYPE);
+
+export type FilesDropVerdict = { ok: true } | { ok: false; message: string };
+
+/** Le collaborateur importe un fichier à la fois ; sans droit d'import, rien ne se dépose. */
+export const filesDropVerdict = (profileId: string | undefined, count: number): FilesDropVerdict => {
+  if (!profileId || !CAN_CREATE_DOCUMENT.has(profileId)) return { ok: false, message: 'Vous ne pouvez pas déposer ici.' };
+  if (count === 0) return { ok: false, message: 'Glissez les fichiers, pas le dossier.' };
+  if (profileId === 'collab' && count > 1) return { ok: false, message: 'Un fichier à la fois.' };
+  return { ok: true };
+};
+
+/** Garde les vrais fichiers : un dossier glissé apparaît avec une taille nulle et sans type. */
+export const droppedFiles = (list: ArrayLike<File>): File[] =>
+  Array.from(list).filter((f) => f.size > 0 || f.type !== '');
+
+/** Titre proposé pour un fichier : son nom sans l'extension. */
+export const titleFromFileName = (name: string): string => name.replace(/\.[^/.]+$/, '');
