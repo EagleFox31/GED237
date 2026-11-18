@@ -254,6 +254,38 @@ async def test_commit_import_job_handles_partial_validity(
 
 
 @pytest.mark.asyncio
+async def test_import_without_review_sends_no_review_notification(
+    auth_client, db_session: AsyncSession, db_seed, storage_tmp_path, monkeypatch
+):
+    from app.core.events.dispatcher import dispatcher
+
+    await _seed_classification(db_session, db_seed)
+    events = []
+    original_dispatch = dispatcher.dispatch
+
+    async def spy_dispatch(event_type, payload):
+        events.append(event_type)
+        await original_dispatch(event_type, payload)
+
+    monkeypatch.setattr(dispatcher, "dispatch", spy_dispatch)
+
+    analyze = await auth_client.post(
+        "/api/v1/imports/analyze",
+        files=[("files", ("reparation_batch.txt", io.BytesIO(b"ok"), "text/plain"))],
+        data={
+            "source_scope": "service",
+            "default_document_category_id": str(db_seed["category_id"]),
+            "processing_mode": "archive",
+        },
+    )
+    assert analyze.status_code == 201
+    commit = await auth_client.post(f"/api/v1/imports/{analyze.json()['id']}/commit")
+    assert commit.status_code == 200
+    assert commit.json()["pending_review_items"] == 0
+    assert "CLASSIFICATION_REVIEWS_PENDING" not in events
+
+
+@pytest.mark.asyncio
 async def test_non_admin_cannot_target_another_user_for_person_scope(
     auth_client, db_session: AsyncSession, db_seed, storage_tmp_path
 ):
