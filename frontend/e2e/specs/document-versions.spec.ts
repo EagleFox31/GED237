@@ -37,7 +37,7 @@ test.describe('Nouvelle version depuis la fiche (#275)', () => {
     const doc = await admin.uploadDocument(`v1-${runId}.txt`, title, `Version 1 ${runId}`);
 
     // WHEN
-    await page.goto(`/documents?open=${doc.id}`);
+    await page.goto(`documents?open=${doc.id}`);
     await detail.expectOpenOn(title);
     await detail.switchToHistoryTab();
     await fileInput.setInputFiles(newContent);
