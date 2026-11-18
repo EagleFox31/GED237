@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import DocumentReservation from './DocumentReservation';
 import DocumentNewVersion from './DocumentNewVersion';
+import DocumentVersionCompare from './DocumentVersionCompare';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -33,6 +34,8 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [workflowActions, setWorkflowActions] = useState<any[]>([]);
   const [versions, setVersions] = useState<any[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
+  /** Versions cochées pour la comparaison (2 au plus : une troisième remplace la plus ancienne coche). */
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
@@ -71,6 +74,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
     try {
       const data = await api.getDocumentVersions(document.id);
       setVersions(data);
+      setCompareIds((ids) => ids.filter((id) => data.some((v: any) => v.id === id)));
     } catch (err) {
       console.error('Failed to fetch versions:', err);
     } finally {
@@ -399,6 +403,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               {!versionsLoading && versions.length === 0 && (
                 <div className="text-center py-10 text-slate-400 font-bold">Aucun historique disponible.</div>
               )}
+              {compareIds.length === 2 && (() => {
+                const [a, b] = compareIds.map((id) => versions.find((v) => v.id === id));
+                return a && b ? <DocumentVersionCompare first={a} second={b} onClose={() => setCompareIds([])} /> : null;
+              })()}
+              {!versionsLoading && versions.length > 1 && compareIds.length < 2 && (
+                <p className="text-xs text-slate-400 px-1">
+                  {compareIds.length === 0 ? 'Cochez deux versions pour voir ce qui a changé.' : 'Cochez une deuxième version.'}
+                </p>
+              )}
               {!versionsLoading && versions.map((v) => (
                 <div key={v.id} data-testid="document-version" className={`glass p-5 rounded-3xl border flex items-center justify-between transition-all ${
                   v.is_current ? 'border-blue-400 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200'
@@ -419,6 +432,21 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
+                    {versions.length > 1 && (
+                      <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-tighter cursor-pointer">
+                        <input
+                          type="checkbox"
+                          data-testid="version-compare-pick"
+                          aria-label={`Comparer la version ${v.version_number}`}
+                          checked={compareIds.includes(v.id)}
+                          onChange={(e) => setCompareIds((ids) => (
+                            e.target.checked ? [...ids, v.id].slice(-2) : ids.filter((id) => id !== v.id)
+                          ))}
+                          className="h-4 w-4 accent-blue-600"
+                        />
+                        Comparer
+                      </label>
+                    )}
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatFileSize(v.file_size)}</span>
                     <button className="text-[10px] font-black text-rdpc-blue uppercase tracking-widest hover:underline">Télécharger</button>
                   </div>
