@@ -90,6 +90,7 @@ const AccessScopesPanel: React.FC = () => {
                 <td className="py-2 pr-4 text-sm text-slate-600">{resourceLabel(row.resource)}</td>
                 <td className="py-2">
                   <select
+                    data-testid={`scope-${row.role}-${row.resource}`}
                     value={row.scope}
                     disabled={pending.has(key)}
                     onChange={(e) => {
