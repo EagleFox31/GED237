@@ -34,6 +34,16 @@ const OrgDashboard: React.FC = () => {
   const userProfile = useAuthStore((s) => s.userProfile);
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Tâches qui m'attendent, distinctes des visas en cours dans tout le ministère.
+  const [myTasks, setMyTasks] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getMyWorkflowCounters()
+      .then((counters) => { if (!cancelled) setMyTasks(counters.tasks); })
+      .catch(() => { if (!cancelled) setMyTasks(0); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,7 +79,17 @@ const OrgDashboard: React.FC = () => {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-6">
+        <KPICard
+          icon="task_alt"
+          iconColor="text-rdpc-blue"
+          iconBg="bg-blue-50"
+          label="Mes visas"
+          value={myTasks === null ? '...' : String(myTasks)}
+          subtext={myTasks === 1 ? 'Document vous attend' : 'Documents vous attendent'}
+          onClick={() => navigate('/tasks')}
+          actionLabel="Ouvrir mes tâches"
+        />
         <KPICard
           icon="description"
           iconColor="text-green-600"
@@ -82,7 +102,7 @@ const OrgDashboard: React.FC = () => {
           icon="pending_actions"
           iconColor="text-yellow-600"
           iconBg="bg-yellow-50"
-          label="En Attente de Visa"
+          label="Visas en cours (ministère)"
           value={isLoading ? '...' : String(metrics?.workflows?.pending ?? 0)}
           subtext={`${metrics?.workflows?.rejected ?? 0} rejetés`}
         />

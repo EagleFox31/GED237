@@ -9,6 +9,8 @@ import { pushClientOperationError } from './lib/errors';
 import ErrorBoundary from './components/ErrorBoundary';
 import ErrorOverlay from './components/ErrorOverlay';
 import Sidebar from './components/Sidebar';
+import { ToFixBanner } from './components/ToFixBanner';
+import { TO_FIX_PROFILES } from './lib/toFix';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import Documents from './components/Documents';
@@ -136,7 +138,14 @@ const guarded = (path: keyof typeof ADMIN_ROUTES, element: React.ReactElement) =
   <RequireProfile allow={ADMIN_ROUTES[path]}>{element}</RequireProfile>
 );
 
-const ProfileDashboard: React.FC<{ profileId?: string }> = ({ profileId }) => {
+const ProfileDashboard: React.FC<{ profileId?: string }> = ({ profileId }) => (
+  <>
+    {profileId && TO_FIX_PROFILES.includes(profileId) && <ToFixBanner />}
+    <ProfileHome profileId={profileId} />
+  </>
+);
+
+const ProfileHome: React.FC<{ profileId?: string }> = ({ profileId }) => {
   switch (profileId) {
     case 'super': return <PlatformDashboard />;
     case 'tenant': return <OrgDashboard />;
