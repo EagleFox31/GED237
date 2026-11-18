@@ -295,7 +295,6 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               <DocumentPreviewTab
                 document={document}
                 enabled={activeTab === 'info'}
-                onDownload={handleDownload}
               />
             </div>
           )}
