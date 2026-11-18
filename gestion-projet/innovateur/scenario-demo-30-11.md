@@ -57,7 +57,7 @@ Comptes du seed (`backend/scripts/seed_db.py`, `Vérifié` sur b701314 : identif
 | `AUDIT001` | auditeur | MINFI | D, préconnectée | journal d'audit en lecture seule, export CSV |
 | `MGR001` | manager | DAF | E, préconnectée | recherche limitée à la DAF ; rapports limités à la DAF ; circuit de validation sur demande |
 | `MINFI002` | collaborateur | DAF | **non utilisé** dans le fil ; F, préconnectée, **sur question** (§ 11, avec #334) | son import est verrouillé, la bannette lui est refusée et sa recherche ne montre que ses propres documents (§ 7) : preuve du cloisonnement, à citer si le jury demande ce que voit un agent |
-| `UNIT001` | admin d'unité | DRH | **aucun profil admin d'unité dans le fil** (décision O du 17/11) ; G, préconnectée, **sur question** pour ses compteurs (§ 11, demande de O du 18/11) | en recherche et en liste, il voit tout l'établissement ; suivi par l'issue #195 après la rc.1 |
+| `UNIT001` | admin d'unité | DRH | **aucun profil admin d'unité dans le fil** (décision O du 17/11) ; G, préconnectée, **sur question** pour ses compteurs (§ 11, demande de O du 18/11) | voit son unité et les unités en dessous, partout : listes, recherche, document ouvert par son id, compteurs du tableau de bord (V1.0, #203 et correctif de B, décision O du 18/11). Ses compteurs sont donc ceux de la DRH, pas de l'établissement |
 | `MINESUP001`, `SUPER001` | collaborateur MINESUP, super admin | — | non utilisés | — |
 
 ## 4. Risques en direct et plan B
@@ -112,7 +112,7 @@ Le risque du menu admin « Recherche » (page introuvable sur c216141) est levé
 ## 6. Décisions de O du 17/11 (sur la première version de ce § 6)
 
 1. **Ordre du rangement** : on montre ce qui existe, la catégorie (domaine, activité) puis l'année (`space_path_builder.py`, `Vérifié`). Pas de « Ranger sur mon poste ». Phrase prête au § 1, étape 2.
-2. **`unit_admin` en recherche et en liste** : il voit tout l'établissement (`documents.py` l. 90-91, `ADMIN_ROLES`), alors que #188 le limite dans les rapports. Rien ne change pour la rc.1 (trop large avant le gel) ; issue #195 après la rc.1, présentée au PO par O. Aucun profil admin d'unité dans la démo (§ 3).
+2. **`unit_admin` en recherche et en liste** : sur main avant la V1.0, il voyait tout l'établissement (`documents.py`, `ADMIN_ROLES`). Décision O du 18/11 : passe en V1.0. Il est limité à son unité et ses sous-unités partout : listes, recherche, document ouvert par son id (#203), puis compteurs, circuits, file de classement et imports (correctif de B), puis utilisateurs (lot de B). **Aucun effet sur le fil** : `MGR001` est *manager*, déjà limité à la DAF ; `READ001` est lecteur, déjà limité à la DSI ; les nombres « courrier » et les rapports du manager restent identiques. Seul `UNIT001` (G, sur question) change : ses compteurs deviennent ceux de la DRH.
 3. **Menu admin « Recherche »** : corrigé par #198, présent dans b701314 ; contrôle en recette (§ 5 n° 17, Q).
 4. **Circuit de validation** : montré seulement sur demande ; un document en attente est préparé (§ 1 bis, § 5 n° 18).
 
