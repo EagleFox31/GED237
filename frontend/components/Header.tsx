@@ -347,6 +347,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                   setShowNotifications(!showNotifications);
                 }}
                 aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
+                aria-expanded={showNotifications}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-all relative ${showNotifications ? 'bg-slate-100 text-rdpc-blue' : 'text-slate-400'}`}
               >
                 <span className="material-symbols-outlined text-xl">notifications</span>
@@ -357,7 +358,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div role="region" aria-label="Liste des notifications" className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="p-3 border-b border-slate-50 flex justify-between items-center">
                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-2">Notifications</p>
                     {unreadCount > 0 && (
