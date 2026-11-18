@@ -37,7 +37,15 @@ async def ocr_seed(db_session, db_seed):
         level=1,
         is_active=True,
     )
-    db_session.add_all([other_tenant, other_unit])
+    sibling_unit = OrgUnit(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        code="DIR-VOISINE",
+        name="Direction voisine",
+        level=1,
+        is_active=True,
+    )
+    db_session.add_all([other_tenant, other_unit, sibling_unit])
     await db_session.commit()
 
     def doc(tenant_id, org_unit_id):
@@ -58,6 +66,7 @@ async def ocr_seed(db_session, db_seed):
     docs = {
         "own": doc(db_seed["tenant_id"], db_seed["org_unit_id"]),
         "other_tenant": doc(other_tenant_id, other_unit.id),
+        "sibling_unit": doc(db_seed["tenant_id"], sibling_unit.id),
     }
     db_session.add_all(docs.values())
     await db_session.commit()
@@ -69,9 +78,9 @@ def _ids(response):
     return {d["id"] for d in response.json()}
 
 
-async def _search(client_as, db_seed, q):
+async def _search(client_as, db_seed, q, role="tenant_admin"):
     async with client_as(
-        "tenant_admin",
+        role,
         tenant_id=db_seed["tenant_id"],
         org_unit_id=db_seed["org_unit_id"],
     ) as client:
@@ -81,8 +90,9 @@ async def _search(client_as, db_seed, q):
 @pytest.mark.asyncio
 async def test_ocr_text_is_searched(client_as, db_seed, ocr_seed):
     # Word only present in the OCR text; plural form matches through stemming.
-    assert await _search(client_as, db_seed, "conventions") == {ocr_seed["own"]}
-    assert await _search(client_as, db_seed, "commune Bafoussam") == {ocr_seed["own"]}
+    same_tenant = {ocr_seed["own"], ocr_seed["sibling_unit"]}
+    assert await _search(client_as, db_seed, "conventions") == same_tenant
+    assert await _search(client_as, db_seed, "commune Bafoussam") == same_tenant
 
 
 @pytest.mark.asyncio
@@ -96,6 +106,13 @@ async def test_ocr_search_without_match(client_as, db_seed, ocr_seed):
 async def test_ocr_search_stays_in_tenant(client_as, db_seed, ocr_seed):
     found = await _search(client_as, db_seed, "financement")
     assert ocr_seed["other_tenant"] not in found
+    assert found == {ocr_seed["own"], ocr_seed["sibling_unit"]}
+
+
+@pytest.mark.asyncio
+async def test_ocr_search_cannot_widen_org_unit_scope(client_as, db_seed, ocr_seed):
+    # An agent of one service does not reach another service's document through its OCR text.
+    found = await _search(client_as, db_seed, "financement", role="reader")
     assert found == {ocr_seed["own"]}
 
 
