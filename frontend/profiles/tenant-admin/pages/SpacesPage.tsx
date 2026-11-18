@@ -7,6 +7,9 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
+import { useAuthStore } from '../../../stores/authStore';
+import { canArchiveDocument } from '../../../lib/documentArchive';
 import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 
 interface UserNode {
@@ -200,6 +203,9 @@ const SpacesPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('icons');
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
+  const profileId = useAuthStore((s) => s.userProfile?.id);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   // Zone des dossiers et documents : garde le focus clavier quand on change de dossier.
   const itemsRegionRef = useRef<HTMLDivElement>(null);
@@ -460,6 +466,22 @@ const SpacesPage: React.FC = () => {
     if (back?.isConnected) back.focus({ preventScroll: true });
   };
 
+  // Même règle et même appel que la fiche document (DocumentDetailModal).
+  const archivePreviewDocument = async () => {
+    if (!previewDocument) return;
+    setArchiving(true);
+    try {
+      const updated = await api.updateDocument(previewDocument.id, { status: 'archived' });
+      setPreviewDocument(updated);
+      loadDocuments();
+    } catch (err) {
+      // Le message de l'API (403, 409) est déjà affiché par le bus d'erreurs.
+      console.error('Archive failed:', err);
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
   const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.defaultPrevented || isEditableTarget(event.target)) return;
@@ -515,13 +537,14 @@ const SpacesPage: React.FC = () => {
   useEffect(() => {
     if (!previewDocument) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closePreview();
+      // Échap ferme d'abord la confirmation d'archivage, pas l'aperçu dessous.
+      if (event.key === 'Escape' && !confirmArchive) closePreview();
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
     // closePreview ne lit que des refs et un setter stables.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewDocument]);
+  }, [previewDocument, confirmArchive]);
 
   const openClassification = (document: Document) => {
     setDocumentToClassify(document);
@@ -1246,6 +1269,12 @@ const SpacesPage: React.FC = () => {
                     </p>
                   </div>
                   <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Statut</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700" data-testid="preview-status">
+                      {getStatusLabel(previewDocument.status)}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Taille</p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
                       {formatFileSize(previewDocument.file_size)}
@@ -1289,12 +1318,37 @@ const SpacesPage: React.FC = () => {
                   >
                     Copier le chemin
                   </button>
+                  {canArchiveDocument(profileId, previewDocument.status) && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmArchive(true)}
+                      disabled={archiving}
+                      title="Le document archivé est protégé contre l'effacement."
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      <span className="material-symbols-outlined text-base" aria-hidden="true">inventory_2</span>
+                      {archiving ? 'Archivage…' : 'Archiver'}
+                    </button>
+                  )}
                 </div>
               </div>
             </aside>
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        open={confirmArchive}
+        title="Archiver ce document ?"
+        message="Il ne pourra plus être effacé de la corbeille."
+        icon="inventory_2"
+        confirmLabel="Oui, archiver"
+        onConfirm={() => {
+          setConfirmArchive(false);
+          void archivePreviewDocument();
+        }}
+        onCancel={() => setConfirmArchive(false)}
+      />
 
       <ClassificationSlideOver
         isOpen={!!documentToClassify}
