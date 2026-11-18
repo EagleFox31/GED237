@@ -222,7 +222,7 @@ Après une fusion sur `$BR`, la branche n'est plus supprimée : on corrige par d
 
 | Classe | PR | Responsable | État le 18/11 à 14:00 |
 |---|---|---|---|
-| V1.0 à fusionner avant 18:00 | #203 | I | prête, **en conflit avec `main` (DIRTY), donc sans CI** ; 13 fichiers, aucune migration. PR empilées dessus : #358, #241, #266, et par #358 : #360, #361 |
+| V1.0 à fusionner avant 18:00 | #203 | I | prête ; à 14:10 : `main` fusionnée par B sans rebase (2a890d0), 139 tests verts en Docker dont `stats_scope`, une seule tête alembic ; en file depuis 13:53, CI en cours ; 13 fichiers, aucune migration. #358, #241 et #266 reciblées sur `main` par O ; #360 et #361 restent sur la branche de #358 |
 | | #358 | B | brouillon, base = branche de #203, CLEAN ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
 | | #360 | B | brouillon, base = branche de #358, CLEAN ; 9 fichiers, aucune migration ; 25 tests verts en Docker |
 | | #104 (point de coupe) | I | brouillon, DIRTY sur le distant (7302e3c). En local (8eca6b0) : 56 commits d'avance, 70 de retard, et `merge-tree` ne montre aucun conflit avec `main` |
@@ -238,15 +238,15 @@ Les fusions passent une à une. Avec la règle `strict`, chaque PR demande une m
 
 | # | Étape | Qui | Cible | Au plus tard | Critère de passage | Sinon |
 |---|---|---|---|---|---|---|
-| 0 | Fusion de `main` dans #203 (merge, sans rebase) ; retrait de `TENANT_ANALYTICS_ROLES` ; alignement de `test_stats_scope` ; tests de périmètre en Docker | I, **avec le feu vert d'O** | 18/11 au soir | 19/11 à 11:00, poussé | conflit résolu, tests verts en Docker, aucune migration | #203 manque 18:00, et donc #358 et #360 aussi |
-| 1 | Reciblage de #358, #241 et #266 sur `main` | O | 19/11 à 09:00 | avant la fusion de #203 | `baseRefName` = `main` pour les trois | ne pas fusionner #203 |
+| 0 | Fusion de `main` dans #203 (merge, sans rebase) ; retrait de `TENANT_ANALYTICS_ROLES` ; alignement de `test_stats_scope` ; tests en Docker | B | — | **fait le 18/11** | 2a890d0 : 139 tests verts, une seule tête alembic | — |
+| 1 | Reciblage de #358, #241 et #266 sur `main` | O | **fait le 18/11** | avant la fusion de #203 | `baseRefName` = `main` pour les trois | ne pas fusionner #203 |
 | 2 | Fusion de #203 | O | 11:00 | **15:00** | `ci_gate 203` : `draft=false`, CI Gate `COMPLETED SUCCESS` ; relecture de Q | V1.1, avec #358 et #360 |
 | 3 | #358 prête (B), puis reciblage de #360 et #361 sur `main` (O) | B, puis O | 12:00 | avant la fusion de #358 | 6 trous corrigés, puis `gh pr ready 358` | — |
 | 4 | Fusion de #358 | O | 12:30 | **15:30** | CI Gate vert, OK de Q | V1.1, avec #360. La fuite reste dans les limites connues (question 12 de la fiche jury) |
 | 5 | #360 prête, puis fusion | B, puis O | 13:30 | **16:00** | CI Gate vert, OK de Q | V1.1 |
 | 6 | PR RapidOCR : décision | O | — | **16:00** | étape 0 de `decision-vote-ocr.md` : PR prête, CI verte, OK de Q, Tesseract toujours moteur par défaut, aucune migration, trois tests de repli | V1.1 (§ 4 de la note) |
 | 7 | Fusion de RapidOCR, si l'étape 6 passe | O | 16:30 | **17:00** | CI Gate vert | V1.1 |
-| 8 | #356 (tests e2e seuls) | F, puis O | 15:00 | **17:00** | prête, CI verte, OK de Q | après la coupe, sur `main` |
+| 8 | #356 (tests e2e seuls) | F, puis O | 14:00 | **15:00** (décision d'O) | CI verte et passe de F OK | V1.1 ; sans effet sur la coupe |
 | 9 | **Gel des fusions sur `main`** : O note la tête de `main` | O | — | **17:15** | `git rev-parse --short origin/main`, transmis à I | — |
 | 10 | Essai à blanc de #104 | I | 17:30 | 17:45 | `deroule-coupe-19-11.md` § 1, ligne de 17:55 : fusion locale de `origin/main` sans conflit, sur la tête notée à 17:15 | conflit : prévenir O avec la liste des fichiers ; ne rien pousser |
 | 11 | Push unique de #104, puis `gh pr ready 104` | I | 18:00 | 18:05 | `deroule` § 1 | — |
@@ -289,9 +289,9 @@ gh issue close 133 --repo $REPO --reason completed \
 
 ### 8.4 Risques pour 18:00
 
-1. **#203 est en conflit avec `main` et n'a pas de CI.** La délégation à I prévoyait de fusionner `main` dans #203 *après* #358 ; or #203 passe désormais en premier. Il faut le feu vert d'O dès le 18 au soir, et un créneau Docker pour les tests. Sans cela, #203, #358 et #360 tombent ensemble.
+1. **#203** : risque levé le 18/11 (2a890d0, 139 tests verts en Docker, en file depuis 13:53). Objectif d'O : #203, #358 et #360 fusionnées le 18 ou le 19 au matin, bien avant 15:00.
 2. **Fusions en série.** Trois PR empilées, puis peut-être RapidOCR et #356, à 15 à 20 minutes chacune. Entre 16:00 et 17:15, la marge ne couvre qu'une seule relance de CI.
 3. **RapidOCR** : aucune PR la veille à 14:00. Par défaut, elle passe en V1.1.
-4. **#356** (F, tests e2e seuls) : la coupe n'en dépend pas. O tranche : V1.0 ou non.
-5. **#121** : « en dernier » veut dire reciblage sur la release, jamais une fusion sur `main` (contrôle 3 du § 2).
+4. **#356** (F, tests e2e seuls) : V1.0 si CI verte et passe de F OK avant le 19 à 15:00, sinon V1.1 (décision d'O). Sans effet sur la coupe.
+5. **#121** : confirmé par O, reciblée sur `release/v1.0.0` après la coupe ; jamais fusionnée sur `main` (contrôle 3 du § 2).
 6. **#104** a 70 commits de retard sur `main`. L'essai à blanc de 17:30 se fait sur la tête notée au gel de 17:15, et non plus sur `2f15b6e`.
