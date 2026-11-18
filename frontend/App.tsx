@@ -104,6 +104,8 @@ export const ADMIN_ROUTES = {
   '/users': ['super', 'tenant'],
   // Lecture du journal : super_admin, tenant_admin, auditor (backend/app/core/authz/policy.csv).
   '/audit': ['super', 'tenant', 'audit'],
+  // Statistiques (analytics.tenant, read) : tous les profils sauf le lecteur (policy.csv).
+  '/reports': ['super', 'tenant', 'unit', 'manager', 'collab', 'audit'],
 } as const satisfies Record<string, ReadonlyArray<ProfileId>>;
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
@@ -270,7 +272,7 @@ const AppLayout: React.FC = () => {
             <Route path="/ingestion" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><DirectoryIngestion /></RequireProfile>} />
             <Route path="/local-library" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><LocalLibraryPage /></RequireProfile>} />
             <Route path="/audit" element={<RequireProfile allow={ADMIN_ROUTES['/audit']} message={AUDIT_DENIED_MESSAGE}><AuditLogs /></RequireProfile>} />
-            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/reports" element={<RequireProfile allow={ADMIN_ROUTES['/reports']} message={LOCAL_TOOLS_DENIED_MESSAGE}><ReportsPage /></RequireProfile>} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

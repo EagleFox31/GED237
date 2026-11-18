@@ -13,10 +13,12 @@ const DENIED = 'Accès réservé aux administrateurs.';
 const USERS_API = /\/api\/v1\/users(\?|$)/;
 const AUDIT_DENIED = 'Accès réservé aux administrateurs et aux auditeurs.';
 const AUDIT_API = /\/api\/v1\/audit\/logs/;
+const PROFILE_DENIED = "Cet outil n'est pas disponible pour votre profil.";
+const REPORTS_API = /\/api\/v1\/reports\//;
 /** Titre de la page de repli (route inconnue), frontend/App.tsx NotFoundPage. */
 const NOT_FOUND = 'Espace en Travaux';
 
-test.describe('Garde des routes d’administration (GUARD-01..09)', () => {
+test.describe('Garde des routes d’administration (GUARD-01..11)', () => {
   test('GUARD-01 — Given lecteur, When /users, Then retour à /documents avec message, page non montée', async ({ loginAs, page }) => {
     await loginAs('reader');
     await page.goto('users');
@@ -94,6 +96,27 @@ test.describe('Garde des routes d’administration (GUARD-01..09)', () => {
     await expect(page).toHaveURL(/\/audit$/);
     await expect(page.getByText(AUDIT_DENIED)).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /registre des actions/i })).toBeVisible();
+  });
+
+  test('GUARD-10 — Given lecteur, When /reports, Then retour à /documents avec message, statistiques jamais demandées', async ({ loginAs, page }) => {
+    await loginAs('reader');
+    const reportCalls: string[] = [];
+    page.on('request', (r) => {
+      if (REPORTS_API.test(r.url())) reportCalls.push(r.url());
+    });
+    await page.goto('reports');
+    await expect(page).toHaveURL(/\/documents$/);
+    await expect(page.getByText(PROFILE_DENIED)).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    expect(reportCalls, 'la page /reports ne doit pas être montée pour un lecteur').toEqual([]);
+  });
+
+  test('GUARD-11 — Given manager, When /reports, Then la page s’affiche sans message', async ({ loginAs, page }) => {
+    await loginAs('manager');
+    await page.goto('reports');
+    await expect(page).toHaveURL(/\/reports$/);
+    await expect(page.getByText(PROFILE_DENIED)).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1, name: /rapports/i })).toBeVisible();
   });
 
   test('GUARD-07 — Given admin tenant, When chaque entrée du menu, Then jamais la page introuvable', async ({ loginAs, page }) => {
