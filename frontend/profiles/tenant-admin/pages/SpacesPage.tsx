@@ -9,7 +9,7 @@ import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { useAuthStore } from '../../../stores/authStore';
-import { ARCHIVABLE_STATUSES, canArchiveDocument } from '../../../lib/documentArchive';
+import { canArchiveDocument } from '../../../lib/documentArchive';
 import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 import { downloadName } from '../../../lib/downloadName';
 import {
@@ -19,10 +19,9 @@ import {
   runBulkExplorerAction,
   selectAllExplorerIds,
 } from '../../../lib/explorerSelection';
-import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 
-// Bulk actions show one summary: business refusals stay out of the global error toasts.
-const BULK_QUIET = { handledStatuses: [400, 403, 404, 409, 422] } as const;
+// Bulk actions report one summary: no global toast per document, network errors included.
+const BULK_QUIET = { silent: true } as const;
 const formatDocumentCount = (n: number) => `${n} document${n > 1 ? 's' : ''}`;
 
 interface UserNode {
@@ -143,6 +142,10 @@ type ContextMenuState =
   | { kind: 'folder'; x: number; y: number; unitId: string; path: string }
   | { kind: 'background'; x: number; y: number };
 
+// Roles that only read their own unit (backend ORG_UNIT_READ_ROLES): the institution root
+// answers 403 to them, so the explorer opens on their unit.
+const OWN_UNIT_ROLES = new Set(['manager', 'reader']);
+
 const MENU_ITEM =
   'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none';
 
@@ -236,7 +239,11 @@ const SpacesPage: React.FC = () => {
         setTreeData(treeResp);
         if (treeResp.length > 0) {
           const flattened = flattenUnits(treeResp);
-          setSelectedUnitId(flattened[0]?.id || '');
+          const profile = useAuthStore.getState().userProfile;
+          const ownUnit = OWN_UNIT_ROLES.has(profile?.backendRole ?? '')
+            ? flattened.find((unit) => unit.id === profile?.orgUnitId)
+            : undefined;
+          setSelectedUnitId((ownUnit ?? flattened[0])?.id || '');
         }
 
         const [usersResult, domainsResult, activitiesResult] = await Promise.allSettled([
@@ -475,6 +482,8 @@ const SpacesPage: React.FC = () => {
     const selectedSet = new Set(selectedDocIds);
     return sortedDocuments.filter((doc) => selectedSet.has(doc.id));
   }, [selectedDocIds, sortedDocuments]);
+  // Same rule as the document sheet: offered when the profile may archive at least one selected document.
+  const canBulkArchive = selectedDocuments.some((doc) => canArchiveDocument(profileId, doc.status));
 
   const handleBulkDownload = async () => {
     if (selectedDocuments.length === 0 || bulkProcessing) return;
@@ -504,7 +513,7 @@ const SpacesPage: React.FC = () => {
 
   const handleBulkArchive = async () => {
     setConfirmBulkArchive(false);
-    if (selectedDocuments.length === 0 || bulkProcessing) return;
+    if (!canBulkArchive || selectedDocuments.length === 0 || bulkProcessing) return;
     setBulkProcessing(true);
     setBulkSummary(null);
     try {
@@ -515,8 +524,8 @@ const SpacesPage: React.FC = () => {
           const updated = await api.updateDocument(doc.id, { status: 'archived' }, BULK_QUIET);
           setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, ...updated } : d)));
         },
-        // Same rule as the document sheet: only validated or signed documents are archived.
-        (doc) => (ARCHIVABLE_STATUSES.has(doc.status) ? null : getStatusLabel(doc.status).toLowerCase()),
+        // Documents the rule refuses are skipped with their status as the reason.
+        (doc) => (canArchiveDocument(profileId, doc.status) ? null : getStatusLabel(doc.status).toLowerCase()),
       );
       setBulkSummary(formatBulkSummaryMessage('archivé', summary));
     } finally {
@@ -1046,7 +1055,7 @@ const SpacesPage: React.FC = () => {
                       </span>
                     )}
                     {bulkSummary && (
-                      <span data-testid="explorer-bulk-summary" className="text-xs font-semibold text-slate-700">
+                      <span role="status" data-testid="explorer-bulk-summary" className="text-xs font-semibold text-slate-700">
                         {bulkSummary}
                       </span>
                     )}
@@ -1061,14 +1070,16 @@ const SpacesPage: React.FC = () => {
                       >
                         Télécharger la sélection
                       </button>
-                      <button
-                        type="button"
-                        disabled={bulkProcessing}
-                        onClick={() => setConfirmBulkArchive(true)}
-                        className="rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
-                      >
-                        Archiver la sélection
-                      </button>
+                      {canBulkArchive && (
+                        <button
+                          type="button"
+                          disabled={bulkProcessing}
+                          onClick={() => setConfirmBulkArchive(true)}
+                          className="rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                        >
+                          Archiver la sélection
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={bulkProcessing}
