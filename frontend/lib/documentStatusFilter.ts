@@ -22,3 +22,8 @@ export function statusesForFilter(value: string): string[] {
   const option = DOCUMENT_STATUS_FILTERS.find((o) => o.value === value);
   return option ? [...option.statuses] : [];
 }
+
+/** Valeur du filtre lue dans l'URL (`?status=`) : valeur connue, sinon « tous » (''). */
+export function filterFromParam(value: string | null): string {
+  return DOCUMENT_STATUS_FILTERS.some((o) => o.value === value) ? (value as string) : '';
+}

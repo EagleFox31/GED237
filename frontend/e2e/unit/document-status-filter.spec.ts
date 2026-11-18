@@ -1,6 +1,6 @@
 // Spec pur (npm run test:unit) : options du filtre « Statut » de l'explorateur Documents.
 import { test, expect } from '@playwright/test';
-import { DOCUMENT_STATUS_FILTERS, statusesForFilter } from '../../lib/documentStatusFilter';
+import { DOCUMENT_STATUS_FILTERS, filterFromParam, statusesForFilter } from '../../lib/documentStatusFilter';
 
 test.describe('Filtre Statut des documents', () => {
   test('« À corriger » couvre les documents rejetés et renvoyés', () => {
@@ -26,5 +26,13 @@ test.describe('Filtre Statut des documents', () => {
   test('le résultat est une copie (la table reste intacte)', () => {
     statusesForFilter('to_fix').push('draft');
     expect(statusesForFilter('to_fix')).toEqual(['rejected', 'returned']);
+  });
+});
+
+test.describe('filterFromParam (?status= dans l’URL)', () => {
+  test('valeur connue gardée, inconnue ou absente ramenée à « tous »', () => {
+    expect(filterFromParam('to_fix')).toBe('to_fix');
+    expect(filterFromParam('nimporte')).toBe('');
+    expect(filterFromParam(null)).toBe('');
   });
 });

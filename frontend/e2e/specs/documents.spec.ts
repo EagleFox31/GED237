@@ -54,6 +54,24 @@ test.describe('Feature: Explorateur de documents', () => {
     const url = new URL((await listRequest).url());
     expect(url.searchParams.getAll('status').sort()).toEqual(['rejected', 'returned']);
     await expect(docsPage.statusFilter).toHaveValue('to_fix');
+    await expect(page).toHaveURL(/[?&]status=to_fix(&|$)/);
+  });
+
+  // L13-2 : le bandeau d'accueil « à corriger » arrive sur /documents?status=to_fix.
+  test('Given lien ?status=to_fix, When page Documents, Then filtre « À corriger » appliqué', async ({ page }) => {
+    const listRequest = page.waitForRequest((r) => {
+      const url = new URL(r.url());
+      return r.method() === 'GET' && /\/api\/v1\/documents\/?$/.test(url.pathname);
+    });
+    await page.goto('documents?status=to_fix');
+    await expect(new DocumentsPage(page).statusFilter).toHaveValue('to_fix');
+    const url = new URL((await listRequest).url());
+    expect(url.searchParams.getAll('status').sort()).toEqual(['rejected', 'returned']);
+  });
+
+  test('Given lien ?status inconnu, When page Documents, Then filtre « Tous »', async ({ page }) => {
+    await page.goto('documents?status=nimporte');
+    await expect(new DocumentsPage(page).statusFilter).toHaveValue('');
   });
 
   /**

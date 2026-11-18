@@ -9,7 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
-import { DOCUMENT_STATUS_FILTERS, statusesForFilter } from '../lib/documentStatusFilter';
+import { DOCUMENT_STATUS_FILTERS, filterFromParam, statusesForFilter } from '../lib/documentStatusFilter';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -29,16 +29,18 @@ const Documents: React.FC = () => {
   const canCreate = !!profileId && CAN_CREATE_DOCUMENT.has(profileId);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
+  // Recherche (`?q=`, barre globale du Header) et statut (`?status=`, liens de l'accueil) pilotés par l'URL.
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
-  const setSearchQuery = (next: string) => {
+  const filterStatus = filterFromParam(searchParams.get('status'));
+  const setParam = (key: string, next: string) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (next) nextParams.set('q', next);
-    else nextParams.delete('q');
+    if (next) nextParams.set(key, next);
+    else nextParams.delete(key);
     setSearchParams(nextParams, { replace: true });
   };
+  const setSearchQuery = (next: string) => setParam('q', next);
+  const setFilterStatus = (next: string) => setParam('status', next);
 
   // La recherche et le statut sont filtrés par le serveur, sur tout le périmètre de
   // l'utilisateur : filtrer ici ne verrait que la première page (#256).
