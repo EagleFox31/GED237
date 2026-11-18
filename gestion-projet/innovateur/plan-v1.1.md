@@ -676,3 +676,28 @@ F ne peut rien prendre à B : F dépasse déjà (+ 6,75), et ses parts d'écran 
 - **Ou un mélange des deux.**
 
 Réserve : toute la colonne B est chiffrée par B. Les colonnes F et Q restent mes estimations, non confirmées ; si elles sont aussi basses que mes premiers chiffres pour B, l’écart de F peut encore grossir. Choix à poser au PO pour 57 L7-2 : « PDF officiel » = impression du navigateur (B 0) ou PDF produit par le serveur, avec empreinte SHA-256 (B + 2,5, nouvelle dépendance, image reconstruite).
+
+### Renfort aide-api (O, 18/11 au soir)
+
+Le PO a ouvert une session de renfort, **aide-api**. Elle prend 57 L10-1 (`?q=` dans le texte OCR), 57 L10-3 (recherche sans accents, migration d’ordre 8), 57 L11-1 (texte des `.docx` et `.xlsx`) et 57 L7-5 (délégation, après les trois choix du PO ; migration d’ordre 9). B garde 57 L10-4 (PDF mixte, rendu page par page et en lots : même fonction, `strategy.process_pdf`), 57 L10-2 (état « échec »), 57 L7-2, 57 L7-3 et ses PR en cours. L’innovateur ne code pas.
+
+Chiffres d’aide-api `À recevoir` : en attendant, ses lignes gardent le chiffrage de B. Le transfert 3 ci-dessus (tests de 57 L11-1 vers Q) tombe : aide-api écrit ses tests.
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| Charge avant renfort | 50,8 | 30,75 | 35,8 | — | 117,35 |
+| Lignes passées à aide-api (L10-1 1, L10-3 3, L11-1 2,5, L7-5 7) | − 13,5 | 0 | 0 | + 13,5 | 0 |
+| **Charge** | **37,3** | **30,75** | **35,8** | **13,5** | **117,35** |
+| Capacité au 04/12 | 31 | 24 | 34 | `À recevoir` | 89 + aide-api |
+| **Écart** | **+ 6,3** | **+ 6,75** | **+ 1,8** | `À recevoir` | **+ 28,35 − capacité d’aide-api** |
+| Avec les transferts 1 et 2 (B vers Q : #113 et #110 ; mesure et tests de L10-4) | + 4,3 | + 6,75 | + 3,8 | — | inchangé |
+
+**Proposition, à trancher par O** (lignes isolées, sans fichier chaud de B) :
+1. aide-api prend aussi 57 L7-3 (recherche par date et par auteur) : même route `list_documents` que 57 L10-1, qu’elle suit déjà. B − 1, aide-api + 1.
+2. aide-api prend #113 et #110 (transfert 1) à la place de Q : Q n’a plus de marge. B − 1, aide-api + 1.
+3. aide-api fait l’écran de la délégation (nouvel écran, aucun fichier chaud de F) : F − 1,5, aide-api + 1,5.
+4. Si le PO veut un PDF officiel produit par le serveur (57 L7-2, + 2,5), c’est aide-api qui le prend (`audit.py`, isolé), pas B.
+
+Après 1 à 3, avec le transfert 2 (mesure de L10-4 vers Q) : **B ≈ 34,3 (+ 3,3)**, **F ≈ 29,25 (+ 5,25)**, **Q ≈ 36,8 (+ 2,8)**, **aide-api ≈ 17**. Le total de l’équipe ne change pas (117,35). Le renfort ne règle le dépassement de F que pour l’écran de la délégation : F reste le premier goulot.
+
+**Docker à partir du 19/11 à 18:00 (O)** : une charge lourde à la fois pour F, pour B et pour aide-api (3 au plus en même temps, `/c/tmp/wait_slot.sh`), chacune plafonnée à 3 Go et 4 CPU.
