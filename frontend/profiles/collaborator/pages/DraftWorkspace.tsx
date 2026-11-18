@@ -16,7 +16,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const DraftWorkspace: React.FC = () => {
   const userProfile = useAuthStore((s) => s.userProfile);
-  const userKey = userProfile?.matricule || userProfile?.id || 'anonymous';
+  // Remembered per tenant and matricule: the profile id is a role template, shared by many users.
+  const validatorOwner = { tenantId: userProfile?.tenantId, matricule: userProfile?.matricule };
   const [documents, setDocuments] = useState<any[]>([]);
   const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,7 @@ const DraftWorkspace: React.FC = () => {
 
   const openSubmitModal = (id: string) => {
     setDocumentToSubmit(id);
-    const saved = readLastValidatorId(userKey);
+    const saved = readLastValidatorId(validatorOwner);
     const valid = saved && validators.some((v) => v.id === saved) ? saved : '';
     setSelectedValidator(valid);
     setShowSubmitModal(true);
@@ -76,7 +77,7 @@ const DraftWorkspace: React.FC = () => {
       ];
 
       await api.createWorkflowSteps(documentToSubmit, steps);
-      writeLastValidatorId(userKey, selectedValidator);
+      writeLastValidatorId(validatorOwner, selectedValidator);
       setShowSubmitModal(false);
       setDocumentToSubmit(null);
       fetchData();
