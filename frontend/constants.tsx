@@ -5,6 +5,8 @@ export const APP_VERSION: string = import.meta.env.VITE_APP_VERSION || 'dev';
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 // Taille maximale d'un fichier envoyé (Mo), même réglage que l'API (MAX_UPLOAD_SIZE_MB).
 export const MAX_UPLOAD_MB: number = maxUploadMb(import.meta.env.VITE_MAX_UPLOAD_SIZE_MB);
+// false (LOGIN_DEMO_HINTS dans .env) : pas de profils de démo sur l'écran de connexion.
+export const LOGIN_DEMO_HINTS: boolean = import.meta.env.VITE_LOGIN_DEMO_HINTS !== 'false';
 
 export const COLORS = {
   primary: '#0055A4', // RDPC Blue
