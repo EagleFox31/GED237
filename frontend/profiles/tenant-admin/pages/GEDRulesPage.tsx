@@ -1,12 +1,23 @@
 // frontend/profiles/tenant-admin/pages/GEDRulesPage.tsx
-import React, { useState } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import TemplatesTab from './gedrules/TemplatesTab';
 import RulesTab from './gedrules/RulesTab';
 import SimulatorTab from './gedrules/SimulatorTab';
 import CategoriesTab from './gedrules/CategoriesTab';
+import {
+  readGedRulesTab,
+  writeGedRulesTab,
+  type GedRulesTab,
+} from '../../../lib/gedRulesTab';
 
 const GEDRulesPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'categories' | 'templates' | 'rules' | 'simulator'>('categories');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = readGedRulesTab(searchParams);
+  const setActiveTab = (next: GedRulesTab) => {
+    if (next === activeTab) return;
+    setSearchParams((prev) => writeGedRulesTab(prev, next));
+  };
 
   return (
     <div className="p-8 pb-32 flex flex-col h-full animate-in fade-in duration-500">
