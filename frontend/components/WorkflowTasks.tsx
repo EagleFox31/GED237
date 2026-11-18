@@ -88,7 +88,7 @@ const WorkflowTasks: React.FC = () => {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{task.status}</span>
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
-              <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || task.document_id}</span></p>
+              <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span></p>
               <div className="mt-2"><ViewDocumentButton documentId={task.document_id} /></div>
             </div>
 

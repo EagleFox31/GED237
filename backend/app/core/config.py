@@ -139,6 +139,20 @@ class Settings(BaseSettings):
             raise ValueError("AUTHZ_METRICS_BACKEND must be one of: memory, redis")
         return value
 
+    # OCR engine tried first on photos and screenshots: tesseract (default, light) or
+    # easyocr (torch, ~1.3 GB per worker child). The other engine stays the fallback.
+    OCR_PRIMARY_ENGINE: str = "tesseract"
+
+    @field_validator("OCR_PRIMARY_ENGINE", mode="before")
+    @classmethod
+    def validate_ocr_primary_engine(cls, v: Any) -> str:
+        if v is None or str(v).strip() == "":
+            return "tesseract"
+        value = str(v).strip().lower()
+        if value not in {"tesseract", "easyocr"}:
+            raise ValueError("OCR_PRIMARY_ENGINE must be one of: tesseract, easyocr")
+        return value
+
     # Startup check that the database is at the Alembic head
     # fail : refuse to start (default) ; warn : log only ; off : skip
     SCHEMA_CHECK_MODE: str = "fail"

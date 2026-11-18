@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { test, expect } from '../fixtures/auth.fixture';
+import { test, expect, apiAs } from '../fixtures/uat.fixture';
 
 /**
  * Accueils par rôle : chaque élément cliquable agit, et aucun dialogue natif
@@ -27,14 +27,30 @@ test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () 
     expect(nativeDialogs, 'dialogue natif détecté').toEqual([]);
   });
 
-  test('lecteur : la carte ouvre le détail ; pas de Ranger / Bibliothèque locale', async ({ loginAs, page }) => {
+  test('lecteur : la carte ouvre le détail ; pas de Ranger / Bibliothèque locale', async ({ loginAs, page, request, runId }) => {
+    // Le test crée son propre document dans l'unité du lecteur (ne dépend pas de la seed).
+    const readerApi = await apiAs(request, 'reader');
+    const { org_unit_id } = await readerApi.me();
+    const adminApi = await apiAs(request, 'tenant_admin');
+    const created = await adminApi.uploadDocument(
+      `lecteur-${runId}.txt`, `Note lecteur ${runId}`, `contenu lecteur ${runId} ${Date.now()}`, org_unit_id,
+    );
+    // L'accueil lecteur ne liste que les documents validés : circuit de visa à une étape, accepté par le manager.
+    const managerApi = await apiAs(request, 'manager');
+    const steps = await adminApi.submitForVisa(created.id, (await managerApi.me()).id, 'Visa du manager');
+    const step = steps[0];
+    if (!step || !created.current_version_id) throw new Error('circuit de visa ou version courante manquants');
+    await managerApi.acceptVisa(step.id, created.current_version_id);
+    // Échoue (HTTP 403/404) si le lecteur ne peut pas lire le document créé.
+    await readerApi.getDocument(created.id);
+
     await loginAs('reader');
     await expect(page.getByText('Ma Bibliothèque')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: /Ranger \/ Importer/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Bibliothèque locale/ })).toHaveCount(0);
 
     const card = page.getByRole('button', { name: /^Ouvrir / }).first();
-    test.skip(!(await appears(card)), 'aucun document visible pour ce lecteur');
+    await expect(card).toBeVisible({ timeout: 10_000 });
     await card.click();
     await expect(page.getByText(DETAIL_TAB).first()).toBeVisible();
   });
@@ -56,10 +72,8 @@ test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () 
     }
   });
 
-  // Dérogation documentée : GET /documents/{id} renvoie 403 au manager quand le document de
-  // sa tâche est hors de son unité (_can_read_document, règle org_unit). Bug backend signalé ;
-  // à réactiver (retirer fixme) dès que l'assigné d'une étape peut lire le document.
-  test.fixme('manager : « Voir le document » ouvre le détail avant de valider', async ({ loginAs, page }) => {
+  // L'assigné d'une étape lit le document de sa tâche même hors de son unité (correctif backend #340).
+  test('manager : « Voir le document » ouvre le détail avant de valider', async ({ loginAs, page }) => {
     await loginAs('manager');
     await expect(page.getByText('Espace Manager')).toBeVisible({ timeout: 10_000 });
     const view = page.getByRole('button', { name: 'Voir le document' }).first();
