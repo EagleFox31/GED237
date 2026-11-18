@@ -41,3 +41,20 @@ export const errorStatus = (error: unknown): number | undefined => {
   const { status } = error as { status?: unknown };
   return typeof status === 'number' ? status : undefined;
 };
+
+/** Profondeur maximale dépliable sous une personne (garde-fou contre une chaîne cyclique côté données). */
+export const TEAM_DEPTH_MAX = 6;
+
+/** Niveau sous la personne connectée : 1 = N-1 (équipe directe), 2 = N-2, etc. */
+export const teamLevelLabel = (depth: number): string => `N-${depth}`;
+
+/** Libellé du bouton qui déplie l'équipe d'une personne. */
+export const teamToggleLabel = (name: string, open: boolean): string =>
+  open ? `Replier l'équipe de ${name}` : `Voir l'équipe de ${name}`;
+
+/** Un nœud peut-il encore être déplié ? Au-delà de TEAM_DEPTH_MAX, on s'arrête. */
+export const canExpand = (depth: number): boolean => depth < TEAM_DEPTH_MAX;
+
+/** Évite qu'une boucle de rattachement (A → B → A) se déplie à l'infini : un ancêtre déjà affiché n'est plus proposé. */
+export const withoutAncestors = (people: readonly HierarchyPerson[], ancestorIds: readonly string[]): HierarchyPerson[] =>
+  people.filter((p) => !ancestorIds.includes(p.id));
