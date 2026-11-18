@@ -898,4 +898,17 @@ Tableau calculé par `gestion-projet/outils/charges.sh` sur `charges-v1.1.csv` :
 | Capacité | 41,5 | 32 | 37,75 | 35 | 146,25 |
 | **Écart** | −1,95 | −0,75 | −2,45 | 0 à +2 | −5,15 à −3,15 |
 
-**aide-api dépasse sa capacité de 0 à 2 h-s.** Répartition proposée à O le 18/11 au soir, en attente de sa décision. La marge de Q tombe à 2,45, ce qui couvre encore le déclencheur de F vers Q (2 h-s).
+**aide-api dépassait sa capacité de 0 à 2 h-s** : répartition décidée ci-dessous. La marge de Q tombe à 2,45, ce qui couvre encore le déclencheur de F vers Q (2 h-s).
+
+### Décision d’O (18/11 au soir) : L13-2 vers B, tests rapides hors fenêtre
+
+1. **57 L13-2** (accueil, bandeau des rejets, 1 h-s) passe d’aide-api à B.
+2. **Tests rapides** (demande du PO) : aide-api adapte tout de suite ses propres scripts (image avec fakeredis, `pg_isready`, PostgreSQL de test sur tmpfs plafonné) puis écrit du 19 au 23/11 la PR `conftest.py` (« 57 tests rapides » dans `plan-fusion`, vague 1, relue par Q). Ce travail tombe avant sa fenêtre de capacité (24/11 au 04/12) : 0 h-s dans le tableau.
+3. Le dépassement restant d’aide-api (−1 à +1) dépend de ses heures du 19 au 23/11, demandées le 18/11 au soir.
+4. Q n’est pas chargé : sa marge couvre le déclencheur de F vers Q (2 h-s).
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | 40,55 | 31,25 | 35,3 | 34 à 36 | 141,1 à 143,1 |
+| Capacité | 41,5 | 32 | 37,75 | 35 | 146,25 |
+| **Écart** | −0,95 | −0,75 | −2,45 | −1 à +1 | −5,15 à −3,15 |

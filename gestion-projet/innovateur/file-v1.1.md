@@ -41,7 +41,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
   - #398 : la partie écran de #377, juste après #377.
   - #393, #399, #416 et #417 en fin de vague 5. #416 et #417 sont les deux XS du Lot 6 (lignes 57 quinquies et 57 sexies du plan).
   - #361 : en vague 3, après #221.
-- **À ouvrir (O, 18/11 au soir), hors des vagues tant que la PR n’existe pas** : 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s) après #436 ; la réparation du hook pre-commit (Q, 0,5 h-s) après #433.
+- **À ouvrir (O, 18/11 au soir), hors des vagues tant que la PR n’existe pas** : 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s) après #436 ; la réparation du hook pre-commit (Q, 0,5 h-s) après #433 ; 57 tests rapides (`conftest.py`, aide-api, relu par Q) en vague 1, écrite du 19 au 23/11.
 - **« #152 après #401 » est levé** : c'était l'ordre de travail de B, pas une contrainte de fusion. **Mise à jour (O, 18/11)** : #152 seule passe en tête de la vague 2 (OK du PO, a47df85, OK de Q). Le reste du groupe corbeille (#181, #184, #168, #171, #190, #199, #301, #302) reste en vague 4 ; #181, empilée sur #152, est re-ciblée sur `main` avant la fusion de #152 (plan-fusion § 3).
 - **#155 et #169 restent en V1.1** (PO, 18/11 : « on repousse rien »).
 - **Choix par défaut d'O, en attendant F et B** :
