@@ -28,7 +28,7 @@ ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
 ORDER_V4="309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170 171 199"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
-ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 378 359 344 353 393 399 416 417"
+ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 417"
 # Vague 6 : outils et documentation (03 et 04/12)
 ORDER_V6="335 312 189 166"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
@@ -68,7 +68,7 @@ DEP[212]="154"; DEP[219]="193"; DEP[209]="180"; DEP[205]="165"
 # Chaîne alembic (une seule tête) : chaque auteur repose down_revision quand il fusionne main ; alembic heads = 1 tête vérifié avant chaque fusion (O, 18/11)
 DEP[180]="197"; DEP[193]="180"; DEP[186]="193"; DEP[165]="186"; DEP[192]="165"
 # Dépendances fonctionnelles (colonne « Dépend de » du plan)
-DEP[383]="389"; DEP[222]="389"; DEP[245]="389"; DEP[253]="389"; DEP[378]="389"
+DEP[383]="389"; DEP[222]="389"; DEP[245]="389"; DEP[253]="389"
 DEP[227]="222"; DEP[237]="227"; DEP[285]="222"; DEP[234]="224"; DEP[394]="237"
 DEP[284]="372 370"; DEP[290]="284"; DEP[338]="290"
 DEP[404]="370 372"; DEP[355]="372 404"
@@ -110,7 +110,7 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
 - **Capacités post-rc1 (§ 6)** : #147, #152, #153, #154, #162, #165, #168, #170, #171, #172, #179, #180, #181, #182, #184, #186, #190, #192, #193, #197, #199, #205, #209, #211, #212, #219. Sans réponse le 23/11, on applique la recommandation du plan. Les lignes « retravailler » (#184, #182, #190, #212, #193, #180, #205) attendent leur rebase.
 - **Réponse du PO (18/11, par O) : « on repousse rien ».**
   - #155 et #169 restent en V1.1 (vague 4). Le jeton dans l'URL du WebSocket (écart à #148) reste à trancher par B et O avant la fusion de #155 (`plan-fusion` § 9).
-  - #359 entre en vague 5, après #378 : les deux touchent la page de connexion.
+  - #359 entre en vague 5. #378 est fermée (F, 18/11) au profit de #422 (`LOGIN_DEMO_HINTS`, fusionnée) ; il reste à F une petite PR après #423 : `ARG VITE_LOGIN_DEMO_HINTS` dans l’image front de production, sans quoi un build de prod affiche encore les profils de démo.
   - #370, #404 et #355 entrent en vague 2 ; la suite de #211 en vague 5 ; la pagination du journal en fin de vague 1 (F).
   - Lecture de l'innovateur, à confirmer par O : les capacités post-rc1 du § 6 marquées « retravailler » sont retravaillées, pas sorties.
 
@@ -135,6 +135,6 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
   - #361 et #266 : revue de recouvrement de B d'abord ;
   - #401 : re-relecture après le re-ciblage, avec le conflit #400/#401 ;
   - #391 et #396 : le conflit sur la ligne 65 de `document-detail.page.ts` (on garde la ligne commentée).
-- **Sans OK de Q** : #253, #372, #370, #404, #355, #359, #284, #311, #384, #386, #387, #388, #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, #378, #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #309, #147, #155, #168, #170, #172, #212.
+- **Sans OK de Q** : #253, #372, #370, #404, #355, #359, #284, #311, #384, #386, #387, #388, #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, ~~#378~~ (fermée), #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #309, #147, #155, #168, #170, #172, #212.
 - **OK sur un code ancien, périmé ou sans SHA noté** : #235, #238, #267, #268, #261, #263, #266, #296, #221, #262, #310, #301, #302, #293, #295, #297, #294, #303, #179, #162, #193, #197, #180, #209, #165, #205, #186, #181, #184, #211, #190, #182, #199.
 - **OK valides sur la tête au 18/11** : #152 (a47df85), #389 (3d3ad2e), #403 (4228d7a), #383 (c19e95b), #222 (99d3d09), #224 (0b8eb15), #237 (ae555e4), #240 (1798847), #407 (98d2317), #391 (9a943d3), #392 (fc71aad), #396 (93feb87), #153 (cbf28bc), #154 (720a30f), #171 (3198885), #192 (7c32940), #395 (OK de Q selon O, SHA à noter), #417 (24d86bf, OK de code de Q, O 18/11). Ceux de #227, #234, #243 et #245 tomberont au rebase (CONFLICTING).

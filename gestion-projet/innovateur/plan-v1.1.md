@@ -746,3 +746,42 @@ Décisions d’O : les propositions 1 à 3 sont acceptées (57 L7-3, #113 et #11
 | **Écart** | **+ 3,3** | **+ 5,5** | **+ 2,8** | `À recevoir` | **+ 34,6 à 37,1 − capacité d’aide-api** |
 
 **Ordre de fusion (O, 18/11 au soir)** : #179 et #262 remontent en vague 2, après #301, puis #302 (`file-v1.1.md` ; contrôle : 112 PR, aucune violation). #389 puis #403 : ordre confirmé ; O re-cible #403 sur `main` avant de fusionner #389.
+
+## Lots 12 et 13 : circuit de validation, notifications ; capacité d’aide-api (18/11, nuit)
+
+Demande d’O : reporter les audits UX Lots 12 et 13 en V1.1, avec porteurs et chiffrage, sans tout donner à F. Rien ne passe en V1.2 sans le PO. Lignes 57 L12-B à 57 L13-5 dans `plan-fusion-v1.1.md`. Faits vérifiés sur `main` (9ecbd37a) avant chiffrage.
+
+**Capacité d’aide-api (aide-api, 18/11)** : environ 35 h-s du 24/11 au 04/12 (9 jours ouvrés, environ 4 h-s par jour, un seul créneau Docker). Sa colonne, à son propre chiffrage : **28 à 30 h-s**. Elle comprend #110 en 3.13, le PDF officiel (2,5, comme B) et le WebSocket du Lot 13 (3). 57 L10-1 est en brouillon (#426).
+
+| Ligne | Ce qui est fait | Porteur | Chiffrage (h-s) |
+|---|---|---|---|
+| 57 L12-B | Serveur : renvoi depuis `returned`, motif dans la fiche, filtre à plusieurs états, tri et date d’envoi sur `/tasks`, compteurs de l’utilisateur | B | 3,5 |
+| 57 L12-1 | Motif à l’ouverture, bandeau masqué, « Corriger et renvoyer », choix du valideur dans l’onglet Circuit | aide-api | 2,5 |
+| 57 L12-2 | Filtre « Rejetés » dans Mes Documents | F | 0,25 |
+| 57 L12-3 | Demandeur et date d’envoi sur les cartes de `/tasks` | aide-api | 0,5 |
+| 57 L12-5 | Réassigner une tâche en cours (serveur et bouton) | aide-api | 1,5 |
+| 57 L13-2 | Bandeau des rejets et tuile « Mes visas » sur l’accueil | aide-api | 1 |
+| 57 L13-3 | Badge du menu, remise à jour après action, clic sur une notification, entrée `/tasks` pour l’administrateur | F | 1,25 |
+| 57 L13-4 | WebSocket par cookie et repli en polling | aide-api | 3 (déjà dans ses 28 à 30) |
+| 57 L13-5 | Garde de la route `/audit` | F | 0,25 |
+| Relectures | F relit 57 L12-1 ; Q relit 57 L13-4 (sécurité) et ajoute un e2e « rejet, correction, renvoi » | F 0,25 ; Q 1 | 1,25 |
+| **Total hors WebSocket** | | | **12** |
+
+Constats qui changent le travail prévu :
+- **Point 5 du Lot 12 (réassignation)** : la délégation (57 L7-5) couvre l’absence prévue, pas l’absence imprévue d’un valideur. `/steps/{id}/assign` refuse toute tâche déjà en cours (`workflows.py:495`). D’où 57 L12-5, après 57 L7-5.
+- **Point 3 du Lot 13 (badge)** : aucun badge n’existe sur `main` ; le « 2 » vu par l’audit vient du tableau de bord, qui compte toute l’institution. Le menu de `tenant_admin` n’a pas d’entrée vers `/tasks`.
+- **Point 5 du Lot 13 (`/audit`)** : l’entrée est déjà absente du menu du collaborateur ; le défaut est la route sans garde.
+- **Renvoi après rejet** : un document `returned` (renvoyé pour correction) ne peut pas être renvoyé aujourd’hui ; le bouton « Lancer un circuit maintenant » renvoie une erreur 400 sur un document rejeté.
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | **37,8** | **31,5** | **37,8** | **33,5 à 35,5** | **140,6 à 142,6** |
+| Capacité au 04/12 | 31 | 24 | 34 | 35 | 124 |
+| **Écart** | **+ 6,8** | **+ 7,5** | **+ 3,8** | **− 1,5 à + 0,5** | **+ 16,6 à + 18,6** |
+
+- **B** : 34,3 + 3,5 = 37,8. **F** : 29,5 + 2 = 31,5. **Q** : 36,8 + 1 = 37,8. **aide-api** : 28 à 30 (son chiffrage) + 5,5 = 33,5 à 35,5.
+- Le chiffrage des lignes 57 L12 et 57 L13 est une estimation de l’innovateur, **à confirmer par chaque porteur**.
+- aide-api est la seule colonne sans dépassement : elle n’a plus de marge pour reprendre une ligne de F.
+- **Ordre** : 57 L12-B d’abord (B), puis les écrans ; 57 L12-B avant 57 L7-5 (même `workflows.py`) ; 57 L13-4 après #155 et après le correctif V1.0 de la cloche.
+
+**Démo (rejeu du 20/11)** : les menus DOMAINE et ACTIVITÉ de `/classification-reviews` sont remplis après `sh scripts/e2e_reset.sh demo` (4 domaines pour MINFI, depuis `demo-manifest.json`). Ils restent vides avec `seed_db.py` seul. Le rejeu doit donc partir de ce reset, comme le prévoit déjà `checklist-demo.md`.
