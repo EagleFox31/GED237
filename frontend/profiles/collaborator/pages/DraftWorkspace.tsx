@@ -154,6 +154,9 @@ const DraftWorkspace: React.FC = () => {
       {showModal && (
         <UploadDocumentModal
           onClose={() => setShowModal(false)}
+          onUploadAnother={() => {
+            fetchData();
+          }}
           onSuccess={() => {
             setShowModal(false);
             fetchData();
