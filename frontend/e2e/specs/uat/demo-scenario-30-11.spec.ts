@@ -163,7 +163,7 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     await expect(page.getByRole('tabpanel')).toBeVisible();
   });
 
-  test('8. Archivage par la recherche de l'en-tête : document validé → badge « Archivé »', async ({ page, loginAs, request, adminApi, runId }) => {
+  test('8. Archivage par la recherche de l\'en-tête : document validé → badge « Archivé »', async ({ page, loginAs, request, adminApi, runId }) => {
     const title = `Démo archivage ${runId}`;
     const manager: UatApi = await apiAs(request, 'manager');
     const doc = await adminApi.uploadDocument(`demo-arch-${runId}.txt`, title, `Archiver ${title}`);
