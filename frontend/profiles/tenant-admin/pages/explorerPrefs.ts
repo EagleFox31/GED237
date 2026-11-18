@@ -19,12 +19,19 @@ const MAX_COLUMN_WIDTH = 2000;
 const SORT_FIELDS: readonly SortField[] = ['title', 'size', 'updated_at', 'created_at'];
 const COLUMNS: readonly DetailsColumn[] = ['document', 'classement', 'cible', 'taille', 'maj'];
 
-export const DEFAULT_EXPLORER_PREFS: ExplorerPrefs = {
+/** Une entrée par compte : deux agents sur le même navigateur ne partagent pas leurs réglages. */
+export const explorerPrefsKey = (accountKey: string) => `${EXPLORER_PREFS_KEY}:${accountKey}`;
+
+// Tri par défaut = ordre historique de la liste (créés récemment d'abord), inchangé pour qui n'a rien réglé.
+export const DEFAULT_EXPLORER_PREFS: Readonly<ExplorerPrefs> = Object.freeze({
   view: 'icons',
-  sort: 'updated_at',
+  sort: 'created_at',
   order: 'desc',
-  widths: {},
-};
+  widths: Object.freeze({}),
+});
+
+/** Copie neuve des défauts : l'appelant peut la modifier sans fausser les suivants. */
+const defaultPrefs = (): ExplorerPrefs => ({ ...DEFAULT_EXPLORER_PREFS, widths: {} });
 
 type ReadableStorage = Pick<Storage, 'getItem'>;
 type WritableStorage = Pick<Storage, 'setItem'>;
@@ -39,10 +46,15 @@ const browserStorage = (): Storage | null => {
 
 // Toute valeur inconnue retombe sur la valeur par défaut : une préférence
 // corrompue ou d'une ancienne version ne doit jamais casser la page.
-export const loadExplorerPrefs = (storage: ReadableStorage | null = browserStorage()): ExplorerPrefs => {
+// Sans compte identifié (pas de matricule) : défauts, rien n'est relu.
+export const loadExplorerPrefs = (
+  accountKey: string | undefined,
+  storage: ReadableStorage | null = browserStorage(),
+): ExplorerPrefs => {
+  if (!accountKey) return defaultPrefs();
   try {
-    const raw: unknown = JSON.parse(storage?.getItem(EXPLORER_PREFS_KEY) || '{}');
-    if (!raw || typeof raw !== 'object') return DEFAULT_EXPLORER_PREFS;
+    const raw: unknown = JSON.parse(storage?.getItem(explorerPrefsKey(accountKey)) || '{}');
+    if (!raw || typeof raw !== 'object') return defaultPrefs();
     const value = raw as Record<string, unknown>;
     const widths: ExplorerPrefs['widths'] = {};
     if (value.widths && typeof value.widths === 'object') {
@@ -64,13 +76,18 @@ export const loadExplorerPrefs = (storage: ReadableStorage | null = browserStora
       widths,
     };
   } catch {
-    return DEFAULT_EXPLORER_PREFS;
+    return defaultPrefs();
   }
 };
 
-export const saveExplorerPrefs = (prefs: ExplorerPrefs, storage: WritableStorage | null = browserStorage()) => {
+export const saveExplorerPrefs = (
+  prefs: ExplorerPrefs,
+  accountKey: string | undefined,
+  storage: WritableStorage | null = browserStorage(),
+) => {
+  if (!accountKey) return;
   try {
-    storage?.setItem(EXPLORER_PREFS_KEY, JSON.stringify(prefs));
+    storage?.setItem(explorerPrefsKey(accountKey), JSON.stringify(prefs));
   } catch {
     // Stockage indisponible (navigation privée, quota) : la page marche sans mémoire.
   }

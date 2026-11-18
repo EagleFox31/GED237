@@ -7,6 +7,8 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { accountKeyOf } from '../../../services/http/accountKey';
+import { useAuthStore } from '../../../stores/authStore';
 import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 import {
   clampColumnWidth,
@@ -219,14 +221,15 @@ const SpacesPage: React.FC = () => {
     const current = new Date().getFullYear();
     return Array.from({ length: 12 }, (_, i) => current + 1 - i);
   }, []);
-  const [initialPrefs] = useState(loadExplorerPrefs);
+  const accountKey = useAuthStore((s) => accountKeyOf(s.userProfile));
+  const [initialPrefs] = useState(() => loadExplorerPrefs(accountKey));
   const [viewMode, setViewMode] = useState<ViewMode>(initialPrefs.view);
   const [sortKey, setSortKey] = useState<SpaceDocumentSort>(initialPrefs.sort);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialPrefs.order);
   const [columnWidths, setColumnWidths] = useState<ExplorerPrefs['widths']>(initialPrefs.widths);
   useEffect(() => {
-    saveExplorerPrefs({ view: viewMode, sort: sortKey, order: sortOrder, widths: columnWidths });
-  }, [viewMode, sortKey, sortOrder, columnWidths]);
+    saveExplorerPrefs({ view: viewMode, sort: sortKey, order: sortOrder, widths: columnWidths }, accountKey);
+  }, [viewMode, sortKey, sortOrder, columnWidths, accountKey]);
   // Retour en page 1 : la page courante n'a plus de sens dans le nouvel ordre.
   const toggleSort = (key: SpaceDocumentSort) => {
     const next = nextSort({ sort: sortKey, order: sortOrder }, key);
