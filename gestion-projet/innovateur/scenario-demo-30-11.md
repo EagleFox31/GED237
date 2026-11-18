@@ -252,3 +252,55 @@ Source : PR #334 (`fix/v10-role-home-dead-controls`, ouverte, commits 0a9655f, b
 - Étape 5 : C clique « Tableau de Bord » puis cherche, sans ouvrir de carte. Le menu de C garde « Ranger / Importer », en vue verrouillée.
 - § 1 bis : « Valider », ou « Rejeter » puis « Confirmer le rejet » avec un motif.
 - `MINFI002` et `UNIT001` ne sont pas utilisés ; les fenêtres F et G ne sont pas préparées.
+
+## 12. Photo de document → recherche plein texte (OCR, demande de O du 18/11)
+
+Contexte (B, V1.0) : photos, captures et formulaires passent par RapidOCR v5 latin (image ramenée à 2000 px) ; les scans passent par Tesseract ; si RapidOCR échoue, Tesseract prend le relais. Mesures du banc de Q (18/11, part des mots retrouvés) : photo réelle d'un document imprimé 0,879 ; formulaires 0,743 ; manuscrit photographié 0,01 à 0,10.
+
+### 12.1 Préalable bloquant : un worker sur la pile de démo
+
+L'OCR ne tourne pas pendant la requête. L'envoi d'un document (`POST /documents`) et l'import en masse mettent une tâche `process_document_ocr` en file Celery (`documents.py`, `imports.py`, `Vérifié` sur main). Or la pile de démo (`docker-compose.e2e.yml`) n'a **aucun service `worker`** : postgres, redis, api et e2e seulement (`Vérifié` sur main). Sans worker, la fiche reste « en cours » et la recherche ne trouve rien.
+
+À trancher avant la recette (O, avec B) : ajouter un worker plafonné à la pile de démo, ou faire la démo sur la pile complète (`docker-compose.yml`, qui a un worker). Sans l'un ou l'autre, l'étape 12 est retirée, plan B compris.
+
+### 12.2 L'étape
+
+- **Place** : étape **5 bis**, juste après « 5. Recherche et droits », fenêtre A. **Durée : 1:00**, prise sur les questions (3:45 → 2:45). Rien n'est pris sur la marge.
+- **Envoi en avance** : les deux fichiers sont envoyés **au début de l'étape 1**, par « Nouveau Document » dans A (`À vérifier` : bouton et destination DAF pour `MINFI001`). L'OCR tourne pendant l'import et le rangement, soit environ 7 minutes de battement. Ils ne passent pas par le dossier `live` : les nombres de l'étape 1 (16 classés, 12 à revoir, 2 doublons, total 367) restent inchangés.
+- **Noms de fichiers neutres** (`IMG_0412.jpg`, `IMG_0413.jpg`) : le titre du document ne contient pas le mot cherché. Si la recherche le trouve, c'est donc grâce au texte lu dans l'image, et pas au nom du fichier.
+
+| Fichier | Contenu (fictif) | Mot à chercher | Résultat attendu |
+|---|---|---|---|
+| D1 `IMG_0412.jpg` : photo au téléphone d'une page imprimée | « Note de service : inventaire des photocopieurs », texte tapé, le mot dans le titre et deux fois dans le corps | `photocopieurs` | **1 résultat** : `IMG_0412.jpg` ; dans la fiche, le texte lu contient « photocopieurs » |
+| D2 `IMG_0413.jpg` : photo ou capture d'un formulaire rempli **à la machine** | « Bon de commande de fournitures », un tableau avec les lignes « agrafeuses », « classeurs », « ramettes » | `agrafeuses` | **1 résultat** : `IMG_0413.jpg` |
+
+- Les deux mots sont **sans accent** : la recherche utilise la configuration `french` de PostgreSQL, sans `unaccent` (`postgres_engine.py`, `Vérifié`). Les mots sont aussi **absents du jeu de démo** (vérifié dans `demo_dataset.py` et `demo-manifest.json` ; « onduleur » et « climatiseurs » y figurent déjà, ils sont donc écartés). Le pluriel est retrouvé par la racine française (`photocopieur` trouve aussi `photocopieurs`).
+- Phrase pendant l'étape : « Une photo prise au téléphone devient un document où l'on cherche dans le texte, comme un PDF. »
+- Transition : « Et qui a fait quoi ? » (inchangée, vers l'étape 6).
+
+À mesurer pendant la recette (Q) : délai entre l'envoi et le premier résultat de recherche ; les deux recherches (1 résultat chacune) ; 0 résultat sur le compte `READ001` (DSI), ce qui illustre aussi le cloisonnement.
+
+### 12.3 Règle : aucun manuscrit pendant la démo
+
+- **Aucun document manuscrit** dans les fichiers de démo, ni dans le dossier `live`, ni à l'envoi en direct. Les formulaires sont **remplis à la machine**. On ne prend pas non plus de photo demandée par le public pendant la séance.
+- Phrase si le public pose la question : « L'écriture à la main n'est pas encore lue de façon fiable : on la range et on la retrouve par son titre et son classement ; la lecture du manuscrit viendra dans une version suivante. »
+
+### 12.4 Fichiers de démo proposés (rien n'est commité avant la validation de O)
+
+| Id | Fichier | Fabrication | Contenu |
+|---|---|---|---|
+| D1 | `IMG_0412.jpg` | une page A4 générée, imprimée puis photographiée au téléphone sur un bureau vide (pas de visage, pas d'autre papier dans le champ) ; à défaut, photo **synthétique** obtenue avec la méthode du banc de Q (perspective, flou léger, éclairage inégal, JPEG, graine 237) | note de service fictive, unité DAF, signataire fictif |
+| D2 | `IMG_0413.jpg` | un formulaire généré, rempli à la machine, photographié ou capturé de la même façon | bon de commande fictif, fournisseur fictif, montants ronds |
+| D1-scan | `SCAN_0412.pdf` | la même page que D1, rendue en PDF propre à 300 dpi (plan B) | identique à D1 |
+
+- Noms de personnes, d'entreprises, numéros et adresses : **inventés**, dans le style de `demo_dataset.py`. Aucune donnée réelle.
+- **Exclus** : les photos du PO ; tout fichier personnel ; les photos de manuscrit du banc reçues par messagerie ; les pièces réelles du banc (archives publiques et formulaires FUNSD). Ces pièces servent à la mesure, pas à la démo.
+- Dépôt une fois validés : `frontend/e2e/data/demo-ocr/`, à côté du jeu de démo, avec une ligne dans `DOCS/exploitation/donnees-demo.md`.
+
+### 12.5 Plan B : RapidOCR n'est pas fusionnée au gel
+
+- Même étape, même place, même durée, même mot (`photocopieurs`), avec **`SCAN_0412.pdf`** à la place de la photo. Tesseract lit bien un scan propre : 0,867 des mots sur la série « propre » du banc.
+- **D2 est retiré** : sur les formulaires, Tesseract retrouve 0,465 des mots, contre 0,743 avec RapidOCR. La recherche « agrafeuses » n'est donc pas assez sûre pour le direct.
+- Phrase : « Un document scanné devient un document où l'on cherche dans le texte, comme un PDF. » On ne dit rien de la photo au téléphone.
+- Le préalable du worker (§ 12.1) s'applique aussi au plan B.
+- En direct, si la recherche ne renvoie rien : on ouvre la fiche, et si l'OCR est encore « en cours », on le dit (« la lecture se fait en arrière-plan ») puis on passe à l'étape 6. Pas de nouvel essai.
