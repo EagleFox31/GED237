@@ -4,6 +4,8 @@ import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { useAuthStore } from '../../../stores/authStore';
+import { readLastValidatorId, writeLastValidatorId } from '../../../lib/lastValidatorStorage';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -13,6 +15,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const DraftWorkspace: React.FC = () => {
+  const userProfile = useAuthStore((s) => s.userProfile);
+  const userKey = userProfile?.matricule || userProfile?.id || 'anonymous';
   const [documents, setDocuments] = useState<any[]>([]);
   const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +51,9 @@ const DraftWorkspace: React.FC = () => {
 
   const openSubmitModal = (id: string) => {
     setDocumentToSubmit(id);
+    const saved = readLastValidatorId(userKey);
+    const valid = saved && validators.some((v) => v.id === saved) ? saved : '';
+    setSelectedValidator(valid);
     setShowSubmitModal(true);
   };
 
@@ -69,9 +76,9 @@ const DraftWorkspace: React.FC = () => {
       ];
 
       await api.createWorkflowSteps(documentToSubmit, steps);
+      writeLastValidatorId(userKey, selectedValidator);
       setShowSubmitModal(false);
       setDocumentToSubmit(null);
-      setSelectedValidator('');
       fetchData();
     } catch (e) {
       // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
