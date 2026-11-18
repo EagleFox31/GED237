@@ -8,9 +8,9 @@ Password: ``FIRST_ADMIN_PASSWORD`` if set, otherwise typed twice at a hidden
 prompt. It is never printed nor logged.
 
 Usage (stack started, see DOCS/exploitation/premier-administrateur.md):
-    docker compose run --rm api python scripts/create_first_admin.py --matricule ADMIN001
-    FIRST_ADMIN_PASSWORD=... docker compose run --rm -e FIRST_ADMIN_PASSWORD api \
-        python scripts/create_first_admin.py --matricule ADMIN001
+    docker compose exec api python scripts/create_first_admin.py --matricule ADMIN001
+Without a terminal, the variable is read with ``read -rs`` and passed by name only
+(``-e FIRST_ADMIN_PASSWORD``), never written on the command line: see the doc.
 
 Exit codes: 0 created or already present, 2 unusable input or schema not ready.
 """
@@ -27,6 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import select  # noqa: E402
+from sqlalchemy.exc import IntegrityError  # noqa: E402
 
 from app.core.security import hash_password  # noqa: E402
 from app.models.role import Role  # noqa: E402
@@ -117,7 +118,15 @@ async def ensure_first_admin(
             must_change_password=True,
         )
     )
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Matricule taken in PLATFORM or e-mail taken anywhere: nothing is kept.
+        await db.rollback()
+        raise FirstAdminError(
+            "matricule ou e-mail déjà utilisé : relancer avec un autre --matricule "
+            "ou --email"
+        ) from None
     return FirstAdminResult(created=True, matricule=matricule)
 
 

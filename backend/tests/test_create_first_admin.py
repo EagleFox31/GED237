@@ -105,6 +105,39 @@ async def test_actionable_errors_and_nothing_written(db_session):
     assert await _count(db_session, Tenant) == 0
 
 
+@pytest.mark.asyncio
+async def test_taken_email_is_an_actionable_error_and_nothing_is_kept(db_session):
+    script = _load()
+    await _super_admin_role(db_session)
+    other = Tenant(name="Ministere", short_name="MIN", domain="min.example")
+    agent = Role(code="agent", label="Agent", hierarchy_level=5)
+    db_session.add_all([other, agent])
+    await db_session.flush()
+    db_session.add(
+        User(
+            tenant_id=other.id,
+            role_id=agent.id,
+            matricule="AGENT001",
+            email="admin@exemple.cm",
+            first_name="A",
+            last_name="B",
+            password_hash="x",
+        )
+    )
+    await db_session.commit()
+
+    with pytest.raises(script.FirstAdminError, match="déjà utilisé"):
+        await script.ensure_first_admin(
+            db_session,
+            matricule="ADMIN001",
+            email="admin@exemple.cm",
+            password=lambda: PASSWORD,
+        )
+    assert await _count(db_session, User) == 1
+    # The PLATFORM tenant created in the same transaction is rolled back too.
+    assert await _count(db_session, Tenant) == 1
+
+
 class _Stdin(io.StringIO):
     def __init__(self, tty):
         super().__init__()
