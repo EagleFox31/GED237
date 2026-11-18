@@ -78,6 +78,8 @@ async def test_reason_is_shown_and_document_can_be_submitted_again(
     await _submit(auth_client, doc["id"], me)
     detail = (await auth_client.get(f"/api/v1/documents/{doc['id']}")).json()
     assert detail["status"] == "in_review"
+    # Back in review: the former reason is no longer shown.
+    assert detail["last_rejection_reason"] is None
 
 
 @pytest.mark.asyncio
@@ -91,6 +93,28 @@ async def test_reason_is_the_latest_one(auth_client: AsyncClient, db_seed):
 
     detail = (await auth_client.get(f"/api/v1/documents/{doc['id']}")).json()
     assert detail["last_rejection_reason"] == "Second motif"
+
+
+@pytest.mark.asyncio
+async def test_reason_hidden_from_a_reader_outside_the_workflow(
+    auth_client: AsyncClient, db_seed, monkeypatch
+):
+    """Step comments keep their audience: a reader who may open the document
+    but not its workflow does not get the reason."""
+    from app.api.v1.endpoints import documents as endpoint
+
+    me = str(db_seed["user_id"])
+    doc = await _upload(auth_client, "Lecteur hors circuit")
+    await _submit(auth_client, doc["id"], me)
+    await _act(auth_client, doc, "returned", "Motif interne")
+
+    async def outside(*_args):
+        return False
+
+    monkeypatch.setattr(endpoint, "_may_read_step_comments", outside)
+    detail = (await auth_client.get(f"/api/v1/documents/{doc['id']}")).json()
+    assert detail["status"] == "returned"
+    assert detail["last_rejection_reason"] is None
 
 
 @pytest.mark.asyncio

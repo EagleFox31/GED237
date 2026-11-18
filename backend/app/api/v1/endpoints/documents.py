@@ -1249,8 +1249,27 @@ async def get_document(
             status_code=403, detail="Not enough privileges to access this document"
         )
     data = _serialize_document(document)
-    data.last_rejection_reason = await _last_rejection_reason(db, document.id)
+    # Only while the document waits for its author's fix, and only for those
+    # who may already read the step comments.
+    if document.status in ("rejected", "returned") and await _may_read_step_comments(
+        current_user, document, db
+    ):
+        data.last_rejection_reason = await _last_rejection_reason(db, document.id)
     return data
+
+
+async def _may_read_step_comments(
+    user: User, document: Document, db: AsyncSession
+) -> bool:
+    """Audience of the step comments (GET /workflows/document/{id}): the author,
+    roles allowed to read workflows, and the validators of the document. The
+    unit perimeter was enforced by the document read check. No denial audit:
+    this only decides what to display."""
+    if document.owner_id == user.id:
+        return True
+    if await can_perform(user, "workflows", "read", ctx_from_resource(document)):
+        return True
+    return await _has_workflow_step_access(db, user, document)
 
 
 async def _last_rejection_reason(db: AsyncSession, document_id: UUID) -> Optional[str]:
