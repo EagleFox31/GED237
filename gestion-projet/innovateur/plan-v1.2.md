@@ -19,7 +19,7 @@
 
 | # | Élément | Valeur pour l'utilisateur, en une ligne | B | F | Q | Dépend de |
 |---|---|---|---|---|---|---|
-| 1 | **#265** : supprimer la table `org_unit_closure`, inutilisée | aucune visible : moins de code mort, des migrations plus sûres | 0,5 (migration) | — | 0,25 | arbre des unités par `parent_id` (#266, V1.1) |
+| 1 | **#265** : supprimer la table `org_unit_closure`, inutilisée | aucune visible : moins de code mort, des migrations plus sûres | 0,5 (migration) | — | 0,25 | arbre des unités par `parent_id` (#266, V1.1). **Départ après la fusion de #203 et #266**, depuis `main`, avec `count(*) = 0` vérifié sur chaque base : sur `main` actuel, trois services lisent encore la table |
 | 2 | **#279 et #281** : déprécier `GET /documents/tree` au profit de `/spaces/tree` | aucune visible : une seule façon de parcourir les dossiers | 0,25 | — (F vérifie que l'écran n'appelle plus l'ancienne route) | 0,25 | — ; la suppression de la route se fera plus tard, après un cycle de dépréciation |
 | 3 | **#113** : Starlette 1.x, avec FastAPI ≥ 0.133 et Pydantic ≥ 2.7 dans le même brouillon (réévalué le 18/11) | aucune visible : rester sur une version maintenue | 2 (Starlette 1.x impose FastAPI ≥ 0.133, qui impose Pydantic ≥ 2.7) | — | 0,5 (sans jeton, les tests passent de 403 à 401 : toute la suite est à relire) | montée de Pydantic dans le même brouillon |
 | 4 | **#110** : image Python 3.15 | aucune visible : sécurité et performances de la base logicielle | 0,5 | — | 0,25 | paquets compilés disponibles en 3.15 (asyncpg, OCR) |
