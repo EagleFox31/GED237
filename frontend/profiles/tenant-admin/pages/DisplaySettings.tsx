@@ -1,13 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
+import { useAuthStore } from '../../../stores/authStore';
 
 interface DisplaySettingsProps {
   layoutMode: 'sidebar' | 'topbar';
   setLayoutMode: (mode: 'sidebar' | 'topbar') => void;
 }
 
+// Profils qui voient la partie organisation (unités, checklist de déploiement) : même liste que
+// ADMIN_ROUTES['/org'] dans App.tsx. Les autres profils ne gardent que leurs réglages personnels.
+// Confort d'interface : le contrôle d'accès fait foi côté API.
+const ORG_SETTINGS_PROFILES: ReadonlyArray<string> = ['super', 'tenant'];
+
 const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayoutMode }) => {
+  const profileId = useAuthStore((state) => state.userProfile?.id);
+  const isOrgAdmin = !!profileId && ORG_SETTINGS_PROFILES.includes(profileId);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'appearance' | 'config' | 'roles'>('appearance');
   const [orgUnits, setOrgUnits] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +27,10 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
   ];
 
   useEffect(() => {
+    if (!isOrgAdmin) {
+      setIsLoading(false);
+      return;
+    }
     const fetchOrgUnits = async () => {
       try {
         const data = await api.getOrgUnits();
@@ -30,15 +42,24 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
       }
     };
     fetchOrgUnits();
-  }, []);
+  }, [isOrgAdmin]);
 
   return (
     <div className="p-10 max-w-6xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-32">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">Paramètres <span className="text-rdpc-blue">Organisation</span></h2>
-          <p className="text-slate-500 mt-2 font-medium italic text-lg">Gérez l'identité et la structure de votre locataire.</p>
+          {isOrgAdmin ? (
+            <>
+              <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">Paramètres <span className="text-rdpc-blue">Organisation</span></h2>
+              <p className="text-slate-500 mt-2 font-medium italic text-lg">Gérez l'identité et la structure de votre locataire.</p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">Mes <span className="text-rdpc-blue">paramètres</span></h2>
+              <p className="text-slate-500 mt-2 font-medium italic text-lg">Choisissez l'affichage de l'application.</p>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 text-rdpc-blue rounded-xl border border-blue-100">
            <span className="material-symbols-outlined text-sm animate-spin">sync</span>
@@ -54,12 +75,14 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
         >
           Apparence & UI
         </button>
-        <button
-          onClick={() => setActiveSettingsTab('config')}
-          className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'config' ? 'bg-white text-rdpc-blue shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          Configuration Système
-        </button>
+        {isOrgAdmin && (
+          <button
+            onClick={() => setActiveSettingsTab('config')}
+            className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'config' ? 'bg-white text-rdpc-blue shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Configuration Système
+          </button>
+        )}
         <button
           onClick={() => setActiveSettingsTab('roles')}
           className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'roles' ? 'bg-white text-rdpc-blue shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
@@ -151,6 +174,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
           </section>
 
           {/* Organization Units from API */}
+          {isOrgAdmin && (
           <section className="space-y-8">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-cam-yellow text-slate-900 rounded-xl flex items-center justify-center shadow-lg">
@@ -182,6 +206,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
               )}
             </div>
           </section>
+          )}
         </div>
       ) : (
         <div className="space-y-10 animate-in fade-in slide-in-from-right duration-500">
