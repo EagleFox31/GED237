@@ -282,3 +282,69 @@ Q retrouve ≈ 1,75 h-s de marge avant 22. F reste dans sa capacité.
 | Après le transfert de Q vers F | 22,4 | 17,25 | 20,25 | 0,5 | 60,4 |
 | #309 (correctif de la frise de revue) | — | + 0,25 | + 0,1 | — | + 0,35 |
 | **Total V1.1** | **≈ 22,4** | **≈ 17,5** | **≈ 20,35** | **0,5** | **≈ 60,75** |
+
+## Mise à jour du 18/11 : lot 4 « confort et tâches répétitives » (7 frictions, classées V1.1 par O)
+
+Audit UX du 18/11 (`gestion-projet/walkthrough/`, lot 4). Le PO a demandé que le lot entier soit codé tout de suite, en dehors de la capacité de B, F et Q. Si le serveur doit changer, ce travail revient à B. Pour les points 3 et 4, `main` (dabeeb2) suffit : **aucun changement backend**.
+
+| # | Friction | Fichier |
+|---|---|---|
+| 1 | Le dernier valideur choisi est oublié à chaque soumission : il faut le pré-sélectionner s'il est toujours dans la liste | `frontend/profiles/collaborator/pages/DraftWorkspace.tsx` |
+| 2 | Les brouillons à soumettre et les rejets sont mélangés aux dossiers validés : il faut des puces « À soumettre », « Rejetés », « Tous », avec leur compteur, gardées dans l'URL | `frontend/profiles/collaborator/pages/DraftWorkspace.tsx` |
+| 3 | Les prises de connaissance (`read_ack`) se traitent une par une, avec deux clics chacune : il faut un filtre par type d'action et un traitement groupé des seuls `read_ack` | `frontend/profiles/manager/pages/ValidationHub.tsx`, `frontend/components/WorkflowTasks.tsx` |
+| 4 | Pour viser après lecture, il faut fermer la fiche et retrouver la carte : il faut des boutons Viser et Rejeter dans la fiche ouverte depuis le parapheur | `frontend/components/workflow/ViewDocumentButton.tsx`, `frontend/components/DocumentDetailModal.tsx` |
+| 5 | Les étapes bloquées se débloquent une par une, et l'agent choisi est oublié à chaque fois : il faut passer seul à l'étape suivante, garder l'agent et pouvoir filtrer la liste des utilisateurs | `frontend/profiles/tenant-admin/pages/PendingAssignmentsInbox.tsx` |
+| 6 | Le dossier de destination est vidé à chaque pièce à revoir : il faut garder le dernier dossier choisi | `frontend/profiles/tenant-admin/pages/NeedsReviewInbox.tsx` |
+| 7 | La bibliothèque du lecteur n'a ni recherche ni filtre : il faut une recherche locale (titre, type, date) et un filtre par format | `frontend/profiles/reader/pages/LibraryView.tsx` |
+
+### Points 3 et 4 : faits vérifiés sur `main`
+
+Ces deux points touchent le circuit de visa. Les faits suivants sont `Vérifié` sur dabeeb2 :
+- `GET /workflows/pending` ne renvoie que les étapes assignées à l'utilisateur et encore « current ».
+- `POST /workflows/step/{id}/actions` verrouille l'étape (`with_for_update`). Il refuse :
+  - une étape qui n'est plus « current » ;
+  - un type d'action différent de `expected_action_type` ;
+  - une version qui n'est plus la version courante du document.
+- Chaque acte enregistre une ligne `WorkflowAction` : auteur, type, résultat, version et commentaire. Cette ligne est visible dans l'historique du document. Elle n'écrit rien dans `audit_logs`.
+- `buildWorkflowDecision` (`workflows.api.ts`) envoie `acknowledged` pour un `read_ack` et prend la version dans `task.document`.
+
+**Point 3, prise de connaissance groupée.**
+- **Risque.**
+  - Traçabilité : un accusé groupé ressemble exactement à un accusé individuel. Après coup, on ne peut pas savoir que quinze notes ont été « lues » en un clic sans avoir été ouvertes.
+  - Visa par erreur : un visa ou une signature resté coché partirait avec le lot.
+- **Recommandation.** Le faire, mais seulement pour les `read_ack`, puisqu'un accusé de lecture n'engage pas sur le fond. Deux conditions :
+  - marquer chaque appel du lot avec le commentaire fixe « Prise de connaissance groupée » ;
+  - ne jamais faire disparaître un échec sans le montrer.
+- **Backend** : aucun changement. Si l'on veut un jour un vrai champ « canal » (individuel ou groupé), c'est à B, en V1.2.
+
+**Point 4, Viser et Rejeter dans la fiche.**
+- **Risque.** Viser sans avoir lu :
+  - si le passage automatique au dossier suivant est retenu, un double clic vise un dossier que l'on n'a pas ouvert ;
+  - si les boutons apparaissent aussi depuis la recherche ou l'explorateur, on contourne le parapheur.
+- **Version envoyée.** Elle doit être celle de la pièce lue. Or `ViewDocumentButton` recharge le document, alors que la carte peut avoir une version périmée.
+- **Recommandation.** Le faire : le visa depuis la fiche se donne **après** lecture, c'est plus sûr que depuis la carte. Conditions :
+  - pas de passage automatique au suivant dans ce lot ;
+  - boutons limités au parapheur ;
+  - même confirmation que sur la carte ;
+  - rejet seulement par `RejectReasonDialog`.
+- **Backend** : aucun changement.
+
+### Grille de relecture de la PR (points 3 et 4)
+
+Garde-fous de O, avec ceux de l'innovateur marqués (I).
+
+| # | Contrôle | Comment vérifier |
+|---|---|---|
+| G1 | Le traitement groupé ne propose que les `read_ack`, avec un filtre actif | Lecture du code et e2e : un `visa` ne peut pas être sélectionné |
+| G2 | (I) Le lot envoyé est l'intersection de la sélection et de `expected_action_type === 'read_ack'`, calculée au moment de l'envoi | Test unitaire : sélection mixte, seuls les `read_ack` partent |
+| G3 | Une confirmation indique le nombre de documents | e2e : texte « N documents » avant l'envoi |
+| G4 | Un appel `POST /workflows/step/{id}/actions` par tâche, par la route existante, envoyé un par un, sans route nouvelle | Lecture du code ; e2e : N requêtes dans le réseau, donc N lignes `WorkflowAction` |
+| G5 | (I) Chaque appel du lot porte le commentaire fixe « Prise de connaissance groupée » | Test unitaire du payload ; e2e : visible dans l'historique du document |
+| G6 | (I) En cas d'échec partiel, le bilan « N faits, M refusés » s'affiche, les refusés restent dans la liste et la liste est rechargée | Test unitaire avec un refus 400 simulé |
+| G7 | Dans la fiche, les boutons appellent les mêmes gestionnaires et passent par la même confirmation que sur la carte ; le rejet se fait seulement par `RejectReasonDialog` (motif obligatoire) | Lecture du code et e2e (viser, puis rejeter sans motif : refusé) |
+| G8 | (I) Les boutons n'existent que si la fiche est ouverte depuis le parapheur avec une tâche (prop optionnelle) ; rien ne change dans la recherche ni dans l'explorateur | e2e : la fiche ouverte depuis la recherche n'a pas les boutons |
+| G9 | (I) La version envoyée depuis la fiche est celle de la fiche affichée, pas celle de la carte | Test unitaire de `buildWorkflowDecision` avec le document de la fiche |
+| G10 | (I) Pas de passage automatique au dossier suivant ; boutons désactivés pendant l'envoi | Lecture du code ; e2e avec double clic : une seule requête |
+| G11 | Aucun fichier `backend/` modifié | `git diff --stat origin/main` |
+
+**Coût** (`Déduit`) : la relecture par Q coûte ≈ 0,5 h-s, et les quick wins 1, 2, 5, 6 et 7 se relisent dans la même passe. **Décision de O (18/11)** : la PR est en V1.1, et Q la relit après le tag du 24, dans la fenêtre qui court jusqu'au 04/12. Rien n'est pris sur la marge de Q d'ici le 24.
