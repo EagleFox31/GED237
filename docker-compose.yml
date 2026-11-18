@@ -209,6 +209,7 @@ services:
       target: development
       args:
         VITE_APP_VERSION: ${APP_VERSION:-dev}
+        VITE_DEMO_PROFILES: ${VITE_DEMO_PROFILES:-false}
     container_name: edossier_frontend
     restart: unless-stopped
     mem_limit: 768m
@@ -221,6 +222,7 @@ services:
     environment:
       - VITE_API_URL=/api/v1
       - VITE_APP_VERSION=${APP_VERSION:-dev}
+      - VITE_DEMO_PROFILES=${VITE_DEMO_PROFILES:-false}
     networks:
       - edossier_network
 
