@@ -40,7 +40,7 @@
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/anchor-is-valid": "off",
     "import/prefer-default-export": "off",
-    "no-alert": "off",
+    "no-alert": "error",
     "no-restricted-syntax": "off",
     "no-param-reassign": ["error", { "props": false }],
     "consistent-return": "off",
@@ -106,6 +106,20 @@
     "no-await-in-loop": "warn",
     "no-void": "warn"
   },
+  // Fenêtres natives interdites (no-alert) : utiliser ConfirmationModal / RejectReasonDialog.
+  // Exceptions TEMPORAIRES : 4 écrans d'administration non traités en V1.0 (reportés V1.2). Retirer chaque
+  // entrée dès que l'écran migre ; ne jamais en ajouter.
+  "overrides": [
+    {
+      "files": [
+        "profiles/super-admin/pages/AuthzAdmin.tsx",
+        "profiles/super-admin/pages/tenant-detail/UserTable.tsx",
+        "profiles/tenant-admin/pages/gedrules/ClassificationSettingsTab.tsx",
+        "profiles/tenant-admin/pages/gedrules/SimulatorTab.tsx"
+      ],
+      "rules": { "no-alert": "off" }
+    }
+  ],
   "settings": {
     "react": {
       "version": "detect"

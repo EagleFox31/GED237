@@ -659,3 +659,21 @@ première requête utilisateur.
 **Résolution** — Constructeur sans effet de bord ; lecteur chargé à la demande avec `download_enabled=False` ; modèles fr+en cuits dans l'image (couche cachée, `EASYOCR_MODEL_DIR`) ; modèle absent = un avertissement, résultat vide, repli sur Tesseract.
 **Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
 **Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.
+
+### LESSON-2026-055 — Revue limitée aux diffs : les écrans non modifiés gardaient des contrôles morts et des fenêtres natives
+
+- **Date :** 2026-11-18
+- **Catégorie :** qualité / revue
+- **Statut :** prevention-added
+- **Liens :** `frontend/.eslintrc.json` (`no-alert`), `frontend/e2e/fixtures/noNativeDialog.ts`, `frontend/e2e/fixtures/auth.fixture.ts`, `frontend/e2e/fixtures/authenticated.fixture.ts`
+
+**Contexte** — Les relectures de PR portaient sur les fichiers modifiés. Des écrans d'accueil par rôle, jamais touchés par les PR récentes, contenaient des contrôles sans action et des `alert` / `confirm` / `prompt` natifs, visibles seulement en parcourant l'application comme un utilisateur de chaque rôle.
+**Échec / near miss** — Relevé en recette avant le gel V1.0 : la revue de diff ne pouvait pas voir ce qui n'était pas dans le diff.
+**Cause racine** — Angle mort de la revue limitée aux diffs ; règle `no-alert` désactivée, aucun garde-fou automatique contre les fenêtres natives.
+**Classification** — Couverture de revue ; near miss ; répétable à chaque nouvel écran.
+**Résolution** — Contrôles morts corrigés et fenêtres natives remplacées par `ConfirmationModal` / `RejectReasonDialog` (PR #334, #336). Quatre écrans d'administration reportés en V1.2, listés en exception.
+**Prévention** —
+1. `no-alert` en erreur ; exceptions limitées aux 4 écrans reportés, commentées dans `.eslintrc.json`.
+2. Garde Playwright automatique (`noNativeDialog`) dans les fixtures communes : tout test qui ouvre une fenêtre native échoue.
+3. Grille de recette : parcours par persona sur l'accueil de chaque rôle, tout élément cliquable agit, aucune fenêtre native.
+**Leçon généralisée** — Une revue de diff ne couvre pas les écrans non modifiés : ce qu'on interdit doit l'être par une règle automatique, et la recette doit parcourir l'application par persona.
