@@ -2,6 +2,7 @@
 
 - **Pour** : O (relit, présente au PO), P (présente), Q (données, captures, recette), B et F (points à vérifier). Innovateur, 2026-11-17. Première version sur `main` c216141 ; **contrôlé ligne à ligne sur b701314** le 17/11 (§ 7).
 - **Périmètre** : uniquement ce qui sera dans la rc.1, c'est-à-dire b701314 plus #104 (documentation seule). Rien des PR post-rc1 : pas de code par e-mail ni de renvoi du code (#154), pas d'application d'authentification (#193), pas de vue « Doublons » (#171, #199), pas d'écran « Corbeille » (#181), pas de sélection multiple (#211), pas de favoris ni de récents (#165), pas de rapports officiels (#180, #197, #209).
+- **Exception du 18/11 (demande de O)** : les accueils par rôle corrigés par #334 (correctif V1.0, branche `fix/v10-role-home-dead-controls`, ouverte) sont intégrés au parcours (§ 1 étape 5, § 1 bis, § 11). Ils ne valent que si #334 est dans le tag : sinon, on revient au texte d'avant, gardé en § 11.4.
 - **Remplace** le § 1 de `deroule-demo.md` (10/11), écrit avant les fusions du 10 au 17/11. Les autres documents restent valables et ce scénario y renvoie : préparation des postes (`checklist-demo.md`), constitution du jeu (`jeu-donnees-demo.md`, `DOCS/exploitation/donnees-demo.md`), réponses aux questions (`plan-presentation.md` § 4).
 - **Niveaux** : `Vérifié` = lu dans le code de b701314 ; `À vérifier` = à confirmer en recette (§ 5) ; `Proposé` = choix de ce scénario.
 
@@ -19,7 +20,7 @@ Postes : une fenêtre **A** (`MINFI001`, administrateur de l'institution), conne
 | 4:45–6:15 | 1:30 | **2. Le rangement** | A | « Explorateur documentaire » (`/spaces`) : DAF → domaine → activité → année ; ouvrir un document importé | l'arborescence **service > domaine > activité > année** remplie par l'import ; un fichier sans date part dans « A classer/‹année› » (`À vérifier`, § 5 n° 4). Si l'on demande « et par année d'abord ? » : « On range d'abord par métier, parce que c'est ainsi qu'on cherche un dossier ; l'année est le dernier niveau, et le filtre « Toutes les années » permet de choisir une année. » **E24** : le statut s'affiche « A verifier », sans accent | « Pourquoi là ? Parce qu'une règle le dit. » |
 | 6:15–7:45 | 1:30 | **3. Les règles** | A | « Plan de classement » (`/classement`) → « Règles de classement » : une règle avec critère de **contenu** ou d'**année** ; puis « Simulateur » sur une règle inactive | la règle en clair ; la simulation montre avant/après **sans rien déplacer** | « Ce qu'aucune règle ne sait classer attend un humain. » |
 | 7:45–8:45 | 1:00 | **4. La bannette** | A | « Ma bannette » (`/classification-reviews`, page « Revue de classement ») : un des 12 fichiers « à revoir » laissés par l'import du direct (§ 5 n° 3), **pas un bordereau P8** (§ 10) ; « Domaine », « Activité », « Année », puis « Classer et relancer » | le fichier quitte la bannette et rejoint l'arbre | « Maintenant, retrouvons-le. » |
-| 8:45–10:15 | 1:30 | **5. Recherche et droits** | E puis C | dans E (arrivée sur « Tâches & Validations »), barre de recherche du bandeau : « courrier » ; dans C, cliquer d'abord « Tableau de Bord », puis le même mot-clé. « courrier » est le seul nom de famille de documents présent à la fois à la DAF et à la DSI (`demo_dataset.py`, famille « courrier » : DAF 20, DSI 18, dont environ un sur quatre porte le mot) ; nombres de résultats `À vérifier` par Q (§ 5 n° 8). « facture » ne convient pas : 20 résultats pour E, 0 pour C (#256, écart 10) | deux listes différentes pour la même requête : DAF pour E, DSI pour C ; un document mis en corbeille n'apparaît pas ; le menu de C n'a ni « Rapports », ni « Plan de classement », ni « Import en masse » | « Et qui a fait quoi ? » |
+| 8:45–10:15 | 1:30 | **5. Recherche et droits** | E puis C | dans E (arrivée sur « Tâches & Validations »), barre de recherche du bandeau : « courrier » ; dans C, cliquer d'abord « Tableau de Bord » (sa bibliothèque), puis le même mot-clé ; puis, dans la bibliothèque, **cliquer une carte : la fiche du document s'ouvre en lecture** (#334, `À vérifier`, § 5 n° 23). « courrier » est le seul nom de famille de documents présent à la fois à la DAF et à la DSI (`demo_dataset.py`, famille « courrier » : DAF 20, DSI 18, dont environ un sur quatre porte le mot) ; nombres de résultats `À vérifier` par Q (§ 5 n° 8). « facture » ne convient pas : 20 résultats pour E, 0 pour C (#256, écart 10) | deux listes différentes pour la même requête : DAF pour E, DSI pour C ; un document mis en corbeille n'apparaît pas ; le menu de C n'a ni « Rapports », ni « Plan de classement », ni « Import en masse », ni (avec #334) « Ranger / Importer » et « Bibliothèque locale » : **menu réduit** (§ 11) ; la fiche ouverte depuis la bibliothèque n'offre aucune modification | « Et qui a fait quoi ? » |
 | 10:15–11:30 | 1:15 | **6. Historique** | A puis D | fiche d'un document versionné → onglet « Historique des Versions » ; puis D, menu « Audit » (`/audit`, depuis #233), page « Registre Des Actions » : filtre de la colonne « Effectuée par » sur l'administrateur → « Exporter (CSV) ». L'aller-retour par le menu et l'export marchent (répétition du 17/11, #256 écart 11) | les versions ; dans le journal, l'import, la revue et les consultations de la séance ; l'export, lui-même tracé | « Et pour le chef de service ? » |
 | 11:30–12:45 | 1:15 | **7. Rapports** | E | menu « Rapports » (`/reports`) : « Traitement & délais », puis « Services » (le manager n'a pas l'onglet « Synthèse ») | les chiffres **de la DAF seulement** (#175, #188) : volumes, non classés, à revoir | « Et quand un dossier est clos ? » |
 | 12:45–13:30 | 0:45 | **8. Archivage** | A | ouvrir la fiche du document **validé** de la DAF : le bordereau P8, visé par `MGR001` puis signé par l'administrateur **pendant la préparation**, après la remise à zéro et avant la séance, car le jeu ne contient aucun document validé (§ 5 n° 21) → « Archiver » → « Archiver ce document ? » → « Oui, archiver » ; puis « Mes documents », filtre « Archivé ». **Dépend de #256 écart 9** : le chemin jusqu'au bouton est `À vérifier` après le correctif de F (aujourd'hui, l'aperçu de l'explorateur n'a pas le bouton et « Mes documents » ne charge que 100 documents). Sans correctif avant la coupe, l'étape est retirée et ses 0:45 vont aux questions | le badge « Archivé » ; le document reste consultable ; seul un document validé ou signé s'archive, et seul l'administrateur de l'institution le fait (#231, #239) | « Voilà ce qui marche. Voici ce qui manque. » |
@@ -35,7 +36,7 @@ Si l'import dépasse 4:00 : l'étape 3 se réduit au « Simulateur » (0:45) et 
 - **Mesure de charge** (100 000 fichiers en moins de 20 min, item 8) : non mesurée ; décision PO du 17/11, mesure après le 24/11.
 - **Vue « doublons »** (item 19) : les doublons sont refusés à l'import et comptés au tableau de bord (tuile « Doublons refusés », `Vérifié`) ; la vue de choix arrive après la version.
 - **HTTPS, installation sur site, disponibilité** (items 27, 28, 29) : dire l'état constaté au compte rendu du 20/11, pas avant.
-- **Circuit de validation** : présent dans la rc.1 mais hors de ce fil conducteur ; montré **seulement si le jury le demande** (décision O du 17/11). Un document est déjà en attente chez `MGR001` (§ 5 n° 18) : fenêtre E, page « Tâches & Validations », « Valider », ou « Rejeter » puis « Confirmer le rejet » avec un motif (1:00, pris sur les questions ; déroulé détaillé : `deroule-demo.md` P8).
+- **Circuit de validation** : présent dans la rc.1 mais hors de ce fil conducteur ; montré **seulement si le jury le demande** (décision O du 17/11). Un document est déjà en attente chez `MGR001` (§ 5 n° 18) : fenêtre E, page « Tâches & Validations », **« Voir le document » d'abord** (la fiche s'ouvre), puis « Valider », ou « Rejeter » : la boîte « Rejeter le document » **exige un motif**, « Confirmer le rejet » reste grisé tant que le champ est vide (#334, `À vérifier`, § 5 n° 23) (1:00, pris sur les questions ; déroulé détaillé : `deroule-demo.md` P8).
 
 ## 2. Jeu de données de démo
 
@@ -52,11 +53,11 @@ Comptes du seed (`backend/scripts/seed_db.py`, `Vérifié` sur b701314 : identif
 | Identifiant | Rôle | Unité | Fenêtre | Sert à |
 |---|---|---|---|---|
 | `MINFI001` | admin de l'établissement | MINFI | A, en direct ; B, préconnectée (secours) | connexion, import, explorateur, plan de classement, simulateur, bannette, fiche document ; tableau de bord (tuile « Doublons refusés ») |
-| `READ001` | lecteur | DSI | C, préconnectée | même recherche, autre résultat ; menu réduit |
+| `READ001` | lecteur | DSI | C, préconnectée | même recherche, autre résultat ; ouverture d'un document depuis sa bibliothèque ; menu réduit (§ 11) |
 | `AUDIT001` | auditeur | MINFI | D, préconnectée | journal d'audit en lecture seule, export CSV |
 | `MGR001` | manager | DAF | E, préconnectée | recherche limitée à la DAF ; rapports limités à la DAF ; circuit de validation sur demande |
-| `MINFI002` | collaborateur | DAF | **non utilisé** | son import est verrouillé, la bannette lui est refusée et sa recherche ne montre que ses propres documents (§ 7) : preuve du cloisonnement, à citer si le jury demande ce que voit un agent |
-| `UNIT001` | admin d'unité | DRH | **aucun profil admin d'unité dans la démo** (décision O du 17/11) | en recherche et en liste, il voit tout l'établissement ; suivi par l'issue #195 après la rc.1 |
+| `MINFI002` | collaborateur | DAF | **non utilisé** dans le fil ; F, préconnectée, **sur question** (§ 11, avec #334) | son import est verrouillé, la bannette lui est refusée et sa recherche ne montre que ses propres documents (§ 7) : preuve du cloisonnement, à citer si le jury demande ce que voit un agent |
+| `UNIT001` | admin d'unité | DRH | **aucun profil admin d'unité dans le fil** (décision O du 17/11) ; G, préconnectée, **sur question** pour ses compteurs (§ 11, demande de O du 18/11) | en recherche et en liste, il voit tout l'établissement ; suivi par l'issue #195 après la rc.1 |
 | `MINESUP001`, `SUPER001` | collaborateur MINESUP, super admin | — | non utilisés | — |
 
 ## 4. Risques en direct et plan B
@@ -104,6 +105,9 @@ Le risque du menu admin « Recherche » (page introuvable sur c216141) est levé
 | 19 | Diapositive d'ouverture (le problème des dossiers en vrac, la promesse en une phrase) | O la fournit, P la valide | fichier de la diapositive, validation de P |
 | 20 | Deux sessions simultanées de `MINFI001` (A en direct, B préconnectée) restent ouvertes toutes les deux | Q | constat noté |
 | 21 | *(si #256 écart 9 est corrigé avant la coupe)* Le jeu ne contient **aucun** document validé après la remise à zéro (Q, 17/11). Pendant la préparation, après la remise à zéro : `MGR001` vise le bordereau P8, puis l'administrateur le signe. Vérifier qu'un autre document reste en attente chez `MGR001` pour le n° 18, sinon le circuit ne se montre plus sur question. Puis chemin de A jusqu'au bouton « Archiver » : l'archivage passe et le filtre « Archivé » le retrouve. À ajouter à `checklist-demo.md`, préparation après la remise à zéro | Q, F (chemin) | identifiant du bordereau, document resté en attente, chemin cliqué, capture du badge |
+| 22 | #334 est fusionnée et dans le tag ; sinon le § 11.4 s'applique | O | numéro du commit du tag qui contient #334 |
+| 23 | Les quatre accueils du § 11 sur la pile de démo : la carte de la bibliothèque de `READ001` ouvre la fiche ; « Nouveau Document » de `MINFI002` ouvre la modale standard et l'envoi réussit ; « Voir le document » de `MGR001` ouvre la fiche, et un rejet sans motif est impossible ; les compteurs de `UNIT001` ouvrent leur page. **Ne pas consommer la tâche du n° 18** : rejet testé jusqu'au bouton grisé, puis « Annuler » | Q | captures ; e2e `role-home-controls.spec.ts` vert sur le tag |
+| 24 | **Menu réduit pour reader et collab** : ni « Ranger / Importer » ni « Bibliothèque locale » dans le menu de `READ001` et de `MINFI002`, et les adresses `/ingestion` et `/local-library` tapées à la main sont refusées | F | captures des deux menus, refus par adresse |
 
 ## 6. Décisions de O du 17/11 (sur la première version de ce § 6)
 
@@ -211,3 +215,40 @@ Chemin : `/imports`, « Juste les ranger », service MINFI-DAF, dossier `live` d
 
   Mêmes compteurs (16, 12, 2, 0 erreur ; accueil de 351 à 367). La version compilée ne change pas sensiblement les temps, qui dépendent surtout du serveur. L'affichage ne prend que 17 à 26 ms après la réponse. Avec 2 passages par mode, l'écart de 411 à 602 ms sur l'analyse est du bruit de mesure. **La réserve sur le mode développement est levée.** Reste à confirmer à la répétition : le temps d'envoi avec le serveur sur une autre machine.
 - **Conséquence pour l'étape 1 (`Déduit`)** : l'attente machine est inférieure à 1 s sur les 3:00 prévues. Le temps passe dans les clics, le choix du dossier et la phrase du narrateur. Le budget de 3:00 est tenu avec de la marge ; le repli « si l'import dépasse 4:00 » (§ 1) ne sert qu'en cas de panne ou de réseau lent.
+
+## 11. Accueils par rôle corrigés par #334 (18/11, demande de O)
+
+Source : PR #334 (`fix/v10-role-home-dead-controls`, ouverte, commits 0a9655f, bdfb13d, fce5c2b). Les libellés ci-dessous sont lus dans le code de la branche. Ils restent `À vérifier` en recette (§ 5 n° 22 à 24) tant que #334 n'est ni fusionnée ni dans le tag.
+
+### 11.1 Le parcours par rôle
+
+| Rôle | Fenêtre | Ce que l'on fait | Ce que le jury doit voir | Quand |
+|---|---|---|---|---|
+| Lecteur (`READ001`) | C | « Tableau de Bord » (sa bibliothèque) : cliquer une carte | la fiche du document s'ouvre, en lecture seule | dans le fil, étape 5 |
+| Collaborateur (`MINFI002`) | F | « Tableau de Bord » (son atelier) → « Nouveau Document » | la modale standard « Nouveau Document », la même que pour les autres profils, avec ses deux modes : ranger seulement, sans circuit ; ou circuit lancé si une règle d'aiguillage correspond. Le choix du valideur est conservé. Les cartes de brouillon ouvrent leur fiche. Aucune boîte native du navigateur | sur question, 0:45 pris sur les questions |
+| Manager, le chef (`MGR001`) | E | « Tâches & Validations » → « Voir le document », puis « Valider » ou « Rejeter » | il lit le document avant de décider. « Rejeter le document » exige un motif (« Ce que le rédacteur doit corriger ») : « Confirmer le rejet » reste grisé sans texte | sur question (§ 1 bis) |
+| Chef d'unité (`UNIT001`) | G | tableau de bord du service : cliquer le compteur « Workflows en attente » | la page des tâches s'ouvre. Les compteurs « Documents » et « Workflows en attente » sont cliquables ; les autres sont des chiffres seuls, assumés comme tels | sur question, 0:30 pris sur les questions |
+
+### 11.2 Menu réduit pour reader et collab
+
+- Le lecteur et le collaborateur n'ont plus « Ranger / Importer » ni « Bibliothèque locale » dans leur menu.
+- Les adresses `/ingestion` et `/local-library`, tapées à la main, leur sont aussi refusées (fce5c2b).
+- Les autres profils gardent ces entrées. Côté serveur, rien ne change : le menu reflète les droits, il ne les décide pas.
+- Phrase pour le jury : « Chacun n'a dans son menu que ce qu'il a le droit de faire. »
+
+### 11.3 Précautions
+
+- **Compteur « Documents » du chef d'unité** :
+  - tant que #203 n'est pas fusionnée, la liste qu'il ouvre montre tout l'établissement (§ 6, décision 2 ; issue #195) ;
+  - en démo, on ne clique donc que « Workflows en attente » ;
+  - si le jury clique « Documents », on le dit : « la limite au service arrive avec la version suivante ».
+- **Deux fenêtres préconnectées de plus** (F et G) :
+  - même durée de vie de session que les autres (§ 5 n° 13) ;
+  - à ajouter à `checklist-demo.md` si #334 entre dans le tag.
+- **Tâche du n° 18** : le rejet se montre jusqu'au bouton grisé, puis « Annuler », pour garder la tâche de `MGR001`.
+
+### 11.4 Sans #334 dans le tag (texte d'avant, à rétablir)
+
+- Étape 5 : C clique « Tableau de Bord » puis cherche, sans ouvrir de carte. Le menu de C garde « Ranger / Importer », en vue verrouillée.
+- § 1 bis : « Valider », ou « Rejeter » puis « Confirmer le rejet » avec un motif.
+- `MINFI002` et `UNIT001` ne sont pas utilisés ; les fenêtres F et G ne sont pas préparées.
