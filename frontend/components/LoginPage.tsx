@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import CameroonMap from './CameroonMap';
 import DemoProfiles from './widgets/DemoProfiles';
+import { LOGIN_DEMO_HINTS } from '../constants';
 import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
@@ -392,7 +393,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </div>
             )}
 
-            {step === 'login' && <DemoProfiles onSelect={handleDemoSelect} />}
+            {step === 'login' && LOGIN_DEMO_HINTS && <DemoProfiles onSelect={handleDemoSelect} />}
 
             <div className="mt-8 pt-8 border-t border-slate-50 opacity-30 group hover:opacity-100 transition-opacity">
               <p className="text-[9px] text-slate-500 font-bold text-center leading-relaxed italic">

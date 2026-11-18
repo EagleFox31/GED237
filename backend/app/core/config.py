@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
     AUTH_OTP_MAX_FAILURES: int = 3
     AUTH_LOCKOUT_SECONDS: int = 900
+    # Development only. True: the OTP comes back in the login response and the screen
+    # fills it in. False (demo in front of an audience): the code is only written to
+    # the API log, for the presenter (gestion-projet/innovateur/parcours-demo.md).
+    LOGIN_DEMO_HINTS: bool = True
     # True only when the API is reachable exclusively through a reverse proxy
     # that sets X-Forwarded-For (nginx/nginx.conf). Otherwise the header is
     # client-controlled and ignored.
