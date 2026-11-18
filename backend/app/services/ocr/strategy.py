@@ -12,6 +12,7 @@ from app.core.config import settings
 
 from .base import OCREngine, OCRResult
 from .easyocr_engine import EasyOCREngine
+from .rapidocr_engine import RapidOCREngine
 from .tesseract_engine import TesseractOCREngine
 
 
@@ -41,6 +42,7 @@ class OCRStrategy:
     def __init__(self, primary_engine: Optional[str] = None):
         self.tesseract = TesseractOCREngine()
         self.easyocr = EasyOCREngine()
+        self.rapidocr = RapidOCREngine()
         self.primary_engine = (primary_engine or settings.OCR_PRIMARY_ENGINE).lower()
 
     @staticmethod
@@ -206,6 +208,16 @@ class OCRStrategy:
         Returns:
             Tuple of (primary_engine, fallback_engine)
         """
+        # RapidOCR first for photos, captures and forms (Tesseract is its fallback,
+        # on error, timeout or weak result). Clean scans never go through it.
+        if (
+            self.primary_engine == "rapidocr"
+            and settings.OCR_RAPIDOCR_ENABLED
+            and document_type
+            in [DocumentType.PHOTO, DocumentType.SCREENSHOT, DocumentType.FORM]
+        ):
+            return self.rapidocr, self.tesseract
+
         # Tesseract-first scenarios
         if document_type in [
             DocumentType.SCANNED_DOCUMENT,
@@ -229,5 +241,6 @@ class OCRStrategy:
         engines = {
             "tesseract": self.tesseract,
             "easyocr": self.easyocr,
+            "rapidocr": self.rapidocr,
         }
         return engines.get(engine_name.lower())
