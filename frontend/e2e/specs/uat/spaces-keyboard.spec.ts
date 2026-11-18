@@ -58,14 +58,27 @@ test.describe('Explorateur — réflexes clavier', () => {
     await loginAs('tenant_admin');
     await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
 
-    const doc = page.getByRole('row', { name: title });
-    await expect(doc).toBeVisible();
-    await doc.focus();
+    // The explorer opens in the icons view: the tile keeps its own label.
+    const tile = page.getByLabel(new RegExp(`^${title} — `));
+    await expect(tile).toBeVisible();
+    await tile.focus();
     await page.keyboard.press('Enter');
     await expect(page.getByText('Aperçu du document')).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(page.getByText('Aperçu du document')).toHaveCount(0);
-    await expect(doc).toBeFocused();
+    await expect(tile).toBeFocused();
+
+    // Details view: the row is named by its title (aria-labelledby, #167).
+    await page.getByRole('button', { name: /Détails$/ }).click();
+    const row = page.getByRole('row', { name: title });
+    await expect(row).toBeVisible();
+    await row.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Aperçu du document')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('Aperçu du document')).toHaveCount(0);
+    await expect(row).toBeFocused();
   });
 });
