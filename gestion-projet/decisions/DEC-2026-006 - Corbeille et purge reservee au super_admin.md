@@ -58,5 +58,5 @@ Les tests de `main` sur les droits de `DELETE` (#345) restent verts : les droits
 ## 7. À remplir par O avant publication
 
 - [x] Résultat de la vérification de B sur le ciblage du tenant (§ 6) et choix retenu : option 1 (O, 18/11).
-- [ ] SHA de #152 après le retrait de la ligne 59, et OK de Q sur le delta.
+- [x] SHA de #152 après le retrait de la ligne 59, et OK de Q sur le delta : **a47df85**, OK de Q ; OK du PO pour la V1.1, en tête de la vague 2 (O, 18/11).
 - [ ] Le statut passe à « DÉCIDÉ le 18/11 (PO), publié le 19/11 à ‹hh:mm› ».

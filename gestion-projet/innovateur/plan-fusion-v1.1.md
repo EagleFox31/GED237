@@ -64,6 +64,7 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 | 10 | #243 e2e : aide inutilisée retirée | Q | main | — | `uat.fixture.ts` | oui (eb252c1), CONFLICTING | 14 |
 | 11 | #245 hôtes acceptés par Vite (#145) | F | main | #389 | `.env.example`, `docker-compose.yml` | oui (23a0af2), CONFLICTING | 14 |
 | 12 | #253 test de `tag_preflight.sh` en CI | Q | main | #389 | `ci.yml`, `appfactory-impact.json` | non | 14 |
+| 12 bis | #281 dépréciation de `GET /documents/tree` au profit de `/spaces/tree` (#279) ; **revenue en V1.1** (O, 18/11), brouillon | B | main | — | routes des documents | non | 14 |
 | 13 | #235 synchronisation additive des droits CSV vers SQL | B | main | — | `casbin_enforcer.py` | code (SHA non noté) | 13 |
 | 14 | #238 règles écrites ligne par ligne (si elle passe après #389 : retirer `AUTHZ_BACKEND` des exceptions de parité, § 9) | B | sur #235 | #235 | `casbin_enforcer.py`, `docker-compose.yml`, `installation.md` | code (SHA non noté) | 13 |
 | 15 | #248 compose réduit pour le VPS | doc | main | — | `installation.md` | changements demandés (15b6e99, tête 2d73db6) | 12 |
@@ -169,8 +170,8 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 57 quater | #400 accessibilité de l'explorateur (`aria-labelledby`, #167) | à confirmer | main | — | **conflit avec #401** : la PR fusionnée en second le résout | non | — |
 | 57 quinquies | **à ouvrir** : audit UX Lot 6, « Validation… » sur Valider et Rejeter (XS) | F | main | — | écran des tâches | non | lot 6 UX |
 | 57 sexies | **à ouvrir** : audit UX Lot 6, une seule erreur hors ligne au dépôt (XS) | F | main | — | fenêtre de dépôt | non | lot 6 UX |
-| ~~57 septies~~ | audit UX Lot 6, orientation du premier jour (S) : **passée en V1.2** (O, 18/11), voir § 7 | — | — | — | — | — | — |
-| ~~57 octies~~ | audit UX Lot 6, saisie gardée à travers la reconnexion (M) : **passée en V1.2** (O, 18/11), voir § 7 | — | — | — | — | — | — |
+| 57 septies | **à ouvrir** : audit UX Lot 6, orientation du premier jour et aide « Renvoyer le code » (S) ; **revenue en V1.1** (O, 18/11 : « on repousse rien ») | F | main | — | écran d'accueil, page de connexion | non | lot 6 UX |
+| 57 octies | **à ouvrir** : audit UX Lot 6, saisie gardée à travers la reconnexion (M) ; **revenue en V1.1** (O, 18/11) | F | main | après #359 (connexion) | fenêtre de dépôt, client HTTP | non | lot 6 UX |
 | 57 nonies | #391 aperçu dans l'onglet « Informations » de la fiche | F | main | — | `DocumentDetailModal.tsx`, **`document-detail.page.ts:65` (comme #396)** | **oui (9a943d3)** | — |
 | 57 decies | #392 « Envoyer et déposer un autre » (dépôt en série) | F | main | — | fenêtre de dépôt | **oui (fc71aad)** | — |
 | 57 undecies | #396 téléchargement rapide sur les cartes et remise à zéro des filtres | F | main | — | `Documents.tsx`, **`document-detail.page.ts:65` (comme #391)** | **oui (93feb87)** | — |
@@ -178,10 +179,18 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 57 terdecies | **à ouvrir** (issue #414) : `/auth/refresh` vérifie la blacklist et l'état du compte (XS sécurité) | B | main | — | `auth.py` | non | Q (O, 18/11) |
 | 57 quaterdecies | **à ouvrir** : pagination du journal d'audit (GO du PO, 18/11). `/audit/logs` a déjà `skip` et `limit` (1 à 500) mais ne renvoie aucun total : B ajoute le total, F les contrôles de page dans `AuditLogs` | F (B pour le total) | main | après #383 et #344 (même route) | `audit.py`, `AuditLogs.tsx` | non | PO, 18/11 |
 | 57 quindecies | **à ouvrir** : suite de #211, mise à la corbeille groupée avec annulation, et Ctrl+Espace dans l'explorateur (revient en V1.1, PO, 18/11) | F | sur #401 | après #184 et #401 | explorateur des espaces | non | PO, 18/11 |
+| 57 sexdecies | **à ouvrir** : audit UX Lot 8, points 1 à 3 (XS chacun, une seule PR) : cartes de `/documents` ouvrables au clavier et `Échap` qui ferme la fiche ; zone de dépôt au clavier et `Échap` qui ferme la fenêtre de dépôt (hors envoi en cours) ; `aria-label` des boutons icônes et `htmlFor` des champs (O, 18/11) | F | main | après #396, #371 (`Documents.tsx`) et #392, #417 (fenêtre de dépôt) | `Documents.tsx`, `DocumentDetailModal.tsx`, `UploadDocumentModal.tsx`, `Header.tsx` | non | lot 8 UX |
+| 57 septdecies | **à ouvrir** : audit UX Lot 8, point 4, contrastes des textes et des badges de statut (S) | F | main | après 57 sexdecies | `Documents.tsx`, `DocumentDetailModal.tsx`, `ValidationHub.tsx` | non | lot 8 UX |
+| 57 octodecies | **à ouvrir** : audit UX Lot 8, point 5, **fusionné avec le point 5 du Lot 6** (ex-point (c)) : barre « Annuler / Envoyer » fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 à 150 %, libellés utiles à 12 px au moins (S) | F | main | après 57 sexdecies | `UploadDocumentModal.tsx` | non | lot 8 UX |
+| 57 novodecies | **à ouvrir** : audit UX Lot 9, point 5, export CSV du journal avec plusieurs acteurs. B : `user_id` accepte une liste ; F : retirer le blocage de `AuditLogs.tsx:136` (O, 18/11) | B puis F | main | après #344 et 57 quaterdecies (même route) | `audit.py`, `AuditLogs.tsx` | non | lot 9 UX |
+| 57 vicies | #298 tableau de bord du manager (#278) ; **revenue en V1.1** (O, 18/11) | F | main | après #347 (accueil) | accueil du manager | non | — |
+| 57 unvicies | **à ouvrir** : #299 glisser-déposer = reclassement par la boîte « Classer » ; **revenue en V1.1** (O, 18/11) | F | main | après #179 et #262 (vague 4) | explorateur des espaces | non | — |
 
 - **#303** : 36 fichiers, dont 29 en commun avec #220. Sa branche contient sans doute une autre pile. Il faut la re-cibler sur `main` après #294, puis vérifier que le diff ne contient plus que l'écran des droits.
 - **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F, en PR #407 (brouillon). La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
-- **Audit UX Lot 6** (O, 18/11) : le point (a), pas de déconnexion sur une coupure réseau pendant le renouvellement de session et message « Votre session a expiré… » sur un 401, vise la V1.0 (relecture de Q le 19/11 à 14:00, go/no-go à 15:30). S'il n'est pas retenu, il devient une ligne de cette vague, après 57 sexies. Les points M et S passent en V1.2 ; #359 reste en V1.1 (O, 18/11). Le point (c), la barre d'actions fixe en bas de la fenêtre de dépôt, va en V1.2 (§ 7). Charge : `plan-v1.1.md`, § « Mise à jour du 18/11, nuit ».
+- **Audit UX Lot 6** (O, 18/11) : le point (a), pas de déconnexion sur une coupure réseau pendant le renouvellement de session et message « Votre session a expiré… » sur un 401, vise la V1.0 (relecture de Q le 19/11 à 14:00, go/no-go à 15:30). S'il n'est pas retenu, il devient une ligne de cette vague, après 57 sexies. **Mise à jour** : fusionné en V1.0 par #410 (59e3eb3, 18/11 à 17:34) ; contrôle à la séance du 20/11 (`risques-demo-30-11.md`, risque 3).
+- **Audits UX Lots 8 et 9** (O, 18/11) : Lot 8, points 1 à 5 en V1.1 (F), lignes 57 sexdecies à 57 octodecies ; le point 5 du Lot 6 est fusionné avec le point 5 du Lot 8 (même fenêtre, même correction). Lot 9 : points 1 à 4 traités en V1.0 ou dans le scénario de la démo ; point 5 en V1.1, ligne 57 novodecies.
+- **Charge des lignes ajoutées le 18/11** (estimation de l'innovateur, à confirmer par F et B) : Lot 8, F ≈ 1,75 (3 XS en une PR ≈ 0,75, 2 S ≈ 1), relecture croisée de B ≈ 0,5 ; Lot 9 point 5, B ≈ 0,25, F ≈ 0,25, Q ≈ 0,25. Les points M et S passent en V1.2 ; #359 reste en V1.1 (O, 18/11). Le point (c), la barre d'actions fixe en bas de la fenêtre de dépôt, va en V1.2 (§ 7). Charge : `plan-v1.1.md`, § « Mise à jour du 18/11, nuit ».
 - **`playwright.unit.config.ts`** : 33 PR l'éditent, chacune pour y ajouter son fichier de test. Ce sont des conflits d'une ligne : un rebase les règle, sans risque fonctionnel.
 
 ### Vague 6 : 03 et 04/12
@@ -189,6 +198,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | Ordre | PR | Rôle | Note |
 |---|---|---|---|
 | 58 | #111, #112, #141 (Dependabot, lot 7) | Q | Une à une, CI complète entre chaque. |
+| 58 bis | Versions majeures de Dependabot : #113 (Starlette 1.x), #110 (Python 3.15), #29 (TypeScript 7), #30 (ESLint 10) ; **revenues en V1.1** (O, 18/11) | B (#113, #110), F (#29, #30), Q | Une à une après 58, CI complète entre chaque ; ≈ 3 h-s : B 1, F 1, Q 1. |
 | 59 | #335 générateur d'export de test sans faux repli | B | Outil de test, CONFLICTING ; à rebaser. Gardée (B, 18/11) : sans elle, faux PDF de 140 octets. |
 | 60 | #312 garde d'espace disque avant une charge | doc | Script local ; sans risque. |
 | 61 | #189 leçon 038, #166 carnet de la suite | doc | « Hors chaîne » dans le lot 1. Les fermer si leur contenu est déjà sur `main`. |
@@ -215,7 +225,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | #193 | #219 | Re-cibler #219. |
 | #180 | #209 | Re-cibler #209. |
 | #165 | #205 | Re-cibler #205. |
-| #298 (V1.2) | #322 (V1.2) | Hors fenêtre. |
+| #298 (revenue en V1.1, O, 18/11) | #322 (V1.2) | Re-cibler #322 sur `main` avant de fusionner #298. |
 | #304 (V1.2) | #320 (V1.2) | Hors fenêtre. |
 | #305 (V1.2) | #306 (V1.2) | Hors fenêtre. |
 | #183 (V1.2) | #194 (V1.2) | Hors fenêtre. |
@@ -232,6 +242,7 @@ Tête de `main` le 18/11 : `a7c8d9e0f1b2`. Seules les PR post-rc1 portent des mi
 | 4 | #186 | d4f1b6c2e8a9 | tête précédente |
 | 5 | #165 | 8aed3f3826d7 | tête précédente |
 | 6 | #192 | c9f2a7d4e1b6 | tête précédente |
+| 7 | #265 (à ouvrir, B ; revenue en V1.1, O, 18/11) : suppression de `org_unit_closure`, après #266 | à créer | tête précédente (#192) |
 | hors fenêtre | #183 (V1.2) | c3e8a5d1f2b7 | après la V1.1 |
 
 Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précédente. **Contrôle après chaque fusion** : `alembic heads` doit afficher une seule ligne.
@@ -303,9 +314,8 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 - **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390 et #356. #368 est fusionnée le 18/11 (9b32c30), #356 aussi (dd232f6), et #390 est corrigée en 4be742b, en file après #375. Si l'une d'elles n'est pas fusionnée le 19, elle passe en vague 0, juste après #389.
 - **V1.2** :
   - branches `feat/v12-*` : #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
-  - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
-  - autres : #313 (élément 8 de la V1.2) et #298 (#278, sortie par O le 18/11) ; #370, #404 et #355 sont revenues en V1.1 (PO, 18/11) ;
-  - audit UX Lot 6 (F, à ouvrir) : point (c), barre d'actions fixe en bas de la fenêtre de dépôt à 1366×768 et zoom 125 % ; point M, saisie gardée à travers la reconnexion ; point S, orientation du premier jour et aide sur le code à la connexion (O, 18/11) ;
+  - étiquette `v1.2` : #306, #305, #304, #183, #194 (#281 revenue en V1.1, voir ci-dessous) ;
+  - autres : #313 (élément 8 de la V1.2) ; #370, #404 et #355 sont revenues en V1.1 (PO, 18/11) ;
   - audit UX Lot 7, chef de service et auditeur (premier tri d'O, 19/11 : la V1.1 est pleine) :
     1. historique d'un document, et plafond de 200 lignes du journal d'audit (`AuditLogs`), M ;
     2. export du journal sur une période (du… au…) et en PDF officiel, M ;
@@ -315,7 +325,17 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
   - écran Corbeille du super_admin avec choix de l'institution (DEC-2026-006). En V1.1, le super_admin purge par l'API seulement ;
   - la suite de #211 n'est plus ici : elle revient en V1.1 (PO, 18/11), ligne 57 quindecies.
   Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
-- **Dependabot, versions majeures** (V1.2) : #29, #30, #110 et #113.
+- **Sorties antérieures revenues en V1.1 (O, 18/11 : « on repousse rien »)**. Aucune n'a de blocage technique réel ; chacune a seulement une place dans l'ordre :
+  - versions majeures de Dependabot (#113, #110, #29, #30) : vague 6, ligne 58 bis ;
+  - #281 (#279, dépréciation de `GET /documents/tree`) : vague 1, avec les petites PR de B ;
+  - **à ouvrir** : #265 (suppression de la table `org_unit_closure`), B, fin de la vague 4, après #266 et #192 ; **migration** : dernière de la chaîne alembic (§ 4, ordre 7), pour ne re-chaîner personne ;
+  - #298 (#278, tableau de bord du manager), F : ligne 57 vicies ;
+  - #299 (glisser-déposer), F : ligne 57 unvicies ;
+  - phase 2 de #288 (accès public en HTTPS), B : après #154 et #212 (vague 4) ; pas de PR de code, c'est de l'exploitation. **Condition** : toute modification du VPS (Caddy, port 443) attend l'accord explicite du PO, comme pour la phase 1 ;
+  - serveur d'e-mail affiché à l'écran : retour dans le lot 8a (B), après #154 ;
+  - OCR-1 : c'est #370, déjà revenue en V1.1 (ligne 24 bis, comptée le 18/11) ;
+  - audit UX Lot 6, points M et S : lignes 57 octies et 57 septies ; point (c) fusionné avec le Lot 8, ligne 57 octodecies.
+- **Restent en V1.2, sur décision du PO lui-même** : #183 et #194 ; la partie 13 a de #254. **Audit UX Lot 7** (chef de service et auditeur) : trié par O le 19/11 en V1.2 « la V1.1 est pleine », ce qui est une raison de charge ; à confirmer par O (il ne figurait pas dans la liste des sorties à réintégrer).
 - **#385** : outil de mesure, jamais fusionné.
 
 ## 8. Points ouverts pour O

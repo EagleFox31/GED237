@@ -577,7 +577,7 @@ Chiffres `Déduit`, à confirmer par B, F et Q.
 - Le 30/11 est un jour de démo : Q n'y prend que des relectures courtes.
 - Les relectures du lot 8a et de la suite de #211 arrivent tard : ce sont les deux points à suivre chaque soir. Si l'une glisse au 03/12, elle se fusionne le 03 au soir, avant la vague 6.
 
-**Sorties antérieures, décidées par O avant « on repousse rien »** (à confirmer par O : le PO les vise-t-il aussi ?). Elles ne sont pas réintégrées ici. Coût si elles reviennent, d'après ce document :
+**Sorties antérieures, décidées par O avant « on repousse rien »** : **toutes revenues en V1.1** (O, 18/11 au soir ; aucune n'a de blocage technique réel, voir `plan-fusion-v1.1.md` § 7). Coût d'après ce document :
 - versions majeures de Dependabot (#29, #30, #110, #113) : ≈ 3 h-s, dont Q 1 ;
 - #265, #279, #281 (nettoyage) : ≈ 1,25 h-s, dont Q 0,5 ;
 - #278 (PR #298, tableau de bord du manager) : F 0,5, Q 0,5 ;
@@ -587,3 +587,27 @@ Chiffres `Déduit`, à confirmer par B, F et Q.
 - audit UX Lot 6, points M et S : F 1,5, Q 0,75 ;
 - glisser-déposer (#299) : F 1, Q 0,5.
 Toutes ensemble : B + 1,75, F + 3, Q + 4, soit Q ≈ 29,8 après relecture croisée, encore sous le plafond de ≈ 34. Les sorties décidées par le PO lui-même (#183 et #194 ; partie 13 a de #254) restent en V1.2.
+
+**Correction du recompte (18/11 au soir)** :
+- **OCR-1, c'est #370**, déjà comptée dans le recalcul « on repousse rien » (B + 0,5, Q + 0,5) : ses 0,75 et 0,5 ne s'ajoutent pas une seconde fois.
+- **Dependabot majeurs** : les ≈ 3 h-s se répartissent B 1 (#113 Starlette, #110 Python), F 1 (#29 TypeScript, #30 ESLint), Q 1. **Nettoyage** (#265, #281) : B 0,75, Q 0,5. Le total « B + 1,75, F + 3 » ci-dessus oubliait ces parts.
+- Sorties réintégrées, chiffres justes : **B + 2,75, F + 4, Q + 3,5**.
+
+**Ajouts du 18/11 au soir (audits UX Lots 8 et 9, O)** :
+- Lot 8, points 1 à 5 (avec le point 5 du Lot 6) : F ≈ 1,75 (3 XS dans une PR ≈ 0,75 ; 2 S ≈ 1) ; relecture croisée de B ≈ 0,5.
+- Lot 9, point 5 (export CSV à plusieurs acteurs) : B ≈ 0,25, F ≈ 0,25, Q ≈ 0,25.
+
+| | B | F | Q |
+|---|---|---|---|
+| Après relecture croisée (plus haut) | 26,8 | 21,5 | 25,8 |
+| Sorties réintégrées | + 2,75 | + 4 | + 3,5 |
+| Lots 8 et 9 | + 0,75 | + 2 | + 0,25 |
+| **Total** | **≈ 30,3** | **≈ 27,5** | **≈ 29,55** |
+| Capacité | ≈ 31 | ≈ 24 (F, 18/11) | ≈ 34 (plafond avec la marge de 20 %) |
+| Écart | + 0,7 | **− 3,5** | + 4,45 |
+
+**F dépasse de ≈ 3,5 h-s.** Rien ne sort (PO). Proposition de répartition, à trancher par O avec F, B et Q :
+1. Q prend #29 et #30 (TypeScript 7, ESLint 10 : corrections de types et de lint, CI complète entre chaque) : F − 1, Q + 1.
+2. B fait aussi la partie écran du Lot 9 point 5 (une ligne dans `AuditLogs.tsx`, même PR que la liste de `user_id`) : F − 0,25, B + 0,25.
+3. Q prend le Lot 8 points 4 et 5 (classes de contraste, barre fixe de la fenêtre de dépôt : pas de logique, e2e de F inchangés) : F − 1, Q + 1.
+Après 1 à 3 : **B ≈ 30,55** (marge 0,45), **F ≈ 25,25** (− 1,25), **Q ≈ 31,55** (marge 2,45). Le reste de F (≈ 1,25) demande un choix d'O : une journée de F à ≈ 3 h-s au lieu de 2,7 (+ 2,7 sur 9 jours), ou une autre ligne de F confiée à B ou Q. Le goulot de F reste Docker (2 places, e2e une par une) : regrouper les 3 XS du Lot 8 en une PR économise deux passages e2e.

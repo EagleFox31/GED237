@@ -4,7 +4,7 @@
 - **Source** : `file-v1.1.md` (ORDER par vague, 18/11) et titres des PR ouvertes.
 - **Remplace** `squelette-notes-version-v1.1.0.md` (17/11, classé par thème). Ce fichier-ci, classé par vague, fait foi. De l'ancien, on garde :
   - la liste des réglages coupés par défaut (section « Pour O ») : chacun est tranché au moment de la fusion de sa PR ;
-  - les issues V1.1 encore sans PR au 18/11 : #204 (alerte si l'application d'authentification n'est pas réenrôlée sous 24 h), #214 (un seul point d'accès pour les fonctions activées), #215 (responsable d'unité borné pour les revues et les validations ; recouvre en partie #203) et #216 (constats B6, couverts en partie par #222). Elles restent ici en « À vérifier » tant qu'aucune PR ne les porte.
+  - les issues V1.1 encore sans PR au 18/11 : #204 (alerte si l'application d'authentification n'est pas réenrôlée sous 24 h), #214 (un seul point d'accès pour les fonctions activées), #215 (responsable d'unité borné pour les revues et les validations) et #216 (constats B6). Réponse de B (18/11) : #214 se ferme par #224, #215 par #241, #216 par #222 ; #204 reste sans PR et entre en V1.1 après #193 et #219 (tableau des engagements, plus bas).
 - **Règle de finalisation** :
   - une ligne ne reste que si toutes ses PR sont fusionnées ;
   - une ligne dont une PR manque part en « Reporté » ;
@@ -152,8 +152,14 @@ Le PO garde tout en V1.1 (18/11 : « on repousse rien »). Une ligne n'en sort q
   - recherche par date et par auteur ;
   - indicateur de retard ;
   - délégation pendant une absence.
-- Audit UX Lot 6 : barre d'actions fixe dans la fenêtre de dépôt, saisie gardée à la reconnexion, aide du premier jour.
-- Les autres sorties décidées par O avant le 18/11 (Dependabot majeurs, #265, #279, #281, #278, phase 2 de #288, serveur e-mail à l'écran, OCR-1, glisser-déposer) : à confirmer par O après « on repousse rien » (`plan-v1.1.md`, dernier §).
+
+## Revenus en V1.1 le 18/11 (O : « on repousse rien »), lignes à placer dans leur vague à la fusion
+
+- *Accessibilité (audit UX Lot 8)* : les documents s'ouvrent au clavier et `Échap` ferme les fenêtres ; la zone de dépôt se pilote au clavier ; les boutons icônes ont un nom lu par le lecteur d'écran ; textes et badges plus contrastés ; boutons « Annuler / Envoyer » toujours visibles dans la fenêtre de dépôt, même sur un petit écran zoomé (avec le point 5 du Lot 6).
+- *Journal (audit UX Lot 9)* : export CSV possible avec plusieurs auteurs filtrés.
+- *Audit UX Lot 6* : aide du premier jour et « Renvoyer le code » ; saisie gardée à la reconnexion.
+- Tableau de bord du manager par service (#298, #278) ; glisser-déposer pour reclasser (#299) ; serveur d'e-mail réglable à l'écran (lot 8a).
+- *Sans effet visible* : versions majeures de Starlette, Python, TypeScript et ESLint ; suppression d'une table inutilisée (#265) ; dépréciation de `GET /documents/tree` (#281, #279) ; accès public en HTTPS sur le serveur (phase 2 de #288, sur accord du PO). La robustesse de l'OCR (OCR-1) est #370, déjà listée.
 
 ## Engagements V1.1 du PO sans PR dans la file au 18/11 (état vérifié avec gh le 18/11)
 
@@ -164,9 +170,9 @@ Le PO ne repousse rien : chaque ligne a un porteur et un jour. Coûts en h-s, `D
 | Q2 : le responsable d'unité ne voit que son service | #203 et #196 fusionnées le 18/11 à 13:28 (17498b5), donc dans `main`. | Rien pour la V1.1. **Effet de bord** : elles seront dans la rc.1 si le tag est pris sur `main`, alors que le PO avait dit « après le 30 ». Les « Limites connues » des notes rc.1 (#104) sont à revoir. | O (rc.1), I (notes) | 0 / 0 / 0 | Vérifier les notes rc.1 avant le push de #104, le 19/11. |
 | Q3 : trois accès fermés | #358 (4fcd8d9, fusionnée le 18/11) ferme l'import au nom d'un autre agent et la vue de l'institution ; #360 (8ceae3b) couvre les comptes et les services. | Le lien direct : #213 et #263 (vague 3, ouvertes), et l'e2e #308. | B, Q | déjà compté (lot 11) | Fusion le 26/11, vague 3. |
 | Q10 : archivage par l'administrateur d'institution (réponse A : rc.1) | #231 fusionnée le 17/11 (99d06e9). #239 fermée sans fusion, remplacée par #246, fusionnée (2a1052b). #228 fermée « completed » à la fusion de #231, le 17/11 à 17:17 : pas une erreur. | Rien. L'archivage depuis l'aperçu de l'explorateur (#407) est un confort en plus, vague 5. | — | 0 / 0 / 0 | Ligne des notes rc.1. |
-| Q12 : réglages et écran des droits (réponse C) | Issue #280 ouverte. 8b = #294 et #303 (vague 5). La grille n'est modifiable que par le super_admin avec `AUTHZ_BACKEND` à `sql` ou `shadow` ; le défaut est `csv`, donc lecture seule. | 8a (réglages à l'écran) : aucune PR. Le serveur e-mail à l'écran est sorti par O le 17/11. | B (API), F (écran), Q | déjà compté (lot 8 : 8a 3,5) | B du 25 au 30/11, F les 01 et 02/12, relecture de Q le 02/12, fusion le 03/12. |
+| Q12 : réglages et écran des droits (réponse C) | Issue #280 ouverte. 8b = #294 et #303 (vague 5). La grille n'est modifiable que par le super_admin avec `AUTHZ_BACKEND` à `sql` ou `shadow` ; le défaut est `csv`, donc lecture seule. | 8a (réglages à l'écran) : aucune PR. Le serveur e-mail à l’écran, sorti par O le 17/11, est revenu dans 8a le 18/11 (B + 0,5). | B (API), F (écran), Q | déjà compté (lot 8 : 8a 3,5) | B du 25 au 30/11, F les 01 et 02/12, relecture de Q le 02/12, fusion le 03/12. |
 | Q13 : accès par l'étape de circuit (partie 13 b ; 13 a en V1.2 par le PO) | Issue #254 ouverte, sans PR. L'étiquette `v1.2` vise la partie 13 a seulement. | Un EXISTS sur `WorkflowStep.assigned_to` dans `_in_perimeter`, `_can_read_document` et `visible_document_scope` : lecture seule, borné au tenant, accès gardé après l'étape. Après #247 et #263. | B, Q | déjà compté (B 1,5, lot 11) | B les 26 et 27/11, relecture de Q le 30/11, fusion le 01/12. |
-| Issues V1.1 sans PR de l'ancien squelette | #204, #214, #215 et #216 : OPEN le 18/11. | Une PR chacune, ou la preuve qu'une PR existante les couvre (#215 par #203, #216 par #222). | B (à confirmer par O) | à chiffrer par B | Réponse de B avant le 24/11. |
+| Issues V1.1 sans PR de l'ancien squelette | #204, #214, #215 et #216 : OPEN le 18/11. **Réponse de B (18/11)** : #214 se ferme à la fusion de #224, #215 à celle de #241, #216 à celle de #222. | #204 (suite TOTP de #193) n'a pas de PR. #193 est en V1.1 (vague 4), donc #204 aussi, après #193 et #219. | B, Q | #204 à chiffrer par B | PR de B après #219 ; relecture de Q (auth). |
 
 ## Limites connues (à reprendre des notes rc.1, puis à mettre à jour)
 
