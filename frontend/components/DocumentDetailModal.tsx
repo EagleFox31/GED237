@@ -237,7 +237,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-slate-400 font-medium">Propriétaire</p>
-                      <p className="font-bold text-slate-700">{document.owner_name || document.owner_id}</p>
+                      <p className="font-bold text-slate-700">{document.owner_name || 'Non renseigné'}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 font-medium">Date de création</p>
