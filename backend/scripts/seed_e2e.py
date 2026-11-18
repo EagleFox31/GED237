@@ -305,6 +305,9 @@ class Seeder:
     # ── documents ───────────────────────────────────────────────────────────
     async def documents(self, items: list[dict]) -> None:
         storage = get_storage_service()
+        # Every reading state is checked first: a bad manifest writes no file at all.
+        for item in items:
+            ocr_state(item["code"], item.get("ocr"))
         for item in items:
             code = item["code"]
             existing = (
@@ -326,7 +329,6 @@ class Seeder:
         category = await self.by_code(DocumentCategory, item["category"])
         directory = f"{self.tenant.id}/{owner.org_unit_id}"
         filename = f"{item['code'].lower()}.pdf"
-        # Validated before any file is written: a bad manifest leaves nothing behind.
         ocr_content, ocr_extra = ocr_state(item["code"], item.get("ocr"))
 
         document = None
