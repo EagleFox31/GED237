@@ -131,7 +131,7 @@ export class UatApi {
   }
 
   /** Uploads a text file; `content` must be unique per run (the tenant rejects duplicate checksums). */
-  async uploadDocument(fileName: string, title: string, content: string, orgUnitId?: string): Promise<UploadedDocument> {
+  async uploadDocument(fileName: string, title: string, content: string, orgUnitId?: string | null): Promise<UploadedDocument> {
     return ok(
       await this.request.post(`${API_URL}/documents/upload`, {
         headers: this.headers,

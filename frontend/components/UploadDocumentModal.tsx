@@ -2,6 +2,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
+import { nextTitle, uploadErrorMessage } from '../lib/uploadFeedback';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 
 interface UploadDocumentModalProps {
@@ -12,6 +13,7 @@ interface UploadDocumentModalProps {
 const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess }) => {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [titleEditedByHand, setTitleEditedByHand] = useState(false);
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
@@ -29,10 +31,8 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
   const handleFile = (f: File | null) => {
     if (!f) return;
     setFile(f);
-    // Pré-remplir le titre avec le nom de fichier (sans extension)
-    if (!title) {
-      setTitle(f.name.replace(/\.[^/.]+$/, ''));
-    }
+    // Le titre suit le fichier, sauf s'il a été saisi à la main.
+    setTitle(nextTitle(title, titleEditedByHand, f.name));
     setError(null);
   };
 
@@ -41,7 +41,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped) handleFile(dropped);
-  }, [title]);
+  }, [title, titleEditedByHand]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,13 +71,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
       const doc = await api.uploadDocument(formData) as Document;
       onSuccess(doc);
     } catch (err: any) {
-      if (err?.status === 409) {
-        setError('Un fichier identique existe déjà dans votre espace. Vérifiez vos doublons avant de réessayer.');
-      } else if (err?.status === 400) {
-        setError('Données invalides. Vérifiez le titre et la catégorie.');
-      } else {
-        setError("L'envoi a échoué. Vérifiez votre connexion et réessayez.");
-      }
+      setError(uploadErrorMessage(err?.status, err?.userMessage ?? err?.message));
     } finally {
       setIsLoading(false);
     }
@@ -200,7 +194,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setTitleEditedByHand(e.target.value !== ''); }}
               placeholder="Nom du document..."
               maxLength={200}
               className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
