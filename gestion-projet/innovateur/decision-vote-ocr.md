@@ -107,6 +107,22 @@ Pourquoi ce choix : il est réversible, il ne demande aucun code après le gel, 
 
 | Variante | C1 gain sur les pages difficiles | C2 propre et bruité (rappel, précision) | C3 s/page VPS | C4 pic Mo | C5 tests | Verdict |
 |---|---|---|---|---|---|---|
-| A (page) | | | | | | |
-| B (mot) | | | | | | |
-| C (3 voix) | | | | | | |
+| A (page) | +0,0 pt (0,929 vs 0,929 RapidOCR seul) : échec | propre 0,930/0,934, bruité 0,920/0,929 (identique RapidOCR) : OK | local 25-29 s/page (charge parallèle), VPS non mesuré | 795 (cgroup, 3 moteurs) : OK | non lancés | Rejetée : C1 |
+| B (mot) | +0,6 pt (0,935) : échec | propre 0,950/0,697, bruité 0,950/0,677 (précision -24 à -26 pts) : échec | local 25-29 s/page, VPS non mesuré | 795 : OK | non lancés | Rejetée : C1 et C2 |
+| C (3 voix) | -15,1 pts (0,778) : échec (funsd 0,502 vs 0,749, photo-synth 0,830 vs 0,966) | propre 0,931/0,928, bruité 0,927/0,937 : OK | local 39-43 s/page, VPS non mesuré | 795 : OK | non lancés | Rejetée : C1 |
+
+Vérification de l'innovateur, le 18/11 : j'ai recalculé les chiffres à partir de `results6/vote.csv` (216 lignes), avec le `awk` du § 5.
+- **Pages difficiles** (photo, photo de synthèse et formulaires, rappel pondéré par mot) :
+  - RapidOCR seul : 0,929 ;
+  - A : 0,929 ;
+  - B : 0,935 ;
+  - C : 0,778.
+- **Précision de B** : 0,697 sur les pages propres et 0,677 sur les pages bruitées, contre 0,934 et 0,929 pour RapidOCR seul. Soit −24 et −25 points.
+- **Pic mémoire** : 794,7 Mo mesurés par le cgroup (818 Mo en RSS).
+
+Les chiffres du tableau sont confirmés.
+
+**Décision prise (O, le 18/11)** : aucune variante ne passe C1, donc pas de vote ni en V1.0 ni en V1.1.
+- On garde RapidOCR seul, avec repli sur Tesseract (C5).
+- Son entrée en V1.0 dépend toujours de l'étape 0 : PR verte avec l'OK de Q avant le 19/11 à 16:00.
+- On ne reconsidère le vote qu'avec un vrai corpus de photos, car le lot « photo » ne contenait qu'une seule image réelle (voir `plan-v1.2.md`).

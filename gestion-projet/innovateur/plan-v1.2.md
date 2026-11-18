@@ -102,3 +102,9 @@ Texte d'origine :
 2. **Droits propres à chaque institution** : une institution vous a-t-elle demandé des droits différents des autres ?
    - Si non, on ne le fait pas : les droits restent communs et réglés par l'administrateur de la plateforme. Gain ≈ 5 h-s, dont 1,5 de Q.
    - Si oui, dites laquelle et pour quel rôle : on vise juste.
+
+## Vote OCR à plusieurs moteurs : reporté (décision d'O du 18/11)
+
+- **Écarté en V1.0 et en V1.1** : aucune des trois variantes du banc v3 ne gagne au moins 3 points de rappel sur les pages difficiles par rapport à RapidOCR seul (`decision-vote-ocr.md` § 5).
+- **Condition pour le reconsidérer** : un vrai corpus de photos prises au téléphone sur des documents de l'administration. Le lot « photo » du banc ne contenait qu'une image réelle, les cinq autres étaient synthétiques.
+- **Ce qui reste** : RapidOCR seul, avec repli sur Tesseract.
