@@ -1,0 +1,14 @@
+# Charge V1.1 (h-s). Source du tableau de plan-v1.1.md ; recalcul : gestion-projet/outils/charges.sh
+# Capacités : cas du 05/12 (DEC-2026-008).
+cap;B;41,5
+cap;F;32
+cap;Q;37,75
+cap;aide-api;35
+# Socle au 18/11 au soir (plan-v1.1.md, § « Cas retenu par O »), avant le Lot 14.
+ch;socle 18/11;B;38,8
+ch;socle 18/11;F;31,25
+ch;socle 18/11;Q;34,3
+ch;socle 18/11;aide-api;33;35
+# Audit UX Lot 14 (19/11)
+ch;57 L14-1;Q;0,5
+ch;57 L14-2;B;0,75
