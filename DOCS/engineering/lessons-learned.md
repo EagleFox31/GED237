@@ -747,6 +747,20 @@ première requête utilisateur.
 **Prévention** — Tests : réglage à `false`, EasyOCR n'est jamais appelé (images et pages de PDF) ; à `true`, le comportement précédent est inchangé.
 **Leçon généralisée** — Un repli plus lourd que le chemin principal doit être configurable et borné par la mémoire disponible ; ne jamais le laisser remplacer un résultat déjà exploitable au risque de tuer la tâche. La perte d'une tâche tuée (pas d'`acks_late`) reste à traiter en V1.1.
 
+### LESSON-2026-059 — Modèles chargés à la première inférence : un build « réussi » n'embarquait pas les modèles attendus
+
+- **Date :** 2026-11-18
+- **Catégorie :** build / ocr
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/rapidocr_params.py` (`download_models`), `backend/app/services/ocr/rapidocr_engine.py`, `backend/Dockerfile`, `backend/tests/services/test_rapidocr_engine.py`
+
+**Contexte** — RapidOCR devait être livré avec ses modèles PP-OCRv5 latin dans l'image, sans téléchargement à l'exécution (hors ligne).
+**Échec / near miss** — Le premier build instanciait seulement le moteur : dossier de modèles vide (la version 3.10.0 charge chaque modèle à la première inférence, et le recognizer seulement si du texte est détecté). Les fichiers `.onnx` visibles dans le paquet étaient les modèles PP-OCRv6 intégrés à la roue, pas ceux choisis. L'étape de contrôle du Dockerfile a arrêté le build ; sans elle, le moteur aurait téléchargé au premier appel en production.
+**Cause racine** — Hypothèse non vérifiée : « instancier = télécharger ». Les paramètres de version n'étaient posés que pour le recognizer ; le détecteur gardait la version par défaut.
+**Résolution** — `download_models()` exécute une inférence sur une image contenant du texte, pour forcer les deux téléchargements ; versions et type de modèle posés pour le détecteur et le recognizer ; le build vérifie la présence du modèle latin.
+**Prévention** — Contrôle de présence dans le Dockerfile (`ls | grep -i latin`) ; essai réel avec `--network none` ; test unitaire de l'absence de modèle (moteur indisponible, aucun accès réseau).
+**Leçon généralisée** — Pour toute bibliothèque qui télécharge ses modèles, forcer l'usage réel au build et prouver l'absence de réseau à l'exécution. Mesurer la mémoire par le pic du conteneur (`memory.peak`) et régler la taille d'entrée en conséquence : 2000 px donnait 755 à 895 Mo, 1600 px 609 à 695 Mo, 1800 px 626 Mo (défaut retenu après le banc de Q : rappel -0,64 point par rapport à 2000).
+
 ### LESSON-2026-060 — Tâche OCR acquittée à la réception : un worker tué emportait le travail, le document restait « en traitement »
 
 - **Date :** 2026-11-20
