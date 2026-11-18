@@ -2,7 +2,7 @@
 
 Ces brouillons iront dans `DOCS/engineering/lessons-learned.md` **après la coupe du 19/11, pas avant**. Ils suivent le même format que ce fichier.
 
-Numéros (renumérotés le 18/11 à 15:15 ; 063 et 064 ajoutés le 18/11, source F, aucune branche distante ne les prend) : `main` s'arrête à 057 (#358 et #360 fusionnées). Les PR ouvertes de B prennent 058 (#365, repli OCR), 059 (#368, RapidOCR) et 060 (#370, robustesse OCR). Ces brouillons prennent donc **061 et 062**, après vérification sur toutes les branches distantes et les PR ouvertes. Il faut les revérifier au moment de l'insertion. La leçon sur le repli OCR est celle de #365 : pas de brouillon en double ici.
+Numéros (renumérotés le 18/11 à 15:15 ; 063 et 064 ajoutés le 18/11, source F ; 065 ajouté le 18/11, source O ; aucune branche distante ne les prend) : `main` s'arrête à 057 (#358 et #360 fusionnées). Les PR ouvertes de B prennent 058 (#365, repli OCR), 059 (#368, RapidOCR) et 060 (#370, robustesse OCR). Ces brouillons prennent donc **061 et 062**, après vérification sur toutes les branches distantes et les PR ouvertes. Il faut les revérifier au moment de l'insertion. La leçon sur le repli OCR est celle de #365 : pas de brouillon en double ici.
 
 ### LESSON-2026-061 — PR de base entrée dans la file alors que trois PR la ciblaient encore
 
@@ -82,3 +82,35 @@ Numéros (renumérotés le 18/11 à 15:15 ; 063 et 064 ajoutés le 18/11, source
 2. En fin de passe, on compare le nombre d'éléments traités au nombre de lignes de la table. Un écart fait échouer le script.
 3. Contrôle vérifiable : une table de 5 lignes factices avec un corps qui appelle `docker compose exec` doit afficher 5 traitements.
 **Leçon généralisée** — Une boucle qui se termine sans erreur n'a pas forcément tout traité. Toute boucle d'outillage compte ses éléments et isole son entrée standard des commandes qu'elle appelle.
+
+### LESSON-2026-065 — Réglage ajouté au code et à la doc, mais jamais transmis par Docker (deux fois le 18/11)
+
+- **Date :** 2026-11-18
+- **Catégorie :** configuration / déploiement Docker
+- **Statut :** proposed (test CI à attribuer par O après le tag, V1.1)
+- **Liens :** PR #378 (`VITE_DEMO_PROFILES`), PR #383 (`AUDIT_EXPORT_MAX_ROWS`), `backend/app/core/config.py`, `docker-compose.yml`, `.env.example` racine, mémoire « grille de relecture Q » (compose et `.env.example`)
+
+**Contexte** — Les services `api` et `worker` de `docker-compose.yml` ont un bloc `environment` explicite. Une variable du `.env` n'atteint donc le conteneur que si le compose la cite. Côté frontend, une variable `VITE_*` est figée au build : elle doit être déclarée en `ARG` dans le Dockerfile et passée par `build.args` dans le compose. Sur `main`, `Settings` compte 45 champs et le `.env.example` racine 11 variables.
+**Échec / near miss** — La même erreur est arrivée deux fois dans la journée :
+- #378 : `VITE_DEMO_PROFILES` a été ajoutée au code sans être passée au Dockerfile ni au compose ;
+- #383 : `AUDIT_EXPORT_MAX_ROWS` a été ajoutée à `Settings` sans être reprise dans le bloc `environment` du service `api` ni dans le `.env.example` racine.
+Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Docker. L'application tourne avec la valeur par défaut, sans erreur ni avertissement.
+**Cause racine** — Ajouter un réglage touche trois ou quatre fichiers (code, `.env.example`, compose, Dockerfile pour `VITE_*`). Rien ne relie ces fichiers. Les tests tournent hors Docker ou avec la valeur par défaut, donc ils restent verts. La seule barrière était la relecture : la grille de Q cite bien compose et `.env.example`, mais à la main.
+**Classification** — Configuration ; défaut silencieux, attrapé en relecture avant la fusion ; **répété deux fois le même jour**. Une checklist existait déjà : il faut un contrôle automatique.
+**Résolution** — Les deux PR sont à corriger avant leur fusion (#378 et #383 étaient ouvertes le 18/11) : variable reprise dans le compose et, selon le cas, dans le `.env.example` racine et le Dockerfile.
+**Prévention** — Un test CI (V1.1), appelé par exemple « parité de configuration » :
+1. **Inventaire** :
+   - lire les champs de `Settings` dans `backend/app/core/config.py`, par analyse statique, sans importer l'application ;
+   - lire les `import.meta.env.VITE_*` utilisés dans `frontend/`.
+2. **Contrôles** :
+   - chaque champ `Settings` est présent dans le `.env.example` racine et transmis par le compose au service qui le lit (`api` ou `worker`, ou les deux) ;
+   - chaque `VITE_*` est présent dans le `.env.example`, déclaré en `ARG` dans le Dockerfile du frontend et passé par `build.args` dans le compose.
+3. **Exceptions explicites** : un fichier versionné, une ligne par variable avec sa raison. Exemples : réglage interne à valeur fixe, variable fournie par la plateforme, variable propre aux tests. Une exception sans raison fait échouer le test.
+4. **Reprise de l'existant** : au premier passage, les écarts actuels (environ 34 champs `Settings` absents du `.env.example`) sont triés un par un. Chacun est ajouté au compose et au `.env.example`, ou passe en exception justifiée. On ne met pas d'exception en masse sans tri.
+5. **Périmètre d'exécution** : le test est un gate de la carte d'impact. Il se déclenche sur `config.py`, `docker-compose*.yml`, `.env.example`, le Dockerfile du frontend et tout fichier du frontend qui lit `import.meta.env`. Il tourne aussi en pre-commit, car il est rapide et ne dépend pas de Docker.
+6. **Preuve que le test fonctionne** : un cas qui ajoute un champ factice à `Settings` sans le compose doit échouer, avec un message qui nomme la variable et le fichier à compléter.
+**Coût estimé** : 4 h-s, à confirmer par le porteur.
+- B : 2,5 h-s (script et analyse de `Settings` et du compose : 1,5 ; tri des écarts existants : 1).
+- Q : 1 h-s (cas négatifs, branchement dans la CI, carte d'impact et pre-commit).
+- I : 0,5 h-s (relecture des exceptions).
+**Leçon généralisée** — Un réglage existe pour l'utilisateur seulement s'il traverse tous les fichiers qui le transportent jusqu'au conteneur. Quand une erreur de liaison entre fichiers se répète, la checklist ne suffit plus : un test qui compare ces fichiers et n'accepte que des exceptions écrites doit la remplacer.
