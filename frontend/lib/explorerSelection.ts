@@ -72,23 +72,34 @@ export interface BulkActionSummary {
   failures: BulkItemFailure[];
 }
 
+/** Shown when the server refuses an item: raw error messages never reach the screen. */
+export const BULK_REFUSED_REASON = 'refusé';
+
+/**
+ * Runs ``action`` on each item, one at a time. ``skipReason`` lets the caller set aside
+ * an item without calling the server (e.g. a status the action does not accept);
+ * the reason it returns is shown as is, so it must be plain French.
+ */
 export async function runBulkExplorerAction<T extends { id: string }>(
   items: T[],
   getLabel: (item: T) => string,
   action: (item: T) => Promise<void>,
+  skipReason: (item: T) => string | null = () => null,
 ): Promise<BulkActionSummary> {
   const succeededIds: string[] = [];
   const failures: BulkItemFailure[] = [];
 
   for (const item of items) {
+    const skipped = skipReason(item);
+    if (skipped) {
+      failures.push({ id: item.id, label: getLabel(item), reason: skipped });
+      continue;
+    }
     try {
       await action(item);
       succeededIds.push(item.id);
-    } catch (err) {
-      const reason = err instanceof Error && err.message.trim()
-        ? err.message.trim()
-        : 'Échec de l’opération';
-      failures.push({ id: item.id, label: getLabel(item), reason });
+    } catch {
+      failures.push({ id: item.id, label: getLabel(item), reason: BULK_REFUSED_REASON });
     }
   }
 
@@ -107,8 +118,9 @@ export function formatBulkSummaryMessage(
   const failedList = summary.failures
     .map((f) => `${f.label} (${f.reason})`)
     .join(', ');
+  const failed = `${failCount} impossible${failCount > 1 ? 's' : ''} : ${failedList}`;
   if (okCount === 0) {
-    return `${failCount} échec${failCount > 1 ? 's' : ''} : ${failedList}`;
+    return failed;
   }
-  return `${okCount} ${actionVerb}${okCount > 1 ? 's' : ''}, ${failCount} échec${failCount > 1 ? 's' : ''} : ${failedList}`;
+  return `${okCount} ${actionVerb}${okCount > 1 ? 's' : ''}, ${failed}`;
 }

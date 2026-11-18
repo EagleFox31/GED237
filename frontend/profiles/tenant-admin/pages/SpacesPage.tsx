@@ -16,6 +16,12 @@ import {
   runBulkExplorerAction,
   selectAllExplorerIds,
 } from '../../../lib/explorerSelection';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
+import { ARCHIVABLE_STATUSES } from '../../../components/DocumentDetailModal';
+
+// Bulk actions show one summary: business refusals stay out of the global error toasts.
+const BULK_QUIET = { handledStatuses: [400, 403, 404, 409, 422] } as const;
+const formatDocumentCount = (n: number) => `${n} document${n > 1 ? 's' : ''}`;
 
 interface UserNode {
   id: string;
@@ -438,6 +444,7 @@ const SpacesPage: React.FC = () => {
   const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [bulkSummary, setBulkSummary] = useState<string | null>(null);
+  const [confirmBulkArchive, setConfirmBulkArchive] = useState(false);
 
   useEffect(() => {
     setSelectedDocIds([]);
@@ -473,7 +480,7 @@ const SpacesPage: React.FC = () => {
         selectedDocuments,
         (doc) => doc.title,
         async (doc) => {
-          const blob = await api.getDocumentContentBlob(doc.id, 'attachment');
+          const blob = await api.getDocumentContentBlob(doc.id, 'attachment', BULK_QUIET);
           const url = URL.createObjectURL(blob);
           const link = window.document.createElement('a');
           link.href = url;
@@ -491,6 +498,7 @@ const SpacesPage: React.FC = () => {
   };
 
   const handleBulkArchive = async () => {
+    setConfirmBulkArchive(false);
     if (selectedDocuments.length === 0 || bulkProcessing) return;
     setBulkProcessing(true);
     setBulkSummary(null);
@@ -499,9 +507,11 @@ const SpacesPage: React.FC = () => {
         selectedDocuments,
         (doc) => doc.title,
         async (doc) => {
-          const updated = await api.updateDocument(doc.id, { status: 'archived' });
+          const updated = await api.updateDocument(doc.id, { status: 'archived' }, BULK_QUIET);
           setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, ...updated } : d)));
         },
+        // Same rule as the document sheet: only validated or signed documents are archived.
+        (doc) => (ARCHIVABLE_STATUSES.has(doc.status) ? null : getStatusLabel(doc.status).toLowerCase()),
       );
       setBulkSummary(formatBulkSummaryMessage('archivé', summary));
     } finally {
@@ -1032,7 +1042,7 @@ const SpacesPage: React.FC = () => {
                       <button
                         type="button"
                         disabled={bulkProcessing}
-                        onClick={() => { void handleBulkArchive(); }}
+                        onClick={() => setConfirmBulkArchive(true)}
                         className="rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
                       >
                         Archiver la sélection
@@ -1469,6 +1479,16 @@ const SpacesPage: React.FC = () => {
           setDocumentToClassify(null);
           loadDocuments();
         }}
+      />
+
+      <ConfirmationModal
+        open={confirmBulkArchive}
+        title={`Archiver ${formatDocumentCount(selectedDocuments.length)} ?`}
+        message="Seuls les documents validés ou signés seront archivés. Ils ne pourront plus être effacés de la corbeille."
+        icon="inventory_2"
+        confirmLabel="Oui, archiver"
+        onConfirm={() => { void handleBulkArchive(); }}
+        onCancel={() => setConfirmBulkArchive(false)}
       />
     </div>
   );

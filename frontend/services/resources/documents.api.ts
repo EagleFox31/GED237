@@ -4,7 +4,7 @@
 //           audit logs, ingestion répertoire, démarrage workflow).
 // SRP : change uniquement si le contrat /documents/* ou /classification-reviews/* évolue.
 
-import { apiCall, apiCallVoid, apiCallBlob } from '../http/client';
+import { apiCall, apiCallVoid, apiCallBlob, type ApiCallOptions } from '../http/client';
 import type {
     Document,
     ClassificationReview,
@@ -88,18 +88,22 @@ export const documentsApi = {
     getDocumentContentBlob: (
         id: string,
         disposition: 'inline' | 'attachment' = 'inline',
+        options?: ApiCallOptions,
     ): Promise<Blob> =>
         apiCallBlob(
             `/documents/${id}/content?disposition=${disposition}`,
             {},
             'Téléchargement du contenu impossible',
+            options,
         ),
 
-    updateDocument: (id: string, data: Partial<Document>): Promise<Document> =>
+    // options.handledStatuses: a caller that shows its own summary (bulk actions) silences the global toast.
+    updateDocument: (id: string, data: Partial<Document>, options?: ApiCallOptions): Promise<Document> =>
         apiCall<Document>(
             `/documents/${id}`,
             { method: 'PATCH', body: JSON.stringify(data) },
             'Mise à jour du document impossible',
+            options,
         ),
 
     deleteDocument: async (id: string): Promise<true> => {

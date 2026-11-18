@@ -16,6 +16,8 @@ test.describe('Explorateur — sélection multiple (#150)', () => {
 
     await loginAs('tenant_admin');
     await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
+    // The explorer opens in the icons view: rows only exist in the details view.
+    await page.getByRole('button', { name: /Détails$/ }).click();
 
     const r1 = page.getByRole('row', { name: new RegExp(t1) });
     const r2 = page.getByRole('row', { name: new RegExp(t2) });
@@ -37,8 +39,14 @@ test.describe('Explorateur — sélection multiple (#150)', () => {
     await page.keyboard.press('Control+a');
     await expect(page.getByText('3 sélectionnés')).toBeVisible();
 
-    // Les brouillons ne peuvent pas être archivés : l'action groupée doit afficher le bilan des échecs.
+    // Archiving asks first, with the count.
     await page.getByRole('button', { name: 'Archiver la sélection' }).click();
-    await expect(page.getByTestId('explorer-bulk-summary')).toContainText('échec');
+    await expect(page.getByText('Archiver 3 documents ?')).toBeVisible();
+    await page.getByRole('button', { name: 'Oui, archiver' }).click();
+
+    // Drafts cannot be archived: one summary, in plain French, with the reason.
+    const summary = page.getByTestId('explorer-bulk-summary');
+    await expect(summary).toContainText('3 impossibles');
+    await expect(summary).toContainText(`${t1} (brouillon)`);
   });
 });

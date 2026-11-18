@@ -62,22 +62,30 @@ test.describe('Sélection multiple dans l explorateur (#150)', () => {
 
     const docs = [
       { id: '1', title: 'Note A' },
-      { id: '2', title: 'Brouillon B' },
+      { id: '2', title: 'Brouillon B', status: 'brouillon' },
       { id: '3', title: 'Note C' },
+      { id: '4', title: 'Note D' },
     ];
+    const called: string[] = [];
     const summary = await runBulkExplorerAction(
       docs,
       (d) => d.title,
       async (d) => {
-        if (d.id === '2') throw new Error('Statut non archivable');
+        called.push(d.id);
+        if (d.id === '4') throw new Error('Internal Server Error: stack trace');
       },
+      (d) => d.status ?? null,
     );
+    // A set-aside item never reaches the server.
+    expect(called).toEqual(['1', '3', '4']);
     expect(summary.succeededIds).toEqual(['1', '3']);
     expect(summary.failures).toEqual([
-      { id: '2', label: 'Brouillon B', reason: 'Statut non archivable' },
+      { id: '2', label: 'Brouillon B', reason: 'brouillon' },
+      { id: '4', label: 'Note D', reason: 'refusé' },
     ]);
-    expect(formatBulkSummaryMessage('archivé', summary)).toBe(
-      '2 archivés, 1 échec : Brouillon B (Statut non archivable)',
-    );
+    // Plain French only: the raw server message never shows.
+    const message = formatBulkSummaryMessage('archivé', summary);
+    expect(message).toBe('2 archivés, 2 impossibles : Brouillon B (brouillon), Note D (refusé)');
+    expect(message).not.toContain('Internal');
   });
 });

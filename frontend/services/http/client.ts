@@ -132,6 +132,7 @@ export const apiCallBlob = async (
     path: string,
     init: RequestInit = {},
     fallback = 'Téléchargement impossible',
+    options: ApiCallOptions = {},
 ): Promise<Blob> => {
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
         ...init,
@@ -140,7 +141,7 @@ export const apiCallBlob = async (
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     });
-    if (!response.ok) throw await buildApiError(response, fallback);
+    if (!response.ok) throw await buildApiError(response, fallback, options.handledStatuses);
     return response.blob();
 };
 

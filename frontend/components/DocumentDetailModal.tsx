@@ -12,7 +12,7 @@ import { downloadName } from '../lib/downloadName';
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
 export const CAN_ARCHIVE_DOCUMENT = new Set(['super', 'tenant']);
 // Statuts de départ acceptés par l'API (ARCHIVABLE_SOURCE_STATUSES) ; sinon 409.
-const ARCHIVABLE_STATUSES = new Set(['validated', 'signed']);
+export const ARCHIVABLE_STATUSES: ReadonlySet<string> = new Set(['validated', 'signed']);
 
 interface DocumentDetailModalProps {
   document: Document;
