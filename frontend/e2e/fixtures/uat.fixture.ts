@@ -131,12 +131,13 @@ export class UatApi {
   }
 
   /** Uploads a text file; `content` must be unique per run (the tenant rejects duplicate checksums). */
-  async uploadDocument(fileName: string, title: string, content: string): Promise<UploadedDocument> {
+  async uploadDocument(fileName: string, title: string, content: string, orgUnitId?: string): Promise<UploadedDocument> {
     return ok(
       await this.request.post(`${API_URL}/documents/upload`, {
         headers: this.headers,
         multipart: {
           title,
+          ...(orgUnitId ? { org_unit_id: orgUnitId } : {}),
           file: { name: fileName, mimeType: 'text/plain', buffer: Buffer.from(content, 'utf-8') },
         },
       }),
@@ -189,7 +190,7 @@ export class UatApi {
   }
 
   /** Profile of the authenticated user (used to address a workflow step to a seeded manager). */
-  async me(): Promise<{ id: string; matricule: string; tenant_id: string }> {
+  async me(): Promise<{ id: string; matricule: string; tenant_id: string; org_unit_id: string | null }> {
     return ok(await this.request.get(`${API_URL}/users/me`, { headers: this.headers }), 'users/me');
   }
 

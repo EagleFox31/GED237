@@ -141,12 +141,22 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     }
   });
 
-  test('5 bis. La fiche ouverte depuis la bibliothèque du lecteur est en lecture seule (#334)', async ({ page, loginAs, adminApi, runId }) => {
-    const doc = await adminApi.uploadDocument(`lecture-${runId}.txt`, `Lecture ${runId}`, `Lecture ${runId}`);
+  test('5 bis. La fiche ouverte depuis la bibliothèque du lecteur est en lecture seule (#334)', async ({ page, loginAs, request, adminApi, runId }) => {
+    // La bibliothèque du lecteur liste les documents validés de son service : dépôt dans ce service, puis visa.
+    const reader: UatApi = await apiAs(request, 'reader');
+    const { org_unit_id: readerUnit } = await reader.me();
+    if (!readerUnit) throw new Error('lecteur sans service');
+    const doc = await adminApi.uploadDocument(`lecture-${runId}.txt`, `Lecture ${runId}`, `Lecture ${runId}`, readerUnit);
+    const [step] = await adminApi.submitForVisa(doc.id, (await adminApi.me()).id, 'Visa lecture');
+    const { current_version_id: versionId } = await adminApi.getDocument(doc.id);
+    if (!step || !versionId) throw new Error('circuit ou version absent');
+    await adminApi.acceptVisa(step.id, versionId);
+    await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('validated');
+
     await loginAs('reader');
     await page.goto(`documents?q=${encodeURIComponent(runId)}`);
     const card = page.locator('.grid > div').filter({ hasText: `Lecture ${runId}` });
-    test.skip((await card.count()) === 0, `document ${doc.id} hors du périmètre du lecteur sur cette pile`);
+    await expect(card.first()).toBeVisible({ timeout: 15_000 });
     await card.first().click();
     await expect(page.getByRole('button', { name: /Archiver|Supprimer|Modifier/ })).toHaveCount(0);
   });
