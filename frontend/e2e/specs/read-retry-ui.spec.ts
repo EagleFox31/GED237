@@ -9,7 +9,8 @@ import { test, expect } from '../fixtures/auth.fixture';
 const REAL_API = process.env.E2E_READ_RETRY_REAL === '1';
 const TITLE = '[E2E] Lecture en échec';
 
-const doc = (ocr_status: string, can_update: boolean | undefined = true) => ({
+// null = champ can_update absent de la réponse (undefined retomberait sur la valeur par défaut true).
+const doc = (ocr_status: string, can_update: boolean | null = true) => ({
   id: '11111111-1111-4111-8111-111111111111',
   title: TITLE,
   tenant_id: '22222222-2222-4222-8222-222222222222',
@@ -29,10 +30,10 @@ const doc = (ocr_status: string, can_update: boolean | undefined = true) => ({
   created_at: '2026-11-01T10:00:00Z',
   updated_at: '2026-11-01T10:00:00Z',
   ocr_status,
-  ...(can_update === undefined ? {} : { can_update }),
+  ...(can_update === null ? {} : { can_update }),
 });
 
-async function mockDocuments(page: Page, ocrStatus: string, retryStatus: number, canUpdate: boolean | undefined = true): Promise<{ retries: number }> {
+async function mockDocuments(page: Page, ocrStatus: string, retryStatus: number, canUpdate: boolean | null = true): Promise<{ retries: number }> {
   const state = { retries: 0 };
   if (REAL_API) return state;
   await page.route(/\/api\/v1\/documents(\?.*)?$/, (route) =>
@@ -88,7 +89,7 @@ test.describe('Feature: lecture en échec', () => {
     await expect(page.getByRole('button', { name: 'Relancer la lecture' })).toHaveCount(0);
   });
 
-  for (const [label, canUpdate] of [['absent', undefined], ['faux', false]] as const) {
+  for (const [label, canUpdate] of [['absent', null], ['faux', false]] as const) {
     test(`Given can_update ${label}, When j'ouvre une lecture en échec, Then pas de bouton « Relancer la lecture »`, async ({ loginAs, page }) => {
       await mockDocuments(page, 'failed', 202, canUpdate);
       await loginAs('tenant_admin');
