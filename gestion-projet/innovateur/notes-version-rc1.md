@@ -1,7 +1,7 @@
 # Notes de version 1.0.0-rc.1, pour les utilisateurs
 
-- **Pour** : les agents, les responsables et le PO ; lu pendant la démonstration du 30/11.
-- **État** : brouillon du 18/11, établi sur `main` 2f15b6e (aucune fusion depuis). Mis à jour le 19 au soir avec les lots non fusionnés à 18:00.
+Ce qui change pour les agents et les responsables, en clair, et ce qu'on en dit pendant la démonstration du 30/11.
+- **Base** : `main` 2f15b6e (18/11). Les lots non fusionnés au 19/11 à 18:00 sont ajoutés le 19 au soir.
 - **Version technique** (numéros de PR, commandes) : `notes-version-v1.0.0-rc.1.md`. En cas d'écart, la version technique fait foi.
 - Chaque thème se termine par **la phrase à dire en démo**.
 
