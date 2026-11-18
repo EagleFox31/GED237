@@ -149,6 +149,8 @@ services:
       AUTH_LOCKOUT_SECONDS: "900"
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
+      # Live notifications: off (REST list only), local (one API instance) or redis.
+      NOTIFICATIONS_BROADCAST_MODE: ${NOTIFICATIONS_BROADCAST_MODE:-off}
     depends_on:
       postgres:
         condition: service_healthy
