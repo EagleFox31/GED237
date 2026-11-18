@@ -533,7 +533,7 @@ première requête utilisateur.
 
 - **Date :** 2026-11-17
 - **Catégorie :** testing
-- **Statut :** captured (contrôle appliqué aux captures ponctuelles ; aucun script versionné concerné)
+- **Statut :** prevention-added (#138 : script versionné `frontend/e2e/visual/`, garde `screen-guard.ts` et test qui la prouve)
 - **Liens :** PR #122 (migration Tailwind compilé), `frontend/components/Dashboard.tsx`, `frontend/App.tsx` (`ProfileDashboard`)
 
 **Contexte** — Pour vérifier #122 sans pile complète, les écrans login, dashboard et règles ont été comparés (build CDN vs build compilé) avec une API simulée répondant `{}` ou `[]` à toute requête, sur la base de styles calculés et de captures.
@@ -612,3 +612,36 @@ première requête utilisateur.
 **Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
 **Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
 **Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-051 — Clé de stockage dérivée du nom de fichier : un dépôt de même nom écrasait un autre fichier
+
+- **Date :** 2026-11-18
+- **Catégorie :** data-loss / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/storage/base.py` (`unique_storage_name`), `local.py`, `s3.py`, `backend/tests/api/test_version_storage_keys.py`
+
+**Contexte** — `save_file_with_checksum` rangeait chaque dépôt sous `{tenant}/{unité}/{nom du fichier}`, en local comme en S3/MinIO.
+**Échec / near miss** — Relevé pendant le chantier de restauration de version (V1.2) : deux dépôts de même nom dans la même unité s'écrasaient. Une nouvelle version au nom identique détruisait les octets de la version précédente ; deux dépôts directs de même nom, ceux d'un autre document. Les branches « identique à la version courante » supprimaient ensuite le fichier partagé, donc la version courante elle-même.
+**Cause racine** — La clé de stockage venait d'une donnée utilisateur non unique (le nom), et aucun test ne déposait deux fois le même nom.
+**Résolution** — Clé `{uuid}_{nom}` (le motif de l'import) dans les deux backends, via un seul point (`unique_storage_name`). Aucune migration : les fichiers existants ne sont pas touchés.
+**Prévention** — Tests : même nom deux fois avec octets différents (deux chemins, deux lectures, sha256 = checksum), dépôt identique refusé sans perdre la version courante, retour à une ancienne version refusé, deux dépôts directs de même nom, clé S3 distincte.
+**Leçon généralisée** — Une clé de stockage ne se dérive jamais d'une donnée fournie par l'utilisateur sans élément unique. Tout stockage testé avec deux entrées de même nom, et toute suppression « de nettoyage » vérifie que le fichier n'est pas partagé.
+
+### LESSON-2026-052 — Disque C: saturé pendant une nuit de sessions parallèles : écritures et commits gelés
+
+- **Date :** 2026-11-18
+- **Catégorie :** infra / poste de développement
+- **Statut :** open
+- **Liens :** données Docker de WSL (`docker_data.vhdx`), scripts e2e, `images_export.sh`, builds compose. Numéro 051 laissé à la leçon en cours côté backend.
+
+**Contexte** — Cinq sessions de travail tournaient en parallèle sur un même poste au disque de 476 Go. Les données Docker vivent dans le disque virtuel de WSL (`docker_data.vhdx`). Vers 02:36, il ne restait plus que 0 à 300 Mo libres.
+**Échec / near miss** — Aucune perte constatée. Risques : objets git tronqués, base PostgreSQL abîmée en écriture, faux rouges en e2e. L'orchestration a gelé toute écriture locale et tout commit jusqu'au retour de l'espace.
+**Cause racine** — Personne ne surveille l'espace libre, et aucune tâche lourde (build, e2e, export d'images) ne le vérifie avant de démarrer. Le disque virtuel de WSL grossit et ne rend jamais la place : `docker system prune` libère de l'espace dans WSL, pas sur C:. S'y ajoutent les caches d'outils (paquets, navigateurs de test, compilations).
+**Classification** — Capacité de l'environnement ; near miss ; répétable tant que plusieurs piles tournent sur le même poste.
+**Résolution** — Place libérée par le PO sur le poste ; 49 Go libres (90 % utilisés) au contrôle du 18/11 au matin, au-dessus du seuil de 20 Go. Détail des éléments libérés : à compléter par le PO.
+**Prévention** —
+1. Garde réutilisable `scripts/ensure_free_space.sh`, seuil `MIN_FREE_GB` (20 par défaut). Elle contrôle le disque du dépôt et celui des données Docker, et elle est appelée par les scripts e2e, `images_export.sh` et les builds compose. En cas de refus, elle affiche un message qui dit quoi faire, et ne propose jamais `down -v`. Test : valeur simulée sous le seuil → code de sortie 1 ; au-dessus → 0. Porteur : backend, ≈ 0,25 h-s ; relecture : QA.
+2. `df -h` noté dans chaque passation et chaque point de reprise : alerte sous 50 Go, aucune charge lourde sous 20 Go.
+3. Le compactage de `docker_data.vhdx` est documenté comme une action du PO, jamais celle d'une session.
+4. Plafonds de journaux (`max-size`, `max-file`) vérifiés sur toutes les piles compose.
+**Leçon généralisée** — Une ressource partagée se vérifie avant chaque charge lourde. Une garde qui refuse coûte une ligne ; un disque plein coûte une nuit de travail gelée.

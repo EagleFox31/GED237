@@ -399,7 +399,6 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatFileSize(v.file_size)}</span>
-                    <button className="text-[10px] font-black text-rdpc-blue uppercase tracking-widest hover:underline">Télécharger</button>
                   </div>
                 </div>
               ))}
