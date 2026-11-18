@@ -75,7 +75,7 @@
 
 **Aujourd'hui** (`Mesuré`) : l'infrastructure existe mais **ne pousse rien**.
 - Serveur : modèle `Notification`, `InAppNotifier` qui enregistre en base, abonnés à `WORKFLOW_ASSIGNED` et `WORKFLOW_COMPLETED` (`services/notifications/listeners.py`), WebSocket `/notifications/ws` avec un gestionnaire de connexions (`endpoints/notifications.py`).
-- Mais **personne n'appelle** `send_personal_message` : une notification créée n'arrive en direct à personne ; elle n'apparaît qu'au rechargement de la liste.
+- Sur main, **personne n'appelle** `send_personal_message` : une notification créée n'apparaît qu'au rechargement de la liste. Le brouillon **#155** (B) corrige ce point : la notification est poussée après son enregistrement, dans la même forme qu'un élément de `GET /notifications/`. L'élément 23 s'appuie sur #155 et ne pousse rien lui-même. **#169** teste le jeton du WebSocket de bout en bout, mais ne couvre pas #316.
 - `WORKFLOW_ASSIGNED` est émis (`workflows.py` l. 229 et 533). **`WORKFLOW_COMPLETED` n'est émis nulle part** : le déposant n'est jamais prévenu du visa ou du rejet.
 - Aucun événement pour la bannette « à revoir ».
 - Navigateur : `useNotifications.ts` ouvre le WebSocket et ajoute en tête ce qu'il reçoit ; l'en-tête affiche le compteur de non-lus. Pas de reconnexion après une coupure, pas d'appel à l'API `Notification` du navigateur.
@@ -99,7 +99,7 @@
 
 **Points de vigilance** :
 - **Un seul processus d'API** aujourd'hui (`uvicorn` sans `--workers`) : un gestionnaire en mémoire suffit. Si une notification naît dans le worker Celery (import en tâche de fond) ou si l'API passe à plusieurs processus, il faut un relais par Redis (déjà présent, pas de nouvelle bibliothèque). `À vérifier` par B : où naissent les revues pendant un import.
-- **Jeton dans l'adresse du WebSocket** (`?token=`, `useNotifications.ts` l. 38) : il peut finir dans les journaux d'accès du relais. Existant, suivi par le ticket **#316** (security, v1.2) : ticket de courte durée ou jeton envoyé dans le premier message. **À traiter avant ou avec l'élément 23**, qui fait reposer davantage de trafic sur ce WebSocket.
+- **Jeton dans l'adresse du WebSocket** (`?token=`, `useNotifications.ts` l. 38) : il peut finir dans les journaux d'accès du relais. Existant, suivi par le ticket **#316** (security, v1.2) : ticket de courte durée ou jeton envoyé dans le premier message. **À traiter avec l'élément 23** : B fait le côté serveur (`POST /auth/ws-ticket`, ticket à usage unique valable 30 s, puis `?ticket=`), et I bascule le client dans l'élément 23. Les deux PR fusionnent ensemble.
 - HTTPS requis pour l'API `Notification` (même limite qu'à l'élément 21).
 - Isolation : le destinataire est résolu côté serveur, dans le `tenant_id` de l'événement ; jamais d'envoi à un identifiant fourni par le navigateur.
 
