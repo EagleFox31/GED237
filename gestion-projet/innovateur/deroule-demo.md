@@ -64,7 +64,7 @@ Les autres écarts se disent au bloc 15:00–17:00, jamais pendant un parcours. 
 | Un agent de la DAF voit-il les documents de la DRH ? | « Non : portée par service, étanchéité entre administrations, vous l'avez vu au P5. » | SC-SEC-01/02 (pas d'écart) |
 | Et si on supprime par erreur ? | « Corbeille puis restauration ; la purge est réservée à l'administrateur, et la restauration complète de la base a été rejouée deux fois, le 18 et le 20/11. » | écart 9 ; C7 |
 | Pourquoi pas Paperless ou Alfresco ? | « Paperless est fait pour un individu, sans service ni validation ; Alfresco exige une JVM et une équipe d'exploitation que le cahier des charges exclut. » | concurrents § 2 ; écarts 8/14/16 pour ce qu'ils font mieux |
-| L'OCR lit-il le manuscrit ou les scans dégradés ? | « L'imprimé oui ; un moteur plus léger pour les scans dégradés a été mesuré le 14/11, livraison V1.1. » | écart 14 (+ chiffre OCR-0 si bon, D3) |
+| L'OCR lit-il le manuscrit ou les scans dégradés ? | (18/11) « Le texte imprimé, oui, même en photo : c'est l'étape photo que vous venez de voir. Le manuscrit, non : il n'est pas couvert en V1. » | écart 14 ; banc de Q du 18/11 : sur le manuscrit photographié, 1 à 10 % des mots retrouvés |
 | Ces identifiants affichés à la connexion ? | « Volontaire pour la démo, retirés en V1.1 ; le code OTP reste obligatoire. » | écart 15 |
 | Combien de documents tient le système ? | « 420 aujourd'hui avec ces temps de réponse ; les 100 000 fichiers du cahier des charges sont mesurés en décembre sur un corpus étalon. » | écart 1 ; C3 du 27 |
 | Pourquoi pas de démo en ligne ? | « Décision du 9/11 : mêmes conteneurs que chez vous, aucune donnée exposée sur Internet. » | écart 5 ; `decision-po-vps-b6.md` |
@@ -79,6 +79,13 @@ Si la question porte sur un écart déjà dit : « c'est l'écart n° … annonc
 - Tenue de la session administrateur ouverte à H-5 (fenêtre B).
 - Mot-clé P5 et requête n° 10 identiques à celles de `c3-queries.txt` ; le chiffre C3 dit au jury est celui du 27 (`protocole-mesures-criteres.md`).
 - Captures du plan B regénérées depuis le run du 27, pas du 21.
+
+## Mise à jour du 18/11 (OCR et pile de démo)
+
+- **Étape photo** (5 bis, 1:00, prise sur les questions) : détail dans `scenario-demo-30-11.md` § 12. Elle n'est pas encore dans la chronologie du § 1 : à minuter à la répétition du 27.
+- **Moteur de lecture** : sur `main`, Tesseract par défaut, avec EasyOCR en secours. RapidOCR seulement s'il entre dans la rc.1 (PR prête le 19 à 16:00). Le moteur de la démo est fixé le 20 à 09:00 (fiche PO, questions 17 et 21).
+- **Pas de vote** entre plusieurs moteurs (décision d'O du 18/11, `decision-vote-ocr.md`).
+- **Pile** : la démo tourne sur la pile complète `docker-compose.yml`, qui a un worker et donc l'OCR. Elle ne tourne pas sur la pile e2e. La capture de secours de l'étape photo vient du test hors ligne du 25/11 (E6 bis), et non d'un run Playwright, parce que la pile e2e n'a pas de worker.
 
 ## Sources
 

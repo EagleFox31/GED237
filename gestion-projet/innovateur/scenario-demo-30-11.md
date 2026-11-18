@@ -257,6 +257,8 @@ Source : PR #334 (`fix/v10-role-home-dead-controls`, ouverte, commits 0a9655f, b
 
 Contexte (B, V1.0) : photos, captures et formulaires passent par RapidOCR v5 latin (image ramenée à 2000 px) ; les scans passent par Tesseract ; si RapidOCR échoue, Tesseract prend le relais. Mesures du banc de Q (18/11, part des mots retrouvés) : photo réelle d'un document imprimé 0,879 ; formulaires 0,743 ; manuscrit photographié 0,01 à 0,10.
 
+> **Mise à jour du 18/11** : RapidOCR n'est dans la rc.1 que si sa PR est verte et relue avant le 19 à 16:00. Sinon, la démo lit les photos avec Tesseract, le moteur par défaut sur `main`, avec EasyOCR en secours. Le moteur de la démo est fixé le 20 à 09:00 (fiche PO, questions 17 et 21). Pas de vote entre plusieurs moteurs (`decision-vote-ocr.md`).
+
 ### 12.1 Pile de démo et prérequis du worker
 
 La démo tourne sur la **pile complète `docker-compose.yml`** (`docker compose up -d`, puis le seed : `DOCS/exploitation/donnees-demo.md`), et non sur `docker-compose.e2e.yml`. Le test hors ligne du 25/11 (Q) porte sur cette même pile (décision de O du 18/11).
