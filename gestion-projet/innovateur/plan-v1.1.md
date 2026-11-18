@@ -271,3 +271,4 @@ B et F restent dans leur capacité. Avec la sortie de #278, Q revient à 22,0, s
 | **Total V1.1** | **≈ 22,4** | **≈ 17,25** | **≈ 20,25** | **0,5** | **≈ 60,4** |
 
 Q retrouve ≈ 1,75 h-s de marge avant 22. F reste dans sa capacité.
+- **Décision de O (18/11)** : #278 reste en V1.2. Les ≈ 1,75 h-s de marge de Q sont réservés aux relances d'e2e et au dépilage des PR empilées après le tag ; on n'y prend rien.
