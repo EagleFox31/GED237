@@ -1,7 +1,8 @@
-import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test, expect } from '../fixtures/auth.fixture';
 
 /**
- * #135 — « Débloquer » dans la fiche agent (Agents & rôles), projet chromium (session tenant_admin).
+ * #135 — « Débloquer » dans la fiche agent (Agents & rôles), session tenant_admin.
  *
  *   - UNLOCK-01 : compte non verrouillé, vrai serveur → POST /users/{id}/unlock, message « pas verrouillé ».
  *   - UNLOCK-02 : compte verrouillé (réponse serveur simulée) → message de succès.
@@ -12,13 +13,19 @@ import { test, expect } from '@playwright/test';
  */
 const AGENT = 'READ001';
 
-async function openAgent(page: import('@playwright/test').Page) {
+async function openAgent(page: Page) {
   await page.goto(`users?q=${AGENT}`);
-  await page.getByRole('button', { name: new RegExp(AGENT) }).first().click();
+  const row = page.getByRole('button', { name: new RegExp(AGENT) }).first();
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  await row.click();
   await expect(page.getByRole('button', { name: /Débloquer/ })).toBeVisible();
 }
 
 test.describe('Fiche agent : débloquer un compte (#135)', () => {
+  test.beforeEach(async ({ loginAs }) => {
+    await loginAs('tenant_admin');
+  });
+
   test('UNLOCK-01 — compte non verrouillé : le serveur le dit, rien ne change', async ({ page }) => {
     await openAgent(page);
     const call = page.waitForRequest((r) => r.method() === 'POST' && /\/users\/[^/]+\/unlock$/.test(r.url()));
