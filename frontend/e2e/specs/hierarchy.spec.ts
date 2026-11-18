@@ -4,7 +4,12 @@ import {
   chainEntries,
   errorStatus,
   hierarchyErrorMessage,
+  canExpand,
   teamCountLabel,
+  teamLevelLabel,
+  teamToggleLabel,
+  TEAM_DEPTH_MAX,
+  withoutAncestors,
   type HierarchyPerson,
 } from '../../lib/hierarchy';
 
@@ -48,5 +53,25 @@ test.describe('Rattachement : textes', () => {
     expect(hierarchyErrorMessage(404, 'self')).toBe('Rattachement indisponible pour le moment.');
     expect(errorStatus({ status: 404 })).toBe(404);
     expect(errorStatus(new Error('réseau'))).toBeUndefined();
+  });
+});
+
+test.describe('Mon équipe : niveaux N-2 et plus', () => {
+  test('libellés de niveau et de bouton', () => {
+    expect(teamLevelLabel(2)).toBe('N-2');
+    expect(teamToggleLabel('Awa Ndiaye', false)).toBe("Voir l'équipe de Awa Ndiaye");
+    expect(teamToggleLabel('Awa Ndiaye', true)).toBe("Replier l'équipe de Awa Ndiaye");
+  });
+
+  test('le dépliage s\'arrête à la profondeur maximale', () => {
+    expect(canExpand(1)).toBe(true);
+    expect(canExpand(TEAM_DEPTH_MAX - 1)).toBe(true);
+    expect(canExpand(TEAM_DEPTH_MAX)).toBe(false);
+  });
+
+  test('une boucle de rattachement ne redéplie pas un ancêtre déjà affiché', () => {
+    const team = [person(1), person(2), person(3)];
+    expect(withoutAncestors(team, ['id-2']).map((p) => p.id)).toEqual(['id-1', 'id-3']);
+    expect(withoutAncestors(team, [])).toHaveLength(3);
   });
 });

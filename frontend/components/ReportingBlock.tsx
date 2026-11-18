@@ -8,6 +8,7 @@ import {
   teamCountLabel,
   type HierarchyPerson,
 } from '../lib/hierarchy';
+import { TeamTree } from './TeamTree';
 
 interface ReportingBlockProps {
   userId: string;
@@ -42,7 +43,7 @@ const PersonName: React.FC<{ person: HierarchyPerson; onOpenUser?: (id: string) 
     <span className="font-semibold text-slate-800">{person.full_name}</span>
   );
 
-/** Bloc « Rattachement » : chaîne des chefs et équipe directe (N-1 seulement). */
+/** Bloc « Rattachement » : chaîne des chefs et équipe dépliable niveau par niveau (N-1, puis N-2 et plus au clic). */
 export const ReportingBlock: React.FC<ReportingBlockProps> = ({ userId, variant, onOpenUser, reloadKey = 0 }) => {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [expanded, setExpanded] = useState(false);
@@ -127,15 +128,12 @@ export const ReportingBlock: React.FC<ReportingBlockProps> = ({ userId, variant,
           {team.length === 0 ? (
             <p className="text-sm text-slate-600">Personne ne lui rend compte.</p>
           ) : (
-            <ul className="divide-y divide-slate-100 text-sm" data-testid="reporting-team">
-              {team.map((person) => (
-                <li key={person.id} className="py-2 flex flex-wrap items-baseline gap-x-3">
-                  <PersonName person={person} onOpenUser={onOpenUser} />
-                  <span className="text-slate-500">{person.matricule}</span>
-                  {person.role_label && <span className="text-slate-500">{person.role_label}</span>}
-                </li>
-              ))}
-            </ul>
+            <TeamTree
+              people={team}
+              depth={1}
+              ancestorIds={[userId]}
+              renderName={(person) => <PersonName person={person} onOpenUser={onOpenUser} />}
+            />
           )}
         </section>
       )}
