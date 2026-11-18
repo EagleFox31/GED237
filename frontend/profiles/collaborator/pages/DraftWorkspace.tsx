@@ -129,7 +129,7 @@ const DraftWorkspace: React.FC = () => {
       <div className="flex flex-wrap items-center gap-2 shrink-0" role="group" aria-label="Filtrer par statut">
         {(
           [
-            { id: 'draft', label: 'À soumettre', count: statusCounts.draft },
+            { id: 'draft', label: 'Brouillons', count: statusCounts.draft },
             { id: 'rejected', label: 'Rejetés', count: statusCounts.rejected },
             { id: 'all', label: 'Tous', count: statusCounts.all },
           ] as Array<{ id: DraftStatusFilter; label: string; count: number }>

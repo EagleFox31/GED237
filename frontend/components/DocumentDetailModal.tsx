@@ -238,7 +238,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 </button>
               </>
             )}
-            <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all" aria-label="Fermer la fiche">
+            <button type="button" onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-slate-400">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
