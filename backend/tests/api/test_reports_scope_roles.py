@@ -2,12 +2,15 @@
 
 One rule (``resolve_report_scope``) for every ``/reports/*`` route and every
 counter of their answers. Tree used here, in the seeded institution:
-A (seeded unit) > A1, and B, a sibling of A.
+A (seeded unit) > A1, and B, a sibling of A. A unit-scoped role may aim at its
+own unit or one of its sub-units, never above or beside it (#191).
 """
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 
 from app.core.security import hash_password
 from app.models.classification_review import ClassificationReview
@@ -17,6 +20,7 @@ from app.models.local_organize_event import LocalOrganizeEvent
 from app.models.org_unit import OrgUnit, OrgUnitClosure
 from app.models.tenant import Tenant
 from app.models.user import User
+from app.services import reports_scope
 
 REPORTS = "/api/v1/reports"
 PANELS = ["evolution", "document-activity", "workflow-activity", "service-activity"]
@@ -246,3 +250,80 @@ async def test_another_institution_sees_none_of_it(client_as, db_session, tree):
             f"{REPORTS}/document-activity", params={"org_unit_id": tree["a"]}
         )
     assert outside.status_code == 403
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ["unit_admin", "manager"])
+async def test_unit_scoped_roles_can_aim_at_one_of_their_sub_units(
+    client_as, tree, role
+):
+    async with client_as(
+        role, tenant_id=tree["tenant"], org_unit_id=tree["a"]
+    ) as client:
+        aimed = [
+            await client.get(f"{REPORTS}/{panel}", params={"org_unit_id": tree["a1"]})
+            for panel in PANELS
+        ]
+        signals = await _signals(client, org_unit_id=tree["a1"])
+        sibling = await client.get(
+            f"{REPORTS}/document-activity", params={"org_unit_id": tree["b"]}
+        )
+    assert [r.status_code for r in aimed] == [200] * len(PANELS)
+    assert aimed[0].json()["filters"]["org_unit_id"] == str(tree["a1"])
+    assert signals == (1, 1, 3)
+    # A sub-unit does not open its parent's siblings.
+    assert sibling.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_sub_unit_cannot_reach_up_to_its_parent(client_as, tree):
+    async with client_as(
+        "manager", tenant_id=tree["tenant"], org_unit_id=tree["a1"]
+    ) as client:
+        parent = await client.get(
+            f"{REPORTS}/document-activity", params={"org_unit_id": tree["a"]}
+        )
+        assert await _signals(client) == (1, 1, 3)
+    assert parent.status_code == 403
+
+
+def test_institution_wide_roles_are_written_out():
+    # Widening this list widens what a role sees: a deliberate, reviewed change.
+    assert reports_scope.INSTITUTION_WIDE_ROLES == {"tenant_admin", "auditor"}
+    assert reports_scope.REPORTS_DENIED_ROLES == {"collaborator"}
+
+
+@pytest.mark.asyncio
+async def test_a_role_missing_from_the_lists_is_kept_to_its_unit(monkeypatch):
+    async def not_super(user, resource, action):
+        return False
+
+    monkeypatch.setattr(reports_scope, "can_perform", not_super)
+    unit, tenant = uuid.uuid4(), uuid.uuid4()
+    user = SimpleNamespace(
+        role=SimpleNamespace(code="new_role"), tenant_id=tenant, org_unit_id=unit
+    )
+    scope = await reports_scope.resolve_report_scope(user, db=None)
+    assert scope == reports_scope.ReportScope(tenant, unit, True)
+
+    homeless = SimpleNamespace(
+        role=SimpleNamespace(code="new_role"), tenant_id=tenant, org_unit_id=None
+    )
+    with pytest.raises(HTTPException) as denied:
+        await reports_scope.resolve_report_scope(homeless, db=None)
+    assert denied.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_super_admin_is_not_kept_to_a_unit(client_as, tree):
+    # Recognised by its permission, before the role lists: it is in neither.
+    assert "super_admin" not in reports_scope.INSTITUTION_WIDE_ROLES
+    async with client_as(
+        "super_admin", tenant_id=tree["tenant"], org_unit_id=tree["a1"]
+    ) as client:
+        assert await _signals(client) == (2, 2, 10)
+        assert await _signals(client, org_unit_id=tree["b"], recursive=True) == (
+            1,
+            1,
+            7,
+        )
