@@ -38,6 +38,7 @@ ACTION_LABELS = {
     "update": "Modification",
     "delete": "Suppression",
     "upload": "Depot de document",
+    "version_restored": "Version restaurée",
     "login": "Connexion",
     "login_failed": "Connexion refusee",
     "import_committed": "Import execute",
