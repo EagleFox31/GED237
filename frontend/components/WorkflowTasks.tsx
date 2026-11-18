@@ -1,13 +1,21 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Icons } from '../constants';
 import type { PendingWorkflowTask } from '../types';
 import { api } from '../services/api';
 import type { WorkflowDecision } from '../services/resources/workflows.api';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { ViewDocumentButton } from './workflow/ViewDocumentButton';
+import { ConfirmationModal } from './ui/ConfirmationModal';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
+import {
+  countTasksByActionType,
+  executeBatchReadAck,
+  filterTasksByActionType,
+  isBatchReadAckAvailable,
+  type TaskActionFilter,
+} from '../lib/workflowBatch';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -15,6 +23,16 @@ const WorkflowTasks: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<PendingWorkflowTask | null>(null);
+  const [actionFilter, setActionFilter] = useState<TaskActionFilter>('all');
+  const [confirmBatchAck, setConfirmBatchAck] = useState(false);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+
+  const actionCounts = useMemo(() => countTasksByActionType(tasks), [tasks]);
+  const visibleTasks = useMemo(
+    () => filterTasksByActionType(tasks, actionFilter),
+    [tasks, actionFilter],
+  );
+  const canBatchAck = isBatchReadAckAvailable(actionFilter, visibleTasks);
 
   const fetchTasks = async () => {
     try {
@@ -48,11 +66,77 @@ const WorkflowTasks: React.FC = () => {
     }
   };
 
+  const runBatchReadAck = async () => {
+    setConfirmBatchAck(false);
+    setBatchProcessing(true);
+    try {
+      const { succeededIds, failedCount } = await executeBatchReadAck(
+        visibleTasks,
+        (task) => api.decideWorkflowStep(task, 'accept'),
+      );
+      if (succeededIds.length > 0) {
+        const doneSet = new Set(succeededIds);
+        setTasks((prev) => prev.filter((t) => !doneSet.has(t.id)));
+      }
+      if (failedCount > 0) {
+        pushClientOperationError(null, {
+          fallbackDetail: `${failedCount} prise(s) de connaissance ont échoué.`,
+          severity: 'warning',
+        });
+      }
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
+
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700">
       <div>
         <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Tâches & Validations</h2>
         <p className="text-slate-500 mt-1">Gérez les circuits de signature et de validation sous votre responsabilité.</p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrer par type d action">
+          {(
+            [
+              { id: 'all', label: 'Toutes', count: actionCounts.all },
+              { id: 'read_ack', label: 'Prises de connaissance', count: actionCounts.read_ack },
+              { id: 'visa', label: 'Visas', count: actionCounts.visa },
+              { id: 'approval', label: 'Approbations', count: actionCounts.approval },
+              { id: 'final_signature', label: 'Signatures', count: actionCounts.final_signature },
+            ] as Array<{ id: TaskActionFilter; label: string; count: number }>
+          ).map((chip) => {
+            const active = actionFilter === chip.id;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => setActionFilter(chip.id)}
+                aria-pressed={active}
+                className={`px-3.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${
+                  active
+                    ? 'bg-rdpc-blue text-white shadow-md shadow-blue-100'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:border-rdpc-blue/40 hover:text-rdpc-blue'
+                }`}
+              >
+                {chip.label} ({chip.count})
+              </button>
+            );
+          })}
+        </div>
+
+        {canBatchAck && (
+          <button
+            type="button"
+            disabled={batchProcessing}
+            onClick={() => setConfirmBatchAck(true)}
+            data-testid="batch-read-ack"
+            className="px-4 py-2.5 bg-rdpc-blue text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-blue-200 hover:bg-blue-800 transition-all disabled:opacity-50"
+          >
+            {batchProcessing ? 'Traitement...' : `Tout marquer comme lu (${visibleTasks.length})`}
+          </button>
+        )}
       </div>
 
       {isLoading && (
@@ -65,7 +149,7 @@ const WorkflowTasks: React.FC = () => {
         <div className="text-center py-20 text-red-500 font-bold">{error}</div>
       )}
 
-      {!isLoading && !error && tasks.length === 0 && (
+      {!isLoading && !error && visibleTasks.length === 0 && (
         <div className="glass p-12 rounded-[2rem] border-white text-center">
           <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">task_alt</span>
           <p className="text-slate-400 font-bold text-lg">Aucune tâche en attente</p>
@@ -74,7 +158,7 @@ const WorkflowTasks: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6">
-        {tasks.map((task) => (
+        {visibleTasks.map((task) => (
           <div key={task.id} className="glass p-6 rounded-[2rem] border-white group hover:shadow-2xl hover:bg-white transition-all flex items-center gap-6">
             <div className="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shrink-0 bg-blue-50 text-blue-500 shadow-blue-100 shadow-inner">
               <Icons.CheckCircle className="w-8 h-8" />
@@ -111,6 +195,15 @@ const WorkflowTasks: React.FC = () => {
           </div>
         ))}
       </div>
+
+      <ConfirmationModal
+        open={confirmBatchAck}
+        title="Prise de connaissance groupée"
+        message={`Confirmer la prise de connaissance de ${visibleTasks.length} document(s) ?`}
+        confirmLabel="Tout marquer comme lu"
+        onCancel={() => setConfirmBatchAck(false)}
+        onConfirm={() => void runBatchReadAck()}
+      />
 
       <RejectReasonDialog
         documentTitle={rejecting ? rejecting.document?.title || rejecting.label : null}
