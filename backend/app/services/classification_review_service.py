@@ -84,9 +84,11 @@ class ClassificationReviewService:
         return [self._to_review_read(review) for review in reviews]
 
     async def list_legacy_needs_review_documents(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, org_unit_ids=None
     ) -> List[NeedsReviewDocument]:
-        documents = await self._load_reviewable_documents(tenant_id=tenant_id)
+        documents = await self._load_reviewable_documents(
+            tenant_id=tenant_id, org_unit_ids=org_unit_ids
+        )
         return [
             NeedsReviewDocument(
                 **DocumentRead.model_validate(document).model_dump(),
@@ -582,8 +584,10 @@ class ClassificationReviewService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def _load_reviewable_documents(self, *, tenant_id: UUID) -> List[Document]:
-        result = await self.db.execute(
+    async def _load_reviewable_documents(
+        self, *, tenant_id: UUID, org_unit_ids=None
+    ) -> List[Document]:
+        stmt = (
             select(Document)
             .options(
                 selectinload(Document.document_category),
@@ -598,6 +602,9 @@ class ClassificationReviewService:
             )
             .order_by(Document.created_at.desc())
         )
+        if org_unit_ids is not None:
+            stmt = stmt.where(Document.org_unit_id.in_(org_unit_ids))
+        result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def _ensure_open_review_for_document(

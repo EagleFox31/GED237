@@ -30,6 +30,7 @@ from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
+from app.services.unit_admin_scope import unit_admin_scope_ids
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
@@ -906,8 +907,11 @@ async def list_needs_review(
 ):
     await authorize_or_403(current_user, "documents", "review")
     service = ClassificationReviewService(db)
+    # Guard in advance: the review right is tenant_admin only today; if it is
+    # ever granted to unit_admin, the queue stays inside its unit tree.
     documents = await service.list_legacy_needs_review_documents(
-        tenant_id=current_user.tenant_id
+        tenant_id=current_user.tenant_id,
+        org_unit_ids=await unit_admin_scope_ids(db, current_user),
     )
     return documents[skip : skip + limit]
 

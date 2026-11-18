@@ -306,3 +306,26 @@ async def test_unit_admin_crawl(client_as, db_seed, tree):
     assert all(call.status_code in (403, 404) for call in calls)
     assert str(ids["doc_b"]) not in leaked
     assert str(ids["review_b"]) not in leaked
+
+
+@pytest.mark.asyncio
+async def test_legacy_needs_review_queue_accepts_a_unit_scope(
+    db_session, db_seed, tree
+):
+    """Guard in advance: the route is tenant_admin only, the service is ready if that changes."""
+    service = ClassificationReviewService(db_session)
+    for doc in ("doc_a1", "doc_b"):
+        document = await db_session.get(Document, tree["ids"][doc])
+        document.classification_status = "needs_review"
+    await db_session.commit()
+
+    scoped = await service.list_legacy_needs_review_documents(
+        tenant_id=db_seed["tenant_id"],
+        org_unit_ids=[tree["units"]["a1"], tree["units"]["a2"]],
+    )
+    wide = await service.list_legacy_needs_review_documents(
+        tenant_id=db_seed["tenant_id"]
+    )
+
+    assert {d.id for d in scoped} == {tree["ids"]["doc_a1"]}
+    assert {tree["ids"]["doc_a1"], tree["ids"]["doc_b"]} <= {d.id for d in wide}
