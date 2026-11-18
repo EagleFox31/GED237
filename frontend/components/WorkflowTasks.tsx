@@ -173,7 +173,15 @@ const WorkflowTasks: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
               <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span></p>
-              <div className="mt-2"><ViewDocumentButton documentId={task.document_id} /></div>
+              <div className="mt-2">
+                <ViewDocumentButton
+                  documentId={task.document_id}
+                  approveLabel="Valider"
+                  onApprove={() => void decide(task, 'accept')}
+                  onReject={() => setRejecting(task)}
+                  decisionDisabled={processingId === task.id}
+                />
+              </div>
             </div>
 
             <div className="flex gap-3">

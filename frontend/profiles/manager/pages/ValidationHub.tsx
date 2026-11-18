@@ -171,7 +171,13 @@ const ValidationHub: React.FC = () => {
               <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">Émis le: {new Date(item.created_at).toLocaleDateString()}</p>
 
               <div className="mb-3">
-                <ViewDocumentButton documentId={item.document_id} />
+                <ViewDocumentButton
+                  documentId={item.document_id}
+                  approveLabel={getActionLabel(item.expected_action_type)}
+                  onApprove={() => setAccepting(item)}
+                  onReject={() => setRejecting(item)}
+                  decisionDisabled={processingId === item.id}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
