@@ -19,8 +19,8 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
 ORDER_V0="389 403 383"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 438 444 440 439 442"
-# Fin de vague 1, dès qu’elles ont un numéro : #413, #414, pagination du journal d’audit (F, GO du PO le 18/11)
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 438 444 440 439 442 447"
+# Fin de vague 1, dès qu’elles ont un numéro : #414, pagination du journal d’audit (F, GO du PO le 18/11) ; #413 est #447 (B, O 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
 ORDER_V2="152 181 184 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 436 445"
@@ -52,7 +52,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
     - #442, pastille du menu Tâches (L13-3).
   - #445 (L4 côté serveur, délégation pendant une absence, aide-api) arrive en fin de vague 2, après #436. Elle est empilée sur #429 et porte la migration `7680f303299d`. Elle passe donc entre #436 et #197 dans la chaîne alembic (`plan-fusion` § 4). Si elle n'est pas prête à la fin de la vague 2, elle garde sa place dans la chaîne. #197 attend alors #445, ou O retire `DEP[197]="445"` et remet `DEP[197]="436"`.
   - #441, accès au clavier du Lot 8, va en fin de vague 5. Elle touche les cartes de documents, la zone de dépôt et les dialogues, qu'elle partage avec de nombreuses PR. La passer en dernier limite les conflits.
-- **À ouvrir (O, 18/11 au soir), hors des vagues tant que la PR n’existe pas** : la garde de /reports, empilée sur #437, à placer après #437 et à re-cibler sur `main` avant la fusion de #437 ; 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s) après #445 ; la réparation du hook pre-commit (Q, 0,5 h-s) après #433 ; 57 tests rapides (`conftest.py`, aide-api, relu par Q) en vague 1, écrite du 19 au 23/11.
+- **À ouvrir (O, 18/11 au soir), hors des vagues tant que la PR n’existe pas** : L13-6 « Mes dernières actions » (B), empilée sur #435 : juste derrière #435, avec #435 si celle-ci passe en vague 3, et à re-cibler sur `main` avant la fusion de #435 ; la garde de /reports, empilée sur #437, à placer après #437 et à re-cibler sur `main` avant la fusion de #437 ; 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s) après #445 ; la réparation du hook pre-commit (Q, 0,5 h-s) après #433 ; 57 tests rapides (`conftest.py`, aide-api, relu par Q) en vague 1, écrite du 19 au 23/11.
 - **« #152 après #401 » est levé** : c'était l'ordre de travail de B, pas une contrainte de fusion. **Mise à jour (O, 18/11)** : #152 seule passe en tête de la vague 2 (OK du PO, a47df85, OK de Q). Le reste du groupe corbeille (#181, #184, #168, #171, #190, #199, #301, #302) reste en vague 4 ; #181, empilée sur #152, est re-ciblée sur `main` avant la fusion de #152 (plan-fusion § 3).
 - **#155 et #169 restent en V1.1** (PO, 18/11 : « on repousse rien »).
 - **Choix par défaut d'O, en attendant F et B** :
@@ -136,7 +136,7 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
 - **#404 et #355 (réglé, 18/11)** : #404 dépend de #370 ; le PO fait entrer #370 en V1.1, donc les trois passent dans l’ordre #370, #404, #355.
 - **#349 et #395, #211 et #401 (réglé, 18/11)** : #395 et #401 gardées ; #349 fermée par F, #211 à fermer.
 - **Têtes envoyées à Q (B, 18/11)** : #401 en 650f7fb ; #152 en 987f08d (delta de DEC-2026-006), puis **a47df85 : OK de Q, OK du PO, en tête de la vague 2** (O, 18/11). L’OK de Q sur #401 est à noter quand il arrive.
-- **Ordre de travail de B** : l'issue #411 (commande « premier administrateur »), puis les issues #413 et #414. Elles n'ont pas encore de PR ; #413 et #414 entrent en fin de vague 1 avec leur numéro de PR.
+- **Ordre de travail de B** : l'issue #411 (commande « premier administrateur »), puis les issues #413 et #414. #413 est devenue #447 (garde-fou `SECRET_KEY`, sans migration), en fin de vague 1 ; #414 n'a pas encore de PR et y entrera avec son numéro (O, 18/11 au soir).
 - **#284** est peut-être obsolète, car elle recoupe #370 et #372 (§ 9). B confirme. Si elle est fermée : re-cibler #311 sur `main`, vérifier ce que #290 lit sur `/ocr`, et retirer #284 de l'ORDER et des DEP (#311, #290).
 
 **Delta relu par Q** (règle : si la tête change, l'OK tombe ; toute PR CONFLICTING repasse donc chez Q après son rebase)
@@ -153,6 +153,6 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
   - #361 et #266 : revue de recouvrement de B d'abord ;
   - #401 : re-relecture après le re-ciblage, avec le conflit #400/#401 ;
   - #391 et #396 : le conflit sur la ligne 65 de `document-detail.page.ts` (on garde la ligne commentée).
-- **Sans OK de Q** : #253, #372, #370, #404, #355, #359, #284, #311, #384, #386, #387, #388, #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, ~~#378~~ (fermée), #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #309, #147, #155, #168, #170, #172, #212.
+- **Sans OK de Q** : #253, #372, #370, #404, #355, #359, #284, #311, #384, #386, #387, #388, #290, #338, #282, #283, #285, #347, #362, #351, #354, #371, #373, #366, #367, #377, #398, ~~#378~~ (fermée), #342, #344, #353, #401, #400, #393, #394, #405, #399, #416, #309, #147, #155, #168, #170, #172, #212, #447.
 - **OK sur un code ancien, périmé ou sans SHA noté** : #235, #238, #267, #268, #261, #263, #266, #296, #221, #262, #310, #301, #302, #293, #295, #297, #294, #303, #179, #162, #193, #197, #180, #209, #165, #205, #186, #181, #184, #211, #190, #182, #199.
 - **OK valides sur la tête au 18/11** : #152 (a47df85), #389 (3d3ad2e), #403 (4228d7a), #383 (c19e95b), #222 (99d3d09), #224 (0b8eb15), #237 (ae555e4), #240 (1798847), #407 (98d2317), #391 (9a943d3), #392 (fc71aad), #396 (93feb87), #153 (cbf28bc), #154 (720a30f), #171 (3198885), #192 (7c32940), #395 (OK de Q selon O, SHA à noter), #417 (24d86bf, OK de code de Q, O 18/11), #444 (531fec72, O 18/11 au soir ; l’OK tombe au re-ciblage si la tête change). Ceux de #227, #234, #243 et #245 tomberont au rebase (CONFLICTING).
