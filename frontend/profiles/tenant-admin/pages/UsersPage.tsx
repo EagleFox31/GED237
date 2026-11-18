@@ -22,13 +22,15 @@ interface UsersNavState {
 
 type UsersTab = 'agents' | 'roles' | 'groups';
 
-const TAB_META: Record<UsersTab, { label: string; icon: string; accent: string; step: number }> = {
-  agents: { label: 'Liste des agents', icon: 'badge', accent: 'text-rdpc-blue', step: 1 },
-  roles: { label: 'Rôles & permissions', icon: 'shield_person', accent: 'text-emerald-600', step: 2 },
-  groups: { label: 'Groupes', icon: 'group', accent: 'text-violet-600', step: 3 },
+const TAB_META: Record<UsersTab, { label: string; icon: string; accent: string }> = {
+  agents: { label: 'Liste des agents', icon: 'badge', accent: 'text-rdpc-blue' },
+  roles: { label: 'Rôles & permissions', icon: 'shield_person', accent: 'text-emerald-600' },
+  groups: { label: 'Groupes', icon: 'group', accent: 'text-violet-600' },
 };
 
-const TAB_ORDER: UsersTab[] = ['agents', 'roles', 'groups'];
+// Rôles et Groupes ne sont pas encore disponibles : onglets masqués (composants conservés).
+const AVAILABLE_TABS: ReadonlySet<UsersTab> = new Set<UsersTab>(['agents']);
+const TAB_ORDER: UsersTab[] = (['agents', 'roles', 'groups'] as UsersTab[]).filter((t) => AVAILABLE_TABS.has(t));
 
 const UsersPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<UsersTab>('agents');
@@ -59,6 +61,7 @@ const UsersPage: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-6 h-full min-h-0">
+        {TAB_ORDER.length > 1 && (
         <div className="flex gap-2.5 border-b-2 border-slate-200 shrink-0 overflow-x-auto custom-scrollbar">
           {TAB_ORDER.map((tab) => {
             const meta = TAB_META[tab];
@@ -70,13 +73,13 @@ const UsersPage: React.FC = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`pb-4 px-4 text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2.5 whitespace-nowrap ${isActive ? 'text-rdpc-blue border-b-4 border-rdpc-blue mb-[-2px]' : 'text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
               >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${isActive ? 'bg-rdpc-blue text-white' : 'bg-slate-100 text-slate-500'}`}>{meta.step}</span>
                 <span className={`material-symbols-outlined text-base ${meta.accent}`}>{meta.icon}</span>
                 {meta.label}
               </button>
             );
           })}
         </div>
+        )}
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {activeTab === 'agents' && (
