@@ -498,10 +498,6 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Raccourcis</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
-                  <span className="text-slate-600">Rechercher</span>
-                  <kbd className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-bold text-slate-700">/</kbd>
-                </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
                   <span className="text-slate-600">Fermer une modale</span>
                   <kbd className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-bold text-slate-700">Esc</kbd>
                 </div>
@@ -514,19 +510,6 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
 
             <div className="space-y-3">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Liens utiles</h4>
-              <a
-                href={`${(import.meta as any).env?.VITE_API_URL?.replace(/\/api\/v1\/?$/, '') || ''}/api/docs`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-blue-50 rounded-xl transition-colors group"
-              >
-                <span className="material-symbols-outlined text-slate-400 group-hover:text-rdpc-blue">description</span>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-slate-700">Documentation API (Swagger)</p>
-                  <p className="text-[10px] text-slate-400">OpenAPI interactive — endpoints et schémas</p>
-                </div>
-                <span className="material-symbols-outlined text-slate-300 text-sm">open_in_new</span>
-              </a>
               <a
                 href="mailto:support@edossier.cm"
                 className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-blue-50 rounded-xl transition-colors group"
