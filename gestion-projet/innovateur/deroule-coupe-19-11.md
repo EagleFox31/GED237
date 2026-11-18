@@ -26,11 +26,11 @@ ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusChe
 
 | Heure | Commande (worktree `GED237-docs-notes-version`) | Contrôle attendu | Si KO |
 |---|---|---|---|
-| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | `2f15b6e` (main au gel, le 17/11 au soir ; #104 y est déjà recalée en local, commit 93ed914). Sinon, `main` a encore bougé : faire `git merge origin/main` en local avant le push | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
+| 17:55 | `git fetch -q origin && git rev-parse --short origin/main` | `2f15b6e` (main au gel, le 17/11 au soir ; #104 y est déjà recalée en local ; tête locale 8eca6b0 au 18/11, avec les notes pour les utilisateurs). Sinon, `main` a encore bougé : faire `git merge origin/main` en local avant le push | conflit : ne rien pousser, prévenir O avec la liste des fichiers en conflit |
 | 17:56 | `git merge-tree --write-tree origin/main HEAD` | une seule ligne (un SHA d'arbre), sans `CONFLICT` | idem |
-| 17:57 | `head -n 5 gestion-projet/innovateur/notes-version-v1.0.0-rc.1.md \| grep -Eiq 'brouillon\|Pour\**[[:space:]]*:' && echo STOP \|\| echo OK` | `OK` | `STOP` : corriger en local avant le push, qui reste unique |
+| 17:57 | `for f in notes-version-v1.0.0-rc.1.md notes-version-rc1.md; do head -n 5 gestion-projet/innovateur/$f \| grep -Eiq 'brouillon\|Pour\**[[:space:]]*:' && echo "$f STOP" \|\| echo "$f OK"; done` | `OK` pour les deux fichiers (notes techniques et notes pour les utilisateurs) | `STOP` : corriger en local avant le push, qui reste unique |
 | 17:58 | `git diff origin/main...HEAD \| grep -cE '@20(25)'` | `0` : aucun mot de passe de démonstration | retirer la ligne, puis faire un nouveau commit local |
-| 18:00 | `git push origin docs/notes-version-rc1` | `93ed914` (ou le merge de 17:55) arrive sur GitHub | refus du push : ne pas forcer (`--force-with-lease` interdit) ; prévenir O |
+| 18:00 | `git push origin docs/notes-version-rc1` | `8eca6b0` (ou le merge de 17:55) arrive sur GitHub | refus du push : ne pas forcer (`--force-with-lease` interdit) ; prévenir O |
 | 18:01 | `gh pr ready 104` | `gh pr view 104 --json isDraft -q .isDraft` = `false` | relancer une fois ; sinon O |
 | 18:02 | `gh pr diff 104 --name-only \| grep -vE '^(gestion-projet/\|CHANGELOG\.md$\|DOCS/engineering/lessons-learned\.md$)'` | sortie vide : documentation seule | un fichier hors liste : O décide avant la fusion |
 | 18:03 | `gh pr view 104 --json headRefOid -q .headRefOid` | le SHA poussé | — |
