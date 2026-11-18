@@ -1,3 +1,4 @@
+import os
 import uuid
 from abc import ABC, abstractmethod
 from fastapi import UploadFile
@@ -65,10 +66,26 @@ class IStorageService(ABC):
         pass
 
 
+# Filesystems cap a file name at 255 bytes; local storage also writes "<name>.part".
+_MAX_STORED_NAME_BYTES = 240
+
+
 def unique_storage_name(filename: str | None) -> str:
     """Stored name of an upload: ``<uuid>_<name>``, the import pattern.
 
     A key derived from the bare file name made two uploads with the same name in
     the same directory overwrite each other (other documents, previous versions).
+    A long name is cut (extension kept) so the whole key stays within the
+    filesystem limit, counted in UTF-8 bytes.
     """
-    return f"{uuid.uuid4().hex}_{filename or 'document'}"
+    prefix = f"{uuid.uuid4().hex}_"
+    name = filename or "document"
+    room = _MAX_STORED_NAME_BYTES - len(prefix.encode("utf-8"))
+    if len(name.encode("utf-8")) > room:
+        stem, ext = os.path.splitext(name)
+        if len(ext.encode("utf-8")) > 16:  # not a real extension: cut it too
+            stem, ext = name, ""
+        budget = room - len(ext.encode("utf-8"))
+        stem = stem.encode("utf-8")[:budget].decode("utf-8", errors="ignore")
+        name = stem + ext
+    return prefix + name
