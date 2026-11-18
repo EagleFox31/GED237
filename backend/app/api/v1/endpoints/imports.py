@@ -36,7 +36,7 @@ from app.schemas.imports import (
 from app.services.import_analysis_service import ImportAnalysisService
 from app.services.import_execution_service import ImportExecutionService
 from app.services.storage.factory import get_storage_service
-from app.services.reports_scope import is_within_unit_tree
+from app.services.reports_scope import in_actor_unit_tree, is_within_unit_tree
 
 # One read scope with documents (decision D-L12-1): no local copy of the role sets.
 from app.api.v1.endpoints.documents import (
@@ -72,13 +72,7 @@ async def _assert_in_unit_tree(
     db: AsyncSession, current_user: User, unit_id: UUID | None
 ) -> None:
     """unit_admin imports only for its unit and the units below it (#202)."""
-    if _role_code(current_user) not in UNIT_TREE_READ_ROLES:
-        return
-    if not (
-        unit_id
-        and current_user.org_unit_id
-        and await is_within_unit_tree(db, unit_id, current_user.org_unit_id)
-    ):
+    if not await in_actor_unit_tree(db, current_user, unit_id):
         raise HTTPException(
             status_code=403,
             detail="Cible hors de votre unite et de ses sous-unites.",
@@ -124,6 +118,10 @@ async def _resolve_target_user(
         )
     )
     target_user = result.scalar_one_or_none()
+    # Tree first: an unknown target and an out-of-tree one answer alike.
+    await _assert_in_unit_tree(
+        db, current_user, target_user.org_unit_id if target_user else None
+    )
     if target_user is None:
         raise HTTPException(status_code=400, detail="Utilisateur cible invalide.")
     if _role_code(current_user) not in ADMIN_ROLES and str(target_user.id) != str(
@@ -135,7 +133,6 @@ async def _resolve_target_user(
         )
     if _role_code(current_user) in ORG_UNIT_READ_ROLES:
         assert_org_unit_scope(target_user.org_unit_id, current_user)
-    await _assert_in_unit_tree(db, current_user, target_user.org_unit_id)
     return target_user
 
 

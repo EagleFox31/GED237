@@ -626,3 +626,17 @@ première requête utilisateur.
 **Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
 **Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
 **Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-045 — Un rôle d'unité avec `manage` agit sur toute l'institution : Casbin ne connaît pas l'arbre
+
+- **Date :** 2026-11-17
+- **Catégorie :** authz
+- **Statut :** test-added
+- **Liens :** #215, `app/services/reports_scope.py` (`in_actor_unit_tree`, `unit_tree_filter`), `policy.csv` (classification_reviews, workflows)
+
+**Contexte** — `policy.csv` donne à `unit_admin` `classification_reviews, manage` et `workflows, manage`. Le matcher accepte `p.act == "manage"` pour toute action.
+**Échec / near miss** — Casbin vérifie le tenant, pas l'unité : un unit_admin pouvait lister et trancher les revues, valider, réassigner et lire les circuits de toute l'institution. #195 avait borné les lectures, pas ces écritures. Trouvé en revue (#215), sans incident signalé.
+**Cause racine** — Le périmètre « son unité et ses sous-unités » vit dans le code (#195), alors que le droit vient de la politique. Chaque nouvelle route sous `manage` hérite de la portée tenant si elle n'appelle pas la règle d'arbre.
+**Résolution** — Une seule règle pour les rôles bornés : `in_actor_unit_tree` (contrôle unitaire, fermé par défaut) et `unit_tree_filter` (filtre SQL). Ressource hors arbre : 404 ; cible hors arbre : 403. Un acteur explicitement assigné garde son droit.
+**Prévention** — `tests/api/test_unit_admin_write_scope.py` : un unit_admin d'une autre branche reçoit 404, une cible hors arbre 403, un parent n'est jamais atteint depuis une sous-unité ; tenant_admin et super_admin gardent toute l'institution. Sans les gardes, 9 tests sur 14 échouent.
+**Leçon généralisée** — Un droit de politique (`manage`) dit *quoi*, pas *où*. Toute route ouverte à un rôle borné doit passer par la règle de périmètre, et son test doit inclure un acteur du même rôle dans une autre branche.

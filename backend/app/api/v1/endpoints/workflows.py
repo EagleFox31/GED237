@@ -16,6 +16,7 @@ from app.models.document import Document
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.role import Role
 from app.models.user import User
+from app.services.reports_scope import in_actor_unit_tree, unit_tree_filter
 from app.schemas.workflow import (
     WorkflowStepCreate,
     WorkflowStepRead,
@@ -160,11 +161,22 @@ def _validate_step_order(
     return sorted_steps
 
 
-async def _authorize_workflow_read(user: User, document: Document) -> None:
+async def _assert_in_actor_unit_tree(
+    db: AsyncSession, user: User, document: Document
+) -> None:
+    """404 for a document outside a unit-bounded role's tree (#215)."""
+    if not await in_actor_unit_tree(db, user, document.org_unit_id):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
+async def _authorize_workflow_read(
+    db: AsyncSession, user: User, document: Document
+) -> None:
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
+        await _assert_in_actor_unit_tree(db, user, document)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -184,6 +196,8 @@ async def create_workflow_steps(
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
     # Propriétaire (update_own) ou admin (manage) peut soumettre
     is_owner = document.owner_id == current_user.id
+    if not is_owner:
+        await _assert_in_actor_unit_tree(db, current_user, document)
     action = "update_own" if is_owner else "manage"
     await authorize_or_403(
         current_user, "workflows", action, ctx_from_resource(document)
@@ -249,7 +263,7 @@ async def get_workflow_steps(
 ):
     """Get all workflow steps for a document in the current tenant."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(db, current_user, document)
     result = await db.execute(
         select(WorkflowStep)
         .where(WorkflowStep.document_id == document_id)
@@ -374,7 +388,7 @@ async def get_document_action_history(
     """Récupérer l'historique complet des actions métier posées sur un document."""
     # Vérifier que le document appartient au tenant
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(db, current_user, document)
 
     # Récupérer toutes les actions via les steps du document
     result = await db.execute(
@@ -424,6 +438,7 @@ async def get_pending_assignments(
         .where(
             WorkflowStep.status == "pending_assignment",
             Document.tenant_id == current_user.tenant_id,
+            *unit_tree_filter(current_user, Document.org_unit_id),
         )
     )
     rows = result.all()
@@ -482,11 +497,6 @@ async def assign_step_admin(
     if not step:
         raise HTTPException(status_code=404, detail="Etape introuvable.")
 
-    if step.status != "pending_assignment":
-        raise HTTPException(
-            status_code=400, detail="Cette étape n'est pas en attente d'assignation."
-        )
-
     document_result = await db.execute(
         select(Document).where(Document.id == step.document_id)
     )
@@ -494,6 +504,14 @@ async def assign_step_admin(
     if document is None:
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
+    # Before the status check, so a step outside the tree reveals nothing (#215).
+    if not await in_actor_unit_tree(db, current_user, document.org_unit_id):
+        raise HTTPException(status_code=404, detail="Etape introuvable.")
+
+    if step.status != "pending_assignment":
+        raise HTTPException(
+            status_code=400, detail="Cette étape n'est pas en attente d'assignation."
+        )
 
     # Validate assignee exists
     user_result = await db.execute(
