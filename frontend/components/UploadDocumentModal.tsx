@@ -3,11 +3,14 @@ import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
+import { pushApiError } from '../lib/errors';
 import {
   readUploadPreferences,
   resetForNextUpload,
   resolveStoredCategory,
   writeUploadPreferences,
+  UPLOAD_SUCCESS_SERIES_MESSAGE,
+  DUPLICATE_DOCUMENT_MESSAGE,
   type UploadProcessingMode,
 } from '../lib/uploadSeries';
 
@@ -33,8 +36,10 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     categoriesApi
@@ -43,7 +48,9 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
         setCategories(list);
         setCategory((current) => resolveStoredCategory(current || initialPrefs.category, list));
       })
-      .catch(() => {});
+      .catch((err) => {
+        pushApiError(err);
+      });
   }, [initialPrefs.category]);
 
   const handleModeChange = (nextMode: UploadProcessingMode) => {
@@ -64,6 +71,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
       setTitle(f.name.replace(/\.[^/.]+$/, ''));
     }
     setError(null);
+    setStatusMessage(null);
   }, []);
 
   const handleDrop = useCallback(
@@ -78,6 +86,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
 
   const submitUpload = async (keepOpen: boolean) => {
     setError(null);
+    setStatusMessage(null);
 
     if (!file) {
       setError('Veuillez sélectionner un fichier.');
@@ -122,12 +131,16 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
         setTags(nextState.tags);
         setDescription(nextState.description);
         if (fileInputRef.current) fileInputRef.current.value = '';
+        setStatusMessage(UPLOAD_SUCCESS_SERIES_MESSAGE);
+        setTimeout(() => {
+          dropzoneRef.current?.focus();
+        }, 0);
       }
       onSuccess(doc, { keepOpen });
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status;
       if (status === 409) {
-        setError('Un fichier identique existe déjà dans votre espace. Vérifiez vos doublons avant de réessayer.');
+        setError(DUPLICATE_DOCUMENT_MESSAGE);
       } else if (status === 400) {
         setError('Données invalides. Vérifiez le titre et la catégorie.');
       } else {
@@ -178,11 +191,21 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
 
           {/* Zone Drag & Drop */}
           <div
+            ref={dropzoneRef}
+            tabIndex={0}
+            role="button"
+            aria-label="Zone de dépôt de fichier"
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onClick={() => fileInputRef.current?.click()}
-            className={`relative flex flex-col items-center justify-center gap-3 py-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            className={`relative flex flex-col items-center justify-center gap-3 py-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue/40
               ${isDragging ? 'border-blue-500 bg-blue-50' : file ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
           >
             <input
@@ -319,6 +342,14 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             />
           </div>
 
+          {/* Confirmation de dépôt en série */}
+          {statusMessage && (
+            <div role="status" className="flex items-start gap-3 px-4 py-3 rounded-xl bg-green-50 text-green-700">
+              <span className="material-symbols-outlined text-lg mt-0.5 shrink-0">check_circle</span>
+              <p className="text-sm font-semibold">{statusMessage}</p>
+            </div>
+          )}
+
           {/* Message d'erreur */}
           {error && (
             <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 text-red-600">
@@ -342,9 +373,9 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
               onClick={() => submitUpload(true)}
               disabled={isLoading || !file}
               data-testid="upload-submit-another"
-              className="flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider text-rdpc-blue bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider text-rdpc-blue bg-blue-50 hover:bg-blue-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue/40 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Déposer un autre
+              Déposer et en ajouter un autre
             </button>
             <button
               type="submit"

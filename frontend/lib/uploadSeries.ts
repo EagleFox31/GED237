@@ -1,12 +1,16 @@
 // frontend/lib/uploadSeries.ts
 //
 // Mémorisation de la catégorie et du mode de traitement dans `sessionStorage`
-// (`ged.upload.*`) et réinitialisation ciblée pour l'action « Déposer un autre ».
+// (`ged.upload.*`) et réinitialisation ciblée pour l'action « Déposer et en ajouter un autre ».
 
 export type UploadProcessingMode = 'archive' | 'process';
 
 export const UPLOAD_CATEGORY_STORAGE_KEY = 'ged.upload.category';
 export const UPLOAD_MODE_STORAGE_KEY = 'ged.upload.processingMode';
+
+export const UPLOAD_SUCCESS_SERIES_MESSAGE = 'Document déposé.';
+export const DUPLICATE_DOCUMENT_MESSAGE =
+  'Un fichier identique existe déjà dans votre espace. Le fichier reste sélectionné pour vous permettre de modifier ses informations ou de vérifier vos doublons avant de réessayer.';
 
 export interface KeyValueStorage {
   getItem(key: string): string | null;

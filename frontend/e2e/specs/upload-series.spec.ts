@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test';
 import {
   UPLOAD_CATEGORY_STORAGE_KEY,
   UPLOAD_MODE_STORAGE_KEY,
+  UPLOAD_SUCCESS_SERIES_MESSAGE,
+  DUPLICATE_DOCUMENT_MESSAGE,
   readUploadPreferences,
   resetForNextUpload,
   resolveStoredCategory,
@@ -77,5 +79,14 @@ test.describe('Dépôt en série (UploadDocumentModal)', () => {
     expect(next.processingMode).toBe('archive');
     expect(next.tags).toBe('urgent, daf');
     expect(next.description).toBe('Lot du matin');
+  });
+
+  test('affiche le message de confirmation après un dépôt en série', () => {
+    expect(UPLOAD_SUCCESS_SERIES_MESSAGE).toBe('Document déposé.');
+  });
+
+  test('fournit un message explicite de doublon (409) précisant que le fichier reste sélectionné', () => {
+    expect(DUPLICATE_DOCUMENT_MESSAGE).toContain('Un fichier identique existe déjà dans votre espace.');
+    expect(DUPLICATE_DOCUMENT_MESSAGE).toContain('Le fichier reste sélectionné');
   });
 });
