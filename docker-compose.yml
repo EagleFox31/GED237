@@ -137,6 +137,8 @@ services:
       # Watched folders: read here only for GET /documents/ingest-watch/status.
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      # Per-file upload cap; the frontend service reads the same variable.
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
@@ -192,6 +194,8 @@ services:
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       # Demo live import folder: never watched, even through a parent folder.
       INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
+      # Watched-folder imports go through the same storage cap as the API.
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
       OCR_PRIMARY_ENGINE: ${OCR_PRIMARY_ENGINE:-rapidocr}
       OCR_RAPIDOCR_ENABLED: ${OCR_RAPIDOCR_ENABLED:-true}
       OCR_RAPIDOCR_MAX_SIDE: ${OCR_RAPIDOCR_MAX_SIDE:-1800}
@@ -227,6 +231,8 @@ services:
     environment:
       - VITE_API_URL=/api/v1
       - VITE_APP_VERSION=${APP_VERSION:-dev}
+      # Same value as the API's cap, so the upload window refuses too-large files before sending.
+      - VITE_MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-100}
       - VITE_LOGIN_DEMO_HINTS=${LOGIN_DEMO_HINTS:-true}
     networks:
       - edossier_network
