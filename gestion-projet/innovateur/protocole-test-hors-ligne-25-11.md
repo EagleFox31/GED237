@@ -18,7 +18,7 @@
   - `DC ps -a` d'abord : vérifier que c'est bien la pile de démo ;
   - puis `DC down -v` ;
   - noter la liste `docker images` pour le retour (R4) ;
-  - **jamais** un projet `edossier_*` sans décision écrite de O.
+  - **jamais** un projet `edossier_*` sans décision écrite de O, et une telle décision ne vaut qu'à partir du 22/11 (fenêtre C6).
 - **P2. Images depuis l'archive** de la check-list (profil tls compris) : `bash scripts/images_import.sh <dossier de l'archive>`. OK si `DC config --images` correspond à `IMAGES.txt`.
 - **P3. Démarrage sans tirage** : `DC up -d --pull never --no-build`.
   - OK si `DC ps -a` montre api, postgres et redis healthy, et migrate et seed **Exited (0)** ;
@@ -28,6 +28,9 @@
   - OK si la commande renvoie 1 ; la clé n'est jamais affichée.
   - Pourquoi : en mode `development`, la garde contre la clé par défaut est désactivée (`backend/app/core/config.py`).
   - Si KO : `DC down` (sans `-v`), régénérer la clé dans le fichier d'environnement avec `openssl rand -hex 32`, puis reprendre en P3.
+- **P3c. Modèles OCR**, réseau encore branché : `DC exec -T worker sh -c 'ls ~/.EasyOCR/model 2>/dev/null | wc -l'`.
+  - Attendu aujourd'hui : 0. L'image installe Tesseract (fra, eng) mais ne précharge aucun modèle EasyOCR, et EasyOCR les télécharge au premier usage.
+  - Conséquence : hors ligne, une photo ou un scan faible (EasyOCR en premier ou en repli, `strategy.py`) tente un téléchargement. C'est un **KO connu** : à corriger avant le 30 (modèles préchargés dans l'image) ou à exclure du parcours. À signaler à O dès P3c.
 - **P4. Jeu de démo** : remise à zéro selon `DOCS/exploitation/donnees-demo.md` (`seed_demo.py` échoue si un compte diffère du manifeste).
   - Chronométrer la durée : c'est la mesure n° 1 du § 5 du scénario, encore inconnue.
   - OK si l'accueil de MINFI001 affiche 351.
@@ -40,8 +43,9 @@
 - **C1.** Wi-Fi coupé, câble débranché, mode avion.
 - **C2.** `curl -m5 https://github.com` échoue, et `DC ps` répond toujours. OK si les deux sont vrais.
 - **C3.** Sur chaque fenêtre : outils de développement, onglet Réseau, journal conservé pendant tout le parcours. Le relevé final ne doit montrer aucune requête vers une autre adresse que localhost.
-- **C4. Côté serveur**, à la fin du parcours : `DC logs api worker | grep -ciE 'Name or service not known|Temporary failure in name resolution|ConnectionError|ConnectTimeout'`. Attendu : 0.
-  - Envoi d'e-mails : si `EMAIL_ENABLED` est actif, chaque envoi tente un appel externe. L'appel ne lève pas d'erreur, mais il peut attendre son délai d'expiration et ralentir P6 et E5. Noter la valeur et les temps.
+- **C4. Côté serveur**, à la fin du parcours : `DC logs api worker | grep -ciE 'Name or service not known|Temporary failure in name resolution|ConnectionError|ConnectTimeout'`. Attendu : 0 ; le code de sortie 1 de `grep -c` quand il compte 0 n'est pas une erreur.
+  - Envoi d'e-mails : il n'a lieu que si `EMAIL_ENABLED` est vrai **et** la clé d'API d'envoi est renseignée (`backend/app/services/email_service.py`). Chaque envoi tente alors un appel externe, qui ne lève pas d'erreur mais peut attendre son délai d'expiration et ralentir P6 et E5.
+  - Relevé : `DC exec -T api printenv EMAIL_ENABLED` ; pour la clé, seulement vide ou non vide : `DC exec -T api sh -c 'test -n "$RESEND_API_KEY" && echo non-vide || echo vide'`. **Jamais sa valeur.**
 - **Règle** : on ne rebranche pas le réseau avant R1. Si une étape ne passe qu'en rebranchant, elle est KO, et le protocole s'arrête là (étape notée).
 
 ## E. Parcours de démo hors ligne (scénario § 1), chronométré
@@ -68,10 +72,12 @@
 
 ## M. Ce qu'on relève (tableau du rapport), après E10
 
-- **OCR** : déposer dans A une image scannée du jeu.
-  - Les modèles doivent être dans l'image : OK si le statut passe à « traité » **et** si les journaux du worker ne montrent aucun téléchargement de modèle.
+- **OCR** : déposer dans A un **scan de document net** du jeu (pas une photo ni une capture). **Moteur attendu : Tesseract.**
+  - Vérifier le moteur dans les journaux du worker : la ligne `OCR Strategy: Using …`.
+  - OK si le statut passe à « traité », si le moteur est Tesseract, et si `DC logs worker | grep -ciE 'download|Downloading|model'` renvoie 0 (un compte, pas de contenu).
   - Temps jusqu'au statut « traité » ; un mot du scan retrouvé par la recherche.
-  - Limite : moins de N minutes. N est laissé vide ; Q le fournit après sa mesure de l'OCR.
+  - Limite : moins de N minutes. N est fourni par Q après sa mesure (p95 par page × pages + attente de file) ; à défaut, mesuré sur cette pile pendant le protocole.
+  - Une photo n'est **pas** testée ici : voir P3c.
 - **Recherche** : temps de E6, pour E et pour C.
 - **Import** : les trois temps de E2, comparés à ceux du § 10 (807 à 884 ms au total sur la version compilée).
 - **Temps** :
