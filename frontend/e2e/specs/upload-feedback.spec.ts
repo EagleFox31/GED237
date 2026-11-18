@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { nextTitle, titleFromFileName, uploadErrorMessage } from '../../lib/uploadFeedback';
+import { isAnnouncedNetworkFailure, nextTitle, titleFromFileName, uploadErrorMessage } from '../../lib/uploadFeedback';
 
 test.describe('uploadFeedback', () => {
   test('titre dérivé du nom de fichier', () => {
@@ -23,5 +23,11 @@ test.describe('uploadFeedback', () => {
     expect(uploadErrorMessage(409)).toMatch(/identique/);
     expect(uploadErrorMessage(400)).toMatch(/invalides/);
     expect(uploadErrorMessage(undefined)).toMatch(/connexion/);
+  });
+  test('coupure réseau déjà annoncée par le bandeau global : pas de second message', () => {
+    expect(isAnnouncedNetworkFailure({ errorCode: 'NETWORK_UNREACHABLE', status: 0 })).toBe(true);
+    expect(isAnnouncedNetworkFailure({ errorCode: 'HTTP_413', status: 413 })).toBe(false);
+    expect(isAnnouncedNetworkFailure(new Error('boom'))).toBe(false);
+    expect(isAnnouncedNetworkFailure(null)).toBe(false);
   });
 });

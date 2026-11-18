@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
-import { nextTitle, uploadErrorMessage } from '../lib/uploadFeedback';
+import { isAnnouncedNetworkFailure, nextTitle, OFFLINE_UPLOAD_MESSAGE, uploadErrorMessage } from '../lib/uploadFeedback';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 
 interface UploadDocumentModalProps {
@@ -66,11 +66,19 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
       .join(',');
     if (cleanTags) formData.append('tags', cleanTags);
 
+    // Poste déjà hors ligne : un seul message, dans la fenêtre, sans tenter l'envoi.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setError(OFFLINE_UPLOAD_MESSAGE);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const doc = await api.uploadDocument(formData) as Document;
       onSuccess(doc);
     } catch (err: any) {
+      // Coupure pendant l'envoi : le bandeau global l'annonce déjà ; la saisie reste dans la fenêtre.
+      if (isAnnouncedNetworkFailure(err)) return;
       setError(uploadErrorMessage(err?.status, err?.userMessage ?? err?.message));
     } finally {
       setIsLoading(false);
