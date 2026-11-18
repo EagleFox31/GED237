@@ -1,0 +1,83 @@
+// Spec pur (npm run test:unit) : logique de sélection multiple et bilan d'action groupée (#150).
+import { test, expect } from '@playwright/test';
+import {
+  applyExplorerSelection,
+  formatBulkSummaryMessage,
+  formatSelectionCount,
+  runBulkExplorerAction,
+  selectAllExplorerIds,
+} from '../../lib/explorerSelection';
+
+test.describe('Sélection multiple dans l explorateur (#150)', () => {
+  const ordered = ['d1', 'd2', 'd3', 'd4', 'd5'];
+
+  test('gère clic simple, Ctrl+clic (ajout/retrait), Maj+clic et Ctrl+A', () => {
+    const first = applyExplorerSelection({
+      currentIds: [],
+      orderedIds: ordered,
+      anchorId: null,
+      targetId: 'd2',
+      ctrlKey: false,
+      shiftKey: false,
+    });
+    expect(first).toEqual({ selectedIds: ['d2'], anchorId: 'd2' });
+
+    const shiftRange = applyExplorerSelection({
+      currentIds: first.selectedIds,
+      orderedIds: ordered,
+      anchorId: first.anchorId,
+      targetId: 'd4',
+      ctrlKey: false,
+      shiftKey: true,
+    });
+    expect(shiftRange).toEqual({ selectedIds: ['d2', 'd3', 'd4'], anchorId: 'd2' });
+
+    const ctrlRemove = applyExplorerSelection({
+      currentIds: shiftRange.selectedIds,
+      orderedIds: ordered,
+      anchorId: shiftRange.anchorId,
+      targetId: 'd3',
+      ctrlKey: true,
+      shiftKey: false,
+    });
+    expect(ctrlRemove).toEqual({ selectedIds: ['d2', 'd4'], anchorId: 'd3' });
+
+    const ctrlAdd = applyExplorerSelection({
+      currentIds: ctrlRemove.selectedIds,
+      orderedIds: ordered,
+      anchorId: ctrlRemove.anchorId,
+      targetId: 'd1',
+      ctrlKey: true,
+      shiftKey: false,
+    });
+    expect(ctrlAdd).toEqual({ selectedIds: ['d2', 'd4', 'd1'], anchorId: 'd1' });
+
+    const all = selectAllExplorerIds(ordered);
+    expect(all).toEqual({ selectedIds: ordered, anchorId: 'd1' });
+  });
+
+  test('formate le compteur de sélection et le bilan avec réussites et échecs', async () => {
+    expect(formatSelectionCount(1)).toBe('1 sélectionné');
+    expect(formatSelectionCount(3)).toBe('3 sélectionnés');
+
+    const docs = [
+      { id: '1', title: 'Note A' },
+      { id: '2', title: 'Brouillon B' },
+      { id: '3', title: 'Note C' },
+    ];
+    const summary = await runBulkExplorerAction(
+      docs,
+      (d) => d.title,
+      async (d) => {
+        if (d.id === '2') throw new Error('Statut non archivable');
+      },
+    );
+    expect(summary.succeededIds).toEqual(['1', '3']);
+    expect(summary.failures).toEqual([
+      { id: '2', label: 'Brouillon B', reason: 'Statut non archivable' },
+    ]);
+    expect(formatBulkSummaryMessage('archivé', summary)).toBe(
+      '2 archivés, 1 échec : Brouillon B (Statut non archivable)',
+    );
+  });
+});

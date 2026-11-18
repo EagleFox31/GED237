@@ -8,6 +8,14 @@ import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { downloadName } from '../../../lib/downloadName';
+import {
+  applyExplorerSelection,
+  formatBulkSummaryMessage,
+  formatSelectionCount,
+  runBulkExplorerAction,
+  selectAllExplorerIds,
+} from '../../../lib/explorerSelection';
 
 interface UserNode {
   id: string;
@@ -418,6 +426,89 @@ const SpacesPage: React.FC = () => {
     0
   );
 
+  const sortedDocuments = useMemo(
+    () =>
+      visibleDocuments
+        .slice()
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+    [visibleDocuments],
+  );
+
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkSummary, setBulkSummary] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedDocIds([]);
+    setSelectionAnchorId(null);
+    setBulkSummary(null);
+  }, [selectedUnitId, pageOffset]);
+
+  const handleDocumentSelect = (event: React.MouseEvent, docId: string) => {
+    const next = applyExplorerSelection({
+      currentIds: selectedDocIds,
+      orderedIds: sortedDocuments.map((d) => d.id),
+      anchorId: selectionAnchorId,
+      targetId: docId,
+      ctrlKey: event.ctrlKey || event.metaKey,
+      shiftKey: event.shiftKey,
+    });
+    setSelectedDocIds(next.selectedIds);
+    setSelectionAnchorId(next.anchorId);
+    setBulkSummary(null);
+  };
+
+  const selectedDocuments = useMemo(() => {
+    const selectedSet = new Set(selectedDocIds);
+    return sortedDocuments.filter((doc) => selectedSet.has(doc.id));
+  }, [selectedDocIds, sortedDocuments]);
+
+  const handleBulkDownload = async () => {
+    if (selectedDocuments.length === 0 || bulkProcessing) return;
+    setBulkProcessing(true);
+    setBulkSummary(null);
+    try {
+      const summary = await runBulkExplorerAction(
+        selectedDocuments,
+        (doc) => doc.title,
+        async (doc) => {
+          const blob = await api.getDocumentContentBlob(doc.id, 'attachment');
+          const url = URL.createObjectURL(blob);
+          const link = window.document.createElement('a');
+          link.href = url;
+          link.download = downloadName(doc);
+          window.document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1_000);
+        },
+      );
+      setBulkSummary(formatBulkSummaryMessage('téléchargé', summary));
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedDocuments.length === 0 || bulkProcessing) return;
+    setBulkProcessing(true);
+    setBulkSummary(null);
+    try {
+      const summary = await runBulkExplorerAction(
+        selectedDocuments,
+        (doc) => doc.title,
+        async (doc) => {
+          const updated = await api.updateDocument(doc.id, { status: 'archived' });
+          setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, ...updated } : d)));
+        },
+      );
+      setBulkSummary(formatBulkSummaryMessage('archivé', summary));
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   // Total du dossier : le serveur compte tous les documents filtrés, la page n'en
   // charge que SPACES_PAGE_SIZE (#256). Les documents de sous-services masqués sur
   // la page sont retirés quand tout est chargé. Paginé avec des sous-services, on ne
@@ -487,6 +578,22 @@ const SpacesPage: React.FC = () => {
         search.focus();
         search.select();
       }
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
+      const region = itemsRegionRef.current;
+      if (!region || (!region.contains(event.target as Node) && event.target !== region)) return;
+      if (sortedDocuments.length === 0) return;
+      event.preventDefault();
+      const next = selectAllExplorerIds(sortedDocuments.map((d) => d.id));
+      setSelectedDocIds(next.selectedIds);
+      setSelectionAnchorId(next.anchorId);
+      setBulkSummary(null);
+      return;
+    }
+    if (event.key === 'Escape' && selectedDocIds.length > 0 && !previewDocument && !contextMenu) {
+      setSelectedDocIds([]);
+      setSelectionAnchorId(null);
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -898,12 +1005,59 @@ const SpacesPage: React.FC = () => {
                 </div>
               )}
 
+              {!error && !documentsLoading && (selectedDocIds.length > 0 || bulkSummary) && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {selectedDocIds.length > 0 && (
+                      <span role="status" className="text-xs font-black uppercase tracking-widest text-rdpc-blue">
+                        {formatSelectionCount(selectedDocIds.length)}
+                      </span>
+                    )}
+                    {bulkSummary && (
+                      <span data-testid="explorer-bulk-summary" className="text-xs font-semibold text-slate-700">
+                        {bulkSummary}
+                      </span>
+                    )}
+                  </div>
+                  {selectedDocIds.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={bulkProcessing}
+                        onClick={() => { void handleBulkDownload(); }}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-rdpc-blue hover:text-rdpc-blue disabled:opacity-50"
+                      >
+                        Télécharger la sélection
+                      </button>
+                      <button
+                        type="button"
+                        disabled={bulkProcessing}
+                        onClick={() => { void handleBulkArchive(); }}
+                        className="rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                      >
+                        Archiver la sélection
+                      </button>
+                      <button
+                        type="button"
+                        disabled={bulkProcessing}
+                        onClick={() => {
+                          setSelectedDocIds([]);
+                          setSelectionAnchorId(null);
+                          setBulkSummary(null);
+                        }}
+                        className="rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 disabled:opacity-50"
+                      >
+                        Désélectionner
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {!error && !documentsLoading && visibleDocuments.length > 0 && viewMode === 'icons' && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                  {visibleDocuments
-                    .slice()
-                    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                    .map((doc) => {
+                  {sortedDocuments.map((doc) => {
+                      const isSelected = selectedDocIds.includes(doc.id);
                       const isTitleTruncated = doc.title.length > 26;
                       // Chemin du service de rattachement du doc — affiché en
                       // mode recherche pour donner le contexte de l'origine.
@@ -933,11 +1087,19 @@ const SpacesPage: React.FC = () => {
                         >
                           <button
                             type="button"
-                            onClick={() => openPreview(doc)}
+                            onClick={(event) => {
+                              if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                                event.preventDefault();
+                                handleDocumentSelect(event, doc.id);
+                              } else {
+                                openPreview(doc);
+                              }
+                            }}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                            aria-selected={isSelected}
                             data-explorer-item
-                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
+                            className={`group w-full rounded-[1.5rem] border px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${isSelected ? 'border-rdpc-blue bg-blue-50/70 ring-2 ring-rdpc-blue/40' : 'border-slate-200 bg-white'} ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span
@@ -988,18 +1150,18 @@ const SpacesPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {visibleDocuments
-                        .slice()
-                        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                        .map((doc) => {
+                      {sortedDocuments.map((doc) => {
                           const targetUnitName = getTargetLabel(doc);
+                          const isSelected = selectedDocIds.includes(doc.id);
                           return (
                             <tr
                               key={doc.id}
+                              onClick={(event) => handleDocumentSelect(event, doc.id)}
                               onDoubleClick={() => openPreview(doc)}
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                               tabIndex={0}
                               data-explorer-item
+                              aria-selected={isSelected}
                               aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && event.target === event.currentTarget) {
@@ -1007,7 +1169,7 @@ const SpacesPage: React.FC = () => {
                                   openPreview(doc);
                                 }
                               }}
-                              className="align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue"
+                              className={`align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue ${isSelected ? 'bg-blue-50/70 ring-2 ring-inset ring-rdpc-blue/40' : ''}`}
                             >
                               <td className="px-6 py-5">
                                 <div className="space-y-2">
