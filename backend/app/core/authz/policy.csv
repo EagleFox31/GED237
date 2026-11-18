@@ -63,6 +63,7 @@ p, tenant_admin, spaces, read
 p, tenant_admin, classification_rules, manage
 p, tenant_admin, classification_reviews, manage
 p, tenant_admin, workflows, manage
+p, tenant_admin, delegations, manage
 p, tenant_admin, analytics.tenant, read
 p, tenant_admin, audit_logs, read
 
@@ -104,6 +105,9 @@ p, manager, spaces, read
 p, manager, workflows, read
 p, manager, workflows, assign
 p, manager, workflows, resolve_review
+p, manager, delegations, read
+p, manager, delegations, create
+p, manager, delegations, update
 p, manager, analytics.tenant, read
 p, manager, categories, read
 
