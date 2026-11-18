@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -163,6 +163,63 @@ def _serialize_audit_log(
     }
 
 
+_LABEL_KEYS = (
+    "document_title",
+    "title",
+    "name",
+    "rule_name",
+    "label",
+    "filename",
+)
+Q_MAX_LENGTH = 100
+
+
+def _like_pattern(term: str) -> str:
+    """Contains-pattern where backslash, % and _ are literal (escape char is a backslash)."""
+    esc = "\\"
+    escaped = (
+        term.replace(esc, esc + esc).replace("%", esc + "%").replace("_", esc + "_")
+    )
+    return f"%{escaped}%"
+
+
+def _search_condition(tenant_id: UUID, term: str):
+    """Free-text match on the actor (name, matricule, email), the action and the object label."""
+    pattern = _like_pattern(term)
+
+    def like(column):
+        return column.ilike(pattern, escape="\\")
+
+    actors = select(User.id).where(
+        User.tenant_id == tenant_id,
+        or_(
+            like(func.coalesce(User.first_name, "")),
+            like(func.coalesce(User.last_name, "")),
+            like(
+                func.coalesce(User.first_name, "")
+                + " "
+                + func.coalesce(User.last_name, "")
+            ),
+            like(func.coalesce(User.matricule, "")),
+            like(func.coalesce(User.email, "")),
+        ),
+    )
+    documents = select(Document.id).where(
+        Document.tenant_id == tenant_id, like(Document.title)
+    )
+    payload_labels = [
+        like(payload[key].astext)
+        for payload in (AuditLog.new_data, AuditLog.old_data)
+        for key in _LABEL_KEYS
+    ]
+    return or_(
+        AuditLog.user_id.in_(actors),
+        like(AuditLog.action),
+        (AuditLog.table_name == "documents") & AuditLog.record_id.in_(documents),
+        *payload_labels,
+    )
+
+
 def _filtered_query(
     tenant_id: UUID,
     *,
@@ -172,13 +229,18 @@ def _filtered_query(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     until: Optional[datetime] = None,
+    q: Optional[str] = None,
 ):
     """Tenant logs matching the screen filters; dates are local calendar days, both inclusive.
 
     ``table_name`` and ``action`` take one value or several (any of them matches).
     ``until`` freezes the result at an instant (same clock and type as created_at).
+    ``q`` is a free-text search (see ``_search_condition``); blank means no filter.
     """
     query = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
+    term = (q or "").strip()
+    if term:
+        query = query.where(_search_condition(tenant_id, term))
     table_names = _values(table_name)
     if table_names:
         query = query.where(AuditLog.table_name.in_(table_names))
@@ -281,6 +343,7 @@ async def export_audit_logs(
     user_id: Optional[UUID] = Query(default=None),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
+    q: Optional[str] = Query(default=None, max_length=Q_MAX_LENGTH),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -292,6 +355,7 @@ async def export_audit_logs(
         "user_id": str(user_id) if user_id else None,
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
+        "q": q.strip() if q and q.strip() else None,
     }
     # Rows logged after this instant (by anyone) would shift the offset pages: freeze them out.
     # localtimestamp is the clock created_at is filled from (now() stored without zone).
@@ -304,6 +368,7 @@ async def export_audit_logs(
         date_from=date_from,
         date_to=date_to,
         until=snapshot,
+        q=q,
     )
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
     if total > EXPORT_MAX_ROWS:
@@ -363,13 +428,14 @@ async def list_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     table_name: Optional[str] = Query(default=None),
     action: Optional[str] = Query(default=None),
+    q: Optional[str] = Query(default=None, max_length=Q_MAX_LENGTH),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "audit_logs", "read")
 
     query = _filtered_query(
-        current_user.tenant_id, table_name=table_name, action=action
+        current_user.tenant_id, table_name=table_name, action=action, q=q
     )
     query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
