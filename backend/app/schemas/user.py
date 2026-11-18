@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, model_validator
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from uuid import UUID
 from datetime import datetime
 
@@ -119,3 +119,22 @@ UserCreateResponse.model_rebuild()
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=8)
+
+
+class HierarchyTreeNode(BaseModel):
+    """One person of the hierarchy tree (V1.2, item 11). ``children=None`` with
+    ``reports_count > 0``: not loaded yet, ask again with this node as the root."""
+
+    id: UUID
+    full_name: str
+    matricule: str
+    role_label: Optional[str] = None
+    reports_count: int
+    children: Optional[List["HierarchyTreeNode"]] = None
+
+
+class HierarchyTreeResponse(BaseModel):
+    root: HierarchyTreeNode
+
+
+HierarchyTreeNode.model_rebuild()
