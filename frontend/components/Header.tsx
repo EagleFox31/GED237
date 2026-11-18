@@ -146,6 +146,11 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const [resultsQuery, setResultsQuery] = useState('');
   const latestSearchRef = useRef(0);
   const [showResults, setShowResults] = useState(false);
+  // Pages à filtre local (/spaces…) : la frappe filtre la page ; un bouton sous le champ
+  // propose la recherche dans tous les documents pour le texte saisi (Lot 14, P5).
+  const [wideQuery, setWideQuery] = useState<string | null>(null);
+  const [showLocalHint, setShowLocalHint] = useState(false);
+  const searchEverywhere = !isPageLocalSearch || (wideQuery !== null && wideQuery === searchQuery);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -164,6 +169,8 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   useEffect(() => {
     setShowResults(false);
     setSearchResults([]);
+    setWideQuery(null);
+    setShowLocalHint(false);
     if (isPageLocalSearch) {
       setGlobalQuery('');
     }
@@ -189,6 +196,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowResults(false);
+        setShowLocalHint(false);
       }
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
@@ -199,9 +207,9 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   }, []);
 
   useEffect(() => {
-    // En mode "page-local", la frappe pilote le filtre via `?q=` ; pas
-    // d'appel API global à déclencher.
-    if (isPageLocalSearch) return;
+    // En mode "page-local", la frappe pilote le filtre via `?q=` ; l'appel API
+    // global ne part que sur demande explicite (bouton sous le champ), sans délai.
+    if (!searchEverywhere) return;
     const delayDebounceFn = setTimeout(async () => {
       latestSearchRef.current += 1;
       const request = latestSearchRef.current;
@@ -225,10 +233,10 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
         setSearchResults([]);
         setShowResults(false);
       }
-    }, 500);
+    }, isPageLocalSearch ? 0 : 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, isPageLocalSearch]);
+  }, [searchQuery, isPageLocalSearch, searchEverywhere]);
 
   const getMenuItems = () => {
     if (userProfile?.id === 'tenant') {
@@ -283,16 +291,20 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (isPageLocalSearch) setShowLocalHint(true);
+                }}
                 onFocus={() => {
-                  if (!isPageLocalSearch && searchQuery.length >= 2) setShowResults(true);
+                  if (isPageLocalSearch) setShowLocalHint(true);
+                  if (searchEverywhere && searchQuery.length >= 2) setShowResults(true);
                 }}
                 onKeyDown={(e) => {
                   // Entrée : ouvre le premier résultat de la recherche globale, seulement
                   // s'il correspond au texte saisi (sinon on attend les nouveaux résultats).
                   const first = searchResults[0];
                   const resultsAreCurrent = !isSearching && resultsQuery === searchQuery;
-                  if (e.key === 'Enter' && !isPageLocalSearch && showResults && first && resultsAreCurrent) {
+                  if (e.key === 'Enter' && searchEverywhere && showResults && first && resultsAreCurrent) {
                     e.preventDefault();
                     openSearchResult(first);
                   }
@@ -304,8 +316,27 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 className="block w-full pl-12 pr-4 py-2.5 bg-slate-100/50 border border-transparent rounded-2xl focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-200 transition-all outline-none text-[13px] font-medium"
               />
             </div>
-            {/* Search Results Dropdown — uniquement en mode global */}
-            {!isPageLocalSearch && showResults && (
+            {isPageLocalSearch && !searchEverywhere && showLocalHint && searchQuery.trim().length >= 2 && (
+              <div
+                data-search-everywhere
+                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50"
+              >
+                <p className="text-[11px] text-slate-400 font-medium px-4 pt-3">Ce champ filtre cette page.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWideQuery(searchQuery);
+                    setShowLocalHint(false);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none flex items-center gap-3 text-sm font-bold text-rdpc-blue"
+                >
+                  <span className="material-symbols-outlined text-lg" aria-hidden="true">travel_explore</span>
+                  <span className="truncate">Chercher « {searchQuery.trim()} » dans tous les documents</span>
+                </button>
+              </div>
+            )}
+            {/* Search Results Dropdown — mode global, ou recherche demandée depuis une page à filtre local */}
+            {searchEverywhere && showResults && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                 {searchResults.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">
