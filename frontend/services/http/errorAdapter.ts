@@ -21,6 +21,7 @@ export const buildApiError = async (
     response: Response,
     fallback: string,
     handledStatuses: readonly number[] = [],
+    silent = false,
 ): Promise<ApiError> => {
     let apiErr = await apiErrorFromResponse(response);
     // Si le backend n'a pas renvoyé de detail lisible, utiliser le fallback métier.
@@ -30,7 +31,8 @@ export const buildApiError = async (
     // Les 401 sont gérés par fetchWithRefresh (refresh ou logout) :
     // pas de toast intermédiaire redondant. Les statuts « handled » sont
     // affichés par l'appelant avec son propre message : pas de toast non plus.
-    if (apiErr.status !== 401 && !handledStatuses.includes(apiErr.status)) {
+    // Une requête de fond (silent) n'affiche jamais d'erreur.
+    if (!silent && apiErr.status !== 401 && !handledStatuses.includes(apiErr.status)) {
         pushApiError(apiErr);
     }
     return apiErr;
@@ -38,10 +40,10 @@ export const buildApiError = async (
 
 /**
  * Pousse une erreur réseau (TypeError "Failed to fetch", abort, DNS…) au bus
- * et retourne l'ApiError pour un éventuel re-throw local.
+ * (sauf requête de fond) et retourne l'ApiError pour un éventuel re-throw local.
  */
-export const buildNetworkError = (err: unknown): ApiError => {
+export const buildNetworkError = (err: unknown, silent = false): ApiError => {
     const apiErr = apiErrorFromException(err);
-    pushApiError(apiErr);
+    if (!silent) pushApiError(apiErr);
     return apiErr;
 };

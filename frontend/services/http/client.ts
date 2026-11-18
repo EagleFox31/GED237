@@ -23,14 +23,18 @@ export { getHeaders };
  * Wrapper fetch avec refresh automatique sur 401.
  * Point d'entrée unique pour tous les appels authentifiés.
  */
-export const fetchWithRefresh = async (url: string, options: RequestInit = {}): Promise<Response> => {
+export const fetchWithRefresh = async (
+    url: string,
+    options: RequestInit = {},
+    silent = false,
+): Promise<Response> => {
     let response: Response;
     try {
         response = await fetch(url, options);
     } catch (err) {
         // Erreur réseau (TypeError "Failed to fetch", abort, DNS…).
-        // Pousse au bus ET rejette pour que le call site puisse aussi gérer.
-        throw buildNetworkError(err);
+        // Pousse au bus (sauf requête de fond) ET rejette pour que le call site puisse aussi gérer.
+        throw buildNetworkError(err, silent);
     }
 
     if (response.status !== 401 || isAuthEndpoint(url)) {
@@ -84,6 +88,8 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
 export interface ApiCallOptions {
     /** Statuts que l'appelant affiche lui-même : l'erreur est levée sans toast global. */
     handledStatuses?: readonly number[];
+    /** Requête de fond : aucune erreur n'est affichée, l'appelant gère le repli. */
+    silent?: boolean;
 }
 
 export const apiCall = async <T>(
@@ -99,8 +105,8 @@ export const apiCall = async <T>(
             ...getHeaders(isMultipart),
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
-    });
-    if (!response.ok) throw await buildApiError(response, fallback, options.handledStatuses);
+    }, options.silent);
+    if (!response.ok) throw await buildApiError(response, fallback, options.handledStatuses, options.silent);
     return response.json() as Promise<T>;
 };
 

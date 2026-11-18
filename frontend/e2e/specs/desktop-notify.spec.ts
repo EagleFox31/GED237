@@ -5,9 +5,33 @@ import {
   reconnectDelay,
   shouldShowDesktop,
   targetPath,
+  ticketStopsRealtime,
 } from '../../lib/desktopNotify';
+import { buildApiError, buildNetworkError } from '../../services/http/errorAdapter';
+import { useErrorBus } from '../../lib/errors/errorBus';
 
 // Spec pur : exécuté par `npm run test:unit`.
+test.describe('Ticket indisponible : repli sans temps réel, sans message', () => {
+  test('401 et 404 coupent le temps réel ; panne serveur ou réseau : nouvel essai', () => {
+    expect(ticketStopsRealtime(401)).toBe(true);
+    expect(ticketStopsRealtime(404)).toBe(true);
+    expect(ticketStopsRealtime(500)).toBe(false);
+    expect(ticketStopsRealtime(503)).toBe(false);
+    expect(ticketStopsRealtime(0)).toBe(false);
+    expect(ticketStopsRealtime(undefined)).toBe(false);
+  });
+
+  test('requête de fond en échec : erreur levée, aucun message affiché', async () => {
+    useErrorBus.getState().clear();
+    const notFound = () => new Response(JSON.stringify({ detail: 'Not Found' }), { status: 404 });
+    const silentErr = await buildApiError(notFound(), 'Connexion temps réel impossible', [], true);
+    expect(silentErr.status).toBe(404);
+    buildNetworkError(new TypeError('Failed to fetch'), true);
+    // Le chemin non silencieux (toast) n'est pas rejoué ici : le bus lit `import.meta.env`, absent hors Vite.
+    expect(useErrorBus.getState().entries).toHaveLength(0);
+  });
+});
+
 test.describe('Notifications Windows : règles', () => {
   test('reconnexion : délais croissants, plafonnés à 30 s', () => {
     expect([0, 1, 2, 3].map(reconnectDelay)).toEqual([1000, 2000, 4000, 8000]);

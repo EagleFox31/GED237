@@ -82,6 +82,8 @@ export const authApi = {
             '/auth/ws-ticket',
             { method: 'POST' },
             'Connexion temps réel impossible',
+            // Requête de fond : en cas d'échec, repli sans temps réel, sans message d'erreur.
+            { silent: true },
         ),
 
     changePassword: async (current_password: string, new_password: string): Promise<true> => {

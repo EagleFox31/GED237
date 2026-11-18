@@ -7,6 +7,7 @@ import {
     desktopText,
     shouldShowDesktop,
     targetPath,
+    ticketStopsRealtime,
 } from '../lib/desktopNotify';
 
 export interface Notification {
@@ -28,12 +29,12 @@ interface Options {
 /** Événement de simulation (mode développement) tant que le serveur n'émet pas tous les événements de visa. */
 export const MOCK_NOTIFICATION_EVENT = 'ged:mock-notification';
 
-/** Ticket neuf à chaque connexion ; session refusée (401, déjà gérée par le transport) : on arrête. */
+/** Ticket neuf à chaque connexion ; session refusée (401) ou serveur sans ticket (404) : repli sans temps réel. */
 const requestTicket = async (): Promise<string | null> => {
     try {
         return (await api.requestWsTicket()).ticket;
     } catch (err) {
-        if (err instanceof ApiError && err.status === 401) return null;
+        if (err instanceof ApiError && ticketStopsRealtime(err.status)) return null;
         throw err;
     }
 };

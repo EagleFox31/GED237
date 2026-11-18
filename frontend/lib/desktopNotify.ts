@@ -78,9 +78,15 @@ export interface SocketHandlers {
 
 /**
  * Fournit un ticket neuf avant chaque connexion (#316 : usage unique, 30 s, jamais le jeton de session dans l'URL).
- * `null` = session refusée (401) : on s'arrête. Une exception = panne passagère : on réessaie plus tard.
+ * `null` = pas de temps réel (voir `ticketStopsRealtime`) : on s'arrête. Une exception = panne passagère : on réessaie plus tard.
  */
 export type TicketProvider = () => Promise<string | null>;
+
+/**
+ * Statuts du ticket qui coupent le temps réel sans nouvel essai : 401 (session refusée) et 404 (serveur
+ * sans ticket). L'application continue sans temps réel : la liste se charge à l'ouverture, sans message d'erreur.
+ */
+export const ticketStopsRealtime = (status?: number): boolean => status === 401 || status === 404;
 
 /** Programme `fn` dans `ms` millisecondes ; renvoie de quoi l'annuler. Injectable pour les tests. */
 export type Schedule = (fn: () => void, ms: number) => () => void;
