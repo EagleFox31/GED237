@@ -25,6 +25,9 @@ RUN HUSKY=0 npm ci
 
 COPY . .
 
+# Login screen demo profiles: same LOGIN_DEMO_HINTS as the API (false hides them).
+ARG VITE_LOGIN_DEMO_HINTS=true
+ENV VITE_LOGIN_DEMO_HINTS=${VITE_LOGIN_DEMO_HINTS}
 ARG VITE_API_URL=/api/v1
 ENV VITE_API_URL=${VITE_API_URL}
 ARG VITE_APP_VERSION=
