@@ -58,7 +58,7 @@ const ROUTE_SEARCH_CONFIG: Record<string, RouteSearchConfig> = {
 };
 const DEFAULT_SEARCH_CONFIG: RouteSearchConfig = {
   mode: 'global',
-  placeholder: 'Rechercher avec le Moteur Avancé (Documents, Intérieur OCR)…',
+  placeholder: 'Rechercher un document (titre ou contenu)…',
 };
 
 const resolveSearchConfig = (pathname: string): RouteSearchConfig => {
