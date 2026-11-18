@@ -202,3 +202,8 @@ def test_disabled_engine_never_loads_models(monkeypatch, tmp_path):
     engine = RapidOCREngine(model_dir=str(tmp_path))
     assert engine.extract_from_pil_image(_image()).text == ""
     assert RapidOCREngine._engine is None
+
+
+def test_default_max_side_keeps_the_memory_peak_bounded():
+    # 2000 px measured 755-895 MB, 1600 px 609-695 MB (memory.peak, 2 GB worker).
+    assert Settings().OCR_RAPIDOCR_MAX_SIDE == 1600

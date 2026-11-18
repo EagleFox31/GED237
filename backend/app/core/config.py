@@ -140,13 +140,15 @@ class Settings(BaseSettings):
         return value
 
     # OCR engine tried first on photos, screenshots and forms: rapidocr (default,
-    # PP-OCRv5 latin ONNX, ~760 MB peak at 2000 px), tesseract, or easyocr (torch,
+    # PP-OCRv5 latin ONNX, peak ~610-700 MB at 1600 px), tesseract, or easyocr (torch,
     # ~1.3 GB per worker child). Tesseract stays the fallback of rapidocr; clean PDF
     # scans always start with Tesseract.
     OCR_PRIMARY_ENGINE: str = "rapidocr"
     # Kill switch: false routes everything to Tesseract without a rebuild.
     OCR_RAPIDOCR_ENABLED: bool = True
-    OCR_RAPIDOCR_MAX_SIDE: int = 2000
+    # Longest side sent to RapidOCR. 1600 keeps the process peak well under 800 MB in a
+    # 2 GB worker (2000 px measured 755-895 MB); raise it only with more memory.
+    OCR_RAPIDOCR_MAX_SIDE: int = 1600
     OCR_RAPIDOCR_TIMEOUT_SECONDS: float = 60
     # Models baked into the image at build time; never downloaded at runtime.
     RAPIDOCR_MODEL_DIR: str = "/opt/rapidocr"
