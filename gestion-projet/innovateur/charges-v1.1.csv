@@ -23,3 +23,4 @@ ch;57 L13-2 vers B;B;1
 # Décision d’O du 18/11 dans la nuit : 57 L12-5 (réassigner une tâche en cours) passe d’aide-api à B, empilée sur #445.
 ch;57 L12-5 vers B;aide-api;-1,5
 ch;57 L12-5 vers B;B;1,5
+# Décision d’O (18/11 dans la nuit) : le dépassement de B (+0,55 h-s) est accepté, aucune ligne n’est rendue. Raison : B a livré L13-2 (#455) et L13-6 (#449) avant l’ouverture de sa fenêtre du 24/11, donc sa charge réelle dans la fenêtre est plus basse que le calcul.

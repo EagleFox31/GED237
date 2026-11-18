@@ -934,3 +934,5 @@ Plus aucun porteur au-dessus de sa capacité.
 | **Écart** | +0,55 | −0,75 | −2,45 | −9,5 à −7,5 | −12,15 à −10,15 |
 
 B dépasse sa capacité de 0,55 h-s. La charge de l’équipe ne change pas, et aide-api garde 7,5 à 9,5 h-s de marge. C’est à O de trancher : accepter le dépassement, ou rendre à aide-api une autre ligne de B qui n’est pas encore commencée (57 L14-2, déjà ouverte en #439, ne compte pas).
+
+**Décision d’O (18/11 dans la nuit)** : le dépassement est accepté, aucune ligne n’est rendue. B a livré L13-2 (#455) et L13-6 (#449) avant l’ouverture de sa fenêtre du 24/11 : sa charge réelle dans la fenêtre est donc plus basse que le calcul. Le tableau ci-dessus est retenu.
