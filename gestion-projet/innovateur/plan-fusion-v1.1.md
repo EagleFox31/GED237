@@ -296,3 +296,19 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 2. **Tranché (PO, 18/11) : toutes en V1.1**, avec la charge dans `plan-v1.1.md`. Les 25 PR marquées « — » : #389, #383, #372, #384, #386, #387, #388, #355, #338, #347, #351, #354, #371, #373, #366, #367, #377, #349, #359, #378, #342, #344, #353, #335 et #312.
 3. Revue de recouvrement par B (#241, #213, #361, #266, #220 et #159 face à #203, #358 et #360) avant le 26/11.
 4. Relecture de Q sur la tête pour toutes les PR marquées « périmé » ou « SHA non noté ».
+
+## 9. État des PR backend post-rc1 (relevé de B, 18/11 au soir)
+
+Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit ce que chaque PR demande avant la relecture de Q.
+
+| État | PR | Ce qu'il faut avant la relecture |
+|---|---|---|
+| À jour avec `main` | #205, #213, #238, #261, #262, #263 ; #152 (e27e01c), #155 (ab97a73) | Rien : relecture de Q sur la tête. Pour #152 et #155, voir plus bas. |
+| Propres mais anciennes | #147, #162, #171, #179, #186, #197, #222, #235, #237, #281, #283, #285, #294 ; #199 en partie | Mise à jour de la branche par B, puis CI verte, puis relecture de Q sur la nouvelle tête. |
+| En conflit | #153, #154, #159, #165, #180, #183, #192, #193, #212, #241, #266, #282 ; #181, #184 et #190 en partie | Rebase par B dans l'ordre des vagues, jamais en avance sur la base d'une pile (§ 3). |
+| Probablement obsolètes | #284 (recouvrement avec #370 et #372), #220 | B confirme, puis O ferme. Avant de fermer #284, re-cibler #311 et vérifier ce que #290 lit sur `/ocr`. Avant de fermer #220, re-cibler ce qui s'appuie sur elle (§ 3). |
+| À garder malgré tout | #282, #335 | #282 est à rebaser ; #335 reste en vague 6. |
+
+- **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). Il faut une relecture du delta de ce test par Q et un avis du PO avant la fusion, car elle change un comportement que la rc.1 garantit.
+- **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. À trancher avant la fusion : soit B aligne sur #148, soit O note l'écart comme accepté. Sinon elle reste en V1.2, comme prévu au § 6.
+- **Point 3 du § 8** : le recouvrement de #220 est confirmé par ce relevé. Pour #241, #213, #361, #266 et #159, la revue de B reste attendue avant le 26/11.
