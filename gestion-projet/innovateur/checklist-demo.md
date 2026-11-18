@@ -14,7 +14,7 @@
 - [ ] **B** — D3 : connexion, dépôt et import tracés dans le journal d'audit ; sinon formulation de repli de `plan-presentation.md` (séquence 13–15) validée par P.
 - [ ] **Q** — Jeu de démo `demo-manifest.json` + `docker compose exec api sh scripts/e2e_reset.sh demo` rejoués deux fois avec compteurs identiques à `expected` (preuve : walkthrough du 20/11).
 - [ ] **Q** — 8 parcours Playwright verts sur la pile Docker (run du 21/11) ; rapport HTML + traces archivés comme **plan B** (`frontend/e2e-out` copié hors du dépôt, sur le poste de démo et le poste de secours).
-- [ ] **F** — Bloquants de l’audit UX Lot 14, en V1.0 avant le gel : `/spaces` ne s’ouvre plus sur « 0 document » (risque 15) ; badge « EN COURS » au lieu de « CURRENT » sur `/tasks` (risque 16). Contre-test dans le navigateur sur le jeu de démo.
+- [x] **Fait : #432 (eea1eb8), contre-test (G) en cours.** **F** — Bloquants de l’audit UX Lot 14, en V1.0 avant le gel : `/spaces` ne s’ouvre plus sur « 0 document » (risque 15) ; badge « EN COURS » au lieu de « CURRENT » sur `/tasks` (risque 16). Contre-test dans le navigateur sur le jeu de démo.
 - [x] **Fait : #430 (6e8a11c), contre-test (G) en cours.** **B** — Bloquant de l’audit UX Lot 14 : descriptions en français clair des règles `DEMO_RULE_01` à `10` du jeu de démo (risque 17). Contrôle après `e2e_reset.sh demo`.
 - [ ] **O** — Script de l’animateur à jour pour les replis des risques 15 à 18 si un correctif manque (clic « Inclure les sous-services », arrivée de MGR001 sur `/tasks`).
 - [ ] **Animateur** — *(risque 18, O)* Après la connexion de `MGR001`, l’application ouvre « Tâches & Suivi » : cliquer « Tableau de Bord » dans le menu de gauche avant P4 (`deroule-demo.md`). Vérifié par l’outil d’audit UX (G), feuille de route 9.
