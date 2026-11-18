@@ -8,6 +8,7 @@
 - **Sorties de la V1.1 du 17/11** : la phase 2 de #288 et le serveur e-mail à l'écran (éléments 15 et 16), à mettre en tête de la V1.2.
 - **Refus en V1.1 du 17/11** : la surcouche P8 (élément 17, B 0,25), décision de O.
 - **Sortie de la V1.1 du 18/11** : le glisser-déposer de #151 (élément 18, #299), décision de O. #278 sort aussi (élément 19, décision de O) : il passe en tête de la V1.2, avant l'élément 10 qui en dépend.
+- **Ajout du 18/11** : « comme Windows », éléments 20 à 23 (≈ 7 h-s), détail dans `spec-windows-feel-v1.2.md`.
 
 ## Les éléments
 
@@ -32,6 +33,10 @@
 | 17 | **Surcouche P8 : bordereaux classés d'office**, refusée en V1.1 le 17/11 (pas d'ajout sans sortie équivalente) | les 2 bordereaux du jeu de démonstration ne tombent plus dans la bannette « à revoir » | 0,25 | — | — | jeu P8 ; `scenario-demo-30-11.md` § 10 |
 | 18 | **#299 : glisser-déposer un document sur un dossier = reclassement**, partie de #151 sortie de la V1.1 le 18/11 | l'agent range un document en le faisant glisser, avec les mêmes règles et la même trace que « Classer » | — (la trace vient de #179 et #262, en V1.1) | 1 (gestionnaires natifs, sans nouvelle bibliothèque ; le dépôt ouvre « Classer » pré-rempli) | 0,5 (e2e du glisser-déposer, refus sans droit) | #179, #262 et la boîte « Classer » (V1.1) |
 | 19 | **#278 : tableau de bord du manager et détail d'un modèle de règle**, sorti de la V1.1 le 18/11 (règle « pas d'ajout sans sortie », pour #300). Code écrit, PR #298 conservée en brouillon, à relire en début de V1.2 | le manager voit l'activité de ses services sur son accueil | — | 0,5 (rebasage et corrections après relecture) | 0,5 | #203 (V1.1) ; avant l'élément 10 |
+| 20 | **Glisser des fichiers depuis l'Explorateur Windows** sur un dossier : l'import s'ouvre, destination pré-remplie (`spec-windows-feel-v1.2.md`) | l'agent dépose ses fichiers comme dans Windows | — | 1 | 0,5 | 18 (mêmes gestionnaires de l'arbre, à faire à la suite) |
+| 21 | **Application installable** : fenêtre propre, icône dans la barre des tâches (manifeste, sans bibliothèque) | GED237 s'ouvre comme un logiciel du poste | — | 0,5 | 0,25 | HTTPS ; élément 15 pour les postes autres que celui de démo |
+| 22 | **Vue « Détails »** : colonnes triables et redimensionnables, choix de vue retenu, bouton « dossier parent » | l'agent trie et lit ses dossiers comme dans l'Explorateur | 0,5 (tri côté serveur, liste blanche) | 1,25 | 0,5 | — |
+| 23 | **Notifications Windows** pour les visas, les rejets et les revues, quand l'application est ouverte (WebSocket existant, pas de Web Push) | l'agent est prévenu sans rester sur la page | 1 (envoi en direct, événement de fin de circuit, revues regroupées) | 0,75 | 0,75 | circuit de validation (V1.0) |
 
 ## Total
 
@@ -43,9 +48,10 @@
 | Pilotage (9, 10) | 2 | 2 | 3 | 7 |
 | Hiérarchie (11, 12) | 1 | 2 | 0,75 | 3,75 |
 | Droits par institution (13) | 2,5 | 1 | 1,5 | 5 |
-| **Total** | **11,25** | **10,5** | **9,5** | **≈ 31,25** |
+| Comme Windows (20 à 23) | 1,5 | 3,5 | 2 | 7 |
+| **Total** | **12,75** | **14** | **11,5** | **≈ 38,25** |
 
-Q reste le goulot, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q, et les droits par institution (13) en pèsent 1,5. Ce sont les deux leviers de la V1.2.
+Avec les éléments 20 à 23, F devient la plus chargée (14 h-s) ; ils se décalent sans gêner les autres, car seul le 23 touche le serveur. Q reste le goulot des relectures, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q, et les droits par institution (13) en pèsent 1,5. Ce sont les deux leviers de la V1.2.
 
 ## Ordre proposé
 
@@ -54,6 +60,7 @@ Q reste le goulot, comme en V1.1. Le pilotage (9) pèse à lui seul 2,5 h-s de Q
 2. **Valeur pour l'agent (7, 8, 14)** : ce que les agents utilisent chaque jour.
 3. **Pilotage (9, 10)**, selon la réponse du PO à la question 1. **#183 se dégrade chaque semaine** : il a ≈ 3 800 lignes de retard sur `main`. S'il est gardé, il passe en tête du pilotage, voire avant le point 2, pour ne pas payer son rebasage deux fois.
 4. **Hiérarchie (11, puis 12)**.
+   **Comme Windows (20 à 23)**, demandé le 18/11 : 21, puis 22, puis 18 et 20 ensemble, puis 23. F en porte la moitié (3,5 h-s) ; ces éléments passent avant 13 si le PO ne demande pas de droits par institution.
 5. **Droits par institution (13)**, seulement si le PO le demande (question 2). C'est l'élément le plus risqué : il touche le modèle de droits de toute la plateforme.
 
 ## Questions au PO (deux)
