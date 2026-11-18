@@ -9,9 +9,10 @@ import {
   readStoredInstitution,
   writeStoredInstitution,
   readStoredMatricule,
-  writeStoredMatricule,
   forgetStoredMatricule,
   shouldAutoFocusPassword,
+  persistLoginAttempt,
+  persistDemoSelection,
 } from '../lib/loginFast';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
@@ -115,9 +116,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   }, [tenantOptions, institution]);
 
-  const initialMatricule = readStoredMatricule();
-  const [matricule, setMatricule] = useState(initialMatricule);
-  const [rememberMatricule, setRememberMatricule] = useState(Boolean(initialMatricule));
+  const [matricule, setMatricule] = useState(() => readStoredMatricule());
+  const [rememberMatricule, setRememberMatricule] = useState(() => Boolean(readStoredMatricule()));
   const [password, setPassword] = useState('');
   const passwordInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -135,19 +135,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
   const handleMatriculeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setMatricule(val);
-    if (rememberMatricule) {
-      writeStoredMatricule(val);
-    }
+    setMatricule(e.target.value);
   };
 
   const handleRememberMatriculeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     setRememberMatricule(checked);
-    if (checked) {
-      writeStoredMatricule(matricule);
-    } else {
+    if (!checked) {
       forgetStoredMatricule();
     }
   };
@@ -158,11 +152,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const label = tenantOptions ? tenantLabelForCode(tenantOptions, creds?.tenantCode ?? '') : creds?.tenantCode;
     if (creds && label) {
       setInstitution(label);
-      writeStoredInstitution(label);
+      persistDemoSelection(label);
       setMatricule(creds.matricule);
-      if (rememberMatricule) {
-        writeStoredMatricule(creds.matricule);
-      }
       setPassword(creds.password);
       setError(null);
       return;
@@ -183,15 +174,19 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       const password = formData.get('password') as string;
 
       writeStoredInstitution(institution);
-      if (rememberMatricule) {
-        writeStoredMatricule(matricule);
-      } else {
+      if (!rememberMatricule) {
         forgetStoredMatricule();
       }
 
       const response = await api.login({ institution, matricule, password });
 
       if (response.session_token) {
+        persistLoginAttempt({
+          institution,
+          matricule,
+          rememberMatricule,
+          loginSucceeded: true,
+        });
         setTempToken(response.session_token);
         setStep('otp');
         if (response.otp && typeof response.otp === 'string' && response.otp.length === 6) {

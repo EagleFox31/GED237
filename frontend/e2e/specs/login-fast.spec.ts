@@ -8,6 +8,8 @@ import {
   writeStoredMatricule,
   forgetStoredMatricule,
   shouldAutoFocusPassword,
+  persistLoginAttempt,
+  persistDemoSelection,
   type KeyValueStorage,
 } from '../../lib/loginFast';
 
@@ -135,5 +137,60 @@ test.describe('Connexion rapide (Tâche H)', () => {
     // localStorage n'a pas été affecté
     expect(readStoredInstitution(localStore)).toBe('MINFI');
     expect(readStoredMatricule(localStore)).toBe('MINFI001');
+  });
+
+  test('n enregistre le matricule qu après une connexion réussie (et non en cas d échec)', () => {
+    const storage = new MemoryStorage();
+
+    // Tentative échouée avec case cochée : le matricule erroné ne doit pas être mémorisé
+    persistLoginAttempt(
+      {
+        institution: 'Ministère des Finances (MINFI)',
+        matricule: 'FAUX999',
+        rememberMatricule: true,
+        loginSucceeded: false,
+      },
+      storage,
+    );
+    expect(readStoredInstitution(storage)).toBe('Ministère des Finances (MINFI)');
+    expect(readStoredMatricule(storage)).toBe('');
+
+    // Tentative réussie avec case cochée : le matricule valide est mémorisé
+    persistLoginAttempt(
+      {
+        institution: 'Ministère des Finances (MINFI)',
+        matricule: 'MINFI001',
+        rememberMatricule: true,
+        loginSucceeded: true,
+      },
+      storage,
+    );
+    expect(readStoredMatricule(storage)).toBe('MINFI001');
+
+    // Tentative suivante avec case décochée (même échouée) : le matricule est effacé
+    persistLoginAttempt(
+      {
+        institution: 'Ministère des Finances (MINFI)',
+        matricule: 'MINFI001',
+        rememberMatricule: false,
+        loginSucceeded: false,
+      },
+      storage,
+    );
+    expect(readStoredMatricule(storage)).toBe('');
+  });
+
+  test('la sélection d un profil de démo mémorise l institution mais jamais le matricule de démo', () => {
+    const storage = new MemoryStorage();
+
+    persistDemoSelection('Ministère des Finances (MINFI)', storage);
+    expect(readStoredInstitution(storage)).toBe('Ministère des Finances (MINFI)');
+    expect(readStoredMatricule(storage)).toBe('');
+
+    // Si un matricule d'agent était déjà mémorisé, choisir un profil de démo ne l'écrase pas par le matricule de démo
+    writeStoredMatricule('AGENT777', storage);
+    persistDemoSelection('Plateforme Nationale (PLATFORM)', storage);
+    expect(readStoredInstitution(storage)).toBe('Plateforme Nationale (PLATFORM)');
+    expect(readStoredMatricule(storage)).toBe('AGENT777');
   });
 });

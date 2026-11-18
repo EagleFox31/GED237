@@ -114,3 +114,42 @@ export function shouldAutoFocusPassword(
 ): boolean {
   return Boolean(institution.trim() && matricule.trim());
 }
+
+export interface LoginAttemptPersistenceInput {
+  institution: string;
+  matricule: string;
+  rememberMatricule: boolean;
+  loginSucceeded: boolean;
+}
+
+/**
+ * Persiste les préférences à l'issue d'une tentative de connexion :
+ * - L'institution est mémorisée automatiquement.
+ * - Si la case « Mémoriser mon matricule » est décochée, tout matricule stocké est effacé.
+ * - Si la case est cochée, le matricule n'est écrit qu'après une connexion réussie (`loginSucceeded === true`),
+ *   afin de ne jamais mémoriser un matricule erroné.
+ */
+export function persistLoginAttempt(
+  input: LoginAttemptPersistenceInput,
+  storage: KeyValueStorage | null = defaultLocalStorage(),
+): void {
+  writeStoredInstitution(input.institution, storage);
+  if (!input.rememberMatricule) {
+    forgetStoredMatricule(storage);
+    return;
+  }
+  if (input.loginSucceeded) {
+    writeStoredMatricule(input.matricule, storage);
+  }
+}
+
+/**
+ * Applique la sélection d'un profil de démonstration au stockage :
+ * mémorise l'institution, mais ne mémorise jamais le matricule de démo.
+ */
+export function persistDemoSelection(
+  institutionLabel: string,
+  storage: KeyValueStorage | null = defaultLocalStorage(),
+): void {
+  writeStoredInstitution(institutionLabel, storage);
+}
