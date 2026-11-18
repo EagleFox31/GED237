@@ -5,6 +5,8 @@ import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, f
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
+import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { downloadName } from '../lib/downloadName';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -32,8 +34,26 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [versions, setVersions] = useState<any[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [commentFor, setCommentFor] = useState<{ stepId: string; actionType: string; outcome: "rejected" | "returned" } | null>(null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
+
+  // Même route que le visualiseur ; l'erreur éventuelle est déjà publiée par apiCallBlob.
+  const handleDownload = async () => {
+    try {
+      const blob = await api.getDocumentContentBlob(document.id, 'attachment');
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = downloadName(document);
+      window.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    } catch {
+      /* erreur déjà publiée par apiCallBlob */
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'workflow') {
@@ -71,13 +91,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
     }
   };
 
-  const handleValidate = async (stepId: string, actionType: string, outcomeType: 'accepted' | 'acknowledged' | 'rejected' | 'returned') => {
+  type StepOutcome = 'accepted' | 'acknowledged' | 'rejected' | 'returned';
+  const handleValidate = async (stepId: string, actionType: string, outcomeType: StepOutcome, comment?: string) => {
     let finalOutcome = outcomeType;
     if (outcomeType === 'accepted' && actionType === 'read_ack') finalOutcome = 'acknowledged';
-    const comment = (outcomeType === 'rejected' || outcomeType === 'returned') ? prompt('Saisir un commentaire explicatif :') : null;
-
-    // User cancelled the prompt?
-    if ((outcomeType === 'rejected' || outcomeType === 'returned') && comment === null) return;
+    // Rejet ou renvoi : le commentaire se saisit d'abord dans la boîte dédiée.
+    if ((outcomeType === 'rejected' || outcomeType === 'returned') && !comment) {
+      setCommentFor({ stepId, actionType, outcome: outcomeType });
+      return;
+    }
     if (!document.current_version_id) {
       setActionError("Impossible d'exécuter l'action: version courante introuvable pour ce document.");
       return;
@@ -212,7 +234,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">
           {activeTab === 'info' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+            <div className="grid grid-cols-1 gap-8 h-full">
               <div className="space-y-6">
                 <div className="glass p-6 rounded-3xl border-white space-y-4">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Métadonnées Officielles</h3>
@@ -252,21 +274,13 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 </div>
                 <div className="p-6 bg-blue-600 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
                   <h3 className="text-lg font-bold mb-2">Actions rapides</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
+                  <div className="grid grid-cols-1 gap-3">
+                    <button type="button" onClick={handleDownload} data-testid="document-download" className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
                       <Icons.Documents className="w-4 h-4" /> Télécharger
-                    </button>
-                    <button className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
-                      <Icons.Search className="w-4 h-4" /> Partager
                     </button>
                   </div>
                   <Icons.Flame className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 rotate-12" />
                 </div>
-              </div>
-              <div className="glass rounded-3xl border-white bg-slate-200/50 flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
-                <Icons.Documents className="w-16 h-16 opacity-20 mb-4" />
-                <p className="text-sm font-bold">Aperçu non disponible en mode sécurisé</p>
-                <button className="mt-4 px-6 py-3 bg-white text-slate-600 rounded-2xl text-xs font-bold shadow-sm hover:shadow-md transition-all">Générer un aperçu temporaire</button>
               </div>
             </div>
           )}
@@ -434,6 +448,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
           handleArchive();
         }}
         onCancel={() => setConfirmArchive(false)}
+      />
+      <RejectReasonDialog
+        documentTitle={commentFor ? document.title : null}
+        heading={commentFor?.outcome === 'returned' ? 'Renvoyer pour correction' : 'Rejeter le document'}
+        confirmLabel={commentFor?.outcome === 'returned' ? 'Confirmer le renvoi' : 'Confirmer le rejet'}
+        onCancel={() => setCommentFor(null)}
+        onConfirm={(reason) => {
+          const pending = commentFor;
+          setCommentFor(null);
+          if (pending) void handleValidate(pending.stepId, pending.actionType, pending.outcome, reason);
+        }}
       />
     </div>
   );

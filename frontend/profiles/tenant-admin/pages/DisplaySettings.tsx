@@ -206,7 +206,6 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
                   <h4 className="text-xl font-black italic uppercase tracking-tighter mb-2">Finaliser l'installation</h4>
                   <p className="text-slate-400 text-xs font-medium max-w-md">Une fois ces étapes terminées, votre tenant sera officiellement prêt pour la production nationale.</p>
                </div>
-               <button className="relative z-10 px-8 py-4 bg-cam-yellow text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl">Générer Rapport Setup</button>
                <span className="material-symbols-outlined absolute -right-4 -bottom-4 text-9xl text-white/5 rotate-12">rocket_launch</span>
             </div>
         </div>
