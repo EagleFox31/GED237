@@ -365,13 +365,15 @@ async def list_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     table_name: Optional[str] = Query(default=None),
     action: Optional[str] = Query(default=None),
+    # Same actor filter as the export: filtering server-side keeps it right across pages.
+    user_id: Optional[list[UUID]] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "audit_logs", "read")
 
     query = _filtered_query(
-        current_user.tenant_id, table_name=table_name, action=action
+        current_user.tenant_id, table_name=table_name, action=action, user_id=user_id
     )
     query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
