@@ -921,4 +921,6 @@ Tableau calculé par `gestion-projet/outils/charges.sh` sur `charges-v1.1.csv` :
 | Capacité | 41,5 | 32 | 37,75 | 42 | 153,25 |
 | **Écart** | −0,95 | −0,75 | −2,45 | −8 à −6 | −12,15 à −10,15 |
 
-Plus aucun porteur au-dessus de sa capacité. Si la session d’aide-api n’est pas ouverte du 19 au 23/11, on revient au tableau précédent (aide-api de −1 à +1).
+Plus aucun porteur au-dessus de sa capacité.
+
+**Décision d’O (18/11 au soir)** : le PO laisse la session d’aide-api ouverte du 19 au 23/11. Ce tableau est retenu. aide-api est le **premier recours** si F déclenche son transfert de tests vers Q (2 h-s) ou si une ligne glisse.

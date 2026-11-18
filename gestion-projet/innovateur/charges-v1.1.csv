@@ -3,7 +3,7 @@
 cap;B;41,5
 cap;F;32
 cap;Q;37,75
-# aide-api : 35 h-s du 24/11 au 04/12, plus 7 h-s utiles du 19 au 23/11 (8 annoncées, moins 1 pour « 57 tests rapides ») si le PO garde la session ouverte (aide-api, 18/11 au soir).
+# aide-api : 35 h-s du 24/11 au 04/12, plus 7 h-s utiles du 19 au 23/11 (8 annoncées, moins 1 pour « 57 tests rapides ») session ouverte confirmée par le PO (O, 18/11 au soir).
 cap;aide-api;42
 # Socle au 18/11 au soir (plan-v1.1.md, § « Cas retenu par O »), avant le Lot 14.
 ch;socle 18/11;B;38,8
