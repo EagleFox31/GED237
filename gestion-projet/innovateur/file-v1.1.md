@@ -23,7 +23,7 @@ ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 43
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
-ORDER_V2="152 181 184 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 453"
+ORDER_V2="152 181 184 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 453 456"
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
@@ -56,7 +56,7 @@ HORS_FILE="104 121 408 409 412 415 385 313"
   - #441, accès au clavier du Lot 8, va en fin de vague 5. Elle touche les cartes de documents, la zone de dépôt et les dialogues, qu'elle partage avec de nombreuses PR. La passer en dernier limite les conflits.
   - #424 (pagination du journal d’audit) en fin de vague 1 ; #426 (57 L10-1 : `/documents?q=` cherche aussi dans le texte OCR, aide-api) en vague 2, juste avant #436 ; #446 (accessibilité de la connexion et des tâches, F), empilée sur #416, juste après elle (O, 18/11 au soir).
   - Trouvées par le contrôle exhaustif (`verif-file.sh`, 18/11 au soir) : #448 (garde de /reports, empilée sur #437) juste après #437 ; en fin de vague 1, sans migration, #419 (commande « premier administrateur », issue #411, avant #447 selon l’ordre de travail de B), #428 (profils de démo masqués dans l’image de production, la petite PR de F après #423) et #443 (retrait de la page `NeedsReviewInbox` inutilisée). #385 (bancs OCR) et #313 (V1.2) vont dans `HORS_FILE`.
-- **Mise à jour attendue après fusion** (simulation à blanc de Q sur 20 PR, O, 18/11 au soir) : dans chaque paire, la seconde fusionnée fusionne `main` et se met à jour, puis repasse chez Q si sa tête change. #438 puis #445 (`workflows.py`) ; #426 puis #436 (`documents.py`) ; #433 puis #436 (`lessons-learned.md`) ; #440 puis #441 (`Documents.tsx`) ; #442 puis #441 (`DocumentDetailModal.tsx`) ; #435 puis #445 et #449 puis #445 (`audit.py` : le filtre sur plusieurs `user_id` contre le `or_` sur `on_behalf_of`). La résolution est chez aide-api, et son test de filtre est à rejouer sur la tête fusionnée (OK final de Q sur #445 6003d93e, O, 18/11 dans la nuit) ; #454 puis #453 (`Sidebar.tsx` et `App.tsx` : #453 se met à jour en gardant les deux côtés) ; #448 puis #453 (`App.tsx`) et #453 puis #446 (`WorkflowTasks.tsx`), résolues en gardant les deux côtés (Q, O, 18/11 dans la nuit) ; #435 puis #453 et #449 puis #453 (`AuditLogs.tsx`, résolution chez F).
+- **Mise à jour attendue après fusion** (simulation à blanc de Q sur 20 PR, O, 18/11 au soir) : dans chaque paire, la seconde fusionnée fusionne `main` et se met à jour, puis repasse chez Q si sa tête change. #438 puis #445 (`workflows.py`) ; #426 puis #436 (`documents.py`) ; #433 puis #436 (`lessons-learned.md`) ; #440 puis #441 (`Documents.tsx`) ; #442 puis #441 (`DocumentDetailModal.tsx`) ; #435 puis #445 et #449 puis #445 (`audit.py` : le filtre sur plusieurs `user_id` contre le `or_` sur `on_behalf_of`). La résolution est chez aide-api, et son test de filtre est à rejouer sur la tête fusionnée (OK final de Q sur #445 6003d93e, O, 18/11 dans la nuit) ; #454 puis #453 (`Sidebar.tsx` et `App.tsx` : #453 se met à jour en gardant les deux côtés) ; #448 puis #453 (`App.tsx`) et #453 puis #446 (`WorkflowTasks.tsx`), résolues en gardant les deux côtés (Q, O, 18/11 dans la nuit) ; #435 puis #453 et #449 puis #453 (`AuditLogs.tsx`, résolution chez F) ; #456 se met à jour après #435 et #449 (`audit.py`), #438 (`workflows.py`) et #442 (`DocumentDetailModal.tsx`), puis #441 après #456 (`DocumentDetailModal.tsx`). #456 ne partage aucun fichier avec #453 ni avec #455 (relevé `gh pr diff`, 19/11).
 - **Ouvertes le 18/11 dans la nuit (O)** :
   - #449, L13-6 « Mes dernières actions » (B). Elle est empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437, relevé par Q. Elle passe donc juste derrière #437, la plus tardive des deux, avec `DEP[449]="435 437"`. Il faut la re-cibler sur `main` avant la fusion de #435. Si #435 passe en vague 3, #449 la suit ;
   - #450, fenêtre d'ajout sur petit écran (F). Elle est empilée sur #441 et passe juste derrière elle, en fin de vague 5 ;
@@ -65,6 +65,7 @@ HORS_FILE="104 121 408 409 412 415 385 313"
   - #453, écran des remplacements pendant une absence (L4, F, 3ddba884). Sa base est `main`, mais elle utilise l’API de #445 (son filtre « au nom de » passe par le paramètre serveur `on_behalf`) : elle passe juste derrière #445, en fin de vague 2, avec `DEP[453]="445"` ;
   - #454, menu Rapports pour tous les profils autorisés sur /reports (F, 3a6817b7). Elle est empilée sur #448 (garde de /reports) et passe juste derrière elle, avec `DEP[454]="448"`. Il faut la re-cibler sur `main` avant la fusion de #448 ;
   - #455, L13-2 accueil (B). Elle est empilée sur #438 et passe derrière #438 et #440, avec `DEP[455]="438 440"`. Il faut la re-cibler sur `main` avant la fusion de #438.
+  - #456, 57 L12-5 « réassigner une tâche en cours » (B, 056e8842). Elle est empilée sur #445 et passe juste derrière #453, en fin de vague 2, avec `DEP[456]="445"`. Il faut la re-cibler sur `main` avant la fusion de #445.
 - **À ouvrir, hors des vagues tant que la PR n’existe pas** :
   - 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s), empilée sur #445. Elle aura `DEP` sur #445 et se placera entre #445 et #197 ; `DEP[197]` passera alors sur elle ;  - la réparation du hook pre-commit (Q, 0,5 h-s), après #433.
 - **« #152 après #401 » est levé** : c'était l'ordre de travail de B, pas une contrainte de fusion. **Mise à jour (O, 18/11)** : #152 seule passe en tête de la vague 2 (OK du PO, a47df85, OK de Q). Le reste du groupe corbeille (#181, #184, #168, #171, #190, #199, #301, #302) reste en vague 4 ; #181, empilée sur #152, est re-ciblée sur `main` avant la fusion de #152 (plan-fusion § 3).
@@ -89,7 +90,7 @@ DEP[436]="387"
 # Piles et suites ouvertes le 18/11 au soir (O) ; #445 porte une migration (chaîne alembic, plan-fusion § 4)
 DEP[438]="429"; DEP[448]="437"; DEP[444]="438"; DEP[446]="416"; DEP[440]="438"; DEP[445]="429 436"
 # Ouvertes le 18/11 dans la nuit (O) : #449 empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437 (Q) ; #450 empilée sur #441
-DEP[449]="435 437"; DEP[450]="441"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"
+DEP[449]="435 437"; DEP[450]="441"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"; DEP[456]="445"
 DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
 DEP[267]="248"; DEP[268]="248 389"
 DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
@@ -139,6 +140,7 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 | #437 | #448 ; puis, avant #448 : #454 |
 | #435 | #449 |
 | #441 | #450 |
+| #445 | #456 |
 
 Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n’est fusionnée avant la fin de la fenêtre V1.1 (05/12, 18:00).
 
