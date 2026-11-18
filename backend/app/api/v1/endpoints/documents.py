@@ -27,6 +27,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
+from app.core.search.postgres_engine import PostgresSearchEngine
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
@@ -133,8 +134,19 @@ def _escape_like(value: str) -> str:
     )
 
 
+def _ocr_text_match(text: str):
+    """Full-text match on the OCR content.
+
+    Same text search config as the search engine, and the bare column on the left,
+    so the GIN index ``idx_documents_ocr_vector`` can serve it."""
+    return Document.ocr_content_vector.op("@@")(
+        func.plainto_tsquery(PostgresSearchEngine.FTS_CONFIG, text)
+    )
+
+
 def _apply_text_filter(query, text: str):
-    """Literal, case-insensitive match on title, tags, domain, activity or category name."""
+    """Literal, case-insensitive match on title, tags, domain, activity or category
+    name, or a full-text match on the OCR content."""
     pattern = f"%{_escape_like(text)}%"
 
     def _match(column):
@@ -160,6 +172,7 @@ def _apply_text_filter(query, text: str):
                 _match(ClassificationDomain.name),
                 _match(ClassificationActivity.name),
                 _match(DocumentCategory.name),
+                _ocr_text_match(text),
             )
         )
     )
