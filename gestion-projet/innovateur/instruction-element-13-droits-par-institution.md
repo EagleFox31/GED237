@@ -219,7 +219,7 @@ Tant que ces listes restent dans le code, une case de périmètre dans la grille
 
 - **Plafond par rôle :** une institution ne peut pas donner un périmètre plus large que celui de tenant_admin. Un plafond par rôle est fixé dans le code (par exemple, collaborator ne dépasse pas `unit`).
 - **L'écriture ne dépasse jamais la lecture :** le périmètre d'écriture (`update`, `delete`) est toujours inclus dans celui de lecture.
-  - Aujourd'hui, la modification et la suppression d'un document ne vérifient que l'institution, pas l'unité. Ce point a été relevé dans la revue de l'inventaire.
+  - La modification et la suppression d'un document ne vérifient que l'institution et la propriété, pas l'unité. Sur main (18/11), cela ne crée pas d'écart pour les administrateurs, qui lisent toute l'institution. L'écart apparaît dès que leur lecture est restreinte (#203). Il existe déjà pour un responsable qui possède un document hors de son unité. Le détail est en section 9.
   - Il faut le corriger **avant** d'ouvrir le réglage.
 - **Hors de portée, c'est 404** (#247), quel que soit le niveau.
 - **Garde-fou de non-retour :** un test d'architecture échoue si une liste de rôles de périmètre réapparaît dans un endpoint au lieu de passer par `resolve_scope`.
@@ -245,3 +245,138 @@ Tant que ces listes restent dans le code, une case de périmètre dans la grille
 
 - Étape 1 seule : elle met de l'ordre sans rien changer de visible.
 - Étapes 2 à 4 : seulement si une institution pilote en exprime le besoin.
+
+## 9. Contrat figé et plan d'exécution (V1.2, décision du PO du 18/11)
+
+**Décision du PO :** le périmètre réglable est livré **en entier** (étapes 1 à 4 de la section 8) en V1.2, en **1 h-s**. Cette décision remplace la recommandation de la section 8. Le lancement (T0) a lieu au signal de l'orchestrateur, après la fusion de #203 et de #303.
+
+Le contrat ci-dessous est **figé** : B et F codent en parallèle dessus, sans se concerter. Toute modification passe par l'orchestrateur.
+
+### 9.1 État de départ (vérifié le 18/11)
+
+| Cas | Lecture | Écriture (update, corbeille, suppression) | Écart |
+| --- | --- | --- | --- |
+| super_admin, tenant_admin, auditor | institution | institution (sauf auditor : aucune) | aucun |
+| unit_admin, main | institution | institution | aucun |
+| unit_admin, #203 | **listes** limitées à son unité et ses sous-unités | institution | **oui** : l'ouverture d'un document par son identifiant (`_can_read_document`), la modification et la suppression restent ouvertes sur toute l'institution |
+| manager, propriétaire d'un document hors de son unité | refusée (`_can_read_document` : `read` limité à l'unité, pas de `read_own`) | autorisée (`update_own`, `trash_own`) | **oui** |
+| manager, `DELETE /documents/{id}` | — | suppression définitive avec le seul `update_own` | correctif V1.0 de B (`fix/v10-delete-perm`) |
+
+Le contrat ferme les deux écarts marqués « oui » par une règle unique : **une écriture exige que l'objet soit dans le périmètre de lecture.**
+
+### 9.2 Module `backend/app/services/access_scope.py` (B)
+
+- `Scope = Literal["own", "unit", "unit_tree", "tenant"]`, ordonnés du plus étroit au plus large.
+- `Resource = Literal["documents", "users", "org_units"]`.
+  - Les rapports suivent `documents` : `resolve_report_scope` (#203) lit `resolve_scope(user, "documents")`.
+- `DEFAULT_SCOPES: dict[role_code, dict[Resource, Scope]]` et `ROLE_SCOPE_CEILING: dict[role_code, Scope]`, en données (table ci-dessous).
+- `async resolve_scope(db, user, resource) -> Scope` :
+  1. prend la surcharge de l'institution, sinon la valeur par défaut ;
+  2. borne le résultat au plafond du rôle ;
+  3. si le niveau est `unit` ou `unit_tree` et que l'utilisateur n'a pas d'unité, renvoie `own` (comportement actuel).
+- `scope_filter(user, scope, resource) -> list[ColumnElement]` : conditions SQL à ajouter au filtre d'institution.
+  - `own` : propriétaire (`documents`) ou soi-même (`users`).
+  - `unit` : `org_unit_id == user.org_unit_id`.
+  - `unit_tree` : `org_unit_id IN unit_subtree_ids(user.org_unit_id)` (#203).
+  - `tenant` : aucune condition.
+- `async in_scope(db, user, obj, resource) -> bool` : même règle pour un objet seul. Pour `unit_tree`, elle s'appuie sur `is_within_unit_tree` (#203).
+- **Branchement :**
+  - documents : `visible_document_scope`, `_can_read_document`, `_can_mutate_document`, `_can_trash_document` et `DELETE` ;
+  - les trois fonctions d'écriture appellent `in_scope(..., "documents")` **avant** Casbin ;
+  - users : le filtre `_unit_scope` du lot de B (668b8f6) est remplacé par `scope_filter(user, resolve_scope(...), "users")` ;
+  - org-units : `/org-units/tree` et `/users/{id}/hierarchy-tree`.
+- **Hors de portée : 404**, en lecture comme en écriture (#247).
+
+### 9.3 Valeurs par défaut et plafonds
+
+Les valeurs par défaut reproduisent main à T0, c'est-à-dire après la fusion de #203 et du lot users de B. Le test T1 fait foi en cas de doute.
+
+| Rôle | documents | users | org_units | Plafond |
+| --- | --- | --- | --- | --- |
+| super_admin | tenant | tenant | tenant | tenant |
+| tenant_admin | tenant | tenant | tenant | tenant |
+| auditor | tenant | tenant | tenant | tenant |
+| unit_admin | unit_tree | unit_tree | unit_tree | tenant |
+| manager | unit | — | — | unit_tree |
+| reader | unit | — | — | unit_tree |
+| collaborator | own | — | — | unit |
+
+« — » signifie que Casbin interdit déjà la ressource, ou que la règle de #285 (soi-même et ses N-1) s'applique. Ces cases ne sont pas réglables en V1.2 et n'apparaissent pas dans la grille.
+
+super_admin et tenant_admin ne sont pas réglables, comme pour les surcharges de droits (section 3) : leurs lignes servent de plafond de référence et n'apparaissent pas dans la grille.
+
+### 9.4 Stockage
+
+- Table `role_scope_overrides` :
+  - colonnes : `id`, `tenant_id` (FK), `role_code`, `resource`, `scope`, `updated_by`, `updated_at` ;
+  - contrainte unique `(tenant_id, role_code, resource)`.
+- Une table vide donne exactement le comportement par défaut. Aucune reprise de données.
+- Migration Alembic avec `downgrade`, puis `alembic upgrade head` sur chaque base utilisée.
+- Lecture : une requête par appel, sur l'index unique. Si l'option B de l'élément 13 est livrée, la table utilise le même cache `overrides_version`.
+
+### 9.5 API (B), consommée telle quelle par F
+
+`GET /api/v1/admin/access-scopes` :
+
+- réservé à tenant_admin (son institution) et super_admin, comme les routes de surcharge de l'option B ; les autres rôles reçoivent 403 ;
+- 200 → `[{ "role": "manager", "resource": "documents", "scope": "unit", "default": "unit", "ceiling": "unit_tree", "overridden": false }, ...]` ;
+- seules les cases réglables de la table 9.3 sont renvoyées.
+
+`PUT /api/v1/admin/access-scopes` :
+
+- même droit que le `GET` ;
+- corps : `{ "role": "manager", "resource": "documents", "scope": "unit_tree" }` ;
+- 200 → l'élément mis à jour, au format du `GET` ;
+- 422 dans ces cas :
+  - rôle, ressource ou niveau inconnu ;
+  - case non réglable ;
+  - niveau au-dessus du plafond ;
+- **idempotent :**
+  - choisir la valeur par défaut supprime la surcharge ;
+  - renvoyer la valeur déjà en place n'écrit rien, ni ligne ni audit ;
+- **audit :** une ligne `access_scope.update` par changement effectif, avec l'avant et l'après ;
+- l'institution vient du jeton, jamais du corps de la requête.
+
+### 9.6 Interface (F), sur la grille #303
+
+- Une colonne « Périmètre » par rôle et ressource réglable.
+- Une liste déroulante à quatre libellés :
+  - « Ses documents » ;
+  - « Son unité » ;
+  - « Son unité et ses sous-unités » ;
+  - « Toute l'institution ».
+- La valeur par défaut porte la mention « (par défaut) ». Les niveaux au-dessus du plafond sont grisés.
+- L'enregistrement se fait par `PUT`.
+  - Un 422 s'affiche sur la ligne concernée (`handledStatuses: [422]`), sans toast global.
+- Aide : une icône d'aide avec une phrase courte, sans paragraphe dans la carte.
+
+### 9.7 Tests de non-retour
+
+| Id | Test | Vérifie |
+| --- | --- | --- |
+| T1 | Équivalence, sans surcharge : pour chaque rôle et chaque ressource, l'ensemble visible est égal à l'instantané pris à T0 sur main. Ensembles comparés : `GET /documents`, `/documents/stats`, `/users`, `/org-units/tree`, `/users/{id}/hierarchy-tree`. | aucun changement visible par défaut |
+| T2 | Lecture hors périmètre : `GET /documents/{id}` et `/content` d'une autre unité renvoient 404, pour `unit` et pour `unit_tree`. | #247 ; ferme l'écart de #203 sur l'objet seul |
+| T3 | Écriture ≤ lecture : pour chaque rôle et chaque niveau, si `in_scope` est faux, alors `PATCH`, corbeille et `DELETE` renvoient 404. Inclut le cas du manager propriétaire d'un document hors de son unité. | les deux écarts de 9.1 |
+| T4 | Surcharge effective : tenant_admin passe manager/documents à `unit_tree`, et le manager voit le document d'une sous-unité. Un retour à la valeur par défaut le masque. Un second `PUT` identique n'écrit ni ligne ni audit. | réglage et idempotence |
+| T5 | Plafond : `PUT` collaborator/documents à `tenant` renvoie 422, sans aucune ligne écrite. | plafond |
+| T6 | Isolation : une surcharge dans l'institution A ne change rien dans l'institution B. | multi-tenant |
+| T7 | Audit : une ligne par changement effectif, avec l'avant et l'après. | traçabilité |
+| T8 | Architecture : aucun endpoint (`app/api/v1/endpoints/*.py`) ne déclare ni n'utilise de liste de rôles de périmètre, comme `*_READ_ROLES`, `INSTITUTION_WIDE_ROLES`, `UNIT_TREE_READ_ROLES` ou `_unit_scope`. En cas d'échec, le message désigne le fichier et la ligne, et renvoie vers `access_scope`. | aucun endroit oublié |
+| T9 | e2e : dans la grille, tenant_admin choisit « Son unité et ses sous-unités » pour manager/documents. La liste de documents du manager s'élargit, puis le réglage est remis par défaut. | parcours réel |
+
+Le test existant du lot users de B (`test_users_unit_admin_scope.py`) et ceux de #203 (`test_unit_admin_read_scope.py`, `test_reports_scope_roles.py`) sont gardés et doivent rester verts.
+
+### 9.8 Plan d'exécution (1 h-s)
+
+| Créneau | Qui | Quoi |
+| --- | --- | --- |
+| T0 à T+25 | B | migration, `access_scope.py`, branchements de 9.2, `GET` et `PUT`, tests T1 à T8 |
+| T0 à T+25 | F | colonne et liste déroulante de 9.6 sur un mock du contrat 9.5, test T9 (mock puis réel) |
+| T+25 à T+45 | I (scripts Docker prêts) | un seul créneau Docker plafonné : pytest ciblé (access_scope, documents, users, org_units, hierarchy, reports scope), puis e2e chromium (settings, documents, route-guard, scope), puis démontage à 0 |
+| T+45 à T+60 | Q, I, O | relecture Q, corps de PR et RAIDER review (I), ouverture des PR (O) |
+
+**Prérequis bloquants :** #203 et #303 fusionnées sur main ; T0 donné par l'orchestrateur.
+
+**Risques :**
+- un échec Docker relancé ajoute environ 15 min ;
+- si #303 n'est pas sur main à T0, la liste déroulante sort de l'heure, mais l'API reste livrée.
