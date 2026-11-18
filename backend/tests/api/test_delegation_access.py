@@ -189,16 +189,72 @@ async def test_stand_in_action_is_logged_on_behalf_of(
     assert entry["on_behalf_of_name"] == "Awa Absente"
 
     # Filtering on either agent finds the action: the absent agent's journal
-    # includes what was done on their behalf.
+    # includes what was done on their behalf (the export takes ``user_id``).
     async with as_agent("admin") as client:
         for name in ("absent", "standin"):
-            found = (
-                await client.get(
-                    "/api/v1/audit/logs",
-                    params={"table_name": "documents", "user_id": str(users[name].id)},
-                )
-            ).json()
-            assert [e["action"] for e in found] == ["workflow_approved"], name
+            response = await client.get(
+                "/api/v1/audit/logs/export",
+                params={"table_name": "documents", "user_id": str(users[name].id)},
+            )
+            assert response.status_code == 200, response.text
+            assert len(_csv_rows(response)) == 1, name
+            assert "(au nom de Awa Absente)" in response.text, name
+
+
+def _csv_rows(response) -> list[str]:
+    """Data lines of an audit CSV export (header dropped)."""
+    return response.text.lstrip("﻿").strip().split("\r\n")[1:]
+
+
+@pytest.mark.asyncio
+async def test_on_behalf_filter_on_list_and_export(
+    db_session, delegation_world, as_agent
+):
+    """``on_behalf=true`` keeps only stand-in actions, on the list and the CSV."""
+    world = delegation_world
+    users = world["users"]
+    await _delegate(db_session, world, "absent", "standin")
+    async with as_agent("standin") as client:
+        assert (await _act(client, world)).status_code == 200
+    db_session.add(
+        AuditLog(
+            tenant_id=world["tenant_id"],
+            user_id=users["absent"].id,
+            table_name="documents",
+            record_id=world["document_id"],
+            action="viewed",
+        )
+    )
+    await db_session.commit()
+
+    params = {"table_name": "documents"}
+    async with as_agent("admin") as client:
+        everything = (await client.get("/api/v1/audit/logs", params=params)).json()
+        delegated = (
+            await client.get("/api/v1/audit/logs", params={**params, "on_behalf": True})
+        ).json()
+        full_csv = await client.get("/api/v1/audit/logs/export", params=params)
+        delegated_csv = await client.get(
+            "/api/v1/audit/logs/export", params={**params, "on_behalf": "true"}
+        )
+
+    assert {e["action"] for e in everything} == {"workflow_approved", "viewed"}
+    assert [e["action"] for e in delegated] == ["workflow_approved"]
+    assert len(_csv_rows(full_csv)) == 2
+    [row] = _csv_rows(delegated_csv)
+    assert "(au nom de Awa Absente)" in row
+    exported = (
+        (
+            await db_session.execute(
+                select(AuditLog)
+                .where(AuditLog.action == "exported")
+                .order_by(AuditLog.created_at.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
+    assert exported.new_data["filters"]["on_behalf"] is True
 
 
 @pytest.mark.asyncio
