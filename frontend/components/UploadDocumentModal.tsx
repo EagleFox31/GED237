@@ -7,11 +7,15 @@ import { categoriesApi, DocumentCategory } from '../services/categories.api';
 interface UploadDocumentModalProps {
   onClose: () => void;
   onSuccess: (doc: Document) => void;
+  /** Fichier déjà choisi (déposé depuis Windows). */
+  initialFile?: File;
+  /** Service de destination imposé (dossier visé par le dépôt). */
+  orgUnitId?: string;
 }
 
-const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
+const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess, initialFile, orgUnitId }) => {
+  const [file, setFile] = useState<File | null>(initialFile ?? null);
+  const [title, setTitle] = useState(initialFile ? initialFile.name.replace(/\.[^/.]+$/, '') : '');
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
@@ -56,6 +60,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     formData.append('file', file);
     formData.append('title', trimmedTitle);
     formData.append('processing_mode', processingMode);
+    if (orgUnitId) formData.append('org_unit_id', orgUnitId);
     if (category) formData.append('document_category_id', category);
     if (description.trim()) formData.append('description', description.trim());
     // Nettoyage des tags CSV : split, trim, supprimer les vides
