@@ -271,7 +271,7 @@ Tête de `main` le 18/11 : `a7c8d9e0f1b2`. Seules deux familles de PR portent de
 | Ordre | PR | Révision | `down_revision` à poser |
 |---|---|---|---|
 | 0 | #436 (vague 2) : recherche insensible aux accents | 0f6f64260460 | `a7c8d9e0f1b2` (déjà posé) |
-| 0 bis | #445 (vague 2, aide-api) : délégation pendant une absence, côté serveur (L4, 57 L7-5), empilée sur #429 | 7680f303299d | `0f6f64260460` (aujourd'hui `a7c8d9e0f1b2`, à rebaser) |
+| 0 bis | #445 (vague 2, aide-api) : délégation pendant une absence, côté serveur (L4, 57 L7-5), empilée sur #429 | 7680f303299d | `0f6f64260460` (fait en 6003d93e : la branche contient #436) |
 | 0 ter | 57 L10-3 bis pg_trgm (à ouvrir) | à créer | tête de `main` au moment de la fusion |
 | 1 | #197 | eff6822a5320 | tête de `main` à sa fusion (`7680f303299d` si rien d'autre n'est passé ; ce n'est plus `a7c8d9e0f1b2`) |
 | 2 | #180 | b9d4e2f7a1c3 | eff6822a5320, à retirer du diff de #180 s'il y est copié |
