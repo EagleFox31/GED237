@@ -9,6 +9,7 @@ import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
+import { FOCUS_RING } from '../lib/focusRing';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -65,7 +66,7 @@ const WorkflowTasks: React.FC = () => {
       )}
 
       {error && (
-        <div className="text-center py-20 text-red-500 font-bold">{error}</div>
+        <div role="alert" className="text-center py-20 text-red-500 font-bold">{error}</div>
       )}
 
       {!isLoading && !error && tasks.length === 0 && (
@@ -100,7 +101,7 @@ const WorkflowTasks: React.FC = () => {
                 onClick={() => decide(task, 'accept')}
                 disabled={processingId === task.id}
                 aria-busy={processingId === task.id && processing?.decision === 'accept'}
-                className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-green-100 disabled:opacity-50"
+                className={`px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-green-100 disabled:opacity-50 ${FOCUS_RING}`}
               >
                 {processingId === task.id && processing?.decision === 'accept' ? 'Validation…' : 'Valider'}
               </button>
@@ -108,7 +109,7 @@ const WorkflowTasks: React.FC = () => {
                 onClick={() => setRejecting(task)}
                 disabled={processingId === task.id}
                 aria-busy={processingId === task.id && processing?.decision === 'reject'}
-                className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-red-100 disabled:opacity-50"
+                className={`px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-xs font-bold transition-all shadow-lg shadow-red-100 disabled:opacity-50 ${FOCUS_RING}`}
               >
                 {processingId === task.id && processing?.decision === 'reject' ? 'Rejet…' : 'Rejeter'}
               </button>

@@ -7,6 +7,7 @@ import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
 import { otpDigitsFromPaste, otpFocusAfterPaste, otpFromPaste } from '../lib/otp';
 import { clearSessionExpiredNotice, isSessionExpiredNoticePending } from '../services/http/session';
+import { FOCUS_RING } from '../lib/focusRing';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
@@ -286,7 +287,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                       </HelpHint>
                     </p>
                   ) : error ? (
-                    <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
+                    <p role="alert" className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
                   ) : (
                     sessionExpired && (
                       <p role="status" className="text-amber-800 text-sm font-bold bg-amber-50 p-3 rounded-xl">
@@ -353,14 +354,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                           <span className="material-symbols-outlined">lock_open</span>
                         </div>
                         <input id="password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="block w-full pl-16 pr-16 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-500" placeholder="••••••••" required />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-6 flex items-center text-slate-500 hover:text-rdpc-blue transition-colors">
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} aria-pressed={showPassword} className={`absolute inset-y-0 right-0 pr-6 flex items-center text-slate-500 hover:text-rdpc-blue transition-colors rounded-2xl ${FOCUS_RING}`}>
                           <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  <button type="submit" disabled={loading || isLocked} className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 disabled:opacity-70 group overflow-hidden relative">
+                  <button type="submit" disabled={loading || isLocked} className={`w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 disabled:opacity-70 group overflow-hidden relative ${FOCUS_RING}`}>
                     {loading ? "Connexion..." : isLocked ? 'Compte verrouillé' : <span className="flex items-center gap-3 italic">Étape Suivante <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform font-bold">east</span></span>}
                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                   </button>
@@ -372,7 +373,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Double Facteur</div>
                   <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">Code MFA</h1>
                   <p className="text-slate-500 text-lg font-medium leading-relaxed">Saisissez le code de sécurité reçu sur votre mobile.</p>
-                  {error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>}
+                  {error && <p role="alert" className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>}
                 </div>
 
                 <form onSubmit={handleOtpSubmit} className="space-y-10">
@@ -383,11 +384,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   </div>
 
                   <div className="space-y-4">
-                    <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 group relative overflow-hidden">
+                    <button type="submit" disabled={loading} className={`w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-[0.4em] transition-all hover:bg-blue-800 shadow-2xl shadow-blue-500/20 group relative overflow-hidden ${FOCUS_RING}`}>
                       {loading ? "Validation..." : <span className="flex items-center gap-3 italic relative z-10">Confirmer l'identité <span className="material-symbols-outlined group-hover:scale-125 transition-transform font-bold">verified_user</span></span>}
                       <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                     </button>
-                    <button type="button" onClick={() => setStep('login')} className="w-full text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rdpc-blue transition-colors">Utiliser une autre méthode</button>
+                    <button type="button" onClick={() => setStep('login')} className={`w-full text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rdpc-blue transition-colors rounded-xl py-2 ${FOCUS_RING}`}>Utiliser une autre méthode</button>
                   </div>
                 </form>
               </div>

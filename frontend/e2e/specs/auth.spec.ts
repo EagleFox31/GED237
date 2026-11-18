@@ -90,9 +90,22 @@ test.describe('Feature: Authentification 2FA', () => {
 
     // THEN
     await loginPage.expectErrorVisible();
+    // Annoncé par le lecteur d'écran dès son apparition (audit lot 8, point 4).
+    await expect(loginPage.errorMessage).toHaveAttribute('role', 'alert');
 
     // AND
     await loginPage.expectLoginPageVisible();
+  });
+
+  test('Given page login, When bouton œil, Then nom accessible et champ basculent', async ({ loginPage, page }) => {
+    await loginPage.goto();
+    const eye = page.getByRole('button', { name: 'Afficher le mot de passe' });
+    await expect(eye).toHaveAttribute('aria-pressed', 'false');
+    await expect(loginPage.passwordInput).toHaveAttribute('type', 'password');
+
+    await eye.click();
+    await expect(page.getByRole('button', { name: 'Masquer le mot de passe' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(loginPage.passwordInput).toHaveAttribute('type', 'text');
   });
 
   /**
