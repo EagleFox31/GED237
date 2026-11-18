@@ -3,6 +3,7 @@ import { api } from '../../../../services/api';
 import type { TenantUser, OrgUnitNode } from './types';
 import { PAGE_SIZE, ROLE_LABELS, ROLE_BADGE_STYLES } from './constants';
 import { Avatar } from './Avatar';
+import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { DataTable, type Column, type SortState } from '../../../../components/ui/DataTable';
 
 const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ user, onAfter }) => {
@@ -43,6 +44,12 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
     setPwdOpen(true);
   };
 
+  const closePassword = () => {
+    setPwdOpen(false);
+    setPwd('');
+    setPwdDone(false);
+  };
+
   const submitPassword = async () => {
     if (pwd.length < 6) return;
     try {
@@ -56,39 +63,32 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
 
   return (
     <div ref={ref} className="relative inline-block">
-      {pwdOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4">
-          <div role="dialog" aria-modal="true" aria-label="Réinitialiser le mot de passe" className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-7 text-left shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
-            <h3 className="text-lg font-black text-slate-900">Nouveau mot de passe</h3>
-            <p className="mt-1 text-sm text-slate-500">Pour {user.full_name || user.matricule}.</p>
-            {pwdDone ? (
-              <p className="mt-5 text-sm font-bold text-emerald-700">Mot de passe réinitialisé.</p>
-            ) : (
-              <input
-                type="password"
-                autoFocus
-                autoComplete="new-password"
-                value={pwd}
-                onChange={(e) => setPwd(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void submitPassword(); }}
-                placeholder="6 caractères minimum"
-                aria-label="Nouveau mot de passe"
-                className="mt-5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
-              />
-            )}
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => setPwdOpen(false)} className="rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-100">
-                {pwdDone ? 'Fermer' : 'Annuler'}
-              </button>
-              {!pwdDone && (
-                <button type="button" onClick={() => void submitPassword()} disabled={pwd.length < 6} className="rounded-xl bg-cam-green px-4 py-2 text-xs font-bold uppercase tracking-widest text-white disabled:opacity-50">
-                  Réinitialiser
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmationModal
+        open={pwdOpen}
+        icon="key"
+        title={pwdDone ? 'Mot de passe réinitialisé' : 'Nouveau mot de passe'}
+        message={pwdDone ? `Le mot de passe de ${user.full_name || user.matricule} a été changé.` : `Pour ${user.full_name || user.matricule}.`}
+        confirmLabel="Réinitialiser"
+        cancelLabel={pwdDone ? 'Fermer' : 'Annuler'}
+        hideConfirm={pwdDone}
+        confirmDisabled={pwd.length < 6}
+        onConfirm={() => void submitPassword()}
+        onCancel={closePassword}
+      >
+        {!pwdDone && (
+          <input
+            type="password"
+            autoFocus
+            autoComplete="new-password"
+            value={pwd}
+            onChange={(e) => setPwd(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void submitPassword(); }}
+            placeholder="6 caractères minimum"
+            aria-label="Nouveau mot de passe"
+            className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+          />
+        )}
+      </ConfirmationModal>
       <button
         type="button"
         aria-label={`Actions pour ${user.full_name || user.matricule}`}
