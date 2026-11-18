@@ -211,18 +211,6 @@ test.describe('Connexion rapide (Tâche H)', () => {
     expect(readStoredInstitution(storage)).toBe('Ministère des Finances (MINFI)');
     expect(readStoredMatricule(storage)).toBe('');
 
-    // Même sans le flag isDemo, un matricule de démo connu n'est jamais mémorisé
-    persistLoginAttempt(
-      {
-        institution: 'Plateforme Nationale (PLATFORM)',
-        matricule: 'SUPER001',
-        rememberMatricule: true,
-        loginSucceeded: true,
-      },
-      storage,
-    );
-    expect(readStoredMatricule(storage)).toBe('');
-
     // Si un vrai matricule était mémorisé auparavant, une connexion démo ne l'écrase pas
     writeStoredMatricule('752458-M', storage);
     persistLoginAttempt(

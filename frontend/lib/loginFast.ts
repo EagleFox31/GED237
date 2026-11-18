@@ -115,12 +115,6 @@ export function shouldAutoFocusPassword(
   return Boolean(institution.trim() && matricule.trim());
 }
 
-export const DEMO_MATRICULES = new Set(['SUPER001', 'MINFI001', 'MINFI002']);
-
-export function isDemoMatricule(matricule: string): boolean {
-  return DEMO_MATRICULES.has(matricule.trim().toUpperCase());
-}
-
 export interface LoginAttemptPersistenceInput {
   institution: string;
   matricule: string;
@@ -133,7 +127,7 @@ export interface LoginAttemptPersistenceInput {
  * Persiste les préférences à l'issue d'une tentative de connexion :
  * - L'institution est mémorisée automatiquement.
  * - Si la case « Mémoriser mon matricule » est décochée, tout matricule stocké est effacé.
- * - En mode démo (profil de démo sélectionné ou matricule de démo), le matricule n'est jamais mémorisé.
+ * - En mode démo (`isDemo === true`), le matricule n'est jamais mémorisé.
  * - Sinon, si la case est cochée, le matricule n'est écrit qu'après une connexion réussie (`loginSucceeded === true`),
  *   afin de ne jamais mémoriser un matricule erroné.
  */
@@ -146,7 +140,7 @@ export function persistLoginAttempt(
     forgetStoredMatricule(storage);
     return;
   }
-  if (input.isDemo || isDemoMatricule(input.matricule)) {
+  if (input.isDemo) {
     return;
   }
   if (input.loginSucceeded) {
