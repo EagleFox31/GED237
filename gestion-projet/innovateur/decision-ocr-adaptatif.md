@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Statut | **Proposition — à décider** |
+| Statut | **Décidé le 18/11/2026 par le PO** : palier 1 en V1.2 ; palier 2 tranché sur les chiffres du palier 1 (§ 11) |
 | Date | 18/11/2026 |
 | Auteur | Innovateur |
 | Cible | V1.2. Rien n'entre avant la démo du 30/11. |
@@ -263,7 +263,14 @@ Coût face au 30/11 : **0 h-s avant la démo**. Réversibilité : totale, par l'
 
 ## 11. Décision demandée et critères de sortie
 
-**Au PO :**
+**Décision du PO, 18/11/2026** (transmise par O) :
+
+1. **Palier 1 (lots 0 à 2, 10,5 h-s) : oui, en V1.2.** Le lot 0, mettre les bancs à l'abri, est confié à Q (branche `chore/bench-ocr`).
+2. **Photos réelles : oui.** Le PO fournit une vingtaine de photos de documents prises au téléphone. Elles vont dans `C:\Users\lawry\Documents\GED237-photos-ocr\`, **hors dépôt**, ne sont **jamais commitées** et ne **quittent jamais la machine**. Le banc les lit à cet emplacement.
+3. **unpaper : exclu.**
+4. **Palier 2 (17,5 h-s) : non décidé.** Il sera tranché sur les chiffres du palier 1 (critères S1 à S7 ci-dessous).
+
+Questions telles que posées au PO :
 
 1. Lancer le **palier 1** (lots 0 à 2, 10,5 h-s) en V1.2 : oui ou non ?
 2. Fournir **20 photos réelles** de documents prises au téléphone, anonymisées : oui ou non ? Sans elles, pas de calibration photo valable.
