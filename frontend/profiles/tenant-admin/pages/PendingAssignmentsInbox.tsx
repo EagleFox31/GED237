@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../../services/api';
+import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
 
 const PendingAssignmentsInbox: React.FC = () => {
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -56,8 +57,8 @@ const PendingAssignmentsInbox: React.FC = () => {
       setSelectedAssignment(null);
       setSelectedUserId('');
     } catch (e) {
+      // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
       console.error(e);
-      alert('Erreur lors de l\'assignation.');
     } finally {
       setAssigning(false);
     }
@@ -127,6 +128,7 @@ const PendingAssignmentsInbox: React.FC = () => {
                     <div>
                       <h3 className="font-bold text-slate-800 text-lg uppercase italic tracking-tight">{item.document?.title || "Document Inconnu"}</h3>
                       <p className="text-sm font-medium text-slate-500">Étape: {item.label} (Ordre: {item.step_order})</p>
+                      {item.document_id && <div className="mt-1"><ViewDocumentButton documentId={item.document_id} /></div>}
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full italic uppercase tracking-wider">Bloqué</span>

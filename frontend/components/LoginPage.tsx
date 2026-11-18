@@ -4,6 +4,7 @@ import DemoProfiles from './widgets/DemoProfiles';
 import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
+import { otpDigitsFromPaste, otpFocusAfterPaste, otpFromPaste } from '../lib/otp';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
@@ -186,6 +187,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
 
 
+  const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData('text');
+    if (otpDigitsFromPaste(text).length === 0) return;
+    event.preventDefault();
+    setOtp(otpFromPaste(text));
+    document.getElementById(`otp-${otpFocusAfterPaste(text)}`)?.focus();
+  };
+
+  // Retour arrière sur une case vide : on revient à la précédente en l'effaçant.
+  const handleOtpKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Backspace' || otp[index] || index === 0) return;
+    event.preventDefault();
+    const next = [...otp];
+    next[index - 1] = '';
+    setOtp(next);
+    document.getElementById(`otp-${index - 1}`)?.focus();
+  };
+
   const handleOtpChange = (index: number, value: string) => {
     const sanitizedValue = value.replace(/\D/g, '');
     if (sanitizedValue.length > 1) return;
@@ -315,7 +334,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <div className="space-y-2 group">
                       <div className="flex justify-between px-1">
                         <label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Mot de Passe</label>
-                        <button type="button" className="text-[10px] font-black text-rdpc-blue uppercase hover:underline">Oublié ?</button>
                       </div>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
@@ -347,7 +365,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <form onSubmit={handleOtpSubmit} className="space-y-10">
                   <div className="flex justify-between gap-3">
                     {otp.map((digit, idx) => (
-                      <input key={idx} id={`otp-${idx}`} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpChange(idx, e.target.value)} className="w-full h-16 text-center text-2xl font-black text-rdpc-blue bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-rdpc-blue focus:ring-8 focus:ring-blue-500/5 outline-none transition-all" />
+                      <input key={idx} id={`otp-${idx}`} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpChange(idx, e.target.value)} onPaste={handleOtpPaste} onKeyDown={(e) => handleOtpKeyDown(idx, e)} inputMode="numeric" autoComplete="one-time-code" aria-label={`Chiffre ${idx + 1} du code`} className="w-full h-16 text-center text-2xl font-black text-rdpc-blue bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-rdpc-blue focus:ring-8 focus:ring-blue-500/5 outline-none transition-all" />
                     ))}
                   </div>
 
