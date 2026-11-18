@@ -177,7 +177,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead, loadNotifications } = useNotifications();
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   useEffect(() => {
@@ -341,7 +341,12 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
           <div className="flex items-center" ref={notifRef}>
             <div className="relative">
               <button
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  // Pas de temps réel (WebSocket en V1.1) : liste relue à chaque ouverture.
+                  if (!showNotifications) loadNotifications();
+                  setShowNotifications(!showNotifications);
+                }}
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-all relative ${showNotifications ? 'bg-slate-100 text-rdpc-blue' : 'text-slate-400'}`}
               >
                 <span className="material-symbols-outlined text-xl">notifications</span>
