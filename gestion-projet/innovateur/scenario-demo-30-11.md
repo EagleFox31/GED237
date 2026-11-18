@@ -346,4 +346,4 @@ Recherche des libellés et des chemins dans le code de `main` (hors e2e). Statut
 Ajouts du 18/11 utiles à la préparation :
 - **#375** : fiche d'astreinte (`DOCS/exploitation/astreinte-diagnostic.md`) pour un worker OCR tué, un document bloqué « en cours » ou une erreur 500. À garder ouverte sur le poste de secours pendant la répétition du 27.
 - **#390** : une notification de la cloche ouvre le document concerné. Ce n'est pas dans le fil, mais c'est une réponse possible à « comment le chef sait-il qu'il a un visa à donner ? ».
-- **#356** (encore ouverte) : l'e2e du scénario, de bout en bout. L'étape 8 y est en `fixme` par l'explorateur ; le chemin par la recherche du bandeau est à y ajouter. À sa fusion, Q la rejoue sur la tête de gel.
+- **#356** (fusionnée le 18/11, dd232f6) : l'e2e du scénario, de bout en bout, sans aucun `fixme`. L'étape 8 y passe par la recherche du bandeau (`/documents?open=<id>`), chemin retenu par O pour la démo et validé par Q en recette du 20 au 23/11. Q la rejoue sur la tête de gel. Le passage par l'explorateur est une suite V1.1 de F (`plan-fusion-v1.1.md`, ligne 57 bis).

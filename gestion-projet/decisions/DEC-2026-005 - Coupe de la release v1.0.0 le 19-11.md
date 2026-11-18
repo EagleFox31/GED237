@@ -18,7 +18,7 @@
 5. **`main` rouvre aussitôt** : DEC-2026-004 d'abord, puis #179. Le contrôle d'étanchéité (`release/v1.0.0` ne bouge pas quand `main` avance) est fait à chaque fusion sur `main`.
 6. **Démo du 30/11** : elle tourne sur la rc.1 (tag sur `release/v1.0.0`), pas sur `main`.
 
-## 2. Ce qui est dans la rc.1 (relevé du 18/11, 16:40, à compléter à la coupe)
+## 2. Ce qui est dans la rc.1 (relevé du 18/11 au soir, `main` dd232f6, à compléter à la coupe)
 
 | Sujet | PR | État |
 |---|---|---|
@@ -26,6 +26,7 @@
 | OCR : RapidOCR pour les photos, captures et formulaires ; Tesseract pour les scans, les PDF et en secours ; repli EasyOCR coupé ; relance d'une lecture perdue | #365, #368, #369, #374 | fusionnées le 18/11 |
 | Fiche d'astreinte de la recette | #375 | fusionnée le 18/11 |
 | Corrections UX des parcours d'administration et de fin de journée (audits Lot 5 et 5 bis) | #390 | fusionnée le 18/11 |
+| E2e du scénario de démo (tests seuls ; l'étape 8 passe par la recherche du bandeau) | #356 | fusionnée le 18/11 (dd232f6) |
 | Fusions du 19/11 avant 17:15 | `‹liste›` | `‹à relever›` |
 
 Le détail, rangé par bénéfice pour l'utilisateur, est dans `notes-version-v1.0.0-rc.1-utilisateurs.md`. Pour le tag, ce sont les notes de #104 qui font foi.
@@ -34,7 +35,7 @@ Le détail, rangé par bénéfice pour l'utilisateur, est dans `notes-version-v1
 
 | Sujet | PR | Destination |
 |---|---|---|
-| E2e du scénario de démo (tests seuls) | #356 | `‹fusionnée avant 17:15 / V1.1›`. Sans effet sur la coupe |
+| « Archiver » depuis l'aperçu de l'explorateur, et sa variante de l'étape 8 en e2e | à ouvrir (F) | V1.1, `plan-fusion-v1.1.md` vague 5, ligne 57 bis |
 | Robustesse OCR (acquittement après coup, tentatives bornées) | #370 | V1.2 (OCR-1) |
 | Lot 4 UX (tâches répétitives) | #362 | V1.1, relecture de Q après le tag |
 | Brouillons V1.1 et V1.2, dont la série post-rc1 | ≈ 105 PR | V1.1 ou V1.2, selon `plan-fusion-v1.1.md` |
@@ -63,7 +64,7 @@ Voir le runbook § 7. En résumé :
 ## 7. À remplir par O le 19/11 avant publication
 
 - [ ] `M`, l'heure de fusion de #104, et la tête de `main` au gel de 17:15.
-- [ ] La liste des fusions du 19/11 (§ 2, dernière ligne) et le sort de #356 (§ 3).
+- [ ] La liste des fusions du 19/11 (§ 2, dernière ligne).
 - [ ] La tête alembic relevée par Q sur la release.
 - [ ] Le résultat du plan de contrôle du ruleset (« rien à faire »).
 - [ ] Le statut passe à « DÉCIDÉ le 19/11 à ‹hh:mm› ».

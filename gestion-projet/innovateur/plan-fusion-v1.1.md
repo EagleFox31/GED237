@@ -161,8 +161,10 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | 55 | #342 échappement de la liste des agents | F | main | après #297 | `AgentsListTab.tsx` | non | — |
 | 56 | #344 recherche dans le journal d'audit | B | main | après #383 | `audit.py` | non | — |
 | 57 | #353 test : propriétaire distinct de l'assigné | Q | main | — | — | non | — |
+| 57 bis | **à ouvrir** : « Archiver » depuis l'aperçu de l'explorateur des espaces, puis une variante de l'étape 8 du scénario e2e par ce chemin (suite de #356) | F | main | après #293 et #362 (fiche document) | aperçu de l'explorateur, `demo-scenario-30-11.spec.ts` | non | — |
 
 - **#303** : 36 fichiers, dont 29 en commun avec #220. Sa branche contient sans doute une autre pile. Il faut la re-cibler sur `main` après #294, puis vérifier que le diff ne contient plus que l'écran des droits.
+- **57 bis** (O, 18/11) : pour la démo, l'étape 8 passe par la recherche du bandeau (`/documents?open=<id>`, #258), testée par #356 et validée par Q en recette du 20 au 23/11. L'aperçu de l'explorateur n'a pas encore « Archiver » : c'est la suite V1.1 de F. La charge de Q ne change pas : la relecture entre dans le temps déjà prévu pour la vague 5.
 - **`playwright.unit.config.ts`** : 33 PR l'éditent, chacune pour y ajouter son fichier de test. Ce sont des conflits d'une ligne : un rebase les règle, sans risque fonctionnel.
 
 ### Vague 6 : 03 et 04/12
@@ -279,7 +281,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 
 ## 7. Hors fenêtre
 
-- **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390 et #356. #368 est fusionnée le 18/11 (9b32c30), et #390 est corrigée en 4be742b, en file après #375. Si l'une d'elles n'est pas fusionnée le 19, elle passe en vague 0, juste après #389.
+- **Chemin V1.0 (18 et 19/11)** : #104, #121, #375, #390 et #356. #368 est fusionnée le 18/11 (9b32c30), #356 aussi (dd232f6), et #390 est corrigée en 4be742b, en file après #375. Si l'une d'elles n'est pas fusionnée le 19, elle passe en vague 0, juste après #389.
 - **V1.2** :
   - branches `feat/v12-*` : #370, #357, #352, #343, #333, #332, #331, #330, #329, #323, #322, #320, #318, #315 ;
   - étiquette `v1.2` : #306, #305, #304, #281, #183, #194 ;
