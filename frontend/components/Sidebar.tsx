@@ -97,9 +97,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
                 { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
                 { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
               ]),
-          // Manager : rapports de son service (le serveur limite les données au service).
+          // Manager : rapports et remplacements de son service (le serveur limite au service).
           ...(userProfile?.id === 'manager'
-            ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
+            ? [
+                { id: 'reports', label: 'Rapports', icon: 'legend_toggle' },
+                { id: 'delegations', label: 'Remplacements', icon: 'swap_horiz' },
+              ]
             : []),
           // Auditeur : journal d'audit (la page et la route /audit existent déjà).
           ...(userProfile?.id === 'audit'

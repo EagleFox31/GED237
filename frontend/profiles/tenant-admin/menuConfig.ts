@@ -26,6 +26,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
       { id: 'org', label: 'Structure hiérarchique', icon: 'corporate_fare', subItems: ['Organigramme', 'Annuaire des services'] },
       { id: 'spaces', label: 'Explorateur documentaire', icon: 'folder_managed', subItems: ['Par service', 'Archives'] },
       { id: 'users', label: 'Agents & Rôles', icon: 'group', subItems: ['Liste des agents', 'Rôles & permissions', 'Groupes'] },
+      { id: 'delegations', label: 'Remplacements', icon: 'swap_horiz', subItems: ['Absences et intérims'] },
     ]
   },
   {

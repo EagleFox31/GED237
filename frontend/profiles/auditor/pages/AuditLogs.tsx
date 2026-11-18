@@ -262,6 +262,11 @@ const AuditLogs: React.FC = () => {
           <p className="mt-1 text-xs font-medium text-slate-500">
             {log.user_matricule || log.user_id || 'Action système'}
           </p>
+          {log.on_behalf_of_name && (
+            <p className="mt-1 text-xs font-bold text-amber-700" data-testid="audit-on-behalf">
+              au nom de {log.on_behalf_of_name}
+            </p>
+          )}
         </div>
       ),
     },
