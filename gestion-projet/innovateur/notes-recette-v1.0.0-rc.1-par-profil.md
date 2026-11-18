@@ -35,10 +35,8 @@
 
 - Ne peut pas donner à quelqu'un un rôle plus élevé que le sien (#223).
 - Supprime définitivement un document seulement s'il en a le droit (#345).
-- ……… **en attente, #203** : il ne voit que son service et ses sous-services dans la liste, la recherche, les compteurs et les imports. ………
-- ……… **en attente, #358** : même limite dans les rapports, les circuits, les imports, les revues et les règles. ………
-- ……… **en attente, #360** : même limite sur les comptes et l'organigramme. ………
-- Si ces trois PR ne sont pas dans la rc.1 (décision du 19 à 15:00), il voit encore tout l'établissement. C'est noté dans les « Limites connues ».
+- Ne voit que son service et ses sous-services dans la liste, la recherche, les compteurs et les imports (#196, #203, fusionnées le 18/11).
+- Même limite dans les rapports, les circuits, les imports, les revues et les règles (#358), puis sur les comptes et l'organigramme (#360), fusionnées le 18/11.
 
 ## Auditeur
 
@@ -73,7 +71,6 @@
 ## Limites connues
 
 - **Le manuscrit n'est pas lu.** Seul le texte imprimé est reconnu, en scan ou en photo. Sur le banc du 18/11, le manuscrit photographié donne 1 à 10 % des mots.
-- **Le moteur OCR se choisit par configuration** (`OCR_PRIMARY_ENGINE`), pas à l'écran. Par défaut, c'est Tesseract, avec EasyOCR en secours (#350). Pour en changer, on modifie la variable puis on relance le worker.
-- ……… **RapidOCR** : dans la rc.1 seulement si sa PR est verte et relue avant le 19 à 16:00. Sinon, il arrive en V1.1. Le moteur de la démo est choisi le 20 à 09:00. ………
+- **Le moteur OCR se choisit par configuration** (`OCR_PRIMARY_ENGINE`), pas à l'écran. Par défaut (#368, fusionnée le 18/11), RapidOCR lit les photos, les captures et les formulaires, et Tesseract les scans et les PDF ; Tesseract sert aussi de secours. Le repli sur EasyOCR est coupé par défaut (#365). Pour revenir à Tesseract partout : `OCR_PRIMARY_ENGINE=tesseract`, puis relancer le worker.
 - Un seul moteur à la fois : pas de vote entre plusieurs moteurs (décision du 18/11).
 - Les autres limites, comme les fonctions coupées par défaut et les écarts d'exploitation, sont dans les notes de #104, section « Limites connues ».
