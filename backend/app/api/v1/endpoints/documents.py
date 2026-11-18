@@ -2,7 +2,7 @@
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from fastapi import (
@@ -151,6 +151,17 @@ def _apply_text_filter(query, text: str):
     )
 
 
+WorkspaceSortField = Literal["title", "size", "updated_at", "created_at"]
+
+# Public sort key -> column. Title is case-insensitive, as in a file explorer.
+_WORKSPACE_SORT_COLUMNS = {
+    "title": func.lower(Document.title),
+    "size": Document.file_size,
+    "updated_at": Document.updated_at,
+    "created_at": Document.created_at,
+}
+
+
 class WorkspaceDocumentFilters:
     """Server-side filters for workspace/space document listings.
 
@@ -169,6 +180,8 @@ class WorkspaceDocumentFilters:
         q: Optional[str] = Query(default=None, max_length=120),
         limit: Optional[int] = Query(default=None, ge=1, le=WORKSPACE_PAGE_MAX),
         offset: int = Query(default=0, ge=0),
+        sort: Optional[WorkspaceSortField] = Query(default=None),
+        order: Literal["asc", "desc"] = Query(default="asc"),
     ):
         self.domain_id = domain_id
         self.activity_id = activity_id
@@ -178,6 +191,19 @@ class WorkspaceDocumentFilters:
         self.q = q.strip() if q and q.strip() else None
         self.limit = limit
         self.offset = offset
+        self.sort = sort
+        self.order = order
+
+    def order_by(self):
+        """ORDER BY clauses. Without ``sort``, the historical order (newest
+        first) is kept. The sort key comes from an allowlist (``Literal``,
+        422 otherwise), never from a raw column name. ``Document.id`` is the
+        tie-breaker so pages neither skip nor repeat rows."""
+        if self.sort is None:
+            return (Document.created_at.desc(), Document.id)
+        column = _WORKSPACE_SORT_COLUMNS[self.sort]
+        key = column.asc() if self.order == "asc" else column.desc()
+        return (key.nulls_last(), Document.id)
 
     def apply(self, query):
         if self.domain_id is not None:
@@ -1048,9 +1074,7 @@ async def list_workspace_documents(
     )
     response.headers[TOTAL_COUNT_HEADER] = str(total or 0)
 
-    query = query.order_by(Document.created_at.desc(), Document.id).options(
-        *_document_load_options()
-    )
+    query = query.order_by(*filters.order_by()).options(*_document_load_options())
     result = await db.execute(filters.paginate(query))
     return result.scalars().all()
 
