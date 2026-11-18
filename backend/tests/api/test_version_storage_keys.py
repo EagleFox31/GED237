@@ -135,3 +135,17 @@ async def test_s3_backend_also_uses_a_key_per_upload(monkeypatch):
 
     assert keys[0] != keys[1]
     assert all(k.startswith("t/u/") and k.endswith("_rapport.txt") for k in keys)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["a" * 400 + ".pdf", "é" * 300 + ".txt", "b" * 400, "c" * 100 + "." + "x" * 300],
+)
+def test_a_very_long_file_name_still_fits_the_filesystem_limit(name):
+    from app.services.storage.base import unique_storage_name
+
+    stored = unique_storage_name(name)
+    assert len(stored.encode("utf-8")) <= 240
+    if name.endswith(".pdf") or name.endswith(".txt"):
+        assert stored.endswith(name[-4:])
+    assert unique_storage_name(name) != stored  # still one key per upload
