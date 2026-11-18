@@ -129,3 +129,33 @@ async def test_mime_falls_back_to_the_document_and_tenant_filter_applies(
     assert rows[0][4] == "application/pdf"
     assert await _select(db_session, "reocr-mime", str(db_seed["tenant_id"]))
     assert not await _select(db_session, "reocr-mime", str(uuid.uuid4()))
+
+
+@pytest.mark.asyncio
+async def test_run_resets_attempts_and_failure_flag_and_keeps_other_data(
+    db_session, db_seed
+):
+    from app.models.document import Document
+    from app.services import ocr_recovery
+
+    failed = await _add_doc(db_session, db_seed, "reocr-echec.jpg")
+    other = await _add_doc(db_session, db_seed, "reocr-autre.jpg")
+    stuck = {
+        ocr_recovery.DELIVERIES_KEY: 4,
+        ocr_recovery.REQUEUE_COUNT_KEY: 3,
+        ocr_recovery.FAILED_KEY: {"reason": "cap", "at": "2026-11-18T00:00:00+00:00"},
+        "source": "scan",
+    }
+    failed.extra_data = dict(stuck)
+    other.extra_data = dict(stuck)
+    failed_id, other_id = failed.id, other.id
+    await db_session.commit()
+
+    assert await reocr.reset_attempts(db_session, [failed_id]) == 1
+    assert await reocr.reset_attempts(db_session, []) == 0
+
+    db_session.expire_all()
+    reset = await db_session.get(Document, failed_id)
+    untouched = await db_session.get(Document, other_id)
+    assert reset.extra_data == {"source": "scan"}
+    assert untouched.extra_data[ocr_recovery.FAILED_KEY]["reason"] == "cap"
