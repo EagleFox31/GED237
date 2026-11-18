@@ -23,7 +23,7 @@ ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 43
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
-ORDER_V2="152 181 184 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 453 456"
+ORDER_V2="152 181 184 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 453 456"
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
@@ -64,10 +64,10 @@ HORS_FILE="104 121 408 409 412 415 385 313"
   - #452, scénario de démo, file V1.1, `verif-file.sh` et LESSON-2026-069 (I), en vague 6. Elle est en brouillon jusqu'à la coupe, et Q relit la tête finale ;
   - #453, écran des remplacements pendant une absence (L4, F, 3ddba884). Sa base est `main`, mais elle utilise l’API de #445 (son filtre « au nom de » passe par le paramètre serveur `on_behalf`) : elle passe juste derrière #445, en fin de vague 2, avec `DEP[453]="445"` ;
   - #454, menu Rapports pour tous les profils autorisés sur /reports (F, 3a6817b7). Elle est empilée sur #448 (garde de /reports) et passe juste derrière elle, avec `DEP[454]="448"`. Il faut la re-cibler sur `main` avant la fusion de #448 ;
-  - #455, L13-2 accueil (B). Elle est empilée sur #438 et passe derrière #438 et #440, avec `DEP[455]="438 440"`. Il faut la re-cibler sur `main` avant la fusion de #438.
-  - #456, 57 L12-5 « réassigner une tâche en cours » (B, 056e8842). Elle est empilée sur #445 et passe juste derrière #453, en fin de vague 2, avec `DEP[456]="445"`. Il faut la re-cibler sur `main` avant la fusion de #445.
-- **À ouvrir, hors des vagues tant que la PR n’existe pas** :
-  - 57 L10-3 bis (`pg_trgm`, aide-api, 2 h-s), empilée sur #445. Elle aura `DEP` sur #445 et se placera entre #445 et #197 ; `DEP[197]` passera alors sur elle ;  - la réparation du hook pre-commit (Q, 0,5 h-s), après #433.
+  - #455, L13-2 accueil (B). Elle est empilée sur #438 et passe derrière #438 et #440, avec `DEP[455]="438 440"`. Il faut la re-cibler sur `main` avant la fusion de #438 ;
+  - #456, 57 L12-5 « réassigner une tâche en cours » (B, 056e8842). Elle est empilée sur #445 et passe juste derrière #453, en fin de vague 2, avec `DEP[456]="445"`. Il faut la re-cibler sur `main` avant la fusion de #445 ;
+  - #457, 57 L10-3 bis `pg_trgm` (aide-api, 12c4d6c6). Elle est empilée sur #445 et porte la migration `60e40a686375`, qui suit `7680f303299d`. Elle passe juste derrière #445, avec `DEP[457]="445"`, et `DEP[197]` passe de 445 à 457 (chaîne alembic, `plan-fusion` § 4). Il faut la re-cibler sur `main` avant la fusion de #445. Si elle n'est pas prête en fin de vague 2, remettre `DEP[197]="445"`. B, porteur de #197, devra alors repartir de `7680f303299d` au lieu de `60e40a686375`.
+- **À ouvrir, hors des vagues tant que la PR n’existe pas** : la réparation du hook pre-commit (Q, 0,5 h-s), après #433.
 - **« #152 après #401 » est levé** : c'était l'ordre de travail de B, pas une contrainte de fusion. **Mise à jour (O, 18/11)** : #152 seule passe en tête de la vague 2 (OK du PO, a47df85, OK de Q). Le reste du groupe corbeille (#181, #184, #168, #171, #190, #199, #301, #302) reste en vague 4 ; #181, empilée sur #152, est re-ciblée sur `main` avant la fusion de #152 (plan-fusion § 3).
 - **#155 et #169 restent en V1.1** (PO, 18/11 : « on repousse rien »).
 - **Choix par défaut d'O, en attendant F et B** :
@@ -90,7 +90,7 @@ DEP[436]="387"
 # Piles et suites ouvertes le 18/11 au soir (O) ; #445 porte une migration (chaîne alembic, plan-fusion § 4)
 DEP[438]="429"; DEP[448]="437"; DEP[444]="438"; DEP[446]="416"; DEP[440]="438"; DEP[445]="429 436"
 # Ouvertes le 18/11 dans la nuit (O) : #449 empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437 (Q) ; #450 empilée sur #441
-DEP[449]="435 437"; DEP[450]="441"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"; DEP[456]="445"
+DEP[449]="435 437"; DEP[450]="441"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"; DEP[456]="445"; DEP[457]="445"
 DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
 DEP[267]="248"; DEP[268]="248 389"
 DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
@@ -100,7 +100,7 @@ DEP[181]="152"; DEP[184]="181"; DEP[301]="152 181"; DEP[302]="301 262"
 DEP[190]="181 153"; DEP[199]="181 171"
 DEP[212]="154"; DEP[219]="193"; DEP[209]="180"; DEP[205]="165"
 # Chaîne alembic (une seule tête) : chaque auteur repose down_revision quand il fusionne main ; alembic heads = 1 tête vérifié avant chaque fusion (O, 18/11)
-DEP[197]="445"; DEP[180]="197"; DEP[193]="180"; DEP[186]="193"; DEP[165]="186"; DEP[192]="165"
+DEP[197]="457"; DEP[180]="197"; DEP[193]="180"; DEP[186]="193"; DEP[165]="186"; DEP[192]="165"
 # Dépendances fonctionnelles (colonne « Dépend de » du plan)
 DEP[383]="389"; DEP[222]="389"; DEP[245]="389"; DEP[253]="389"
 DEP[227]="222"; DEP[237]="227"; DEP[285]="222"; DEP[234]="224"; DEP[394]="237"
@@ -140,7 +140,7 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 | #437 | #448 ; puis, avant #448 : #454 |
 | #435 | #449 |
 | #441 | #450 |
-| #445 | #456 |
+| #445 | #456, #457 |
 
 Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n’est fusionnée avant la fin de la fenêtre V1.1 (05/12, 18:00).
 

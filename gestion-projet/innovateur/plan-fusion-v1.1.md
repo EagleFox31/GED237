@@ -266,14 +266,14 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 
 Tête de `main` le 18/11 : `a7c8d9e0f1b2`. Seules deux familles de PR portent des migrations : #436 (vague 2) et les PR post-rc1 (vague 4). Les PR empilées #209, #219 et #205 n'ajoutent pas de migration : elles montrent celles de leur base (#180, #193, #165). Le scan de Q les voit donc partir de `a7c8d9e0f1b2` (18/11 au soir).
 
-**Règle** : toutes ces PR partent aujourd'hui de `a7c8d9e0f1b2`. La file les sérialise : `DEP[445]="429 436"`, puis `DEP[197]="445"`, puis la chaîne de la vague 4. Chaque PR après la première rebase son `down_revision` sur la tête laissée par la précédente, au moment où elle fusionne `main`.
+**Règle** : toutes ces PR partent aujourd'hui de `a7c8d9e0f1b2`. La file les sérialise : `DEP[445]="429 436"`, puis `DEP[457]="445"` et `DEP[197]="457"`, puis la chaîne de la vague 4. Chaîne au 19/11 : `0f6f64260460` → `7680f303299d` → `60e40a686375` → #197. Chaque PR après la première rebase son `down_revision` sur la tête laissée par la précédente, au moment où elle fusionne `main`.
 
 | Ordre | PR | Révision | `down_revision` à poser |
 |---|---|---|---|
 | 0 | #436 (vague 2) : recherche insensible aux accents | 0f6f64260460 | `a7c8d9e0f1b2` (déjà posé) |
 | 0 bis | #445 (vague 2, aide-api) : délégation pendant une absence, côté serveur (L4, 57 L7-5), empilée sur #429 | 7680f303299d | `0f6f64260460` (fait en 6003d93e : la branche contient #436) |
-| 0 ter | 57 L10-3 bis pg_trgm (à ouvrir) | à créer | tête de `main` au moment de la fusion |
-| 1 | #197 | eff6822a5320 | tête de `main` à sa fusion (`7680f303299d` si rien d'autre n'est passé ; ce n'est plus `a7c8d9e0f1b2`) |
+| 0 ter | #457 (vague 2, aide-api) : 57 L10-3 bis `pg_trgm`, empilée sur #445 | 60e40a686375 | `7680f303299d` (déjà posé dans 12c4d6c6) |
+| 1 | #197 | eff6822a5320 | tête de `main` à sa fusion : **`60e40a686375`** (#457) si rien d’autre n’est passé ; ce n’est plus `a7c8d9e0f1b2` ni `7680f303299d`. B prévenu le 19/11 |
 | 2 | #180 | b9d4e2f7a1c3 | eff6822a5320, à retirer du diff de #180 s'il y est copié |
 | 3 | #193 | d4e8b2c6a1f3 | tête précédente |
 | 4 | #186 | d4f1b6c2e8a9 | tête précédente |
