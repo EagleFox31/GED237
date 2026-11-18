@@ -30,7 +30,8 @@ from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
-from app.services.ocr_status import compute_ocr_status
+from app.services.ocr_recovery import reset_ocr_attempts
+from app.services.ocr_status import OCR_FAILED, OCR_PROCESSING, compute_ocr_status
 from app.services.unit_admin_scope import (
     assert_unit_admin_object_in_tree,
     unit_admin_scope_ids,
@@ -1246,7 +1247,13 @@ async def get_document(
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
-    return _serialize_document(document)
+    payload = _serialize_document(document)
+    try:
+        payload.can_update = await _can_mutate_document(current_user, document, db)
+    except HTTPException:
+        # Out of the caller's unit tree for writing: readable, not changeable.
+        payload.can_update = False
+    return payload
 
 
 @router.get("/{document_id}/versions")
@@ -1651,6 +1658,42 @@ async def get_document_ocr(
         ocr_confidence=ocr_confidence,
         ocr_status=ocr_status,
     )
+
+
+@router.post("/{document_id}/ocr/retry", status_code=202)
+async def retry_document_ocr(
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Read the text of a document again after a failed reading.
+
+    Same rights as PATCH. 409 while a reading is under way (the button can be
+    clicked twice); 422 when there is nothing to read again.
+    """
+    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    if not await _can_mutate_document(current_user, document, db):
+        raise HTTPException(
+            status_code=403, detail="Not enough privileges to update this document"
+        )
+    if document.deleted_at:
+        raise HTTPException(status_code=400, detail="Cannot update a document in trash")
+
+    # Row lock: two clicks at once queue a single reading; the second one sees
+    # "processing" once the first commits and gets the 409.
+    await db.refresh(document, with_for_update=True)
+    status = compute_ocr_status(document)
+    if status == OCR_PROCESSING:
+        raise HTTPException(status_code=409, detail="Lecture déjà en cours")
+    if status != OCR_FAILED:
+        raise HTTPException(status_code=422, detail="Rien à relire pour ce document")
+
+    reset_ocr_attempts(document)
+    await db.commit()
+    process_document_ocr.delay(
+        str(document.id), document.file_path, document.mime_type or document.file_type
+    )
+    return {"document_id": str(document.id), "ocr_status": OCR_PROCESSING}
 
 
 @router.post("/ingest-directory", response_model=DirectoryIngestResponse)

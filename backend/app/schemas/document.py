@@ -72,6 +72,9 @@ class DocumentRead(DocumentBase):
     current_version_number: Optional[str] = None
     # not_processed | processing | completed | failed (read only, derived).
     ocr_status: str = "not_processed"
+    # Set on GET /documents/{id} only: may the caller change this document (same rule
+    # as PATCH). None elsewhere: the front end hides the actions it guards.
+    can_update: Optional[bool] = None
 
     class Config:
         from_attributes = True
