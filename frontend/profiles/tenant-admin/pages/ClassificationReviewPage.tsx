@@ -217,6 +217,9 @@ const ClassificationReviewPage: React.FC = () => {
       relaunchWorkflow: (review.document?.processing_mode || review.processing_mode) === 'process',
     });
 
+    // Une réponse arrivée après un changement de dossier ne doit pas afficher
+    // l'historique de l'ancien dossier sous le nouveau.
+    let stale = false;
     const loadLogs = async () => {
       if (!review.document_id) {
         setAuditLogs([]);
@@ -226,16 +229,19 @@ const ClassificationReviewPage: React.FC = () => {
       setLoadingLogs(true);
       try {
         const logs = await api.getDocumentAuditLogs(review.document_id);
-        setAuditLogs(logs);
+        if (!stale) setAuditLogs(logs);
       } catch (error) {
         console.error(error);
-        setAuditLogs([]);
+        if (!stale) setAuditLogs([]);
       } finally {
-        setLoadingLogs(false);
+        if (!stale) setLoadingLogs(false);
       }
     };
 
     loadLogs();
+    return () => {
+      stale = true;
+    };
   }, [selectedReview]);
 
   const availableActivities = useMemo(() => {
@@ -386,6 +392,7 @@ const ClassificationReviewPage: React.FC = () => {
                 key={review.id}
                 type="button"
                 onClick={() => setSelectedReviewId(review.id)}
+                aria-pressed={selectedReview?.id === review.id}
                 className={`p-4 rounded-[1.5rem] border-2 text-left transition-all group ${
                   selectedReview?.id === review.id
                     ? 'bg-white border-rdpc-blue shadow-xl ring-2 ring-rdpc-blue/10'
