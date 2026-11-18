@@ -39,8 +39,8 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 - **« #152 après #401 » est levé** : c'était l'ordre de travail de B, pas une contrainte de fusion. Le groupe corbeille reste donc en vague 4, et #152 passe avant #283.
 - **#155 et #169 restent en V1.1** tant que le PO n'a pas validé leur passage en V1.2 (question portée par O avec #359).
 - **Choix par défaut d'O, en attendant F et B** :
-  - #395 gardée, #349 fermée ;
-  - #401 gardée, #211 fermée ;
+  - #395 gardée, #349 fermée (F, 18/11) ;
+  - #401 gardée, #211 fermée ; sa suite (corbeille groupée avec annulation, Ctrl+Espace) va au backlog V1.2 ;
   - dans les deux cas, ce qui manque est porté avant la fermeture.
 - **#404 et #355** : en V1.2 par défaut, sauf si B rebase #404 sans #370.
 

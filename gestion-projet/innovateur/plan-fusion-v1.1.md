@@ -308,7 +308,8 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
     3. recherche de documents par date et par auteur, M ;
     4. indicateur de retard (J+) et confirmation allégée dans la file de validation (`ValidationHub`), S ;
     5. délégation pendant une absence, L ;
-  - écran Corbeille du super_admin avec choix de l'institution (DEC-2026-006). En V1.1, le super_admin purge par l'API seulement.
+  - écran Corbeille du super_admin avec choix de l'institution (DEC-2026-006). En V1.1, le super_admin purge par l'API seulement ;
+  - suite de #211, fermée au profit de #401 (O, 18/11) : mise à la corbeille groupée avec annulation (après #184), et raccourci Ctrl+Espace dans l'explorateur. F ouvre l'issue V1.2 (numéro à noter).
   Les PR V1.2 empilées sur une base V1.1 sont re-ciblées au § 3. Aucune n'est fusionnée avant le 04/12.
 - **Dependabot, versions majeures** (V1.2) : #29, #30, #110 et #113.
 - **#385** : outil de mesure, jamais fusionné.
