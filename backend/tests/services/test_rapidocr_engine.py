@@ -205,8 +205,8 @@ def test_disabled_engine_never_loads_models(monkeypatch, tmp_path):
 
 
 def test_default_max_side_keeps_the_memory_peak_bounded():
-    # 2000 px measured 755-895 MB, 1600 px 609-695 MB (memory.peak, 2 GB worker).
-    assert Settings().OCR_RAPIDOCR_MAX_SIDE == 1600
+    # 2000 px: 755-895 MB; 1600 px: 609-695 MB; 1800 px: 626 MB, recall -0.64 pt vs 2000 (QA bench).
+    assert Settings().OCR_RAPIDOCR_MAX_SIDE == 1800
 
 
 def test_fallback_switch_off_keeps_the_light_rapidocr_to_tesseract_fallback(
