@@ -37,7 +37,8 @@ test.describe('Feature: AuthZ Admin', () => {
     await expect(page.getByTestId('rights-read-only')).toHaveText(READ_ONLY_SERVER);
     await page.getByRole('button', { name: 'Documents', exact: true }).click();
     // policy.csv : `p, tenant_admin, documents, read`.
-    const cell = grid.getByRole('checkbox', { name: 'Admin Ministère : Consulter' });
+    // exact : « Consulter » est aussi le début de « Consulter les siens ».
+    const cell = grid.getByRole('checkbox', { name: 'Admin Ministère : Consulter', exact: true });
     await expect(cell).toBeChecked();
     await expect(cell).toBeDisabled();
     await expect(page.getByText(/AUTHZ_BACKEND/)).toHaveCount(0);
