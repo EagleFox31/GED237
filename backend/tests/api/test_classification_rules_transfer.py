@@ -188,7 +188,7 @@ async def test_upsert_updates_and_create_only_skips_changed_rule(
     assert create_only.json()["items"][0] == {
         "code": "rh_conges",
         "action": "skip",
-        "reason": "existe deja",
+        "reason": "existe déjà",
     }
     assert upsert.json()["items"][0] == {
         "code": "rh_conges",
@@ -261,7 +261,7 @@ async def test_invalid_rule_and_duplicate_code_are_rejected(
 
     assert [item["action"] for item in report["items"]] == ["reject", "reject"]
     assert report["items"][0]["code"] == "mauvaise_regle"
-    assert "annee fixe" in report["items"][0]["reason"]
+    assert "année fixe" in report["items"][0]["reason"]
     assert "plusieurs fois" in report["items"][1]["reason"]
 
 
