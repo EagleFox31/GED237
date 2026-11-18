@@ -785,3 +785,55 @@ Constats qui changent le travail prévu :
 - **Ordre** : 57 L12-B d’abord (B), puis les écrans ; 57 L12-B avant 57 L7-5 (même `workflows.py`) ; 57 L13-4 après #155 et après #427 (correctif V1.0 de la cloche, F).
 
 **Démo (rejeu du 20/11)** : les menus DOMAINE et ACTIVITÉ de `/classification-reviews` sont remplis après `sh scripts/e2e_reset.sh demo` (4 domaines pour MINFI, depuis `demo-manifest.json`). Ils restent vides avec `seed_db.py` seul. Le rejeu doit donc partir de ce reset, comme le prévoit déjà `checklist-demo.md`.
+
+## Écart à zéro sans rien retirer ni changer de date (PO et O, 18/11, nuit)
+
+Décisions du PO, rapportées par O :
+- tag V1.1 le 07/12, fusions jusqu’au 04/12, périmètre intact ;
+- les deux points que l’audit plaçait en V1.2 entrent en V1.1, sans charger F si possible.
+
+Leviers donnés par O :
+- l’outil d’audit UX (G) fait la contre-vérification manuelle, dans le navigateur, de chaque PR d’écran, et note son verdict dans son fichier ; Q garde les relectures de code et les tests automatiques ;
+- B et F travaillent les week-ends des 28-29/11 et 05-06/12, avec un créneau Docker chacun ;
+- Q reprend des tests de F ;
+- aide-api ne reçoit rien de plus.
+
+### Ce qui change dans la charge
+
+| Changement | B | F | Q | aide-api |
+|---|---|---|---|---|
+| 57 L10-2 et 57 L10-4 déjà codées (B, 18/11 : #284, #372, #386, #387). Il reste ≈ 1 h-s, tests après fusion de main, au lieu de 4 | − 3 | | | |
+| 57 L12-7 « Chez X (étape n/N) » : serveur et écran, 1,5 | + 1,5 | | | |
+| 57 L13-6 « Mes dernières actions » : serveur, écran et tests de portée, 1,5. Reprend 57 L13-5 de F | + 1,5 | − 0,25 | | |
+| Contre-vérification dans le navigateur faite par G. `Déduit` : environ 25 PR d’écran à 0,15 h-s chacune, à confirmer par Q | | | − 3,5 | |
+| **Charge** | **38,3** | **31,25** | **34,3** | **33,5 à 35,5** |
+
+Le week-end des 05-06/12 tombe **après** la dernière fusion (vendredi 04/12) : un travail fait ces jours-là ne peut pas entrer dans le tag. D’où deux cas.
+
+### Cas A : fusions jusqu’au 04/12, seul le week-end des 28-29/11 compte
+
+Week-end compté à 3,5 h-s par jour pour B et 2,67 pour F (même rythme que leurs jours ouvrés). F donne à Q 2 h-s de tests : les specs e2e et Vitest de 57 L7-1, L7-4, L11-2, L11-3 et L13-3. F code l’écran, Q écrit les tests. La liste est à confirmer par F.
+
+| | B | F | Q | aide-api |
+|---|---|---|---|---|
+| Charge | 38,3 | 29,25 | 36,3 | 33,5 à 35,5 |
+| Capacité | 38 | 29,33 | 34 | 35 |
+| **Écart** | **+ 0,3** | **− 0,1** | **+ 2,3** | **− 1,5 à + 0,5** |
+
+**Il reste ≈ 2,6 à 3,1 h-s** (B, Q et le haut de la fourchette d’aide-api). Pour fermer : soit Q travaille un jour du week-end des 28-29/11, soit le cas B.
+
+### Cas B : la dernière fusion passe au dimanche 06/12 au soir (tag le lundi 07/12)
+
+Il n’y a plus de transfert de F vers Q. B reprend :
+- l’e2e « rejet, correction, renvoi » de Q (0,5) ;
+- 57 L12-3, les cartes de `/tasks` d’aide-api (0,5), qui dépend de sa propre PR serveur.
+
+| | B | F | Q | aide-api |
+|---|---|---|---|---|
+| Charge | 39,3 | 31,25 | 33,8 | 33 à 35 |
+| Capacité | 45 | 34,67 | 34 | 35 |
+| **Écart** | **− 5,7** | **− 3,4** | **− 0,2** | **− 2 à 0** |
+
+**Tous à 0 ou moins.** C’est le seul cas qui ferme l’écart sans travail de Q le week-end. Il reporte de deux jours la dernière fusion, mais pas le tag.
+
+**Risque commun aux deux cas** : le week-end des 28-29/11 précède la démo du lundi 30/11. B et F doivent y laisser la priorité à la répétition et aux correctifs de démo. Ce qui ne se fait pas ce week-end retombe sur la semaine du 01/12.
