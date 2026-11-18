@@ -5,6 +5,7 @@ import type { PendingWorkflowTask } from '../types';
 import { api } from '../services/api';
 import type { WorkflowDecision } from '../services/resources/workflows.api';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 
@@ -88,6 +89,7 @@ const WorkflowTasks: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
               <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || task.document_id}</span></p>
+              <div className="mt-2"><ViewDocumentButton documentId={task.document_id} /></div>
             </div>
 
             <div className="flex gap-3">
@@ -117,13 +119,6 @@ const WorkflowTasks: React.FC = () => {
         onCancel={() => setRejecting(null)}
       />
 
-      {/* Visual Workflow Chart */}
-      <div className="glass p-8 rounded-[2rem] border-white">
-        <h3 className="text-lg font-bold text-slate-800 mb-8">Efficacité du Service (Délai moyen de validation)</h3>
-        <div className="h-64 bg-slate-100/50 rounded-3xl flex items-center justify-center border border-dashed border-slate-200">
-            <p className="text-slate-400 font-bold italic">Graphique de performance analytique bientôt disponible</p>
-        </div>
-      </div>
     </div>
   );
 };
