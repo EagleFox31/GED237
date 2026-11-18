@@ -3,16 +3,22 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { TrendCards } from '../../../components/TrendCards';
-import { TenantMetrics } from '../../../types';
+
+// Réponse de GET /analytics/manager : périmètre de l'unité de l'utilisateur.
+interface UnitMetrics {
+  documents?: { total?: number; needs_review?: number };
+  active_workflows?: number;
+  workflows?: { pending?: number; completed?: number };
+}
 
 const ServiceDashboard: React.FC = () => {
-  const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
+  const [metrics, setMetrics] = useState<UnitMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await api.getTenantAnalytics();
+        const data = await api.getManagerAnalytics();
         setMetrics(data);
       } catch (err) {
         console.error('Failed to fetch service dashboard:', err);
@@ -41,7 +47,9 @@ const ServiceDashboard: React.FC = () => {
           <div className="space-y-4">
             {[
               { label: "Documents", count: isLoading ? '...' : metrics?.documents?.total ?? 0, icon: "description", to: "/documents" },
-              { label: "Workflows en attente", count: isLoading ? '...' : metrics?.workflows?.pending ?? 0, icon: "pending_actions", to: "/tasks" },
+              { label: "À revoir", count: isLoading ? "..." : metrics?.documents?.needs_review ?? 0, icon: "rule", to: "/classification-reviews" },
+              { label: "Circuits actifs", count: isLoading ? "..." : metrics?.active_workflows ?? 0, icon: "pending_actions", to: "/tasks" },
+              { label: "Workflows en attente", count: isLoading ? '...' : metrics?.workflows?.pending ?? 0, icon: "hourglass_top", to: "/tasks" },
               { label: "Workflows complétés", count: isLoading ? '...' : metrics?.workflows?.completed ?? 0, icon: "task_alt" },
             ].map((stat: { label: string; count: string | number; icon: string; to?: string }, i) => {
               // Seuls les indicateurs qui ont une liste existante sont cliquables (pas de nouvelle page).

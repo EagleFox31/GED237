@@ -14,4 +14,7 @@ export const analyticsApi = {
 
     getTrends: (scope: 'tenant' | 'unit' | 'mine', weeks = 12): Promise<any> =>
         apiCall<any>(`/analytics/trends?scope=${scope}&weeks=${weeks}`, {}, 'Récupération des tendances impossible'),
+
+    getManagerAnalytics: (): Promise<any> =>
+        apiCall<any>('/analytics/manager', {}, 'Récupération des analytics du service impossible'),
 };

@@ -14,6 +14,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const DraftWorkspace: React.FC = () => {
+  const [now, setNow] = useState<{ drafts: number; awaiting_visa: number } | null>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +103,21 @@ const DraftWorkspace: React.FC = () => {
       </div>
 
       {/* Grid des documents */}
-      <div className="shrink-0"><TrendCards scope="mine" /></div>
+      <div className="shrink-0 space-y-4">
+        {now && (
+          <dl className="grid grid-cols-2 gap-4" data-testid="trend-now">
+            <div className="glass p-4 rounded-2xl bg-white border-white">
+              <dt className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Brouillons</dt>
+              <dd className="text-2xl font-black text-slate-800">{now.drafts}</dd>
+            </div>
+            <div className="glass p-4 rounded-2xl bg-white border-white">
+              <dt className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En attente de visa</dt>
+              <dd className="text-2xl font-black text-slate-800">{now.awaiting_visa}</dd>
+            </div>
+          </dl>
+        )}
+        <TrendCards scope="mine" onLoaded={(t) => setNow(t.now ?? null)} />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-y-auto p-1">
         {loading ? (
