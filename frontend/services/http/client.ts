@@ -14,8 +14,16 @@ import {
     persistAuthTokens,
     clearAuthSession,
     isAuthEndpoint,
+    markSessionExpired,
 } from './session';
 import { buildApiError, buildNetworkError } from './errorAdapter';
+import { refreshOutcome } from './refreshOutcome';
+
+/** Session refusée par le serveur : déconnexion, avec le message « session expirée » à l'écran de connexion. */
+const expireSession = (): void => {
+    markSessionExpired();
+    clearAuthSession(true);
+};
 
 export { getHeaders };
 
@@ -39,36 +47,50 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
 
     const refreshToken = sessionStorage.getItem('refresh_token');
     if (!refreshToken) {
-        clearAuthSession(true);
+        expireSession();
         return response;
     }
 
+    let refreshRes: Response;
     try {
-        const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+        refreshRes = await fetch(`${API_URL}/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refresh_token: refreshToken }),
         });
-
-        if (!refreshRes.ok) {
-            clearAuthSession(true);
-            return response;
-        }
-
-        const data = await refreshRes.json();
-        const nextAccess: string = data.access_token;
-        const nextRefresh: string = data.refresh_token || refreshToken;
-        persistAuthTokens(nextAccess, nextRefresh);
-
-        const newHeaders = new Headers(options.headers || {});
-        newHeaders.set('Authorization', `Bearer ${nextAccess}`);
-        response = await fetch(url, { ...options, headers: newHeaders });
-    } catch (error) {
-        console.error('Token refresh failed', error);
-        clearAuthSession(true);
+    } catch (err) {
+        // Coupure réseau pendant le renouvellement : la session reste, l'erreur passe par le bus
+        // et la prochaine action retente le renouvellement.
+        throw buildNetworkError(err);
     }
 
-    return response;
+    const outcome = refreshOutcome(refreshRes.status);
+    if (outcome === 'expired') {
+        expireSession();
+        return response;
+    }
+    // 429 / 5xx : session gardée ; l'appelant reçoit l'erreur du serveur, affichée par le bus.
+    if (outcome === 'transient') return refreshRes;
+
+    let nextAccess: string;
+    let nextRefresh: string;
+    try {
+        const data = await refreshRes.json();
+        nextAccess = data.access_token;
+        nextRefresh = data.refresh_token || refreshToken;
+    } catch (err) {
+        // Réponse tronquée (connexion coupée en cours de lecture) : même traitement qu'une coupure.
+        throw buildNetworkError(err);
+    }
+    persistAuthTokens(nextAccess, nextRefresh);
+
+    const newHeaders = new Headers(options.headers || {});
+    newHeaders.set('Authorization', `Bearer ${nextAccess}`);
+    try {
+        return await fetch(url, { ...options, headers: newHeaders });
+    } catch (err) {
+        throw buildNetworkError(err);
+    }
 };
 
 /**
