@@ -494,7 +494,7 @@ def test_beat_registry_merges_retention_with_the_watch():
     }
 
 
-# --- documents purge: institution administrator ------------------------------
+# --- documents purge: platform administrator only (PO decision, V1.1) -------
 
 
 def _as_tenant_admin(client_as, db_seed, tenant_id=None):
@@ -507,25 +507,74 @@ def _as_tenant_admin(client_as, db_seed, tenant_id=None):
 
 
 @pytest.mark.asyncio
-async def test_tenant_admin_purges_and_empties_own_trash(
-    client_as, db_seed, test_engine
+async def test_tenant_admin_trashes_but_cannot_purge_and_the_refusal_is_logged(
+    client_as, db_seed, test_engine, caplog
 ):
     async with _as_tenant_admin(client_as, db_seed) as client:
-        active = await _upload(client, db_seed, "ta-active.txt")
         single = await _trashed(client, db_seed, "ta-single.txt")
-        bulk = await _trashed(client, db_seed, "ta-bulk.txt")
+        with caplog.at_level("WARNING", logger="app.core.authz.service"):
+            purge = await client.delete(f"{DOCS}/{single}/purge")
+            empty = await client.post(f"{DOCS}/trash/empty")
 
-        refused = await client.delete(f"{DOCS}/{active}/purge")
-        purged = await client.delete(f"{DOCS}/{single}/purge")
-        emptied = await client.post(f"{DOCS}/trash/empty")
+    assert (purge.status_code, empty.status_code) == (403, 403)
+    assert await _document_row(test_engine, single) is not None
+    denials = [
+        record.getMessage()
+        for record in caplog.records
+        if "[AUTHZ_DENY]" in record.getMessage()
+    ]
+    assert len(denials) == 2
+    assert all("role=tenant_admin" in d and "action=purge" in d for d in denials)
 
-    assert refused.status_code == 409
+
+@pytest.mark.asyncio
+async def test_tenant_admin_cannot_reach_another_institution_with_tenant_id(
+    client_as, admin_client, db_seed
+):
+    """``tenant_id`` is honoured for ``tenants manage`` only: anyone else stays home."""
+    foreign = await _trashed(admin_client, db_seed, "ta-foreign.txt")
+    async with _as_tenant_admin(client_as, db_seed, tenant_id=uuid.uuid4()) as client:
+        listing = await client.get(
+            f"{DOCS}/trash", params={"tenant_id": str(db_seed["tenant_id"])}
+        )
+        purge = await client.delete(
+            f"{DOCS}/{foreign}/purge", params={"tenant_id": str(db_seed["tenant_id"])}
+        )
+
+    assert listing.status_code == 200
+    assert listing.json() == []
+    assert listing.headers["X-Total-Count"] == "0"
+    assert purge.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_platform_admin_purges_an_institution_named_by_tenant_id(
+    client_as, admin_client, db_seed, test_engine
+):
+    single = await _trashed(admin_client, db_seed, "sa-single.txt")
+    bulk = await _trashed(admin_client, db_seed, "sa-bulk.txt")
+    target = {"tenant_id": str(db_seed["tenant_id"])}
+
+    # Platform administrator of PLATFORM, not of the institution.
+    # An existing user id: the purge audit row references users.id.
+    async with client_as(
+        "super_admin", tenant_id=uuid.uuid4(), id=db_seed["user_id"]
+    ) as platform:
+        untargeted = await platform.post(f"{DOCS}/trash/empty")
+        listing = await platform.get(f"{DOCS}/trash", params=target)
+        purged = await platform.delete(f"{DOCS}/{single}/purge", params=target)
+        emptied = await platform.post(f"{DOCS}/trash/empty", params=target)
+
+    # Without tenant_id it stays on its own (empty) trash: never several at once.
+    assert untargeted.json() == {"purged": 0, "remaining": 0}
+    assert {row["id"] for row in listing.json()} == {single, bulk}
     assert purged.status_code == 200, purged.text
-    assert emptied.status_code == 200, emptied.text
     assert emptied.json() == {"purged": 1, "remaining": 0}
-    assert await _document_row(test_engine, active) is not None
-    assert await _document_row(test_engine, single) is None
-    assert await _document_row(test_engine, bulk) is None
+    for document_id in (single, bulk):
+        assert await _document_row(test_engine, document_id) is None
+        trail = await _audit_rows(test_engine, document_id, "document_purged")
+        # The audit row belongs to the institution whose document was purged.
+        assert [row.tenant_id for row in trail] == [db_seed["tenant_id"]]
 
 
 @pytest.mark.asyncio
@@ -539,19 +588,6 @@ async def test_other_roles_cannot_purge(client_as, admin_client, db_seed, role):
         empty = await client.post(f"{DOCS}/trash/empty")
     assert purge.status_code == 403
     assert empty.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_tenant_admin_of_another_institution_purges_nothing(
-    client_as, admin_client, db_seed, test_engine
-):
-    document_id = await _trashed(admin_client, db_seed, "foreign-purge.txt")
-    async with _as_tenant_admin(client_as, db_seed, tenant_id=uuid.uuid4()) as client:
-        purge = await client.delete(f"{DOCS}/{document_id}/purge")
-        empty = await client.post(f"{DOCS}/trash/empty")
-    assert purge.status_code == 404
-    assert empty.json()["purged"] == 0
-    assert await _document_row(test_engine, document_id) is not None
 
 
 # --- Every deletion is audited (#185) ----------------------------------------
@@ -731,7 +767,8 @@ async def owner_client(test_engine, db_seed):
         await session.execute(
             update(Role)
             .where(Role.id == db_seed["role_id"])
-            .values(code="tenant_admin")
+            # super_admin: the only role allowed to purge (PO, V1.1).
+            .values(code="super_admin")
         )
         await session.commit()
 
