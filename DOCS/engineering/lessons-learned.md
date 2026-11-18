@@ -585,6 +585,19 @@ première requête utilisateur.
 **Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
 **Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
 
+### LESSON-2026-041 — Table de fermeture des unités jamais alimentée : « unité et sous-unités » réduit en silence à « son unité »
+
+- **Date :** 2026-11-17
+- **Catégorie :** data / authz
+- **Statut :** test-added
+- **Liens :** #195, #196, `app/services/reports_scope.py`, `org_unit_closure`
+
+**Contexte** — La règle des rapports (D-L12-1) borne les rôles d'unité à leur unité et à ses sous-unités ; les sous-unités étaient lues dans `org_unit_closure`.
+**Échec / near miss** — Aucun chemin de l'application n'écrit cette table (ni migration, ni seed, ni création d'unité ; pas même la ligne de profondeur 0). Les tests l'alimentaient à la main. En production, la règle « unité et sous-unités » se réduisait donc à « son unité » sans erreur visible. Trouvé en préparant #195, avant tout signalement.
+**Cause racine** — Une structure dérivée (fermeture transitive) consommée sans propriétaire qui la tienne à jour ; les tests fabriquaient la donnée au lieu de passer par le chemin de création réel.
+**Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
+**Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
+**Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
 ### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
 
 - **Date :** 2026-11-17
@@ -691,3 +704,17 @@ première requête utilisateur.
 2. Garde Playwright automatique (`noNativeDialog`) dans les fixtures communes : tout test qui ouvre une fenêtre native échoue.
 3. Grille de recette : parcours par persona sur l'accueil de chaque rôle, tout élément cliquable agit, aucune fenêtre native.
 **Leçon généralisée** — Une revue de diff ne couvre pas les écrans non modifiés : ce qu'on interdit doit l'être par une règle automatique, et la recette doit parcourir l'application par persona.
+
+### LESSON-2026-056 — Périmètre restreint sur les listes, ouvert par id : unit_admin modifiait les documents d'autres unités
+
+- **Date :** 2026-11-18
+- **Catégorie :** security / authz
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_ensure_in_unit_tree`, `_can_read_document`, `_can_mutate_document`, `_can_trash_document`, `_can_manage_lock`), `backend/tests/api/test_unit_admin_read_scope.py`
+
+**Contexte** — Le périmètre de unit_admin (son unité et les unités en dessous) était appliqué par le filtre des listes (`visible_document_scope`).
+**Échec / near miss** — Relevé en relecture avant fusion : les routes par id (`GET`, `PATCH`, `DELETE`, corbeille, verrou, nouvelle version) ne vérifiaient que le type de droit Casbin. Un unit_admin lisait, modifiait ou supprimait par id un document de toute l'institution.
+**Cause racine** — Deux chemins pour une même règle : le filtre de liste et les prédicats par objet. Seul le premier avait été adapté, et les tests ne couvraient que les listes.
+**Résolution** — Les prédicats par objet appliquent le sous-arbre à unit_admin ; hors sous-arbre, le document est traité comme inconnu (404). Une étape de circuit assignée ouvre toujours la lecture.
+**Prévention** — Tests 404 sur `GET` et `PATCH` par id hors sous-arbre, avec témoins 200 dans le sous-arbre.
+**Leçon généralisée** — Toute règle de périmètre se teste sur les deux chemins : la liste et l'accès par id (lecture et écriture). Un filtre de liste n'est pas un contrôle d'accès.
