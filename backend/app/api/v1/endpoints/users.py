@@ -661,9 +661,12 @@ async def unlock_user(
     await authorize_or_403(current_user, "users", "update", ctx_from_resource(user))
     assert_org_unit_scope(user.org_unit_id, current_user)
 
-    if not await AuthService.clear_lock(await get_redis(), user.id):
+    redis = await get_redis()
+    if not await redis.exists(f"lock:{user.id}"):
         return {"unlocked": False, "message": "Ce compte n'est pas verrouillé."}
 
+    # Audited first: if the write fails, the account stays locked rather than
+    # unlocked without a trace.
     db.add(
         audit_entry(
             tenant_id=user.tenant_id,
@@ -676,6 +679,7 @@ async def unlock_user(
         )
     )
     await db.commit()
+    await AuthService.clear_lock(redis, user.id)
     return {
         "unlocked": True,
         "message": "Compte débloqué : l'agent peut se reconnecter.",
