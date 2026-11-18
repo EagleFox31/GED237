@@ -12,13 +12,9 @@ import { test, expect, apiAs, type UatApi } from '../../fixtures/uat.fixture';
  * sur la pile de démo comme sur la pile UAT. Les compteurs exacts du jeu de démo (367 documents,
  * 16 classés / 12 à revoir / 2 doublons) restent contrôlés par demo-counters.spec.ts (projet `demo`).
  *
- * Ce qui échoue aujourd'hui est marqué `test.fixme` avec la PR attendue (voir FIXME_*).
+ * Ce qui échouerait aujourd'hui serait marqué `test.fixme` avec la PR attendue ; rien pour l'instant (#258 lève l'étape 8).
  * Lancement : `npx playwright test --project=uat specs/uat/demo-scenario-30-11.spec.ts`.
  */
-
-// Étape 8 : le chemin explorateur → bouton « Archiver » n'existe pas (aperçu sans bouton ; « Mes documents »
-// ne charge que 100 documents). Correctif attendu : écart 9 de #256, PR du correctif à rattacher ici.
-const FIXME_ARCHIVE_FROM_EXPLORER = 'Étape 8 (#256 écart 9) : bouton « Archiver » absent de l\'aperçu de l\'explorateur — PR à venir';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -167,7 +163,7 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     await expect(page.getByRole('tabpanel')).toBeVisible();
   });
 
-  test('8. Archivage depuis « Mes documents » : document validé → badge « Archivé »', async ({ page, loginAs, request, adminApi, runId }) => {
+  test('8. Archivage par la recherche de l'en-tête : document validé → badge « Archivé »', async ({ page, loginAs, request, adminApi, runId }) => {
     const title = `Démo archivage ${runId}`;
     const manager: UatApi = await apiAs(request, 'manager');
     const doc = await adminApi.uploadDocument(`demo-arch-${runId}.txt`, title, `Archiver ${title}`);
@@ -178,17 +174,12 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('validated');
 
     await loginAs('tenant_admin');
-    await page.goto(`documents?q=${encodeURIComponent(runId)}`);
-    await page.locator('.grid > div').filter({ hasText: title }).click();
+    // Contrat #258 : recherche dans l'en-tête, résultat « Ouvrir <titre> », fiche via /documents?open=<id>.
+    await page.locator('[data-global-search]').fill(title);
+    await page.getByRole('button', { name: `Ouvrir ${title}` }).click();
+    await expect(page).toHaveURL(new RegExp(`/documents\?open=${doc.id}`));
     await page.getByRole('button', { name: 'Archiver', exact: true }).click();
     await page.getByRole('button', { name: 'Oui, archiver', exact: true }).click();
     await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('archived');
-  });
-
-  test.fixme(FIXME_ARCHIVE_FROM_EXPLORER, async ({ page, loginAs }) => {
-    // Cible du scénario : ouvrir le document validé depuis l'explorateur (/spaces) et l'archiver.
-    await loginAs('tenant_admin');
-    await page.goto('spaces');
-    await expect(page.getByRole('button', { name: 'Archiver', exact: true })).toBeVisible();
   });
 });
