@@ -79,7 +79,7 @@ const OrgDashboard: React.FC = () => {
           value={isLoading ? '...' : String(metrics?.documents?.total ?? 0)}
           subtext="Total enregistrés"
           onClick={() => navigate('/documents')}
-          actionLabel="Voir les documents"
+          actionLabel="ouvrir la liste"
         />
         <KPICard
           icon="pending_actions"
@@ -89,7 +89,7 @@ const OrgDashboard: React.FC = () => {
           value={isLoading ? '...' : String(metrics?.workflows?.pending ?? 0)}
           subtext={`${metrics?.workflows?.rejected ?? 0} rejetés`}
           onClick={() => navigate('/tasks')}
-          actionLabel="Voir les validations en attente"
+          actionLabel="ouvrir la liste"
         />
         <KPICard
           icon="cloud"
@@ -107,7 +107,7 @@ const OrgDashboard: React.FC = () => {
           value={isLoading ? '...' : String(metrics?.users?.total ?? 0)}
           subtext="Comptes actifs"
           onClick={() => navigate('/users')}
-          actionLabel="Voir les utilisateurs"
+          actionLabel="ouvrir la liste"
         />
         <KPICard
           icon="content_copy"
@@ -343,9 +343,9 @@ const KPICard: React.FC<KPICardProps> = ({
         <button
           type="button"
           onClick={onClick}
-          aria-label={actionLabel || label}
-          title={actionLabel || label}
-          className="group block w-full text-left cursor-pointer focus:outline-none"
+          aria-label={`${label} : ${value}, ${actionLabel || 'ouvrir la liste'}`}
+          title={`${label} : ${value}, ${actionLabel || 'ouvrir la liste'}`}
+          className="group block w-full rounded-xl text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue/40"
         >
           {content}
         </button>
