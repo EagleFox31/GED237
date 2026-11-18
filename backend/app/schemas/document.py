@@ -70,6 +70,9 @@ class DocumentRead(DocumentBase):
     updated_at: datetime
     owner_name: Optional[str] = None
     current_version_number: Optional[str] = None
+    # Detail only (GET /documents/{id}): comment of the last rejected or
+    # returned workflow step, so the author knows what to fix.
+    last_rejection_reason: Optional[str] = None
 
     class Config:
         from_attributes = True

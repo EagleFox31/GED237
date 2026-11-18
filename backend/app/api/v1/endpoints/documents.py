@@ -104,7 +104,8 @@ ADMIN_ROLES = {"super_admin", "tenant_admin", "unit_admin"}
 TENANT_WIDE_READ_ROLES = INSTITUTION_WIDE_ROLES | {"super_admin"}
 UNIT_TREE_READ_ROLES = frozenset({"unit_admin"})
 ORG_UNIT_READ_ROLES = {"manager", "reader"}
-OWNER_MUTABLE_STATUSES = {"draft", "rejected"}
+# "returned" is a correctable draft: the author fixes it, then submits again.
+OWNER_MUTABLE_STATUSES = {"draft", "rejected", "returned"}
 ARCHIVABLE_SOURCE_STATUSES = {"validated", "signed"}
 LOCK_DURATION_MINUTES = 30
 
@@ -868,7 +869,9 @@ async def upload_document(
 async def list_documents(
     skip: int = 0,
     limit: int = 100,
-    document_status: Optional[str] = Query(default=None, alias="status"),
+    # Repeatable: ?status=rejected&status=returned ("à corriger"). A single
+    # value behaves as before.
+    document_status: Optional[List[str]] = Query(default=None, alias="status"),
     q: Optional[str] = Query(default=None, max_length=120),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -878,8 +881,9 @@ async def list_documents(
     )
     query = query.where(*visible_document_scope(current_user))
 
-    if document_status:
-        query = query.where(Document.status == document_status)
+    statuses = [s for s in document_status or [] if s]
+    if statuses:
+        query = query.where(Document.status.in_(statuses))
     # Search runs on the whole scope, not on the page the client already holds.
     if q and q.strip():
         query = _apply_text_filter(query, q.strip())
@@ -1244,7 +1248,30 @@ async def get_document(
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
-    return _serialize_document(document)
+    data = _serialize_document(document)
+    data.last_rejection_reason = await _last_rejection_reason(db, document.id)
+    return data
+
+
+async def _last_rejection_reason(db: AsyncSession, document_id: UUID) -> Optional[str]:
+    """Comment of the last rejected or returned step (no history table needed).
+
+    Steps cancelled by a rejection share the "rejected" status but carry no
+    comment, so only commented steps are considered.
+    """
+    return await db.scalar(
+        select(WorkflowStep.comment)
+        .where(
+            WorkflowStep.document_id == document_id,
+            WorkflowStep.status.in_(("rejected", "returned")),
+            WorkflowStep.comment.is_not(None),
+            func.length(func.trim(WorkflowStep.comment)) > 0,
+        )
+        .order_by(
+            func.coalesce(WorkflowStep.completed_at, WorkflowStep.updated_at).desc()
+        )
+        .limit(1)
+    )
 
 
 @router.get("/{document_id}/versions")
