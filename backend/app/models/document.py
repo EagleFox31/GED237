@@ -10,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     Text,
     Integer,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship
@@ -191,6 +192,23 @@ class Document(Base, UUIDMixin, TimestampMixin):
             "idx_documents_created", "created_at", postgresql_ops={"created_at": "DESC"}
         ),
         Index("idx_documents_ocr_vector", "ocr_content_vector", postgresql_using="gin"),
+        # « Contains » search (migration 60e40a686375). The functions come from
+        # app.core.search.fts.TRIGRAM_SETUP_SQL; queries must use the same expressions.
+        Index(
+            "idx_documents_title_trgm",
+            text("f_unaccent(title) gin_trgm_ops"),
+            postgresql_using="gin",
+        ),
+        Index(
+            "idx_documents_tags_trgm",
+            text("f_unaccent_tags(tags) gin_trgm_ops"),
+            postgresql_using="gin",
+        ),
+        Index(
+            "idx_documents_title_fts",
+            text("to_tsvector('french_unaccent'::regconfig, title)"),
+            postgresql_using="gin",
+        ),
         CheckConstraint(
             "status IN ('draft', 'in_review', 'validated', 'signed', 'archived', 'rejected', 'returned')",
             name="check_valid_status",

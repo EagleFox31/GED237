@@ -18,7 +18,7 @@ from fastapi import (
     status,
 )
 from app.core.rate_limit import limiter
-from sqlalchemy import String, and_, cast, func, or_, select
+from sqlalchemy import String, and_, any_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,7 +26,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
-from app.core.search.fts import fold_accents
+from app.core.search.fts import fold_accents, fold_tag_accents
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
@@ -136,33 +136,31 @@ def _escape_like(value: str) -> str:
 
 
 def _apply_text_filter(query, text: str):
-    """Literal match, ignoring case and accents, on title, tags, domain, activity or category name."""
+    """Literal match, ignoring case and accents, on title, tags, domain, activity or category name.
+
+    Every branch of the OR is indexed, so PostgreSQL can combine them (BitmapOr)
+    instead of reading the whole table: trigram indexes on the title and tags
+    expressions, and the foreign-key indexes for names matched in the small
+    reference tables first. A join, or ``IN (subquery)`` (a per-row subplan),
+    would leave a branch no index can serve and force a full scan; ``= ANY(ARRAY(
+    subquery))`` is computed once, then looked up in the index.
+    """
     pattern = fold_accents(f"%{_escape_like(text)}%")
 
-    def _match(column):
-        return fold_accents(column).ilike(pattern, escape=_LIKE_ESCAPE)
+    def _match(expression):
+        return expression.ilike(pattern, escape=_LIKE_ESCAPE)
 
-    return (
-        query.outerjoin(
-            ClassificationDomain,
-            Document.classification_domain_id == ClassificationDomain.id,
-        )
-        .outerjoin(
-            ClassificationActivity,
-            Document.classification_activity_id == ClassificationActivity.id,
-        )
-        .outerjoin(
-            DocumentCategory,
-            Document.document_category_id == DocumentCategory.id,
-        )
-        .where(
-            or_(
-                _match(Document.title),
-                _match(func.array_to_string(Document.tags, " ")),
-                _match(ClassificationDomain.name),
-                _match(ClassificationActivity.name),
-                _match(DocumentCategory.name),
-            )
+    def _named(column, model):
+        ids = select(model.id).where(_match(fold_accents(model.name)))
+        return column == any_(func.array(ids.scalar_subquery()))
+
+    return query.where(
+        or_(
+            _match(fold_accents(Document.title)),
+            _match(fold_tag_accents(Document.tags)),
+            _named(Document.classification_domain_id, ClassificationDomain),
+            _named(Document.classification_activity_id, ClassificationActivity),
+            _named(Document.document_category_id, DocumentCategory),
         )
     )
 

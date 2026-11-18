@@ -8,7 +8,7 @@ from typing import Dict, Any
 
 from sqlalchemy import func, desc, asc, or_, text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import Select, select
 
 from app.core.search import fts
 from app.core.search.fts import fold_accents
@@ -45,16 +45,13 @@ class PostgresSearchEngine(ISearchEngine):
     def name(self) -> str:
         return "PostgreSQL FTS"
 
-    async def search(self, query: SearchQuery) -> SearchResult:
-        """
-        Full-text search across documents
+    def build_statement(self, query: SearchQuery) -> Select:
+        """The filtered, unsorted and unpaginated search statement.
 
         Searches in:
         1. ocr_content_vector (TSVECTOR - indexed via GIN, fast)
-        2. title (ILIKE fallback for documents without OCR)
+        2. title, stemmed and literal (ILIKE fallback for documents without OCR)
         """
-        start_time = time.time()
-
         ts_query = func.plainto_tsquery(self.FTS_CONFIG, query.text)
 
         # Relevance score
@@ -73,8 +70,10 @@ class PostgresSearchEngine(ISearchEngine):
             sql_text("'StartSel=<mark>, StopSel=</mark>, MaxWords=40, MinWords=20'"),
         )
 
-        # Base query with tenant isolation
-        title_match = func.to_tsvector(self.FTS_CONFIG, Document.title).op("@@")(
+        # Base query with tenant isolation. Each branch of the OR below is
+        # indexed (OCR vector, title vector, title trigrams): the title
+        # expressions must stay identical to those of the indexes.
+        title_match = func.to_tsvector(fts.FTS_REGCONFIG, Document.title).op("@@")(
             ts_query
         )
         content_match = Document.ocr_content_vector.op("@@")(ts_query)
@@ -126,6 +125,12 @@ class PostgresSearchEngine(ISearchEngine):
             stmt = stmt.filter(Document.file_type == query.file_type)
         if query.tags:
             stmt = stmt.filter(Document.tags.overlap(query.tags))
+        return stmt
+
+    async def search(self, query: SearchQuery) -> SearchResult:
+        """Full-text search across documents (see ``build_statement``)."""
+        start_time = time.time()
+        stmt = self.build_statement(query)
 
         # Count total before pagination
         count_stmt = select(func.count()).select_from(stmt.subquery())
