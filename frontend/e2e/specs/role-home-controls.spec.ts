@@ -64,4 +64,26 @@ test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () 
     await link.click();
     await expect(page).toHaveURL(/documents/);
   });
+
+  for (const [role, label] of [['reader', 'lecteur'], ['collaborator', 'collaborateur']] as const) {
+    for (const path of ['ingestion', 'local-library']) {
+      test(`${label} : l'accès direct à /${path} est refusé`, async ({ loginAs, page }) => {
+        await loginAs(role);
+        await page.goto(path);
+        await expect(page).not.toHaveURL(new RegExp(path));
+      });
+    }
+  }
+
+  test('manager : un rejet sans motif est refusé', async ({ loginAs, page }) => {
+    await loginAs('manager');
+    await expect(page.getByText('Espace Manager')).toBeVisible({ timeout: 10_000 });
+    const reject = page.getByRole('button', { name: 'Rejeter' }).first();
+    test.skip(!(await reject.isVisible().catch(() => false)), 'aucune tâche en attente pour ce manager');
+    await reject.click();
+    const confirm = page.getByRole('button', { name: /Confirmer/ }).last();
+    await expect(confirm).toBeDisabled();
+    await page.getByRole('textbox').last().fill('   ');
+    await expect(confirm).toBeDisabled();
+  });
 });
