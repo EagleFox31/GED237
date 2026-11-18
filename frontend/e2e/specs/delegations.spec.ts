@@ -152,4 +152,37 @@ test.describe('Remplacements pendant une absence (L4)', () => {
     await expect(page.getByTestId('task-on-behalf')).toHaveText(`Au nom de ${ABSENT.full_name}`);
     await expect(page.getByTestId('delegation-outgoing')).toContainText(`Vos tâches vont à ${INTERIM.full_name}`);
   });
+
+  test('DLG-06 — Given journal d’audit, When « Au nom de quelqu’un », Then seules les actions d’un remplaçant restent et l’export est bloqué', async ({ loginAs, page }) => {
+    const log = (id: string, over: Record<string, unknown> = {}) => ({
+      id,
+      tenant_id: 't-1',
+      user_id: INTERIM.id,
+      user_name: INTERIM.full_name,
+      table_name: 'documents',
+      record_id: `doc-${id}`,
+      resource_label: `Note ${id}`,
+      action: 'UPDATE',
+      old_data: null,
+      new_data: null,
+      ip_address: null,
+      user_agent: null,
+      created_at: '2026-11-20T09:00:00+01:00',
+      ...over,
+    });
+    await page.route(/\/api\/v1\/audit\/logs(\?|$)/, (route) =>
+      json(route, [log('a'), log('b', { on_behalf_of: ABSENT.id, on_behalf_of_name: ABSENT.full_name })]),
+    );
+
+    await loginAs('auditor');
+    await page.goto('audit');
+    await expect(page.getByText('Note a')).toBeVisible();
+    const toggle = page.getByRole('button', { name: /Au nom de quelqu'un/ });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText('Note a')).toHaveCount(0);
+    await expect(page.getByText('Note b')).toBeVisible();
+    await expect(page.getByTestId('audit-on-behalf')).toContainText(ABSENT.full_name);
+    await expect(page.getByRole('button', { name: /Exporter/ })).toBeDisabled();
+  });
 });

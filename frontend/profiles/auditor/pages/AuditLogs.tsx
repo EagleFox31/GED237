@@ -133,7 +133,10 @@ const AuditLogs: React.FC = () => {
     logs.filter((log) => actorLabels.includes(getActorLabel(log))).map((log) => log.user_id).filter(Boolean),
   );
   const exportUserId = actorLabels.length === 1 && actorIds.size === 1 ? ([...actorIds][0] ?? undefined) : undefined;
-  const exportBlocked = actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
+  // « Au nom de quelqu'un » : lignes faites par un remplaçant. Filtre local (200 dernières actions) ;
+  // l'export serveur ne sait pas le reprendre, il est donc bloqué tant que ce filtre est actif.
+  const [onBehalfOnly, setOnBehalfOnly] = useState(false);
+  const exportBlocked = onBehalfOnly || actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
   const [exporting, setExporting] = useState(false);
 
   const exportCsv = async () => {
@@ -172,9 +175,11 @@ const AuditLogs: React.FC = () => {
       const actorFilter = columnFilters.actor ?? [];
       if (actorFilter.length > 0 && !actorFilter.includes(getActorLabel(log))) return false;
 
+      if (onBehalfOnly && !log.on_behalf_of) return false;
+
       return true;
     });
-  }, [columnFilters, logs]);
+  }, [columnFilters, logs, onBehalfOnly]);
 
   const nothingToExport = !isLoading && filteredLogs.length === 0;
 
@@ -320,6 +325,18 @@ const AuditLogs: React.FC = () => {
         </div>
         <div className="flex flex-col items-start gap-2 md:items-end">
           <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={onBehalfOnly}
+            onClick={() => setOnBehalfOnly((v) => !v)}
+            title="Voir seulement les actions faites par un remplaçant"
+            className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-black uppercase tracking-widest ${
+              onBehalfOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-700 hover:text-rdpc-blue'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base" aria-hidden="true">swap_horiz</span>
+            Au nom de quelqu'un
+          </button>
           <HelpHint
             label="Aide sur l'export du journal"
             tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
@@ -333,7 +350,9 @@ const AuditLogs: React.FC = () => {
             title={
               nothingToExport
                 ? 'Rien à exporter'
-                : exportBlocked
+                : onBehalfOnly
+                  ? "Retirez le filtre « Au nom de quelqu'un » pour exporter."
+                  : exportBlocked
                   ? 'Choisissez un seul utilisateur pour exporter.'
                   : 'Télécharger le journal (fichier CSV)'
             }
