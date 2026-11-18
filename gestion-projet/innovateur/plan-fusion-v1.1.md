@@ -98,24 +98,24 @@ Avant tout, **une revue de recouvrement par B** (≈ 0,25 h-s). #203, #358 et #3
 
 | PR | Fichiers déjà touchés par #203, #358 et #360 | Proposition |
 |---|---|---|
-| #241 unit_admin borné sur les revues et circuits (#215) | 17 sur 19 | Probablement couverte par #358. Changements demandés par Q (9a534da). **Fermer si B le confirme**, sinon retravailler. #215 est encore ouvert : le fermer avec la preuve. |
-| #213 unit_admin par id (#202) | 6 sur 6 | Probablement couverte par #203. Changements demandés par Q (e9271c8). Même traitement que #241. **Base de #220, #221, #261 et #263 : les re-cibler sur `main` avant de la fermer.** |
+| #241 unit_admin borné sur les revues et circuits (#215) | 17 sur 19 | **Réduite par B (18/11) à ce que #358 ne couvre pas.** Base de la pile `main` ← #241 ← #213 ← #221, #261, #263. À mettre à jour sur `main` après la coupe, puis nouvelle relecture de Q (les changements demandés en 9a534da portaient sur l'ancien diff). |
+| #213 unit_admin par id (#202) | 6 sur 6 | **Réduite par B (18/11) à ce que #203 ne couvre pas.** Empilée sur #241. Base de #221, #261 et #263, qui restent dessus. Relecture de Q sur la nouvelle tête (l'ancien avis était en e9271c8). |
 | #361 périmètre unit_admin côté interface | 20 sur 25 | Écrite sur #358. Rebaser sur `main` et ne garder que l'écran. |
 | #266 arbre des unités par `parent_id` (#201) | 13 sur 17 | Garder (#201 est encore ouvert), puis rebaser. |
 
 | Ordre | PR | Rôle | Base / pile | Dépend de | Conflit probable | OK de Q | Lot |
 |---|---|---|---|---|---|---|---|
-| 28 | #261 cible de la revue vérifiée dans le tenant (#242) | B | sur #213, à re-cibler | — | `documents.py` | code (3da37c7) | 11 |
-| 29 | #263 404 hors périmètre sur toute route de document (#247) | B | sur #213, à re-cibler | — | `documents.py`, `workflows.py` | oui (SHA non noté) | 11 |
+| 28 | #261 cible de la revue vérifiée dans le tenant (#242) | B | sur #213 (pile #241) | — | `documents.py` | code (3da37c7) | 11 |
+| 29 | #263 404 hors périmètre sur toute route de document (#247) | B | sur #213 (pile #241) | — | `documents.py`, `workflows.py` | oui (SHA non noté) | 11 |
 | 30 | #308 e2e : 404 hors périmètre | Q | sur #263 | #263 | — | **rouge** (8a5c0e5) | 11 |
 | 31 | #296 message clair si le lien d'un document est hors périmètre | F | main | #263 | `Documents.tsx`, `documents.api.ts` | code, périmé (dcc04a1, tête a117f44), CONFLICTING | 11 |
 | 32 | #266 arbre par `parent_id` (#201) | B | main | revue de recouvrement | `analytics.py`, `documents.py`, `imports.py`, `reports.py` | code (SHA non noté), CONFLICTING | 11 |
-| 33 | #220 l'analytique ne compte plus la corbeille | B | sur #213, à re-cibler | — | voir la note | code, périmé (3bc68e0, tête 80ffdbb) | 11 |
-| 34 | #221 tableau de bord du service (#213) | F | sur #213, à re-cibler | #220 | `ci.yml`, `e2e-uat-nightly.yml`, `users.py` | code, périmé (e52ae5d, tête 2bfc18b), CONFLICTING | 11 |
+| 33 | ~~#220 l'analytique ne compte plus la corbeille~~ | B | **fermée le 18/11** : couverte par `main` | — | — | — | 11 |
+| 34 | #221 tableau de bord du service (#213) | F | sur #213 (pile #241) | #213 | `ci.yml`, `e2e-uat-nightly.yml`, `users.py` | code, périmé (e52ae5d, tête 2bfc18b), CONFLICTING | 11 |
 | 35 | #282 volumes de stockage en nombres (#264) | B | main | — | — | non, CONFLICTING | 11 |
 
-- **#220** : son diff compte 92 fichiers, parce que sa base (#213) est en retard sur `main` (86 commits, dont des fusions de `main`). Le vrai périmètre réapparaît après le re-ciblage.
-- **#218, que #220 corrige, est déjà fermé** : B vérifie si le correctif est sur `main`. Si oui, on ferme #220.
+- **#220 et #159 sont fermées (O, 18/11)** : `main` les couvre déjà.
+- **Pile `main` ← #241 ← #213 ← #221, #261, #263** : on fusionne de bas en haut. B met #241 à jour sur `main` après la coupe. Chaque étage est ensuite mis à jour sur le précédent, puis relu par Q sur sa nouvelle tête. On ne fusionne pas #213 avant #241.
 
 ### Vague 4 : 30/11 au 02/12, capacités post-rc1 (selon la décision du PO, § 6)
 
@@ -184,7 +184,7 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 | #235 | #238 | Re-cibler #238. |
 | #248 | #267, #268 | Re-cibler les deux. |
 | #284 | #311 | Re-cibler #311. |
-| #213 (sans doute fermée) | #261, #263, #220, #221 | Re-cibler les quatre sur `main` avant la fermeture. |
+| #241 → #213 | #221, #261, #263 | Pile gardée (#241 et #213 réduites par B, 18/11). Mise à jour de #241 sur `main` après la coupe, puis étage par étage. |
 | #263 | #308 (V1.1), #315 (V1.2) | Re-cibler les deux. |
 | #179 | #262 → #310 | Re-cibler #262, puis #310. |
 | #283 → #293 → #295 | #313 (V1.2) sur #295 | Re-cibler à chaque étage. |
@@ -264,7 +264,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 | #219 | Écrans de l'application d'authentification | F | sur #193 | code (5f2f6c2) | 16 fichiers | **Fusionner** avec #193. |
 | #155 | Notifications en temps réel sur plusieurs processus (L6) | B | main | non | 7 fichiers | **Retravailler** seulement si l'API tourne avec plusieurs processus en V1.1. Sinon, V1.2. |
 | #169 | Passe e2e L6 (authentification du WebSocket) | B | main | non | 10 fichiers | Suit #155. |
-| #159 | Une seule règle de périmètre pour les rapports (L5a) | B | main | non | 3 fichiers | **Retravailler** : à confronter à #358, fusionnée, qui borne déjà l'analytique. Fermer si c'est couvert. |
+| ~~#159~~ | Une seule règle de périmètre pour les rapports (L5a) | B | — | — | — | **Fermée le 18/11** : couverte par `main` (#358). |
 | #197 | Rapport officiel en PDF (L5) | B | main | code (l. 864, ancien) | 11 fichiers, migration | **Fusionner** : tête de la chaîne alembic, sur une relecture à jour. |
 | #162 | Qualité documentaire : indicateurs et liste (L8) | B | main | code (SHA non noté) | 6 fichiers | **Fusionner**. |
 | #180 | Rapports officiels programmés (L9) | B | main | périmé (feb9c4e, tête 2297058) | 27 fichiers, 26 en commun avec #183 (V1.2), migration | **Retravailler** : vérifier que rien de #183 n'est resté dans le diff. Valeur : la direction plus que les agents. |
@@ -294,7 +294,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 
 1. Démo du 30/11 sur `main` ou sur le tag ? Cela décide du gel du 27 au 30 (règle 7). **Par défaut : sur le tag, sans gel de `main`** (O, 18/11). La réponse du PO est attendue.
 2. **Tranché (PO, 18/11) : toutes en V1.1**, avec la charge dans `plan-v1.1.md`. Les 25 PR marquées « — » : #389, #383, #372, #384, #386, #387, #388, #355, #338, #347, #351, #354, #371, #373, #366, #367, #377, #349, #359, #378, #342, #344, #353, #335 et #312.
-3. Revue de recouvrement par B (#241, #213, #361, #266, #220 et #159 face à #203, #358 et #360) avant le 26/11.
+3. Revue de recouvrement par B face à #203, #358 et #360. **Faite le 18/11** pour #220 et #159 (fermées), et pour #241 et #213 (réduites). Restent #361 et #266, avant le 26/11.
 4. Relecture de Q sur la tête pour toutes les PR marquées « périmé » ou « SHA non noté ».
 
 ## 9. État des PR backend post-rc1 (relevé de B, 18/11 au soir)
@@ -305,10 +305,12 @@ Relevé transmis par O. Il ne change ni l'ordre des vagues ni la charge. Il dit 
 |---|---|---|
 | À jour avec `main` | #205, #213, #238, #261, #262, #263 ; #152 (e27e01c), #155 (ab97a73) | Rien : relecture de Q sur la tête. Pour #152 et #155, voir plus bas. |
 | Propres mais anciennes | #147, #162, #171, #179, #186, #197, #222, #235, #237, #281, #283, #285, #294 ; #199 en partie | Mise à jour de la branche par B, puis CI verte, puis relecture de Q sur la nouvelle tête. |
-| En conflit | #153, #154, #159, #165, #180, #183, #192, #193, #212, #241, #266, #282 ; #181, #184 et #190 en partie | Rebase par B dans l'ordre des vagues, jamais en avance sur la base d'une pile (§ 3). |
-| Probablement obsolètes | #284 (recouvrement avec #370 et #372), #220 | B confirme, puis O ferme. Avant de fermer #284, re-cibler #311 et vérifier ce que #290 lit sur `/ocr`. Avant de fermer #220, re-cibler ce qui s'appuie sur elle (§ 3). |
+| En conflit | #153, #154, #165, #180, #183, #192, #193, #212, #241, #266, #282 ; #181, #184 et #190 en partie | Rebase par B dans l'ordre des vagues, jamais en avance sur la base d'une pile (§ 3). |
+| Probablement obsolète | #284 (recouvrement avec #370 et #372) | B confirme, puis O ferme. Avant de la fermer, re-cibler #311 et vérifier ce que #290 lit sur `/ocr`. |
+| Fermées le 18/11 | #220, #159 | Couvertes par `main`. |
+| Réduites le 18/11 | #241, #213 | Pile `main` ← #241 ← #213 ← #221, #261, #263 ; #241 mise à jour après la coupe (§ 2, vague 3). |
 | À garder malgré tout | #282, #335 | #282 est à rebaser ; #335 reste en vague 6. |
 
 - **#152 (corbeille)** touche un test déjà sur `main` (droits de DELETE). Il faut une relecture du delta de ce test par Q et un avis du PO avant la fusion, car elle change un comportement que la rc.1 garantit.
 - **#155 (notifications en temps réel)** garde le jeton dans l'URL du WebSocket, ce qui s'écarte de #148. À trancher avant la fusion : soit B aligne sur #148, soit O note l'écart comme accepté. Sinon elle reste en V1.2, comme prévu au § 6.
-- **Point 3 du § 8** : le recouvrement de #220 est confirmé par ce relevé. Pour #241, #213, #361, #266 et #159, la revue de B reste attendue avant le 26/11.
+- **Point 3 du § 8** : il ne reste que #361 et #266.
