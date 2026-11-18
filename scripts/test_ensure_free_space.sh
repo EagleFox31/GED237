@@ -10,7 +10,7 @@ fail() { echo "TEST EN ÉCHEC : $1" >&2; [ -f "$T/out" ] && sed 's/^/  | /' "$T/
 mkdir -p "$T/bin" "$T/a" "$T/b"
 cat >"$T/bin/df" <<'FAKE'
 #!/usr/bin/env bash
-# Faux df : l'espace libre (Ko) d'un dossier est lu dans $FIX_<nom du dossier>.
+# Faux df : l'espace libre (Ko) d'un dossier est lu dans $FREE_KB_<nom du dossier>.
 last="${@: -1}"
 name="$(basename "$last")"
 kb_var="FREE_KB_${name}"
