@@ -22,6 +22,10 @@ export interface Document {
   created_at: string;
   updated_at: string;
   owner_name?: string | null;
+  // Document list only, while in review: "Chez X (étape n/N)".
+  workflow_step_order?: number | null;
+  workflow_step_count?: number | null;
+  workflow_assignee_name?: string | null;
   description?: string | null;
   classification_domain_id?: string | null;
   classification_domain_name?: string | null;
@@ -463,6 +467,16 @@ export function getStatusLabel(status: string): string {
     'pending_assignment': 'En attente d\'assignation',
   };
   return map[status] || status;
+}
+
+/** "Chez Awa Mbarga (étape 2/3)" for a document in review, null otherwise. */
+export function getWorkflowPositionLabel(doc: Pick<Document,
+  'status' | 'workflow_step_order' | 'workflow_step_count' | 'workflow_assignee_name'>): string | null {
+  if (doc.status !== 'in_review' || !doc.workflow_step_order || !doc.workflow_step_count) return null;
+  const step = `étape ${doc.workflow_step_order}/${doc.workflow_step_count}`;
+  return doc.workflow_assignee_name
+    ? `Chez ${doc.workflow_assignee_name} (${step})`
+    : `En attente d'un valideur (${step})`;
 }
 
 export function formatDate(isoDate: string): string {
