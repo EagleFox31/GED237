@@ -222,7 +222,7 @@ Après une fusion sur `$BR`, la branche n'est plus supprimée : on corrige par d
 
 | Classe | PR | Responsable | État le 18/11 à 14:00 |
 |---|---|---|---|
-| V1.0 à fusionner avant 18:00 | #203 | I | prête ; à 14:10 : `main` fusionnée par B sans rebase (2a890d0), 139 tests verts en Docker dont `stats_scope`, une seule tête alembic ; en file depuis 13:53, CI en cours ; 13 fichiers, aucune migration. #358, #241 et #266 reciblées sur `main` par O ; #360 et #361 restent sur la branche de #358 |
+| V1.0 à fusionner avant 18:00 | #203 | I | prête ; à 14:10 : `main` fusionnée par B sans rebase (2a890d0), 139 tests verts en Docker dont `stats_scope`, une seule tête alembic ; en file depuis 13:53 ; **CI rouge** (`audit-logs` 200 au lieu de 403 sur l'accès par étape), B corrige ; 13 fichiers, aucune migration. #358, #241 et #266 reciblées sur `main` par O ; #360 et #361 restent sur la branche de #358 |
 | | #358 | B | brouillon, base = branche de #203, CLEAN ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
 | | #360 | B | brouillon, base = branche de #358, CLEAN ; 9 fichiers, aucune migration ; 25 tests verts en Docker |
 | | #104 (point de coupe) | I | brouillon, DIRTY sur le distant (7302e3c). En local (8eca6b0) : 56 commits d'avance, 70 de retard, et `merge-tree` ne montre aucun conflit avec `main` |
@@ -289,7 +289,7 @@ gh issue close 133 --repo $REPO --reason completed \
 
 ### 8.4 Risques pour 18:00
 
-1. **#203** : risque levé le 18/11 (2a890d0, 139 tests verts en Docker, en file depuis 13:53). Objectif d'O : #203, #358 et #360 fusionnées le 18 ou le 19 au matin, bien avant 15:00.
+1. **#203 : risque rouvert le 18/11.** La CI de 2a890d0 est rouge : `audit-logs` renvoie 200 au lieu de 403 sur l'accès par étape. Les 139 tests verts en Docker ne couvraient pas ce cas. B corrige ; Q relit le correctif. #358 et #360 attendent #203. Si la CI n'est pas verte à 15:00 le 19, O décide si les trois PR passent en V1.1. Objectif d'O inchangé : #203, #358 et #360 fusionnées le 18 ou le 19 au matin.
 2. **Fusions en série.** Trois PR empilées, puis peut-être RapidOCR et #356, à 15 à 20 minutes chacune. Entre 16:00 et 17:15, la marge ne couvre qu'une seule relance de CI.
 3. **RapidOCR** : aucune PR la veille à 14:00. Par défaut, elle passe en V1.1.
 4. **#356** (F, tests e2e seuls) : V1.0 si CI verte et passe de F OK avant le 19 à 15:00, sinon V1.1 (décision d'O). Sans effet sur la coupe.
