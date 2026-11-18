@@ -126,7 +126,7 @@ export class UploadDocumentModalPage {
     this.categorySelect = this.modal.locator('select');
     this.tagsInput = this.modal.locator('input[placeholder*="budget"]');
     this.descriptionInput = this.modal.locator('textarea');
-    this.submitButton = this.modal.getByRole('button', { name: /envoyer|créer le document/i });
+    this.submitButton = this.modal.locator('button[type="submit"]');
     this.cancelButton = this.modal.getByRole('button', { name: /annuler/i });
     this.closeButton = this.modal.locator('button').filter({ has: page.locator('span:text("close")') });
     this.errorMessage = this.modal.locator('.bg-red-50');
