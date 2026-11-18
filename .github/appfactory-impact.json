@@ -30,6 +30,23 @@
       "gates": ["frontend", "e2e"],
       "dependsOn": ["ci-platform"]
     },
+    "config-parity": {
+      "paths": [
+        "backend/app/core/config.py",
+        "docker-compose.yml",
+        ".env.example",
+        "frontend/Dockerfile",
+        "frontend/**/*.ts",
+        "frontend/**/*.tsx",
+        "frontend/**/*.js",
+        "frontend/**/*.jsx",
+        "scripts/check-config-parity.py",
+        "scripts/config-parity-exceptions.txt",
+        "scripts/test_check_config_parity.py"
+      ],
+      "gates": ["config-parity"],
+      "dependsOn": ["ci-platform"]
+    },
     "e2e-stack": {
       "paths": ["docker-compose.e2e.yml"],
       "gates": ["e2e"],

@@ -1,0 +1,49 @@
+# Deliberate config gaps, read by scripts/check-config-parity.py.
+# One line per variable: NAME | scope | reason. Scope: env-example, compose or all.
+# A line without a reason, or one that matches no gap any more, fails the check.
+
+# --- Wired by the stack itself: fixed value in docker-compose.yml, not an operator setting
+DATABASE_URL | env-example | built in docker-compose.yml from DB_PASSWORD (which is in .env.example)
+REDIS_URL | env-example | internal service address, fixed in docker-compose.yml
+CELERY_BROKER_URL | env-example | internal service address, fixed in docker-compose.yml
+CELERY_RESULT_BACKEND | env-example | internal service address, fixed in docker-compose.yml
+STORAGE_PATH | env-example | mount point of the storage_data volume, fixed in docker-compose.yml
+INGEST_ALLOWED_ROOTS | env-example | mount point of the ingest folder, fixed in docker-compose.yml (host side: INGEST_SOURCE_DIR)
+ALLOWED_ORIGINS | env-example | nginx is the only entry point; origins fixed in docker-compose.yml
+ENVIRONMENT | env-example | fixed per stack in docker-compose.yml
+DEBUG | env-example | fixed to false in docker-compose.yml; only drives SQL echo
+TRUSTED_PROXY | env-example | true only behind nginx, fixed in docker-compose.yml
+AUTH_LOGIN_RATE_LIMIT | env-example | demo value fixed and commented in docker-compose.yml
+AUTH_OTP_RATE_LIMIT | env-example | demo value fixed and commented in docker-compose.yml
+AUTH_OTP_MAX_FAILURES | env-example | security control fixed in docker-compose.yml, not relaxed for the demo
+AUTH_LOCKOUT_SECONDS | env-example | security control fixed in docker-compose.yml, not relaxed for the demo
+
+# --- Fixed by the code: changing them is a code change (PR), not an operator setting
+ALGORITHM | all | JWT signing algorithm; changing it invalidates every token
+ACCESS_TOKEN_EXPIRE_MINUTES | all | security policy set in code, changed by PR
+REFRESH_TOKEN_EXPIRE_DAYS | all | security policy set in code, changed by PR
+AUTH_REFRESH_RATE_LIMIT | all | code default (10/minute) fits the demo room; login and OTP are the raised ones
+DATABASE_POOL_SIZE | all | internal tuning, default sized for one api process
+DATABASE_MAX_OVERFLOW | all | internal tuning, default sized for one api process
+SCHEMA_CHECK_MODE | all | safety check, must stay fail in a stack; warn/off only for local debugging
+INGEST_WATCH_SETTLE_SECONDS | all | internal delay before reading a file still being copied
+DEFAULT_TENANT_STORAGE_QUOTA_MB | all | default for new tenants only; per-tenant quota is set in administration
+MAX_UPLOAD_SIZE | all | derived from MAX_UPLOAD_SIZE_MB, which is the operator setting
+
+# --- Not available in V1
+STORAGE_TYPE | all | only local storage is wired in the stack; S3 needs credentials that Settings does not carry yet
+AUTHZ_BACKEND | all | csv in V1; switching to sql is a migration operation, not a toggle
+AUTHZ_POLICY_DATABASE_URL | all | used only with AUTHZ_BACKEND=sql; falls back to DATABASE_URL
+AUTHZ_METRICS_BACKEND | all | memory is enough for one api process; redis only for several instances
+AUTHZ_METRICS_REDIS_URL | all | used only with AUTHZ_METRICS_BACKEND=redis
+AUTHZ_METRICS_REDIS_PREFIX | all | used only with AUTHZ_METRICS_BACKEND=redis
+
+# --- Declared but not read by the code (removal to be handled separately)
+APP_NAME | all | not read anywhere
+LOG_LEVEL | all | not read anywhere; logging level is not driven by Settings yet
+DEFAULT_PAGE_SIZE | all | not read anywhere; endpoints set their own limit
+MAX_PAGE_SIZE | all | not read anywhere; endpoints set their own limit
+
+# --- Frontend
+VITE_API_URL | all | fixed to /api/v1 (Dockerfile ARG default); nginx serves the API on that path
+VITE_APP_VERSION | env-example | fed from APP_VERSION by build.args, APP_VERSION is in .env.example
