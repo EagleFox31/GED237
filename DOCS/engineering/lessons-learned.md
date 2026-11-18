@@ -882,3 +882,23 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
 **Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
 **Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
+
+---
+
+### LESSON-2026-067 — Plan et script de démo : un chemin ou un libellé cité sans vérification
+
+- **Date :** 2026-11-18
+- **Catégorie :** pilotage / documentation
+- **Statut :** prevention-added
+- **Liens :** `gestion-projet/outils/verif-chemins.sh`, `gestion-projet/outils/verif-libelles.sh`, `gestion-projet/modeles/triage-audit-ux.md`
+
+**Contexte** — Tri de l'audit UX Lot 14 vers le plan V1.1 et le script de démo, le 18/11 au soir.
+**Échec / near miss** — Trois erreurs dans la même soirée, sans dommage :
+- la ligne 57 L14-1 citait `SimulatorTab.tsx`, alors que les pastilles de formats sont dans `ClassificationSettingsTab.tsx` (Q l'a relevé) ;
+- la ligne 57 L14-2 citait `components/layout/Header.tsx`, qui n'existe pas ; le vrai fichier est `components/Header.tsx` (trouvé par le nouvel outil) ;
+- la consigne proposée pour l'animateur, « cliquer Espaces > Manager », visait un menu qui n'existe pas ; le vrai libellé est « Tableau de Bord ».
+
+**Cause racine** — Le chemin était déduit du nom de l'écran et le libellé était recopié d'un message, sans être cherché dans le code. Rien ne vérifiait les citations d'un document de pilotage.
+**Résolution** — Les chemins et le libellé sont corrigés dans le plan et dans le script de démo.
+**Prévention** — `verif-chemins.sh` sur chaque plan modifié ; `verif-libelles.sh` sur chaque consigne d'écran ; les deux sont des étapes du modèle `triage-audit-ux.md`.
+**Leçon généralisée** — Un document que d'autres exécutent (plan, script de démo) se vérifie comme du code : chaque nom de fichier et chaque libellé d'écran doit être trouvé dans la branche de référence avant publication.
