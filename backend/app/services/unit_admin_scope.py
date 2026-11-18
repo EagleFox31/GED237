@@ -35,6 +35,21 @@ async def unit_admin_scope_ids(db: AsyncSession, user: User) -> Optional[List[UU
     return [r[0] for r in rows.all()]
 
 
+async def assert_unit_admin_object_in_tree(
+    db: AsyncSession, resource_org_unit_id: Optional[UUID], user: User
+) -> None:
+    """404 when a unit_admin addresses, by id, an object outside own tree (the
+    object must not be revealed); no-op for other roles."""
+    if not is_unit_admin(user):
+        return
+    if (
+        resource_org_unit_id is None
+        or user.org_unit_id is None
+        or not await is_within_unit_tree(db, resource_org_unit_id, user.org_unit_id)
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+
 async def assert_unit_admin_in_tree(
     db: AsyncSession, resource_org_unit_id: Optional[UUID], user: User
 ) -> None:

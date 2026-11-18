@@ -329,3 +329,112 @@ async def test_legacy_needs_review_queue_accepts_a_unit_scope(
 
     assert {d.id for d in scoped} == {tree["ids"]["doc_a1"]}
     assert {tree["ids"]["doc_a1"], tree["ids"]["doc_b"]} <= {d.id for d in wide}
+
+
+# --- workflow writes by id (O/Q review of #358) ------------------------------
+
+
+@pytest_asyncio.fixture
+async def pending(db_session, tree):
+    """One step waiting for an assignee in A1 and one in B."""
+    steps = {}
+    for key in ("a1", "b"):
+        step = WorkflowStep(
+            id=uuid.uuid4(),
+            document_id=tree["ids"][f"doc_{key}"],
+            step_order=2,
+            label=f"A assigner {key}",
+            status="pending_assignment",
+        )
+        db_session.add(step)
+        steps[key] = step.id
+    await db_session.commit()
+    return steps
+
+
+@pytest.mark.asyncio
+async def test_start_workflow_on_a_document_of_another_unit_is_a_404(
+    client_as, db_seed, tree
+):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            f"/api/v1/documents/{tree['ids']['doc_b']}/start-workflow"
+        )
+        inside = await client.post(
+            f"/api/v1/documents/{tree['ids']['doc_a1']}/start-workflow"
+        )
+    assert outside.status_code == 404
+    assert inside.status_code != 404
+
+
+@pytest.mark.asyncio
+async def test_defining_steps_on_a_document_of_another_unit_is_a_404(
+    client_as, db_seed, tree
+):
+    doc = str(tree["ids"]["doc_b"])
+    body = [{"document_id": doc, "step_order": 1, "label": "Visa"}]
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            WORKFLOW_STEPS.format(tree["ids"]["doc_b"]), json=body
+        )
+    assert outside.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_assigning_a_step_of_another_unit_is_a_404(
+    client_as, db_seed, tree, pending
+):
+    body = {"assigned_to": str(db_seed["user_id"])}
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            f"/api/v1/workflows/steps/{pending['b']}/assign", json=body
+        )
+        inside = await client.post(
+            f"/api/v1/workflows/steps/{pending['a1']}/assign", json=body
+        )
+    assert outside.status_code == 404
+    assert inside.status_code != 404
+
+
+@pytest.mark.asyncio
+async def test_pending_assignments_list_is_limited_to_the_tree(
+    client_as, db_seed, tree, pending
+):
+    url = "/api/v1/workflows/pending-assignments"
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        scoped = await client.get(url)
+    async with client_as("tenant_admin", **_caller(db_seed, tree)) as client:
+        wide = await client.get(url)
+
+    assert {s["id"] for s in scoped.json()} == {str(pending["a1"])}
+    assert {s["id"] for s in wide.json()} == {str(pending["a1"]), str(pending["b"])}
+
+
+@pytest.mark.asyncio
+async def test_resolving_a_manual_review_of_another_unit_is_a_404(
+    client_as, db_seed, tree
+):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            f"/api/v1/documents/{tree['ids']['doc_b']}/resolve-review",
+            json={"mark_as_resolved": True},
+        )
+    assert outside.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_rule_target_unit_cannot_be_moved_out_of_the_tree(
+    client_as, db_seed, tree
+):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        rules = {r["code"]: r["id"] for r in (await client.get(RULES)).json()}
+        moved = await client.patch(
+            f"{RULES}/{rules['RULE_A1']}",
+            json={"target_org_unit_id": str(tree["units"]["b"])},
+        )
+        kept = await client.patch(
+            f"{RULES}/{rules['RULE_A1']}",
+            json={"target_org_unit_id": str(tree["units"]["a2"])},
+        )
+    assert moved.status_code == 403
+    assert kept.status_code == 200

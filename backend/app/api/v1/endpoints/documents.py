@@ -30,7 +30,10 @@ from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
-from app.services.unit_admin_scope import unit_admin_scope_ids
+from app.services.unit_admin_scope import (
+    assert_unit_admin_object_in_tree,
+    unit_admin_scope_ids,
+)
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
@@ -952,6 +955,7 @@ async def resolve_manual_review(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     await authorize_or_403(
         current_user, "workflows", "resolve_review", ctx_from_resource(document)
     )
@@ -1661,6 +1665,7 @@ async def start_workflow_a_posteriori(
     """
     await authorize_or_403(current_user, "documents", "update")
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     await _ensure_not_locked_for_write(document, current_user)
 
     if document.processing_mode != "archive":

@@ -928,7 +928,11 @@ async def update_classification_rule(
     _assert_rule_writable(rule, unit_ids)
     if unit_ids is not None:
         touched = payload.model_dump(exclude_unset=True)
-        if "source_org_unit_id" in touched or "source_org_unit_ids" in touched:
+        if (
+            "source_org_unit_id" in touched
+            or "source_org_unit_ids" in touched
+            or touched.get("target_org_unit_id")
+        ):
             _assert_rule_writable(payload, unit_ids)
     update_data = _rule_column_values(payload, exclude_unset=True)
     if "code" in update_data and update_data["code"]:
