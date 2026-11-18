@@ -29,6 +29,12 @@ test.describe('Feature: Dashboards par rôle', () => {
     await loginAs('tenant_admin');
     await expect(page.getByText("Vue d'ensemble")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Doublons refusés')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Voir les documents' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Voir les validations en attente' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Voir les utilisateurs' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Voir les documents' }).click();
+    await expect(page).toHaveURL(/\/documents$/);
   });
 
   /**

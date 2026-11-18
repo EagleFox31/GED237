@@ -40,8 +40,8 @@ const OrgDashboard: React.FC = () => {
       try {
         const data = await api.getTenantAnalytics();
         setMetrics(data);
-      } catch (err) {
-        console.error('Failed to fetch org dashboard data:', err);
+      } catch {
+        // Erreur HTTP déjà publiée par le bus d'erreurs global.
       } finally {
         setIsLoading(false);
       }
@@ -59,6 +59,7 @@ const OrgDashboard: React.FC = () => {
         </div>
         <div className="flex gap-3">
            <button
+             type="button"
              onClick={() => exportMetricsCsv(metrics)}
              disabled={!metrics}
              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -77,6 +78,8 @@ const OrgDashboard: React.FC = () => {
           label="Documents"
           value={isLoading ? '...' : String(metrics?.documents?.total ?? 0)}
           subtext="Total enregistrés"
+          onClick={() => navigate('/documents')}
+          actionLabel="Voir les documents"
         />
         <KPICard
           icon="pending_actions"
@@ -85,6 +88,8 @@ const OrgDashboard: React.FC = () => {
           label="En Attente de Visa"
           value={isLoading ? '...' : String(metrics?.workflows?.pending ?? 0)}
           subtext={`${metrics?.workflows?.rejected ?? 0} rejetés`}
+          onClick={() => navigate('/tasks')}
+          actionLabel="Voir les validations en attente"
         />
         <KPICard
           icon="cloud"
@@ -101,6 +106,8 @@ const OrgDashboard: React.FC = () => {
           label="Utilisateurs"
           value={isLoading ? '...' : String(metrics?.users?.total ?? 0)}
           subtext="Comptes actifs"
+          onClick={() => navigate('/users')}
+          actionLabel="Voir les utilisateurs"
         />
         <KPICard
           icon="content_copy"
@@ -281,30 +288,72 @@ const DuplicatesHelp = () => (
   </HelpHint>
 );
 
-const KPICard = ({ icon, iconColor, iconBg, label, value, subtext, help, onClick, actionLabel }: any) => (
-  <div className="relative bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
-    <div className="flex justify-between items-start mb-4">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg} ${iconColor}`}>
-        <span className="material-symbols-outlined text-xl">{icon}</span>
+interface KPICardProps {
+  icon: string;
+  iconColor: string;
+  iconBg: string;
+  label: string;
+  value: string;
+  subtext: string;
+  help?: React.ReactNode;
+  onClick?: () => void;
+  actionLabel?: string;
+}
+
+const KPICard: React.FC<KPICardProps> = ({
+  icon,
+  iconColor,
+  iconBg,
+  label,
+  value,
+  subtext,
+  help,
+  onClick,
+  actionLabel,
+}) => {
+  const content = (
+    <>
+      <div className="flex justify-between items-start mb-4">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg} ${iconColor}`}>
+          <span className="material-symbols-outlined text-xl">{icon}</span>
+        </div>
       </div>
-      {help && <div className="absolute right-4 top-4">{help}</div>}
-    </div>
-    <p className="text-[11px] font-bold text-slate-500">{label}</p>
-    <h4 className="text-2xl font-black text-slate-900 mt-1 mb-1 tracking-tight">{value}</h4>
-    {onClick ? (
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={actionLabel}
-        title={actionLabel}
-        className="text-left text-[10px] font-medium text-slate-500 underline decoration-dotted underline-offset-2 hover:text-violet-700"
+      <p className="text-[11px] font-bold text-slate-500">{label}</p>
+      <h4 className="text-2xl font-black text-slate-900 mt-1 mb-1 tracking-tight">{value}</h4>
+      <p
+        className={
+          onClick
+            ? 'text-left text-[10px] font-medium text-slate-500 underline decoration-dotted underline-offset-2 group-hover:text-violet-700'
+            : 'text-[10px] font-medium text-slate-500'
+        }
       >
         {subtext}
-      </button>
-    ) : (
-      <p className="text-[10px] font-medium text-slate-500">{subtext}</p>
-    )}
-  </div>
-);
+      </p>
+    </>
+  );
+
+  return (
+    <div
+      className={`relative bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm ${
+        onClick ? 'hover:shadow-md hover:border-rdpc-blue/30 transition-all' : ''
+      }`}
+    >
+      {help && <div className="absolute right-4 top-4 z-10">{help}</div>}
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={actionLabel || label}
+          title={actionLabel || label}
+          className="group block w-full text-left cursor-pointer focus:outline-none"
+        >
+          {content}
+        </button>
+      ) : (
+        content
+      )}
+    </div>
+  );
+};
 
 export default OrgDashboard;
