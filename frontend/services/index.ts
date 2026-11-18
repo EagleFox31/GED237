@@ -129,6 +129,7 @@ export const api = {
     resetUserPassword: usersApi.resetUserPassword,
     toggleUserActive: usersApi.toggleUserActive,
     disableUserMfa: usersApi.disableUserMfa,
+    unlockUser: usersApi.unlockUser,
 
     // Tenants
     getPublicTenants: tenantsApi.getPublicTenants,

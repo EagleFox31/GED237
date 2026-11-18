@@ -422,6 +422,20 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
     });
   };
 
+  // Sans confirmation : l'action est sans perte et idempotente (le serveur répond
+  // unlocked=false, sans trace d'audit, si le compte n'était pas verrouillé).
+  const handleUnlock = async (agent: Agent) => {
+    setWorking(`unlock:${agent.id}`);
+    try {
+      const result = await api.unlockUser(agent.id);
+      showToast({ tone: result.unlocked ? 'success' : 'info', message: result.message });
+    } catch {
+      /* bus */
+    } finally {
+      setWorking(null);
+    }
+  };
+
   const handleDisableMfa = (agent: Agent) => {
     setPendingConfirm({
       title: 'Réinitialiser la double authentification',
@@ -719,6 +733,18 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
                 >
                   <span className="material-symbols-outlined text-[16px]">smartphone</span>
                   Réinitialiser la double authentification
+                </button>
+              )}
+              {!isSelf && (
+                <button
+                  type="button"
+                  onClick={() => { void handleUnlock(selectedAgent); }}
+                  disabled={Boolean(working)}
+                  title="Après trop de codes faux, le compte est bloqué un moment : ce bouton le rouvre tout de suite."
+                  className="px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-emerald-600 hover:text-white transition-all text-xs tracking-widest uppercase flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[16px]">lock_open</span>
+                  Débloquer
                 </button>
               )}
               {!isSelf && (

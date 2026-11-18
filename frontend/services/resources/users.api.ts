@@ -70,4 +70,12 @@ export const usersApi = {
             { method: 'POST' },
             'Réinitialisation du 2FA impossible',
         ),
+
+    /** Lève le verrou posé après trop de codes faux (#135). Idempotent : `unlocked: false` si le compte n'était pas verrouillé. */
+    unlockUser: (id: string): Promise<{ unlocked: boolean; message: string }> =>
+        apiCall<{ unlocked: boolean; message: string }>(
+            `/users/${id}/unlock`,
+            { method: 'POST' },
+            'Déblocage du compte impossible',
+        ),
 };
