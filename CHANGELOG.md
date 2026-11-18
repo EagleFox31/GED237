@@ -60,6 +60,7 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 ### Droits retirés
 
 - Les rapports de l'Admin Service ne couvrent plus que son service et ses sous-services ; les Collaborateurs n'ont plus accès aux rapports (#188, #187).
+- L’Admin Service ne voit plus que son service et ses sous-services, partout : listes de documents, corbeille, recherche, statistiques, document ouvert par son lien (ailleurs : introuvable), lots d’import, circuits de validation, file de classement, espaces et règles ; les règles de l’institution lui restent visibles en lecture seule (#196, #203, #358).
 
 ### Recette et CI
 
@@ -104,7 +105,6 @@ Limites hors `fixme` :
 
 - Cycle de vie manuel : corbeille, restauration et purge par l'administrateur ; pas de durée de conservation automatique.
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
-- L'Admin Service : ses documents et sa recherche couvrent toute l'institution ; ses rapports, seulement son service. Le limiter à son service partout est prévu en V1.1 (#215).
 - Les documents mis à la corbeille ne sont plus comptés au tableau de bord de l'institution (#260), mais le compteur des circuits de validation les compte encore ; corrigé en V1.1 (#220).
 - Renommer ou reclasser un document ne laisse pas encore de trace dans le journal d'audit. Correction prévue en V1.1 (#250).
 - Écran « Gestion AuthZ », onglet des règles : il ne montre pas les droits et indique qu'ils ne sont pas modifiables sur cette installation. Le serveur garde les droits dans un fichier (`AUTHZ_BACKEND=csv`) ; c'est la personne qui installe qui les règle. En V1.1, la grille s'affiche en lecture seule tant que le serveur reste dans ce mode, puis devient modifiable par le seul super admin quand il passe en base de données.

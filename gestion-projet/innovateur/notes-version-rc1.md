@@ -71,7 +71,6 @@ Ce qui change pour les agents et les responsables, en clair, et ce qu'on en dit 
 | Un compte bloqué après trois codes erronés | Il se débloque seul après 15 minutes ; avant, seul l'administrateur peut le débloquer. | Écran de déblocage en 1.1 |
 | La corbeille ne se vide pas seule | L'administrateur restaure ou supprime à la main ; aucune durée de conservation automatique. | — |
 | Un collaborateur ne fait pas d'import en masse | C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne. | — |
-| L'administrateur d'un service voit les documents de toute l'institution | Ses rapports, eux, sont limités à son service. | Limité à son service en 1.1 |
 | Le compteur des circuits de validation compte encore les documents en corbeille | Le tableau de bord de l'institution, lui, ne les compte plus. | Corrigé en 1.1 |
 | Renommer ou reclasser un document ne laisse pas de trace dans le journal | Les autres actions sont tracées. | Corrigé en 1.1 |
 | Les droits par rôle ne se modifient pas à l'écran | Ils sont réglés à l'installation. | Affichés en 1.1, modifiables ensuite |
