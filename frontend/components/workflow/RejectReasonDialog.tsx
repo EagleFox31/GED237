@@ -21,8 +21,6 @@ interface RejectReasonDialogProps {
   /** Titre de la boîte (défaut : rejet) ; `Renvoyer pour correction` réutilise la même saisie. */
   heading?: string;
   confirmLabel?: string;
-  /** Valeur initiale optionnelle (utilisée notamment par les tests unitaires). */
-  initialReason?: string;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }
@@ -36,18 +34,17 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
   submitting = false,
   heading = 'Rejeter le document',
   confirmLabel = 'Confirmer le rejet',
-  initialReason = '',
   onConfirm,
   onCancel,
 }) => {
-  const [reason, setReason] = useState(initialReason);
+  const [reason, setReason] = useState('');
   const titleId = useId();
   const fieldId = useId();
   const open = documentTitle !== null;
 
   useEffect(() => {
-    if (open) setReason(initialReason);
-  }, [open, initialReason]);
+    if (open) setReason('');
+  }, [open]);
 
   if (!open) return null;
 
