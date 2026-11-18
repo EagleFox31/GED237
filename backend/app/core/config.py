@@ -142,6 +142,15 @@ class Settings(BaseSettings):
     # OCR engine tried first on photos and screenshots: tesseract (default, light) or
     # easyocr (torch, ~1.3 GB per worker child). The other engine stays the fallback.
     OCR_PRIMARY_ENGINE: str = "tesseract"
+    # Robustness of the OCR task. A worker killed mid-task (OOM) must not lose the job:
+    # the task is acked after it ends and requeued when its process dies.
+    OCR_TASK_MAX_RETRIES: int = 3  # retries after an unexpected error (0 = none)
+    OCR_TASK_RETRY_BACKOFF_SECONDS: int = 30  # doubled at each retry
+    # Beat sweep: a document still without text after this many minutes (image or PDF)
+    # is sent to OCR again, at most OCR_STUCK_MAX_REQUEUES times. 0 disables the sweep.
+    OCR_STUCK_MINUTES: int = 15
+    OCR_STUCK_MAX_REQUEUES: int = 3
+    OCR_STUCK_SWEEP_INTERVAL_SECONDS: int = 300
 
     @field_validator("OCR_PRIMARY_ENGINE", mode="before")
     @classmethod

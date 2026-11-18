@@ -66,8 +66,15 @@ async def update_document_ocr(
                 )
 
 
-@celery_app.task(name="app.workers.tasks.process_document_ocr")
-def process_document_ocr(document_id: str, file_path: str, file_type: str):
+@celery_app.task(
+    bind=True,
+    name="app.workers.tasks.process_document_ocr",
+    # Acked once the task ends, and requeued when its process dies (OOM kill): the job
+    # is not lost with the worker. The sweep below covers what this cannot (LESSON-2026-060).
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def process_document_ocr(self, document_id: str, file_path: str, file_type: str):
     """
     Process document OCR using intelligent strategy
 
@@ -157,7 +164,49 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
         import traceback
 
         traceback.print_exc()
+        _retry_or_give_up(self, e, document_id)
         return False
+
+
+def _retry_or_give_up(task, error: Exception, document_id: str) -> None:
+    """Bounded retry with exponential backoff after an unexpected OCR error.
+
+    No-op when the task is called directly (tests, scripts) or once the retries are
+    spent: the sweep and the status of the document take over from there.
+    """
+    if task.request.called_directly:
+        return
+    max_retries = settings.OCR_TASK_MAX_RETRIES
+    attempt = task.request.retries
+    if attempt >= max_retries:
+        logger.error(
+            "OCR gave up on document %s after %s retries (%s)",
+            document_id,
+            attempt,
+            type(error).__name__,
+        )
+        return
+    countdown = settings.OCR_TASK_RETRY_BACKOFF_SECONDS * (2**attempt)
+    raise task.retry(exc=error, countdown=countdown, max_retries=max_retries)
+
+
+@celery_app.task(name="app.workers.tasks.requeue_stuck_ocr")
+def requeue_stuck_ocr():
+    """Beat task: send again the documents left without OCR text."""
+    from app.services.ocr_recovery import recovery_enabled, requeue_stuck_documents
+
+    if not recovery_enabled():
+        return 0
+
+    def _enqueue(document_id: str, file_path: str, mime_type: str) -> None:
+        process_document_ocr.delay(document_id, file_path, mime_type)
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(requeue_stuck_documents(AsyncSessionLocal, _enqueue))
 
 
 @celery_app.task(name="app.workers.tasks.watch_ingest_folders")

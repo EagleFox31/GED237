@@ -31,10 +31,17 @@ celery_app.conf.update(
 
 # Watched folders (lot 5): the worker runs beat (-B in docker-compose.yml). No folder
 # configured or interval 0: no schedule at all.
+beat_schedule = {}
 if settings.INGEST_WATCH_FOLDERS and settings.INGEST_WATCH_INTERVAL_SECONDS > 0:
-    celery_app.conf.beat_schedule = {
-        "watch-ingest-folders": {
-            "task": "app.workers.tasks.watch_ingest_folders",
-            "schedule": float(settings.INGEST_WATCH_INTERVAL_SECONDS),
-        }
+    beat_schedule["watch-ingest-folders"] = {
+        "task": "app.workers.tasks.watch_ingest_folders",
+        "schedule": float(settings.INGEST_WATCH_INTERVAL_SECONDS),
     }
+# Documents left without OCR text after OCR_STUCK_MINUTES are sent again (0 = off).
+if settings.OCR_STUCK_MINUTES > 0 and settings.OCR_STUCK_SWEEP_INTERVAL_SECONDS > 0:
+    beat_schedule["requeue-stuck-ocr"] = {
+        "task": "app.workers.tasks.requeue_stuck_ocr",
+        "schedule": float(settings.OCR_STUCK_SWEEP_INTERVAL_SECONDS),
+    }
+if beat_schedule:
+    celery_app.conf.beat_schedule = beat_schedule
