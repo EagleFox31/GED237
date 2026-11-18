@@ -36,8 +36,8 @@ gh pr view <n> --json headRefOid -q .headRefOid     # tête, à comparer à l'OK
 4. **Migrations** : une seule tête alembic. On suit l'ordre du § 4 et on repose `down_revision` à chaque fusion. Après chaque fusion, B lance `alembic upgrade head` sur `edossier` et `test_ged`.
 5. **Conditions de fusion** : OK de Q sur la tête, CI Gate verte et, pour une PR empilée, base déjà fusionnée.
 6. **Dependabot en dernier** (lot 7) : #111, #112 et #141. Les versions majeures #29, #30, #110 et #113 sont sorties vers la V1.2 (O, 17/11).
-7. **Démo du 30/11** : si elle tourne sur `main` et non sur le tag, aucune fusion du 27 à 18:00 au 30 au soir. **À confirmer par O.** L'ordre ci-dessous en tient compte : rien de lourd n'est prévu le 27.
-8. **Règle « pas d'ajout sans sortie »** (`plan-v1.1.md`) : 25 PR V1.1 ne sont rattachées à aucun lot chiffré (§ 2, colonne Lot « — »). O doit les rattacher ou les sortir avant le 24.
+7. **Démo du 30/11** : si elle tourne sur `main` et non sur le tag, aucune fusion du 27 à 18:00 au 30 au soir. **Par défaut (O, 18/11) : la démo tourne sur le tag rc.1 (`release/v1.0.0`) et `main` n'est pas gelé.** Le § 8a est encore en discussion avec le PO. L'ordre ci-dessous en tient compte : rien de lourd n'est prévu le 27.
+8. **Règle « pas d'ajout sans sortie »** (`plan-v1.1.md`) : 25 PR V1.1 n'étaient rattachées à aucun lot chiffré (§ 2, colonne Lot « — »). **Tranché par le PO le 18/11 : toutes en V1.1.** La charge est recalculée dans `plan-v1.1.md`, § « Mise à jour du 18/11, soir » : Q + 4,1 h-s pris sur sa réserve. #359, #338, #371 et #362 risquent de glisser après le 04/12.
 
 ## 2. Ordre de fusion proposé (PR V1.1, hors section PO)
 
@@ -88,7 +88,7 @@ Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur d�
 
 - **#372 passe avant tout lecteur de `ocr_status`** : #355 lit le champ dans la liste et dans la fiche. #284 et #311 partent de son état failed, et #290 lit la route `/ocr`.
 - **#388 passe avant le point 5 du Lot 5 bis** (filtre de la liste, côté interface), qui n'a pas encore de PR. #351 (filtre gardé dans l'URL) se place après #388, en vague 5.
-- **Palier 1 de l'OCR adaptatif (#382, lot 1)** : B code après #387 et #372. La spécification suit ce plan.
+- **Palier 1 de l'OCR adaptatif (#382, lot 1)** : V1.2. B code après #284 ; spécification : `spec-ocr-adaptatif-lot1.md` (décision D1 prise : correction de la confiance dans le lot).
 - **#385 (bancs de mesure OCR)** : marquée « hors file » par son titre. On ne la fusionne pas, elle reste un outil en brouillon. Elle peut être fermée une fois les mesures reportées dans la décision OCR.
 - **#355 et #376** : #376 est fermée au profit de #355 (même état de lecture).
 
@@ -290,7 +290,7 @@ Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précé
 
 ## 8. Points ouverts pour O
 
-1. Démo du 30/11 sur `main` ou sur le tag ? Cela décide du gel du 27 au 30 (règle 7).
-2. Rattacher à un lot, ou sortir, les 25 PR V1.1 marquées « — » : #389, #383, #372, #384, #386, #387, #388, #355, #338, #347, #351, #354, #371, #373, #366, #367, #377, #349, #359, #378, #342, #344, #353, #335 et #312.
+1. Démo du 30/11 sur `main` ou sur le tag ? Cela décide du gel du 27 au 30 (règle 7). **Par défaut : sur le tag, sans gel de `main`** (O, 18/11). La réponse du PO est attendue.
+2. **Tranché (PO, 18/11) : toutes en V1.1**, avec la charge dans `plan-v1.1.md`. Les 25 PR marquées « — » : #389, #383, #372, #384, #386, #387, #388, #355, #338, #347, #351, #354, #371, #373, #366, #367, #377, #349, #359, #378, #342, #344, #353, #335 et #312.
 3. Revue de recouvrement par B (#241, #213, #361, #266, #220 et #159 face à #203, #358 et #360) avant le 26/11.
 4. Relecture de Q sur la tête pour toutes les PR marquées « périmé » ou « SHA non noté ».

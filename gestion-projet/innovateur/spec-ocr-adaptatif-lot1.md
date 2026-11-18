@@ -86,7 +86,7 @@ Les lignes de structure (niveaux 1 à 4 : page, bloc, paragraphe, ligne) valent 
 
 Les valeurs déjà en base ne sont pas recalculées. Elles le seront seulement si un document est relu (script de #369).
 
-**D1, à trancher par O** (ou par le PO) avant la fusion, pas avant le code :
+**D1, tranchée par O le 18/11 : option a.** Correction dans ce lot, sans nouveau réglage et sans toucher au seuil 0,70. Q mesure la confiance avant et après sur le même corpus (§ 7). Options instruites :
 
 | Option | Effet | Avis I |
 |---|---|---|
@@ -152,7 +152,7 @@ Les tests existants ne changent pas et restent verts : `test_ocr_strategy.py`, `
 ## 8. Note de version (V1.2)
 
 > - OCR : les photos prises en portrait sont redressées avant lecture. Tesseract lit chaque page en un seul passage, avec un délai maximal (`OCR_TESSERACT_TIMEOUT_SECONDS`, 60 s par défaut). Les moteurs OCR ne prennent plus de threads au-delà des processeurs du worker (`OCR_THREADS`, 2 par défaut) (#382).
-> - Si D1-a : la confiance affichée pour Tesseract ne compte plus les zones sans texte. Elle est plus haute qu'avant pour une même page, et moins de documents passent en « à revoir ». Les documents déjà lus gardent leur ancienne valeur tant qu'ils ne sont pas relus.
+> - OCR : la confiance affichée pour Tesseract ne compte plus les zones sans texte. Elle est plus haute qu'avant pour une même page, et moins de documents passent en « à revoir ». Les documents déjà lus gardent leur ancienne valeur tant qu'ils ne sont pas relus.
 
 ## 9. Limite connue, hors du lot
 

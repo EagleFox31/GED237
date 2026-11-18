@@ -371,3 +371,68 @@ Garde-fous de O, avec ceux de l'innovateur marqués (I).
 **Condition de remontée.** Si un SIGKILL du worker est observé pendant la recette (du 20 au 23/11) ou pendant l'essai hors ligne du 25/11, OCR-1 remonte en V1.1. O choisit alors ce qui en sort. Le constat se lit dans les journaux du worker (`signal 9` ou `SIGKILL`), et on note l'heure et le document.
 
 **Contournement manuel en attendant** (fiche UAT, anomalies connues) : un document reste « en cours » plus de 10 min → noter le nom, relancer l'import. Le même fichier redéposé est refusé comme doublon (contrôle par empreinte), et aucun écran ne supprime un document en rc.1 : la relance se fait côté serveur, par Q.
+
+## Mise à jour du 18/11, soir : les 25 PR hors lot entrent en V1.1 (décision du PO, § 8b)
+
+Le PO décide « toutes en V1.1 » pour les 25 PR que `plan-fusion-v1.1.md` (§ 8, point 2) marquait sans lot. Leur code est déjà écrit. La charge restante comprend donc trois choses : la remise à jour de chaque branche par son auteur, la relecture de Q et le suivi de la CI.
+
+**Barème** (`Déduit`, à confirmer par B, F et Q) :
+- remise à jour par l'auteur : 0,1 h-s, ou 0,25 si la PR était CONFLICTING au relevé du 18/11 ;
+- relecture de Q selon la taille du diff : 0,05 pour moins de 30 lignes, 0,1 jusqu'à 80, 0,15 jusqu'à 150, 0,25 jusqu'à 400, 0,5 au-delà.
+
+Tailles relevées le 18/11 (`gh pr view --json additions,deletions`) ; toutes les PR sont en brouillon.
+
+| PR | Rôle | Diff | Auteur | Q |
+|---|---|---|---|---|
+| #389 parité des réglages | Q | +463/−1 | — | 0,3 (CI, contrôle sur toutes les PR suivantes) |
+| #383 plafond de l'export CSV | B | +43/−6 | 0,1 | 0,05 (OK sur c19e95b, à reconfirmer) |
+| #372 `ocr_status` en lecture | B | +113/−11 | 0,1 | 0,15 |
+| #384 moteur réellement utilisé | B | +83/−6 | 0,1 | 0,15 |
+| #386 PDF mixte | B | +98/−18 | 0,1 | 0,15 |
+| #387 pages rendues une à une | B | +56/−20 | 0,1 | 0,15 |
+| #388 filtre par catégorie | B | +113/−0 | 0,1 | 0,15 |
+| #355 lecture en échec à l'écran | F | +234/−4 | 0,25 | 0,25 |
+| #338 aperçu intégré | F | +356/−2 | 0,1 | 0,25 |
+| #347 cartes cliquables | F | +114/−35 | 0,1 | 0,15 |
+| #351 filtre gardé dans l'URL | F | +113/−15 | 0,25 | 0,15 |
+| #354 dernière catégorie retenue | F | +319/−40 | 0,25 | 0,25 |
+| #371 liste vide expliquée | F | +41/−2 | 0,1 | 0,1 |
+| #373 erreurs d'import lisibles | F | +111/−5 | 0,1 | 0,15 |
+| #366 erreurs du simulateur | F | +83/−17 | 0,1 | 0,15 |
+| #367 onglet des règles dans l'URL | F | +109/−3 | 0,1 | 0,15 |
+| #377 simuler une règle inactive | B | +103/−6 | 0,1 | 0,15 |
+| #349 motifs de rejet en un clic | F | +67/−4 | 0,25 | 0,1 |
+| #359 reconnexion plus rapide | F | +468/−8 | 0,25 | 0,5 (touche la connexion) |
+| #378 profils de démo derrière un réglage | F | +46/−2 | 0,25 | 0,15 (touche la connexion) |
+| #342 échappement de la liste des agents | F | +2/−2 | 0,1 | 0,05 |
+| #344 recherche dans le journal d'audit | B | +206/−2 | 0,1 | 0,25 |
+| #353 test propriétaire / assigné | Q | +25/−2 | — | 0,1 |
+| #335 générateur d'export de test | B | +23/−1 | 0,25 | 0,05 |
+| #312 garde d'espace disque | doc | +88/−0 | — | 0,05 |
+| **Total** | | | **B 1,05, F 2,3** | **Q ≈ 4,1** |
+
+| | B | F | Q | I | Total |
+|---|---|---|---|---|---|
+| Avant (§ « #309 ») | 22,4 | 17,5 | 20,35 | 0,5 | 60,75 |
+| 25 PR hors lot (décision du PO) | + 1,05 | + 2,3 | + 4,1 | — | + 7,45 |
+| **Total V1.1** | **≈ 23,45** | **≈ 19,8** | **≈ 24,45** | **0,5** | **≈ 68,2** |
+
+**Verdict** :
+- **B et F tiennent, F de justesse.** Ils avaient ≈ 4 à 5 h-s de marge chacun quand F était à 15,5. Il reste ≈ 2 h-s à B et ≈ 0,5 à F (`Déduit`).
+- **Q dépasse les ≈ 22 h-s hors réserve de ≈ 2,45 h-s.** O réserve les ≈ 1,65 h-s restants aux relances d'e2e et au dépilage des piles. Les 4,1 h-s viennent donc **entièrement de la réserve de 6,8 (03 et 04/12)**, et il en reste ≈ 2,7.
+- La relecture de Q du lot 4 UX (#362, ≈ 0,5 h-s, décision de O : « après le tag ») ne figure dans aucun total. Si elle s'ajoute, il reste ≈ 2,2.
+- **Le 04/12 tient, mais sans filet** : une seule reprise lourde (migration, Dependabot, pile à re-cibler) consomme le reste de la réserve.
+
+**PR qui risquent de ne pas passer avant le 04/12.** Elles sont au bout d'une chaîne sur un fichier chaud, ou demandent une relecture lourde, et tombent donc les 03 et 04/12 :
+
+| PR | Pourquoi | Si ça glisse |
+|---|---|---|
+| #362 lot 4 UX (+1 285/−68, 23 fichiers) | Après #390. Touche `DocumentDetailModal.tsx` et `services/index.ts`, partagés avec #290, #293, #295 et #338. C'est la plus grosse relecture de la fenêtre. | Décision du PO (lot demandé par lui). Pas de sortie sans son accord. |
+| #359 reconnexion plus rapide | Touche la connexion (2FA, jetons) : relecture de sécurité, 476 lignes, CONFLICTING | 1re candidate à la V1.2 |
+| #338 aperçu intégré | Après #290 dans la chaîne de la fiche (#290 → #293 → #295) | 2e candidate |
+| #371 liste vide expliquée | Bout de la chaîne `Documents.tsx` : #388 → #351 → #354 → #371, plus #355 et #296 sur le même fichier | Petite, elle peut passer le 04 au matin. Sinon 3e candidate. |
+| #335 générateur d'export de test | CONFLICTING. C'est un outil de test sans valeur pour les agents. | À fermer plutôt qu'à rebaser, si B confirme qu'il ne sert plus. |
+
+**Ordre de sortie vers la V1.2**, si la réserve de Q passe sous 1 h-s avant le 03/12 : #335 (fermeture), puis #359, #338 et #371. Les 21 autres sont petites, ou sont la base d'une autre PR : #389, #372, #384 et #388 ouvrent les vagues 0 et 2.
+
+**Règle « pas d'ajout sans sortie »** : ici, c'est le PO qui la lève, pour ce lot seulement. Elle reste en vigueur pour tout ajout suivant. #278 reste en V1.2 (décision de O) : le faire revenir prendrait Q 0,5 sur la réserve.

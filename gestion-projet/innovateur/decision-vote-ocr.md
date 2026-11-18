@@ -2,6 +2,8 @@
 
 Instruite le 18/11 par l'innovateur pour l'orchestrateur. Elle sert à décider en 10 minutes dès que les chiffres du banc v3 de Q arrivent (votes A, B et C, puis mesure VPS).
 
+> **Mise à jour du 18/11 au soir.** #368 (RapidOCR) est fusionnée dans la rc.1 (9b32c30). Le critère du PO était qu'elle tienne en mémoire et lise mieux, et il est rempli (O). Il n'y a toujours **pas de vote** entre moteurs : cette partie de la note reste vraie. En revanche, le moteur par défaut dépend désormais du type d'image : RapidOCR pour les photos, les captures et les formulaires (`OCR_PRIMARY_ENGINE="rapidocr"`, `config.py:146`), Tesseract pour les scans, les PDF et en secours. Pour revenir à Tesseract partout, sans changement de code : `OCR_PRIMARY_ENGINE=tesseract`, puis redémarrage du worker. Les mentions « Tesseract par défaut » ci-dessous (§ 0, § 3, § 4) décrivent l'état d'avant la fusion.
+
 ## 0. Faits de départ
 
 | Fait | Source | Niveau |
