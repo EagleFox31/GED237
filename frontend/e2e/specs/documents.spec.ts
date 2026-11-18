@@ -39,6 +39,23 @@ test.describe('Feature: Explorateur de documents', () => {
     await expect(docsPage.statusFilter).toBeVisible();
   });
 
+  // L12-2 : « À corriger » demande au serveur les documents rejetés ET renvoyés en une requête.
+  test('Given explorateur, When filtre « À corriger », Then une requête status=rejected&status=returned', async ({ page }) => {
+    const docsPage = new DocumentsPage(page);
+    await docsPage.goto();
+    await docsPage.expectPageVisible();
+
+    const listRequest = page.waitForRequest((r) => {
+      if (r.method() !== 'GET') return false;
+      const url = new URL(r.url());
+      return /\/api\/v1\/documents\/?$/.test(url.pathname) && url.searchParams.getAll('status').length > 0;
+    });
+    await docsPage.filterByStatus('À corriger (rejeté ou renvoyé)');
+    const url = new URL((await listRequest).url());
+    expect(url.searchParams.getAll('status').sort()).toEqual(['rejected', 'returned']);
+    await expect(docsPage.statusFilter).toHaveValue('to_fix');
+  });
+
   /**
    * SCENARIO 2: Chargement des documents depuis l'API
    *
