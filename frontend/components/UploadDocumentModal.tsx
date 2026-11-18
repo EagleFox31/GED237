@@ -78,6 +78,8 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     } catch (err: any) {
       if (err?.status === 409) {
         setError('Un fichier identique existe déjà dans votre espace. Vérifiez vos doublons avant de réessayer.');
+      } else if (err?.status === 403 && orgUnitId) {
+        setError("Vous n'avez pas le droit d'envoyer dans ce dossier.");
       } else if (err?.status === 400) {
         setError('Données invalides. Vérifiez le titre et la catégorie.');
       } else {

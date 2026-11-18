@@ -10,13 +10,14 @@ interface Props {
   onImported: () => void;
 }
 
-type Result = 'waiting' | 'sending' | 'done' | 'duplicate' | 'failed';
+type Result = 'waiting' | 'sending' | 'done' | 'duplicate' | 'forbidden' | 'failed';
 
 const LABELS: Record<Result, string> = {
   waiting: 'En attente',
   sending: 'Envoi…',
   done: 'Envoyé',
   duplicate: 'Déjà présent : refusé',
+  forbidden: "Pas le droit d'envoyer dans ce dossier",
   failed: "L'envoi a échoué",
 };
 
@@ -46,7 +47,8 @@ const DroppedFilesImport: React.FC<Props> = ({ files, orgUnitId, onClose, onImpo
         sent += 1;
         setOne(i, 'done');
       } catch (err: unknown) {
-        setOne(i, (err as { status?: number })?.status === 409 ? 'duplicate' : 'failed');
+        const status = (err as { status?: number })?.status;
+        setOne(i, status === 409 ? 'duplicate' : status === 403 ? 'forbidden' : 'failed');
       }
     }
     setBusy(false);
@@ -64,7 +66,7 @@ const DroppedFilesImport: React.FC<Props> = ({ files, orgUnitId, onClose, onImpo
             // eslint-disable-next-line react/no-array-index-key
             <li key={`${file.name}-${i}`} data-testid="dropped-file" data-result={results[i]} className="flex justify-between gap-3 py-2">
               <span className="truncate font-semibold text-slate-700">{file.name}</span>
-              <span className={`shrink-0 text-xs font-bold ${results[i] === 'done' ? 'text-emerald-600' : results[i] === 'duplicate' || results[i] === 'failed' ? 'text-red-600' : 'text-slate-400'}`}>
+              <span className={`shrink-0 text-xs font-bold ${results[i] === 'done' ? 'text-emerald-600' : results[i] === 'duplicate' || results[i] === 'forbidden' || results[i] === 'failed' ? 'text-red-600' : 'text-slate-400'}`}>
                 {LABELS[results[i] ?? 'waiting']}
               </span>
             </li>
