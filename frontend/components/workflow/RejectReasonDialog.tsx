@@ -1,5 +1,19 @@
 import React, { useEffect, useId, useState } from 'react';
 
+export const QUICK_REJECT_REASONS = [
+  'Pièce manquante',
+  'Erreur de saisie ou de montant',
+  'Visa préalable manquant',
+  'À reformuler',
+] as const;
+
+export function applyQuickRejectReason(current: string, quickReason: string): string {
+  const trimmedCurrent = current.trim();
+  if (!trimmedCurrent) return quickReason;
+  if (trimmedCurrent.includes(quickReason)) return trimmedCurrent;
+  return `${trimmedCurrent} · ${quickReason}`;
+}
+
 interface RejectReasonDialogProps {
   /** Titre du document rejeté ; null ferme la boîte. */
   documentTitle: string | null;
@@ -7,6 +21,8 @@ interface RejectReasonDialogProps {
   /** Titre de la boîte (défaut : rejet) ; `Renvoyer pour correction` réutilise la même saisie. */
   heading?: string;
   confirmLabel?: string;
+  /** Valeur initiale optionnelle (utilisée notamment par les tests unitaires). */
+  initialReason?: string;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }
@@ -18,19 +34,20 @@ interface RejectReasonDialogProps {
 export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
   documentTitle,
   submitting = false,
-  heading = "Rejeter le document",
-  confirmLabel = "Confirmer le rejet",
+  heading = 'Rejeter le document',
+  confirmLabel = 'Confirmer le rejet',
+  initialReason = '',
   onConfirm,
   onCancel,
 }) => {
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState(initialReason);
   const titleId = useId();
   const fieldId = useId();
   const open = documentTitle !== null;
 
   useEffect(() => {
-    if (open) setReason('');
-  }, [open]);
+    if (open) setReason(initialReason);
+  }, [open, initialReason]);
 
   if (!open) return null;
 
@@ -43,7 +60,9 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4"
-      onKeyDown={(e) => { if (e.key === 'Escape' && !submitting) onCancel(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && !submitting) onCancel();
+      }}
     >
       <form
         role="dialog"
@@ -60,6 +79,21 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
         <label htmlFor={fieldId} className="mt-5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
           Motif du rejet
         </label>
+
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Motifs fréquents">
+          {QUICK_REJECT_REASONS.map((label) => (
+            <button
+              key={label}
+              type="button"
+              disabled={submitting}
+              onClick={() => setReason((prev) => applyQuickRejectReason(prev, label))}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <textarea
           id={fieldId}
           autoFocus
