@@ -5,6 +5,7 @@ import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
 import { otpDigitsFromPaste, otpFocusAfterPaste, otpFromPaste } from '../lib/otp';
+import { areDemoProfilesEnabled } from '../lib/demoProfilesFlag';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
@@ -106,7 +107,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [matricule, setMatricule] = useState('');
   const [password, setPassword] = useState('');
 
+  const showDemoProfiles = areDemoProfilesEnabled();
   const handleDemoSelect = (profile: any) => {
+    if (!showDemoProfiles) return;
     const creds = DEMO_CREDENTIALS[profile.id];
     // Free-text fallback (list unavailable) or list still loading: the code alone is enough for the backend.
     const label = tenantOptions ? tenantLabelForCode(tenantOptions, creds?.tenantCode ?? '') : creds?.tenantCode;
@@ -380,7 +383,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </div>
             )}
 
-            {step === 'login' && <DemoProfiles onSelect={handleDemoSelect} />}
+            {step === 'login' && showDemoProfiles && <DemoProfiles onSelect={handleDemoSelect} />}
 
             <div className="mt-8 pt-8 border-t border-slate-50 opacity-30 group hover:opacity-100 transition-opacity">
               <p className="text-[9px] text-slate-500 font-bold text-center leading-relaxed italic">
