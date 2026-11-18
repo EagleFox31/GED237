@@ -755,7 +755,7 @@ Demande d’O : reporter les audits UX Lots 12 et 13 en V1.1, avec porteurs et c
 
 | Ligne | Ce qui est fait | Porteur | Chiffrage (h-s) |
 |---|---|---|---|
-| 57 L12-B | Serveur : renvoi depuis `returned`, motif dans la fiche, filtre à plusieurs états, tri et date d’envoi sur `/tasks`, compteurs de l’utilisateur | B | 3,5 |
+| 57 L12-B | Serveur : renvoi depuis `returned`, motif dans la fiche, filtre à plusieurs états, tri et date d’envoi sur `/tasks`, compteurs de l’utilisateur | B | 4 (confirmé par B, sans migration) |
 | 57 L12-1 | Motif à l’ouverture, bandeau masqué, « Corriger et renvoyer », choix du valideur dans l’onglet Circuit | aide-api | 2,5 |
 | 57 L12-2 | Filtre « Rejetés » dans Mes Documents | F | 0,25 |
 | 57 L12-3 | Demandeur et date d’envoi sur les cartes de `/tasks` | aide-api | 0,5 |
@@ -765,7 +765,7 @@ Demande d’O : reporter les audits UX Lots 12 et 13 en V1.1, avec porteurs et c
 | 57 L13-4 | WebSocket par cookie et repli en polling | aide-api | 3 (déjà dans ses 28 à 30) |
 | 57 L13-5 | Garde de la route `/audit` | F | 0,25 |
 | Relectures | F relit 57 L12-1 ; Q relit 57 L13-4 (sécurité) et ajoute un e2e « rejet, correction, renvoi » | F 0,25 ; Q 1 | 1,25 |
-| **Total hors WebSocket** | | | **12** |
+| **Total hors WebSocket** | | | **12,5** |
 
 Constats qui changent le travail prévu :
 - **Point 5 du Lot 12 (réassignation)** : la délégation (57 L7-5) couvre l’absence prévue, pas l’absence imprévue d’un valideur. `/steps/{id}/assign` refuse toute tâche déjà en cours (`workflows.py:495`). D’où 57 L12-5, après 57 L7-5.
@@ -775,12 +775,12 @@ Constats qui changent le travail prévu :
 
 | | B | F | Q | aide-api | Équipe |
 |---|---|---|---|---|---|
-| **Charge** | **37,8** | **31,5** | **37,8** | **33,5 à 35,5** | **140,6 à 142,6** |
+| **Charge** | **38,3** | **31,5** | **37,8** | **33,5 à 35,5** | **141,1 à 143,1** |
 | Capacité au 04/12 | 31 | 24 | 34 | 35 | 124 |
-| **Écart** | **+ 6,8** | **+ 7,5** | **+ 3,8** | **− 1,5 à + 0,5** | **+ 16,6 à + 18,6** |
+| **Écart** | **+ 7,3** | **+ 7,5** | **+ 3,8** | **− 1,5 à + 0,5** | **+ 17,1 à + 19,1** |
 
-- **B** : 34,3 + 3,5 = 37,8. **F** : 29,5 + 2 = 31,5. **Q** : 36,8 + 1 = 37,8. **aide-api** : 28 à 30 (son chiffrage) + 5,5 = 33,5 à 35,5.
-- Le chiffrage des lignes 57 L12 et 57 L13 est une estimation de l’innovateur, **à confirmer par chaque porteur**.
+- **B** : 34,3 + 4 (57 L12-B, chiffrage confirmé par B : auteur de l’envoi lu dans le journal, compteurs et tests de portée) = 38,3. **F** : 29,5 + 2 = 31,5. **Q** : 36,8 + 1 = 37,8. **aide-api** : 28 à 30 (son chiffrage) + 5,5 = 33,5 à 35,5.
+- Le chiffrage des lignes 57 L12 et 57 L13 est une estimation de l’innovateur, **à confirmer par chaque porteur** ; B a confirmé 57 L12-B à 4 (18/11).
 - aide-api est la seule colonne sans dépassement : elle n’a plus de marge pour reprendre une ligne de F.
 - **Ordre** : 57 L12-B d’abord (B), puis les écrans ; 57 L12-B avant 57 L7-5 (même `workflows.py`) ; 57 L13-4 après #155 et après le correctif V1.0 de la cloche.
 
