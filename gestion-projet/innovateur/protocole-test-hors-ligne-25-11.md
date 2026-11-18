@@ -134,3 +134,68 @@ Rapport dans `gestion-projet/walkthrough/` (dossier daté) :
 ## Durée
 
 Exécution par Q : **1,25 h-s** (dont 0,25 pour P5b, E1 bis et E6 bis), si l'archive d'images de la check-list est prête (P2 se réduit alors à son import). L'inconnue est P4, la remise à zéro, dont la durée n'a jamais été mesurée.
+
+## Annexe A. Machine simulée : pile ged-replay construite depuis release/v1.0.0 (demande d'O, 18/11)
+
+Le PO n'a pas prêté de poste (fiche PO, réponse 1 du 17/11). L'exigence 28 se prouve donc sur la machine simulée de Q, notée « vérifiée sur machine simulée » (fiche PO, question 15, option B). Cette annexe ne remplace pas `gestion-projet/recette/checklist-installation-hors-ligne-25-11.md` (Q) : elle en fixe la référence de code, le nom de pile, les parcours du CDC, les seuils de mémoire et le nettoyage. Ordre le 25 : check-list de Q étapes P et M, puis A1 à A6 ci-dessous, puis le protocole principal (P à R) sur le poste de démo.
+
+### A1. Référence du code
+
+- `git ls-remote origin release/v1.0.0`. Si la branche existe, la prendre. Sinon, prendre le tag rc.1 du 24/11. Sinon, le SHA de `main`, noté dans le rapport avec la raison.
+- Le 18/11 au soir, `release/v1.0.0` n’existe pas encore.
+- Worktree propre : `git worktree add ../GED237-offline-trial/GED237 <réf>` (étape P1 de la check-list). Jamais dans le checkout partagé.
+
+### A2. Pile `ged-replay`
+
+- Sur l'hôte, `COMPOSE_PROJECT_NAME=ged-replay` dans le `.env` du worktree : les images construites s'appellent `ged-replay-*` et ne se mélangent ni aux images ni aux volumes `edossier_*`.
+- Sur l'hôte, on ne fait que `build`, `pull --ignore-buildable` et l'export (check-list P3). Jamais `up` : les conteneurs gardent le nom fixe `edossier_*` et entreraient en conflit avec la pile en place (guide d'installation, § 8).
+- Dans la machine (`--network none`, démon Docker isolé), le même `.env` est copié : `docker compose config --images` doit redonner exactement `IMAGES.txt`, avec les noms `ged-replay-*`.
+- Écart au guide à noter dans le rapport : le guide suppose un dossier du même nom que le clone ; ici, le nom vient de `COMPOSE_PROJECT_NAME`.
+
+### A3. Machine sans réseau
+
+- Contrôles E1 de la check-list : mode réseau `none`, aucune route par défaut, échec de `curl` vers github.com et pypi.org, échec de `getent hosts pypi.org` dans l'api.
+- En plus : `docker compose logs --no-color | grep -ci 'name resolution\|getaddrinfo\|timed out'` relevé après A4. Toute ligne trouvée est un appel sortant à expliquer (modèles OCR, polices, télémétrie).
+
+### A4. Parcours du CDC à rejouer, dans la machine
+
+Les parcours passent par `curl` sur `http://localhost:8080`, ou par le smoke Playwright de la check-list (E8). Le navigateur de l'hôte n'atteint pas la machine. Numéros : items de l'audit fonctionnel du 09/11, § 1.
+
+| # | Item du CDC | Parcours | Preuve attendue |
+|---|---|---|---|
+| A4.1 | 32, 25 | Page d'accueil, asset JS, police d'icônes | 200 sur les trois. Aucun appel vers un CDN dans le HTML (`grep -c 'https://'` sur les balises `link` et `script` = 0) |
+| A4.2 | 9 | Connexion en 2FA, code OTP lu dans la réponse (mode development de la rc.1), puis jeton | 200 puis jeton. Un mauvais code donne 401 |
+| A4.3 | 9, 10 | Un lecteur d'un autre service demande un document de MINFI | 404 « document introuvable » (pas 403, pas 500) |
+| A4.4 | 6 | Dépôt d'un PDF de test | 201, puis GET 200, puis le document est présent dans la liste |
+| A4.5 | 15, 13 | OCR du document déposé, puis recherche plein texte d'un mot du fichier | Statut traité en moins de 5 min. La recherche le retrouve. Les modèles OCR viennent de l'image, aucun téléchargement dans les logs du worker |
+| A4.6 | 1, 3, 4 | Classement d'un dépôt par une règle active, puis arborescence service > domaine > activité > année | Le document est rangé dans la bonne branche |
+| A4.7 | 17, 16 | Nouvelle version du même document, puis verrouillage d'édition | Version 2 listée. Un second compte voit le document verrouillé et ne peut pas le modifier |
+| A4.8 | 22 | Circuit de validation : soumission, puis visa | Statut final « validé » |
+| A4.9 | 11 | Journal : l'action A4.4 y figure, puis export CSV | Ligne présente. Le CSV s'ouvre et contient la ligne |
+| A4.10 | 23, 20 | Tableau de bord et rapport du chef de service | 200. Les compteurs bougent après A4.4 |
+
+Items non rejoués hors ligne (rien à prouver sans réseau, ou non vérifiable sur une machine simulée) : 2, 8, 14, 24, 26 à 31.
+
+### A5. Mémoire : seuils `free -m` (colonne available, côté WSL)
+
+- La machine compte pour toute la capacité : 7 Go, au-delà de deux charges de 3 Go. Pendant l'essai, aucune autre charge Docker lourde : ni build, ni tests, ni rejeu.
+- Avant chaque build sur l'hôte (A2) : au moins 2048 Mo disponibles. Sinon, attendre ou prévenir O.
+- Avant le `docker run` de la machine : au moins 9216 Mo disponibles (7 Go pour la machine, 2 Go de marge pour l'hôte). Sinon, STOP et prévenir O. La limite de 7 Go n'est pas abaissée en silence : ce serait un autre essai.
+- Pendant A4 : relevé toutes les 10 min. Dans la machine, `free` montre l'hôte et pas la limite : lire `/sys/fs/cgroup/memory.current` et `memory.max`. Si l'hôte passe sous 1024 Mo disponibles, `docker stop ged-offline` et noter l'étape en cours.
+- Pic de `memory.current` noté dans le rapport, à comparer aux 5,9 Go des `mem_limit` de compose.
+
+### A6. Nettoyage, sans prune
+
+- Relevé AVANT l'essai : `docker ps -a --format '{{.Names}}'` et `docker images --format '{{.Repository}}:{{.Tag}}'`, gardés dans le rapport.
+- Après l'essai :
+  - démontage de la check-list : `docker rm -f ged-offline`, puis `docker volume rm ged-offline-docker`, puis `git worktree remove ../GED237-offline-trial/GED237` ;
+  - images de l'hôte : `docker images --format '{{.Repository}}:{{.Tag}}' | grep '^ged-replay-'`, puis `docker image rm` une à une, puis `docker image rm ged-offline-host` ;
+  - les images tirées pour l'export (postgres, redis, nginx) restent si elles figuraient au relevé AVANT. Sinon, `docker image rm` une à une.
+- Interdits : `docker system prune`, `docker image prune`, `docker volume prune`, `down -v` sur une autre pile, et toute action sur `edossier_*`, avant comme après.
+- Contrôle de fin : les deux relevés sont identiques à ceux d'AVANT. Tout écart est expliqué dans le rapport.
+- La « clé » (archives d'images et de code) est gardée jusqu'à la recette.
+
+### A7. Preuves et durée
+
+- Rapport dans `gestion-projet/walkthrough/` : la référence prise en A1 et son SHA, la sortie de `docker compose config --images`, le tableau A4 (OK ou KO, code HTTP, durée), les relevés A5, le résultat de `grep` en A3, les relevés AVANT et APRÈS d'A6. Aucun secret : seuls les compteurs de la check-list (E2 bis) apparaissent.
+- Durée : celle de la check-list (≈ 2 h-s), plus ≈ 0,5 h-s pour A4 au-delà du smoke et pour les relevés A5 et A6.
