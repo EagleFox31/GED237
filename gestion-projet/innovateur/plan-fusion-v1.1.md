@@ -264,22 +264,25 @@ Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR qu
 
 ## 4. Chaîne alembic
 
-Tête de `main` le 18/11 : `a7c8d9e0f1b2`. Seules les PR post-rc1 portent des migrations ; aucune PR V1.1 des vagues 0 à 3 n'en ajoute.
+Tête de `main` le 18/11 : `a7c8d9e0f1b2`. Seules deux familles de PR portent des migrations : #436 (vague 2) et les PR post-rc1 (vague 4). Les PR empilées #209, #219 et #205 n'ajoutent pas de migration : elles montrent celles de leur base (#180, #193, #165). Le scan de Q les voit donc partir de `a7c8d9e0f1b2` (18/11 au soir).
+
+**Règle** : toutes ces PR partent aujourd'hui de `a7c8d9e0f1b2`. La file les sérialise (`DEP[197]="436"`, puis la chaîne de la vague 4). Chaque PR après la première rebase son `down_revision` sur la tête laissée par la précédente, au moment où elle fusionne `main`.
 
 | Ordre | PR | Révision | `down_revision` à poser |
 |---|---|---|---|
-| 1 | #197 | eff6822a5320 | `a7c8d9e0f1b2` |
+| 0 | #436 (vague 2) : recherche insensible aux accents | 0f6f64260460 | `a7c8d9e0f1b2` (déjà posé) |
+| 0 bis | 57 L10-3 bis pg_trgm, puis « L4 » d'aide-api (à ouvrir) | à créer | tête de `main` au moment de la fusion |
+| 1 | #197 | eff6822a5320 | tête de `main` à sa fusion (`0f6f64260460` si rien d'autre n'est passé ; ce n'est plus `a7c8d9e0f1b2`) |
 | 2 | #180 | b9d4e2f7a1c3 | eff6822a5320, à retirer du diff de #180 s'il y est copié |
 | 3 | #193 | d4e8b2c6a1f3 | tête précédente |
 | 4 | #186 | d4f1b6c2e8a9 | tête précédente |
 | 5 | #165 | 8aed3f3826d7 | tête précédente |
 | 6 | #192 | c9f2a7d4e1b6 | tête précédente |
 | 7 | #265 (à ouvrir, B ; revenue en V1.1, O, 18/11) : suppression de `org_unit_closure`, après #266 | à créer | tête précédente (#192) |
-| 8 | 57 L10-3 (à ouvrir, aide-api) : recherche insensible aux accents, index plein texte reconstruit | à créer | tête précédente (#265) |
-| 9 | 57 L7-5 (à ouvrir, aide-api) : délégation pendant une absence, après la décision du PO | à créer | tête précédente |
+| 8 | 57 L7-5 (à ouvrir, aide-api) : délégation pendant une absence, après la décision du PO | à créer | tête précédente |
 | hors fenêtre | #183 (V1.2) | c3e8a5d1f2b7 | après la V1.1 |
 
-Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précédente. **Contrôle après chaque fusion** : `alembic heads` doit afficher une seule ligne.
+Si le PO ferme une de ces PR, on la retire et la suivante prend la tête précédente. **Contrôle avant et après chaque fusion d'une PR à migration** : Alembic ne doit avoir qu'une tête. Le contrôle passe par le test `test_single_head` de #436, ou par `alembic heads` lancé en Docker (Q, 18/11). 57 L10-3 est désormais #436, en ordre 0.
 
 ## 5. Fichiers chauds (partagés par 8 PR ou plus)
 

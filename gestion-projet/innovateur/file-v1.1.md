@@ -71,7 +71,7 @@ DEP[181]="152"; DEP[184]="181"; DEP[301]="152 181"; DEP[302]="301 262"
 DEP[190]="181 153"; DEP[199]="181 171"
 DEP[212]="154"; DEP[219]="193"; DEP[209]="180"; DEP[205]="165"
 # Chaîne alembic (une seule tête) : chaque auteur repose down_revision quand il fusionne main ; alembic heads = 1 tête vérifié avant chaque fusion (O, 18/11)
-DEP[180]="197"; DEP[193]="180"; DEP[186]="193"; DEP[165]="186"; DEP[192]="165"
+DEP[197]="436"; DEP[180]="197"; DEP[193]="180"; DEP[186]="193"; DEP[165]="186"; DEP[192]="165"
 # Dépendances fonctionnelles (colonne « Dépend de » du plan)
 DEP[383]="389"; DEP[222]="389"; DEP[245]="389"; DEP[253]="389"
 DEP[227]="222"; DEP[237]="227"; DEP[285]="222"; DEP[234]="224"; DEP[394]="237"
