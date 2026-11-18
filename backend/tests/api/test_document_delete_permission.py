@@ -26,7 +26,7 @@ async def _document(db_session, db_seed, *, status: str = "draft") -> uuid.UUID:
             status=status,
         )
     )
-    await db_session.flush()
+    await db_session.commit()
     return document_id
 
 
