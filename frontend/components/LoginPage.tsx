@@ -5,6 +5,14 @@ import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
 import { otpDigitsFromPaste, otpFocusAfterPaste, otpFromPaste } from '../lib/otp';
+import {
+  readStoredInstitution,
+  writeStoredInstitution,
+  readStoredMatricule,
+  writeStoredMatricule,
+  forgetStoredMatricule,
+  shouldAutoFocusPassword,
+} from '../lib/loginFast';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
@@ -84,7 +92,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
   // Form controlled inputs
-  const [institution, setInstitution] = useState('');
+  const [institution, setInstitution] = useState(() => readStoredInstitution());
   const [tenantOptions, setTenantOptions] = useState<PublicTenant[] | null>(null);
   const [tenantsLoadError, setTenantsLoadError] = useState(false);
 
@@ -101,10 +109,48 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     if (!tenantOptions || !institution) return;
     if (tenantOptions.some((t) => tenantLabel(t) === institution)) return;
     const label = tenantLabelForCode(tenantOptions, institution);
-    if (label) setInstitution(label);
+    if (label) {
+      setInstitution(label);
+      writeStoredInstitution(label);
+    }
   }, [tenantOptions, institution]);
-  const [matricule, setMatricule] = useState('');
+
+  const initialMatricule = readStoredMatricule();
+  const [matricule, setMatricule] = useState(initialMatricule);
+  const [rememberMatricule, setRememberMatricule] = useState(Boolean(initialMatricule));
   const [password, setPassword] = useState('');
+  const passwordInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (step === 'login' && shouldAutoFocusPassword(institution, matricule)) {
+      passwordInputRef.current?.focus();
+    }
+    // Focus initial déclenché uniquement au montage
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleInstitutionChange = (value: string) => {
+    setInstitution(value);
+    writeStoredInstitution(value);
+  };
+
+  const handleMatriculeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setMatricule(val);
+    if (rememberMatricule) {
+      writeStoredMatricule(val);
+    }
+  };
+
+  const handleRememberMatriculeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setRememberMatricule(checked);
+    if (checked) {
+      writeStoredMatricule(matricule);
+    } else {
+      forgetStoredMatricule();
+    }
+  };
 
   const handleDemoSelect = (profile: any) => {
     const creds = DEMO_CREDENTIALS[profile.id];
@@ -112,7 +158,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const label = tenantOptions ? tenantLabelForCode(tenantOptions, creds?.tenantCode ?? '') : creds?.tenantCode;
     if (creds && label) {
       setInstitution(label);
+      writeStoredInstitution(label);
       setMatricule(creds.matricule);
+      if (rememberMatricule) {
+        writeStoredMatricule(creds.matricule);
+      }
       setPassword(creds.password);
       setError(null);
       return;
@@ -131,6 +181,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       const institution = formData.get('institution') as string;
       const matricule = formData.get('matricule') as string;
       const password = formData.get('password') as string;
+
+      writeStoredInstitution(institution);
+      if (rememberMatricule) {
+        writeStoredMatricule(matricule);
+      } else {
+        forgetStoredMatricule();
+      }
 
       const response = await api.login({ institution, matricule, password });
 
@@ -297,14 +354,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                             name="institution"
                             type="text"
                             value={institution}
-                            onChange={(e) => setInstitution(e.target.value)}
+                            onChange={(e) => handleInstitutionChange(e.target.value)}
                             placeholder="Nom de votre institution..."
                             className="block w-full pl-16 pr-10 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 transition-all focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold"
                             required
                           />
                         ) : (
                           <>
-                            <select id="institution" name="institution" value={institution} onChange={(e) => setInstitution(e.target.value)} className="block w-full pl-16 pr-10 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 transition-all focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 appearance-none font-bold cursor-pointer" required disabled={tenantOptions === null}>
+                            <select id="institution" name="institution" value={institution} onChange={(e) => handleInstitutionChange(e.target.value)} className="block w-full pl-16 pr-10 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 transition-all focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 appearance-none font-bold cursor-pointer" required disabled={tenantOptions === null}>
                               <option value="">
                                 {tenantOptions === null ? 'Chargement des institutions...' : 'Sélectionnez votre institution...'}
                               </option>
@@ -327,7 +384,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
                           <span className="material-symbols-outlined">badge</span>
                         </div>
-                        <input id="matricule" name="matricule" type="text" value={matricule} onChange={(e) => setMatricule(e.target.value)} className="block w-full pl-16 pr-6 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-500" placeholder="EX: 752458-M" required />
+                        <input id="matricule" name="matricule" type="text" value={matricule} onChange={handleMatriculeChange} className="block w-full pl-16 pr-6 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-500" placeholder="EX: 752458-M" required />
+                      </div>
+                      <div className="flex items-center gap-3 px-1 pt-1">
+                        <input
+                          id="remember-matricule"
+                          name="remember-matricule"
+                          type="checkbox"
+                          checked={rememberMatricule}
+                          onChange={handleRememberMatriculeChange}
+                          className="w-4 h-4 rounded text-rdpc-blue border-slate-300 focus:ring-rdpc-blue focus:ring-2 cursor-pointer"
+                        />
+                        <label
+                          htmlFor="remember-matricule"
+                          className="text-xs font-semibold text-slate-600 cursor-pointer select-none"
+                        >
+                          Mémoriser mon matricule sur ce poste
+                        </label>
                       </div>
                     </div>
 
@@ -339,7 +412,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
                           <span className="material-symbols-outlined">lock_open</span>
                         </div>
-                        <input id="password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="block w-full pl-16 pr-16 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-500" placeholder="••••••••" required />
+                        <input ref={passwordInputRef} id="password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="block w-full pl-16 pr-16 py-4 border-2 border-slate-50 rounded-2xl bg-slate-50/50 text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-rdpc-blue/30 font-bold outline-none transition-all placeholder:text-slate-500" placeholder="••••••••" required />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-6 flex items-center text-slate-500 hover:text-rdpc-blue transition-colors">
                           <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
                         </button>
