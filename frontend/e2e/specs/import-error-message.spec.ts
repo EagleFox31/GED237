@@ -17,9 +17,18 @@ test.describe('Erreurs lisibles import en masse (DirectoryIngestion)', () => {
     expect(corrupt.technicalDetail).toContain('Encrypted PDF');
   });
 
-  test('propose un repli générique clair si la cause est inconnue', () => {
+  test('propose un repli générique clair si la cause est inconnue et évite les faux positifs', () => {
     const generic = formatImportError(new Error('ERR_INTERNAL_500'), 'Import final impossible.');
     expect(generic.message).toContain('Import final impossible.');
     expect(generic.technicalDetail).toBe('ERR_INTERNAL_500');
+
+    const ruleNotFound = formatImportError(new Error("La règle n'existe pas"), 'Analyse impossible.');
+    expect(ruleNotFound.message).toContain('Analyse impossible.');
+
+    const maxWord = formatImportError(new Error('Nombre max de fichiers dépassé'), 'Analyse impossible.');
+    expect(maxWord.message).toContain('Analyse impossible.');
+
+    const pdfWord = formatImportError(new Error('Format pdf non pris en charge'), 'Import impossible.');
+    expect(pdfWord.message).toContain('Import impossible.');
   });
 });

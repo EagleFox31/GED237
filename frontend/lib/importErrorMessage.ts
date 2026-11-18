@@ -20,19 +20,19 @@ export function formatImportError(
     ? Number((err as { status?: unknown }).status)
     : undefined;
 
-  if (status === 409 || /duplic|doublon|déjà|existe/i.test(lower)) {
+  if (status === 409 || /duplic|doublon|existe déjà/i.test(lower)) {
     return {
       message: 'Ce document existe déjà.',
       technicalDetail,
     };
   }
-  if (status === 413 || /too large|trop volumineux|size|taille|max/i.test(lower)) {
+  if (status === 413 || /too large|trop volumineux/i.test(lower)) {
     return {
       message: 'Fichier trop volumineux : réduisez sa taille puis réessayez.',
       technicalDetail,
     };
   }
-  if (/unreadable|corrupt|password|protected|encrypted|illisible|chiffr|protégé|pdf/i.test(lower)) {
+  if (/unreadable|corrupt|password|protected|encrypted|illisible|chiffr|protégé/i.test(lower)) {
     return {
       message: "Fichier illisible : vérifiez qu'il n'est pas protégé ou corrompu.",
       technicalDetail,
