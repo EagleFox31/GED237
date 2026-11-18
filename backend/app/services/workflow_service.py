@@ -1,6 +1,9 @@
 # backend/app/services/workflow_service.py
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
+
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
@@ -10,6 +13,16 @@ from app.models.user import User
 from app.schemas.workflow import WorkflowActionCreate
 from app.core.events.dispatcher import dispatcher
 from app.core.authz import can_perform, ctx_from_resource
+from app.services.audit_trail import audit_entry
+from app.services.workflow_assignee import resolve_step_actor
+
+# Audit action per outcome: labels already known by the audit journal.
+_AUDIT_ACTION_BY_OUTCOME = {
+    OutcomeType.accepted: "workflow_approved",
+    OutcomeType.rejected: "workflow_rejected",
+    OutcomeType.returned: "workflow_returned",
+    OutcomeType.acknowledged: "workflow_step_completed",
+}
 
 
 class WorkflowActionPolicy:
@@ -23,15 +36,24 @@ class WorkflowActionPolicy:
         document: Document,
         action: WorkflowActionCreate,
         actor: User,
-    ):
+        db: Optional[AsyncSession] = None,
+    ) -> Optional[UUID]:
+        """Raise if ``actor`` may not act; return the absent agent ``actor`` stands
+        in for (DEC-2026-007), ``None`` otherwise. Without ``db`` only the assignee
+        or a ``manage`` holder may act (no delegation lookup)."""
         # 1. Vérification de l'état du step
         if step.status != "current":
             raise HTTPException(
                 status_code=400, detail="This step is not currently pending validation"
             )
 
-        # 2. Vérification des droits (Assigné ou utilisateur avec capacité manage via Casbin)
-        if step.assigned_to != actor.id and not await can_perform(
+        # 2. Vérification des droits : assigné, intérimaire d'une délégation active,
+        # ou utilisateur avec capacité manage via Casbin
+        if db is not None:
+            can_act, on_behalf_of = await resolve_step_actor(db, actor, step)
+        else:
+            can_act, on_behalf_of = step.assigned_to == actor.id, None
+        if not can_act and not await can_perform(
             actor, "workflows", "manage", ctx_from_resource(document)
         ):
             raise HTTPException(
@@ -52,6 +74,8 @@ class WorkflowActionPolicy:
                 detail=f"Expected action type: {step.expected_action_type}",
             )
 
+        return on_behalf_of
+
 
 class SubmitWorkflowActionUseCase:
     """
@@ -70,6 +94,7 @@ class SubmitWorkflowActionUseCase:
         action: WorkflowActionCreate,
         actor: User,
         db: AsyncSession,
+        request: Optional[Request] = None,
     ) -> WorkflowAction:
         # Pessimistic Locking : Empêche la race condition sur la validation
         result = await db.execute(
@@ -89,7 +114,11 @@ class SubmitWorkflowActionUseCase:
             raise HTTPException(status_code=404, detail="Document not found")
 
         # Execution de la Policy
-        await self.policy.check_can_perform_action(step, document, action, actor)
+        # Après le verrou de l'étape : deux actions concurrentes (titulaire et
+        # intérimaire) ne passent pas toutes les deux, la seconde reçoit 400.
+        on_behalf_of = await self.policy.check_can_perform_action(
+            step, document, action, actor, db=db
+        )
 
         # Tracabilité explicite de l'acte (avec l'action.document_version_id explicite de la requête)
         action_trace = WorkflowAction(
@@ -101,6 +130,11 @@ class SubmitWorkflowActionUseCase:
             comment=action.comment,
         )
         db.add(action_trace)
+        db.add(
+            await self._audit_action(
+                db, step, document, action, actor, on_behalf_of, request
+            )
+        )
 
         # Clôture du step en cours
         step.completed_at = datetime.utcnow()
@@ -174,6 +208,39 @@ class SubmitWorkflowActionUseCase:
             )
 
         return action_trace
+
+    async def _audit_action(
+        self,
+        db: AsyncSession,
+        step: WorkflowStep,
+        document: Document,
+        action: WorkflowActionCreate,
+        actor: User,
+        on_behalf_of: Optional[UUID],
+        request: Optional[Request],
+    ):
+        """One audit row per circuit action: « par X », or « par X au nom de Y »
+        when the actor stands in for the absent assignee (DEC-2026-007)."""
+        details = {
+            "step_id": str(step.id),
+            "step_label": step.label,
+            "outcome": action.outcome.value,
+            "comment": action.comment,
+            "document_title": document.title,
+        }
+        if on_behalf_of is not None:
+            absent = await db.get(User, on_behalf_of)
+            details["on_behalf_of_name"] = absent.full_name if absent else None
+        return audit_entry(
+            tenant_id=document.tenant_id,
+            user_id=actor.id,
+            on_behalf_of=on_behalf_of,
+            table_name="documents",
+            record_id=document.id,
+            action=_AUDIT_ACTION_BY_OUTCOME[action.outcome],
+            details=details,
+            request=request,
+        )
 
     async def _cancel_pending_steps(
         self, db: AsyncSession, document_id: UUID, status: str = "cancelled"

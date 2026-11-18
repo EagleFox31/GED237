@@ -2,8 +2,8 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import ColumnElement, func, select
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -37,6 +37,9 @@ from app.services.workflow_service import (
     WorkflowActionPolicy,
 )
 
+# Re-exported: the task counters import the clause from this module.
+from app.services.workflow_assignee import _pending_assignee_clause  # noqa: F401
+
 router = APIRouter()
 
 WORKFLOW_SOURCE_STATUSES = {"draft", "rejected"}
@@ -47,15 +50,6 @@ VALIDATOR_ROLE_CODES = ("manager", "tenant_admin")
 
 # Alias pour distinguer l'owner du document du current_user dans les jointures
 OwnerUser = aliased(User, name="owner_user")
-
-
-def _pending_assignee_clause(user: User) -> ColumnElement[bool]:
-    """Steps that ``user`` must act on: the single place deciding "my tasks".
-
-    Today the assignee only. Delegation (a stand-in acting for a holder)
-    extends this clause, so /pending and the task counters follow it.
-    """
-    return WorkflowStep.assigned_to == user.id
 
 
 @router.get("/stats")
@@ -357,6 +351,7 @@ async def list_validators(
 async def submit_workflow_action(
     step_id: UUID,
     action_req: WorkflowActionCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -367,7 +362,7 @@ async def submit_workflow_action(
     use_case = SubmitWorkflowActionUseCase(policy=policy)
 
     action_trace = await use_case.execute(
-        step_id=step_id, action=action_req, actor=current_user, db=db
+        step_id=step_id, action=action_req, actor=current_user, db=db, request=request
     )
 
     # Enrichir la réponse avec le nom de l'acteur

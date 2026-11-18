@@ -36,11 +36,15 @@ def audit_entry(
     action: str,
     details: Optional[dict[str, Any]] = None,
     request: Optional[Request] = None,
+    on_behalf_of: Optional[UUID] = None,
 ) -> AuditLog:
-    """One audit row. ``details`` must never carry a secret (password, OTP, token)."""
+    """One audit row. ``details`` must never carry a secret (password, OTP, token).
+
+    ``on_behalf_of``: the absent agent ``user_id`` stood in for (DEC-2026-007)."""
     return AuditLog(
         tenant_id=tenant_id,
         user_id=user_id,
+        on_behalf_of=on_behalf_of,
         table_name=table_name,
         record_id=record_id,
         action=action,
