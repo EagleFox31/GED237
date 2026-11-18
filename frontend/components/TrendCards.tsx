@@ -87,10 +87,14 @@ export const TrendCards: React.FC<{ scope: TrendScope; onLoaded?: (t: TrendsResp
   const labels = TREND_LABELS[scope];
   const cards: Array<{ title: string; testId: string; lines: TrendLine[] }> = data ? [
     { title: labels.created.title, testId: 'trend-created', lines: [{ label: labels.created.line, values: data.series.documents_created, color: COLORS.blue }] },
-    { title: labels.visas.title, testId: 'trend-visas', lines: [
-      { label: labels.visas.accepted, values: data.series.visas_accepted, color: COLORS.green },
-      { label: labels.visas.rejected, values: data.series.visas_rejected_or_returned, color: COLORS.red },
-    ] },
+    {
+      title: labels.visas.title,
+      testId: 'trend-visas',
+      lines: [
+        { label: labels.visas.accepted, values: data.series.visas_accepted, color: COLORS.green },
+        { label: labels.visas.rejected, values: data.series.visas_rejected_or_returned, color: COLORS.red },
+      ],
+    },
   ] : [{ title: labels.created.title, testId: 'trend-created', lines: [] }, { title: labels.visas.title, testId: 'trend-visas', lines: [] }];
 
   return (
