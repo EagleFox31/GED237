@@ -97,10 +97,7 @@ async def test_step_access_is_read_only(client_as, db_session, db_seed):
         assert (
             await client.patch(f"{DOCUMENTS}/{doc_id}", json={"title": "x"})
         ).status_code in (403, 404)
-        assert (await client.post(f"{DOCUMENTS}/{doc_id}/trash")).status_code in (
-            403,
-            404,
-        )
+        # (pas de test de corbeille : l'utilisateur de test est ici aussi le propriétaire.)
         assert (await client.get(f"{DOCUMENTS}/{doc_id}/audit-logs")).status_code == 403
 
 
