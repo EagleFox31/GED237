@@ -292,12 +292,32 @@ async def _has_workflow_step_access(
     return row.first() is not None
 
 
+async def _in_unit_tree(
+    db: Optional[AsyncSession], user: User, document: Document
+) -> bool:
+    """Le document est dans l'unité de l'utilisateur ou une unité en dessous."""
+    if db is None or not user.org_unit_id or document.org_unit_id is None:
+        return False
+    return await is_within_unit_tree(db, document.org_unit_id, user.org_unit_id)
+
+
+async def _ensure_in_unit_tree(
+    db: Optional[AsyncSession], user: User, document: Document
+) -> None:
+    """unit_admin : hors de son sous-arbre, un document est traité comme inconnu (404)."""
+    if _role_code(user) in UNIT_TREE_READ_ROLES and not await _in_unit_tree(
+        db, user, document
+    ):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
 async def _can_read_document(
     user: User, document: Document, db: Optional[AsyncSession] = None
 ) -> bool:
     """
     Casbin valide le TYPE de permission (read / read_own).
-    La logique org_unit pour manager/reader reste ici (règle métier).
+    Le périmètre d'unité reste ici (règle métier) : manager/reader lisent leur unité,
+    unit_admin son sous-arbre (hors sous-arbre : 404).
     Avec ``db``, une étape de circuit assignée ouvre la lecture (hors périmètre d'unité).
     """
     ctx = ctx_from_resource(document)
@@ -309,7 +329,13 @@ async def _can_read_document(
             return db is not None and await _has_workflow_step_access(
                 db, user, document
             )
-        return True  # admin / auditor : accès tenant-wide
+        if role_code in UNIT_TREE_READ_ROLES:
+            if await _in_unit_tree(db, user, document) or (
+                db is not None and await _has_workflow_step_access(db, user, document)
+            ):
+                return True
+            raise HTTPException(status_code=404, detail="Document not found")
+        return True  # rôles institution : accès tenant-wide
     if await can_perform(user, "documents", "read_own", ctx):
         return True
     if db is None or str(document.tenant_id) != str(user.tenant_id):
@@ -317,11 +343,14 @@ async def _can_read_document(
     return await _has_workflow_step_access(db, user, document)
 
 
-async def _can_mutate_document(user: User, document: Document) -> bool:
+async def _can_mutate_document(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
     """
-    Casbin valide update / update_own.
+    Casbin valide update / update_own ; unit_admin reste dans son sous-arbre (404).
     OWNER_MUTABLE_STATUSES reste une règle métier (hors Casbin).
     """
+    await _ensure_in_unit_tree(db, user, document)
     ctx = ctx_from_resource(document)
     if await can_perform(user, "documents", "update", ctx):
         return True
@@ -331,26 +360,34 @@ async def _can_mutate_document(user: User, document: Document) -> bool:
     )
 
 
-async def _can_trash_document(user: User, document: Document) -> bool:
+async def _can_trash_document(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
     """
-    Casbin valide delete (admins) ou trash_own (propriétaire).
+    Casbin valide delete (admins) ou trash_own (propriétaire) ;
+    unit_admin reste dans son sous-arbre (404).
     """
+    await _ensure_in_unit_tree(db, user, document)
     ctx = ctx_from_resource(document)
     if await can_perform(user, "documents", "delete", ctx):
         return True
     return await can_perform(user, "documents", "trash_own", ctx)
 
 
-async def _can_manage_lock(user: User, document: Document) -> bool:
+async def _can_manage_lock(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
     """
     Décision métier explicite (GED237):
     - le verrou est une extension du droit d'édition du document ;
     - `update` => lock/unlock/refresh sur les documents accessibles ;
-    - `update_own` => lock/unlock/refresh sur ses propres documents.
+    - `update_own` => lock/unlock/refresh sur ses propres documents ;
+    - unit_admin : seulement dans son sous-arbre, comme l'édition (404).
 
     Ce choix est intentionnel: lock/unlock n'est pas traité comme un droit
     d'administration séparé à ce stade.
     """
+    await _ensure_in_unit_tree(db, user, document)
     ctx = ctx_from_resource(document)
     if await can_perform(user, "documents", "update", ctx):
         return True
@@ -882,7 +919,7 @@ async def get_document_audit_logs(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Not enough privileges")
 
     query = (
@@ -1312,7 +1349,7 @@ async def delete_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(current_user, document):
+    if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
         )
@@ -1341,7 +1378,7 @@ async def update_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(current_user, document):
+    if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to update this document"
         )
@@ -1674,7 +1711,7 @@ async def trash_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_trash_document(current_user, document):
+    if not await _can_trash_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     await _ensure_not_locked_for_write(document, current_user)
     if document.deleted_at is not None:
@@ -1698,7 +1735,7 @@ async def restore_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_trash_document(current_user, document):
+    if not await _can_trash_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at is None:
         return {"message": "Document deja actif."}
@@ -1760,7 +1797,7 @@ async def upload_new_version(
     - identical to a version in another active document of the same tenant
     """
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(current_user, document):
+    if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
         raise HTTPException(
@@ -1899,7 +1936,7 @@ async def lock_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_manage_lock(current_user, document):
+    if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
         raise HTTPException(
@@ -1936,7 +1973,7 @@ async def unlock_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_manage_lock(current_user, document):
+    if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     is_admin = await can_perform(
         current_user, "documents", "manage", ctx_from_resource(document)
@@ -1966,7 +2003,7 @@ async def refresh_lock(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_manage_lock(current_user, document):
+    if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if not document.locked_by_user_id or str(document.locked_by_user_id) != str(
         current_user.id

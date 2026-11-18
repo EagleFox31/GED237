@@ -672,3 +672,17 @@ première requête utilisateur.
 **Résolution** — Constructeur sans effet de bord ; lecteur chargé à la demande avec `download_enabled=False` ; modèles fr+en cuits dans l'image (couche cachée, `EASYOCR_MODEL_DIR`) ; modèle absent = un avertissement, résultat vide, repli sur Tesseract.
 **Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
 **Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.
+
+### LESSON-2026-056 — Périmètre restreint sur les listes, ouvert par id : unit_admin modifiait les documents d'autres unités
+
+- **Date :** 2026-11-18
+- **Catégorie :** security / authz
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_ensure_in_unit_tree`, `_can_read_document`, `_can_mutate_document`, `_can_trash_document`, `_can_manage_lock`), `backend/tests/api/test_unit_admin_read_scope.py`
+
+**Contexte** — Le périmètre de unit_admin (son unité et les unités en dessous) était appliqué par le filtre des listes (`visible_document_scope`).
+**Échec / near miss** — Relevé en relecture avant fusion : les routes par id (`GET`, `PATCH`, `DELETE`, corbeille, verrou, nouvelle version) ne vérifiaient que le type de droit Casbin. Un unit_admin lisait, modifiait ou supprimait par id un document de toute l'institution.
+**Cause racine** — Deux chemins pour une même règle : le filtre de liste et les prédicats par objet. Seul le premier avait été adapté, et les tests ne couvraient que les listes.
+**Résolution** — Les prédicats par objet appliquent le sous-arbre à unit_admin ; hors sous-arbre, le document est traité comme inconnu (404). Une étape de circuit assignée ouvre toujours la lecture.
+**Prévention** — Tests 404 sur `GET` et `PATCH` par id hors sous-arbre, avec témoins 200 dans le sous-arbre.
+**Leçon généralisée** — Toute règle de périmètre se teste sur les deux chemins : la liste et l'accès par id (lecture et écriture). Un filtre de liste n'est pas un contrôle d'accès.
