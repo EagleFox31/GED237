@@ -1,5 +1,12 @@
 import React, { useEffect, useId, useState } from 'react';
 
+export const QUICK_REJECT_REASONS = [
+  'Pièce justificative manquante',
+  'Document illisible ou incomplet',
+  'Erreur de destinataire',
+  'À reformuler',
+] as const;
+
 interface RejectReasonDialogProps {
   /** Titre du document rejeté ; null ferme la boîte. */
   documentTitle: string | null;
@@ -60,6 +67,19 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
         <label htmlFor={fieldId} className="mt-5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
           Motif du rejet
         </label>
+        <div className="mt-2 flex flex-wrap gap-2" aria-label="Motifs rapides">
+          {QUICK_REJECT_REASONS.map((quickReason) => (
+            <button
+              key={quickReason}
+              type="button"
+              disabled={submitting}
+              onClick={() => setReason(quickReason)}
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+            >
+              {quickReason}
+            </button>
+          ))}
+        </div>
         <textarea
           id={fieldId}
           autoFocus
