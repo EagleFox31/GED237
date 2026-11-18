@@ -7,6 +7,7 @@ import type { AuditLogEntry } from '../../../types';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import { HelpHint } from '../../../components/HelpHint';
+import { auditActorLabel, auditExportActors } from '../../../lib/auditExport';
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('fr-CM', {
@@ -16,7 +17,7 @@ function formatDateTime(value: string): string {
 }
 
 function getActorLabel(log: AuditLogEntry): string {
-  return log.user_name || log.user_matricule || 'Système';
+  return auditActorLabel(log);
 }
 
 function getObjectLabel(log: AuditLogEntry): string {
@@ -125,15 +126,11 @@ const AuditLogs: React.FC = () => {
     [logs],
   );
 
-  // L'export reprend les filtres du tableau ; le serveur n'accepte qu'un seul utilisateur.
+  // L'export reprend les filtres du tableau, tous les acteurs cochés compris.
   const tableValues = columnFilters.table_name ?? [];
   const actionValues = columnFilters.action ?? [];
   const actorLabels = columnFilters.actor ?? [];
-  const actorIds = new Set(
-    logs.filter((log) => actorLabels.includes(getActorLabel(log))).map((log) => log.user_id).filter(Boolean),
-  );
-  const exportUserId = actorLabels.length === 1 && actorIds.size === 1 ? ([...actorIds][0] ?? undefined) : undefined;
-  const exportBlocked = actorLabels.length > 1 || (actorLabels.length === 1 && !exportUserId);
+  const { userIds: exportUserIds, blocked: exportBlocked } = auditExportActors(logs, actorLabels);
   const [exporting, setExporting] = useState(false);
 
   const exportCsv = async () => {
@@ -142,7 +139,7 @@ const AuditLogs: React.FC = () => {
       const { blob, filename } = await api.exportAuditLogs({
         table_name: tableValues,
         action: actionValues,
-        user_id: exportUserId,
+        user_id: exportUserIds,
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -319,7 +316,7 @@ const AuditLogs: React.FC = () => {
             label="Aide sur l'export du journal"
             tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
           >
-            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
+            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, agents) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
           </HelpHint>
           <button
             type="button"
@@ -329,7 +326,7 @@ const AuditLogs: React.FC = () => {
               nothingToExport
                 ? 'Rien à exporter'
                 : exportBlocked
-                  ? 'Choisissez un seul utilisateur pour exporter.'
+                  ? 'Décochez « Système » pour exporter.'
                   : 'Télécharger le journal (fichier CSV)'
             }
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-700 hover:text-rdpc-blue disabled:opacity-50"
