@@ -1,16 +1,18 @@
 import React from 'react';
+import DocumentVersionTextCompare from './DocumentVersionTextCompare';
 import {
   compareMetadata, contentSummary, orderVersions, type VersionInfo,
 } from '../lib/versionCompare';
 
 interface Props {
+  documentId: string;
   first: VersionInfo;
   second: VersionInfo;
   onClose: () => void;
 }
 
 /** Ce qui a changé entre deux versions : le résultat d'abord, le détail ensuite. */
-const DocumentVersionCompare: React.FC<Props> = ({ first, second, onClose }) => {
+const DocumentVersionCompare: React.FC<Props> = ({ documentId, first, second, onClose }) => {
   const [before, after] = orderVersions(first, second);
   const rows = compareMetadata(before, after);
   const fileChanged = !!before.checksum_sha256 && !!after.checksum_sha256 && before.checksum_sha256 !== after.checksum_sha256;
@@ -55,6 +57,10 @@ const DocumentVersionCompare: React.FC<Props> = ({ first, second, onClose }) => 
           ))}
         </tbody>
       </table>
+
+      {before.id && after.id && (
+        <DocumentVersionTextCompare documentId={documentId} before={{ ...before, id: before.id }} after={{ ...after, id: after.id }} />
+      )}
     </section>
   );
 };

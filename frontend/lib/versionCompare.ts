@@ -2,6 +2,7 @@
 // Les libellés sont du français simple, pensés pour un agent, pas pour un technicien.
 
 export interface VersionInfo {
+  id?: string;
   version_number: string;
   uploaded_at?: string | null;
   uploaded_by_name?: string | null;

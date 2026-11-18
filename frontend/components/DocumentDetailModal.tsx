@@ -405,7 +405,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               )}
               {compareIds.length === 2 && (() => {
                 const [a, b] = compareIds.map((id) => versions.find((v) => v.id === id));
-                return a && b ? <DocumentVersionCompare first={a} second={b} onClose={() => setCompareIds([])} /> : null;
+                return a && b ? <DocumentVersionCompare documentId={document.id} first={a} second={b} onClose={() => setCompareIds([])} /> : null;
               })()}
               {!versionsLoading && versions.length > 1 && compareIds.length < 2 && (
                 <p className="text-xs text-slate-400 px-1">
