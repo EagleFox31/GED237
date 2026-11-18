@@ -45,10 +45,13 @@ const text = (value: unknown): string | null => (typeof value === 'string' && va
  */
 export function auditDetailsLine(data: Record<string, unknown> | null | undefined): string | null {
   if (!data) return null;
-  const title = text(data.title);
+  // Modification et reclassement (#250, #151) : les nouvelles valeurs sont sous « after ».
+  const after = data.after && typeof data.after === 'object' ? data.after as Record<string, unknown> : {};
+  const renamedTo = text(after.title);
+  const title = text(data.title) ?? (renamedTo && `renommé en « ${renamedTo} »`);
   const version = text(data.version) ?? (typeof data.version === 'number' ? String(data.version) : null);
   const filename = text(data.filename);
-  const path = text(data.logical_space_path);
+  const path = text(data.logical_space_path) ?? text(after.logical_space_path);
   const note = text(data.comment) ?? text(data.resolution_reason) ?? text(data.reason);
   const parts = [
     title,
