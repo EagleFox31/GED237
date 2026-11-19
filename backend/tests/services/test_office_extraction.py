@@ -2,6 +2,7 @@
 users' files come from, plus the hostile cases the bounds exist for."""
 
 import io
+import random
 import zipfile
 
 import openpyxl
@@ -214,15 +215,53 @@ def test_xml_total_cap_at_the_limit(tmp_path, monkeypatch):
         extract_office_text(path, DOCX_MIME_TYPE)
 
 
-def test_media_part_is_not_held_to_the_xml_cap(tmp_path, monkeypatch):
+def _docx_with_part(tmp_path, name: str, data: bytes, declared: str) -> str:
+    """A real .docx plus one extra part; ``declared`` is added to [Content_Types].xml."""
     base = _save_docx(tmp_path, lambda d: d.add_paragraph("texte"))
-    path = tmp_path / "media.docx"
-    with zipfile.ZipFile(base) as source, zipfile.ZipFile(path, "w") as target:
+    path = tmp_path / "extra.docx"
+    with zipfile.ZipFile(base) as source, zipfile.ZipFile(
+        path, "w", zipfile.ZIP_DEFLATED
+    ) as target:
         for item in source.infolist():
-            target.writestr(item, source.read(item.filename))
-        target.writestr("word/media/image1.png", bytes(range(256)) * 8192)  # 2 MB
+            content = source.read(item.filename)
+            if item.filename == "[Content_Types].xml":
+                content = content.replace(b"</Types>", declared.encode() + b"</Types>")
+            target.writestr(item.filename, content)
+        target.writestr(name, data)
+    return str(path)
+
+
+_TWO_MB = random.Random(0).randbytes(
+    2 * 1024 * 1024
+)  # does not compress: ratio is fine
+_PNG = '<Default Extension="png" ContentType="image/png"/>'
+_AS_XML = '<Override PartName="/{}" ContentType="application/xml"/>'
+
+
+def test_declared_media_part_is_not_held_to_the_xml_cap(tmp_path, monkeypatch):
+    path = _docx_with_part(tmp_path, "word/media/image1.png", _TWO_MB, _PNG)
     monkeypatch.setattr(office, "MAX_XML_PART_BYTES", 1024 * 1024)
-    assert extract_office_text(str(path), DOCX_MIME_TYPE) == "texte"
+    assert extract_office_text(path, DOCX_MIME_TYPE) == "texte"
+
+
+@pytest.mark.parametrize(
+    "name, declared",
+    [
+        ("word/extra.dat", _AS_XML.format("word/extra.dat")),  # renamed, declared XML
+        ("word/EXTRA.XML", ""),  # upper case, matched by the xml default
+        ("word/extra.bin", ""),  # no declared type at all: default deny
+        ("word/media/image1.png", _AS_XML.format("word/media/image1.png")),
+    ],
+)
+def test_part_declared_or_left_as_xml_is_held_to_the_cap(
+    tmp_path, monkeypatch, name, declared
+):
+    """The cap follows the declared content type, as the readers do, not the name."""
+    path = _docx_with_part(tmp_path, name, _TWO_MB, declared)
+    monkeypatch.setattr(office, "MAX_XML_PART_BYTES", 1024 * 1024)
+    with pytest.raises(OfficeExtractionError, match=f"part {name} ") as error:
+        extract_office_text(path, DOCX_MIME_TYPE)
+    assert error.value.reason == "engine_error"
 
 
 def test_abnormal_compression_ratio_is_refused(tmp_path):
