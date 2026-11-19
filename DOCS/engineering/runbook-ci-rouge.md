@@ -38,3 +38,9 @@ Sur un push vers `main`, le job « Reuse validated tree » compare l'arbre du co
 - Quand la passe complète tourne sur main, le résumé du run écrit « Full run: <raison> ».
 - Pour forcer la passe complète sur main : lancer le workflow à la main (`workflow_dispatch`), qui exécute tout.
 - Décision : `scripts/ci_reuse_validated_tree.sh` ; test sans réseau : `scripts/test_ci_reuse_validated_tree.sh` (deux cas qui sautent, vingt-deux qui testent tout).
+
+- Un train de PR (branche `train/v11-NN` vers `main`, fusion par `gh pr merge --merge`) est une PR : sa CI vaut pour `main` si la branche est à jour au moment de la fusion ; sinon l'arbre diffère et la passe complète tourne.
+
+## E2E smoke bloquant (à partir du 21/11)
+
+Le job « E2E smoke (Playwright) » fait partie des `needs` de « CI Gate » : rouge ou annulé, il bloque ; sauté, la PR ne touche aucune surface e2e (`backend/`, `frontend/`, `docker-compose.yml`, `docker-compose.e2e.yml`) ou, sur `main`, l'arbre était déjà validé (« Reuse validated tree »). Rejeu local : `docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e`, puis `down -v`. Rapport : artefact `e2e-smoke-report`.
