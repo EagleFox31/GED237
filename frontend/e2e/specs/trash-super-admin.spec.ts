@@ -7,11 +7,9 @@ import { test, expect } from '../fixtures/auth.fixture';
  * `resolve_trash_tenant`). Réponses simulées : on vérifie ce que l'écran envoie.
  */
 
-const TENANTS = [
-  { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Ministère des Finances', short_name: 'MINFI' },
-  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Ministère de la Santé', short_name: 'MINSANTE' },
-];
-const [MINFI] = TENANTS;
+const MINFI = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Ministère des Finances', short_name: 'MINFI' };
+const MINSANTE = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Ministère de la Santé', short_name: 'MINSANTE' };
+const TENANTS = [MINFI, MINSANTE];
 
 const trashed = (id: string, title: string, status = 'draft') => ({
   id,
@@ -75,7 +73,7 @@ test.describe('Corbeille du super-administrateur : choix de l’institution', ()
     expect(calls).toContainEqual(expect.stringMatching(new RegExp(`^DELETE .*/documents/${DRAFT.id}/purge\\?tenant_id=${MINFI.id}$`)));
 
     remaining = [DRAFT, SIGNED];
-    await page.getByRole('combobox', { name: 'Institution' }).selectOption(TENANTS[1].id);
+    await page.getByRole('combobox', { name: 'Institution' }).selectOption(MINSANTE.id);
     await expect(page.getByText('La corbeille est vide.')).toBeVisible();
     await page.getByRole('combobox', { name: 'Institution' }).selectOption(MINFI.id);
     await expect(list.getByText(DRAFT.title)).toBeVisible();
