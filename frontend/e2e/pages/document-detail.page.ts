@@ -62,7 +62,8 @@ export class DocumentDetailModal {
     this.versionField = page.locator('text=Version').locator('..').locator('p.font-bold');
     this.fileSizeField = page.locator('text=Taille').locator('..').locator('p.font-bold');
     this.tags = page.locator('span:has-text("#")');
-    this.downloadButton = page.getByRole('button', { name: /télécharger/i });
+    // The info tab also embeds the preview, whose fallback has its own "Télécharger".
+    this.downloadButton = page.getByTestId('document-download');
 
     // Workflow content
     this.workflowSteps = page.locator('.relative.flex.items-start.gap-8');
