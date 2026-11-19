@@ -29,13 +29,13 @@ Palliatif V1.0 : la PR `ops/` de Q relance nginx puis contrôle `/health`. Il su
 ## Recommandation de l'innovateur : B
 
 - B ne touche ni aux `location` ni au WebSocket. Le diff est plus court, et le comportement de `proxy_pass` reste celui que la recette a validé.
-- La condition de version se règle en fixant l'image à une version stable, par exemple `nginx:1.28-alpine`, au lieu de `nginx:alpine`. Cela sert aussi l'installation hors ligne : l'image chargée sur le site est alors celle qui a été testée.
+- La condition de version se règle en fixant l'image à une version stable, par exemple `nginx:1.30-alpine`, au lieu de `nginx:alpine`. Cela sert aussi l'installation hors ligne : l'image chargée sur le site est alors celle qui a été testée.
 - Avant de choisir le tag, le porteur vérifie la version réelle de l'image (`nginx -v`) et le changelog de nginx.
 - Preuve attendue : sauvegarde, puis restauration, puis `/health` en 200 **sans** relancer nginx. Ajouter un rejeu d'une notification WebSocket.
 
 ## Charge et porteur
 
 - Environ 0,5 h-s de configuration et 0,25 h-s de preuve, en Docker.
-- Porteur : Q, **confirmé par O le 19/11**. Q commence par `nginx -v`, puis fixe l'image à `nginx:1.28-alpine` ou à la version stable du moment. L'archive hors ligne est régénérée avec cette image.
+- Porteur : Q, **confirmé par O le 19/11**. Q commence par `nginx -v`, puis fixe l'image à `nginx:1.30-alpine` (réalisé dans la PR 486 de Q, preuve : 502 sur main, 200 en 24 s sans relancer nginx, HTTP et HTTPS). L'archive hors ligne est régénérée avec cette image.
 - Place : V1.1, après la fusion de la PR `ops/` de Q (#482).
 - Ensuite, le palliatif « relancer nginx » peut rester comme filet de sécurité.
