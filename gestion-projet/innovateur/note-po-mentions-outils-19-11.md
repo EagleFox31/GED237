@@ -8,7 +8,7 @@ Question ouverte du PO, présentée par O après la coupe. Relevé en lecture se
 - ‹M3› est le nom de l'éditeur de ‹M2›.
 O a la clé dans son message.
 
-**Méthode** : on cherche le nom de fichier (‹M1› ou ‹M2›) et le contenu (‹M1›, ‹M3›, la ligne de co-auteur ‹M2›, « generated with »). `.claude/` et `CLAUDE.md` sont exclus, comme demandé. Résultat : **56 fichiers**. Aucun ne contient de ligne de co-auteur ni de « generated with ». La colonne « Depuis » donne le premier commit qui ajoute le fichier à `main`.
+**Méthode** : on cherche le nom de fichier (‹M1› ou ‹M2›) et le contenu (‹M1›, ‹M3›, la ligne de co-auteur ‹M2›, « generated with »). le dossier de configuration des sessions et leur fichier de consignes à la racine sont exclus, comme demandé (fichiers voulus). Résultat : **56 fichiers**. Aucun ne contient de ligne de co-auteur ni de « generated with ». La colonne « Depuis » donne le premier commit qui ajoute le fichier à `main`.
 
 ## 1. Le nom est dans le nom du fichier (37)
 
@@ -21,7 +21,7 @@ O a la clé dans son message.
 | `gestion-projet/PROPOSITIONS_EVOLUTION_‹M1›.md`, `gestion-projet/plan-‹m1›.md` | 93805b2d (28/10) | **Renommer** (`PROPOSITIONS_EVOLUTION.md`, `plan-contre-testeur.md`) |
 | `[Cursor] Extension rôle ‹M1› frontend` (12 mentions), `[Cursor] Soutien ‹M2› tâches PERT` | cff933ff (28/10) | **Renommer** et **réécrire** |
 | `gestion-projet/walkthrough/[‹M2›] Regle coordination et verrou walkthrough` (2 mentions) | cff933ff (28/10) | **Renommer** et **réécrire** |
-| `‹M1›.md` (racine, 162 lignes : règles de travail de l'outil du contre-testeur) | 0fff4224 (27/04) | **Laisser** : c'est un fichier de configuration voulu, comme `CLAUDE.md` |
+| `‹M1›.md` (racine, 162 lignes : règles de travail de l'outil du contre-testeur) | 0fff4224 (27/04) | **Laisser** : c'est un fichier de configuration voulu, comme le fichier de consignes des sessions |
 
 ## 2. Le nom est seulement dans le contenu (19)
 
