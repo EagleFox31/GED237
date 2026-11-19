@@ -39,6 +39,41 @@ gh pr view <n> --json headRefOid -q .headRefOid     # tête, à comparer à l'OK
 7. **Démo du 30/11** : si elle tourne sur `main` et non sur le tag, aucune fusion du 27 à 18:00 au 30 au soir. **Par défaut (O, 18/11) : la démo tourne sur le tag rc.1 (`release/v1.0.0`) et `main` n'est pas gelé.** Le § 8a est encore en discussion avec le PO. L'ordre ci-dessous en tient compte : rien de lourd n'est prévu le 27.
 8. **Règle « pas d'ajout sans sortie »** (`plan-v1.1.md`) : 25 PR V1.1 n'étaient rattachées à aucun lot chiffré (§ 2, colonne Lot « — »). **Tranché par le PO le 18/11 : toutes en V1.1.** La charge est recalculée dans `plan-v1.1.md`, § « Mise à jour du 18/11, soir » : Q + 5,1 h-s pris sur sa réserve (relectures de #362, #394, #399 et #404 comprises), il en reste ≈ 1,7. Ordre de sortie si besoin : #359, #338, #371.
 
+## 1 bis. Coupe avancée et paire doublons dans la candidate (O, 19/11)
+
+Décision du PO : 95 % pour la 1.0 finale. O coupe `release/v1.0.0` dès que #464 est dans `main`. La recette du 20 au 23/11 et la démo du 30/11 se font sur cette candidate figée. La vue des doublons (#152, #181, #171, #199) doit entrer dans la candidate. Elle porte l'item 19 du CDC, le seul que des PR peuvent faire bouger (`couverture-95-19-11.md`).
+
+**État relevé le 19/11 vers 09:30 (`Vérifié`, `gh pr view`, `git merge-tree` contre `origin/main` 3fabddc5)**
+
+| PR | Base | Contre main | Taille | Remarque |
+|---|---|---|---|---|
+| #464 | main | propre | +59/-3, 3 fichiers | OK de Q. Ajoute `_can_move_to_trash` dans `trash_document`. |
+| #152 | main | conflit : `.env.example`, `docker-compose.yml` | +1487/-47, 19 fichiers | Brouillon. Aucun conflit de texte avec #464 sur `documents.py`. |
+| #181 | #152 | conflit : `documents.py`, `docker-compose.yml`, `client.ts` | +802/-31, 27 fichiers | Brouillon. F termine la passe finale ; le contrat DELETE de B est reçu. Ne contient pas la tête actuelle de #152. |
+| #171 | main | propre, et propre contre #152 | +747/-0, 5 fichiers | Brouillon. N'est pas empilée sur #152 mais en dépend (`DEP[171]="152"`). |
+| #199 | #181 | 8 fichiers en conflit contre main, aucun contre la tête de #181 | +940/-0, 12 fichiers | Brouillon. Ne contient pas la tête actuelle de #181 : F doit d'abord fusionner #181 dans #199. |
+
+Aucune des quatre n'a de migration. #152 et #181 ajoutent chacune une leçon dans `lessons-learned.md`, sans collision de numéro (4e contrôle de `verif-file.sh`).
+
+**Point de vigilance sémantique** : #464 protège `trash_document` (propriétaire, document en validation). Après #152, `DELETE /{id}` met à la corbeille avec `_can_delete_document`, et `restore_document` garde `_can_trash_document`. La fusion de texte est propre, mais B relance `test_document_delete_permission.py` (#464) sur la tête de #152 avant son OK. Q le vérifie dans sa relecture.
+
+### Deux façons d'amener la paire dans la candidate
+
+| | **A. main d'abord, puis une PR de report `main → release/v1.0.0`** (recommandée) | **B. release d'abord, puis une PR de retour `release/v1.0.0 → main`** |
+|---|---|---|
+| Déroulé | Les 4 PR gardent leur cible `main` et passent en tête de file, juste après la coupe (`ORDER_V0`). Aucune autre PR ne fusionne dans `main` entre la coupe et la fin de la paire. Ensuite, une seule PR `main → release/v1.0.0` : son diff est exactement la paire. | On re-cible #152 et #171 sur `release/v1.0.0`, puis #181 et #199 à chaque étage. On fusionne dans la candidate, puis une PR de retour ramène le tout sur `main`. |
+| Re-ciblages | 2, déjà prévus : #181 puis #199 sur `main` avant la fusion de leur base (§ 3). | 6 : 4 vers la candidate, puis les 2 PR empilées à nouveau. |
+| Outils | `verif-file.sh` et la file d'O fonctionnent sans changement (base `main`). | La file et `verif-file.sh` supposent `main` comme base : il faudrait les adapter pendant la fenêtre (O ne veut pas qu'on touche `queue.sh`). |
+| CI | `ci.yml` tourne sur `main` et sur `release/**` (`Vérifié`) : chaque PR passe la CI une fois, puis la PR de report une fois de plus. | La CI tourne aussi sur `release/**`, mais le retour vers `main` se fait après d'autres fusions : risque de conflit au retour. |
+| Risque principal | Si une autre PR fusionne dans `main` pendant la fenêtre, le report l'emporte aussi. Parade : gel de `main` de la coupe au report. Il ne coûte presque rien, puisque les PR V1.1 restent en brouillon jusqu'au 24/11. Sinon, la branche de report part de `release/v1.0.0` avec `git cherry-pick -m 1` des 4 commits de fusion. | La candidate reçoit du code qui n'est pas encore sur `main`. Si le retour tarde, `main` n'a plus ce que la recette a validé, et la V1.1 doit être reprise. |
+| Effort (h-s) | ≈ 4,25 : #152 B 0,5 ; #181 F 0,5 ; #199 F 1 (fusion de #181, 8 fichiers) ; Q 2 (4 relectures, dont le contrôle de #464 sur #152) ; report O et Q 0,25. | ≈ 5 : le même travail, plus les 4 re-ciblages, le retour vers `main` et sa relecture (≈ 0,75). |
+
+**Recommandation : A.** Elle garde `main` comme seule source et ne demande aucun changement d'outil. Le report se relit en une passe, car c'est le diff des 4 PR déjà validées. Conditions : O lève le brouillon de ces 4 PR seulement, et gèle `main` de la coupe au report. S'il faut quand même fusionner un correctif 1.0 pendant la fenêtre, on le fait passer par la même PR de report, puisqu'il doit aussi aller dans la candidate.
+
+**Variante, si la paire est verte avant la coupe** : couper juste après #199 au lieu de #464. Il n'y a alors aucun report, mais la coupe attend la paire. Le choix revient à O, selon l'heure de la recette du 20/11.
+
+**Ordre** : #464 → coupe → #152 → re-cibler #181 sur `main` → #181 → #171 → re-cibler #199 sur `main` → #199 → PR de report → OK de Q → fusion dans la candidate → fin du gel de `main`.
+
 ## 2. Ordre de fusion proposé (PR V1.1, hors section PO)
 
 Les PR post-rc1 qui sont des capacités nouvelles sont traitées au § 6, sur décision du PO. Leur place dans la chaîne est réservée en vague 4.
@@ -125,7 +160,7 @@ Avant tout, **une revue de recouvrement par B** (≈ 0,25 h-s). #203, #358 et #3
 
 Ordre fixé par `plan-fusion-post-rc1.md` § 2 et § 8.6. On en retire les PR que le PO aura fermées, puis on repose `down_revision` (§ 4).
 
-1. #152 → #181 → #184 → #211 → #301 → #302, puis #182 et #190 ; #171 → #199. **Mise à jour (O, 18/11 au soir, § 10)** : #152 est passée en tête de la vague 2 (`file-v1.1.md`). #181, #184 et #301 la suivent juste après, en vague 2, puis #179, #262 et #302 (O, 18/11 au soir : #302 dépend aussi de #262).
+1. #152 → #181 → #184 → #211 → #301 → #302, puis #182 et #190 ; #171 → #199. **Mise à jour (O, 18/11 au soir, § 10)** : #152 est passée en tête de la vague 2 (`file-v1.1.md`). #181, #184 et #301 la suivent juste après, en vague 2, puis #179, #262 et #302 (O, 18/11 au soir : #302 dépend aussi de #262). **Mise à jour (O, 19/11)** : #152, #181, #171 et #199 passent en tête de file, juste après la coupe, pour entrer dans la candidate (§ 1 bis). #184 ouvre maintenant la vague 2.
 2. #309, puis #310 (re-ciblée sur `main` avant #262). #309 dépend de #179 et #262, passées en vague 2.
 3. #153, #155, #147.
 4. #197 → #162 → #180 → #154 → #212 → #193 → #219 → #186 → #165 → #192.

@@ -105,4 +105,19 @@ Ces capacités figurent dans `MATRICE_TRACABILITE_PRODUIT.md` ou dans les PR, ma
 - santé et observabilité (`/health/ready`, #147), sauvegarde planifiée (#192), qui renforcent les items 29 et 30 sans changer leur note ;
 - délégation pendant une absence et réassignation (#445, #453, #456).
 
+### 5 bis. Lien avec le CDC, vérifié le 19/11 (O, demande 4)
+
+Méthode : recherche dans le texte entier des deux documents sources, `Cahier Charges Doc Manager.pdf` (« CDC », 3 pages) et `Cdc + Plan + Budget … (1).pdf` (« Plan », 4 pages). La matrice sert de source secondaire. Termes cherchés : notif, temps réel, alerte, OTP, MFA, mail, PDF, rapport, planif, favori, récent, partag, santé, monitor, délégat, absence, assign, intérim, suppléant. Niveau : `Vérifié`.
+
+| Capacité | Verdict | Citation ou absence |
+|---|---|---|
+| Notifications en temps réel (#155) | absent du CDC | aucune occurrence ; la matrice les classe « Partiel », source « Guide test » |
+| OTP par e-mail, renvoi, TOTP admin (#154, #193, #219) | couvert par l'item 9 | CDC p. 1 § 3.1 : « Authentification par utilisateur avec rôles (admin, utilisateur, lecteur) » ; le second facteur vient du backlog PO (PO-009) |
+| Rapport officiel PDF, rapports programmés (#197, #180, #209) | absent du CDC | le mot « rapport » n'apparaît dans aucun des deux PDF ; la matrice classe ces rapports « Aspirationnel » |
+| Favoris, récents, partagés (#165, #205) | absent du CDC | aucune occurrence ; la matrice indique « sitemap », « Aspirationnel » |
+| `/health/ready`, sauvegarde planifiée (#147, #192) | couvert par les items 29 et 30 | Plan p. 3 § 8 : « Disponibilité [≥] 99 % lors des tests de validation » ; Plan p. 3 § 8 : « Tests de restauration de sauvegardes réalisés et validés » |
+| Délégation et réassignation (#445, #453, #456) | absent du CDC | seule mention proche : « Workflows avancés de validation », parmi les « modules complémentaires futurs » (Plan p. 4 § 9) |
+
+Conclusion : aucune de ces capacités ne justifie un 33e item, et le dénominateur reste 32. Deux sont déjà portées par des items de la grille, sans changer leur note. Les quatre autres sont des ajouts au-delà du CDC : elles comptent pour la valeur, pas pour les 95 %. Une PR de ces quatre groupes ne fait donc pas avancer la 1.0 finale.
+
 Sources : `[Innovateur] Recalcul du taux CDC - 2026-11-10.md`, `[Audit] Audit fonctionnel profond - 2026-11-09.md` § 1, `releve-preliminaire-taux-cdc-19-11.md` (branche de #104), `file-v1.1.md`, `plan-fusion-v1.1.md` et `plan-v1.1.md` (origin/docs/scenario-demo-30-11), `gh pr list --state merged` depuis le 10/11, `gh pr view` #147, #152, #171, #181, #199, #248, #267, #268, `PASSATION-ci-qa.md`, `PASSATION-innovateur.md`.

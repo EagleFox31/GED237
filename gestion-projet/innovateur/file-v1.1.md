@@ -17,17 +17,19 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 ```bash
 # Vague 0 : socle (24/11 matin)
 # Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
-ORDER_V0="389 403 383"
+# Tête de file (O, 19/11) : #464 (correctif 1.0 de /trash, OK de Q) ; la candidate release/v1.0.0 est coupée dès sa fusion.
+# Juste après la coupe : la paire doublons, qui doit entrer dans la candidate (décision du PO, 19/11). Elle fusionne dans main avant toute autre PR, puis une PR de report main → release/v1.0.0 l'amène dans la candidate (plan-fusion-v1.1.md, § 1 bis). Ces PR sortent du brouillon sur décision d'O, par exception à la règle du 24/11.
+ORDER_V0="464 152 181 171 199 389 403 383"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 449 448 454 438 444 440 455 439 442 419 447 434 424 428 443"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 449 448 454 438 465 444 440 455 439 442 419 447 434 424 428 443"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
-ORDER_V2="152 181 184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 463 453 456 458"
+ORDER_V2="184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 463 453 456 458"
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
-ORDER_V4="309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170 171 199"
+ORDER_V4="309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
 ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 446 417 441 450 459"
 # Vague 6 : outils et documentation (03 au 05/12, 18:00)
