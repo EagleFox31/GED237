@@ -924,3 +924,24 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
 **Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
 **Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
+
+### LESSON-2026-080 — Deux chaînes de tests lancées sans verrou sur le même sous-réseau fixe : environ huit passes perdues
+
+- **Date :** 2026-11-19
+- **Catégorie :** testing / process
+- **Statut :** prevention-added (verrou en tête de chaque passe backend)
+- **Liens :** `PASSATION-dev-backend.md` (19/11, 17:2x à 17:54)
+
+**Contexte** — Pour tenir la file de PR, la session backend lançait des chaînes de passes Docker (backend puis frontend) PR par PR. Chaque passe crée son propre réseau Docker, avec un sous-réseau fixe pour que Postgres et Redis restent joignables à une adresse stable.
+**Échec / near miss** — Plusieurs chaînes ont tourné en même temps. Dès que deux passes se chevauchaient, la seconde échouait avant même les tests (« network create failed », pool d'adresses déjà pris). Environ huit passes ont été perdues et rejouées. Aucune régression n'a été poussée : les passes en échec ne produisaient aucun résultat vert.
+**Cause racine** — Chaque chaîne se croyait seule. Le script de passe n'avait aucun verrou, alors que sa conception (un sous-réseau fixe) n'admet qu'une passe à la fois.
+**Résolution** — Les chaînes en double ont été arrêtées et remplacées par une seule chaîne sérialisée. Elle attend qu'aucun lanceur ne tourne et qu'aucun réseau de passe n'existe, puis rejoue les passes perdues.
+**Prévention** — Chaque passe source d'abord un garde de verrou :
+- Il crée de façon atomique un répertoire de verrou (`mkdir`), qui contient le PID du détenteur.
+- Si un détenteur vivant tient déjà le verrou, la passe refuse de démarrer (« passe déjà en cours », code 1).
+- Si le PID du détenteur n'existe plus, la passe reprend le verrou.
+- Un `trap` libère le verrou à la sortie.
+
+Les deux cas (refus et reprise d'un verrou orphelin) ont été testés. `flock` n'existe pas sous Git Bash, d'où le `mkdir` atomique.
+**Leçon généralisée** — Une ressource fixe et unique (sous-réseau, port, nom de conteneur) impose l'exclusion mutuelle. Un verrou dans le script la garantit ; une consigne « ne lance pas deux chaînes » ne suffit pas. Sinon, rendre la ressource unique par passe.
+**Évolution de standard** — À proposer : un script de passe qui réserve une ressource fixe prend un verrou en tête, ou dérive la ressource d'un identifiant de passe.
