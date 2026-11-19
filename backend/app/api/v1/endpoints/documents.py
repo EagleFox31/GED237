@@ -423,6 +423,19 @@ async def _can_move_to_trash(
     return await can_perform(user, "documents", "delete", ctx_from_resource(document))
 
 
+async def _can_trash_via_delete(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    DELETE /documents/{id} met à la corbeille (le définitif passe par /purge) :
+    règle de la corbeille (``_can_move_to_trash``), plus le propriétaire ``delete_own``
+    sur un document modifiable. ``update``/``update_own`` n'ouvrent pas la suppression.
+    """
+    if await _can_move_to_trash(user, document, db):
+        return True
+    return await _can_delete_document(user, document, db)
+
+
 async def _can_manage_lock(
     user: User, document: Document, db: Optional[AsyncSession] = None
 ) -> bool:
@@ -1442,9 +1455,9 @@ async def delete_document(
     Permanent deletion goes through the trash purge (``documents purge``).
     """
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    # Rights stay those of main's DELETE (delete / delete_own, #345): only the effect
-    # became softer. Owners with trash_own alone use POST /{id}/trash.
-    if not await _can_delete_document(current_user, document, db):
+    # Rights of main's DELETE (delete / delete_own, #345) plus those of POST /trash:
+    # the screen trashes through DELETE, so an owner with trash_own alone is not refused.
+    if not await _can_trash_via_delete(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
         )
@@ -1838,6 +1851,15 @@ async def restore_document(
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at is None:
         return {"message": "Document deja actif."}
+    # Décision PO : un retrait fait par un autre (un administrateur) ne se défait que par un
+    # administrateur (``delete``) ; le propriétaire ne restaure que ce qu'il a retiré lui-même.
+    if document.deleted_by not in (None, current_user.id) and not await can_perform(
+        current_user, "documents", "delete", ctx_from_resource(document)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Retiré par un administrateur. Demandez-lui de le restaurer.",
+        )
 
     document.deleted_at = None
     document.deleted_by = None
