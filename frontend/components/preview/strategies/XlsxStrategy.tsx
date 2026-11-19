@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { WorkBook } from 'xlsx';
 import type { PreviewRenderProps, PreviewStrategy } from '../types';
-import { PREVIEW_MAX_ROWS, rowCount, truncatedRowsNotice } from '../previewLimits';
+import { rowCount, truncatedRowsNotice } from '../previewLimits';
+import { listSheets, readSheet } from '../xlsxReader';
 
 const XLSX_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -12,7 +12,7 @@ type XlsxModule = typeof import('xlsx');
 
 interface LoadedWorkbook {
   XLSX: XlsxModule;
-  workbook: WorkBook;
+  data: ArrayBuffer;
   names: string[];
 }
 
@@ -30,12 +30,11 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     (async () => {
       try {
         const XLSX = await import('xlsx');
-        const arrayBuffer = await blob.arrayBuffer();
-        // sheetRows : seules les premières lignes de chaque onglet sont gardées en mémoire ;
-        // `!fullref` conserve la taille réelle pour le message de troncature.
-        const workbook = XLSX.read(arrayBuffer, { type: 'array', sheetRows: PREVIEW_MAX_ROWS });
+        const data = await blob.arrayBuffer();
+        // Liste des onglets seulement : leur contenu est lu un par un, à l'affichage.
+        const names = listSheets(XLSX, data);
         if (cancelled) return;
-        setLoaded({ XLSX, workbook, names: workbook.SheetNames.filter((n) => Boolean(workbook.Sheets[n])) });
+        setLoaded({ XLSX, data, names });
         setActiveIndex(0);
       } catch (err: unknown) {
         if (cancelled) return;
@@ -52,17 +51,26 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     };
   }, [blob]);
 
-  // Seul l'onglet affiché est converti en HTML, à la demande.
+  // Seul l'onglet affiché est lu puis converti en HTML, à la demande.
   const active = useMemo(() => {
     if (!loaded) return null;
-    const sheet = loaded.workbook.Sheets[loaded.names[activeIndex] ?? ''];
-    if (!sheet) return { html: '', notice: null };
-    const shown = rowCount(sheet['!ref']);
-    const total = rowCount((sheet['!fullref'] as string | undefined) ?? sheet['!ref']);
-    return {
-      html: loaded.XLSX.utils.sheet_to_html(sheet, { editable: false }),
-      notice: truncatedRowsNotice(shown, total),
-    };
+    try {
+      const sheet = readSheet(loaded.XLSX, loaded.data, loaded.names[activeIndex] ?? '');
+      if (!sheet) return { html: '', notice: null, error: null };
+      const shown = rowCount(sheet['!ref']);
+      const total = rowCount((sheet['!fullref'] as string | undefined) ?? sheet['!ref']);
+      return {
+        html: loaded.XLSX.utils.sheet_to_html(sheet, { editable: false }),
+        notice: truncatedRowsNotice(shown, total),
+        error: null,
+      };
+    } catch (err: unknown) {
+      return {
+        html: '',
+        notice: null,
+        error: (err as { message?: string })?.message || 'Onglet illisible.',
+      };
+    }
   }, [loaded, activeIndex]);
 
   if (loading) {
@@ -112,10 +120,14 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
           {active.notice}
         </p>
       )}
-      <div
-        className="xlsx-preview flex-1 overflow-auto p-4 text-left text-xs text-slate-800"
-        dangerouslySetInnerHTML={{ __html: active.html }}
-      />
+      {active.error ? (
+        <p className="p-4 text-sm font-bold text-rose-700">{active.error}</p>
+      ) : (
+        <div
+          className="xlsx-preview flex-1 overflow-auto p-4 text-left text-xs text-slate-800"
+          dangerouslySetInnerHTML={{ __html: active.html }}
+        />
+      )}
     </div>
   );
 };
