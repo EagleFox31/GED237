@@ -10,6 +10,8 @@ from sqlalchemy import func, desc, asc, or_, text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.core.search import fts
+from app.core.search.fts import fold_accents
 from app.core.search.interfaces import (
     ISearchEngine,
     SearchQuery,
@@ -34,7 +36,7 @@ class PostgresSearchEngine(ISearchEngine):
     Good for: up to ~1M documents, zero extra infrastructure
     """
 
-    FTS_CONFIG = "french"
+    FTS_CONFIG = fts.FTS_CONFIG
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -91,7 +93,11 @@ class PostgresSearchEngine(ISearchEngine):
             )
             .filter(Document.tenant_id == query.tenant_id)
             .filter(
-                or_(content_match, title_match, Document.title.ilike(f"%{query.text}%"))
+                or_(
+                    content_match,
+                    title_match,
+                    fold_accents(Document.title).ilike(fold_accents(f"%{query.text}%")),
+                )
             )
         )
 

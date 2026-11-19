@@ -924,3 +924,17 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
 **Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
 **Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
+
+### LESSON-2026-070 — Identifiant de révision Alembic choisi à la main : cycle dans le graphe
+
+- **Date :** 2026-11-18
+- **Catégorie :** database / process
+- **Statut :** resolved (garde-fou `backend/tests/test_alembic_revisions.py`)
+- **Liens :** `backend/alembic/versions/0f6f64260460_french_unaccent_search.py`, LESSON-2026-063
+
+**Contexte** — Migration `french_unaccent` (V1.1, lot 10-3), écrite sur le modèle d'une migration voisine.
+**Échec / near miss** — Son identifiant `c4d5e6f7a8b9`, choisi à la main sur le motif « suite hexadécimale », existait déjà (`add_returned_to_documents_status`). `alembic upgrade` a refusé le graphe (« Cycle is detected in revisions ») ; le calcul des têtes fait au `grep` n'avait rien vu. Détecté avant commit, lors de la vérification sur base vierge.
+**Cause racine** — Identifiant inventé au lieu d'être tiré au hasard, et aucun test local ne lit le graphe des migrations : seul `alembic upgrade` ou la CI le valident, et la CI est souvent indisponible.
+**Résolution** — Identifiant aléatoire (`secrets.token_hex(6)`), puis montée, rejeu, `alembic check`, descente et remontée sur PG 15 vierge.
+**Prévention** — `tests/test_alembic_revisions.py`, sans base : identifiants uniques, une seule tête, pas de cycle. Il a été vu rouge sur un doublon volontaire, puis vert.
+**Leçon généralisée** — Un identifiant global se tire au hasard (`alembic revision` ou `token_hex`), jamais sur un motif ; un graphe que seul l'outil de déploiement lit doit aussi être lu par un test local.

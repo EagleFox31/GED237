@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.sql import func
 
 from app.workers.celery_app import celery_app
+from app.core.search.fts import FTS_CONFIG
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.core.config import settings
@@ -42,7 +43,7 @@ async def update_document_ocr(
             document.ocr_content = text
 
             # Index text in Postgres TSVECTOR
-            document.ocr_content_vector = func.to_tsvector("french", text)
+            document.ocr_content_vector = func.to_tsvector(FTS_CONFIG, text)
 
             # Store OCR metadata in extra_data. A new dict, not an in-place change: the
             # JSONB column is not change-tracked, so mutating it would never be written.

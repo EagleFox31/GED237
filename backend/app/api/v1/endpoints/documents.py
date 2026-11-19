@@ -26,6 +26,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
+from app.core.search.fts import fold_accents
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
@@ -137,11 +138,11 @@ def _escape_like(value: str) -> str:
 
 
 def _apply_text_filter(query, text: str):
-    """Literal, case-insensitive match on title, tags, domain, activity or category name."""
-    pattern = f"%{_escape_like(text)}%"
+    """Literal match, ignoring case and accents, on title, tags, domain, activity or category name."""
+    pattern = fold_accents(f"%{_escape_like(text)}%")
 
     def _match(column):
-        return column.ilike(pattern, escape=_LIKE_ESCAPE)
+        return fold_accents(column).ilike(pattern, escape=_LIKE_ESCAPE)
 
     return (
         query.outerjoin(

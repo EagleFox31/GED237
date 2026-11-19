@@ -29,6 +29,7 @@ os.environ.setdefault("AUTH_REFRESH_RATE_LIMIT", "1000/minute")
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from typing import AsyncGenerator, AsyncIterator
@@ -36,6 +37,7 @@ from typing import AsyncGenerator, AsyncIterator
 from app.main import app
 from app.core.database import get_db, Base
 from app.core.dependencies import get_current_user
+from app.core.search.fts import SEARCH_SETUP_SQL
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.org_unit import OrgUnit
@@ -92,6 +94,11 @@ async def fake_redis(fake_redis_factory):
 async def test_engine():
     """Create an isolated engine for the current test context."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+    # The schema comes from create_all, not from Alembic: the text search
+    # configuration the app queries with must be created here (idempotent).
+    async with engine.begin() as conn:
+        for statement in SEARCH_SETUP_SQL:
+            await conn.execute(text(statement))
     yield engine
     await engine.dispose()
 
