@@ -11,6 +11,7 @@ un incident).
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -39,11 +40,16 @@ def _correlation_id() -> str | None:
     return get_request_id()
 
 
-def _problem_response(payload: dict[str, Any], status_code: int) -> JSONResponse:
+def _problem_response(
+    payload: dict[str, Any],
+    status_code: int,
+    headers: Mapping[str, str] | None = None,
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content=payload,
         media_type=PROBLEM_JSON_MEDIA_TYPE,
+        headers=dict(headers) if headers else None,
     )
 
 
@@ -177,7 +183,8 @@ async def http_exception_handler(
         correlation_id=cid,
         instance=str(request.url.path),
     )
-    return _problem_response(payload, exc.status_code)
+    # Keep the headers set on the exception: WWW-Authenticate on a 401, Allow on a 405.
+    return _problem_response(payload, exc.status_code, getattr(exc, "headers", None))
 
 
 # ─────────────────────────────────────────────────────────────────────
