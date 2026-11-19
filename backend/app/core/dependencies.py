@@ -21,7 +21,7 @@ async def get_current_user_id(
     token = credentials.credentials
     payload = decode_token(token)
 
-    if payload is None:
+    if payload is None or payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -54,7 +54,7 @@ async def get_current_tenant_id(
     token = credentials.credentials
     payload = decode_token(token)
 
-    if payload is None:
+    if payload is None or payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -101,9 +101,16 @@ async def get_current_user(
 
 
 async def get_current_user_ws(token: str) -> Optional[User]:
-    """Authenticate a WebSocket connection from a raw token string."""
+    """Authenticate a WebSocket connection from a raw token string.
+
+    Same rules as the HTTP routes: an access token, not revoked by a logout.
+    """
     payload = decode_token(token)
-    if payload is None:
+    if payload is None or payload.get("type") != "access":
+        return None
+
+    redis_client = await get_redis()
+    if await redis_client.get(f"blacklist:{token}"):
         return None
 
     user_id_str: str = payload.get("sub")
