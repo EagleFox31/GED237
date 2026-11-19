@@ -277,7 +277,7 @@ const DuplicatesHelp = () => (
     label="Aide sur les doublons refusés"
     tip="Fichiers refusés à l'import parce qu'un document identique existait déjà."
   >
-    Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refuse ».
+    Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refusé ».
   </HelpHint>
 );
 

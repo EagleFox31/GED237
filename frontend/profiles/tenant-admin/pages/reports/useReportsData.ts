@@ -9,7 +9,13 @@ import type {
 } from '../../../../services/resources/reports.api';
 import { buildReportsViewModel } from './reportsViewModel';
 
-export function useReportsData() {
+/**
+ * Portée des données : 'tenant' (admin) charge aussi les compteurs de toute l'institution ;
+ * 'unit' (Manager) ne charge que les API /reports/*, limitées au service par le serveur.
+ */
+export type ReportsScope = 'tenant' | 'unit';
+
+export function useReportsData(scope: ReportsScope = 'tenant') {
   const [tenantMetrics, setTenantMetrics] = useState<TenantMetrics | null>(null);
   const [documentStats, setDocumentStats] = useState<any | null>(null);
   const [workflowStats, setWorkflowStats] = useState<any | null>(null);
@@ -39,10 +45,11 @@ export function useReportsData() {
         workflowActivityResult,
         serviceActivityResult,
       ] = await Promise.allSettled([
-        api.getTenantAnalytics(),
-        api.getDocumentStats(),
-        api.getWorkflowStats(),
-        api.getClassificationReviews(),
+        // Compteurs à l'échelle de l'institution : jamais demandés en portée service.
+        scope === 'tenant' ? api.getTenantAnalytics() : Promise.resolve(null),
+        scope === 'tenant' ? api.getDocumentStats() : Promise.resolve(null),
+        scope === 'tenant' ? api.getWorkflowStats() : Promise.resolve(null),
+        scope === 'tenant' ? api.getClassificationReviews() : Promise.resolve([]),
         api.getReportsDocumentActivity(),
         api.getReportsWorkflowActivity(),
         api.getReportsServiceActivity(),
@@ -91,7 +98,7 @@ export function useReportsData() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void load();
