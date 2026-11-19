@@ -1,8 +1,9 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 
 /**
- * Page Object Model for GEDRulesPage (profiles/tenant-admin/pages/GEDRulesPage.tsx).
- * Covers: rule list, visual editor (trigger/conditions/actions), create modal, toggle active.
+ * Page Object Model for the « Traitement des documents » page, « Règles d'aiguillage » tab
+ * (profiles/tenant-admin/pages/gedrules/RulesTab.tsx).
+ * Covers: rule list, rule detail (code, targeting criteria, circuit), create modal, toggle active.
  */
 export class RulesPage {
   readonly page: Page;
@@ -19,53 +20,55 @@ export class RulesPage {
   readonly loadingText: Locator;
   readonly emptyText: Locator;
 
-  // Visual editor (right column)
-  readonly triggerBlock: Locator;
-  readonly conditionsBlock: Locator;
-  readonly actionsBlock: Locator;
+  // Rule detail (right column): nothing is selected until a card is clicked
+  readonly ruleCode: Locator;
+  readonly criteriaBlock: Locator;
+  readonly circuitBlock: Locator;
   readonly noSelectionText: Locator;
 
   // Create modal
   readonly createModal: Locator;
   readonly ruleNameInput: Locator;
-  readonly ruleCodeInput: Locator;
+  readonly ruleCodeHint: Locator;
   readonly ruleDescriptionInput: Locator;
-  readonly categorySelect: Locator;
+  readonly categoryButtons: Locator;
   readonly templateSelect: Locator;
   readonly submitRuleButton: Locator;
-  readonly closeModalButton: Locator;
 
   constructor(page: Page) {
     // Header
-    this.heading = page.getByRole('heading', { name: /paramétrage ged.*classement|routage automatique|automates.*règles/i });
-    this.subtitle = page.getByText(/configuration des modèles|classement automatique|circuits workflow/i);
-    this.rulesTabButton = page.getByRole('button', { name: /règles de routage/i });
+    this.heading = page.getByRole('heading', { name: /traitement des documents/i });
+    this.subtitle = page.getByText(/comment les documents circulent/i);
+    this.rulesTabButton = page.getByRole('button', { name: /règles d['’]aiguillage/i });
     // In the current UI, simulation is a tab, not a mode toggle button.
     this.simulationButton = page.getByRole('button', { name: /simulat/i });
     this.newRuleButton = page.getByRole('button', { name: /nouvelle règle/i });
 
     // Rule list
-    this.ruleCards = page
-      .locator('.lg\\:w-1\\/3 > div.cursor-pointer, .lg\\:w-1\\/3 > div[class*="rounded-"]')
-      .filter({ has: page.locator('h3') });
+    this.ruleCards = page.locator('.lg\\:w-1\\/3 > div.cursor-pointer').filter({ has: page.locator('h3') });
     this.loadingText = page.getByText('Chargement...');
-    this.emptyText = page.getByText(/aucune règle définie|aucune règle configurée/i);
+    this.emptyText = page.getByText(/aucune règle pour l['’]instant/i);
 
-    // Visual editor blocks
-    this.triggerBlock = page.locator('.bg-white,.bg-slate-50').filter({ hasText: /déclencheur|critères de ciblage/i });
-    this.conditionsBlock = page.locator('.bg-white,.bg-slate-50').filter({ hasText: /conditions|catégorie|unité organisationnelle/i });
-    this.actionsBlock = page.locator('.bg-blue-50,.border-blue-100').filter({ hasText: /action|workflow/i });
-    this.noSelectionText = page.getByText(/sélectionnez une règle pour voir le routage|sélectionnez une règle/i);
+    // Rule detail: each block is the parent of its own heading
+    this.ruleCode = page.getByText(/^Code:/);
+    this.criteriaBlock = page.getByRole('heading', { name: /critères de ciblage/i }).locator('..');
+    this.circuitBlock = page.getByRole('heading', { name: /déclenchement du workflow/i }).locator('..');
+    this.noSelectionText = page.getByRole('heading', { name: /qu['’]est-ce qu['’]une règle d['’]aiguillage/i });
 
     // Create modal
-    this.createModal = page.locator('.fixed.inset-0').filter({ hasText: 'Nouvelle Règle' });
-    this.ruleCodeInput = this.createModal.locator('input').nth(0);
-    this.ruleNameInput = this.createModal.locator('input').nth(1);
-    this.ruleDescriptionInput = this.createModal.locator('input').nth(2);
-    this.categorySelect = this.createModal.locator('select').nth(0);
-    this.templateSelect = this.createModal.locator('select').nth(2);
+    this.createModal = page
+      .locator('.fixed.inset-0')
+      .filter({ has: page.getByRole('heading', { name: /nouvelle règle/i }) });
+    this.ruleNameInput = this.createModal.getByPlaceholder(/factures direction financière/i);
+    // The technical code is derived from the name; it is only shown, not typed.
+    this.ruleCodeHint = this.createModal.getByText(/identifiant technique/i);
+    this.ruleDescriptionInput = this.createModal.getByPlaceholder(/à quoi sert cette règle/i);
+    this.categoryButtons = this.createModal
+      .locator('label', { hasText: /types de documents ciblés/i })
+      .locator('..')
+      .getByRole('button');
+    this.templateSelect = this.createModal.getByRole('combobox');
     this.submitRuleButton = this.createModal.getByRole('button', { name: /enregistrer la règle/i });
-    this.closeModalButton = this.createModal.locator('button:has(span:text("close"))');
 
     this.page = page;
   }
@@ -98,46 +101,47 @@ export class RulesPage {
     await expect(this.emptyText).toBeVisible();
   }
 
+  /** Counts the cards once the list has finished loading (a count during loading is always 0). */
   async getRuleCount() {
     await this.openRulesTab();
+    await this.expectLoaded();
     return this.ruleCards.count();
   }
 
   // --- Rule selection ---
 
   async selectRule(name: string) {
-    await this.page.locator(`h3:has-text("${name}")`).click();
+    await this.ruleCards.filter({ has: this.page.locator('h3', { hasText: name }) }).first().click();
   }
 
   async selectFirstRule() {
     await this.ruleCards.first().click();
   }
 
-  // --- Visual editor ---
+  // --- Rule detail ---
 
   async expectEditorVisible() {
-    await expect(this.triggerBlock).toBeVisible();
-    await expect(this.conditionsBlock).toBeVisible();
-    await expect(this.actionsBlock).toBeVisible();
+    await expect(this.ruleCode).toBeVisible();
+    await expect(this.criteriaBlock).toBeVisible();
+    await expect(this.circuitBlock).toBeVisible();
   }
 
-  async getTriggerType() {
-    return this.triggerBlock.locator('.font-bold.text-sm').innerText();
+  /** Name of the circuit the selected rule starts. */
+  async getAppliedCircuit() {
+    return this.circuitBlock.locator('p.text-lg').innerText();
   }
 
-  async getConditionCount() {
-    return this.conditionsBlock.locator('.flex.items-center.gap-3.p-3').count();
-  }
-
-  async getActionCount() {
-    return this.actionsBlock.locator('.flex.items-center.gap-3.p-3').count();
+  /** Targeting criteria shown for the selected rule (document type, organisational unit). */
+  async getCriteriaCount() {
+    return this.criteriaBlock.getByText(/^(type de document|unité organisationnelle)$/i).count();
   }
 
   // --- Toggle active ---
 
   async toggleFirstRuleActive() {
     await this.openRulesTab();
-    const toggle = this.ruleCards.first().locator('.rounded-full.flex.items-center');
+    // `div` : l'interrupteur ; le bouton de suppression de la carte porte aussi ces classes.
+    const toggle = this.ruleCards.first().locator('div.rounded-full.flex.items-center');
     await toggle.click();
   }
 
@@ -159,14 +163,12 @@ export class RulesPage {
     await expect(this.createModal).toBeVisible();
   }
 
+  /** Fills the required fields: name (the code follows), one document type, one circuit. */
   async fillRuleForm(name: string, keyword: string, tag: string) {
-    const safeCode = `R_${Date.now().toString().slice(-6)}`;
-    await this.ruleCodeInput.fill(safeCode);
     await this.ruleNameInput.fill(name);
     await this.ruleDescriptionInput.fill(`${keyword} ${tag}`.trim());
-
-    // Select first available category/template required by current UI.
-    await this.categorySelect.selectOption({ index: 1 });
+    await this.categoryButtons.first().click();
+    // Option 0 is the « -- Sélectionner un circuit -- » placeholder.
     await this.templateSelect.selectOption({ index: 1 });
   }
 

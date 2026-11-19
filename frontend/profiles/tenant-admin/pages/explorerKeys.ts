@@ -1,5 +1,5 @@
 // Réflexes clavier de l'explorateur (façon Explorateur Windows) : logique pure, sans DOM,
-// testée par `npm run test:unit` (e2e/specs/explorer-keys.spec.ts).
+// testée par `npm run test:unit` (e2e/unit/explorer-keys.spec.ts).
 
 export type ArrowKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown';
 

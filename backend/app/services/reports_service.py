@@ -11,7 +11,7 @@ from app.models.import_job import ImportJob
 from app.models.import_job_item import ImportJobItem
 from app.models.local_organize_event import LocalOrganizeEvent
 from app.models.org_unit import OrgUnit
-from app.models.org_unit import OrgUnitClosure
+from app.services.reports_scope import unit_subtree_ids
 from app.models.workflow import WorkflowStep
 from app.schemas.reports import (
     ReportsDocumentActivityAvailability,
@@ -537,9 +537,7 @@ class ReportsService:
 
         if org_unit_id:
             if recursive:
-                descendant_ids = select(OrgUnitClosure.descendant_id).where(
-                    OrgUnitClosure.ancestor_id == org_unit_id
-                )
+                descendant_ids = unit_subtree_ids(org_unit_id)
                 filters.append(
                     or_(
                         Document.org_unit_id == org_unit_id,
@@ -652,9 +650,7 @@ class ReportsService:
         """``column`` is the report's unit (or one of its sub-units when recursive)."""
         in_unit = column == org_unit_id
         if recursive:
-            descendant_ids = select(OrgUnitClosure.descendant_id).where(
-                OrgUnitClosure.ancestor_id == org_unit_id
-            )
+            descendant_ids = unit_subtree_ids(org_unit_id)
             in_unit = or_(in_unit, column.in_(descendant_ids))
         return in_unit
 
@@ -754,9 +750,7 @@ class ReportsService:
 
         if org_unit_id:
             if recursive:
-                descendant_ids = select(OrgUnitClosure.descendant_id).where(
-                    OrgUnitClosure.ancestor_id == org_unit_id
-                )
+                descendant_ids = unit_subtree_ids(org_unit_id)
                 filters.append(
                     or_(
                         Document.org_unit_id == org_unit_id,
@@ -987,9 +981,7 @@ class ReportsService:
         )
         if org_unit_id:
             if recursive:
-                descendant_ids = select(OrgUnitClosure.descendant_id).where(
-                    OrgUnitClosure.ancestor_id == org_unit_id
-                )
+                descendant_ids = unit_subtree_ids(org_unit_id)
                 stmt = stmt.where(
                     or_(
                         OrgUnit.id == org_unit_id,
@@ -1010,9 +1002,7 @@ class ReportsService:
     ) -> tuple[int, int]:
         org_filter = User.org_unit_id == org_unit_id
         if recursive:
-            descendant_ids = select(OrgUnitClosure.descendant_id).where(
-                OrgUnitClosure.ancestor_id == org_unit_id
-            )
+            descendant_ids = unit_subtree_ids(org_unit_id)
             org_filter = or_(
                 User.org_unit_id == org_unit_id,
                 User.org_unit_id.in_(descendant_ids),

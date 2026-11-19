@@ -7,6 +7,7 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import {
   clampToViewport,
   focusIndexAfterRemoval,
@@ -46,10 +47,10 @@ interface FlatUnitNode extends SpaceTreeNode {
 }
 
 const CLASSIFICATION_STATUS_LABELS: Record<string, string> = {
-  classified: 'Classe automatiquement',
+  classified: 'Classé automatiquement',
   needs_review: 'À vérifier',
   pending: 'En attente de classement',
-  rejected: 'Rejete',
+  rejected: 'Rejeté',
 };
 
 const CLASSIFICATION_STATUS_BADGES: Record<string, string> = {
@@ -152,7 +153,9 @@ const SpacesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recursive, setRecursive] = useState(false);
+  // Coché par défaut : un service de tête (Cabinet) n'a souvent aucun document
+  // en propre, la page s'ouvrirait sur « 0 document ».
+  const [recursive, setRecursive] = useState(true);
   // La recherche par texte est portée par l'URL (`?q=`) — la barre de
   // recherche globale (Header) écrit dedans.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -220,6 +223,17 @@ const SpacesPage: React.FC = () => {
   const menuReturnFocusRef = useRef<HTMLElement | null>(null);
   // Position de l'élément mis à la corbeille au clavier : son voisin reprend le focus après rechargement.
   const removedFocusIndexRef = useRef<number | null>(null);
+  // Mise à la corbeille par la touche Suppr, en attente de confirmation (une touche est vite pressée par erreur).
+  const [trashByKey, setTrashByKey] = useState<{ doc: Document; item: HTMLElement; index: number } | null>(null);
+  const [renaming, setRenaming] = useState<{ doc: Document; item: HTMLElement | null } | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+  // Nom actuel prérempli et sélectionné, comme l'Explorateur Windows.
+  useEffect(() => {
+    if (!renaming) return;
+    renameInputRef.current?.focus();
+    renameInputRef.current?.select();
+  }, [renaming]);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -437,7 +451,8 @@ const SpacesPage: React.FC = () => {
     // En mode recherche : on lève la contrainte de portée (le tenant entier
     // visible) — l'utilisateur veut voir tous les matches, pas seulement
     // ceux strictement rattachés au service courant.
-    if (isSearchMode) return filteredDocuments;
+    // Sous-services inclus : la case demande justement leurs documents.
+    if (isSearchMode || recursive) return filteredDocuments;
     if (!selectedUnitId) {
       return filteredDocuments;
     }
@@ -450,7 +465,7 @@ const SpacesPage: React.FC = () => {
       const targetOrgUnitId = doc.classification_target_org_unit_id || doc.org_unit_id;
       return targetOrgUnitId === selectedUnitId;
     });
-  }, [childUnits.length, filteredDocuments, isSearchMode, selectedUnitId]);
+  }, [childUnits.length, filteredDocuments, isSearchMode, recursive, selectedUnitId]);
 
   const hiddenDescendantDocumentsCount = Math.max(
     filteredDocuments.length - visibleDocuments.length,
@@ -501,7 +516,8 @@ const SpacesPage: React.FC = () => {
 
   // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
   const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || isEditableTarget(event.target)) return;
+    // Confirmation ouverte : Entrée, Échap et Suppr appartiennent à la fenêtre, pas à la liste.
+    if (trashByKey || renaming || event.defaultPrevented || isEditableTarget(event.target)) return;
     if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
       const target = event.target as HTMLElement;
       const region = itemsRegionRef.current;
@@ -534,16 +550,15 @@ const SpacesPage: React.FC = () => {
       const doc = id ? visibleDocuments.find((d) => d.id === id) : undefined;
       if (!doc) return;
       event.preventDefault();
+      const item = event.target as HTMLElement;
       if (isRenameKey(event)) {
-        handleRename(doc).catch(() => undefined);
+        handleRename(doc, item);
         return;
       }
-      if (!window.confirm(trashConfirmMessage(doc.title))) return;
       const items = Array.from(
         itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
       );
-      removedFocusIndexRef.current = items.indexOf(event.target as HTMLElement);
-      handleTrash(doc).catch(() => undefined);
+      setTrashByKey({ doc, item, index: items.indexOf(item) });
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -626,6 +641,20 @@ const SpacesPage: React.FC = () => {
     });
   };
 
+  const confirmTrashByKey = () => {
+    if (!trashByKey) return;
+    removedFocusIndexRef.current = trashByKey.index;
+    setTrashByKey(null);
+    handleTrash(trashByKey.doc).catch(() => undefined);
+  };
+
+  // Annuler (bouton ou Échap) rend le focus à l'élément de la liste.
+  const cancelTrashByKey = () => {
+    const item = trashByKey?.item;
+    setTrashByKey(null);
+    if (item?.isConnected) item.focus({ preventScroll: true });
+  };
+
   const handleTrash = async (doc: Document) => {
     setContextMenu(null);
     try {
@@ -637,19 +666,40 @@ const SpacesPage: React.FC = () => {
     }
   };
 
-  const handleRename = async (doc: Document) => {
+  // Renommer (F2 ou menu) : fenêtre avec le nom actuel sélectionné ; Entrée valide, Échap annule.
+  const handleRename = (doc: Document, item?: HTMLElement) => {
     setContextMenu(null);
-    const title = renamedTitle(
-      window.prompt(`Nouveau nom (${TITLE_MAX_LENGTH} caractères au plus) :`, doc.title),
-      doc.title
-    );
+    setRenameDraft(doc.title);
+    setRenaming({ doc, item: item ?? null });
+  };
+
+  // Le focus revient à l'élément renommé (retrouvé par son id quand on vient du menu).
+  const focusRenamedItem = (target: { doc: Document; item: HTMLElement | null }) => {
+    const item = target.item?.isConnected
+      ? target.item
+      : itemsRegionRef.current?.querySelector<HTMLElement>(`[data-document-id="${CSS.escape(target.doc.id)}"]`);
+    item?.focus({ preventScroll: true });
+  };
+
+  const cancelRename = () => {
+    const target = renaming;
+    setRenaming(null);
+    if (target) focusRenamedItem(target);
+  };
+
+  const confirmRename = async () => {
+    const target = renaming;
+    if (!target) return;
+    const title = renamedTitle(renameDraft, target.doc.title);
     if (!title) return;
+    setRenaming(null);
     try {
-      await api.renameDocument(doc.id, title);
+      await api.renameDocument(target.doc.id, title);
       loadDocuments();
     } catch {
       /* message choisi selon le code HTTP, affiché par le bus global */
     }
+    focusRenamedItem(target);
   };
 
   const handleCopyPath = async (path: string) => {
@@ -1413,6 +1463,42 @@ const SpacesPage: React.FC = () => {
           loadDocuments();
         }}
       />
+      <ConfirmationModal
+        open={trashByKey !== null}
+        title="Mettre à la corbeille ?"
+        message={trashByKey ? trashConfirmMessage(trashByKey.doc.title) : ''}
+        confirmLabel="Mettre à la corbeille"
+        icon="delete"
+        onCancel={cancelTrashByKey}
+        onConfirm={confirmTrashByKey}
+      />
+      <ConfirmationModal
+        open={renaming !== null}
+        title="Renommer"
+        message={`${TITLE_MAX_LENGTH} caractères au plus.`}
+        confirmLabel="Renommer"
+        icon="edit"
+        confirmDisabled={!renaming || renamedTitle(renameDraft, renaming.doc.title) === null}
+        onCancel={cancelRename}
+        onConfirm={() => void confirmRename()}
+      >
+        <label className="mt-4 block text-xs font-bold text-slate-600">
+          Nouveau nom
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameDraft}
+            maxLength={TITLE_MAX_LENGTH}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              void confirmRename();
+            }}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue"
+          />
+        </label>
+      </ConfirmationModal>
     </div>
   );
 };

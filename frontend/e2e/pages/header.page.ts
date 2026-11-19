@@ -34,7 +34,7 @@ export class HeaderPage {
 
   constructor(page: Page) {
     // Search
-    this.searchInput = page.getByPlaceholder(/rechercher avec le moteur avancé/i);
+    this.searchInput = page.getByPlaceholder(/rechercher un document \(titre ou contenu\)/i);
     this.searchSpinner = page.locator('span.animate-spin:has-text("sync")');
     this.searchResultsDropdown = page.locator('.absolute.top-full').filter({ hasText: /résultats|aucun document trouvé/i });
     this.searchResultItems = page.locator('.absolute.top-full .hover\\:bg-slate-50');
