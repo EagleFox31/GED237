@@ -30,6 +30,10 @@ from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
+from app.services.unit_admin_scope import (
+    assert_unit_admin_object_in_tree,
+    unit_admin_scope_ids,
+)
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
@@ -49,6 +53,8 @@ from app.schemas.document import (
     DocumentUpdate,
     NeedsReviewDocument,
     ResolveReviewPayload,
+    TrashEmptyRequest,
+    TrashEmptyResponse,
 )
 from app.services.reports_scope import (
     INSTITUTION_WIDE_ROLES,
@@ -62,6 +68,7 @@ from app.models.tenant import Tenant
 from app.services.ingest_watch import read_last_run, status_for_tenant
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
+from app.services import trash_service
 from app.services.storage.factory import get_storage_service
 from app.workers.tasks import process_document_ocr
 
@@ -401,6 +408,34 @@ async def _can_trash_document(
     return await can_perform(user, "documents", "trash_own", ctx)
 
 
+async def _can_move_to_trash(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    Mise à la corbeille : admins (``delete``) toujours ; propriétaire (``trash_own``)
+    seulement tant que le document est modifiable (OWNER_MUTABLE_STATUSES), jamais
+    pendant une validation — même règle que la suppression par le propriétaire.
+    """
+    if not await _can_trash_document(user, document, db):
+        return False
+    if document.status in OWNER_MUTABLE_STATUSES:
+        return True
+    return await can_perform(user, "documents", "delete", ctx_from_resource(document))
+
+
+async def _can_trash_via_delete(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    DELETE /documents/{id} met à la corbeille (le définitif passe par /purge) :
+    règle de la corbeille (``_can_move_to_trash``), plus le propriétaire ``delete_own``
+    sur un document modifiable. ``update``/``update_own`` n'ouvrent pas la suppression.
+    """
+    if await _can_move_to_trash(user, document, db):
+        return True
+    return await _can_delete_document(user, document, db)
+
+
 async def _can_manage_lock(
     user: User, document: Document, db: Optional[AsyncSession] = None
 ) -> bool:
@@ -616,13 +651,29 @@ def _parse_next_version(versions: List[DocumentVersion]) -> str:
 
 
 async def _get_document_or_404(
-    db: AsyncSession, tenant_id: UUID, document_id: UUID
+    db: AsyncSession, tenant_id: UUID, document_id: UUID, *, lock: bool = False
 ) -> Document:
-    result = await db.execute(
+    """``lock``: hold the row until commit, so a concurrent purge is seen
+    (gone: 404) instead of failing later on a deleted row.
+
+    The lock is a query of its own on the id alone: locking the full read with
+    ``populate_existing`` re-read its relations too, and when the owner is the
+    caller it reset ``current_user`` and left its role unloaded (500
+    MissingGreenlet on restore by the owner, #152)."""
+    if lock:
+        locked = await db.scalar(
+            select(Document.id)
+            .where(Document.id == document_id, Document.tenant_id == tenant_id)
+            .with_for_update()
+        )
+        if locked is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+    query = (
         select(Document)
         .options(*_document_load_options())
         .where(Document.id == document_id, Document.tenant_id == tenant_id)
     )
+    result = await db.execute(query)
     document = result.scalar_one_or_none()
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -890,22 +941,30 @@ async def list_documents(
 
 @router.get("/trash", response_model=List[DocumentRead])
 async def list_trashed_documents(
+    response: Response,
     skip: int = 0,
     limit: int = 100,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution whose trash is listed.",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    target_tenant = await trash_service.resolve_trash_tenant(current_user, tenant_id)
     query = select(Document).where(
-        Document.tenant_id == current_user.tenant_id, Document.deleted_at.is_not(None)
+        Document.tenant_id == target_tenant, Document.deleted_at.is_not(None)
     )
     query = query.where(*visible_document_scope(current_user))
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    response.headers[TOTAL_COUNT_HEADER] = str(total or 0)
     result = await db.execute(
         query.options(
             *_document_load_options(),
         )
-        .order_by(Document.deleted_at.desc())
-        .offset(skip)
-        .limit(limit)
+        .order_by(Document.deleted_at.desc(), Document.id.asc())
+        .offset(max(skip, 0))
+        .limit(min(max(limit, 1), WORKSPACE_PAGE_MAX))
     )
     return [_serialize_document(document) for document in result.scalars().all()]
 
@@ -933,8 +992,11 @@ async def list_needs_review(
 ):
     await authorize_or_403(current_user, "documents", "review")
     service = ClassificationReviewService(db)
+    # Guard in advance: the review right is tenant_admin only today; if it is
+    # ever granted to unit_admin, the queue stays inside its unit tree.
     documents = await service.list_legacy_needs_review_documents(
-        tenant_id=current_user.tenant_id
+        tenant_id=current_user.tenant_id,
+        org_unit_ids=await unit_admin_scope_ids(db, current_user),
     )
     return documents[skip : skip + limit]
 
@@ -977,6 +1039,7 @@ async def resolve_manual_review(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     await authorize_or_403(
         current_user, "workflows", "resolve_review", ctx_from_resource(document)
     )
@@ -1187,6 +1250,11 @@ async def get_org_unit_tree(
         .order_by(OrgUnit.level, OrgUnit.name)
     )
 
+    # unit_admin: its own unit and the units below it; its unit becomes the root.
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if unit_ids is not None:
+        query = query.where(OrgUnit.id.in_(unit_ids))
+
     result = await db.execute(query)
     units = result.scalars().all()
 
@@ -1202,6 +1270,11 @@ async def get_org_unit_tree(
         }
         for u in units
     }
+
+    if unit_ids is not None and current_user.org_unit_id:
+        own = nodes.get(str(current_user.org_unit_id))
+        if own:
+            own["parent_id"] = None
 
     tree = []
     for unit_id, node in nodes.items():
@@ -1377,24 +1450,31 @@ async def delete_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Move the document to the trash. Nothing is deleted for good here.
+
+    Permanent deletion goes through the trash purge (``documents purge``).
+    """
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_delete_document(current_user, document, db):
+    # Rights of main's DELETE (delete / delete_own, #345) plus those of POST /trash:
+    # the screen trashes through DELETE, so an owner with trash_own alone is not refused.
+    if not await _can_trash_via_delete(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
         )
     await _ensure_not_locked_for_write(document, current_user)
+    if document.deleted_at is not None:
+        return None
 
-    versions_result = await db.execute(
-        select(DocumentVersion).where(DocumentVersion.document_id == document.id)
+    document.deleted_at = datetime.now(timezone.utc)
+    document.deleted_by = current_user.id
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=document.id,
+            action="document_trashed",
+            details={"via": "delete"},
+        )
     )
-    versions = versions_result.scalars().all()
-    for version in versions:
-        if version.file_path:
-            storage_service.delete_file(version.file_path)
-    if document.file_path:
-        storage_service.delete_file(document.file_path)
-
-    await db.delete(document)
     await db.commit()
     return None
 
@@ -1686,6 +1766,7 @@ async def start_workflow_a_posteriori(
     """
     await authorize_or_403(current_user, "documents", "update")
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     await _ensure_not_locked_for_write(document, current_user)
 
     if document.processing_mode != "archive":
@@ -1740,7 +1821,7 @@ async def trash_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_trash_document(current_user, document, db):
+    if not await _can_move_to_trash(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     await _ensure_not_locked_for_write(document, current_user)
     if document.deleted_at is not None:
@@ -1763,11 +1844,22 @@ async def restore_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_or_404(
+        db, current_user.tenant_id, document_id, lock=True
+    )
     if not await _can_trash_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at is None:
         return {"message": "Document deja actif."}
+    # Décision PO : un retrait fait par un autre (un administrateur) ne se défait que par un
+    # administrateur (``delete``) ; le propriétaire ne restaure que ce qu'il a retiré lui-même.
+    if document.deleted_by not in (None, current_user.id) and not await can_perform(
+        current_user, "documents", "delete", ctx_from_resource(document)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Retiré par un administrateur. Demandez-lui de le restaurer.",
+        )
 
     document.deleted_at = None
     document.deleted_by = None
@@ -1782,31 +1874,101 @@ async def restore_document(
 
 @router.delete("/{document_id}/purge", status_code=status.HTTP_200_OK)
 async def purge_document(
+    request: Request,
     document_id: UUID,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution of the document.",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "purge")
 
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    versions_result = await db.execute(
-        select(DocumentVersion).where(DocumentVersion.document_id == document.id)
+    target_tenant = await trash_service.resolve_trash_tenant(current_user, tenant_id)
+    document = await _get_document_or_404(db, target_tenant, document_id, lock=True)
+    if document.deleted_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "document_not_in_trash",
+                "message": "Placez d'abord le document dans la corbeille.",
+            },
+        )
+    if trash_service.is_protected(document):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "document_protected",
+                "message": "Un document signé ou archivé ne peut pas être supprimé "
+                "définitivement.",
+            },
+        )
+    await trash_service.purge_many(
+        db,
+        storage_service,
+        [document],
+        actor_id=current_user.id,
+        reason=trash_service.REASON_MANUAL,
+        request=request,
     )
-    versions = versions_result.scalars().all()
-    for version in versions:
-        if version.file_path:
-            storage_service.delete_file(version.file_path)
-    if document.file_path:
-        storage_service.delete_file(document.file_path)
+    return {"message": "Document definitivement supprime."}
 
-    db.add(
-        _audit_document_action(
-            user=current_user, document_id=document.id, action="document_purged"
+
+@router.post("/trash/empty", response_model=TrashEmptyResponse)
+async def empty_trash(
+    request: Request,
+    payload: Optional[TrashEmptyRequest] = None,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution whose trash is emptied.",
+    ),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Purge trashed documents of one institution, oldest first.
+
+    The caller's own institution, or the one named by ``tenant_id`` for a
+    platform administrator (the only role allowed to purge, V1.1).
+
+    No filter: the whole trash, ``TRASH_PURGE_BATCH`` documents per call
+    (``remaining`` tells whether to call again). Identifiers of another
+    institution, or of documents that are not in the trash, are ignored; a
+    signed or archived document is never purged nor counted.
+    """
+    await authorize_or_403(current_user, "documents", "purge")
+
+    payload = payload or TrashEmptyRequest()
+    deleted_before = None
+    if payload.older_than_days is not None:
+        deleted_before = datetime.now(timezone.utc) - timedelta(
+            days=payload.older_than_days
+        )
+    matching = trash_service.trashed_query(
+        await trash_service.resolve_trash_tenant(current_user, tenant_id),
+        document_ids=payload.document_ids,
+        deleted_before=deleted_before,
+    )
+    result = await db.execute(
+        matching.limit(settings.TRASH_PURGE_BATCH).with_for_update(
+            skip_locked=True, of=Document
         )
     )
-    await db.delete(document)
-    await db.commit()
-    return {"message": "Document definitivement supprime."}
+    details = {}
+    if payload.older_than_days is not None:
+        details["older_than_days"] = payload.older_than_days
+    purged = await trash_service.purge_many(
+        db,
+        storage_service,
+        result.scalars().all(),
+        actor_id=current_user.id,
+        reason=trash_service.REASON_BULK,
+        details=details,
+        request=request,
+    )
+    # Same filters as the purge: what one more call would still delete.
+    remaining = await trash_service.count_matching(db, matching)
+    return TrashEmptyResponse(purged=purged, remaining=remaining)
 
 
 @router.post("/{document_id}/versions", status_code=status.HTTP_201_CREATED)

@@ -12,6 +12,11 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
+from app.services.unit_admin_scope import (
+    assert_unit_admin_in_tree,
+    assert_unit_admin_object_in_tree,
+    unit_admin_scope_ids,
+)
 from app.models.document import Document
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.role import Role
@@ -157,11 +162,14 @@ def _validate_step_order(
     return sorted_steps
 
 
-async def _authorize_workflow_read(user: User, document: Document) -> None:
+async def _authorize_workflow_read(
+    user: User, document: Document, db: AsyncSession
+) -> None:
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
+        await assert_unit_admin_in_tree(db, document.org_unit_id, user)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -179,6 +187,7 @@ async def create_workflow_steps(
 ):
     """Define a validation workflow for a document."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     # Propriétaire (update_own) ou admin (manage) peut soumettre
     is_owner = document.owner_id == current_user.id
     action = "update_own" if is_owner else "manage"
@@ -246,7 +255,7 @@ async def get_workflow_steps(
 ):
     """Get all workflow steps for a document in the current tenant."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
     result = await db.execute(
         select(WorkflowStep)
         .where(WorkflowStep.document_id == document_id)
@@ -371,7 +380,7 @@ async def get_document_action_history(
     """Récupérer l'historique complet des actions métier posées sur un document."""
     # Vérifier que le document appartient au tenant
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
 
     # Récupérer toutes les actions via les steps du document
     result = await db.execute(
@@ -406,10 +415,11 @@ async def get_pending_assignments(
     Seulement pour les administrateurs du tenant.
     """
     await authorize_or_403(current_user, "workflows", "manage")
+    unit_ids = await unit_admin_scope_ids(db, current_user)
 
     from app.models.routing_audit import DocumentRoutingDecision
 
-    result = await db.execute(
+    query = (
         select(WorkflowStep, Document, OwnerUser, DocumentRoutingDecision)
         .join(Document, Document.id == WorkflowStep.document_id)
         .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
@@ -423,6 +433,9 @@ async def get_pending_assignments(
             Document.tenant_id == current_user.tenant_id,
         )
     )
+    if unit_ids is not None:
+        query = query.where(Document.org_unit_id.in_(unit_ids))
+    result = await db.execute(query)
     rows = result.all()
 
     enriched: List[WorkflowStepWithDocument] = []
@@ -491,6 +504,7 @@ async def assign_step_admin(
     if document is None:
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
 
     # Validate assignee exists
     user_result = await db.execute(
