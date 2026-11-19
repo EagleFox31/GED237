@@ -90,3 +90,13 @@
 - Un spec qui se déconnecte ou verrouille un compte déclare `test.use({ freshLogin: true })` (sinon la session en cache meurt pour le worker).
 - Aucun correctif pendant la fenêtre sans `REC-nn` (plan § 3) ; jamais de `--no-verify` sur `main`.
 - Écrits dans `gestion-projet/recette/` : fichiers datés, jamais de mot de passe ni de clé mkcert.
+
+## 6. Comportements de `main` à annoncer aux testeurs (ne pas les noter en KO)
+
+Ces cinq comportements viennent du tri de l'audit du 19/11 (`innovateur/tri-audit-quotidien-fonctionnaire-19-11.md`). Ils sont connus et traités en V1.1.
+
+- **« Tâches & Suivi » valide en un seul clic, sans confirmation.** Préparer un document de rechange en attente (SC-VAL-03), et toujours cliquer d'abord sur « Voir le document ».
+- **Le dépôt se fait un fichier à la fois.** La fenêtre se ferme après chaque envoi. À 1366×768 avec un zoom de 125 %, le bouton « Envoyer » sort de l'écran : tester à 100 %.
+- **Document rejeté.** Le motif se lit dans l'onglet « Circuit de Validation » de la fiche, et aucun bouton ne permet de le renvoyer. C'est conforme à SC-VAL-04.
+- **« Mes Documents » s'arrête à 100 lignes.** La recherche du bandeau ne filtre que la page affichée. Un document absent de cette page n'est pas perdu : le chercher avec « Recherche ».
+- **Pas de « Renvoyer le code ».** Si le code a expiré, recommencer la connexion.
