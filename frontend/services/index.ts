@@ -57,6 +57,7 @@ export { reportsApi }          from './resources/reports.api';
 export { searchApi }           from './resources/search.api';
 export { healthApi }           from './resources/health.api';
 export { usageApi }            from './resources/usage.api';
+export { duplicatesApi }       from './resources/duplicates.api';
 
 // Re-exports http/ pour les rares cas où un hook/composant a besoin du
 // transport directement (ex: categories.api.ts, stores d'auth).
@@ -79,6 +80,10 @@ export const api = {
     getDocumentContentBlob: documentsApi.getDocumentContentBlob,
     updateDocument: documentsApi.updateDocument,
     deleteDocument: documentsApi.deleteDocument,
+    getTrashPage: documentsApi.getTrashPage,
+    restoreDocument: documentsApi.restoreDocument,
+    purgeDocument: documentsApi.purgeDocument,
+    emptyTrash: documentsApi.emptyTrash,
     getDocumentVersions: documentsApi.getDocumentVersions,
     getDocumentStats: documentsApi.getDocumentStats,
     getWorkspaceDocuments: documentsApi.getWorkspaceDocuments,
@@ -182,6 +187,7 @@ export const api = {
     addAuthzPolicy: authzApi.addAuthzPolicy,
     deleteAuthzPolicy: authzApi.deleteAuthzPolicy,
     getAuthzRoles: authzApi.getAuthzRoles,
+    getMyPermissions: authzApi.getMyPermissions,
     getAuthzMetrics: authzApi.getAuthzMetrics,
     getAuthzTopDenies: authzApi.getAuthzTopDenies,
     resetAuthzMetrics: authzApi.resetAuthzMetrics,

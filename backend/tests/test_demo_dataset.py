@@ -130,3 +130,15 @@ def test_prediction_follows_rule_priority_and_source_unit(manifest):
         ]
         == "needs_review"
     )
+
+
+def test_every_demo_rule_domain_and_activity_has_a_description(manifest):
+    """The rules screen shows « Sans description. » otherwise (demo rehearsal, Lot 14)."""
+    items = list(manifest["rules"])
+    for domain in manifest["classification"]["domains"]:
+        items.append(domain)
+        items.extend(domain["activities"])
+    missing = [i["code"] for i in items if not (i.get("description") or "").strip()]
+    assert not missing, f"description missing: {missing}"
+    # Same bound as the API (ClassificationRuleBase.description, models: String(500)).
+    assert all(len(i["description"]) <= 500 for i in items)
