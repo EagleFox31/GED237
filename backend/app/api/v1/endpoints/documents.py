@@ -2154,14 +2154,11 @@ async def upload_new_version(
             detail="User must be attached to an org unit for this operation",
         )
     directory = f"{current_user.tenant_id}/{org_unit_id}"
-    # Un fichier par version : sous le meme nom, la version precedente serait ecrasee.
-    original_name = file.filename
-    stem, ext = os.path.splitext(original_name or "document")
-    file.filename = f"{stem}_{uuid4().hex[:8]}{ext}"
+    # One file per version: the storage key is unique (unique_storage_name), and
+    # the client's name is kept intact for error messages (413 FILE_TOO_LARGE).
     file_path, checksum = await storage_service.save_file_with_checksum(
         file, directory=directory
     )
-    file.filename = original_name
 
     versions_result = await db.execute(
         select(DocumentVersion).where(DocumentVersion.document_id == document.id)
