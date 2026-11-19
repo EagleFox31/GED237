@@ -88,6 +88,24 @@ jobs:
             | xargs pip install --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
 
+      - name: PostgreSQL client of the service's major (restore test)
+        # The runner's pg_dump is newer than the postgres:15 service, and the
+        # backup's version guard refuses that pair. Same image as the service,
+        # no new apt source. /tmp is shared: pytest writes the dumps there.
+        run: |
+          bin="$RUNNER_TEMP/pg15/bin"
+          mkdir -p "$bin"
+          # One wrapper, named after the tool it runs in the container.
+          cat > "$bin/pg_dump" <<'EOF'
+          #!/bin/sh
+          exec docker run --rm --network host -e PGPASSWORD -u "$(id -u):$(id -g)" \
+            -v /tmp:/tmp postgres:15-alpine "$(basename "$0")" "$@"
+          EOF
+          chmod +x "$bin/pg_dump"
+          cp "$bin/pg_dump" "$bin/pg_restore"
+          "$bin/pg_dump" --version
+          echo "$bin" >> "$GITHUB_PATH"
+
       - name: Verify Alembic migrations
         run: |
           cd backend

@@ -457,6 +457,8 @@ def _cfg(**overrides):
         "INGEST_WATCH_INTERVAL_SECONDS": 60,
         "TRASH_RETENTION_DAYS": 0,
         "TRASH_PURGE_INTERVAL_SECONDS": 3600,
+        "SCHEDULED_BACKUP_ENABLED": False,
+        "SCHEDULED_BACKUP_HOUR": 2,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -492,6 +494,16 @@ def test_beat_registry_merges_retention_with_the_watch():
             "schedule": 3600.0,
         },
     }
+
+
+def test_beat_registry_adds_the_nightly_backup_only_when_enabled():
+    schedule = build_beat_schedule(_cfg(SCHEDULED_BACKUP_ENABLED=True))
+
+    assert list(schedule) == ["scheduled-backup"]
+    assert schedule["scheduled-backup"]["task"] == (
+        "app.workers.tasks.run_scheduled_backup"
+    )
+    assert schedule["scheduled-backup"]["schedule"].hour == {2}
 
 
 # --- documents purge: platform administrator only (PO decision, V1.1) -------

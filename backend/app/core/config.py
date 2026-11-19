@@ -99,6 +99,19 @@ class Settings(BaseSettings):
     TRASH_PURGE_BATCH: int = Field(default=200, ge=1, le=1000)
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
+    # Scheduled backup (post-rc1 lot 13): run by the worker's beat, off by default.
+    # Same layout as ops/backup.sh, so ops/restore.sh restores it. Local storage only.
+    SCHEDULED_BACKUP_ENABLED: bool = False
+    SCHEDULED_BACKUP_HOUR: int = 2  # local time (Africa/Douala)
+    SCHEDULED_BACKUP_DIR: str = "/var/backups/ged237"
+    SCHEDULED_BACKUP_KEEP_DAILY: int = 7
+    SCHEDULED_BACKUP_KEEP_WEEKLY: int = 4
+    # Alert when the last successful backup is older than this.
+    SCHEDULED_BACKUP_MAX_AGE_HOURS: int = 24
+    # Must have the database server's major version (checked before each run):
+    # e.g. /usr/lib/postgresql/15/bin/pg_dump.
+    SCHEDULED_BACKUP_PG_DUMP: str = "pg_dump"
+
     # Celery
     CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
     CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")

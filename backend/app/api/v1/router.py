@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     audit,
     auth,
     authz,
+    backups,
     categories,
     classification,
     classification_reviews,
@@ -57,3 +58,4 @@ api_router.include_router(
 api_router.include_router(authz.router, prefix="/authz", tags=["Authorization"])
 api_router.include_router(audit.router, prefix="/audit", tags=["Audit"])
 api_router.include_router(usage.router, prefix="/usage", tags=["Usage"])
+api_router.include_router(backups.router, prefix="/backups", tags=["Backups"])

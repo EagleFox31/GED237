@@ -49,6 +49,14 @@ def build_beat_schedule(cfg=settings) -> dict:
             "task": "app.workers.tasks.purge_expired_trash",
             "schedule": float(cfg.TRASH_PURGE_INTERVAL_SECONDS),
         }
+    # Scheduled backup (post-rc1 lot 13): off by default, once a day at the set hour.
+    if cfg.SCHEDULED_BACKUP_ENABLED:
+        from celery.schedules import crontab
+
+        schedule["scheduled-backup"] = {
+            "task": "app.workers.tasks.run_scheduled_backup",
+            "schedule": crontab(hour=cfg.SCHEDULED_BACKUP_HOUR, minute=0),
+        }
     return schedule
 
 
