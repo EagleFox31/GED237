@@ -15,7 +15,7 @@ export interface UserProfile {
   tenantId?: string;
   orgUnitId?: string;
   mustChangePassword?: boolean;
-  /** Server-side account id (`id` above is the role profile, shared by every account of that role). */
+  /** UUID du compte (`id` ci-dessus est la clé de profil). Absent d'un profil stocké avant son ajout. */
   userId?: string;
 }
 
@@ -93,7 +93,7 @@ const normalizeBackendUser = (user: BackendUser): UserProfile => {
     tenantId: user.tenant_id,
     orgUnitId: user.org_unit_id || undefined,
     mustChangePassword: user.must_change_password || false,
-    userId: user.id || undefined,
+    userId: user.id,
   };
 };
 

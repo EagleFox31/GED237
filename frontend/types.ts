@@ -21,6 +21,8 @@ export interface Document {
   processing_mode?: 'archive' | 'process';
   current_version_number: string | null;
   current_version_id: string | null;
+  /** Corbeille : qui a retiré le document. */
+  deleted_by?: string | null;
   created_at: string;
   updated_at: string;
   owner_name?: string | null;
