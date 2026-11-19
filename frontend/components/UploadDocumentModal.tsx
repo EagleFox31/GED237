@@ -19,9 +19,10 @@ function formatNoticeFor(f: File): string | null {
 interface UploadDocumentModalProps {
   onClose: () => void;
   onSuccess: (doc: Document) => void;
+  onUploadAnother?: (doc: Document) => void;
 }
 
-const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess }) => {
+const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess, onUploadAnother }) => {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [titleEditedByHand, setTitleEditedByHand] = useState(false);
@@ -32,6 +33,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [seriesNotice, setSeriesNotice] = useState<string | null>(null);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,9 +65,9 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     if (dropped) handleFile(dropped);
   }, [title, titleEditedByHand]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitUpload = async (keepOpen: boolean) => {
     setError(null);
+    setSeriesNotice(null);
 
     // Validation
     if (!file) { setError('Veuillez sélectionner un fichier.'); return; }
@@ -89,12 +91,26 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     setIsLoading(true);
     try {
       const doc = await api.uploadDocument(formData) as Document;
-      onSuccess(doc);
+      if (keepOpen) {
+        onUploadAnother?.(doc);
+        setFile(null);
+        setTitle('');
+        setDescription('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setSeriesNotice(`« ${doc.title || trimmedTitle} » envoyé. Prêt pour le suivant.`);
+      } else {
+        onSuccess(doc);
+      }
     } catch (err: any) {
       setError(uploadErrorMessage(err?.status, err?.userMessage ?? err?.message));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitUpload(false);
   };
 
   const handleClose = () => {
@@ -275,6 +291,13 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             />
           </div>
 
+          {seriesNotice && (
+            <div role="status" className="flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 text-emerald-700">
+              <span className="material-symbols-outlined text-lg mt-0.5 shrink-0">check_circle</span>
+              <p className="text-sm font-medium">{seriesNotice}</p>
+            </div>
+          )}
+
           {/* Message d'erreur */}
           {error && (
             <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 text-red-600">
@@ -284,14 +307,22 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-wrap gap-3 pt-2">
             <button
               type="button"
               onClick={handleClose}
               disabled={isLoading}
-              className="flex-1 py-3 rounded-2xl text-sm font-black uppercase tracking-wider text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-40"
+              className="py-3 px-4 rounded-2xl text-sm font-black uppercase tracking-wider text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-40"
             >
               Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => { void submitUpload(true); }}
+              disabled={isLoading || !file}
+              className="flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Envoyer et déposer un autre
             </button>
             <button
               type="submit"
