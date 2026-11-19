@@ -9,12 +9,14 @@ Une page, présentée par O. Seuls le SHA de `main` et le résultat de la lectur
 
 La règle : 32 points du cahier des charges, il faut **30,5** (95 %). Avant la lecture C6 : **30/32**.
 
+- **Item 8, 100 000 fichiers en moins de 20 min** : essai du 19/11 à 16:01, **23 min 07, non tenu** (72 fichiers par seconde ; ce matin, le même réglage faisait 94 fichiers par seconde). Aucune perte, et la recherche tient (pire temps : 182 ms). Le goulot est l'envoi des fichiers au serveur, pas leur traitement. #497 n'est donc pas fusionnée avant la coupe, et l'item 8 ne compte pas. Nouvel essai en V1.1 ; rapport complet sur #473.
+
 | Variante | Quand | Score | Marge |
 |---|---|---|---|
-| **A** | C6 tenue, mais l'essai de 100 000 documents a échoué **ou** #497 n'est pas fusionnée | **30,5/32** (95,3 %) | aucune |
-| **B** | C6 tenue, l'essai tient sous 20 min **et** #497 est fusionnée | **31,5/32** (98,4 %) | un demi-point |
+| **A** (seule possible) | C6 tenue | **30,5/32** (95,3 %) | aucune |
+| ~~B~~ | écartée : elle supposait l'item 8 tenu | ~~31,5/32~~ | — |
 
-Variante retenue : ☐ A ☐ B. Si C6 n'est pas tenue, le score reste à 30/32 : **pas de coupe ce soir**.
+Si C6 n'est pas tenue, le score reste à 30/32 : **pas de coupe ce soir**.
 
 ## 2. Les anomalies, sans arrondi
 
@@ -37,7 +39,7 @@ Variante retenue : ☐ A ☐ B. Si C6 n'est pas tenue, le score reste à 30/32 :
   - le motif du rejet ne se lit que dans un onglet de la fiche ;
   - « Tâches & Suivi » valide en un clic, sans confirmation.
   Ces gênes sont annoncées aux testeurs et corrigées en V1.1 (#502 pour le rejet). Si l'item 22 tombe à « partiel », la variante A passe sous le seuil.
-- En variante B, la perte d'un de ces deux items laisse le score à 31/32, toujours au-dessus du seuil.
+- Sans l'item 8, il n'y a aucune marge : la perte d'un seul de ces deux items ramène le score à 30/32, sous le seuil.
 
 ## 4. Ce qui entre après la coupe (DEC-2026-013)
 
@@ -52,7 +54,7 @@ Variante retenue : ☐ A ☐ B. Si C6 n'est pas tenue, le score reste à 30/32 :
 ## 5. Les deux questions, à poser l'une après l'autre
 
 **Question 1 : la coupe.**
-« Je confirme que `release/v1.0.0` est créée sur `main` au SHA `__________`, avec un score de ☐ 30,5/32 ☐ 31,5/32. »
+« Je confirme que `release/v1.0.0` est créée sur `main` au SHA `__________`, avec un score de 30,5/32. »
 ☐ Oui ☐ Non
 
 **Question 2 : la protection de la branche de version**, à poser seulement si la réponse à la question 1 est oui.

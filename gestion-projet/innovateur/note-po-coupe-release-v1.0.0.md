@@ -12,7 +12,7 @@ Préparée par l'innovateur le 19/11 à partir de `couverture-95-19-11.md`, de D
   - Résultat : **30,5/32, soit 95,3 %**, sans aucune marge. Q refait le contrôle à 18:00.
 - **Trous de plus de 15 min sans relevé, cités tels quels** : 17/11 de 19:11Z à 20:08Z (56 min) ; 18/11 de 05:26Z à 07:18Z (111 min) ; 18/11 de 19:01Z à 20:02Z (60 min) ; 19/11 de 03:29Z à 06:45Z (196 min, soit 3 h 16). Un trou n'est ni un relevé vert ni un échec : on ne sait pas si la pile répondait.
 - **Relevés en échec, cités tels quels** : 19/11 à 06:45Z et 06:50Z (panne Docker) ; 19/11 de 12:01Z à 12:41Z, 9 relevés (pile de démo arrêtée sur commande, relancée avec l'accord du PO), reprise verte à 12:46Z. La ligne 3.7 (« 10/10 relevés matin/soir, 17 au 21 ») court jusqu'au 21 : l'item 29 ne sera donc jamais `fait` dans la 1.0.
-- **Deux cas pour le score** : **30,5/32 avec C6 seule** (seuil atteint) ; **31,5/32 avec C6 et l'item 8** (marge d'un demi-point sur le seuil). L'item 8 n'est pas nécessaire à la coupe : il ne la conditionne pas.
+- **Deux cas pour le score** : **30,5/32 avec C6 seule** (seuil atteint) ; **31,5/32 avec C6 et l'item 8** (marge d'un demi-point sur le seuil). L'item 8 n'est pas nécessaire à la coupe : il ne la conditionne pas. **Mise à jour du 19/11, 16:30** : l'essai de 16:01 n'a pas tenu (23 min 07) ; seul le cas à 30,5/32 reste possible (§ 3).
 
 ## 2. Ce qui est prouvé
 
@@ -32,6 +32,7 @@ Préparée par l'innovateur le 19/11 à partir de `couverture-95-19-11.md`, de D
   - Réglage musclé (2 processus api, concurrence 4, 7,5 cœurs, machine de 8 cœurs et 12 Go) : **18 min 41**, critère tenu avec 6 % de marge, 0 perte, 0 erreur, recherche de 29 à 174 ms.
   - L'item ne compte donc **que si** le PO accepte que ce réglage devienne celui de la 1.0 **et** que la PR « capacité » d'aide-api est fusionnée avant la coupe. Sinon il reste à 0, sans effet sur la coupe.
   - **Décision du PO (19/11, vers 13:45, DEC-2026-012)** : le réglage puissant devient celui de la 1.0, avec 8 cœurs et 12 Go minimum écrits dans `DOCS/exploitation/installation.md`. Essai de confirmation à 16:00 avec le compose de la PR capacité ; PR fusionnée avant 17:30, sinon l'item 8 n'est pas compté. La coupe n'attend pas l'item 8.
+  - **Essai de confirmation du 19/11, 16:01 : 23 min 07, non tenu** (72 fichiers par seconde, contre 94 le matin avec le même réglage ; 0 perte ; recherche au pire à 182 ms ; goulot : l'envoi HTTP des fichiers). #497 n'est pas fusionnée avant la coupe : l'item 8 ne compte pas, et le score visé à la coupe est **30,5/32**. Nouvel essai en V1.1 (rapport sur #473).
 - **Items 28 et 31 prouvés sur une seule machine** : le lab de Q (Docker dans Docker, images de `main`). Le PO l'a accepté le 19/11 ; il n'y a pas de deuxième machine avant le 25/11.
 - **Item 24, interface responsive** : noté `fait` par déduction (rapport mobile vert non retrouvé).
 - **Lab à plusieurs postes** (W2 ce soir à 18:30) : ne rapporte aucun point. Il renforce les preuves des items 16, 27 et 28.
