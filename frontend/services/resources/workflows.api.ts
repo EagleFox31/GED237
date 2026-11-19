@@ -3,7 +3,7 @@
 // Domaine : workflows (étapes, actions, en attente, assignation, stats).
 // SRP : change uniquement si le contrat /workflows/* évolue.
 
-import { apiCall } from '../http/client';
+import { apiCall, type ApiCallOptions } from '../http/client';
 import type { PendingWorkflowTask, WorkflowValidator } from '../../types';
 
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
@@ -82,14 +82,16 @@ export const workflowsApi = {
         task: PendingWorkflowTask,
         decision: WorkflowDecision,
         comment?: string,
+        options: ApiCallOptions = {},
     ): Promise<any> =>
-        workflowsApi.submitWorkflowAction(task.id, buildWorkflowDecision(task, decision, comment)),
+        workflowsApi.submitWorkflowAction(task.id, buildWorkflowDecision(task, decision, comment), options),
 
-    submitWorkflowAction: (stepId: string, payload: WorkflowActionPayload): Promise<any> =>
+    submitWorkflowAction: (stepId: string, payload: WorkflowActionPayload, options: ApiCallOptions = {}): Promise<any> =>
         apiCall<any>(
             `/workflows/step/${stepId}/actions`,
             { method: 'POST', body: JSON.stringify(payload) },
             'Soumission de l\'action impossible',
+            options,
         ),
 
     assignPendingStep: (stepId: string, assignedTo: string): Promise<any> =>
