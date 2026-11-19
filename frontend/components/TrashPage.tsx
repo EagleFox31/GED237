@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '../services/api';
-import type { Document } from '../types';
+import type { Document, Tenant } from '../types';
 import { useCan } from '../hooks/useCan';
 import {
+  RESTORE_IN_INSTITUTION_HELP,
   RESTORE_RESERVED_HELP,
   canEmptyTrash,
   isGoneFromTrash,
@@ -20,6 +21,8 @@ type Confirm = { title: string; message: string; label: string; run: () => Promi
 /**
  * Corbeille : documents supprimés de l'utilisateur (ou de sa portée), restauration,
  * et — seulement si le serveur accorde `documents:purge` — suppression définitive.
+ * Super-administrateur (`tenants:manage`) : sa propre corbeille est vide, il choisit donc
+ * l'institution dont il consulte, efface ou vide la corbeille.
  */
 const TrashPage: React.FC = () => {
   const [items, setItems] = useState<Document[]>([]);
@@ -28,8 +31,21 @@ const TrashPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
-  const { 'documents:purge': canPurge, 'documents:delete': canDelete } = useCan('documents:purge', 'documents:delete');
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [tenantId, setTenantId] = useState('');
+  const {
+    'documents:purge': canPurge,
+    'documents:delete': canDelete,
+    'tenants:manage': picksInstitution,
+  } = useCan('documents:purge', 'documents:delete', 'tenants:manage');
   const myUserId = useAuthStore((s) => s.userProfile?.userId);
+  const tenantName = tenants.find((t) => t.id === tenantId)?.name ?? '';
+  const awaitingInstitution = picksInstitution && !tenantId;
+
+  useEffect(() => {
+    if (!picksInstitution) return;
+    api.getTenants().then((data: Tenant[]) => setTenants(data)).catch(() => setTenants([]));
+  }, [picksInstitution]);
 
   // Seule la dernière lecture lancée compte : une réponse plus ancienne arrivée après est ignorée.
   const loadSeq = useRef(0);
@@ -37,9 +53,16 @@ const TrashPage: React.FC = () => {
   const load = useCallback(async (append = false, skip = 0) => {
     loadSeq.current += 1;
     const mine = loadSeq.current;
+    if (awaitingInstitution) {
+      setItems([]);
+      setTotal(0);
+      setLoadError(false);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const page = await api.getTrashPage(skip, PAGE_SIZE);
+      const page = await api.getTrashPage(skip, PAGE_SIZE, tenantId || undefined);
       if (mine !== loadSeq.current) return;
       setItems((current) => (append ? [...current, ...page.items] : page.items));
       setTotal(page.total);
@@ -50,7 +73,7 @@ const TrashPage: React.FC = () => {
     } finally {
       if (mine === loadSeq.current) setLoading(false);
     }
-  }, []);
+  }, [awaitingInstitution, tenantId]);
 
   useEffect(() => {
     load();
@@ -81,7 +104,7 @@ const TrashPage: React.FC = () => {
       label: 'Supprimer',
       run: async () => {
         try {
-          await api.purgeDocument(doc.id);
+          await api.purgeDocument(doc.id, tenantId || undefined);
         } catch (error) {
           if (!isGoneFromTrash(error)) throw error;
         }
@@ -92,7 +115,7 @@ const TrashPage: React.FC = () => {
   const askEmpty = () =>
     setConfirm({
       title: 'Vider la corbeille ?',
-      message: 'Les documents seront effacés, sauf ceux signés ou archivés. Impossible de revenir en arrière.',
+      message: `Les documents${tenantName ? ` de ${tenantName}` : ''} seront effacés, sauf ceux signés ou archivés. Impossible de revenir en arrière.`,
       label: 'Vider',
       run: async () => {
         // Le serveur purge par lots : on rappelle tant qu'il en reste. `remaining` ne compte que
@@ -101,7 +124,7 @@ const TrashPage: React.FC = () => {
           for (let guard = 0; guard < 100; guard += 1) {
             // Séquentiel voulu : chaque appel dépend du reste laissé par le précédent.
             // eslint-disable-next-line no-await-in-loop
-            const { purged, remaining } = await api.emptyTrash();
+            const { purged, remaining } = await api.emptyTrash(tenantId || undefined);
             if (remaining <= 0 || purged === 0) break;
           }
         } finally {
@@ -137,10 +160,28 @@ const TrashPage: React.FC = () => {
           )}
           <InlineHelpButton
             label="Aide sur la corbeille"
-            content="Les documents supprimés arrivent ici. Restaurez-les pour les remettre à leur place."
+            content={
+              picksInstitution
+                ? `Choisissez une institution pour voir sa corbeille. ${RESTORE_IN_INSTITUTION_HELP}`
+                : 'Les documents supprimés arrivent ici. Restaurez-les pour les remettre à leur place.'
+            }
           />
+          {picksInstitution && (
+            <select
+              aria-label="Institution"
+              value={tenantId}
+              onChange={(e) => setTenantId(e.target.value)}
+              disabled={busy}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-50"
+            >
+              <option value="">Choisir une institution…</option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          )}
         </div>
-        {canPurge && canEmptyTrash(items, total) && (
+        {canPurge && !awaitingInstitution && canEmptyTrash(items, total) && (
           <button
             type="button"
             onClick={askEmpty}
@@ -170,7 +211,9 @@ const TrashPage: React.FC = () => {
       {!loadError && (!loading && items.length === 0 ? (
         <div className="rounded-[2rem] border border-slate-100 bg-white p-10 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-300" aria-hidden>delete</span>
-          <p className="mt-2 text-sm font-medium text-slate-500">La corbeille est vide.</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">
+            {awaitingInstitution ? 'Choisissez une institution pour voir sa corbeille.' : 'La corbeille est vide.'}
+          </p>
         </div>
       ) : (
         <ul aria-label="Documents dans la corbeille" className="divide-y divide-slate-100 rounded-[2rem] border border-slate-100 bg-white">
@@ -183,7 +226,7 @@ const TrashPage: React.FC = () => {
                   <p className="truncate text-xs text-slate-500">{doc.logical_space_path}</p>
                 )}
               </div>
-              {isRestoreReservedToAdmin(doc, myUserId, Boolean(canDelete)) ? (
+              {tenantId ? null : isRestoreReservedToAdmin(doc, myUserId, Boolean(canDelete)) ? (
                 <span
                   role="img"
                   aria-label={`${doc.title} : ${RESTORE_RESERVED_HELP}`}
