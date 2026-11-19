@@ -3,8 +3,8 @@
 #   sh scripts/probe_stack.sh start    check RAM, start the stack WITHOUT the worker, run probe_c6.sh in a loop
 #   sh scripts/probe_stack.sh status   RAM, containers, last readings
 #   sh scripts/probe_stack.sh stop     stop the loop and the stack (data volumes are kept)
-# The stack keeps the memory caps already set in docker-compose.yml (api 1g, postgres/frontend 768m, redis 192m,
-# nginx 64m, migrate/seed 512m while they run). The worker (OCR, 2g) is not started.
+# The stack keeps the memory caps already set in docker-compose.yml (api 1.5g, postgres 1g, frontend 768m, redis 192m,
+# nginx 64m, migrate/seed 512m while they run). The worker (OCR, 4g) is not started.
 # HTTPS: if certs/tls.crt and certs/tls.key exist (see DOCS/exploitation/https-local.md), the `tls` profile is added.
 # Variables: MIN_FREE_MB (default 3500, refuse to start below), STOP_FREE_MB (default 1000, the guard stops the
 #            stack below), PROBE_SECS (default 300), BASE_URL (default http://localhost:8080), C6_LOG (default c6.tsv).

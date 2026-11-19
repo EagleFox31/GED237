@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     AUTH_LOGIN_RATE_LIMIT: str = "5/minute"
     AUTH_OTP_RATE_LIMIT: str = "5/minute"
     AUTH_REFRESH_RATE_LIMIT: str = "10/minute"
+    # Where the counters live. memory:// is per process: with several api processes
+    # (API_WORKERS > 1) each one would count apart, so point it at Redis.
+    RATE_LIMIT_STORAGE_URI: str = "memory://"
     # Account lock: after this many wrong OTP codes the account is refused (423) for
     # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
     AUTH_OTP_MAX_FAILURES: int = 3
