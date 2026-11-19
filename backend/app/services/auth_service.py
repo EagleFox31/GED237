@@ -22,6 +22,8 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
     generate_otp,
+    new_session_id,
+    revoked_session_key,
     verify_password,
 )
 from app.models.role import Role
@@ -219,6 +221,7 @@ class AuthService:
             "tenant_id": str(user.tenant_id),
             "role": role.code,
             "matricule": user.matricule,
+            "sid": new_session_id(),
         }
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
@@ -321,6 +324,11 @@ class AuthService:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
             raise AuthenticationError("Invalid refresh token")
+        session_id = payload.get("sid")
+        if session_id:
+            redis = await get_redis()
+            if await redis.get(revoked_session_key(session_id)):
+                raise AuthenticationError("Invalid refresh token")
 
         redis = await get_redis()
         if await redis.get(f"blacklist:{refresh_token}"):
@@ -358,6 +366,8 @@ class AuthService:
             "tenant_id": str(user.tenant_id),
             "role": role.code,
             "matricule": user.matricule,
+            # Tokens issued before sessions existed get one now, so a later logout revokes them.
+            "sid": session_id or new_session_id(),
         }
         pair = {
             "access_token": create_access_token(token_data),
@@ -404,6 +414,8 @@ class AuthService:
         """
         Blacklist the access token and, when given, the refresh token of the same
         account, each until its own expiry.
+        Its login session is revoked too: the refresh token of that session (and any
+        access token it issued) is refused until it would have expired anyway.
         """
         payload = decode_token(access_token)
         if not payload:
@@ -421,5 +433,13 @@ class AuthService:
                 and refresh_payload.get("sub") == payload.get("sub")
             ):
                 await self._revoke(redis, refresh_token, refresh_payload.get("exp"))
+
+        session_id = payload.get("sid")
+        if session_id:
+            await redis.setex(
+                revoked_session_key(session_id),
+                settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+                "1",
+            )
 
         return {"message": "Logged out successfully"}
