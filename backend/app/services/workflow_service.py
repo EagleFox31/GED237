@@ -1,6 +1,9 @@
 # backend/app/services/workflow_service.py
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
+
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
@@ -10,6 +13,15 @@ from app.models.user import User
 from app.schemas.workflow import WorkflowActionCreate
 from app.core.events.dispatcher import dispatcher
 from app.core.authz import can_perform, ctx_from_resource
+from app.services.audit_trail import audit_entry
+
+# Audit action per outcome: labels already known by the audit journal.
+_AUDIT_ACTION_BY_OUTCOME = {
+    OutcomeType.accepted: "workflow_approved",
+    OutcomeType.rejected: "workflow_rejected",
+    OutcomeType.returned: "workflow_returned",
+    OutcomeType.acknowledged: "workflow_step_completed",
+}
 
 
 class WorkflowActionPolicy:
@@ -70,6 +82,7 @@ class SubmitWorkflowActionUseCase:
         action: WorkflowActionCreate,
         actor: User,
         db: AsyncSession,
+        request: Optional[Request] = None,
     ) -> WorkflowAction:
         # Pessimistic Locking : Empêche la race condition sur la validation
         result = await db.execute(
@@ -101,6 +114,7 @@ class SubmitWorkflowActionUseCase:
             comment=action.comment,
         )
         db.add(action_trace)
+        db.add(self._audit_action(step, document, action, actor, request))
 
         # Clôture du step en cours
         step.completed_at = datetime.utcnow()
@@ -174,6 +188,31 @@ class SubmitWorkflowActionUseCase:
             )
 
         return action_trace
+
+    def _audit_action(
+        self,
+        step: WorkflowStep,
+        document: Document,
+        action: WorkflowActionCreate,
+        actor: User,
+        request: Optional[Request],
+    ):
+        """One audit row per circuit action, in the same transaction as the action."""
+        return audit_entry(
+            tenant_id=document.tenant_id,
+            user_id=actor.id,
+            table_name="documents",
+            record_id=document.id,
+            action=_AUDIT_ACTION_BY_OUTCOME[action.outcome],
+            details={
+                "step_id": str(step.id),
+                "step_label": step.label,
+                "outcome": action.outcome.value,
+                "comment": action.comment,
+                "document_title": document.title,
+            },
+            request=request,
+        )
 
     async def _cancel_pending_steps(
         self, db: AsyncSession, document_id: UUID, status: str = "cancelled"
