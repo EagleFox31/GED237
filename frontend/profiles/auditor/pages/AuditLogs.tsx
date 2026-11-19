@@ -56,7 +56,12 @@ function getActionBadgeClass(action: string): string {
   return ACTION_STYLES[action.toLowerCase()] || 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
-const AuditLogs: React.FC = () => {
+interface AuditLogsProps {
+  /** Page « Mes actions » (/my-actions) : les seules actions de l'utilisateur, filtrées par le serveur. */
+  ownOnly?: boolean;
+}
+
+const AuditLogs: React.FC<AuditLogsProps> = ({ ownOnly = false }) => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,13 +72,10 @@ const AuditLogs: React.FC = () => {
     const action = searchParams.get('action');
     return action ? { action: [action] } : {};
   });
-  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>([
-    'created_at',
-    'resource',
-    'action',
-    'actor',
-    'detail',
-  ]);
+  // « Effectuée par » n'apporte rien quand toutes les lignes sont les siennes.
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>(() =>
+    ['created_at', 'resource', 'action', 'actor', 'detail'].filter((key) => !(ownOnly && key === 'actor')),
+  );
 
   // « Effectuée par » est filtré par le serveur (user_id répété) : le filtre porte sur tout le
   // journal, pas seulement sur les lignes déjà chargées. La liste des acteurs proposés vient du
@@ -90,7 +92,7 @@ const AuditLogs: React.FC = () => {
     setError(null);
     try {
       const userIds = serverActorKey ? serverActorKey.split(',') : [];
-      const data = await api.getAuditLogs({ limit: 200, user_id: userIds });
+      const data = await api.getAuditLogs({ limit: 200, user_id: userIds, mine: ownOnly });
       const rows = Array.isArray(data) ? data : [];
       setLogs(rows);
       if (userIds.length === 0) setActorSource(rows);
@@ -100,7 +102,7 @@ const AuditLogs: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [serverActorKey]);
+  }, [serverActorKey, ownOnly]);
 
   useEffect(() => {
     fetchLogs();
@@ -313,15 +315,18 @@ const AuditLogs: React.FC = () => {
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-blue-700">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-            Audit & Traçabilité
+            {ownOnly ? 'Mon activité' : 'Audit & Traçabilité'}
           </div>
           <h2 className="mb-1 text-3xl font-black uppercase tracking-tighter italic text-slate-900">
-            Registre Des Actions
+            {ownOnly ? 'Mes dernières actions' : 'Registre Des Actions'}
           </h2>
           <p className="text-sm font-medium text-slate-500">
-            Historique des consultations, modifications, arbitrages et autres actions sensibles.
+            {ownOnly
+              ? 'Ce que vous avez fait récemment : dépôts, modifications, validations.'
+              : 'Historique des consultations, modifications, arbitrages et autres actions sensibles.'}
           </p>
         </div>
+        {!ownOnly && (
         <div className="flex flex-col items-start gap-2 md:items-end">
           <div className="flex items-center gap-2">
           <HelpHint
@@ -351,10 +356,11 @@ const AuditLogs: React.FC = () => {
             Tableau filtrable et colonnes personnalisables
           </p>
         </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm lg:col-span-2">
+        <div className={`bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm ${ownOnly ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Activité affichée</p>
@@ -373,6 +379,7 @@ const AuditLogs: React.FC = () => {
           </div>
         </div>
 
+        {!ownOnly && (
         <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -383,6 +390,7 @@ const AuditLogs: React.FC = () => {
             <span className="material-symbols-outlined text-3xl text-slate-300">group</span>
           </div>
         </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">

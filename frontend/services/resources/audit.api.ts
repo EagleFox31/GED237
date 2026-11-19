@@ -9,13 +9,15 @@ import { buildApiError } from '../http/errorAdapter';
 
 export const auditApi = {
     getAuditLogs: (
-        params: { skip?: number; limit?: number; table_name?: string; action?: string; user_id?: string[] } = {},
+        // mine : lignes de l'utilisateur connecté seulement (page « Mes actions »).
+        params: { skip?: number; limit?: number; table_name?: string; action?: string; user_id?: string[]; mine?: boolean } = {},
     ): Promise<any[]> => {
         const q = new URLSearchParams();
         if (typeof params.skip === 'number') q.append('skip', String(params.skip));
         if (typeof params.limit === 'number') q.append('limit', String(params.limit));
         if (params.table_name) q.append('table_name', params.table_name);
         if (params.action) q.append('action', params.action);
+        if (params.mine) q.append('mine', 'true');
         // Plusieurs acteurs : paramètre répété (?user_id=a&user_id=b), comme l'export.
         (params.user_id ?? []).forEach((id) => id && q.append('user_id', id));
         const qs = q.toString();

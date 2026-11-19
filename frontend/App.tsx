@@ -64,6 +64,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/ingestion': 'ingestion',
   '/local-library': 'local_library',
   '/audit': 'audit_central',
+  '/my-actions': 'my_actions',
   '/reports': 'reports',
   '/trash': 'trash',
   '/duplicates': 'duplicates',
@@ -88,6 +89,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'ingestion': '/ingestion',
   'local_library': '/local-library',
   'audit_central': '/audit',
+  'my_actions': '/my-actions',
   'reports': '/reports',
   'trash': '/trash',
   'duplicates': '/duplicates',
@@ -108,9 +110,12 @@ export const ADMIN_ROUTES = {
   '/rules': ['super', 'tenant'],
   '/classement': ['super', 'tenant'],
   '/users': ['super', 'tenant'],
+  // Lecture du journal : super_admin, tenant_admin, auditor (backend/app/core/authz/policy.csv).
+  '/audit': ['super', 'tenant', 'audit'],
 } as const satisfies Record<string, ReadonlyArray<ProfileId>>;
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
+export const AUDIT_DENIED_MESSAGE = 'Accès réservé aux administrateurs et aux auditeurs.';
 
 // Outils de rangement local : masqués au lecteur et au collaborateur dans le menu (Sidebar), refusés aussi par URL.
 export const LOCAL_TOOLS_PROFILES = ['super', 'tenant', 'unit', 'manager', 'audit'] as const satisfies ReadonlyArray<ProfileId>;
@@ -272,11 +277,13 @@ const AppLayout: React.FC = () => {
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />
             <Route path="/ingestion" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><DirectoryIngestion /></RequireProfile>} />
             <Route path="/local-library" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><LocalLibraryPage /></RequireProfile>} />
-            <Route path="/audit" element={<AuditLogs />} />
+            <Route path="/audit" element={<RequireProfile allow={ADMIN_ROUTES['/audit']} message={AUDIT_DENIED_MESSAGE}><AuditLogs /></RequireProfile>} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/trash" element={<TrashPage />} />
             <Route path="/duplicates" element={<DuplicatesPage />} />
             <Route path="/change-password" element={<ChangePassword />} />
+            {/* Ouverte à tous : le serveur limite aux actions de l'utilisateur (mine=true). */}
+            <Route path="/my-actions" element={<AuditLogs key="my-actions" ownOnly />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </div>

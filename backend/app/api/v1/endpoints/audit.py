@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.authz import authorize_or_403
+from app.core.authz import authorize_or_403, can_perform
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.user import User
@@ -365,22 +365,34 @@ async def list_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     table_name: Optional[str] = Query(default=None),
     action: Optional[str] = Query(default=None),
+    mine: bool = Query(default=False),
     # Same actor filter as the export: filtering server-side keeps it right across pages.
     user_id: Optional[list[UUID]] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "audit_logs", "read")
+    # Lot 13 (« Mes dernières actions », page /my-actions) : `mine=true`, ou l'absence de droit
+    # de lecture du journal, limite aux lignes de l'utilisateur, sans le contenu brut, l'adresse IP
+    # ni le navigateur.
+    own_only = mine or not await can_perform(current_user, "audit_logs", "read")
 
     query = _filtered_query(
-        current_user.tenant_id, table_name=table_name, action=action, user_id=user_id
+        current_user.tenant_id,
+        table_name=table_name,
+        action=action,
+        # Without the right to read the journal, the caller only ever sees their own lines.
+        user_id=current_user.id if own_only else user_id,
     )
     query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     logs = list(result.scalars().all())
     actors_by_id, documents_by_id = await _load_references(db, logs)
+    if own_only:
+        # Titre journalisé au moment de l'action, pas le titre actuel d'un document que
+        # l'utilisateur ne voit peut-être plus.
+        documents_by_id = {}
 
-    return [
+    entries = [
         _serialize_audit_log(
             log,
             actors_by_id=actors_by_id,
@@ -388,3 +400,7 @@ async def list_audit_logs(
         )
         for log in logs
     ]
+    if own_only:
+        for entry in entries:
+            entry.update(old_data=None, new_data=None, ip_address=None, user_agent=None)
+    return entries

@@ -109,9 +109,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
             : []),
           // Auditeur : journal d'audit (la page et la route /audit existent déjà).
+          // Les autres profils retrouvent leurs propres actions sur /my-actions (le serveur limite les lignes).
           ...(userProfile?.id === 'audit'
             ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
-            : []),
+            : [{ id: 'my_actions', label: 'Mes actions', icon: 'history' }]),
           { id: 'trash', label: 'Corbeille', icon: 'delete' },
           ...(canDelete || canTrashOwn
             ? [{ id: 'duplicates', label: 'Doublons', icon: 'content_copy' }]
