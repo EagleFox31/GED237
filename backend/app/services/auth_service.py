@@ -11,7 +11,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.errors.domain import AccountLockedError
+from app.core.errors.domain import (
+    AccountLockedError,
+    OtpContactMissingError,
+    OtpDeliveryError,
+    OtpResendQuotaError,
+    OtpResendTooSoonError,
+)
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.redis import get_redis
 from app.core.security import (
@@ -26,6 +32,7 @@ from app.core.security import (
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
+from app.services import otp_delivery
 from app.services.audit_trail import audit_entry
 
 logger = logging.getLogger(__name__)
@@ -108,28 +115,166 @@ class AuthService:
             await self._audit_refused(db, user, "mot de passe incorrect", request)
             raise AuthenticationError("Invalid credentials")
 
-        otp = generate_otp(6)
         session_token = secrets.token_urlsafe(32)
-
-        await redis.setex(f"otp:{session_token}", self.OTP_EXPIRY_SECONDS, otp)
+        otp = await self._send_code(
+            db,
+            redis,
+            user,
+            session_token,
+            expires_in=self.OTP_EXPIRY_SECONDS,
+            request=request,
+        )
         await redis.setex(
             f"session:{session_token}",
             self.SESSION_TOKEN_EXPIRY_SECONDS,
             str(user.id),
         )
+        return self._code_response(
+            session_token, otp, self.OTP_EXPIRY_SECONDS, user.matricule
+        )
 
-        response = {
+    async def resend_otp(
+        self,
+        db: AsyncSession,
+        session_token: str,
+        request: Optional[Request] = None,
+    ) -> Dict[str, Any]:
+        """New code for an open login session. The session is not extended."""
+        redis = await get_redis()
+        session_key = f"session:{session_token}"
+        user_id_str = await redis.get(session_key)
+        remaining = await redis.ttl(session_key)
+        if not user_id_str or remaining <= 0:
+            raise AuthenticationError("Invalid or expired session")
+
+        user_id = UUID(user_id_str)
+        await self._raise_if_locked(redis, user_id)
+        user = await db.get(User, user_id)
+        if user is None or not user.is_active:
+            raise AuthenticationError("Invalid or expired session")
+
+        cooldown = settings.AUTH_OTP_RESEND_COOLDOWN_SECONDS
+        resend_key = f"otp_resend:{session_token}"
+        # SET NX: two requests racing get one sending.
+        if cooldown > 0 and not await redis.set(resend_key, "1", ex=cooldown, nx=True):
+            raise OtpResendTooSoonError(retry_after=await redis.ttl(resend_key))
+        quota_key = await self._count_resend(redis, user_id, resend_key)
+        try:
+            otp = await self._send_code(
+                db, redis, user, session_token, expires_in=remaining, request=request
+            )
+        except OtpDeliveryError:
+            # Nothing was sent: the previous code still works and a retry is allowed.
+            await redis.delete(resend_key)
+            if quota_key:
+                await redis.decr(quota_key)
+            raise
+        return self._code_response(session_token, otp, remaining, user.matricule)
+
+    async def _count_resend(self, redis, user_id: UUID, resend_key: str):
+        """Count one resend for the account; 429 beyond the quota of the window.
+
+        Counted per account, not per login session: opening new sessions does not
+        give more codes. The window starts at the first resend (SET NX EX).
+        """
+        allowed = settings.AUTH_OTP_RESEND_MAX_PER_WINDOW
+        if allowed <= 0:
+            return None
+        quota_key = f"otp_resend_count:{user_id}"
+        window = settings.AUTH_OTP_RESEND_WINDOW_SECONDS
+        await redis.set(quota_key, 0, ex=window, nx=True)
+        count = await redis.incr(quota_key)
+        if await redis.ttl(quota_key) < 0:  # expired between SET and INCR
+            await redis.expire(quota_key, window)
+        if count > allowed:
+            await redis.decr(quota_key)
+            await redis.delete(resend_key)
+            raise OtpResendQuotaError(retry_after=await redis.ttl(quota_key))
+        return quota_key
+
+    async def _send_code(
+        self,
+        db: AsyncSession,
+        redis,
+        user: User,
+        session_token: str,
+        *,
+        expires_in: int,
+        request: Optional[Request],
+    ) -> str:
+        """Generate a code, deliver it, then store its hash. Raises if not delivered."""
+        otp = generate_otp(6)
+        channel = otp_delivery.get_channel()
+        result = await channel.deliver(user, otp, expires_in=expires_in)
+        if channel.sends:
+            await self._audit_delivery(db, user, channel.name, result, request)
+        if not result.delivered:
+            if result.reason == otp_delivery.REASON_NO_CONTACT:
+                raise OtpContactMissingError(
+                    technical_detail=f"no contact for channel {channel.name}"
+                )
+            raise OtpDeliveryError(
+                technical_detail=f"channel {channel.name}: {result.reason}"
+            )
+
+        await redis.setex(
+            f"otp:{session_token}",
+            expires_in,
+            otp_delivery.hash_code(session_token, otp),
+        )
+        # Starts the resend delay at login too, when a message really left.
+        cooldown = settings.AUTH_OTP_RESEND_COOLDOWN_SECONDS
+        if cooldown > 0 and channel.sends:
+            await redis.set(f"otp_resend:{session_token}", "1", ex=cooldown)
+        return otp
+
+    @staticmethod
+    def _code_response(
+        session_token: str, otp: str, expires_in: int, matricule: str
+    ) -> Dict[str, Any]:
+        response: Dict[str, Any] = {
             "session_token": session_token,
             "message": "OTP sent to your registered contact",
-            "expires_in": self.OTP_EXPIRY_SECONDS,
+            "expires_in": expires_in,
         }
-        if settings.ENVIRONMENT == "development":
+        if (
+            settings.ENVIRONMENT == "development"
+            and otp_delivery.get_channel().echoes_code
+        ):
             if settings.LOGIN_DEMO_HINTS:
                 response["otp"] = otp
             else:
-                # No SMS or e-mail channel yet: the presenter reads the code here.
+                # Echo channel, demo in front of an audience: the presenter reads the code here.
                 logger.warning("Code OTP de demonstration : %s pour %s", otp, matricule)
         return response
+
+    @staticmethod
+    async def _audit_delivery(
+        db: AsyncSession,
+        user: User,
+        channel_name: str,
+        result: otp_delivery.DeliveryResult,
+        request: Optional[Request],
+    ) -> None:
+        """Sending of a code, succeeded or not. Never the code, only a masked target."""
+        details: Dict[str, Any] = {"channel": channel_name}
+        if result.target:
+            details["target"] = result.target
+        if result.reason:
+            details["reason"] = result.reason
+        db.add(
+            audit_entry(
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+                table_name="users",
+                record_id=user.id,
+                action="otp_sent" if result.delivered else "otp_send_failed",
+                details=details,
+                request=request,
+            )
+        )
+        # Committed here: a failed delivery raises right after (get_db rolls back).
+        await db.commit()
 
     @staticmethod
     async def _audit_refused(
@@ -177,7 +322,7 @@ class AuthService:
         user_id = UUID(user_id_str)
         # A session opened just before the lock must not get round it.
         await self._raise_if_locked(redis, user_id)
-        if not secrets.compare_digest(stored_otp.encode(), otp.encode()):
+        if not otp_delivery.code_matches(stored_otp, session_token, otp):
             # Audited before the counter: at the limit it ends the session.
             pending_user = await db.get(User, user_id)
             if pending_user is not None:
@@ -223,7 +368,7 @@ class AuthService:
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
 
-        await redis.delete(otp_key, session_key)
+        await redis.delete(otp_key, session_key, f"otp_resend:{session_token}")
 
         return {
             "access_token": access_token,

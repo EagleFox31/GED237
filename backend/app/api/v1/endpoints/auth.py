@@ -6,13 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.errors.domain import AccountLockedError
+from app.core.errors.domain import (
+    AccountLockedError,
+    OtpDeliveryError,
+    OtpResendQuotaError,
+    OtpResendTooSoonError,
+)
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.rate_limit import limiter
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
     LogoutResponse,
+    OTPResendRequest,
     OTPVerifyRequest,
     RefreshTokenRequest,
     RefreshTokenResponse,
@@ -56,7 +62,7 @@ async def login(
             request=request,
         )
         return LoginResponse(**result)
-    except AccountLockedError:
+    except (AccountLockedError, OtpDeliveryError):
         raise
     except AuthenticationError as exc:
         raise HTTPException(
@@ -68,6 +74,39 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred during login: {exc}",
+        ) from exc
+
+
+@router.post("/resend-otp", response_model=LoginResponse)
+@limiter.limit(lambda: settings.AUTH_OTP_RATE_LIMIT)
+async def resend_otp(
+    request: Request,
+    payload: OTPResendRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """New code for a login session still open; the previous code stops working."""
+    try:
+        result = await auth_service.resend_otp(
+            db=db, session_token=payload.session_token, request=request
+        )
+        return LoginResponse(**result)
+    except (
+        AccountLockedError,
+        OtpDeliveryError,
+        OtpResendQuotaError,
+        OtpResendTooSoonError,
+    ):
+        raise
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("OTP resend failed unexpectedly")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while sending a new code",
         ) from exc
 
 
