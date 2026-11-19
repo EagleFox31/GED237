@@ -56,6 +56,7 @@ Rien d'autre ne bloque. #248, #267 et #268 (VPS) ne sont pas requis. Les scripts
 - **Décision du PO (19/11, 11:40) : restauration et doublons.** Pour la recette du 20, le § 6 annonce « restaurer un document peut recréer un doublon ; il se retrouve dans la vue Doublons ». En V1.1, un message à la restauration, sans rien bloquer : B porte le serveur, F l'écran, en brouillons V1.1 (numéros à venir d'O). Scénario de preuve de l'item 19 : ligne 2.8 bis de la checklist.
 - **Décision du PO (19/11, 11:40) : lab Windows W2** ce soir à 18:30, environ 1 h (porteur ged237-6a). Conditions inchangées : ménage Docker fait avec 17 Go libres, autres sessions sans Docker pendant la plage, aucun réglage machine modifié.
 - **Écart levé (O, 11:15)** : le bon chiffre est **29,5/32**. O avait compté 0,5 de trop (29 + 0,5 pour l'item 31). Restent l'item 19 (+0,5) et l'item 29 (+0,5), soit 30,5 au mieux et aucune marge. L'item 8 partiel (+0,5) serait la marge. L'annonce de 30/32 plus haut (ligne « Score atteignable ») se lit donc 29,5 + 0,5 (19) = 30, puis 30,5 avec C6.
+- **#171 fusionnée (19/11, vers 11:50)** : `main` = d3f53564. Pour l'item 19, il reste #199 (+0,5).
 
 ## 3. Recette sur `main` : un état du jour
 

@@ -29,7 +29,7 @@ ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 43
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
-ORDER_V2="184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 463 453 456 458"
+ORDER_V2="184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 488 445 457 463 453 456 458"
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
@@ -50,6 +50,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # #482 fusionnée le 19/11 (main = 9542b4d5, item 31 acquis). Suite de la série V1.0 : #479, #171, #199, #480, #485. Essai 100 000 (item 8) : heure ferme visée 12:30, sur signal d'O.
 # #486 (Q, nginx retrouve l'adresse de api après une sauvegarde ou une restauration ; brouillon V1.1, base main, tête 810b8ee6) : fin de la vague 1, après #443. Preuve de Q : 502 sur main, 200 en 24 s avec le correctif, sans relancer nginx (HTTP et HTTPS). Image nginx:1.30-alpine ; reprise d'environ 30 s documentée (installation.md § 9).
 # #487 (B, doublon à la restauration, partie serveur ; brouillon V1.1, base main, tête 7407ed0e) : la restauration réussit toujours, la réponse ajoute identical_document {id, title} ou null, rien n'est désigné hors du périmètre de lecture. Décision du PO du 19/11, 11:40. La PR écran de F suit, empilée sur #199 (à re-cibler sur main avant la fusion de #199) : à placer après #487.
+# #488 (B, un 3e agent dans le service du jeu de démo, pour prouver la création et l'annulation d'une délégation avec #445 et #453 ; brouillon V1.1, base main, tête 5309d792) : placée dans la vague 2 juste avant #445 et #453. #171 est fusionnée (main = d3f53564) : pour l'item 19 il reste #199.
 # #484 (Q, contrastes AA, lot 8 point 4 : liste des documents, fiche, parapheur ; brouillon V1.1, tête aa37fb80) : empilée sur #441 (base feat/v11-a11y-keyboard), à re-cibler sur main avant la fusion de #441 ; vague 5 juste après #441, DEP[484]=441. Pas encore jouée au navigateur : ajoutée par O aux contre-tests du prochain lot d'audit.
 # Ticket #483 (défaut de l'écran de revue du classement, V1.0) : PR #485 de B (tête 79dd873c, relecture Q ; branche fix/review-sync-ingest-ocr, base main ; deux cas, plus un script de rattrapage lancé d'abord en plan, puis avec --apply, sans suppression), dans ORDER_V0 juste après #480 ; rattrapage ajouté à la checklist de recette (ligne 1.2 bis). #449 : tête 58d75f7b (brouillon V1.1). #199 a encore pour base feat/post-rc1-trash-ui (#181 fusionnée) : à re-cibler sur main avant sa fusion.
 # #471 (0ec2b5dd, brouillon V1.1, empilée sur #155 : à re-cibler sur main avant la fusion de #155) : OK sécurité de B, contrôle final de Q en cours ; reste en vague 4, après #155 et #479 (DEP). #181 fusionnée le 19/11 (main = 2174cfd3). Suites de sécurité d'aide-api (une PR à venir, base main : ticket WebSocket lié à la session, sockets fermés à la déconnexion, vérification de l'Origine) : après #479 et #471.
