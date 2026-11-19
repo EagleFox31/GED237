@@ -5,7 +5,7 @@ without a label falls back to its English code ("Document Purged"): every action
 written by the application must have one.
 """
 
-import re
+import ast
 from pathlib import Path
 
 import pytest
@@ -27,6 +27,8 @@ ACCENTED_LABELS = {
     "workflow_started_a_posteriori": "Circuit déclenché a posteriori",
     "local_snap_put": "Bibliothèque locale (sync)",
     "dup_detected": "Doublon refusé",
+    "otp_send_failed": "Échec d'envoi du code",
+    "totp_reset": "Application d'authentification réinitialisée",
 }
 
 ACCENTED_TABLES = {
@@ -36,9 +38,32 @@ ACCENTED_TABLES = {
 }
 
 APP_DIR = Path(__file__).resolve().parents[2] / "app"
-# Audit rows name their action with a literal keyword: action="document_purged".
-# Authorization checks pass resource and action positionally, so they never match.
-WRITTEN_ACTION = re.compile(r"\baction=\"([a-z_]+)\"")
+
+
+def _literals(node: ast.expr) -> set[str]:
+    """String values an ``action=`` argument can take: a literal, or both
+    branches of a conditional (action="otp_sent" if ok else "otp_send_failed")."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return {node.value}
+    if isinstance(node, ast.IfExp):
+        return _literals(node.body) | _literals(node.orelse)
+    return set()
+
+
+def _written_actions(source: str) -> set[str]:
+    """Audit rows name their action with a keyword: action="document_purged".
+    Authorization checks pass resource and action positionally, so they never
+    match; argparse's add_argument(action="store_true") is not an audit row."""
+    found: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "add_argument":
+            continue
+        for keyword in node.keywords:
+            if keyword.arg == "action":
+                found |= _literals(keyword.value)
+    return found
 
 
 @pytest.mark.parametrize("action, label", sorted(ACCENTED_LABELS.items()))
@@ -53,9 +78,9 @@ def test_table_labels_keep_their_accents(table, label):
 
 def test_every_action_written_by_the_application_has_a_label():
     written = {
-        match
+        action
         for path in APP_DIR.rglob("*.py")
-        for match in WRITTEN_ACTION.findall(path.read_text(encoding="utf-8"))
+        for action in _written_actions(path.read_text(encoding="utf-8"))
     }
     assert written, "no audit action found: the pattern no longer matches the code"
     assert sorted(written - ACTION_LABELS.keys()) == []
