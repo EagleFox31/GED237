@@ -940,7 +940,44 @@ async def list_documents(
         *_document_load_options()
     )
     result = await db.execute(query.offset(skip).limit(limit))
-    return [_serialize_document(document) for document in result.scalars().all()]
+    items = [_serialize_document(document) for document in result.scalars().all()]
+    await _attach_workflow_position(db, items)
+    return items
+
+
+# Steps of the running cycle: a rejection or a return cancels the remaining ones.
+_RUNNING_STEP_STATUSES = ("current", "pending", "pending_assignment")
+
+
+async def _attach_workflow_position(db: AsyncSession, items: List[DocumentRead]):
+    """Fill "Chez X (étape n/N)" for the documents in review, in one query.
+
+    Whoever sees a document in this list may read its workflow: collaborators
+    only list their own documents, the other roles hold `workflows read`.
+    """
+    by_id = {item.id: item for item in items if item.status == "in_review"}
+    if not by_id:
+        return
+    rows = await db.execute(
+        select(
+            WorkflowStep.document_id,
+            WorkflowStep.step_order,
+            WorkflowStep.status,
+            User.full_name,
+        )
+        .outerjoin(User, User.id == WorkflowStep.assigned_to)
+        .where(
+            WorkflowStep.document_id.in_(by_id),
+            WorkflowStep.status.in_(_RUNNING_STEP_STATUSES),
+        )
+        .order_by(WorkflowStep.document_id, WorkflowStep.step_order)
+    )
+    for document_id, order, step_status, assignee_name in rows:
+        item = by_id[document_id]
+        item.workflow_step_count = max(item.workflow_step_count or 0, order)
+        if step_status != "pending" and item.workflow_step_order is None:
+            item.workflow_step_order = order
+            item.workflow_assignee_name = assignee_name
 
 
 @router.get("/trash", response_model=List[DocumentRead])

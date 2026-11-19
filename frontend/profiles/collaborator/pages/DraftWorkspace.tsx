@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { api } from '../../../services/api';
+import { getWorkflowPositionLabel } from '../../../types';
 import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
@@ -171,6 +172,12 @@ const DraftWorkspace: React.FC = () => {
                   <span key={i} className="text-[8px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-bold uppercase">{tag}</span>
                 ))}
               </div>
+
+              {getWorkflowPositionLabel(doc) && (
+                <p data-testid="workflow-position" className="text-[10px] font-semibold text-amber-700 mb-3 line-clamp-1">
+                  {getWorkflowPositionLabel(doc)}
+                </p>
+              )}
 
               {canResubmit(doc, userId) && (
                 <div className="mb-4 space-y-3">

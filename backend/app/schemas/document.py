@@ -75,6 +75,11 @@ class DocumentRead(DocumentBase):
     # Detail only (GET /documents/{id}): comment of the last rejected or
     # returned workflow step, so the author knows what to fix.
     last_rejection_reason: Optional[str] = None
+    # List only, documents in review: "Chez X (étape n/N)". The name is None
+    # while the current step waits for an assignee.
+    workflow_step_order: Optional[int] = None
+    workflow_step_count: Optional[int] = None
+    workflow_assignee_name: Optional[str] = None
 
     class Config:
         from_attributes = True

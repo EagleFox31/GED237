@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import DocumentDetailModal from './DocumentDetailModal';
 import UploadDocumentModal from './UploadDocumentModal';
-import { Document, DocumentCategory, formatFileSize, getFileTypeLabel, getStatusLabel, formatDate } from '../types';
+import { Document, DocumentCategory, formatFileSize, getFileTypeLabel, getStatusLabel, getWorkflowPositionLabel, formatDate } from '../types';
 import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
@@ -240,6 +240,11 @@ const Documents: React.FC = () => {
                 {doc.category_name && <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-tighter">{doc.category_name}</span>}
                 <span className="text-[10px] font-medium text-slate-400">V{doc.current_version_number} • {getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
               </div>
+              {getWorkflowPositionLabel(doc) && (
+                <p data-testid="workflow-position" className="text-[11px] font-semibold text-amber-700 line-clamp-1">
+                  {getWorkflowPositionLabel(doc)}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-5 border-t border-slate-50">
