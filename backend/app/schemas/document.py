@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.core.classification_reasons import ReviewReasonText
+
 DocumentStatus = Literal[
     "draft", "in_review", "validated", "signed", "archived", "rejected", "returned"
 ]
@@ -68,6 +70,8 @@ class DocumentRead(DocumentBase):
     updated_at: datetime
     owner_name: Optional[str] = None
     current_version_number: Optional[str] = None
+    # Corbeille : qui a retiré le document (restauration réservée à l'admin si ce n'est pas soi).
+    deleted_by: Optional[UUID] = None
 
     class Config:
         from_attributes = True
@@ -147,7 +151,7 @@ class IngestRunFileOut(BaseModel):
 
 
 class NeedsReviewDocument(DocumentRead):
-    arbitration_reason: Optional[str] = None
+    arbitration_reason: ReviewReasonText = None
 
 
 class RuleSuggestion(BaseModel):
@@ -194,3 +198,15 @@ class IngestWatchStatus(BaseModel):
     enabled: bool
     interval_seconds: int
     last_run: Optional[IngestWatchLastRun] = None
+
+
+class TrashEmptyRequest(BaseModel):
+    """Filters of a bulk trash purge. No filter: the whole trash, one batch per call."""
+
+    document_ids: Optional[List[UUID]] = Field(None, min_length=1, max_length=500)
+    older_than_days: Optional[int] = Field(None, ge=1, le=36500)
+
+
+class TrashEmptyResponse(BaseModel):
+    purged: int
+    remaining: int

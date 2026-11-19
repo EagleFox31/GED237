@@ -78,7 +78,7 @@ async def test_export_is_a_french_excel_csv(
     # 23:30 UTC on the 5th is 00:30 on the 6th in Cameroon.
     assert newest[0] == "2026-11-06T00:30:00+01:00"
     assert newest[1] == "TEST001"
-    assert newest[5] == "Doublon refuse"
+    assert newest[5] == "Doublon refusé"
     assert newest[7] == "10.0.0.7"
     # The first export is logged, so a second export shows one more line.
     assert len(_rows(await admin_client.get(EXPORT))) == 5
@@ -100,7 +100,7 @@ async def test_filters_and_local_dates(admin_client: AsyncClient, test_engine, d
         )
     )
 
-    assert len(by_action) == 2 and by_action[1][5] == "Doublon refuse"
+    assert len(by_action) == 2 and by_action[1][5] == "Doublon refusé"
     assert len(local_day) == 2 and local_day[1][0].startswith("2026-11-06")
     assert after_all == [HEADER]
 
@@ -220,7 +220,7 @@ async def test_several_tables_and_actions_match_any_of_them(
     rows = _rows(response)
     # login (users) and upload (documents) match; dup_detected does not.
     assert len(rows) == 3
-    assert "Doublon refuse" not in {row[5] for row in rows}
+    assert "Doublon refusé" not in {row[5] for row in rows}
     assert len(one_table) == 2
     logged = (
         await admin_client.get(
