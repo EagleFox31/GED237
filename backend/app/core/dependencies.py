@@ -104,11 +104,12 @@ async def get_current_user(
     return user
 
 
-async def get_current_user_ws(ticket: str) -> Optional[User]:
+async def get_current_user_ws(ticket: str) -> Optional[tuple[User, str]]:
     """Authenticate a WebSocket connection from a single-use ticket (see
     ``app.services.ws_ticket``). The ticket is burnt on first use; the user must
     still be active and in the tenant the ticket was issued for. Token type and
-    logout revocation were checked when the ticket was issued (Bearer route)."""
+    logout revocation were checked when the ticket was issued (Bearer route).
+    Returns the user and the login session (``sid``) the socket belongs to."""
     from app.services.ws_ticket import redeem_ws_ticket
 
     owner = await redeem_ws_ticket(await get_redis(), ticket)
@@ -127,7 +128,7 @@ async def get_current_user_ws(ticket: str) -> Optional[User]:
         user = result.scalar_one_or_none()
     if user is None or str(user.tenant_id) != owner.tenant_id:
         return None
-    return user
+    return user, owner.session_id
 
 
 # Dependency aliases

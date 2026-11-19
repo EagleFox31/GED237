@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     AUTH_LOGIN_RATE_LIMIT: str = "5/minute"
     AUTH_OTP_RATE_LIMIT: str = "5/minute"
     AUTH_REFRESH_RATE_LIMIT: str = "10/minute"
+    # Notifications WebSocket tickets, keyed by user (one per socket opening,
+    # reconnections included).
+    AUTH_WS_TICKET_RATE_LIMIT: str = "30/minute"
     # Account lock: after this many wrong OTP codes the account is refused (423) for
     # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
     AUTH_OTP_MAX_FAILURES: int = 3

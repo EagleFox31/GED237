@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.rate_limit import limiter
 from app.core.authz.casbin_enforcer import reload_enforcer
+from app.core.observability.log_redaction import install_query_secret_filter
 from app.core.observability.request_id import set_request_id, reset_request_id
 from app.core.errors import register_error_handlers
 from app.core.database import engine
@@ -20,6 +21,8 @@ from app.services.notifications.listeners import register_all_listeners
 from app.services.gedrules_listeners import register_gedrules_listeners
 
 logger = logging.getLogger(__name__)
+# No socket ticket (or token) from a query string in the uvicorn logs.
+install_query_secret_filter()
 
 # Register listeners globally
 register_all_listeners()

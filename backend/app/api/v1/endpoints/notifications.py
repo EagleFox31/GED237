@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from typing import Any
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +8,7 @@ from uuid import UUID
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, get_current_user_ws
+from app.core.redis import get_redis
 from app.models.user import User
 from app.models.notification import Notification
 from app.services.notifications.realtime import (
@@ -13,10 +16,31 @@ from app.services.notifications.realtime import (
     manager,
     serialize_notification,
 )
+from app.services.ws_ticket import session_logged_out
 
 __all__ = ["ConnectionManager", "manager", "router"]
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# How often an open socket checks that its login session was not logged out. Read
+# from Redis, so a logout handled by another api process closes it too.
+WS_SESSION_CHECK_SECONDS = 15.0
+_LOGGED_OUT_CLOSE_CODE = 1008
+
+
+async def _close_at_logout(websocket: WebSocket, session_id: str) -> None:
+    while True:
+        await asyncio.sleep(WS_SESSION_CHECK_SECONDS)
+        try:
+            ended = await session_logged_out(await get_redis(), session_id)
+        except Exception:
+            # Redis briefly away: keep the socket, check again next round.
+            logger.warning("Notification socket: session check failed", exc_info=True)
+            continue
+        if ended:
+            await websocket.close(code=_LOGGED_OUT_CLOSE_CODE)
+            return
 
 
 @router.websocket("/ws")
@@ -24,15 +48,23 @@ async def websocket_endpoint(websocket: WebSocket, ticket: str = ""):
     """
     WebSocket endpoint for real-time notifications.
     Client passes ?ticket=... (from POST /auth/ws-ticket, single use, ~30 s).
+    The socket is closed (1008) once the login session that asked for the ticket
+    is logged out.
     """
     # 1. Authenticate user from the ticket
-    user = await get_current_user_ws(ticket)
-    if not user:
+    authenticated = await get_current_user_ws(ticket)
+    if not authenticated:
         await websocket.close(code=1008)
         return
+    user, session_id = authenticated
 
     user_id = str(user.id)
     await manager.connect(websocket, user_id)
+    watcher = (
+        asyncio.create_task(_close_at_logout(websocket, session_id))
+        if session_id
+        else None
+    )
 
     try:
         while True:
@@ -40,7 +72,13 @@ async def websocket_endpoint(websocket: WebSocket, ticket: str = ""):
             await websocket.receive_text()
     except WebSocketDisconnect:
         pass
+    except RuntimeError:
+        # Closed by the logout watcher between two reads: receive then refuses.
+        if watcher is None or not watcher.done():
+            raise
     finally:
+        if watcher is not None:
+            watcher.cancel()
         # Also on an abrupt close, so no dead socket stays registered.
         manager.disconnect(websocket, user_id)
 
