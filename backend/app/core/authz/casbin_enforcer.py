@@ -31,10 +31,13 @@ _ALLOWED_ACTIONS = frozenset(
         "delete",
         "delete_own",
         "trash_own",
+        "purge",
         "manage",
         "assign",
         "resolve_review",
         "simulate",
+        "archive",
+        "review",
     }
 )
 

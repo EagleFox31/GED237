@@ -142,7 +142,7 @@ test.describe('Feature: Profils démo', () => {
    * SCENARIO 7: Sélection d'un profil démo pré-remplit le formulaire
    *
    *   GIVEN  un utilisateur sur la page de connexion
-   *   WHEN   il clique sur "Admin Tenant" dans la section démo
+   *   WHEN   il clique sur "Admin Institution" dans la section démo
    *   THEN   les champs institution, matricule et mot de passe sont pré-remplis
    */
   test('Given page login, When clic profil démo, Then champs pré-remplis', async ({ loginPage }) => {

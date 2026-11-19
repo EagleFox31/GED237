@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { TENANT_ADMIN_MENU } from '../profiles/tenant-admin/menuConfig';
 import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
+import { useCan } from '../hooks/useCan';
 import { Logo } from './Logo';
 import { APP_VERSION } from '../constants';
 
@@ -18,6 +19,12 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, open = false, onClose }) => {
   const [tenantLabel, setTenantLabel] = useState<string>('');
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  // Doublons : résoudre un groupe met des copies à la corbeille. Sans l'un de ces droits
+  // (lecteur, auditeur), l'écran n'offre rien à faire : l'entrée est masquée.
+  const { 'documents:delete': canDelete, 'documents:trash_own': canTrashOwn } = useCan(
+    'documents:delete',
+    'documents:trash_own',
+  );
 
   useEffect(() => {
     if (!userProfile?.tenantId) return;
@@ -59,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <span className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-500'}`}>
+              <span aria-hidden="true" className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-500'}`}>
                 {item.icon}
               </span>
               <span className={`text-[11px] font-bold uppercase tracking-tight ${activeTab === item.id ? 'font-black' : ''}`}>
@@ -89,11 +96,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           { id: 'dashboard', label: 'Tableau de Bord', icon: 'dashboard' },
           { id: 'documents', label: 'Mes Documents', icon: 'description' },
           { id: 'tasks', label: 'Tâches & Suivi', icon: 'notifications' },
-          { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
-          { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
+          // Outils de rangement local : masqués pour reader et collab (miroir des rôles : ils lisent ou déposent
+          // dans leurs brouillons, sans classer en masse). Les autres profils gardent ces entrées.
+          ...(userProfile?.id === 'reader' || userProfile?.id === 'collab'
+            ? []
+            : [
+                { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
+                { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
+              ]),
           // Manager : rapports de son service (le serveur limite les données au service).
           ...(userProfile?.id === 'manager'
             ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
+            : []),
+          // Auditeur : journal d'audit (la page et la route /audit existent déjà).
+          ...(userProfile?.id === 'audit'
+            ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
+            : []),
+          { id: 'trash', label: 'Corbeille', icon: 'delete' },
+          ...(canDelete || canTrashOwn
+            ? [{ id: 'duplicates', label: 'Doublons', icon: 'content_copy' }]
             : []),
         ].map(item => (
           <button
@@ -101,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             onClick={() => onTabChange(item.id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-blue-50 text-rdpc-blue' : 'text-slate-500 hover:bg-slate-50'}`}
           >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-xl">{item.icon}</span>
             <span className="text-[11px] font-bold uppercase">{item.label}</span>
           </button>
         ))}
