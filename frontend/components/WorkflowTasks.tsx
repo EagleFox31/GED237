@@ -9,15 +9,7 @@ import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
-import { taskSubmissionLabel } from '../lib/taskSubmission';
-
-/** Qui a envoyé le document à valider, et quand (lot 12) ; rien si le serveur ne le dit pas. */
-const SubmissionLine: React.FC<{ task: PendingWorkflowTask }> = ({ task }) => {
-  const label = taskSubmissionLabel(task.submitted_by_name, task.created_at);
-  return label ? (
-    <p className="text-xs text-slate-500 mt-0.5" data-testid="task-submission">{label}</p>
-  ) : null;
-};
+import { TaskSubmissionLine } from './workflow/TaskSubmissionLine';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -99,7 +91,7 @@ const WorkflowTasks: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
               <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span></p>
-              <SubmissionLine task={task} />
+              <TaskSubmissionLine task={task} />
               <div className="mt-2"><ViewDocumentButton documentId={task.document_id} /></div>
             </div>
 
