@@ -26,7 +26,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
 ORDER_V0="464 152 181 477 482 479 171 199 480 485 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 439 442 419 447 434 424 428 443 486 487"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 439 442 419 447 434 424 428 443 486 487 493"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -54,11 +54,12 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # #488 (B, un 3e agent dans le service du jeu de démo, pour prouver la création et l'annulation d'une délégation avec #445 et #453 ; brouillon V1.1, base main, tête cbcfab77) : placée dans la vague 2 juste avant #445 et #453. #171 est fusionnée (main = d3f53564) : pour l'item 19 il reste #199.
 # #485 (écran de revue du classement, ticket #483) est fusionnée (main = 32c6552b) : le point « revue incomplète » est retiré du § 6 de la checklist. #393 est fermée, remplacée par #362 (déjà en vague 5).
 # #489 (Q, main ne reteste plus un arbre déjà validé ; OK de B) : fusionnée le 19/11 à 12:57 (main = cbd5b4b9). Limite : les PR « train » ne sont pas encore couvertes ; Q chiffre l'extension avant le 24. #490 (tests du serveur en 4 parts, B) : à fusionner après l'OK de Q, puis #199.
+# #493 (F, avis de doublon à la restauration, écran ; brouillon V1.1, base main) : ORDER_V1, juste après #487, dont elle lit le champ identical_document (contrat relu par F, OK écran). #492 (F, V1.0, menu « Doublons » masqué sans droit de corbeille) et #494 (F, purge pour le super-administrateur) : HORS_FILE, série V1.0 portée par O.
 # #484 (Q, contrastes AA, lot 8 point 4 : liste des documents, fiche, parapheur ; brouillon V1.1, tête b5aafabe) : empilée sur #441 (base feat/v11-a11y-keyboard), à re-cibler sur main avant la fusion de #441 ; vague 5 juste après #441, DEP[484]=441. Pas encore jouée au navigateur : ajoutée par O aux contre-tests du prochain lot d'audit.
 # Ticket #483 (défaut de l'écran de revue du classement, V1.0) : PR #485 de B (tête 79dd873c, relecture Q ; branche fix/review-sync-ingest-ocr, base main ; deux cas, plus un script de rattrapage lancé d'abord en plan, puis avec --apply, sans suppression), dans ORDER_V0 juste après #480 ; rattrapage ajouté à la checklist de recette (ligne 1.2 bis). #449 : tête 58d75f7b (brouillon V1.1). #199 a encore pour base feat/post-rc1-trash-ui (#181 fusionnée) : à re-cibler sur main avant sa fusion.
 # #471 (0ec2b5dd, brouillon V1.1, empilée sur #155 : à re-cibler sur main avant la fusion de #155) : OK sécurité de B, contrôle final de Q en cours ; reste en vague 4, après #155 et #479 (DEP). #181 fusionnée le 19/11 (main = 2174cfd3). Suites de sécurité d'aide-api (une PR à venir, base main : ticket WebSocket lié à la session, sockets fermés à la déconnexion, vérification de l'Origine) : après #479 et #471.
 # #476 (aide-api, n° 14 du tri de l'audit : total et page suivante dans « Mes Documents », V1.1, base main) : HORS_FILE (O, 19/11). Même fichier Documents.tsx que #440 : à rebaser après #440.
-HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 478 481 489"
+HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 478 481 489 492 494"
 ```
 
 Écarts avec `plan-fusion-v1.1.md` (validés par O le 18/11) :
