@@ -8,6 +8,13 @@ import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import {
+  DOCUMENT_DRAG_TYPE,
+  canClassify,
+  currentUnitOf,
+  dropTargetUnit,
+  isDocumentDrag,
+} from '../../../lib/explorerDrag';
 
 interface UserNode {
   id: string;
@@ -201,6 +208,9 @@ const SpacesPage: React.FC = () => {
   }, []);
   const [viewMode, setViewMode] = useState<ViewMode>('icons');
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
+  // Service imposé quand « Classer » s'ouvre par un dépôt sur un dossier (#299).
+  const [classifyTarget, setClassifyTarget] = useState<string | null>(null);
+  const [dropUnitId, setDropUnitId] = useState<string | null>(null);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   // Zone des dossiers et documents : garde le focus clavier quand on change de dossier.
@@ -464,6 +474,40 @@ const SpacesPage: React.FC = () => {
     itemsRegionRef.current?.focus({ preventScroll: true });
   };
 
+  // Glisser un document sur un dossier = le classer dans ce service, via « Classer » (#299).
+  const startDocumentDrag = (event: React.DragEvent, doc: Document) => {
+    event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
+  const folderDropProps = (unitId: string) => ({
+    onDragOver: (event: React.DragEvent) => {
+      if (!isDocumentDrag(Array.from(event.dataTransfer.types))) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      setDropUnitId(unitId);
+    },
+    onDragLeave: () => setDropUnitId((current) => (current === unitId ? null : current)),
+    onDrop: (event: React.DragEvent) => {
+      setDropUnitId(null);
+      if (!isDocumentDrag(Array.from(event.dataTransfer.types))) return;
+      event.preventDefault();
+      const docId = event.dataTransfer.getData(DOCUMENT_DRAG_TYPE);
+      const doc = documents.find((candidate) => candidate.id === docId);
+      if (!doc || !canClassify(doc.classification_status)) return;
+      const target = dropTargetUnit(currentUnitOf(doc), unitId);
+      if (!target) return;
+      setContextMenu(null);
+      setClassifyTarget(target);
+      setDocumentToClassify(doc);
+    },
+  });
+
+  const dragProps = (doc: Document) =>
+    canClassify(doc.classification_status)
+      ? { draggable: true, onDragStart: (event: React.DragEvent) => startDocumentDrag(event, doc) }
+      : {};
+
   const openPreview = (document: Document) => {
     previewReturnFocusRef.current = window.document.activeElement as HTMLElement | null;
     setPreviewDocument(document);
@@ -541,6 +585,7 @@ const SpacesPage: React.FC = () => {
   }, [previewDocument]);
 
   const openClassification = (document: Document) => {
+    setClassifyTarget(null);
     setDocumentToClassify(document);
     setContextMenu(null);
   };
@@ -626,7 +671,8 @@ const SpacesPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedUnitId(unit.id)}
-                    className={`transition-colors ${
+                    {...folderDropProps(unit.id)}
+                    className={`transition-colors ${dropUnitId === unit.id ? 'rounded-md ring-2 ring-rdpc-blue ' : ''}${
                       index === breadcrumbUnits.length - 1
                         ? 'text-rdpc-blue'
                         : 'hover:text-slate-600'
@@ -707,6 +753,7 @@ const SpacesPage: React.FC = () => {
                       <li><b>Retour arrière</b> : dossier parent</li>
                       <li><b>Ctrl+F</b> : rechercher</li>
                       <li><b>Échap</b> : fermer</li>
+                      <li><b>Glisser sur un dossier</b> : classer le document dans ce service</li>
                     </ul>
                   }
                 />
@@ -882,8 +929,9 @@ const SpacesPage: React.FC = () => {
                             onClick={() => openFolder(child.id)}
                             onDoubleClick={() => openFolder(child.id)}
                             onContextMenu={(event) => handleFolderContextMenu(event, child.id)}
+                            {...folderDropProps(child.id)}
                             data-explorer-item
-                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50 ${EXPLORER_ITEM_FOCUS}`}
+                            className={`group w-full rounded-[1.5rem] border ${dropUnitId === child.id ? 'border-rdpc-blue bg-blue-50 ring-2 ring-rdpc-blue' : 'border-slate-200 bg-white'} px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50 ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span className="material-symbols-outlined text-4xl text-amber-500">folder</span>
@@ -962,6 +1010,7 @@ const SpacesPage: React.FC = () => {
                             type="button"
                             onClick={() => openPreview(doc)}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
+                            {...dragProps(doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                             data-explorer-item
                             className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
@@ -1025,6 +1074,7 @@ const SpacesPage: React.FC = () => {
                               key={doc.id}
                               onDoubleClick={() => openPreview(doc)}
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
+                              {...dragProps(doc)}
                               tabIndex={0}
                               data-explorer-item
                               aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
@@ -1175,9 +1225,7 @@ const SpacesPage: React.FC = () => {
                 <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">preview</span>
                 Ouvrir
               </button>
-              {(!contextMenu.document.classification_status
-                || contextMenu.document.classification_status === 'pending'
-                || contextMenu.document.classification_status === 'needs_review') && (
+              {canClassify(contextMenu.document.classification_status) && (
                 <button type="button" role="menuitem" onClick={() => openClassification(contextMenu.document)} className={MENU_ITEM}>
                   <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">rule</span>
                   Classer
@@ -1335,13 +1383,18 @@ const SpacesPage: React.FC = () => {
 
       <ClassificationSlideOver
         isOpen={!!documentToClassify}
-        onClose={() => setDocumentToClassify(null)}
+        onClose={() => {
+          setDocumentToClassify(null);
+          setClassifyTarget(null);
+        }}
         document={documentToClassify}
+        targetOrgUnitId={classifyTarget}
         domains={domains}
         activities={activities}
         flatUnits={flatUnits}
         onSuccess={() => {
           setDocumentToClassify(null);
+          setClassifyTarget(null);
           loadDocuments();
         }}
       />
