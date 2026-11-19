@@ -150,3 +150,122 @@ async def test_refresh_token_is_refused_on_protected_routes(
         )
         assert me.status_code == 200
         assert me.json()["matricule"] == "TEST001"
+
+
+def _bearer(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.mark.asyncio
+async def test_logout_revokes_the_whole_login_session(
+    async_client: AsyncClient, db_seed
+):
+    """After logout, neither the refresh token nor an access token it issued still works."""
+    tokens = await _full_login(async_client, db_seed)
+    refreshed = await async_client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert refreshed.status_code == 200
+    sibling = refreshed.json()["access_token"]
+    assert (
+        await async_client.get("/api/v1/users/me", headers=_bearer(sibling))
+    ).status_code == 200
+
+    logout = await async_client.post(
+        "/api/v1/auth/logout", headers=_bearer(tokens["access_token"])
+    )
+    assert logout.status_code == 200
+
+    for refresh in (tokens["refresh_token"], refreshed.json()["refresh_token"]):
+        again = await async_client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": refresh}
+        )
+        assert again.status_code == 401
+    assert (
+        await async_client.get("/api/v1/users/me", headers=_bearer(sibling))
+    ).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_leaves_other_sessions_open(async_client: AsyncClient, db_seed):
+    first = await _full_login(async_client, db_seed)
+    second = await _full_login(async_client, db_seed)
+    await async_client.post(
+        "/api/v1/auth/logout", headers=_bearer(first["access_token"])
+    )
+
+    assert (
+        await async_client.get(
+            "/api/v1/users/me", headers=_bearer(second["access_token"])
+        )
+    ).status_code == 200
+    refreshed = await async_client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": second["refresh_token"]}
+    )
+    assert refreshed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_token_issued_before_sessions_gets_one_at_refresh(
+    async_client: AsyncClient, db_seed
+):
+    """Retroactive: a refresh token without ``sid`` still works, and is revocable afterwards."""
+    from app.core.security import create_refresh_token, decode_token
+
+    legacy = create_refresh_token(
+        {
+            "sub": str(db_seed["user_id"]),
+            "tenant_id": str(db_seed["tenant_id"]),
+            "role": "collaborator",
+            "matricule": "TEST001",
+        }
+    )
+    refreshed = await async_client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": legacy}
+    )
+    assert refreshed.status_code == 200
+    body = refreshed.json()
+    assert decode_token(body["access_token"])["sid"]
+    assert (
+        decode_token(body["refresh_token"])["sid"]
+        == decode_token(body["access_token"])["sid"]
+    )
+
+    await async_client.post(
+        "/api/v1/auth/logout", headers=_bearer(body["access_token"])
+    )
+    again = await async_client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": body["refresh_token"]}
+    )
+    assert again.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_tenant_dependency_applies_the_same_checks(
+    async_client: AsyncClient, db_seed
+):
+    """get_current_tenant_id refuses refresh and revoked tokens like get_current_user_id."""
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    from app.core.dependencies import get_current_tenant_id
+
+    def creds(token: str) -> HTTPAuthorizationCredentials:
+        return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+    tokens = await _full_login(async_client, db_seed)
+    assert await get_current_tenant_id(creds(tokens["access_token"])) == str(
+        db_seed["tenant_id"]
+    )
+
+    for token in (tokens["refresh_token"], "not-a-token"):
+        with pytest.raises(HTTPException) as refused:
+            await get_current_tenant_id(creds(token))
+        assert refused.value.status_code == 401
+
+    await async_client.post(
+        "/api/v1/auth/logout", headers=_bearer(tokens["access_token"])
+    )
+    with pytest.raises(HTTPException) as revoked:
+        await get_current_tenant_id(creds(tokens["access_token"]))
+    assert revoked.value.status_code == 401
