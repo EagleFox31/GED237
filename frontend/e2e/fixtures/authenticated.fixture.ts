@@ -2,6 +2,7 @@ import { test as base, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { guardNativeDialogs, assertNoNativeDialog } from './noNativeDialog';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,9 +26,16 @@ function readSession(): Record<string, string> {
 type AuthedFixtures = {
   accessToken: string;
   sessionDump: Record<string, string>;
+  noNativeDialog: void;
 };
 
 export const test = base.extend<AuthedFixtures>({
+  noNativeDialog: [async ({ page }, use) => {
+    const seen = guardNativeDialogs(page);
+    await use();
+    assertNoNativeDialog(seen());
+  }, { auto: true }],
+
   sessionDump: async ({}, use) => {
     const session = readSession();
     await use(session);

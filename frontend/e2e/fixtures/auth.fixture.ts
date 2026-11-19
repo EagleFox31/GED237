@@ -1,5 +1,6 @@
 import { test as base, expect, type Browser } from '@playwright/test';
 import { LoginPage } from '../pages/login.page';
+import { guardNativeDialogs, assertNoNativeDialog } from './noNativeDialog';
 
 /**
  * Demo credentials matching DEMO_CREDENTIALS in LoginPage.tsx
@@ -23,6 +24,8 @@ type AuthFixtures = {
   loginAs: (role: UserRole) => Promise<void>;
   /** true = every loginAs goes through the real login form (specs that test the login itself). */
   freshLogin: boolean;
+  /** Garde auto : échoue si une fenêtre native alert/confirm/prompt s'ouvre. */
+  noNativeDialog: void;
 };
 
 type WorkerFixtures = {
@@ -63,6 +66,12 @@ async function captureSession(browser: Browser, baseURL: string | undefined, rol
 
 export const test = base.extend<AuthFixtures, WorkerFixtures>({
   freshLogin: [false, { option: true }],
+
+  noNativeDialog: [async ({ page }, use) => {
+    const seen = guardNativeDialogs(page);
+    await use();
+    assertNoNativeDialog(seen());
+  }, { auto: true }],
 
   roleSession: [async ({ browser }, use, workerInfo) => {
     const baseURL = workerInfo.project.use.baseURL;

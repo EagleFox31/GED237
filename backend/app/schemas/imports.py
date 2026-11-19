@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.core.classification_reasons import ReviewReasonText
+
 ProcessingMode = Literal["archive", "process"]
 ImportSourceScope = Literal["person", "service", "subdirectorate"]
 ImportJobStatus = Literal[
@@ -43,7 +45,7 @@ class ImportJobItemRead(BaseModel):
     workflow_template_id: Optional[UUID] = None
     logical_space_path: Optional[str] = None
     status: ImportJobItemStatus
-    error_message: Optional[str] = None
+    error_message: ReviewReasonText = None
     document_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
