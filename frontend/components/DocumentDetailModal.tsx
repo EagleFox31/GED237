@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import DocumentReservation from './DocumentReservation';
+import DocumentNewVersion from './DocumentNewVersion';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
 
@@ -108,6 +109,16 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
       console.error('Failed to fetch versions:', err);
     } finally {
       setVersionsLoading(false);
+    }
+  };
+
+  /** Après une nouvelle version : relit l'historique et la fiche (version courante, taille). */
+  const handleVersionUploaded = async () => {
+    await loadVersions();
+    try {
+      handleReservationChange(await api.getDocument(document.id));
+    } catch (err) {
+      console.error('Reload after new version failed:', err);
     }
   };
 
@@ -416,6 +427,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
 
           {activeTab === 'history' && (
             <div className="max-w-3xl mx-auto space-y-4">
+              <DocumentNewVersion document={document} onUploaded={handleVersionUploaded} />
               {versionsLoading && (
                 <div className="flex items-center justify-center py-10">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rdpc-blue"></div>
@@ -425,7 +437,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 <div className="text-center py-10 text-slate-400 font-bold">Aucun historique disponible.</div>
               )}
               {!versionsLoading && versions.map((v) => (
-                <div key={v.id} className={`glass p-5 rounded-3xl border flex items-center justify-between transition-all ${
+                <div key={v.id} data-testid="document-version" className={`glass p-5 rounded-3xl border flex items-center justify-between transition-all ${
                   v.is_current ? 'border-blue-400 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200'
                 }`}>
                   <div className="flex items-center gap-4">
