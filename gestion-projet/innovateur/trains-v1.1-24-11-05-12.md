@@ -98,6 +98,7 @@ Relevé du 19/11 vers 16:50 : `revision` et `down_revision` lus à la tête de c
 | 7 | #186 (TR-17) | `d4f1b6c2e8a9` | `a7c8d9e0f1b2` | **`d4e8b2c6a1f3`** |
 | 8 | #165 (TR-18), 14151ddd | `8aed3f3826d7` | `a7c8d9e0f1b2` | **`d4f1b6c2e8a9`** |
 | 9 | #192 (TR-18) | `c9f2a7d4e1b6` | `a7c8d9e0f1b2` | **`8aed3f3826d7`** |
+| suit #180 | #209 (TR-18), 3af5934f, empilée sur #180 | aucune révision propre : elle porte `eff6822a5320` et `b9d4e2f7a1c3`, identiques octet pour octet à celles de #180 | — | rien à changer : après re-ciblage sur `main` (une fois #180 fusionnée), son diff ne touche plus `alembic/versions`. Dans la simulation de Q (17:00), le nombre de têtes ne bouge pas à son étape (5 avant, 5 après) |
 | hors trains | #183 | `c3e8a5d1f2b7` (porte aussi `eff6822a5320` et `b9d4e2f7a1c3`) | `b9d4e2f7a1c3` | la tête de `main` au moment de sa fusion |
 
 - **Le risque est réel.** Six révisions descendent aujourd'hui de `a7c8d9e0f1b2` : celles de #436, #197 (donc aussi #180 et #183), #193, #186, #165 et #192. Fusionnées telles quelles, la deuxième crée une seconde tête.
@@ -105,6 +106,7 @@ Relevé du 19/11 vers 16:50 : `revision` et `down_revision` lus à la tête de c
 - **Contrôle de Q avant chaque fusion de ces PR** : `alembic heads` renvoie une seule ligne sur la tête fusionnée, dans un conteneur. Après la fusion de #436, le test `backend/tests/test_alembic_revisions.py`, qu'elle ajoute, échoue en cas de seconde tête (`test_single_head_without_cycle`) : toute PR qui fusionne `main` sans reposer sa `down_revision` devient rouge en CI.
 - **Après TR-12, TR-16, TR-17 et TR-18** : `alembic upgrade head` sur edossier et test_ged.
 - **À confirmer par B** : aucune base partagée n'a reçu l'une de ces révisions depuis une branche. Si c'est le cas, on ajoute une révision de fusion, comme `e1f2a3b4c5d6` sur `main`, au lieu de changer `down_revision`.
+- **Fichiers de conflit récurrents** : `docker-compose.yml`, `backend/.env.example`, `core/config.py`, `workers/celery_app.py` et `tasks.py` (#180, #183, #192). O met la branche à jour au moment de la fusion ; l'auteur résout. La même simulation montre aussi `.env.example` et `config.py` pour #193, #165 et #190, et `docker-compose.yml` pour #155 et #165.
 
 ## Capacité de Q
 
