@@ -23,7 +23,7 @@ ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 43
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
-ORDER_V2="152 181 184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 453 456 458"
+ORDER_V2="152 181 184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 463 453 456 458"
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
@@ -67,7 +67,8 @@ HORS_FILE="104 121 408 409 412 415 385 313 460 461"
   - #455, L13-2 accueil (B). Elle est empilée sur #438 et passe derrière #438 et #440, avec `DEP[455]="438 440"`. Il faut la re-cibler sur `main` avant la fusion de #438 ; Q a validé la tête ca6dcf41 (O, 19/11).
   - #456, 57 L12-5 « réassigner une tâche en cours » (B, 056e8842). Elle est empilée sur #445 et passe juste derrière #453, en fin de vague 2, avec `DEP[456]="445"`. Il faut la re-cibler sur `main` avant la fusion de #445 ;
   - #457, 57 L10-3 bis `pg_trgm` (aide-api, 12c4d6c6). Elle est empilée sur #445 et porte la migration `60e40a686375`, qui suit `7680f303299d`. Elle passe juste derrière #445, avec `DEP[457]="445"`, et `DEP[197]` passe de 445 à 457 (chaîne alembic, `plan-fusion` § 4). Il faut la re-cibler sur `main` avant la fusion de #445. Si elle n'est pas prête en fin de vague 2, remettre `DEP[197]="445"`. B, porteur de #197, devra alors repartir de `7680f303299d` au lieu de `60e40a686375`. Q a validé la tête 12c4d6c6 (O, 19/11).
-  - #458, L3 « texte des fichiers Word et Excel lu au dépôt » (aide-api, base `main`, e70353d9, sans migration). Elle passe en fin de vague 2, derrière les PR de recherche, sans `DEP`. Simulation `git merge-tree` du 19/11 : aucun conflit avec #426, #457, #436, #445 ni #404. Elle partage `documents.py` et `classification_review_service.py` avec #184, #168, #182, #241, #213, #261 et #263, mais ces PR sont déjà en conflit avec `main` sur ces deux fichiers : elles se mettent à jour à leur tour, comme prévu. La PR de départage du tri de `/search` (aide-api) sera empilée sur #457 quand elle sera ouverte.
+  - #458, L3 « texte des fichiers Word et Excel lu au dépôt » (aide-api, base `main`, e70353d9, sans migration). Elle passe en fin de vague 2, derrière les PR de recherche, sans `DEP`. Simulation `git merge-tree` du 19/11 : aucun conflit avec #426, #457, #436, #445 ni #404. Elle partage `documents.py` et `classification_review_service.py` avec #184, #168, #182, #241, #213, #261 et #263, mais ces PR sont déjà en conflit avec `main` sur ces deux fichiers : elles se mettent à jour à leur tour, comme prévu.
+  - #463, départage du tri de `/search` pour des pages stables (aide-api, brouillon, sans migration ni LESSON). Elle est empilée sur #457 (base `feat/v11-api-trigram`) et passe juste derrière #457 en vague 2, avec `DEP[463]="457"`. Il faut la re-cibler sur `main` avant la fusion de #457 (O, 19/11). Simulation du 19/11 : aucun conflit avec sa base ; contre `main`, aucun conflit en plus de celui de #457 (`lessons-learned.md`).
   - #459, Lot 11 points 4 et 5 « aperçu Excel allégé et progression des gros PDF » (F, base `main`, d169cefe, interface seule). Elle passe en fin de vague 5, derrière #401, sans `DEP`. Simulation `git merge-tree` du 19/11 : aucun fichier commun avec #458 (serveur seul) ni avec #450. Nouveaux conflits, absents face à `main` : `documents.api.ts` avec #181, #302, #182, #296, #361 et #401, et `client.ts` avec #401. Toutes ces PR fusionnent avant elle, donc #459 seule se met à jour, en gardant les deux côtés (résolution chez F).
   - Hors file, vers `main` avant le gel de 17:15 (O, 19/11) : #460 (F, ec2e9ae4) répare les 2 tests `search-highlight` cassés depuis 2d20a028 ; #461 (F, 46d7ff15) ajoute LESSON-2026-068 (heredoc). **Après la fusion de #460**, #438, #445 et #446 fusionnent `main` : sur `search-highlight.spec.ts`, `searchHighlight.ts` et `HighlightedExcerpt.tsx`, on prend la version de `main` (leurs versions étaient identiques à `main` avant #460). Simulation `git merge-tree` : #438 et #446 sans conflit ; #445 en conflit sur `lessons-learned.md` seulement, on garde les deux ajouts, ceux de `main` d'abord. **Numéros de LESSON** : #460 et #461 prennent 067 et 068 sur `main`. Il faut donc renuméroter les doublons : LESSON-2026-068 de #436 (Alembic, reprise par #445, #456 et #457) et LESSON-2026-067 de #433 (I). Les nouveaux numéros sont proposés à O le 19/11.
 - **À ouvrir, hors des vagues tant que la PR n’existe pas** : la réparation du hook pre-commit (Q, 0,5 h-s), après #433.
@@ -144,7 +145,8 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 | #437 | #448 ; puis, avant #448 : #454 |
 | #435 | #449 |
 | #441 | #450 |
-| #445 | #456, #457 |
+| #445 | #456, #457 ; puis, avant #457 : #463 |
+| #184 | #462 |
 
 Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2 re-ciblées restent ouvertes, et aucune n’est fusionnée avant la fin de la fenêtre V1.1 (05/12, 18:00).
 

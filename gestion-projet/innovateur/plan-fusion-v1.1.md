@@ -272,7 +272,7 @@ Tête de `main` le 18/11 : `a7c8d9e0f1b2`. Seules deux familles de PR portent de
 |---|---|---|---|
 | 0 | #436 (vague 2) : recherche insensible aux accents | 0f6f64260460 | `a7c8d9e0f1b2` (déjà posé) |
 | 0 bis | #445 (vague 2, aide-api) : délégation pendant une absence, côté serveur (L4, 57 L7-5), empilée sur #429 | 7680f303299d | `0f6f64260460` (fait en 6003d93e : la branche contient #436) |
-| 0 ter | #457 (vague 2, aide-api) : 57 L10-3 bis `pg_trgm`, empilée sur #445 | 60e40a686375 | `7680f303299d` (déjà posé dans 12c4d6c6) |
+| 0 ter | #457 (vague 2, aide-api) : 57 L10-3 bis `pg_trgm`, empilée sur #445. #463 (départage du tri de `/search`, sans migration) est empilée sur elle et passe juste derrière (`DEP[463]="457"`, re-ciblage sur `main` avant la fusion de #457 ; O, 19/11) | 60e40a686375 | `7680f303299d` (déjà posé dans 12c4d6c6) |
 | 1 | #197 | eff6822a5320 | tête de `main` à sa fusion : **`60e40a686375`** (#457) si rien d’autre n’est passé ; ce n’est plus `a7c8d9e0f1b2` ni `7680f303299d`. Au 19/11, son `down_revision` vaut encore `a7c8d9e0f1b2` (tête actuelle de `main`) ; #457 passant avant elle, B la rattache à `60e40a686375` dès la fusion de #457, avec un aller-retour alembic (montée puis descente) en conteneur (O, 19/11) |
 | 2 | #180 | b9d4e2f7a1c3 | eff6822a5320, à retirer du diff de #180 s'il y est copié |
 | 3 | #193 | d4e8b2c6a1f3 | tête précédente |
