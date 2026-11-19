@@ -19,6 +19,7 @@
 
 | # | Ligne | Commande / geste | Preuve | Mém. |
 |---|---|---|---|---|
+| 1.0 | Pile de recette vérifiée debout après le redémarrage de la veille (Docker passé de 12 à 16 Go à 18:15, arrêt de tous les conteneurs) | `docker compose ps` (tous les services `running`/`healthy`), `/health` en 200, connexion d'un compte de démo | état de la pile et durée du redémarrage | — |
 | 1.1 | Pile neuve depuis `main` : `git clone` propre, `docker compose up -d --build`, attendre `/health` 200 | manuel d'installation `DOCS/exploitation/installation.md` | durées notées | 5 Go |
 | 1.2 | Jeu D1 : `e2e_reset.sh demo` | `sh backend/scripts/e2e_reset.sh demo` (voir `DOCS/exploitation/donnees-demo.md`) | compteurs | — |
 | 1.2 bis | **Seulement si #485 est fusionnée** (ticket #483) : rattrapage des revues de classement pour les documents déjà en base. Se joue après chaque `alembic upgrade head` ou restauration (1.3, 3.9) | `docker compose exec api python scripts/sync_classification_reviews.py` (plan, sans écriture) ; même commande avec `--apply` ; un second `--apply` ne trouve plus rien à faire | sortie des trois passes | — |
