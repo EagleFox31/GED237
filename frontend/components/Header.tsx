@@ -6,6 +6,7 @@ import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../stores/authStore';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { Avatar } from './ui/Avatar';
 import { HighlightedExcerpt } from './HighlightedExcerpt';
 import { getStatusLabel } from '../types';
@@ -181,6 +182,8 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  // Fenêtre d'aide : Échap la ferme (la touche est annoncée dans la fenêtre).
+  useEscapeToClose(() => setShowHelp(false), showHelp);
   const notifRef = useRef<HTMLDivElement>(null);
   const { notifications, markAsRead, markAllAsRead, loadNotifications } = useNotifications();
   const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -358,7 +361,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 }}
                 aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
                 aria-expanded={showNotifications}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-all relative ${showNotifications ? 'bg-slate-100 text-rdpc-blue' : 'text-slate-400'}`}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-all relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue ${showNotifications ? 'bg-slate-100 text-rdpc-blue' : 'text-slate-400'}`}
               >
                 <span className="material-symbols-outlined text-xl">notifications</span>
                 {unreadCount > 0 && (
@@ -410,7 +413,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               type="button"
               aria-label="Aide"
               onClick={() => setShowHelp(true)}
-              className="w-10 h-10 rounded-xl text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-rdpc-blue transition-all"
+              className="w-10 h-10 rounded-xl text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-rdpc-blue transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue"
               title="Aide"
             >
               <span className="material-symbols-outlined text-xl">help_outline</span>
@@ -419,7 +422,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
               type="button"
               aria-label="Paramètres"
               onClick={onOpenSettings}
-              className="w-10 h-10 rounded-xl text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-rdpc-blue transition-all group"
+              className="w-10 h-10 rounded-xl text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-rdpc-blue transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue"
             >
               <span className="material-symbols-outlined text-xl group-hover:rotate-90 transition-transform duration-500">settings</span>
             </button>
@@ -515,7 +518,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                 type="button"
                 aria-label="Fermer l'aide"
                 onClick={() => setShowHelp(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center"
+                className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
