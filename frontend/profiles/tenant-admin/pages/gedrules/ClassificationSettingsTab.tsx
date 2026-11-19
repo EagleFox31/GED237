@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ClassificationActivityPayload, type ClassificationDomainPayload, type ClassificationRulePayload } from '../../../../services/api';
 import { MultiCheckSelect } from '../../../../components/ui/MultiCheckSelect';
+import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { RulesTransferControls } from './RulesTransferControls';
 import { SimulationTracePanel } from '../../../../components/classification/SimulationTracePanel';
 import { categoriesApi, type DocumentCategory } from '../../../../services/categories.api';
@@ -574,6 +575,7 @@ const ClassificationSettingsTab: React.FC = () => {
   const [simulationForm, setSimulationForm] = useState<SimulatorFormState>(EMPTY_SIMULATION);
   const [simulationResult, setSimulationResult] = useState<ClassificationSimulationResponse | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  const [pendingDeleteRule, setPendingDeleteRule] = useState<ClassificationRule | null>(null);
   const [domainModalOpen, setDomainModalOpen] = useState(false);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
@@ -1206,9 +1208,7 @@ const ClassificationSettingsTab: React.FC = () => {
   };
 
   const deleteRule = async (rule: ClassificationRule) => {
-    if (!window.confirm(`Supprimer définitivement la règle « ${rule.name} » ?`)) {
-      return;
-    }
+    setPendingDeleteRule(null);
     setWorking(`delete-rule:${rule.id}`);
     try {
       await api.deleteClassificationRule(rule.id);
@@ -2102,7 +2102,7 @@ const ClassificationSettingsTab: React.FC = () => {
                   <span className="material-symbols-outlined text-[16px]">{selectedRule.is_active ? 'pause' : 'play_arrow'}</span>
                   {selectedRule.is_active ? 'Désactiver' : 'Activer'}
                 </button>
-                <button type="button" onClick={() => { void deleteRule(selectedRule); }} disabled={Boolean(working)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-rose-600 hover:text-white transition-all text-xs tracking-widest uppercase flex items-center gap-2 shadow-sm disabled:opacity-50">
+                <button type="button" onClick={() => setPendingDeleteRule(selectedRule)} disabled={Boolean(working)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-rose-600 hover:text-white transition-all text-xs tracking-widest uppercase flex items-center gap-2 shadow-sm disabled:opacity-50">
                   <span className="material-symbols-outlined text-[16px]">delete</span>
                   Supprimer
                 </button>
@@ -2704,6 +2704,15 @@ const ClassificationSettingsTab: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full min-h-0">
+      <ConfirmationModal
+        open={pendingDeleteRule !== null}
+        icon="delete"
+        title="Supprimer cette règle ?"
+        message={pendingDeleteRule ? `« ${pendingDeleteRule.name} » sera supprimée définitivement.` : ''}
+        confirmLabel="Supprimer"
+        onConfirm={() => pendingDeleteRule && void deleteRule(pendingDeleteRule)}
+        onCancel={() => setPendingDeleteRule(null)}
+      />
       <div className="flex gap-2.5 border-b-2 border-slate-200 shrink-0 overflow-x-auto custom-scrollbar">
         {TAB_ORDER.map((tab) => {
           const meta = TAB_META[tab];

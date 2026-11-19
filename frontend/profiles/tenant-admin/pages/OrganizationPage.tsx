@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../stores/authStore';
@@ -7,6 +7,7 @@ import { CreateOrgUnitModal } from '../../super-admin/pages/tenant-detail/Create
 import type { Document } from '../../../types';
 import { formatDate, formatFileSize, getFileTypeLabel } from '../../../types';
 import { Avatar } from '../../../components/ui/Avatar';
+import { filterOrgTree } from '../../../lib/orgTreeFilter';
 
 // Interface matching the backend Schema
 interface OrgUnitNode {
@@ -37,10 +38,13 @@ interface OrgTreeNodeProps {
   selectedId: string | null;
   onSelect: (n: OrgUnitNode) => void;
   depth?: number;
+  /** Filtre actif : tout est déplié pour montrer les résultats et leurs ancêtres. */
+  forceOpen?: boolean;
 }
 
-const OrgTreeNode: React.FC<OrgTreeNodeProps> = ({ node, selectedId, onSelect, depth = 0 }) => {
-  const [isOpen, setIsOpen] = useState(true);
+const OrgTreeNode: React.FC<OrgTreeNodeProps> = ({ node, selectedId, onSelect, depth = 0, forceOpen = false }) => {
+  const [openState, setIsOpen] = useState(true);
+  const isOpen = forceOpen || openState;
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = node.id === selectedId;
 
@@ -53,7 +57,7 @@ const OrgTreeNode: React.FC<OrgTreeNodeProps> = ({ node, selectedId, onSelect, d
         style={{ marginLeft: `${depth * 12}px` }}
       >
         <button
-          onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+          onClick={(e) => { e.stopPropagation(); setIsOpen(!openState); }}
           className={`w-6 h-6 flex items-center justify-center rounded-lg transition-colors ${hasChildren ? 'hover:bg-white/20' : 'invisible'}`}
         >
           <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}>chevron_right</span>
@@ -74,7 +78,7 @@ const OrgTreeNode: React.FC<OrgTreeNodeProps> = ({ node, selectedId, onSelect, d
             {/* Ligne verticale de hiérarchie */}
             <div className="absolute left-[27px] top-0 bottom-0 w-px bg-slate-200" style={{ left: `${(depth * 12) + 27}px` }}></div>
             {node.children!.map(child => (
-              <OrgTreeNode key={child.id} node={child} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} />
+              <OrgTreeNode key={child.id} node={child} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} forceOpen={forceOpen} />
             ))}
           </div>
         </div>
@@ -101,6 +105,8 @@ const OrganizationPage: React.FC = () => {
   const [selectedUnit, setSelectedUnit] = useState<OrgUnitNode | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'staff' | 'chart'>('info');
   const [loading, setLoading] = useState(true);
+  const [treeFilter, setTreeFilter] = useState('');
+  const filteredTree = useMemo(() => filterOrgTree(treeData, treeFilter), [treeData, treeFilter]);
   const [unitDocuments, setUnitDocuments] = useState<Document[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
@@ -189,6 +195,8 @@ const OrganizationPage: React.FC = () => {
           <div className="relative">
             <input
               type="text"
+              value={treeFilter}
+              onChange={(e) => setTreeFilter(e.target.value)}
               placeholder="Filtrer la structure..."
               className="w-full bg-slate-100 border-none rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-rdpc-blue/20"
             />
@@ -200,9 +208,11 @@ const OrganizationPage: React.FC = () => {
             <p className="text-xs text-slate-400 italic font-medium p-4 text-center">Chargement...</p>
           ) : treeData.length === 0 ? (
             <p className="text-xs text-slate-400 italic font-medium p-4 text-center">Aucune structure d'organisation définie.</p>
+          ) : filteredTree.length === 0 ? (
+            <p className="text-xs text-slate-400 italic font-medium p-4 text-center">Aucune unité</p>
           ) : (
-            treeData.map(rootNode => (
-              <OrgTreeNode key={rootNode.id} node={rootNode} selectedId={selectedUnit?.id || null} onSelect={setSelectedUnit} />
+            filteredTree.map(rootNode => (
+              <OrgTreeNode key={rootNode.id} node={rootNode} selectedId={selectedUnit?.id || null} onSelect={setSelectedUnit} forceOpen={treeFilter.trim() !== ''} />
             ))
           )}
         </div>
@@ -249,12 +259,6 @@ const OrganizationPage: React.FC = () => {
                     className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-lg">add</span> Ajouter sous-service
-                  </button>
-                  <button className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm">
-                    <span className="material-symbols-outlined text-lg">delete</span> Supprimer
-                  </button>
-                  <button className="px-5 py-2.5 bg-rdpc-blue text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-800 transition-all flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">edit</span> Modifier
                   </button>
                 </div>
               </div>
