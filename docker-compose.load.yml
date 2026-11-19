@@ -143,6 +143,7 @@ services:
     cpus: 0.25
     logging: *default-logging
     volumes:
+      - corpus:/data/ingest:ro
       - ./gestion-projet/recette:/results
     environment:
       <<: *backend-env
