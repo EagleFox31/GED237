@@ -59,6 +59,6 @@ export const duplicatesApi = {
       '/duplicates/resolve',
       { method: 'POST', body: JSON.stringify({ keep_id: keepId, trash_ids: trashIds }) },
       'Mise à la corbeille des doublons impossible',
-      { 403: "Vous n'avez pas le droit de supprimer un de ces documents." },
+      { statusMessages: { 403: "Vous n'avez pas le droit de supprimer un de ces documents." } },
     ),
 };
