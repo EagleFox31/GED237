@@ -1,7 +1,7 @@
 # backend/app/api/v1/endpoints/documents.py
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -26,6 +26,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
+from app.core.local_time import local_days_filter
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
@@ -870,16 +871,31 @@ async def list_documents(
     limit: int = 100,
     document_status: Optional[str] = Query(default=None, alias="status"),
     q: Optional[str] = Query(default=None, max_length=120),
+    # Local calendar days (Cameroon), both inclusive, like the journal's Du/Au filters.
+    created_from: Optional[date] = Query(default=None),
+    created_to: Optional[date] = Query(default=None),
+    owner_id: Optional[UUID] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if created_from and created_to and created_from > created_to:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La date de début (created_from) est après la date de fin (created_to).",
+        )
     query = select(Document).where(
         Document.tenant_id == current_user.tenant_id, Document.deleted_at.is_(None)
     )
+    # Filters below only narrow this scope: an owner outside it gives an empty list.
     query = query.where(*visible_document_scope(current_user))
 
     if document_status:
         query = query.where(Document.status == document_status)
+    query = query.where(
+        *local_days_filter(Document.created_at, created_from, created_to)
+    )
+    if owner_id:
+        query = query.where(Document.owner_id == owner_id)
     # Search runs on the whole scope, not on the page the client already holds.
     if q and q.strip():
         query = _apply_text_filter(query, q.strip())

@@ -1,7 +1,7 @@
 # backend/app/api/v1/endpoints/audit.py
 import csv
 import io
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
+from app.core.local_time import LOCAL_TZ, local_days_filter
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.user import User
@@ -65,8 +66,6 @@ ACTION_LABELS = {
     "exported": "Export du journal",
 }
 
-# Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.
-LOCAL_TZ = timezone(timedelta(hours=1), "WAT")
 EXPORT_MAX_ROWS = 50_000
 _EXPORT_BATCH = 2_000
 EXPORT_COLUMNS = (
@@ -187,12 +186,7 @@ def _filtered_query(
         query = query.where(func.lower(AuditLog.action).in_(actions))
     if user_id is not None:
         query = query.where(AuditLog.user_id == user_id)
-    if date_from:
-        query = query.where(AuditLog.created_at >= _utc_naive(date_from))
-    if date_to:
-        query = query.where(
-            AuditLog.created_at < _utc_naive(date_to + timedelta(days=1))
-        )
+    query = query.where(*local_days_filter(AuditLog.created_at, date_from, date_to))
     if until is not None:
         query = query.where(AuditLog.created_at <= until)
     return query
@@ -208,12 +202,6 @@ def _logged_filter(value: str | list[str] | None) -> str | list[str] | None:
     """Filter as written in the export's own audit row: a single value stays a string."""
     items = _values(value)
     return items[0] if len(items) == 1 else (items or None)
-
-
-def _utc_naive(day: date) -> datetime:
-    """Local midnight of ``day`` as the naive UTC value stored in created_at."""
-    local_midnight = datetime.combine(day, time.min, tzinfo=LOCAL_TZ)
-    return local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 async def _load_references(
