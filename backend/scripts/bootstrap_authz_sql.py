@@ -4,7 +4,7 @@ Bootstrap or sync Casbin policies from CSV into the SQL adapter store.
 
 Usage:
   python scripts/bootstrap_authz_sql.py                  # empty store only
-  python scripts/bootstrap_authz_sql.py --force          # replace everything
+  python scripts/bootstrap_authz_sql.py --force          # align SQL on the CSV exactly
   python scripts/bootstrap_authz_sql.py --sync --dry-run # list missing rules
   python scripts/bootstrap_authz_sql.py --sync           # insert missing rules
 
@@ -16,8 +16,13 @@ the --dry-run list first.
 
 import argparse
 import asyncio
+import os
+import sys
 
-from app.core.authz.casbin_enforcer import (
+# Run as `python scripts/bootstrap_authz_sql.py` from backend/ (the migrate container does).
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from app.core.authz.casbin_enforcer import (  # noqa: E402
     bootstrap_sql_policies_from_csv,
     csv_sql_policy_drift,
     sync_sql_policies_from_csv,
@@ -32,7 +37,10 @@ async def main() -> None:
     mode.add_argument(
         "--force",
         action="store_true",
-        help="Clear SQL policies before import.",
+        help=(
+            "Align SQL exactly on policy.csv: remove the other rules (API ones "
+            "included), add the missing ones. Matching rows are left as they are."
+        ),
     )
     mode.add_argument(
         "--sync",

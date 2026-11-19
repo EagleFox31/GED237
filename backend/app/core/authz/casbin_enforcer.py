@@ -83,6 +83,9 @@ async def _build_sql_enforcer() -> Enforcer:
     policy_url = _get_sql_policy_url()
     adapter = Adapter(policy_url)
     e = Enforcer(_MODEL_PATH, adapter)
+    # Every write goes row by row through the adapter (#236); never rely on
+    # save_policy(), which deletes and rewrites the whole table.
+    e.enable_auto_save(True)
     e.load_policy()
     logger.info(
         "[Casbin] SQL enforcer ready (%s) — %d policies.",
@@ -307,7 +310,12 @@ async def bootstrap_sql_policies_from_csv(force: bool = False) -> int:
     """
     Bootstrap explicite des policies CSV vers SQL.
     - force=False: refuse d'écraser une table SQL non vide
-    - force=True : remplace complètement les policies SQL
+    - force=True : aligne exactement SQL sur le CSV (#236) : retire les règles
+      absentes du CSV, ajoute les manquantes. Écritures unitaires (auto_save),
+      jamais save_policy() qui efface et réécrit toute la table : les lignes
+      déjà conformes gardent leur id, un second passage n'écrit rien.
+      Une règle du CSV présente deux fois en SQL n.est plus dédoublonnée
+      (sans effet sur l.enforce : casbin charge les doublons une seule fois).
     Retourne le nombre de lignes importées.
     """
     sql_e = await _get_sql_enforcer()
@@ -323,24 +331,37 @@ async def bootstrap_sql_policies_from_csv(force: bool = False) -> int:
         )
         return 0
 
+    to_add_p, to_add_g = csv_e.get_policy(), csv_e.get_grouping_policy()
+    removed = 0
     if force:
-        await _maybe_await(sql_e.clear_policy())
+        drift = await csv_sql_policy_drift()  # reloads SQL from the database
+        stale_p = {tuple(rule) for rule in drift["sql_only_p"]}
+        stale_g = {tuple(rule) for rule in drift["sql_only_g"]}
+        # Remove with the rules as loaded (adapters may pad them).
+        for rule in [r for r in sql_e.get_policy() if _rule_key(r) in stale_p]:
+            if await _maybe_await(sql_e.remove_policy(*rule)):
+                removed += 1
+        for rule in [r for r in sql_e.get_grouping_policy() if _rule_key(r) in stale_g]:
+            if await _maybe_await(sql_e.remove_grouping_policy(*rule)):
+                removed += 1
+        to_add_p, to_add_g = drift["missing_p"], drift["missing_g"]
 
     imported = 0
-    for rule in csv_e.get_policy():
-        added = await _maybe_await(sql_e.add_policy(*rule))
-        if added:
+    for rule in to_add_p:
+        if await _maybe_await(sql_e.add_policy(*rule)):
             imported += 1
-    for rule in csv_e.get_grouping_policy():
-        added = await _maybe_await(sql_e.add_grouping_policy(*rule))
-        if added:
+    for rule in to_add_g:
+        if await _maybe_await(sql_e.add_grouping_policy(*rule)):
             imported += 1
 
-    await _maybe_await(sql_e.save_policy())
     global _policy_version_local
-    if force or imported > 0:
+    if imported or removed:
         _policy_version_local = _bump_policy_version(sql_e)
-    logger.info("[Casbin] Bootstrap CSV -> SQL done (%d policies imported).", imported)
+    logger.info(
+        "[Casbin] Bootstrap CSV -> SQL done (%d imported, %d removed).",
+        imported,
+        removed,
+    )
     return imported
 
 
@@ -365,7 +386,8 @@ async def csv_sql_policy_drift() -> dict[str, list[list[str]]]:
     Compare policy.csv with the SQL policy store, read fresh from the database.
     - missing_p / missing_g : rules of policy.csv absent from SQL
     - sql_only_p / sql_only_g: rules only in SQL (added through the admin API,
-      or removed from policy.csv since) — reported, never touched
+      or removed from policy.csv since) — reported; this function never
+      touches them (bootstrap force=True removes them)
     Read only.
     """
     sql_e = await _get_sql_enforcer()
@@ -411,7 +433,7 @@ async def sync_sql_policies_from_csv(*, dry_run: bool = False) -> int:
         if await _maybe_await(sql_e.add_grouping_policy(*rule)):
             inserted += 1
     # auto_save (on by default) already inserted each row. No save_policy():
-    # with this adapter it deletes and rewrites the whole table (#236).
+    # with this adapter it deletes and rewrites the whole table.
     if inserted:
         global _policy_version_local
         _policy_version_local = _bump_policy_version(sql_e)
@@ -500,8 +522,7 @@ async def add_sql_policy(values: list[Optional[str]]) -> bool:
         return False
     added = sql_e.add_policy(*rule)
     created = bool(await _maybe_await(added))
-    if created:
-        await _maybe_await(sql_e.save_policy())
+    if created:  # auto_save wrote the row; no full rewrite (#236)
         global _policy_version_local
         _policy_version_local = _bump_policy_version(sql_e)
     return created
@@ -520,8 +541,7 @@ async def remove_sql_policy(values: list[Optional[str]]) -> bool:
         return False
     removed = sql_e.remove_policy(*rule)
     deleted = bool(await _maybe_await(removed))
-    if deleted:
-        await _maybe_await(sql_e.save_policy())
+    if deleted:  # auto_save deleted the row; no full rewrite (#236)
         global _policy_version_local
         _policy_version_local = _bump_policy_version(sql_e)
     return deleted
