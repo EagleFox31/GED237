@@ -123,7 +123,7 @@ services:
       retries: 3
       start_period: 30s
     # No code mount and no hot reload by default: the image carries the code (uvicorn ignores --workers under --reload).
-    # Development: API_RELOAD=--reload plus a docker-compose.override.yml mounting ./backend/app:/app/app.
+    # Development: API_RELOAD=--reload plus docker-compose.override.example.yml copied to docker-compose.override.yml.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 ${API_RELOAD:-} --workers ${API_WORKERS:-2} --proxy-headers --forwarded-allow-ips="*"
     volumes:
       - storage_data:/var/storage_data
