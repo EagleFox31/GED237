@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_URL } from '../constants';
+import {
+    SOCKET_REFUSED,
+    notificationsSocketUrl,
+    socketRetryDelay,
+    ticketRefusalIsFinal,
+} from '../lib/notificationsSocket';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 
-// Rafraîchissement de la liste tant que l'onglet est visible (pas de temps réel sans WebSocket).
+// Rafraîchissement de la liste tant que l'onglet est visible : filet de sécurité du temps réel.
 export const NOTIFICATIONS_REFRESH_MS = 60_000;
 
 export interface Notification {
@@ -17,10 +24,7 @@ export interface Notification {
 export const useNotifications = () => {
     // La liste passe par le cookie de session : il suffit qu'un utilisateur soit connecté.
     const userKey = useAuthStore((s) => s.userProfile?.matricule ?? null);
-    // Jeton legacy : plus écrit depuis les cookies HttpOnly, donc pas de WebSocket (V1.1).
-    const token = sessionStorage.getItem('token');
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const ws = useRef<WebSocket | null>(null);
     // Utilisateur courant : une réponse arrivée après déconnexion ou changement de compte est ignorée.
     const currentUser = useRef<string | null>(null);
 
@@ -59,34 +63,57 @@ export const useNotifications = () => {
         };
     }, [userKey, loadNotifications]);
 
+    // Temps réel : un ticket à usage unique avant chaque connexion (jamais le jeton dans l'URL).
+    // Session finie ou ticket refusé : on s'arrête, le rafraîchissement régulier ci-dessus suffit.
     useEffect(() => {
-        if (!token) return;
+        if (!userKey) return;
+        let stopped = false;
+        let socket: WebSocket | null = null;
+        let retryTimer: number | undefined;
+        let attempt = 0;
 
-        const API_WS_URL = import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8000/api/v1';
-        ws.current = new WebSocket(`${API_WS_URL}/notifications/ws?token=${token}`);
-
-        ws.current.onopen = () => {
-            console.log('Notification WebSocket connected');
+        const retryLater = () => {
+            if (stopped) return;
+            retryTimer = window.setTimeout(connect, socketRetryDelay(attempt));
+            attempt += 1;
         };
 
-        ws.current.onmessage = (event) => {
+        async function connect() {
+            if (stopped) return;
+            let ticket: string;
             try {
-                const data = JSON.parse(event.data);
-                // Prepend new notification
-                setNotifications((prev) => [data, ...prev]);
-            } catch (err) {
-                console.error('Failed to parse WebSocket message', err);
+                ({ ticket } = await api.getWsTicket());
+            } catch (error) {
+                if (!ticketRefusalIsFinal((error as { status?: number })?.status)) retryLater();
+                return;
             }
-        };
+            if (stopped) return;
+            socket = new WebSocket(notificationsSocketUrl(API_URL, ticket, window.location.href));
+            socket.onopen = () => {
+                attempt = 0;
+            };
+            socket.onmessage = (event) => {
+                if (currentUser.current !== userKey) return;
+                try {
+                    const data = JSON.parse(event.data) as Notification;
+                    setNotifications((prev) => (prev.some((n) => n.id === data.id) ? prev : [data, ...prev]));
+                } catch {
+                    // Message illisible : ignoré, la liste se rafraîchit de toute façon.
+                }
+            };
+            socket.onclose = (event) => {
+                socket = null;
+                if (event.code !== SOCKET_REFUSED) retryLater();
+            };
+        }
 
-        ws.current.onclose = () => {
-            console.log('Notification WebSocket closed');
-        };
-
+        connect();
         return () => {
-            ws.current?.close();
+            stopped = true;
+            window.clearTimeout(retryTimer);
+            socket?.close();
         };
-    }, [token]);
+    }, [userKey]);
 
     const markAsRead = async (id: string) => {
         try {

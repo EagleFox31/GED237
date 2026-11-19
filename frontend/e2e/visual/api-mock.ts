@@ -121,7 +121,10 @@ export async function mockApi(page: Page, { omit = [] }: MockApiOptions = {}): P
     await route.fulfill({ status: 404, json: { detail: 'Not mocked' } });
   });
   await page.route('**/health', (route) => route.fulfill({ json: { status: 'ok' } }));
-  // Notifications temps réel : socket simulée, muette.
+  // Notifications temps réel : ticket simulé, puis socket simulée, muette.
+  await page.route(`**${API_PREFIX}/auth/ws-ticket`, (route) =>
+    route.fulfill({ json: { ticket: 'visual-ticket', expires_in: 30 } }),
+  );
   await page.routeWebSocket('**/notifications/ws**', () => undefined);
 
   return unmocked;

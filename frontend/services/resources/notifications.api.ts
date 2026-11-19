@@ -19,6 +19,16 @@ export const notificationsApi = {
             'Marquage de la notification impossible',
         ),
 
+    // Ticket à usage unique (~30 s) pour ouvrir le WebSocket : le jeton ne passe jamais dans l'URL.
+    // Silencieux : sans temps réel, la liste se rafraîchit quand même.
+    getWsTicket: (): Promise<{ ticket: string; expires_in: number }> =>
+        apiCall<{ ticket: string; expires_in: number }>(
+            '/auth/ws-ticket',
+            { method: 'POST' },
+            'Connexion temps réel impossible',
+            { silent: true },
+        ),
+
     markAllNotificationsAsRead: (): Promise<any> =>
         apiCall<any>(
             '/notifications/read-all',

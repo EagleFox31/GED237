@@ -175,6 +175,7 @@ export const api = {
     getNotifications: notificationsApi.getNotifications,
     markNotificationAsRead: notificationsApi.markNotificationAsRead,
     markAllNotificationsAsRead: notificationsApi.markAllNotificationsAsRead,
+    getWsTicket: notificationsApi.getWsTicket,
 
     // AuthZ
     getAuthzPolicies: authzApi.getAuthzPolicies,
