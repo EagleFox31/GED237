@@ -26,6 +26,7 @@ from app.models.classification_rule import ClassificationRule
 from app.models.document import Document
 from app.models.import_job import ImportJob
 from app.models.org_unit import OrgUnit
+from app.models.tenant import Tenant
 from app.models.workflow import WorkflowStep
 from app.services.classification_review_service import ClassificationReviewService
 
@@ -438,3 +439,76 @@ async def test_rule_target_unit_cannot_be_moved_out_of_the_tree(
         )
     assert moved.status_code == 403
     assert kept.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_legacy_resolve_review_target_must_be_a_unit_of_the_tenant(
+    client_as, db_seed, tree, db_session
+):
+    """#242: the tree check lets every unit through for the institution-wide
+    roles, so the target is also checked against the caller's tenant."""
+    ids, units = tree["ids"], tree["units"]
+    for key in ("doc_a1", "doc_b"):
+        returned = await db_session.get(Document, ids[key])
+        returned.status = "returned"
+        returned.classification_status = "classified"
+    other_tenant, foreign_unit, closed_unit = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    db_session.add(
+        Tenant(
+            id=other_tenant,
+            name="Autre institution",
+            short_name="AUTRE",
+            domain=f"autre-{other_tenant}.gov.cm",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+    for unit_id, tenant_id, active in (
+        (foreign_unit, other_tenant, True),
+        (closed_unit, db_seed["tenant_id"], False),
+    ):
+        db_session.add(
+            OrgUnit(
+                id=unit_id,
+                tenant_id=tenant_id,
+                code=f"OU-{str(unit_id)[:8]}",
+                name=f"Service {str(unit_id)[:8]}",
+                level=1,
+                is_active=active,
+            )
+        )
+    await db_session.commit()
+
+    resolved = {"mark_as_resolved": True}
+    url = f"/api/v1/documents/{ids['doc_b']}/resolve-review"
+    async with client_as(
+        "tenant_admin", id=db_seed["user_id"], **_caller(db_seed, tree, "a")
+    ) as client:
+        refused = {
+            name: await client.post(
+                url, json={**resolved, "target_folder_id": str(target)}
+            )
+            for name, target in (
+                ("foreign", foreign_unit),
+                ("unknown", uuid.uuid4()),
+                ("closed", closed_unit),
+            )
+        }
+        own = await client.post(
+            url, json={**resolved, "target_folder_id": str(units["a1"])}
+        )
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        bounded = await client.post(
+            f"/api/v1/documents/{ids['doc_a1']}/resolve-review",
+            json={**resolved, "target_folder_id": str(foreign_unit)},
+        )
+
+    assert {
+        name: (response.status_code, response.json()["detail"])
+        for name, response in refused.items()
+    } == {name: (422, "Target folder not found") for name in refused}
+    assert own.status_code == 200, own.text
+    document = await db_session.get(Document, ids["doc_b"])
+    await db_session.refresh(document)
+    assert document.org_unit_id == units["a1"]
+    assert bounded.status_code == 403, bounded.text
