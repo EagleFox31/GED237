@@ -15,6 +15,13 @@ export interface WorkflowActionPayload {
     comment?: string;
 }
 
+/** GET /workflows/my-counters : documents de l'utilisateur à corriger et tâches qui l'attendent. */
+export interface MyWorkflowCounters {
+    rejected: number;
+    returned: number;
+    tasks: number;
+}
+
 /** Décision d'un valideur sur sa tâche : accepter (viser, approuver, signer, prendre connaissance) ou rejeter. */
 export type WorkflowDecision = 'accept' | 'reject';
 
@@ -68,6 +75,12 @@ export const workflowsApi = {
             {},
             'Récupération de l\'historique des actions impossible',
         ),
+
+    getMyWorkflowCounters: (): Promise<MyWorkflowCounters> =>
+        // Compteur d'appoint : un refus (403) ou une route absente (404) ne mérite pas d'alerte globale.
+        apiCall<MyWorkflowCounters>('/workflows/my-counters', {}, 'Récupération de vos compteurs impossible', {
+            handledStatuses: [403, 404],
+        }),
 
     getPendingWorkflows: (options: ApiCallOptions = {}): Promise<PendingWorkflowTask[]> =>
         apiCall<PendingWorkflowTask[]>('/workflows/pending', {}, 'Récupération des workflows en attente impossible', options),
