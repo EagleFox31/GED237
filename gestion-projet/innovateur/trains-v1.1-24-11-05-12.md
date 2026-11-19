@@ -102,7 +102,7 @@ Relevé du 19/11 vers 16:50 : `revision` et `down_revision` lus à la tête de c
 
 - **Le risque est réel.** Six révisions descendent aujourd'hui de `a7c8d9e0f1b2` : celles de #436, #197 (donc aussi #180 et #183), #193, #186, #165 et #192. Fusionnées telles quelles, la deuxième crée une seconde tête.
 - **Correction** : avant son train, l'auteur de chaque PR en gras fusionne `main` et change seulement la ligne `down_revision`, sans changer l'identifiant `revision`. Si une PR de la chaîne n'est pas prête, la suivante repart de la dernière révision fusionnée.
-- **Contrôle de Q avant chaque fusion de ces PR** : `alembic heads` renvoie une seule ligne sur la tête fusionnée, dans un conteneur.
+- **Contrôle de Q avant chaque fusion de ces PR** : `alembic heads` renvoie une seule ligne sur la tête fusionnée, dans un conteneur. Après la fusion de #436, le test `backend/tests/test_alembic_revisions.py`, qu'elle ajoute, échoue en cas de seconde tête (`test_single_head_without_cycle`) : toute PR qui fusionne `main` sans reposer sa `down_revision` devient rouge en CI.
 - **Après TR-12, TR-16, TR-17 et TR-18** : `alembic upgrade head` sur edossier et test_ged.
 - **À confirmer par B** : aucune base partagée n'a reçu l'une de ces révisions depuis une branche. Si c'est le cas, on ajoute une révision de fusion, comme `e1f2a3b4c5d6` sur `main`, au lieu de changer `down_revision`.
 
