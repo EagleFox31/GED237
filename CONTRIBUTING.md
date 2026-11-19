@@ -80,7 +80,8 @@ lance que les jobs dont la surface est touchee :
 ```
 ci.yml
   |-- Change impact  (fichiers modifies -> surfaces -> gates)
-  |-- backend.yml    gate backend          (pytest + migrations + coverage >= 70% + benchmark)
+  |-- backend.yml    gate backend          (migrations + benchmark ; pytest en 4 parts paralleles,
+  |                  reparties par backend/.test_durations ; couverture fusionnee >= 70%)
   |-- frontend.yml   gate frontend         (typecheck + eslint + build)
   |-- security.yml   gitleaks toujours ; bandit (sast), pip-audit + npm audit (dependency-audit),
   |                  trivy (container-scan)
