@@ -4,6 +4,7 @@
 // SRP : change uniquement si le contrat /gedrules/* évolue.
 
 import { apiCall, apiCallVoid } from '../http/client';
+import type { TemplateDetail } from '../../lib/templateDetail';
 
 // ── API ─────────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,12 @@ export const gedrulesApi = {
 
     getTemplates: (): Promise<any[]> =>
         apiCall<any[]>('/gedrules/templates', {}, 'Récupération des templates impossible'),
+
+    // Détail en lecture (#278) : 404 (supprimé ou autre institution) affiché par l'écran.
+    getTemplate: (id: string): Promise<TemplateDetail> =>
+        apiCall<TemplateDetail>(`/gedrules/templates/${id}`, {}, 'Détail indisponible pour le moment.', {
+            handledStatuses: [403, 404, 500, 502, 503, 504],
+        }),
 
     createTemplate: (data: any): Promise<any> =>
         apiCall<any>(
