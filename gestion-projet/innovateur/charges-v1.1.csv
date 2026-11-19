@@ -33,3 +33,6 @@ ch;#470 manuel tag ou SHA;aide-api;0,25
 # Arbitrage d'O (19/11 matin) : les 9 constats nouveaux du tri de l'audit « Quotidien fonctionnaire » vont à aide-api, relus par F, après l'item 8 et la suite sécurité. 6,5 h-s côté écran et 0,5 h-s côté serveur.
 ch;tri audit 19/11, n° 9, 20, 1, 8, 11, 17, 14;aide-api;3,5
 ch;tri audit 19/11, n° 2 et 21;aide-api;3,5
+# Efforts donnés par aide-api (19/11, 10:05) : #474 = 0,25 h-s, terminé ; suite sécurité (identifiant de session commun) = 0,5 h-s, dont 0,4 fait.
+ch;#474 jeton de type access;aide-api;0,25
+ch;suite sécurité identifiant de session;aide-api;0,5
