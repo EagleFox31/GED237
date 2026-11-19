@@ -40,6 +40,8 @@ ACTION_LABELS = {
     "upload": "Dépôt de document",
     "login": "Connexion",
     "login_failed": "Connexion refusée",
+    "otp_sent": "Code de connexion envoyé",
+    "otp_send_failed": "Échec d'envoi du code",
     "import_committed": "Import exécuté",
     "content_viewed": "Consultation du document",
     "classification": "Tentative de classement",
