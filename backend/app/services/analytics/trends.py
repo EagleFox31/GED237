@@ -88,6 +88,9 @@ async def compute_trends(
                 and_(*filters),
                 WorkflowAction.outcome.in_(outcomes),
                 performed_local >= start,
+                # A visa the author puts on their own document is not a review (PO
+                # decision, 19/11). IS DISTINCT FROM keeps actions without a performer.
+                WorkflowAction.performed_by.is_distinct_from(Document.owner_id),
             )
             .group_by(performed_week)
         )
