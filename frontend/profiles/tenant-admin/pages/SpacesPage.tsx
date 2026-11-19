@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
 import type { Document } from '../../../types';
@@ -7,6 +7,7 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 
 interface UserNode {
   id: string;
@@ -34,10 +35,10 @@ interface FlatUnitNode extends SpaceTreeNode {
 }
 
 const CLASSIFICATION_STATUS_LABELS: Record<string, string> = {
-  classified: 'Classe automatiquement',
-  needs_review: 'A verifier',
+  classified: 'Classé automatiquement',
+  needs_review: 'À vérifier',
   pending: 'En attente de classement',
-  rejected: 'Rejete',
+  rejected: 'Rejeté',
 };
 
 const CLASSIFICATION_STATUS_BADGES: Record<string, string> = {
@@ -115,16 +116,19 @@ const DOCUMENT_STATUSES = ['draft', 'in_review', 'validated', 'signed', 'archive
 const SPACES_PAGE_SIZE = 50;
 const FILTER_SELECT =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none focus:border-rdpc-blue';
+// Focus clavier visible sur un dossier ou un document (navigation aux flèches).
+const EXPLORER_ITEM_FOCUS =
+  'outline-none focus-visible:border-rdpc-blue focus-visible:bg-blue-50 focus-visible:ring-4 focus-visible:ring-rdpc-blue/20';
 
 type ViewMode = 'details' | 'icons';
 
 type ContextMenuState =
-  | {
-      kind: 'document';
-      x: number;
-      y: number;
-      document: Document;
-    };
+  | { kind: 'document'; x: number; y: number; document: Document }
+  | { kind: 'folder'; x: number; y: number; unitId: string; path: string }
+  | { kind: 'background'; x: number; y: number };
+
+const MENU_ITEM =
+  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none';
 
 const SpacesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -137,7 +141,9 @@ const SpacesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recursive, setRecursive] = useState(false);
+  // Coché par défaut : un service de tête (Cabinet) n'a souvent aucun document
+  // en propre, la page s'ouvrirait sur « 0 document ».
+  const [recursive, setRecursive] = useState(true);
   // La recherche par texte est portée par l'URL (`?q=`) — la barre de
   // recherche globale (Header) écrit dedans.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -197,6 +203,12 @@ const SpacesPage: React.FC = () => {
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  // Zone des dossiers et documents : garde le focus clavier quand on change de dossier.
+  const itemsRegionRef = useRef<HTMLDivElement>(null);
+  // Élément à refocaliser à la fermeture de l'aperçu.
+  const previewReturnFocusRef = useRef<HTMLElement | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuReturnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -328,7 +340,7 @@ const SpacesPage: React.FC = () => {
         const message =
           e instanceof Error && e.message
             ? e.message
-            : "Impossible de charger les documents du service selectionne.";
+            : "Impossible de charger les documents du service sélectionné.";
         setError(message);
       } finally {
         setDocumentsLoading(false);
@@ -342,6 +354,20 @@ const SpacesPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUnitId, recursive, debouncedQuery, domainFilter, activityFilter, yearFilter, classificationFilter, statusFilter, page]);
 
+  // Mesuré avant l'affichage : un menu ouvert près du bas de l'écran remonte au lieu de déborder.
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!contextMenu || !menu) {
+      setMenuPosition(null);
+      return;
+    }
+    const { width, height } = menu.getBoundingClientRect();
+    setMenuPosition(
+      clampToViewport({ x: contextMenu.x, y: contextMenu.y }, { width, height }, { width: window.innerWidth, height: window.innerHeight })
+    );
+  }, [contextMenu]);
+
   useEffect(() => {
     if (!contextMenu) {
       return;
@@ -351,8 +377,13 @@ const SpacesPage: React.FC = () => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setContextMenu(null);
+        // Échap rend le focus à l'élément qui a ouvert le menu.
+        const back = menuReturnFocusRef.current;
+        if (back?.isConnected) back.focus({ preventScroll: true });
       }
     };
+    // Le menu ouvert au clavier prend le focus sur sa première entrée.
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
 
     window.addEventListener('click', closeMenu);
     window.addEventListener('keydown', closeOnEscape);
@@ -383,7 +414,8 @@ const SpacesPage: React.FC = () => {
     // En mode recherche : on lève la contrainte de portée (le tenant entier
     // visible) — l'utilisateur veut voir tous les matches, pas seulement
     // ceux strictement rattachés au service courant.
-    if (isSearchMode) return filteredDocuments;
+    // Sous-services inclus : la case demande justement leurs documents.
+    if (isSearchMode || recursive) return filteredDocuments;
     if (!selectedUnitId) {
       return filteredDocuments;
     }
@@ -396,12 +428,24 @@ const SpacesPage: React.FC = () => {
       const targetOrgUnitId = doc.classification_target_org_unit_id || doc.org_unit_id;
       return targetOrgUnitId === selectedUnitId;
     });
-  }, [childUnits.length, filteredDocuments, isSearchMode, selectedUnitId]);
+  }, [childUnits.length, filteredDocuments, isSearchMode, recursive, selectedUnitId]);
 
   const hiddenDescendantDocumentsCount = Math.max(
     filteredDocuments.length - visibleDocuments.length,
     0
   );
+
+  // Total du dossier : le serveur compte tous les documents filtrés, la page n'en
+  // charge que SPACES_PAGE_SIZE (#256). Les documents de sous-services masqués sur
+  // la page sont retirés quand tout est chargé. Paginé avec des sous-services, on ne
+  // connaît que la page : on affiche le total serveur, sous-services compris.
+  const isPaginated = totalDocuments > documents.length;
+  // Les documents de sous-services peuvent tous être sur les pages suivantes : on
+  // se fie à l'existence de sous-services, pas au nombre masqué sur cette page.
+  const countIncludesSubServices = isPaginated && childUnits.length > 0 && !isSearchMode;
+  const folderDocumentCount = countIncludesSubServices
+    ? totalDocuments
+    : Math.max(totalDocuments - hiddenDescendantDocumentsCount, visibleDocuments.length);
 
   const reviewCount = useMemo(
     () =>
@@ -416,16 +460,115 @@ const SpacesPage: React.FC = () => {
   const openFolder = (unitId: string) => {
     setSelectedUnitId(unitId);
     setContextMenu(null);
+    // Le bouton activé disparaît avec l'ancien dossier : le focus reste dans l'explorateur.
+    itemsRegionRef.current?.focus({ preventScroll: true });
   };
 
   const openPreview = (document: Document) => {
+    previewReturnFocusRef.current = window.document.activeElement as HTMLElement | null;
     setPreviewDocument(document);
     setContextMenu(null);
   };
 
+  const closePreview = () => {
+    setPreviewDocument(null);
+    const back = previewReturnFocusRef.current;
+    previewReturnFocusRef.current = null;
+    if (back?.isConnected) back.focus({ preventScroll: true });
+  };
+
+  // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
+  const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || isEditableTarget(event.target)) return;
+    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+      const target = event.target as HTMLElement;
+      const region = itemsRegionRef.current;
+      if (!region || !region.contains(target)) return;
+      // Même chemin que la souris : on rejoue un événement « contextmenu » à l'emplacement de l'élément.
+      const rect = target.getBoundingClientRect();
+      event.preventDefault();
+      target.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect.left + Math.min(rect.width / 2, 48),
+          clientY: rect.top + rect.height / 2,
+        })
+      );
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f') {
+      const search = window.document.querySelector<HTMLInputElement>('[data-global-search]');
+      if (search) {
+        event.preventDefault();
+        search.focus();
+        search.select();
+      }
+      return;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === 'Backspace') {
+      if (parentUnit) {
+        event.preventDefault();
+        openFolder(parentUnit.id);
+      }
+      return;
+    }
+    if (!isArrowKey(event.key)) return;
+    const items = Array.from(
+      itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
+    );
+    const current = items.indexOf(window.document.activeElement as HTMLElement);
+    // Hors d'un élément (filtres, boutons d'en-tête), les flèches gardent leur rôle habituel.
+    if (items.length === 0 || (current < 0 && event.target !== itemsRegionRef.current)) return;
+    event.preventDefault();
+    const boxes = items.map((el) => {
+      const rect = el.getBoundingClientRect();
+      return { top: rect.top, left: rect.left };
+    });
+    items[nextFocusIndex(boxes, current, event.key)]?.focus();
+  };
+
+  useEffect(() => {
+    if (!previewDocument) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePreview();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+    // closePreview ne lit que des refs et un setter stables.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewDocument]);
+
   const openClassification = (document: Document) => {
     setDocumentToClassify(document);
     setContextMenu(null);
+  };
+
+  const rememberMenuOpener = () => {
+    menuReturnFocusRef.current = window.document.activeElement as HTMLElement | null;
+  };
+
+  const handleFolderContextMenu = (event: React.MouseEvent, unitId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    rememberMenuOpener();
+    setContextMenu({
+      kind: 'folder',
+      x: event.clientX,
+      y: event.clientY,
+      unitId,
+      path: buildBreadcrumbSegments(unitId, unitsById).map((s) => s.name).join(' / '),
+    });
+  };
+
+  // Fond de la carte : les éléments arrêtent la propagation, seul le vide arrive ici.
+  // Hors de l'explorateur, le menu du navigateur reste disponible.
+  const handleBackgroundContextMenu = (event: React.MouseEvent) => {
+    if (isEditableTarget(event.target)) return;
+    event.preventDefault();
+    rememberMenuOpener();
+    setContextMenu({ kind: 'background', x: event.clientX, y: event.clientY });
   };
 
   const handleDocumentContextMenu = (
@@ -434,12 +577,23 @@ const SpacesPage: React.FC = () => {
   ) => {
     event.preventDefault();
     event.stopPropagation();
+    rememberMenuOpener();
     setContextMenu({
       kind: 'document',
       x: event.clientX,
       y: event.clientY,
       document,
     });
+  };
+
+  const handleTrash = async (doc: Document) => {
+    setContextMenu(null);
+    try {
+      await api.deleteDocument(doc.id);
+      loadDocuments();
+    } catch {
+      /* message déjà affiché par le bus global */
+    }
   };
 
   const handleCopyPath = async (path: string) => {
@@ -488,7 +642,10 @@ const SpacesPage: React.FC = () => {
             )}
           </div>
 
-            <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+            <div
+              className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm"
+              onKeyDown={handleExplorerKeyDown}
+            >
             <div className="flex flex-col gap-6 border-b border-slate-100 px-8 py-7 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-6">
                 {parentUnit && (
@@ -519,9 +676,14 @@ const SpacesPage: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-500">
-                <span>{visibleDocuments.length} document{visibleDocuments.length > 1 ? 's' : ''}</span>
+                <span>
+                  {folderDocumentCount} document{folderDocumentCount > 1 ? 's' : ''}
+                  {countIncludesSubServices ? ' (sous-services compris)' : ''}
+                </span>
                 <span>·</span>
-                <span>{reviewCount} à revoir</span>
+                <span>
+                  {reviewCount} à revoir{isPaginated ? ' sur cette page' : ''}
+                </span>
                 <button
                   type="button"
                   onClick={() => loadDocuments()}
@@ -536,6 +698,18 @@ const SpacesPage: React.FC = () => {
                 >
                   Importer
                 </button>
+                <InlineHelpButton
+                  label="Raccourcis clavier"
+                  content={
+                    <ul className="space-y-1 text-left">
+                      <li><b>Flèches</b> : se déplacer</li>
+                      <li><b>Entrée</b> : ouvrir</li>
+                      <li><b>Retour arrière</b> : dossier parent</li>
+                      <li><b>Ctrl+F</b> : rechercher</li>
+                      <li><b>Échap</b> : fermer</li>
+                    </ul>
+                  }
+                />
               </div>
             </div>
 
@@ -681,7 +855,13 @@ const SpacesPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="min-h-[560px] px-8 py-8">
+            <div
+              ref={itemsRegionRef}
+              tabIndex={-1}
+              aria-label="Contenu du dossier"
+              onContextMenu={handleBackgroundContextMenu}
+              className="min-h-[560px] px-8 py-8 outline-none"
+            >
               {childUnits.length > 0 && !isSearchMode && (
                 <div className="mb-8 space-y-4">
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
@@ -701,7 +881,9 @@ const SpacesPage: React.FC = () => {
                             type="button"
                             onClick={() => openFolder(child.id)}
                             onDoubleClick={() => openFolder(child.id)}
-                            className="group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50"
+                            onContextMenu={(event) => handleFolderContextMenu(event, child.id)}
+                            data-explorer-item
+                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50 ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span className="material-symbols-outlined text-4xl text-amber-500">folder</span>
@@ -781,7 +963,8 @@ const SpacesPage: React.FC = () => {
                             onClick={() => openPreview(doc)}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
-                            className="group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue"
+                            data-explorer-item
+                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span
@@ -825,9 +1008,9 @@ const SpacesPage: React.FC = () => {
                       <tr>
                         <th className="px-6 py-4">Document</th>
                         <th className="px-6 py-4">Classement</th>
-                        <th className="px-6 py-4">Cible metier</th>
+                        <th className="px-6 py-4">Cible métier</th>
                         <th className="px-6 py-4">Taille</th>
-                        <th className="px-6 py-4">Mise a jour</th>
+                        <th className="px-6 py-4">Mise à jour</th>
                         <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -842,13 +1025,22 @@ const SpacesPage: React.FC = () => {
                               key={doc.id}
                               onDoubleClick={() => openPreview(doc)}
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
-                              className="align-top transition-colors hover:bg-slate-50"
+                              tabIndex={0}
+                              data-explorer-item
+                              aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' && event.target === event.currentTarget) {
+                                  event.preventDefault();
+                                  openPreview(doc);
+                                }
+                              }}
+                              className="align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue"
                             >
                               <td className="px-6 py-5">
                                 <div className="space-y-2">
                                   <p className="text-sm font-bold text-slate-800">{doc.title}</p>
                                   <div className="flex flex-wrap gap-2 text-[11px] font-medium text-slate-500">
-                                    <span className="rounded-full bg-slate-100 px-3 py-1">{doc.category_name || 'Non classe'}</span>
+                                    <span className="rounded-full bg-slate-100 px-3 py-1">{doc.category_name || 'Non classé'}</span>
                                     <span className="rounded-full bg-slate-100 px-3 py-1">{getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
                                     <span className="rounded-full bg-slate-100 px-3 py-1">{getStatusLabel(doc.status)}</span>
                                   </div>
@@ -860,12 +1052,12 @@ const SpacesPage: React.FC = () => {
                                     {getClassificationStatusLabel(doc.classification_status)}
                                   </span>
                                   <p className="text-sm font-semibold text-slate-700">
-                                    {doc.logical_space_path || 'Chemin logique non encore determine'}
+                                    {doc.logical_space_path || 'Chemin logique pas encore déterminé'}
                                   </p>
                                   <p className="text-xs font-medium text-slate-500">
                                     {[doc.classification_domain_name, doc.classification_activity_name, doc.classification_year]
                                       .filter(Boolean)
-                                      .join(' / ') || 'Classement metier incomplet'}
+                                      .join(' / ') || 'Classement métier incomplet'}
                                   </p>
                                 </div>
                               </td>
@@ -957,48 +1149,92 @@ const SpacesPage: React.FC = () => {
 
       {contextMenu && (
         <div
+          ref={menuRef}
+          role="menu"
+          tabIndex={-1}
+          aria-label="Actions"
           className="fixed z-50 min-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={menuPosition ?? { top: contextMenu.y, left: contextMenu.x }}
           onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            const entries = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+            const at = entries.indexOf(window.document.activeElement as HTMLElement);
+            event.preventDefault();
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            entries[(at + step + entries.length) % entries.length]?.focus();
+          }}
           onContextMenu={(event) => {
             event.preventDefault();
             event.stopPropagation();
           }}
         >
-          <button
-                type="button"
-                onClick={() => openPreview(contextMenu.document)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                <span className="material-symbols-outlined text-base text-slate-400">preview</span>
+          {contextMenu.kind === 'document' && (
+            <>
+              <button type="button" role="menuitem" onClick={() => openPreview(contextMenu.document)} className={MENU_ITEM}>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">preview</span>
                 Ouvrir
               </button>
               {(!contextMenu.document.classification_status
                 || contextMenu.document.classification_status === 'pending'
                 || contextMenu.document.classification_status === 'needs_review') && (
-                <button
-                  type="button"
-                  onClick={() => openClassification(contextMenu.document)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  <span className="material-symbols-outlined text-base text-slate-400">rule</span>
+                <button type="button" role="menuitem" onClick={() => openClassification(contextMenu.document)} className={MENU_ITEM}>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">rule</span>
                   Classer
                 </button>
               )}
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => handleCopyPath(contextMenu.document.logical_space_path || '')}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                className={MENU_ITEM}
               >
-                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
               </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleTrash(contextMenu.document)}
+                className={MENU_ITEM}
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">delete</span>
+                Mettre à la corbeille
+              </button>
+            </>
+          )}
+          {contextMenu.kind === 'folder' && (
+            <>
+              <button type="button" role="menuitem" onClick={() => openFolder(contextMenu.unitId)} className={MENU_ITEM}>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">folder_open</span>
+                Ouvrir
+              </button>
+              <button type="button" role="menuitem" onClick={() => handleCopyPath(contextMenu.path)} className={MENU_ITEM}>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                Copier le chemin
+              </button>
+            </>
+          )}
+          {contextMenu.kind === 'background' && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setContextMenu(null);
+                loadDocuments();
+              }}
+              className={MENU_ITEM}
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">refresh</span>
+              Actualiser
+            </button>
+          )}
         </div>
       )}
 
       {previewDocument && (
         <div className="fixed inset-0 z-40 flex justify-end bg-slate-950/45 backdrop-blur-sm">
-          <div className="absolute inset-0" onClick={() => setPreviewDocument(null)} />
+          <div className="absolute inset-0" onClick={closePreview} />
 
           <div className="relative flex h-full w-full max-w-[95vw] animate-in slide-in-from-right duration-300 flex-col bg-white shadow-2xl lg:max-w-[88vw] lg:flex-row">
             <div className="flex min-h-0 flex-1 flex-col border-b border-slate-200 bg-slate-100 lg:border-b-0 lg:border-r">
@@ -1013,7 +1249,9 @@ const SpacesPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPreviewDocument(null)}
+                  onClick={closePreview}
+                  aria-label="Fermer l'aperçu"
+                  title="Fermer (Échap)"
                   className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
                 >
                   <span className="material-symbols-outlined">close</span>
@@ -1059,7 +1297,7 @@ const SpacesPage: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Classement</p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {previewDocument.logical_space_path || 'Chemin logique non encore determine'}
+                      {previewDocument.logical_space_path || 'Chemin logique pas encore déterminé'}
                     </p>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import { DEMO, DEMO_MANIFEST_FILE, type Counters } from '../data/demo';
+import { DEMO, DEMO_MANIFEST_FILE, DEMO_P8_TITLES, type Counters } from '../data/demo';
 
 /**
  * Demo dataset check (jeu-donnees-demo.md section 5, step 4): real counters and per-file destinations
@@ -88,8 +88,10 @@ test.describe('Demo dataset vs expected (step 4)', () => {
 
   test.beforeAll(async ({ request }) => {
     headers = await login(request);
-    live = await getAll(request, headers, '/documents/');
-    trash = await getAll(request, headers, '/documents/trash');
+    // The P8 overlay documents come after the dataset and are not in DEMO.expected.
+    const datasetOnly = (docs: Doc[]) => docs.filter((d) => !DEMO_P8_TITLES.has(d.title));
+    live = datasetOnly(await getAll(request, headers, '/documents/'));
+    trash = datasetOnly(await getAll(request, headers, '/documents/trash'));
     const map = async (route: string) =>
       new Map((await getJson<{ id: string; code: string }[]>(request, headers, route)).map((r) => [r.id, r.code]));
     codes = {
@@ -126,8 +128,14 @@ test.describe('Demo dataset vs expected (step 4)', () => {
     const foreignReviews = Object.entries(DEMO.expected.byOrgUnit)
       .filter(([unit]) => !visibleUnits.has(unit))
       .reduce((n, [, c]) => n + c.toReview, 0);
-    const reviews = await getJson<{ review_status: string }[]>(request, headers, '/classification-reviews');
-    expect(reviews.filter((r) => r.review_status === 'open'), 'open reviews visible to the admin').toHaveLength(
+    const reviews = await getJson<{ review_status: string; document?: { title: string } | null }[]>(
+      request,
+      headers,
+      '/classification-reviews',
+    );
+    // The P8 overlay documents match no classification rule: their reviews are outside DEMO.expected too.
+    const datasetReviews = reviews.filter((r) => !DEMO_P8_TITLES.has(r.document?.title ?? ''));
+    expect(datasetReviews.filter((r) => r.review_status === 'open'), 'open reviews visible to the admin').toHaveLength(
       toReview - foreignReviews,
     );
   });

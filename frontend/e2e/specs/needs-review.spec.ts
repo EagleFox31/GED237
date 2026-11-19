@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/authenticated.fixture';
 
 /**
@@ -9,7 +10,7 @@ import { test, expect } from '../fixtures/authenticated.fixture';
  *
  * Ce spec :
  *   1. ouvre la page et attend le chargement
- *   2. arbitre les 5 premiers documents (commentaire fourni, pas de dossier cible)
+ *   2. arbitre les 5 premiers documents (domaine, activité et service cible choisis, commentaire fourni)
  *   3. vérifie que la liste diminue à chaque arbitrage
  *
  * Défensif : si la liste est vide (workflow n'a encore rien mis en rebut),
@@ -17,6 +18,26 @@ import { test, expect } from '../fixtures/authenticated.fixture';
  */
 
 const MAX_ARBITRATIONS = 5;
+
+/**
+ * Domaine et activité sont obligatoires pour « Classer et relancer » : prend le premier domaine
+ * qui a au moins une activité, puis sa première activité ; complète le service cible s'il est vide.
+ */
+async function fillClassification(page: Page) {
+  const domain = page.getByRole('combobox', { name: 'Domaine' });
+  const activity = page.getByRole('combobox', { name: 'Activité' });
+  const domainCount = await domain.locator('option').count();
+  for (let d = 1; d < domainCount; d += 1) {
+    await domain.selectOption({ index: d });
+    if ((await activity.locator('option').count()) > 1) break;
+  }
+  await activity.selectOption({ index: 1 });
+
+  const target = page.getByRole('combobox', { name: 'Service cible' });
+  if ((await target.isVisible()) && !(await target.inputValue())) {
+    await target.selectOption({ index: 1 });
+  }
+}
 
 test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-07)', () => {
 
@@ -55,17 +76,15 @@ test.describe.serial('Feature: Arbitrage Documents à revoir (SC-ADM-07)', () =>
 
       await current.click();
 
-      // Champ commentaire obligatoire pour tracer la décision
-      const commentField = page.locator('textarea').first();
+      // Commentaire pour tracer la décision
+      const commentField = page.getByRole('textbox', { name: 'Commentaire de résolution' });
       await expect(commentField).toBeVisible({ timeout: 5_000 });
-      await commentField.fill(`Arbitrage E2E ${Date.now()} — document conservé sans classement`);
+      await fillClassification(page);
+      await commentField.fill(`Arbitrage E2E ${Date.now()} — classé par l'arbitrage`);
 
-      // Bouton valider l'arbitrage
-      const resolveBtn = page.getByRole('button', { name: /valider|résoudre|confirmer|arbitrer|classer et relancer/i }).first();
-      if (!(await resolveBtn.isVisible().catch(() => false))) {
-        console.log(`[needs-review] bouton de résolution introuvable à l'itération ${i}`);
-        break;
-      }
+      // Bouton valider l'arbitrage : actif une fois le formulaire complet
+      const resolveBtn = page.getByRole('button', { name: /classer et relancer/i });
+      await expect(resolveBtn).toBeEnabled({ timeout: 5_000 });
 
       // Intercepter l'appel API pour confirmer la résolution côté réseau
       const responsePromise = page.waitForResponse(
