@@ -599,7 +599,7 @@ première requête utilisateur.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
 
-### LESSON-2026-045 — Un rôle d'unité avec `manage` agit sur toute l'institution : Casbin ne connaît pas l'arbre
+### LESSON-2026-073 — Un rôle d'unité avec `manage` agit sur toute l'institution : Casbin ne connaît pas l'arbre
 
 - **Date :** 2026-11-17
 - **Catégorie :** authz
