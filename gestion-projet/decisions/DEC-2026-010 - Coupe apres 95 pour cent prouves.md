@@ -53,6 +53,7 @@ Rien d'autre ne bloque. #248, #267 et #268 (VPS) ne sont pas requis. Les scripts
 - Item 19 : #152 et #474 sont fusionnées (`main` = da09df90). Série d'O, une PR à la fois : #181, #477, #171, #199. #171 a l'OK de code de Q (efda93ef).
 - Score atteignable après ces fusions : 28 + 1 (28) + 0,5 (31) + 0,5 (19) = **30/32**. Le dernier demi-point dépend de C6 à 18:00 (item 29), ou de l'item 8 (#473, étalonnage lancé par aide-api).
 - **Point de 10:58 (O, puis I)** : #482 est fusionnée (`main` = 9542b4d5), l'item 31 est acquis. Mon décompte : 28 + 1 (item 28) + 0,5 (item 31) = **29,5/32** ; O annonce 30/32. Écart d'un demi-point à vérifier dans le décompte d'O avant la coupe : la coupe exige 30,5, et restent l'item 19 (#171, #199) et l'item 29 (C6 à 18:00), soit +1 au maximum.
+- **Écart levé (O, 11:15)** : le bon chiffre est **29,5/32**. O avait compté 0,5 de trop (29 + 0,5 pour l'item 31). Restent l'item 19 (+0,5) et l'item 29 (+0,5), soit 30,5 au mieux et aucune marge. L'item 8 partiel (+0,5) serait la marge. L'annonce de 30/32 plus haut (ligne « Score atteignable ») se lit donc 29,5 + 0,5 (19) = 30, puis 30,5 avec C6.
 
 ## 3. Recette sur `main` : un état du jour
 
