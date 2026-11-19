@@ -15,6 +15,8 @@ const ABSENT = { id: '11111111-1111-4111-8111-111111111111', full_name: 'Awa Abs
 const INTERIM = { id: '22222222-2222-4222-8222-222222222222', full_name: 'Paul Intérim', org_unit_id: 'ou-1' };
 /** Agent d'un autre service : jamais proposé comme remplaçant d'Awa (le serveur refuserait). */
 const ELSEWHERE = { id: '33333333-3333-4333-8333-333333333333', full_name: 'Zoé Autre service', org_unit_id: 'ou-2' };
+/** Lecteur du même service : ne peut pas valider, donc jamais proposé comme remplaçant. */
+const READER = { id: '44444444-4444-4444-8444-444444444444', full_name: 'Léa Lectrice', org_unit_id: 'ou-1', role: 'reader' };
 
 const delegation = (over: Record<string, unknown> = {}) => ({
   id: 'd-1',
@@ -51,6 +53,7 @@ test.describe('Remplacements pendant une absence (L4)', () => {
     await page.route(USERS_API, (route) => json(route, [
       ...[ABSENT, INTERIM].map((u) => ({ ...u, is_active: true })),
       { ...ELSEWHERE, is_active: true },
+      { ...READER, is_active: true },
     ]));
     await page.route(DELEGATIONS_API, async (route) => {
       const request = route.request();
@@ -70,7 +73,7 @@ test.describe('Remplacements pendant une absence (L4)', () => {
     const standIn = page.getByLabel('Remplacé par');
     await expect(standIn).toBeDisabled();
     await page.getByLabel('Agent absent').selectOption(ABSENT.id);
-    // Seuls les agents du même service, sans l'absente elle-même.
+    // Seuls les agents du même service qui peuvent valider, sans l'absente elle-même.
     await expect(standIn.locator('option')).toHaveText(['Choisir…', INTERIM.full_name]);
     await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
 

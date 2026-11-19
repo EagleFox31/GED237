@@ -71,4 +71,14 @@ test.describe('Délégation : règles d’affichage', () => {
     expect(standInCandidates(users, ME, '')).toEqual([]);
     expect(standInCandidates(users, ME, 'd')).toEqual([]);
   });
+
+  test('formulaire : un agent qui ne peut pas valider n’est pas proposé comme remplaçant', () => {
+    const users = [
+      { id: 'a', full_name: 'Absente', org_unit_id: 'ou-1', role: 'collaborator' },
+      { id: 'm', full_name: 'Chef', org_unit_id: 'ou-1', role: 'manager' },
+      { id: 'r', full_name: 'Lecteur', org_unit_id: 'ou-1', role: 'reader' },
+      { id: 'x', full_name: 'Rôle inconnu', org_unit_id: 'ou-1' },
+    ];
+    expect(standInCandidates(users, ME, 'a').map((u) => u.id)).toEqual(['m', 'x']);
+  });
 });

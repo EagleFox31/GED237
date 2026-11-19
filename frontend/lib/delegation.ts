@@ -55,14 +55,28 @@ export interface DelegationCandidate {
   id: string;
   full_name: string;
   org_unit_id?: string | null;
+  /** Code du rôle (GET /users `role`). */
+  role?: string | null;
 }
+
+/**
+ * Miroir de policy.csv (`workflows, resolve_review`) : seuls ces rôles peuvent valider, donc
+ * remplacer un absent. Le serveur refuse les autres (422 « Cet agent ne peut pas valider »).
+ */
+const STAND_IN_ROLES: ReadonlyArray<string> = ['manager', 'collaborator'];
+
+/** Rôle connu et sans droit de validation. Un rôle absent de la réponse n'exclut personne. */
+const cannotValidate = (u: DelegationCandidate) => Boolean(u.role) && !STAND_IN_ROLES.includes(String(u.role).toLowerCase());
 
 /** Agents qu'on peut déclarer absents : rattachés à un service, jamais soi-même (refus du serveur). */
 export function absentCandidates(users: DelegationCandidate[], myUserId: string | undefined): DelegationCandidate[] {
   return users.filter((u) => u.id !== myUserId && Boolean(u.org_unit_id));
 }
 
-/** Remplaçants possibles : même service que l'agent absent (règle du serveur), ni lui ni soi-même. */
+/**
+ * Remplaçants possibles : même service que l'agent absent, capables de valider (règles du
+ * serveur), ni lui ni soi-même.
+ */
 export function standInCandidates(
   users: DelegationCandidate[],
   myUserId: string | undefined,
@@ -70,7 +84,9 @@ export function standInCandidates(
 ): DelegationCandidate[] {
   const unit = users.find((u) => u.id === absentId)?.org_unit_id;
   if (!unit) return [];
-  return users.filter((u) => u.id !== myUserId && u.id !== absentId && u.org_unit_id === unit);
+  return users.filter(
+    (u) => u.id !== myUserId && u.id !== absentId && u.org_unit_id === unit && !cannotValidate(u),
+  );
 }
 
 /** Date courte lisible (« 20/11/2026 18:00 »). */

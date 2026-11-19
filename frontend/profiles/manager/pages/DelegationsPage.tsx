@@ -78,7 +78,7 @@ const DelegationsPage: React.FC = () => {
       .getUsers()
       .then((data) => setUsers(data
         .filter((u) => u.is_active !== false)
-        .map((u) => ({ id: u.id, full_name: u.full_name, org_unit_id: u.org_unit_id ?? null }))))
+        .map((u) => ({ id: u.id, full_name: u.full_name, org_unit_id: u.org_unit_id ?? null, role: u.role ?? null }))))
       .catch(() => setUsers([]));
   }, []);
 
