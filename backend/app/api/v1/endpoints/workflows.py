@@ -499,6 +499,18 @@ async def _reassign_step(
     if former_id == new_assignee.id:
         return step
 
+    # Same rule as the validators offered on screen (GET /workflows/validators).
+    target_role = await db.scalar(
+        select(Role.code).where(Role.id == new_assignee.role_id)
+    )
+    if target_role not in VALIDATOR_ROLE_CODES:
+        raise HTTPException(
+            status_code=400,
+            detail="Cette personne ne peut pas valider : choisissez un chef de service ou un administrateur.",
+        )
+    # A manager hands the step only to someone of the manager's own service.
+    assert_org_unit_scope(new_assignee.org_unit_id, current_user)
+
     former = await db.get(User, former_id) if former_id else None
     step.assigned_to = new_assignee.id
     db.add(
@@ -552,7 +564,10 @@ async def assign_step_admin(
     """
     await authorize_or_403(current_user, "workflows", "assign")
 
-    result = await db.execute(select(WorkflowStep).where(WorkflowStep.id == step_id))
+    # Row lock until commit: two concurrent (re)assignments of one step run one after the other.
+    result = await db.execute(
+        select(WorkflowStep).where(WorkflowStep.id == step_id).with_for_update()
+    )
     step = result.scalar_one_or_none()
     if not step:
         raise HTTPException(status_code=404, detail="Etape introuvable.")
@@ -572,6 +587,9 @@ async def assign_step_admin(
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
     await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
+    if reassigning:
+        # A manager reassigns only the documents of the manager's own service.
+        assert_org_unit_scope(document.org_unit_id, current_user)
 
     # Validate assignee exists
     user_result = await db.execute(

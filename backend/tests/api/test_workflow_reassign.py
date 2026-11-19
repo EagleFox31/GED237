@@ -54,11 +54,11 @@ async def test_admin_reassigns_a_step_in_progress(
 
     async with as_agent("admin") as admin:
         resp = await admin.post(
-            _url(world), json={"assigned_to": str(users["standin"].id)}
+            _url(world), json={"assigned_to": str(users["manager_u"].id)}
         )
 
     assert resp.status_code == 200, resp.text
-    assert resp.json()["assigned_to"] == str(users["standin"].id)
+    assert resp.json()["assigned_to"] == str(users["manager_u"].id)
     assert (
         resp.json()["status"] == "current"
     ), "a reassignment keeps the step in progress"
@@ -69,15 +69,15 @@ async def test_admin_reassigns_a_step_in_progress(
     assert row.user_id == users["admin"].id
     assert row.new_data["previous_assignee_id"] == str(users["absent"].id)
     assert row.new_data["previous_assignee_name"] == users["absent"].full_name
-    assert row.new_data["new_assignee_id"] == str(users["standin"].id)
-    assert row.new_data["new_assignee_name"] == users["standin"].full_name
+    assert row.new_data["new_assignee_id"] == str(users["manager_u"].id)
+    assert row.new_data["new_assignee_name"] == users["manager_u"].full_name
     assert row.new_data["step_label"] == "Visa"
 
     assert dispatched == [
         (
             "WORKFLOW_ASSIGNED",
             {
-                "user_id": str(users["standin"].id),
+                "user_id": str(users["manager_u"].id),
                 "tenant_id": str(world["tenant_id"]),
                 "document_title": "Note à viser",
                 "step_name": "Visa",
@@ -92,12 +92,12 @@ async def test_task_moves_to_the_new_validator(as_agent, delegation_world, dispa
 
     async with as_agent("manager_u") as manager:
         resp = await manager.post(
-            _url(world), json={"assigned_to": str(world["users"]["third"].id)}
+            _url(world), json={"assigned_to": str(world["users"]["admin"].id)}
         )
     assert resp.status_code == 200, resp.text
 
-    async with as_agent("third") as third:
-        mine = (await third.get("/api/v1/workflows/pending")).json()
+    async with as_agent("admin") as new_validator:
+        mine = (await new_validator.get("/api/v1/workflows/pending")).json()
     async with as_agent("absent") as absent:
         theirs = (await absent.get("/api/v1/workflows/pending")).json()
 
@@ -169,3 +169,86 @@ async def test_only_assigners_may_reassign(
         )
 
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_new_validator_must_hold_a_validator_role(
+    as_agent, delegation_world, db_session, dispatched
+):
+    """Same rule as the list on screen: a collaborator cannot take a visa step."""
+    world = delegation_world
+
+    async with as_agent("admin") as admin:
+        resp = await admin.post(
+            _url(world), json={"assigned_to": str(world["users"]["standin"].id)}
+        )
+
+    assert resp.status_code == 400
+    assert "ne peut pas valider" in resp.json()["detail"]
+    assert await _reassign_rows(db_session, world) == []
+    assert dispatched == []
+
+
+@pytest.mark.asyncio
+async def test_manager_of_another_service_cannot_reassign(
+    as_agent, delegation_world, db_session, dispatched
+):
+    world = delegation_world
+
+    async with as_agent("manager_v") as manager:
+        resp = await manager.post(
+            _url(world), json={"assigned_to": str(world["users"]["admin"].id)}
+        )
+
+    assert resp.status_code == 403
+    assert await _reassign_rows(db_session, world) == []
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_hand_the_step_outside_the_service(
+    as_agent, delegation_world, db_session, dispatched
+):
+    world = delegation_world
+
+    async with as_agent("manager_u") as manager:
+        resp = await manager.post(
+            _url(world), json={"assigned_to": str(world["users"]["manager_v"].id)}
+        )
+
+    assert resp.status_code == 403
+    assert await _reassign_rows(db_session, world) == []
+    assert dispatched == []
+
+
+@pytest.mark.asyncio
+async def test_concurrent_reassignments_are_serialized(delegation_world, test_engine):
+    """The step row is locked during a reassignment: a second writer waits for the commit."""
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.api.v1.endpoints import workflows
+
+    world = delegation_world
+    factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with factory() as holder, factory() as waiter:
+        locked = await holder.execute(
+            select(WorkflowStep)
+            .where(WorkflowStep.id == world["step_id"])
+            .with_for_update()
+        )
+        assert locked.scalar_one() is not None
+        statement = (
+            select(WorkflowStep)
+            .where(WorkflowStep.id == world["step_id"])
+            .with_for_update(nowait=True)
+        )
+        with pytest.raises(Exception):
+            await waiter.execute(statement)
+        await waiter.rollback()
+        await holder.rollback()
+    # The endpoint takes that same lock (guard against its removal).
+    import inspect
+
+    assert ".with_for_update()" in inspect.getsource(workflows.assign_step_admin)
