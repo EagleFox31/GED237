@@ -119,7 +119,7 @@ test.describe('Annuler une suppression ou un déplacement (API, #179)', () => {
 });
 
 // UI part of #151 (explorer, #184). Seed: tenant_admin opens the explorer on its own unit; the DAF is a sub-folder.
-const DAF = /Direction des Affaires Financieres/;
+const DAF = /Direction des Affaires Financi[eè]res/;
 const itemOf = (page: Page, title: string) => page.getByLabel(new RegExp(`^${title} — `));
 const toastFor = (page: Page, text: string) => page.getByRole('status').filter({ hasText: text });
 
