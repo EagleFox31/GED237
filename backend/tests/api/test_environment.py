@@ -176,5 +176,6 @@ async def test_production_never_returns_the_code(
     response = await async_client.post("/api/v1/auth/login", json=CREDENTIALS)
 
     assert response.status_code == 200, response.text
-    assert "otp" not in response.json()
+    # The schema always carries the field; production leaves it empty.
+    assert response.json().get("otp") is None
     assert bool(sent) == (channel == "email")
