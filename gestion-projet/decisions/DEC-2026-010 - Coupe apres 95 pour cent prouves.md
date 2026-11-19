@@ -25,7 +25,7 @@ Au 19/11 : **28/32**. #464 est fusionnée, `main` = 103ce48b, et l'item 27 (HTTP
 | 19. Détection des doublons | +0,5 | #152, #181, #171 et #199 fusionnées dans `main` | B, F, Q, O | `‹date›` | moyen : ≈ 4 h-s, 2 PR à remettre à jour |
 | 29. Disponibilité ≥ 99 % | +0,5 (`partiel` au mieux) | relevé C6 tenu à 18:00 (≥ 6 relevés verts consécutifs) | Q | 19/11, 18:00 | **élevé** : trou de nuit, puis arrêt de Docker ce matin |
 | 28. Déploiement sur site | +1 | installation sans Internet réussie (réponse 15 du PO) | Q | **acquis le 19/11** : prouvé au lab, #477 fusionnée ; SHA de référence `main` = `65d3eaaa` (65d3eaaacaaadd0c0a2929ee9416673375be60a2) | — |
-| 31. Documentation | +0,5 | rejeu du manuel sans écart (issue #273) | Q | compte à la fusion de **#482**, la PR `ops/` de Q (décision du PO, 19/11 vers 10:25 ; relecteur B) | faible |
+| 31. Documentation | +0,5 | rejeu du manuel sans écart (issue #273) | Q | **acquis le 19/11** : #482 fusionnée, `main` = `9542b4d5` (décision du PO, vers 10:25 ; relecteur B) | — |
 
 28 + 0,5 (19) + 0,5 (29) + 1 (28) + 0,5 (31) = 30,5. Il n'y a **aucune marge** : si C6 échoue ce soir, le meilleur score est 30/32, et seul l'item 8 permet d'atteindre 95 % (§ 4).
 
@@ -52,6 +52,7 @@ Rien d'autre ne bloque. #248, #267 et #268 (VPS) ne sont pas requis. Les scripts
 - Écart restant du lab, hors barème : après une sauvegarde ou une restauration, `api` change d'adresse IP. nginx garde l'ancienne, et `/health` répond 502 jusqu'à la relance de nginx. La relance faite par la PR `ops/` suffit pour V1.0. Le correctif de fond va en V1.1.
 - Item 19 : #152 et #474 sont fusionnées (`main` = da09df90). Série d'O, une PR à la fois : #181, #477, #171, #199. #171 a l'OK de code de Q (efda93ef).
 - Score atteignable après ces fusions : 28 + 1 (28) + 0,5 (31) + 0,5 (19) = **30/32**. Le dernier demi-point dépend de C6 à 18:00 (item 29), ou de l'item 8 (#473, étalonnage lancé par aide-api).
+- **Point de 10:58 (O, puis I)** : #482 est fusionnée (`main` = 9542b4d5), l'item 31 est acquis. Mon décompte : 28 + 1 (item 28) + 0,5 (item 31) = **29,5/32** ; O annonce 30/32. Écart d'un demi-point à vérifier dans le décompte d'O avant la coupe : la coupe exige 30,5, et restent l'item 19 (#171, #199) et l'item 29 (C6 à 18:00), soit +1 au maximum.
 
 ## 3. Recette sur `main` : un état du jour
 
