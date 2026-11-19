@@ -5,10 +5,13 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
+from app.core.security import hash_password
+
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
 from app.models.org_unit import OrgUnit
 from app.models.tenant import Tenant
+from app.models.user import User
 from app.models.workflow import ActionType, OutcomeType, WorkflowAction, WorkflowStep
 from app.services.analytics.trends import week_starts
 
@@ -66,6 +69,26 @@ async def _action(db_session, document, user_id, outcome, performed_at):
     )
 
 
+async def _reviewer(db_session, db_seed) -> uuid.UUID:
+    """Another agent of the seeded unit: the one who puts visas on the documents."""
+    matricule = f"REV{uuid.uuid4().hex[:6].upper()}"
+    user = User(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+        role_id=3,
+        matricule=matricule,
+        email=f"{matricule.lower()}@testministry.gov.cm",
+        first_name="Agent",
+        last_name=matricule,
+        password_hash=hash_password("testpassword123"),
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user.id
+
+
 def test_week_starts_are_mondays_oldest_first():
     mondays = week_starts(4, today=date(2026, 11, 18))  # a Wednesday
     assert [m.isoformat() for m in mondays] == [
@@ -110,6 +133,7 @@ async def test_week_boundary_uses_douala_time(admin_client, db_session, db_seed)
 @pytest.mark.asyncio
 async def test_visas_are_split_and_scoped_to_tenant(admin_client, db_session, db_seed):
     now = datetime.now(timezone.utc)
+    reviewer = await _reviewer(db_session, db_seed)
     mine = await _doc(
         db_session,
         db_seed["tenant_id"],
@@ -117,8 +141,8 @@ async def test_visas_are_split_and_scoped_to_tenant(admin_client, db_session, db
         db_seed["user_id"],
         now.replace(tzinfo=None),
     )
-    await _action(db_session, mine, db_seed["user_id"], OutcomeType.accepted, now)
-    await _action(db_session, mine, db_seed["user_id"], OutcomeType.returned, now)
+    await _action(db_session, mine, reviewer, OutcomeType.accepted, now)
+    await _action(db_session, mine, reviewer, OutcomeType.returned, now)
 
     other_tenant = Tenant(id=uuid.uuid4(), name="Autre")
     db_session.add(other_tenant)
@@ -140,7 +164,7 @@ async def test_visas_are_split_and_scoped_to_tenant(admin_client, db_session, db
         db_seed["user_id"],
         now.replace(tzinfo=None),
     )
-    await _action(db_session, foreign, db_seed["user_id"], OutcomeType.accepted, now)
+    await _action(db_session, foreign, reviewer, OutcomeType.accepted, now)
     await db_session.commit()
 
     body = (await admin_client.get(TRENDS, params={"scope": "tenant"})).json()
@@ -214,3 +238,66 @@ async def test_unit_admin_reaches_trends_and_manager(client_as, db_seed):
         assert (await client.get(MANAGER)).status_code == 200
         assert (await client.get(TRENDS, params={"scope": "unit"})).status_code == 200
         assert (await client.get(TRENDS, params={"scope": "tenant"})).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_tenant_scope_of_a_unit_admin_stays_in_its_tree(
+    client_as, admin_client, db_session, db_seed
+):
+    """Same perimeter as /analytics/tenant: a unit outside the tree is not counted."""
+    other_unit = OrgUnit(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        code=f"OU-{uuid.uuid4().hex[:8]}",
+        name="Hors arbre",
+        level=1,
+        is_active=True,
+    )
+    db_session.add(other_unit)
+    await db_session.flush()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    reviewer = await _reviewer(db_session, db_seed)
+    for unit_id in (db_seed["org_unit_id"], other_unit.id):
+        document = await _doc(
+            db_session, db_seed["tenant_id"], unit_id, db_seed["user_id"], now
+        )
+        await _action(db_session, document, reviewer, OutcomeType.accepted, now)
+    await db_session.commit()
+    whole = (await admin_client.get(TRENDS, params={"scope": "tenant"})).json()
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
+    ) as client:
+        response = await client.get(TRENDS, params={"scope": "tenant"})
+    assert response.status_code == 200, response.text
+    scoped = response.json()
+    assert scoped["series"]["documents_created"][-1] == 1
+    assert whole["series"]["documents_created"][-1] == 2
+    assert scoped["series"]["visas_accepted"][-1] == 1
+    assert whole["series"]["visas_accepted"][-1] == 2
+
+
+@pytest.mark.asyncio
+async def test_a_visa_the_author_puts_on_their_own_document_is_not_counted(
+    auth_client, admin_client, db_session, db_seed
+):
+    """PO decision (19/11): only visas given by someone other than the author count."""
+    now = datetime.now(timezone.utc)
+    reviewer = await _reviewer(db_session, db_seed)
+    document = await _doc(
+        db_session,
+        db_seed["tenant_id"],
+        db_seed["org_unit_id"],
+        db_seed["user_id"],
+        now.replace(tzinfo=None),
+    )
+    await _action(db_session, document, db_seed["user_id"], OutcomeType.accepted, now)
+    await _action(db_session, document, db_seed["user_id"], OutcomeType.rejected, now)
+    await _action(db_session, document, reviewer, OutcomeType.accepted, now)
+    await db_session.commit()
+
+    mine = (await auth_client.get(TRENDS, params={"scope": "mine"})).json()
+    tenant = (await admin_client.get(TRENDS, params={"scope": "tenant"})).json()
+
+    for body in (mine, tenant):
+        assert body["series"]["visas_accepted"][-1] == 1
+        assert body["series"]["visas_rejected_or_returned"][-1] == 0

@@ -27,7 +27,7 @@ export class DocumentsPage {
     this.heading = page.getByRole('heading', { name: /explorateur.*ged/i });
     this.uploadButton = page.getByRole('button', { name: /nouveau document/i });
 
-    this.searchInput = page.getByPlaceholder(/rechercher par nom/i);
+    this.searchInput = page.getByPlaceholder(/rechercher par titre/i);
     this.categoryFilter = page.locator('select').nth(0);
     this.statusFilter = page.locator('select').nth(1);
 
