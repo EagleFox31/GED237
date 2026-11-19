@@ -752,7 +752,7 @@ const SpacesPage: React.FC = () => {
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-xl">table_rows</span>
+                      <span className="material-symbols-outlined text-xl" aria-hidden="true">table_rows</span>
                       Détails
                     </button>
                     <button
@@ -764,7 +764,7 @@ const SpacesPage: React.FC = () => {
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-xl">grid_view</span>
+                      <span className="material-symbols-outlined text-xl" aria-hidden="true">grid_view</span>
                       Icônes
                     </button>
                   </div>
@@ -1027,7 +1027,8 @@ const SpacesPage: React.FC = () => {
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                               tabIndex={0}
                               data-explorer-item
-                              aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                              // Pas d'aria-label ici : sur une ligne de tableau il remplacerait les cellules
+                              // pour un lecteur d'écran (#167). Le nom de la ligne vient de ses cellules.
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && event.target === event.currentTarget) {
                                   event.preventDefault();

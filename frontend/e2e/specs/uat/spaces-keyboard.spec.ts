@@ -68,4 +68,30 @@ test.describe('Explorateur — réflexes clavier', () => {
     await expect(page.getByText('Aperçu du document')).toHaveCount(0);
     await expect(doc).toBeFocused();
   });
+
+  // #167 : en vue Détails, la ligne n'a pas d'aria-label, donc un lecteur d'écran lit chaque cellule.
+  test('vue Détails : chaque cellule est lue et la ligne reste au clavier', async ({ page, loginAs, adminApi, runId }) => {
+    const title = `Note tableau ${runId}`;
+    await adminApi.uploadDocument(`tableau-${runId}.txt`, title, `Contenu ${runId}`);
+
+    await loginAs('tenant_admin');
+    await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
+    await page.getByRole('button', { name: 'Détails', exact: true }).click();
+
+    const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: new RegExp(title) }) });
+    await expect(row).toHaveCount(1);
+    await expect(row).not.toHaveAttribute('aria-label');
+    // Le nom de la ligne vient de ses cellules : titre, classement, taille… et non d'un libellé qui les masque.
+    await expect(row.getByRole('cell')).toHaveCount(6);
+    const [, , , size, updated] = (await row.getByRole('cell').allInnerTexts()).map((text) => text.trim());
+    const escape = (text = '') => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await expect(row).toHaveAccessibleName(new RegExp(`${escape(title)}.*${escape(size)}.*${escape(updated)}`));
+
+    await row.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Aperçu du document')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('Aperçu du document')).toHaveCount(0);
+    await expect(row).toBeFocused();
+  });
 });
