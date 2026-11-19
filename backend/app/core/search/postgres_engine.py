@@ -102,6 +102,8 @@ class PostgresSearchEngine(ISearchEngine):
             stmt = stmt.filter(Document.deleted_at.is_(None))
         if query.scope_org_unit_id is not None:
             stmt = stmt.filter(Document.org_unit_id == query.scope_org_unit_id)
+        if query.scope_org_unit_ids is not None:
+            stmt = stmt.filter(Document.org_unit_id.in_(query.scope_org_unit_ids))
         if query.scope_owner_id is not None:
             stmt = stmt.filter(Document.owner_id == query.scope_owner_id)
 

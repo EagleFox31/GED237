@@ -13,6 +13,7 @@ from .base import LOW_CONFIDENCE_THRESHOLD, OCREngine, OCRResult, is_low_confide
 _LAZY = {
     "TesseractOCREngine": ".tesseract_engine",
     "EasyOCREngine": ".easyocr_engine",
+    "RapidOCREngine": ".rapidocr_engine",
     "OCRStrategy": ".strategy",
 }
 
@@ -30,5 +31,6 @@ __all__ = [
     "is_low_confidence",
     "TesseractOCREngine",
     "EasyOCREngine",
+    "RapidOCREngine",
     "OCRStrategy",
 ]
