@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import func
 
-from app.core.search.fts import FTS_CONFIG, SEARCH_SETUP_SQL
+from app.core.search.fts import FTS_CONFIG, UNACCENT_SETUP_SQL
 from app.models.document import Document
 
 DOCUMENTS = "/api/v1/documents/"
@@ -103,5 +103,5 @@ def test_migration_setup_matches_app_setup():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     assert tuple(s.strip() for s in module.SETUP_SQL) == tuple(
-        s.strip() for s in SEARCH_SETUP_SQL
+        s.strip() for s in UNACCENT_SETUP_SQL
     )
