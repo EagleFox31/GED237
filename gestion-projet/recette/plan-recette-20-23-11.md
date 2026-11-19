@@ -43,7 +43,7 @@ Circuit d'un correctif (identique pour B et F) : branche `fix/rec-nn-<sujet>` de
 Le PO joue lui-même, sans assistance au clavier (O lit les étapes, note les verdicts) ; comptes désignés par identifiant seul, codes OTP lus dans la réponse de connexion (`ENVIRONMENT=development`) ou dans Redis par O.
 
 1. **Connexion** `MINFI002` avec un code OTP juste ; vérifier nom et rôle dans l'en-tête (5 min).
-2. **Import** du dossier `/data/ingest/live` depuis `/ingestion` : compteur, doublons refusés, documents classés (8 min).
+2. **Import** du dossier `live` du jeu de démo (copié sur le poste du testeur) par l'assistant « Import en masse » (`/imports`) : compteur, doublons refusés, documents classés (8 min). *Correction du 19/11 : `/ingestion` est l'outil de rangement local du navigateur, pas l'import serveur. Le chemin serveur `/data/ingest/live` ne sert qu'au dossier surveillé (checklist 2.8).*
 3. **Tableau de bord** administrateur : tuile « Doublons refusés » > 0 *(si lot 1 fusionné, sinon passer)* (3 min).
 4. **Règles** : simuler la règle inactive « Rapports financiers » ; vérifier qu'aucun document ne bouge ; *(si lot 2 fusionné)* exporter puis réimporter le fichier : « 0 à créer, 0 à mettre à jour » (8 min).
 5. **Revue manuelle** d'un document sans règle : choisir service, domaine, activité, année ; il quitte la liste (5 min).

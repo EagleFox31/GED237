@@ -41,7 +41,7 @@
 | 2.5 | C2 et C3 | Q | `measure_c2.py`, `measure_c3.py` (cf. `mesures-outillage.md`) | `c2-2026-11-20.txt`, `c3-2026-11-20.txt` |
 | 2.6 | Compteurs D1 = section `expected` du manifeste | Q | `measure_counters.py` | `compteurs-2026-11-20.txt` |
 | 2.7 | Recette manuelle P1, P2, P3, P6 | F | `deroule-demo.md` § 1 et § 1 bis | anomalies `REC-nn` |
-| 2.8 | Recette manuelle P4, P5, P7, P8 + lots fusionnés (tuile doublons, export/import règles, CSV audit, verrou `UNIT001`, dossier surveillé si #100 : exige `INGEST_WATCH_FOLDERS` et le corpus monté sur `/data/ingest`, chemin live `/data/ingest/live` ; P6 : 51 « à revoir » attendus, `expected.toReview`) ; verrou `ingest_watch:lock` libéré dans les logs du worker | B | idem | anomalies `REC-nn` |
+| 2.8 | Recette manuelle P4, P5, P7, P8 + lots fusionnés (tuile doublons, export/import règles, CSV audit, verrou `UNIT001`, dossier surveillé si #100 : exige `INGEST_WATCH_FOLDERS` et le corpus monté sur `/data/ingest`, chemin live `/data/ingest/live`. **Écart connu tant que la PR de correctif de B (V1.0, après #171) n'est pas fusionnée** : les DOCX, XLSX, TXT et CSV déposés dans le dossier surveillé restent « non classés ». Le noter `REC-nn` « connu », pas comme une nouvelle anomalie. Les PDF et les images, eux, sont classés. P6 : 51 « à revoir » attendus, `expected.toReview`) ; verrou `ingest_watch:lock` libéré dans les logs du worker | B | idem | anomalies `REC-nn` |
 | 2.9 | OCR-0 : un document déposé est classé via le worker démarré (ne se joue qu'avec le profil `worker`/`ocr` ; mémoire à vérifier avant) | Q | `--profile ocr`, SC-V11-04 si #92 + #95 fusionnées | rapport |
 | 2.10 | Liste d'anomalies classée bloquant / majeur / mineur (plan § 3) | O | — | liste `REC-nn` |
 
