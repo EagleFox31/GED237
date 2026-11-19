@@ -1,5 +1,6 @@
 # backend\app\api\v1\endpoints\authz.py
 import logging
+import uuid
 from typing import List, Literal, Optional
 
 from fastapi import (
@@ -12,12 +13,15 @@ from fastapi import (
     Response,
     status,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import can_perform
 from app.core.config import settings
+from app.core.database import get_db
 from app.core.rate_limit import limiter, rate_limit_by_user_or_ip
 from app.core.dependencies import get_current_user
 from app.core.authz.casbin_enforcer import (
+    list_csv_policies,
     list_sql_policies,
     add_sql_policy,
     remove_sql_policy,
@@ -31,6 +35,8 @@ from app.core.authz.metrics import (
     get_authz_metrics_dropped_count,
     is_authz_metrics_redis_degraded,
 )
+from app.core.authz.roles import SUPER_ADMIN, TENANT_ADMIN
+from app.models.audit import AuditLog
 from app.models.user import User
 from app.schemas.authz import (
     PolicyRule,
@@ -45,13 +51,64 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _role_code(current_user: User) -> str:
+    return (getattr(getattr(current_user, "role", None), "code", "") or "").lower()
+
+
 def _require_super_admin(current_user: User) -> None:
-    role_code = (getattr(getattr(current_user, "role", None), "code", "") or "").lower()
-    if role_code != "super_admin":
+    if _role_code(current_user) != SUPER_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Super admin required.",
         )
+
+
+def _require_policy_reader(current_user: User) -> None:
+    """Reading the rights grid: super admin and tenant admin (#280). Changing it stays super admin."""
+    if _role_code(current_user) not in {SUPER_ADMIN, TENANT_ADMIN}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin or tenant admin required.",
+        )
+
+
+def _policy_record_id(policy: PolicyRule) -> uuid.UUID:
+    # The audit row needs a record id; a rule has none, so derive a stable one from its
+    # values: adding then removing the same right points to the same record.
+    values = (
+        policy.ptype,
+        policy.v0,
+        policy.v1,
+        policy.v2,
+        policy.v3,
+        policy.v4,
+        policy.v5,
+    )
+    return uuid.uuid5(
+        uuid.NAMESPACE_URL, "authz-policy:" + ",".join(v or "" for v in values)
+    )
+
+
+async def _audit_policy_change(
+    db: AsyncSession,
+    current_user: User,
+    policy: PolicyRule,
+    *,
+    action: Literal["authz_policy_added", "authz_policy_removed"],
+) -> None:
+    rule = policy.model_dump()
+    db.add(
+        AuditLog(
+            tenant_id=current_user.tenant_id,
+            user_id=current_user.id,
+            table_name="casbin_rule",
+            record_id=_policy_record_id(policy),
+            action=action,
+            new_data=rule if action == "authz_policy_added" else None,
+            old_data=rule if action == "authz_policy_removed" else None,
+        )
+    )
+    await db.commit()
 
 
 async def _require_sql_policy_backend() -> None:
@@ -136,9 +193,13 @@ def _parse_policy_payload(payload: object) -> PolicyRule:
 async def get_policies(
     current_user: User = Depends(get_current_user),
 ):
-    _require_super_admin(current_user)
-    await _require_sql_policy_backend()
-    rows = await list_sql_policies()
+    _require_policy_reader(current_user)
+    if (settings.AUTHZ_BACKEND or "csv").strip().lower() == "csv":
+        # Read-only grid in csv mode: the rules come from policy.csv.
+        rows = await list_csv_policies()
+    else:
+        await _require_sql_policy_backend()
+        rows = await list_sql_policies()
     return [PolicyRule(**row) for row in rows]
 
 
@@ -153,6 +214,7 @@ async def add_policy(
     response: Response,
     payload: object = Body(...),
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     policy = _parse_policy_payload(payload)
     _require_super_admin(current_user)
@@ -179,6 +241,7 @@ async def add_policy(
         policy.v4,
         policy.v5,
     )
+    await _audit_policy_change(db, current_user, policy, action="authz_policy_added")
     return PolicyMutationResponse(created=True, policy=policy)
 
 
@@ -188,6 +251,7 @@ async def delete_policy(
     request: Request,
     payload: object = Body(...),
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     policy = _parse_policy_payload(payload)
     _require_super_admin(current_user)
@@ -210,6 +274,10 @@ async def delete_policy(
         policy.v4,
         policy.v5,
     )
+    if deleted:
+        await _audit_policy_change(
+            db, current_user, policy, action="authz_policy_removed"
+        )
     return PolicyDeleteResponse(deleted=deleted, policy=policy)
 
 

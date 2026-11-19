@@ -27,12 +27,15 @@ ACCENTED_LABELS = {
     "workflow_started_a_posteriori": "Circuit déclenché a posteriori",
     "local_snap_put": "Bibliothèque locale (sync)",
     "dup_detected": "Doublon refusé",
+    "authz_policy_added": "Ajout d'un droit d'accès",
+    "authz_policy_removed": "Retrait d'un droit d'accès",
 }
 
 ACCENTED_TABLES = {
     "ged_rules": "Règles GED",
     "user_local_arrangement_snapshots": "Bibliothèque locale (compte)",
     "ingest_watch": "Dossiers surveillés",
+    "casbin_rule": "Droits d'accès",
 }
 
 APP_DIR = Path(__file__).resolve().parents[2] / "app"

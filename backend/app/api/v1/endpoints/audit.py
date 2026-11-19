@@ -30,6 +30,7 @@ TABLE_LABELS = {
     "user_local_arrangement_snapshots": "Bibliothèque locale (compte)",
     "ingest_watch": "Dossiers surveillés",
     "audit_logs": "Journal d'audit",
+    "casbin_rule": "Droits d'accès",
 }
 
 ACTION_LABELS = {
@@ -63,6 +64,8 @@ ACTION_LABELS = {
     "watch_ingested": "Import automatique d'un dossier",
     "dup_detected": "Doublon refusé",
     "exported": "Export du journal",
+    "authz_policy_added": "Ajout d'un droit d'accès",
+    "authz_policy_removed": "Retrait d'un droit d'accès",
 }
 
 # Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.

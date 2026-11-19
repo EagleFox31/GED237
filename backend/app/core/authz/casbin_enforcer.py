@@ -405,6 +405,12 @@ async def list_sql_policies() -> list[dict]:
     return [_to_policy_record(rule) for rule in policies]
 
 
+async def list_csv_policies() -> list[dict]:
+    """Rules of policy.csv, in the same records as list_sql_policies (read-only grid)."""
+    csv_e = await _get_csv_enforcer()
+    return [_to_policy_record(rule) for rule in csv_e.get_policy()]
+
+
 async def list_known_roles() -> list[str]:
     sql_e = await _get_sql_enforcer()
     roles = set(get_known_roles_from_csv())
