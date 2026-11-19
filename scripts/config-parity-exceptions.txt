@@ -48,3 +48,5 @@ MAX_PAGE_SIZE | all | not read anywhere; endpoints set their own limit
 # --- Frontend
 VITE_API_URL | all | fixed to /api/v1 (Dockerfile ARG default); nginx serves the API on that path
 VITE_APP_VERSION | env-example | fed from APP_VERSION by build.args, APP_VERSION is in .env.example
+VITE_MAX_UPLOAD_SIZE_MB | env-example | fed from MAX_UPLOAD_SIZE_MB by build.args, same cap as the API, in .env.example
+VITE_LOGIN_DEMO_HINTS | env-example | fed from LOGIN_DEMO_HINTS by build.args, same switch as the API, in .env.example
