@@ -7,6 +7,13 @@ export const NEEDS_CORRECTION = ['rejected', 'returned'] as const;
 export const needsCorrection = (status: string | undefined | null): boolean =>
   (NEEDS_CORRECTION as readonly string[]).includes(status ?? '');
 
+/** 409 on a corrected version: the chosen file is the same as a version already on the document. */
+export const IDENTICAL_VERSION_MESSAGE =
+  'Ce fichier est identique à une version déjà envoyée. Choisissez le fichier corrigé.';
+
+/** Beyond this length the card shows the start of the reason and a « Lire tout » toggle. */
+export const LONG_REASON_CHARS = 120;
+
 interface CorrectableDoc {
   id: string;
   status?: string | null;

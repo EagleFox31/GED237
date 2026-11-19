@@ -114,7 +114,7 @@ export const documentsApi = {
         apiCall<any[]>(`/documents/${id}/versions`, {}, 'Récupération des versions impossible'),
 
     /** Corrected file of a returned or rejected document (409 if identical to an existing version). */
-    uploadDocumentVersion: (id: string, file: File, changeNote?: string): Promise<unknown> => {
+    uploadDocumentVersion: (id: string, file: File, changeNote?: string, options: ApiCallOptions = {}): Promise<unknown> => {
         const form = new FormData();
         form.append('file', file);
         if (changeNote?.trim()) form.append('change_note', changeNote.trim());
@@ -122,6 +122,7 @@ export const documentsApi = {
             `/documents/${id}/versions`,
             { method: 'POST', body: form },
             'Envoi de la version corrigée impossible',
+            options,
         );
     },
 

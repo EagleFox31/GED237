@@ -67,7 +67,7 @@ test.describe('Mon Atelier : document rejeté', () => {
       buffer: Buffer.from('%PDF-1.4 corrigé'),
     });
     await page.locator('select').selectOption(VALIDATOR.id);
-    await page.getByRole('button', { name: 'Resoumettre au visa' }).click();
+    await page.getByRole('button', { name: 'Renvoyer pour validation' }).click();
 
     await expect(page.getByRole('heading', { name: 'Corriger et resoumettre' })).toHaveCount(0);
     // La version corrigée part avant la nouvelle soumission.
@@ -93,7 +93,8 @@ test.describe('Mon Atelier : document rejeté', () => {
 
     const mine = page.getByTestId('draft-card').filter({ hasText: MINE.title });
     await expect(mine.getByRole('button', { name: 'Corriger et resoumettre' })).toBeVisible({ timeout: 10_000 });
-    await expect.poll(() => reads).toEqual(['r-2']);
+    // Mon document seulement (le mode strict de React en dev peut monter la page deux fois).
+    await expect.poll(() => [...new Set(reads)]).toEqual(['r-2']);
     // Lecture en échec : la carte reste sans motif, sans message d'erreur.
     await expect(mine.getByTestId('rejection-reason')).toHaveCount(0);
     await expect(page.getByText('Accès refusé au document.')).toHaveCount(0);
@@ -101,5 +102,60 @@ test.describe('Mon Atelier : document rejeté', () => {
     const theirs = page.getByTestId('draft-card').filter({ hasText: COLLEAGUE.title });
     await expect(theirs).toBeVisible();
     await expect(theirs.getByRole('button', { name: 'Corriger et resoumettre' })).toHaveCount(0);
+  });
+
+  test('ATL-03 — Given motif long et fichier déjà envoyé, When je corrige au clavier, Then motif lisible, boîte accessible et doublon expliqué', async ({ loginAs, page }) => {
+    const LONG = `${'Le tableau des frais doit reprendre chaque nuitée avec la facture correspondante. '.repeat(6)}Fin du motif.`;
+    let me = '';
+    let steps = 0;
+    await page.route(/\/api\/v1\/documents\/?(\?|$)/, (route) =>
+      json(route, [{ ...REJECTED, owner_id: me, last_rejection_reason: LONG }]),
+    );
+    await page.route(/\/api\/v1\/documents\/r-1\/versions$/, (route) =>
+      json(route, { detail: 'Version identique déjà présente.' }, 409),
+    );
+    await page.route(/\/api\/v1\/workflows\/validators/, (route) => json(route, [VALIDATOR]));
+    await page.route(/\/api\/v1\/workflows\/document\/r-1\/steps/, (route) => {
+      steps += 1;
+      return json(route, []);
+    });
+
+    await loginAs('collaborator');
+    me = await readMe(page);
+    await page.reload();
+
+    // Carte : le motif long se déplie avec un bouton (clavier et doigt), pas une infobulle.
+    const card = page.getByTestId('draft-card').filter({ hasText: REJECTED.title });
+    const toggle = card.getByRole('button', { name: 'Lire tout' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false', { timeout: 10_000 });
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(card.getByRole('button', { name: 'Réduire' })).toHaveAttribute('aria-expanded', 'true');
+
+    // Boîte : rôle dialog, focus dedans, Échap ferme.
+    await card.getByRole('button', { name: 'Corriger et resoumettre' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Corriger et resoumettre' });
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+
+    // 1366×768 : motif complet, mais le bouton d'envoi reste atteignable.
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await card.getByRole('button', { name: 'Corriger et resoumettre' }).click();
+    await page.getByLabel('Fichier corrigé (facultatif)').setInputFiles({
+      name: 'note.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 inchangé'),
+    });
+    await page.getByLabel('Valideur').selectOption(VALIDATOR.id);
+    const send = dialog.getByRole('button', { name: 'Renvoyer pour validation' });
+    await send.scrollIntoViewIfNeeded();
+    await expect(send).toBeInViewport();
+    await send.click();
+
+    // Doublon : message clair dans la boîte, pas de soumission, pas d'erreur globale.
+    await expect(dialog.getByRole('alert')).toHaveText('Ce fichier est identique à une version déjà envoyée. Choisissez le fichier corrigé.');
+    await expect(dialog).toBeVisible();
+    expect(steps).toBe(0);
+    await expect(page.getByText('Version identique déjà présente.')).toHaveCount(0);
   });
 });
