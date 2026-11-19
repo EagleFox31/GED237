@@ -155,15 +155,39 @@ export const apiCallVoid = async (
     if (!response.ok) throw await buildApiError(response, fallback);
 };
 
+/** Octets reçus, et total annoncé par le serveur (Content-Length) ou null. */
+export type BlobProgress = (loaded: number, total: number | null) => void;
+
+/** Lit le corps morceau par morceau pour signaler la progression ; même Blob que `response.blob()`. */
+const readBlobWithProgress = async (response: Response, onProgress: BlobProgress): Promise<Blob> => {
+    const reader = response.body?.getReader();
+    if (!reader) return response.blob();
+    const declared = Number(response.headers.get('Content-Length'));
+    const total = Number.isFinite(declared) && declared > 0 ? declared : null;
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    onProgress(0, total);
+    for (;;) {
+        // eslint-disable-next-line no-await-in-loop
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.byteLength;
+        onProgress(loaded, total);
+    }
+    return new Blob(chunks as BlobPart[], { type: response.headers.get('Content-Type') ?? '' });
+};
+
 /**
  * Variante de apiCall pour les réponses binaires (preview/download).
- * Renvoie un Blob avec son MIME type d'origine.
+ * Renvoie un Blob avec son MIME type d'origine ; `onProgress` suit le téléchargement.
  */
 export const apiCallBlob = async (
     path: string,
     init: RequestInit = {},
     fallback = 'Téléchargement impossible',
     options: ApiCallOptions = {},
+    onProgress?: BlobProgress,
 ): Promise<Blob> => {
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
         ...init,
@@ -173,7 +197,7 @@ export const apiCallBlob = async (
         },
     }, options.silent);
     if (!response.ok) throw await buildApiError(response, fallback, quietStatuses(options, response.status));
-    return response.blob();
+    return onProgress ? readBlobWithProgress(response, onProgress) : response.blob();
 };
 
 /**

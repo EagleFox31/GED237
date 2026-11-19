@@ -4,7 +4,7 @@
 //           audit logs, ingestion répertoire, démarrage workflow).
 // SRP : change uniquement si le contrat /documents/* ou /classification-reviews/* évolue.
 
-import { apiCall, apiCallVoid, apiCallBlob } from '../http/client';
+import { apiCall, apiCallVoid, apiCallBlob, type BlobProgress } from '../http/client';
 import type {
     Document,
     ClassificationReview,
@@ -88,11 +88,14 @@ export const documentsApi = {
     getDocumentContentBlob: (
         id: string,
         disposition: 'inline' | 'attachment' = 'inline',
+        onProgress?: BlobProgress,
     ): Promise<Blob> =>
         apiCallBlob(
             `/documents/${id}/content?disposition=${disposition}`,
             {},
             'Téléchargement du contenu impossible',
+            {},
+            onProgress,
         ),
 
     updateDocument: (id: string, data: Partial<Document>): Promise<Document> =>

@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { resolvePreviewStrategy } from './PreviewStrategyRegistry';
 import { usePreviewBlob } from './usePreviewBlob';
 import { unsupportedStrategy } from './strategies/UnsupportedStrategy';
+import { loadingLabel, loadingPercent } from './previewLimits';
 
 export interface DocumentPreviewProps {
   documentId: string;
@@ -44,7 +45,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   // Pas besoin de télécharger le blob si la stratégie est "unsupported"
   // (elle n'utilise que le bouton download).
   const needsBlob = enabled && strategy.id !== unsupportedStrategy.id;
-  const { blob, blobUrl, loading, error } = usePreviewBlob(documentId, needsBlob);
+  const { blob, blobUrl, loading, error, loaded, total } = usePreviewBlob(documentId, needsBlob);
 
   const handleDownload = useCallback(async () => {
     if (onDownload) {
@@ -70,11 +71,26 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     ?? 'flex h-full w-full items-center justify-center text-center';
 
   if (loading) {
+    const percent = loadingPercent(loaded, total);
     return (
       <div className={wrapperClass}>
         <div className="flex flex-col items-center gap-3 text-slate-400">
           <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-rdpc-blue animate-spin" />
-          <p className="text-xs font-medium">Chargement de l&apos;aperçu…</p>
+          <p data-testid="preview-loading" className="text-xs font-medium" aria-live="polite">
+            {loadingLabel(loaded, total)}
+          </p>
+          {percent !== null && (
+            <div
+              role="progressbar"
+              aria-label="Chargement du document"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={percent}
+              className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-200"
+            >
+              <div className="h-full bg-rdpc-blue transition-all" style={{ width: `${percent}%` }} />
+            </div>
+          )}
         </div>
       </div>
     );
