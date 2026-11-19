@@ -73,6 +73,8 @@ const Documents: React.FC = () => {
     latestRequestRef.current += 1;
     const request = latestRequestRef.current;
     setIsLoading(true);
+    // A "show more" still pending belongs to the previous list: its button must not stay locked.
+    setIsLoadingMore(false);
     setError(null);
     try {
       const page = await api.getDocumentsPage({ ...listFilters, limit: DOCUMENTS_PAGE_SIZE });
@@ -101,6 +103,7 @@ const Documents: React.FC = () => {
       });
       setTotal(page.total);
     } catch (err) {
+      if (request !== latestRequestRef.current) return;
       pushClientOperationError(err, {
         fallbackDetail: 'Impossible de charger la suite de la liste.',
         errorCode: 'DOCUMENTS_NEXT_PAGE_FAILED',

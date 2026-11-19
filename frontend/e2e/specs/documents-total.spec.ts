@@ -79,4 +79,37 @@ test.describe('Mes Documents : compteur et suite de la liste (audit n° 14)', ()
     await docsPage.categoryFilter.selectOption(categoryId);
     await expect(counter).toContainText('3 documents • fin de la liste');
   });
+
+  test('un filtre changé pendant « Afficher plus » ne bloque pas le bouton', async ({ page, loginAs }) => {
+    const categoryId = '11111111-1111-4111-8111-111111111111';
+    await page.route('**/api/v1/categories*', (route) =>
+      route.fulfill({ json: [{ id: categoryId, name: 'Courrier', code: 'COUR' }] }),
+    );
+    let releaseNextPage: () => void = () => {};
+    const nextPageHeld = new Promise<void>((resolve) => { releaseNextPage = resolve; });
+    await page.route(LIST, async (route) => {
+      const url = new URL(route.request().url());
+      const skip = Number(url.searchParams.get('skip') ?? 0);
+      const count = url.searchParams.get('category_id') === categoryId ? 120 : 150;
+      if (skip > 0) await nextPageHeld;
+      const items = Array.from({ length: Math.max(0, Math.min(100, count - skip)) }, (_, i) => fakeDoc(skip + i));
+      return route.fulfill({ json: items, headers: listHeaders(route.request(), count) });
+    });
+    await loginAs('tenant_admin');
+    const docsPage = new DocumentsPage(page);
+    await docsPage.goto();
+    await docsPage.expectDocumentsLoaded();
+
+    const counter = page.getByTestId('documents-count');
+    await expect(counter).toContainText('100 sur 150 documents');
+    await page.getByRole('button', { name: 'Afficher plus' }).click();
+    await docsPage.categoryFilter.selectOption(categoryId);
+    await expect(counter).toContainText('100 sur 120 documents');
+    releaseNextPage();
+
+    const more = page.getByRole('button', { name: 'Afficher plus' });
+    await expect(more).toBeEnabled();
+    // The stale page did not leak into the new list.
+    await expect(counter).toContainText('100 sur 120 documents');
+  });
 });
