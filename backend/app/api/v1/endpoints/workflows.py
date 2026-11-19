@@ -463,6 +463,7 @@ async def list_validators(
 async def submit_workflow_action(
     step_id: UUID,
     action_req: WorkflowActionCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -473,7 +474,7 @@ async def submit_workflow_action(
     use_case = SubmitWorkflowActionUseCase(policy=policy)
 
     action_trace = await use_case.execute(
-        step_id=step_id, action=action_req, actor=current_user, db=db
+        step_id=step_id, action=action_req, actor=current_user, db=db, request=request
     )
 
     # Enrichir la réponse avec le nom de l'acteur
