@@ -186,3 +186,37 @@ def watch_ingest_folders():
         asyncio.set_event_loop(loop)
     loop.run_until_complete(_run())
     return None
+
+
+@celery_app.task(name="app.workers.tasks.purge_expired_trash")
+def purge_expired_trash():
+    """Beat task: purge documents trashed for more than TRASH_RETENTION_DAYS."""
+    import redis.asyncio as aioredis
+
+    from app.services.storage.factory import get_storage_service
+    from app.services.trash_service import run_retention_pass
+
+    if settings.TRASH_RETENTION_DAYS <= 0:
+        return None
+
+    async def _run():
+        client = aioredis.from_url(
+            settings.REDIS_URL, encoding="utf-8", decode_responses=True
+        )
+        try:
+            return await run_retention_pass(
+                AsyncSessionLocal,
+                client,
+                get_storage_service(),
+                retention_days=settings.TRASH_RETENTION_DAYS,
+                batch_size=settings.TRASH_PURGE_BATCH,
+            )
+        finally:
+            await client.aclose()
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(_run())
