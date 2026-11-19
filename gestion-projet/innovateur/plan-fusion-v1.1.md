@@ -41,6 +41,11 @@ gh pr view <n> --json headRefOid -q .headRefOid     # tête, à comparer à l'OK
 
 ## 1 bis. Coupe avancée et paire doublons dans la candidate (O, 19/11)
 
+> **Remplacé le 19/11 dans la matinée (décision du PO, via O)** : pas de coupe avant que 95 % du CDC soient prouvés (30,5/32 ; 28/32 au 19/11). Rien n'avait été créé.
+> - Plus de gel de `main` ni de PR de report : #152, #181, #171, #199 et #104 fusionnent dans `main`, en tête de file, et la coupe vient après (DEC-2026-010).
+> - Recette du 20 au 23/11 sur `main`, avec un état du jour : § 1 quater.
+> - La suite de ce paragraphe et le § 1 ter restent pour l'historique. Le relevé des conflits et le point de vigilance sur #464 et #152 restent valables.
+
 Décision du PO : 95 % pour la 1.0 finale. O coupe `release/v1.0.0` dès que #464 est dans `main`. La recette du 20 au 23/11 et la démo du 30/11 se font sur cette candidate figée. La vue des doublons (#152, #181, #171, #199) doit entrer dans la candidate. Elle porte l'item 19 du CDC, le seul que des PR peuvent faire bouger (`couverture-95-19-11.md`).
 
 **État relevé le 19/11 vers 09:30 (`Vérifié`, `gh pr view`, `git merge-tree` contre `origin/main` 3fabddc5)**
@@ -76,7 +81,25 @@ Aucune des quatre n'a de migration. #152 et #181 ajoutent chacune une leçon dan
 
 **Ordre** : #464 (fusionnée) → CI de `main` verte et accord du PO → coupe → #152 → re-cibler #181 sur `main` → #181 → #171 → re-cibler #199 sur `main` → #199 → #104 → PR de report (§ 1 ter) → OK de Q → fusion dans la candidate → fin du gel de `main`.
 
-## 1 ter. PR de report `main → release/v1.0.0` (texte prêt pour O)
+## 1 quater. Recette du 20 au 23/11 sur `main` : un état connu chaque jour, sans coupe
+
+**Proposition (la plus simple)** : un « SHA du matin ».
+1. Chaque matin avant 08:30, O retient le dernier commit de `main` dont la CI est verte : `gh run list --branch main --workflow ci.yml --status success --limit 1`.
+2. La pile de recette est reconstruite sur ce commit, dans un worktree détaché (`git worktree add --detach <dossier> <sha>`), puis migrée (`alembic upgrade head`). Rien n'est poussé.
+3. Le SHA et l'heure sont notés en tête du journal de recette du jour. Chaque constat des testeurs cite ce SHA. La pile ne bouge pas de la journée.
+4. Un correctif trouvé en recette fusionne dans `main` comme d'habitude. Les testeurs le voient le lendemain matin, sauf si O redéploie dans la journée en notant le nouveau SHA.
+
+| Risque | Parade |
+|---|---|
+| Une migration entre deux jours casse les données de recette | B lance `alembic upgrade head` au redéploiement. Un échec bloque le nouveau SHA, et la veille reste en place. |
+| Le SHA du matin contient une PR à moitié livrée (paire doublons fusionnée en partie) | O prend le SHA d'avant la première PR de la paire tant que la dernière n'est pas fusionnée, ou attend sa fin. |
+| Un constat ne peut pas être rejoué car `main` a bougé | Le SHA noté permet de rebâtir la même pile. |
+| Une preuve des 95 % est faite sur un état différent de la coupe | Chaque preuve cite son SHA. À la coupe, Q confirme que rien n'a changé depuis sur les fichiers concernés (`git diff --stat <sha preuve> <sha coupe>`). |
+| Le créneau Docker de la pile de recette est pris par une autre charge | La pile de recette garde un créneau fixe pendant les heures de test. C'est à O de l'attribuer. |
+
+**Option écartée** : une étiquette git quotidienne (`recette-AAAA-MM-JJ`). Elle peut se confondre avec les étiquettes de version et passer par `tag_preflight.sh`. Le SHA noté suffit.
+
+## 1 ter. PR de report `main → release/v1.0.0` (abandonnée le 19/11, gardée pour l'historique)
 
 **Branche** : `report/v1.0.0-doublons`, créée depuis `main` après la fusion de #104. Cible : `release/v1.0.0`. Si une PR hors liste est entrée dans `main` malgré le gel, on crée plutôt la branche depuis `release/v1.0.0` et on y applique `git cherry-pick -m 1` des 5 commits de fusion.
 

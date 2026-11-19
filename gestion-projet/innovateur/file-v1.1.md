@@ -17,9 +17,9 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 ```bash
 # Vague 0 : socle (24/11 matin)
 # Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
-# Tête de file (O, 19/11) : #464 (correctif 1.0 de /trash, OK de Q) ; la candidate release/v1.0.0 est coupée dès sa fusion.
-# Juste après la coupe : la paire doublons, qui doit entrer dans la candidate (décision du PO, 19/11). Elle fusionne dans main avant toute autre PR, puis une PR de report main → release/v1.0.0 l'amène dans la candidate (plan-fusion-v1.1.md, § 1 bis). Ces PR sortent du brouillon sur décision d'O, par exception à la règle du 24/11.
-# Approche A retenue par O (19/11). main est gelé de la coupe au report : seules #152, #181, #171, #199 et #104 y entrent. #104 (HORS_FILE) passe après #199 et entre dans la candidate par la même PR de report.
+# Tête de file (O, 19/11) : #464 (correctif 1.0 de /trash, OK de Q, fusionnée).
+# Décision du PO (19/11, remplace celle du matin) : pas de coupe de release/v1.0.0 avant 95 % du CDC prouvés (30,5/32). Ni gel de main ni PR de report.
+# La paire doublons (#152, #181, #171, #199) fusionne dans main avant toute autre PR. Ces PR sortent du brouillon sur décision d'O, par exception à la règle du 24/11. #104 (HORS_FILE) passe après #199. La coupe vient ensuite, dès 30,5/32 (DEC-2026-010, plan-fusion-v1.1.md § 1 bis et 1 quater).
 # #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
 ORDER_V0="464 152 181 171 199 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
