@@ -42,6 +42,7 @@ cd "$ROOT_DIR"
 load_env
 resolve_target
 require_helper_image
+require_health_tries
 started=$SECONDS
 log "source : $SRC (base $(manifest database), alembic $(manifest alembic_version))"
 log "cible  : conteneur=$PG base=$PG_DB volume=$VOLUME"

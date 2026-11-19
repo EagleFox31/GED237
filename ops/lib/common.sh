@@ -125,8 +125,17 @@ restart_services() {
 # répond 502. On relance donc les proxys qui tournent, puis on vérifie /health à travers
 # chacun d'eux, depuis son conteneur (ports et certificats de l'hôte sans importance).
 PROXY_SERVICES="${BACKUP_PROXY_SERVICES:-nginx nginx-tls}"
+# Vérifié avant toute écriture : 0 ou une valeur non entière ne ferait aucun essai.
+require_health_tries() {
+  local v="${BACKUP_HEALTH_TRIES:-30}"
+  case "$v" in
+    *[!0-9]*) ;;
+    *[1-9]*) return 0 ;;
+  esac
+  die "BACKUP_HEALTH_TRIES=$v : nombre entier d'essais de /health attendu, au moins 1 (30 par défaut). Rien n'a été modifié."
+}
 restart_proxies() {
-  local running proxies="" svc url i
+  local running proxies="" svc url i tries="${BACKUP_HEALTH_TRIES:-30}"
   running="$(docker compose ps --status running --services 2>/dev/null || true)"
   for svc in $PROXY_SERVICES; do
     printf '%s\n' "$running" | grep -qx -- "$svc" && proxies="$proxies $svc"
@@ -138,12 +147,14 @@ restart_proxies() {
   for svc in $proxies; do
     url=http://127.0.0.1/health
     [ "$svc" = nginx-tls ] && url=https://127.0.0.1/health
-    for i in $(seq 1 "${BACKUP_HEALTH_TRIES:-30}"); do
-      docker compose exec -T "$svc" wget -q -O /dev/null --no-check-certificate "$url" >/dev/null 2>&1 && break
-      [ "$i" = "${BACKUP_HEALTH_TRIES:-30}" ] && {
+    # Au moins un essai : « OK » n'est écrit qu'après une réponse réelle.
+    i=1
+    until docker compose exec -T "$svc" wget -q -O /dev/null --no-check-certificate "$url" >/dev/null 2>&1; do
+      if [ "$i" -ge "$tries" ]; then
         log "/health ne répond pas à travers $svc : voir docker compose logs $svc api"
         return 1
-      }
+      fi
+      i=$((i + 1))
       sleep 1
     done
     log "/health OK à travers $svc"

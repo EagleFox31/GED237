@@ -3,6 +3,7 @@
 # 1. Image utilitaire absente et non téléchargeable : arrêt avant toute écriture
 #    (pas de dossier de sauvegarde, services non arrêtés, cible non vidée).
 # 2. Après la relance d'api, nginx est relancé et /health vérifié à travers lui.
+# 3. BACKUP_HEALTH_TRIES invalide : arrêt avant toute écriture ; « OK » jamais sans réponse.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
@@ -87,5 +88,26 @@ restart "worker " || fail "worker seul : code non nul"
 reset; printf 'api\nworker\n' >"$FIX/running"
 restart "api " || fail "sans proxy : code non nul"
 ! called "compose restart" || fail "sans proxy : relance inattendue"
+
+# 3. BACKUP_HEALTH_TRIES à 0 ou non entier : arrêt avant toute écriture (sinon aucun essai
+#    et « /health OK » écrit à tort).
+for bad in 0 00 abc 2x -1; do
+  reset; : >"$FIX/has_image"
+  rc=0; BACKUP_HEALTH_TRIES="$bad" bash "$T/root/ops/backup.sh" >"$T/out" 2>&1 || rc=$?
+  [ "$rc" = 1 ] || fail "BACKUP_HEALTH_TRIES=$bad : code $rc, attendu 1"
+  grep -q "BACKUP_HEALTH_TRIES=$bad : nombre entier" "$T/out" || fail "BACKUP_HEALTH_TRIES=$bad : message"
+  [ ! -e "$T/backups" ] || fail "BACKUP_HEALTH_TRIES=$bad : dossier créé"
+done
+reset; : >"$FIX/has_image"
+rc=0; BACKUP_HEALTH_TRIES=0 bash "$T/root/ops/restore.sh" "$T/src" --wipe --yes >"$T/out" 2>&1 || rc=$?
+[ "$rc" = 1 ] || fail "restauration BACKUP_HEALTH_TRIES=0 : code $rc, attendu 1"
+! called "compose stop" || fail "restauration BACKUP_HEALTH_TRIES=0 : services arrêtés"
+
+# 4. Un seul essai autorisé et /health en échec : erreur, jamais « OK ».
+reset
+rc=0; BACKUP_HEALTH_TRIES=1 restart "api " || rc=$?
+[ "$rc" = 1 ] || fail "un essai : code $rc, attendu 1"
+! grep -q "/health OK" "$T/out" || fail "un essai : OK écrit sans réponse"
+[ "$(grep -c '^compose exec' "$FIX/calls")" = 1 ] || fail "un essai : $(grep -c '^compose exec' "$FIX/calls") essais"
 
 echo "OK : garde-fous de ops/backup.sh et ops/restore.sh (image utilitaire, relance de nginx)"

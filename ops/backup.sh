@@ -25,6 +25,7 @@ RETENTION="${BACKUP_RETENTION:-0}"
 case "$RETENTION" in '' | *[!0-9]*) die "BACKUP_RETENTION doit être un entier (0 = tout garder)" ;; esac
 
 require_helper_image
+require_health_tries
 
 DEST="$BACKUP_DIR/ged237-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$DEST"
