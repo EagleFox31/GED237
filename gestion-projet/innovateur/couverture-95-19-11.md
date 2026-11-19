@@ -8,6 +8,7 @@
   - **Item 29 (C6)** : tenu. Tous les relevés sont verts depuis 12:46Z ; 11 échecs sur 857 depuis le 17/11, tous serveur muet (2 à la reprise du 19/11, 9 entre 12:01Z et 12:41Z). Gain : +0,5 (`partiel`), `Vérifié` par Q.
   - **Item 8 (100 000 fichiers)** : essayé le 19/11 à 16:01, 23 min 07 pour moins de 20 min demandées : non tenu, 0 point. #497 n'est pas fusionnée avant la coupe ; nouvel essai en V1.1.
   - La ligne « pas de coupe le 19/11 » du § 4 bis date de 08:21 : la coupe dépend maintenant de la décision du PO sur la note de 18:05.
+- **Correction du 19/11 à 22:10** : l'item 29 de la ligne de 18:01 ne prouvait pas `f890b3cb`. La sonde mesurait la pile de démo construite le 16/11 depuis `7898387b`. En lecture stricte, l'item 29 (+0,5) est acquis par la vraie C6 sur le SHA de coupe `a1c15f61` : 7 relevés verts de 21:35:19Z à 22:05:27Z, pile séparée prouvée construite depuis ce SHA. Le détail est au § 6 de `note-po-decision-coupe-19-11-18h05.md`. Score : 30,5/32.
 
 ## 1. Taux
 

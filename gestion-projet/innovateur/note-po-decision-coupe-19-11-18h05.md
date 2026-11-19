@@ -2,6 +2,11 @@
 
 > **Décision du PO à 18:03 : « on les attend ».** Pas de coupe sur `f890b3cb`. La coupe se fait cette nuit, après l'entrée de #450 et #502 dans `main`. La suite est au § 6. Les §§ 1 à 5 gardent l'état présenté à 18:05.
 
+> **Correction 19/11 (22:10).** Rien n'est effacé ci-dessous ; deux lignes sont rectifiées ici.
+> - **Ligne « Lecture C6 de 18:00 »** : cette lecture ne prouvait pas `f890b3cb`. La sonde mesurait la pile de démo, construite le 16/11 à 22:03Z depuis `7898387b`. Les séries suivantes, lues sous les noms « `d96c1e67` » et « `a1c15f61` », mesuraient cette même pile ; elles ne prouvent aucun SHA de coupe.
+> - **§ 6, ligne « Nouvelle lecture C6 »** : la pile de démo n'a pas été relancée. La vraie C6 a été lue sur une pile séparée, construite depuis le SHA final (voir § 6, dernière ligne).
+> - **Règle retenue par O (lecture stricte)** : une C6 ne compte que si la pile mesurée est prouvée construite depuis le SHA de coupe. L'item 29 (+0,5) n'est donc acquis que par la C6 du § 6. Garde-fou ajouté par Q : `C6_EXPECT_SHA` (PR #517, LESSON-2026-083).
+
 Une page, présentée par O. Le SHA de `main` et la lecture C6 sont remplis avec les relevés de Q (18:01). Le détail est dans `note-po-coupe-release-v1.0.0.md` et `couverture-95-19-11.md`.
 
 - **SHA de `main` lu à 18:00** : `f890b3cb5a232f441e625b3cac8ca39de2cf43a8` (lu par Q à 18:01)
@@ -78,7 +83,13 @@ Tant que la question 2 n'a pas de réponse positive et que la protection n'est p
 - **Nouvelle lecture C6** : la pile de démo est relancée sur le SHA final. Il faut ensuite au moins 6 relevés verts consécutifs, soit au moins 30 min, puisque la sonde relève toutes les 5 min.
 - **Étape 1, faite** : `d96c1e679c0ff470de4bce30f296dc3fe82cc59e` (`d96c1e67`). Les six PR sont fusionnées, avec une seule tête de migration `a7c8d9e0f1b2`. Ce n'est **plus le SHA de coupe**.
 - **Étape 2, choix du PO (option C)** : #515 « une ligne de journal par décision du circuit » est fusionnée sur `main` après l'OK de Q. Tête `b62925cf`, 4 fichiers, +112/−1, sans migration : la tête reste `a7c8d9e0f1b2`.
-- **Les deux questions du § 5** sont reposées avec le **SHA final, après #515** : `__________`. Lecture C6 sur ce SHA : ____ relevés verts consécutifs → ☐ tenue ☐ non tenue. Le geste C.22 point 4 est rejoué sur ce SHA : ☐ vert ☐ rouge.
+- **Les deux questions du § 5** sont reposées avec le **SHA final, après #515** : `a1c15f61f143e1df8350e2ba179c1456bf9e820b` (`a1c15f61` = `d96c1e67` + #515, même arbre que la tête testée `b62925cf`, sans migration, tête `a7c8d9e0f1b2`). Lecture C6 sur ce SHA : **7** relevés verts consécutifs → ☑ tenue ☐ non tenue. Le geste C.22 point 4 est rejoué sur ce SHA : ☑ vert ☐ rouge (2 passed ; visa et valider → `workflow_approved`, rejet → `workflow_rejected`).
+  - **Provenance de la C6** (relevés de Q) :
+    - pile séparée `ged-replay` sur le port 18080, construite depuis un worktree détaché en `a1c15f61` (build 21:30:13Z → 21:31:29Z) ;
+    - Alembic à la tête `a7c8d9e0f1b2` ;
+    - empreinte sha256 des `.py` de `app/` et `alembic/` = `9cd06f7b`, identique dans la source, `api` et `worker`. La date d'image n'est pas une preuve, à cause du cache de build.
+  - **Série** : 7 relevés de 21:35:19Z à 22:05:27Z, 0 KO, aucun trou, health=200 partout, `url=http://localhost:18080` sur chaque relevé. RestartCount à 0 sur les 6 conteneurs. La démo n'a pas été touchée. Relevés : `c6-a1c15f61-2026-11-19.tsv`. Seuls les espaces en fin de champ ont été retirés pour le contrôle de format du dépôt (sha256 `2bf9b916…`). Le brut de Q a pour sha256 `ced38766…`.
+  - **Score** : **30,5/32**, seuil 30,4, item 29 acquis sur le SHA de coupe. La question 2 (ruleset `release/**`, § 8) peut partir au PO.
 
 ## 7. Lecture pour la question de coupe
 
