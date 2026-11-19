@@ -7,6 +7,7 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import {
   clampToViewport,
   focusIndexAfterRemoval,
@@ -219,6 +220,8 @@ const SpacesPage: React.FC = () => {
   const menuReturnFocusRef = useRef<HTMLElement | null>(null);
   // Position de l'élément mis à la corbeille au clavier : son voisin reprend le focus après rechargement.
   const removedFocusIndexRef = useRef<number | null>(null);
+  // Mise à la corbeille par la touche Suppr, en attente de confirmation (une touche est vite pressée par erreur).
+  const [trashByKey, setTrashByKey] = useState<{ doc: Document; item: HTMLElement; index: number } | null>(null);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -501,7 +504,8 @@ const SpacesPage: React.FC = () => {
 
   // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
   const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || isEditableTarget(event.target)) return;
+    // Confirmation ouverte : Entrée, Échap et Suppr appartiennent à la fenêtre, pas à la liste.
+    if (trashByKey || event.defaultPrevented || isEditableTarget(event.target)) return;
     if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
       const target = event.target as HTMLElement;
       const region = itemsRegionRef.current;
@@ -534,12 +538,11 @@ const SpacesPage: React.FC = () => {
       const doc = id ? visibleDocuments.find((d) => d.id === id) : undefined;
       if (!doc) return;
       event.preventDefault();
-      if (!window.confirm(trashConfirmMessage(doc.title))) return;
+      const item = event.target as HTMLElement;
       const items = Array.from(
         itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
       );
-      removedFocusIndexRef.current = items.indexOf(event.target as HTMLElement);
-      handleTrash(doc).catch(() => undefined);
+      setTrashByKey({ doc, item, index: items.indexOf(item) });
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -620,6 +623,20 @@ const SpacesPage: React.FC = () => {
       y: event.clientY,
       document,
     });
+  };
+
+  const confirmTrashByKey = () => {
+    if (!trashByKey) return;
+    removedFocusIndexRef.current = trashByKey.index;
+    setTrashByKey(null);
+    handleTrash(trashByKey.doc).catch(() => undefined);
+  };
+
+  // Annuler (bouton ou Échap) rend le focus à l'élément de la liste.
+  const cancelTrashByKey = () => {
+    const item = trashByKey?.item;
+    setTrashByKey(null);
+    if (item?.isConnected) item.focus({ preventScroll: true });
   };
 
   const handleTrash = async (doc: Document) => {
@@ -1383,6 +1400,15 @@ const SpacesPage: React.FC = () => {
           setDocumentToClassify(null);
           loadDocuments();
         }}
+      />
+      <ConfirmationModal
+        open={trashByKey !== null}
+        title="Mettre à la corbeille ?"
+        message={trashByKey ? trashConfirmMessage(trashByKey.doc.title) : ''}
+        confirmLabel="Mettre à la corbeille"
+        icon="delete"
+        onCancel={cancelTrashByKey}
+        onConfirm={confirmTrashByKey}
       />
     </div>
   );
