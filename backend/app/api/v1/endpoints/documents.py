@@ -1234,14 +1234,34 @@ async def list_workspace_documents(
     return result.scalars().all()
 
 
-@router.get("/tree")
+TREE_SUNSET = "Wed, 31 Mar 2027 00:00:00 GMT"
+
+
+@router.get("/tree", deprecated=True)
 async def get_org_unit_tree(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Returns the hierarchy of organization units for the current tenant.
+    Deprecated: use GET /spaces/tree. Returns the organization unit hierarchy of the
+    current tenant; kept until the Sunset date, then removed.
     """
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = TREE_SUNSET
+    response.headers["Link"] = '</api/v1/spaces/tree>; rel="successor-version"'
+    logging.getLogger(__name__).warning(
+        "Deprecated route GET /documents/tree called by user %s; use /spaces/tree "
+        "(removal after %s)",
+        current_user.id,
+        TREE_SUNSET,
+    )
+    return await build_org_unit_tree(current_user, db)
+
+
+async def build_org_unit_tree(current_user: User, db: AsyncSession):
+    """Tenant-scoped organization unit hierarchy, shared by /documents/tree
+    (deprecated) and /spaces/tree."""
     from app.models.org_unit import OrgUnit
 
     query = (
