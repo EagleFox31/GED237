@@ -9,6 +9,7 @@
 - **Exclus de ORDER** : les branches `feat/v12-*` sauf #370, l’étiquette `v1.2` sauf #281 et #298 (revenues en V1.1, O, 18/11), et Dependabot (#111, #112, #141, #402, puis les versions majeures #113, #110, #29, #30, revenues en V1.1) : Dependabot passe en vague 6 hors ORDER, une à une (`plan-fusion` lignes 58 et 58 bis).
 - **Hors file V1.1** : #104, #121, #408, #409, #412 et #415 suivent le chemin V1.0. Si l'une d'elles n'est pas fusionnée le 19, elle passe en tête de la vague 0, juste après #389 (`plan-fusion` § 7).
 - **Capacités post-rc1 (§ 6)** : elles sont placées selon la recommandation du plan. Sans réponse du PO le 23/11, on applique cette recommandation (§ 4 ci-dessous).
+- **Fusion par trains (PO, 19/11, 12:35 ; `DEC-2026-011`)** : à partir du 24/11, O monte des trains de PR prêtes, testés une fois ensemble ; procédure et ordre dans `procedure-trains-fusion.md`. L'ordre de ORDER reste l'ordre de fusion à l'intérieur d'un train.
 
 ## 1. ORDER
 
