@@ -145,3 +145,27 @@ async def test_a_jwt_is_no_longer_accepted_as_credential(redis_for_app):
     socket = FakeSocket()
     await notifications.websocket_endpoint(socket, ticket="eyJhbGciOi.fake.jwt")
     assert not socket.accepted and socket.closed_with == 1008
+
+
+@pytest.mark.asyncio
+async def test_socket_refuses_a_user_disabled_after_the_ticket(
+    redis_for_app, db_seed, test_engine
+):
+    """The ticket proves who asked, not that the account is still active at opening."""
+    from sqlalchemy import update
+
+    from app.models.user import User
+
+    ticket = await issue_ws_ticket(
+        redis_for_app,
+        user_id=str(db_seed["user_id"]),
+        tenant_id=str(db_seed["tenant_id"]),
+    )
+    async with test_engine.begin() as conn:
+        await conn.execute(
+            update(User).where(User.id == db_seed["user_id"]).values(is_active=False)
+        )
+
+    socket = FakeSocket()
+    await notifications.websocket_endpoint(socket, ticket=ticket)
+    assert not socket.accepted and socket.closed_with == 1008
