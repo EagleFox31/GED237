@@ -29,12 +29,29 @@ celery_app.conf.update(
     task_default_queue="celery",
 )
 
-# Watched folders (lot 5): the worker runs beat (-B in docker-compose.yml). No folder
-# configured or interval 0: no schedule at all.
-if settings.INGEST_WATCH_FOLDERS and settings.INGEST_WATCH_INTERVAL_SECONDS > 0:
-    celery_app.conf.beat_schedule = {
-        "watch-ingest-folders": {
+
+def build_beat_schedule(cfg=settings) -> dict:
+    """Every periodic task of the worker (beat runs with -B in docker-compose.yml).
+
+    One entry per capability, each behind its own setting: a disabled capability
+    adds no entry, and an empty registry leaves ``beat_schedule`` untouched.
+    """
+    schedule: dict = {}
+    # Watched folders (lot 5). No folder configured or interval 0: no entry.
+    if cfg.INGEST_WATCH_FOLDERS and cfg.INGEST_WATCH_INTERVAL_SECONDS > 0:
+        schedule["watch-ingest-folders"] = {
             "task": "app.workers.tasks.watch_ingest_folders",
-            "schedule": float(settings.INGEST_WATCH_INTERVAL_SECONDS),
+            "schedule": float(cfg.INGEST_WATCH_INTERVAL_SECONDS),
         }
-    }
+    # Trash retention. TRASH_RETENTION_DAYS=0: no entry.
+    if cfg.TRASH_RETENTION_DAYS > 0:
+        schedule["purge-expired-trash"] = {
+            "task": "app.workers.tasks.purge_expired_trash",
+            "schedule": float(cfg.TRASH_PURGE_INTERVAL_SECONDS),
+        }
+    return schedule
+
+
+_beat_schedule = build_beat_schedule()
+if _beat_schedule:
+    celery_app.conf.beat_schedule = _beat_schedule
