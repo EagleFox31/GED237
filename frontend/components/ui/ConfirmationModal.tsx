@@ -58,7 +58,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       const next = wrapFocusIndex(items.indexOf(document.activeElement as HTMLElement), items.length, e.shiftKey);
       if (next === null) return;
       e.preventDefault();
-      items[next].focus();
+      items[next]?.focus();
     };
     window.addEventListener('keydown', onKey);
     return () => {
