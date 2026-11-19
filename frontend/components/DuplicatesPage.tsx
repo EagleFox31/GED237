@@ -154,7 +154,7 @@ const DuplicatesPage: React.FC = () => {
                             </span>
                             <span className="block truncate text-xs text-slate-500">{meta}</span>
                             {doc.logical_space_path && (
-                              <span className="block truncate text-xs text-slate-400">{doc.logical_space_path}</span>
+                              <span className="block truncate text-xs text-slate-500">{doc.logical_space_path}</span>
                             )}
                           </span>
                         </label>
