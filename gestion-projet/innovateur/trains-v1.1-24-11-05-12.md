@@ -13,7 +13,7 @@ Une page pour O. Relevé `gh` du 19/11 vers 16:35, à partir de `file-v1.1.md` (
 | mar 24/11 | TR-01 | V0/1 | 389 403↻ 383 467✖ 222 227 |
 | mar 24/11 | TR-02 | V1 | 224 234 237 394 405✖↻ |
 | mar 24/11 | TR-03 | V1 | 240 243 245 253 |
-| mar 24/11 | TR-03 bis | V1 | 281 235 238↻ 503↻ (PR de Q, e2e avec le moteur de droits sql) |
+| mar 24/11 | TR-03 bis | V1 | 281 235 238↻ 503↻ (PR de Q, e2e avec le moteur de droits sql ; 7a5ffd1c relue par B : OK sans réserve, prête) |
 | mer 25/11 | TR-04 | V1 | 248 267↻ 268↻ 433 431 435 |
 | mer 25/11 | TR-05 | V1 | 468◐↻ 429◐ 437 449◐↻ 448◐↻ 454◐↻ |
 | mer 25/11 | TR-06 | V1 | 438↻ 466◐↻ 465 444◐↻ 440 455↻ |

@@ -157,7 +157,7 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 |---|---|
 | #389 | #403 |
 | #394 | #405 |
-| #235 | #238 ; puis, avant #238 : #503 (e2e avec le moteur de droits sql, Q, 7a5ffd1c) |
+| #235 | #238 ; puis, avant #238 : #503 (e2e avec le moteur de droits sql, Q, 7a5ffd1c, relue par B : OK sans réserve) |
 | #248 | #267, #268 |
 | #384 | #386 ; puis, avant #386 : #387 |
 | #284 | #311 |
