@@ -67,6 +67,27 @@ async def _unit(db, tenant_id, parent=None) -> uuid.UUID:
     return unit_id
 
 
+async def _account(db, tenant_id, unit_id, role_id, last_name) -> uuid.UUID:
+    """A real users row: documents, import jobs and audit rows reference users.id."""
+    user_id = uuid.uuid4()
+    db.add(
+        User(
+            id=user_id,
+            tenant_id=tenant_id,
+            org_unit_id=unit_id,
+            role_id=role_id,
+            matricule=f"COL-{user_id.hex[:8]}",
+            email=f"{user_id.hex[:8]}@example.test",
+            first_name="Agent",
+            last_name=last_name,
+            password_hash="unused",
+            is_active=True,
+        )
+    )
+    await db.flush()
+    return user_id
+
+
 @pytest_asyncio.fixture
 async def tree(db_session, db_seed):
     tenant_id = db_seed["tenant_id"]
@@ -74,24 +95,14 @@ async def tree(db_session, db_seed):
     units["a1"] = await _unit(db_session, tenant_id, units["a"])
     units["a2"] = await _unit(db_session, tenant_id, units["a1"])
     units["b"] = await _unit(db_session, tenant_id)
-    # A real account: documents and import jobs reference users.id.
     seeded = await db_session.get(User, db_seed["user_id"])
-    collaborator = uuid.uuid4()
-    db_session.add(
-        User(
-            id=collaborator,
-            tenant_id=tenant_id,
-            org_unit_id=units["b"],
-            role_id=seeded.role_id,
-            matricule=f"COL-{collaborator.hex[:8]}",
-            email=f"{collaborator.hex[:8]}@example.test",
-            first_name="Agent",
-            last_name="Collaborateur",
-            password_hash="unused",
-            is_active=True,
-        )
+    collaborator = await _account(
+        db_session, tenant_id, units["b"], seeded.role_id, "Collaborateur"
     )
-    await db_session.flush()
+    # The unit admin edits documents, and every edit writes an audit row.
+    unit_admin = await _account(
+        db_session, tenant_id, units["a"], seeded.role_id, "Administrateur"
+    )
 
     ids = {}
 
@@ -139,7 +150,12 @@ async def tree(db_session, db_seed):
     await job("job_b", "b", db_seed["user_id"])
     await job("job_own", "b", collaborator)
     await db_session.commit()
-    return {"units": units, "ids": ids, "collaborator": collaborator}
+    return {
+        "units": units,
+        "ids": ids,
+        "collaborator": collaborator,
+        "unit_admin": unit_admin,
+    }
 
 
 def _keys(tree, found_ids) -> set[str]:
@@ -222,7 +238,10 @@ async def test_unit_admin_edits_only_in_its_tree(client_as, db_seed, tree):
     """PATCH hors de son sous-arbre : 404 et document inchangé ; dans le sous-arbre : 200."""
     units, ids = tree["units"], tree["ids"]
     async with client_as(
-        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a"]
+        "unit_admin",
+        id=tree["unit_admin"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["a"],
     ) as client:
         outside = await client.patch(
             f"{DOCUMENTS}{ids['b']}", json={"title": "Hors perimetre"}
