@@ -55,7 +55,8 @@ test.describe('Corbeille du super-administrateur : choix de l’institution', ()
     await page.goto('trash');
 
     const list = page.getByRole('list', { name: 'Documents dans la corbeille' });
-    await expect(page.getByText('Choisissez une institution pour voir sa corbeille.')).toBeVisible();
+    // exact : l'infobulle d'aide reprend la même phrase, suivie d'une précision.
+    await expect(page.getByText('Choisissez une institution pour voir sa corbeille.', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toHaveCount(0);
     // Tant qu'aucune institution n'est choisie, aucune corbeille d'institution n'est lue.
     expect(calls.filter((c) => c.includes('tenant_id='))).toEqual([]);
