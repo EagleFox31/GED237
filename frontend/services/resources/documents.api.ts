@@ -61,6 +61,9 @@ const TRASH_MESSAGES: ApiCallOptions = {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+const tenantQuery = (tenantId?: string): string =>
+    tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : '';
+
 const orgUnitQuery = (orgUnitId?: string, recursive = false): string => {
     const p = new URLSearchParams();
     if (orgUnitId) p.set('org_unit_id', orgUnitId);
@@ -132,9 +135,12 @@ export const documentsApi = {
     },
 
     // ── Corbeille ─────────────────────────────────────────────────────────
+    // `tenantId` : institution visée par le super-administrateur (`?tenant_id=`, honoré par
+    // `resolve_trash_tenant` pour `tenants manage` seulement, ignoré pour tout autre compte).
 
-    getTrashPage: async (skip = 0, limit = 50): Promise<TrashPage> => {
-        const response = await fetchWithRefresh(`${API_URL}/documents/trash?skip=${skip}&limit=${limit}`, {
+    getTrashPage: async (skip = 0, limit = 50, tenantId?: string): Promise<TrashPage> => {
+        const scope = tenantQuery(tenantId).replace('?', '&');
+        const response = await fetchWithRefresh(`${API_URL}/documents/trash?skip=${skip}&limit=${limit}${scope}`, {
             headers: getHeaders(false),
         });
         if (!response.ok) throw await buildApiError(response, 'Récupération de la corbeille impossible');
@@ -149,15 +155,20 @@ export const documentsApi = {
         return true;
     },
 
-    purgeDocument: async (id: string): Promise<true> => {
-        await apiCallVoid(`/documents/${id}/purge`, { method: 'DELETE' }, 'Suppression définitive impossible', TRASH_MESSAGES);
+    purgeDocument: async (id: string, tenantId?: string): Promise<true> => {
+        await apiCallVoid(
+            `/documents/${id}/purge${tenantQuery(tenantId)}`,
+            { method: 'DELETE' },
+            'Suppression définitive impossible',
+            TRASH_MESSAGES,
+        );
         return true;
     },
 
     /** Un lot par appel : rappeler tant que `remaining` > 0. */
-    emptyTrash: (): Promise<TrashEmptyResult> =>
+    emptyTrash: (tenantId?: string): Promise<TrashEmptyResult> =>
         apiCall<TrashEmptyResult>(
-            '/documents/trash/empty',
+            `/documents/trash/empty${tenantQuery(tenantId)}`,
             { method: 'POST', body: JSON.stringify({}) },
             'Vidage de la corbeille impossible',
             TRASH_MESSAGES,

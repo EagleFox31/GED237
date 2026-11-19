@@ -33,3 +33,10 @@ export const isRestoreReservedToAdmin = (
 ): boolean => !canDelete && Boolean(doc.deleted_by) && doc.deleted_by !== myUserId;
 
 export const RESTORE_RESERVED_HELP = 'Retiré par un administrateur. Demandez-lui de le restaurer.';
+
+/**
+ * Super-administrateur (`tenants:manage`) : il consulte la corbeille d'une institution choisie
+ * (`?tenant_id=`). POST /restore ne prend pas d'institution : la restauration y reste à son
+ * administrateur, l'écran ne la propose donc pas.
+ */
+export const RESTORE_IN_INSTITUTION_HELP = 'La restauration se fait par l’administrateur de l’institution.';
