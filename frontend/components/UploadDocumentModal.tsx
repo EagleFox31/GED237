@@ -7,6 +7,7 @@ import {
 } from '../lib/uploadFeedback';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 import { MAX_UPLOAD_MB } from '../constants';
+import { pushSuccess } from '../lib/successNotice';
 import { resolvePreviewStrategy } from './preview/PreviewStrategyRegistry';
 
 /** Avertissement de format pour le fichier choisi (aperçu : mêmes règles que la fenêtre de détail). */
@@ -89,6 +90,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     setIsLoading(true);
     try {
       const doc = await api.uploadDocument(formData) as Document;
+      pushSuccess(`Document déposé : « ${doc.title || title.trim() || file.name} ».`);
       onSuccess(doc);
     } catch (err: any) {
       setError(uploadErrorMessage(err?.status, err?.userMessage ?? err?.message));

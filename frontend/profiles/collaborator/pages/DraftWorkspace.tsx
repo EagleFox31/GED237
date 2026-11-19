@@ -4,6 +4,7 @@ import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { pushSuccess } from '../../../lib/successNotice';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -69,6 +70,7 @@ const DraftWorkspace: React.FC = () => {
       ];
 
       await api.createWorkflowSteps(documentToSubmit, steps);
+      pushSuccess('Document envoyé pour validation.');
       setShowSubmitModal(false);
       setDocumentToSubmit(null);
       setSelectedValidator('');
