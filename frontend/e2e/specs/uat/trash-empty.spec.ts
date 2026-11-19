@@ -1,4 +1,5 @@
 import { test, expect, API_URL } from '../../fixtures/uat.fixture';
+import { SEED } from '../../data/seed';
 import { trash, upload } from './trashApi';
 
 /**
@@ -16,7 +17,16 @@ test('administrateur de l’institution : « Vider » masqué et refusé, corbei
   runId,
 }) => {
   const headers = { Authorization: `Bearer ${adminToken}` };
-  const kept = `Corbeille non vidée ${runId}`;
+  // Garde : hors pile e2e (ex. pile de démo), on ne touche pas à la corbeille, même pour vérifier un refus.
+  const before = await request.get(`${API_URL}/documents/trash?skip=0&limit=100`, { headers });
+  expect(before.ok(), 'GET /documents/trash').toBeTruthy();
+  const titles = new Set(((await before.json()) as { title: string }[]).map((doc) => doc.title));
+  test.skip(
+    !SEED.expected.trash.every((title) => titles.has(title)),
+    'Pas une pile e2e (corbeille du seed e2e absente) : ce spec ne tourne pas ici.',
+  );
+
+  const kept =`Corbeille non vidée ${runId}`;
   const keptDoc = await upload(request, adminToken, runId, kept);
   await trash(request, adminToken, keptDoc.id);
 
