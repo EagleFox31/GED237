@@ -39,7 +39,7 @@ test.describe('Archivage', () => {
     // Pendant la requête le bouton affiche « Archivage… » : on attend l'état serveur, pas sa disparition.
     await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('archived');
     await expect(archive).toHaveCount(0);
-    await page.getByRole('button', { name: 'Fermer' }).click();
+    await page.getByRole('button', { name: 'Fermer', exact: true }).click();
     await expect(page.locator('.grid > div').filter({ hasText: title }).getByText('Archivé')).toBeVisible();
   });
 
@@ -49,7 +49,7 @@ test.describe('Archivage', () => {
 
     await loginAs('tenant_admin');
     await openDocument(page, runId, title);
-    await expect(page.getByRole('button', { name: 'Fermer' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Fermer', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Archiver' })).toHaveCount(0);
   });
 
@@ -62,7 +62,7 @@ test.describe('Archivage', () => {
 
     await loginAs('manager');
     await openDocument(page, runId, title);
-    await expect(page.getByRole('button', { name: 'Fermer' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Fermer', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Archiver' })).toHaveCount(0);
   });
 });
