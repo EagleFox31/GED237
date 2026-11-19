@@ -274,13 +274,22 @@ class Seeder:
             code = item["code"]
             existing = (
                 await self.db.execute(
-                    select(Document.id).where(
+                    select(Document).where(
                         Document.tenant_id == self.tenant.id,
                         Document.extra_data["e2e_seed"].astext == code,
                     )
                 )
             ).scalar_one_or_none()
             if existing is not None:
+                if item.get("trashed") and existing.deleted_at is None:
+                    # A run that restored it then died before trashing it back
+                    # (uat/trash-empty.spec « Vider »): put it back where the manifest says.
+                    owner = await self.user(item["owner"])
+                    existing.deleted_at = datetime.now(timezone.utc)
+                    existing.deleted_by = owner.id
+                    await self.db.commit()
+                    self._log("updated", f"document {code}", ["deleted_at"])
+                    continue
                 self._log("unchanged", f"document {code}")
                 continue
             await self._create_document(storage, item)
