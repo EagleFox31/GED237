@@ -1,481 +1,316 @@
-# Guide utilisateur par profil — GED237
+# Guide utilisateur E-Dossier, par profil
 
-## Objectif du guide
+Version décrite : **v1.0.0-rc.1**.
 
-Ce document explique, pour chaque profil utilisateur de GED237 :
+Lisez « Se connecter », puis la page de votre profil. Les noms entre « guillemets » sont ceux que vous voyez à l'écran.
 
-- sur quelles pages il travaille au quotidien ;
-- dans quel ordre il passe d'une page a l'autre ;
-- ce qu'il doit comprendre des notions metier qui influencent l'usage ;
-- les differences entre des ecrans qui se ressemblent mais ne servent pas au meme besoin.
+| Votre profil | Votre page |
+|---|---|
+| Super Admin | [1. Super Admin](#1-super-admin) |
+| Admin Institution | [2. Admin Institution](#2-admin-institution) |
+| Admin Service | [3. Admin Service](#3-admin-service) |
+| Responsable | [4. Responsable](#4-responsable) |
+| Collaborateur | [5. Collaborateur](#5-collaborateur) |
+| Lecteur | [6. Lecteur](#6-lecteur) |
+| Auditeur | [7. Auditeur](#7-auditeur) |
 
-Le guide est redige pour un usage administratif de type ministere, direction, service ou organisme public.
+Votre profil est indiqué par l'administrateur qui a créé votre compte.
 
-## A qui s'adresse ce guide
+## Se connecter
 
-- `Super Admin` : pilote la plateforme et ouvre les institutions.
-- `Admin Institution` : configure le tenant, les services, les roles, le classement et les imports.
-- `Admin Service` : suit l'activite documentaire d'un service.
-- `Responsable` : vise, approuve ou signe.
-- `Collaborateur` : depose et soumet les documents.
-- `Lecteur` : consulte les documents autorises en lecture seule.
-- `Auditeur` : controle la tracabilite et les actions effectuees.
+1. Dans « Administration / Organisme », choisissez votre institution.
+2. Saisissez votre « Matricule Personnel » et votre « Mot de Passe ».
+3. Cliquez sur « Étape Suivante ».
+4. L'écran « Code MFA » s'ouvre. Le code à 6 chiffres s'affiche déjà rempli : cliquez sur « Confirmer l'identité ». Dans cette version, le code n'est envoyé ni par e-mail ni sur une application de téléphone.
+5. Première connexion : choisissez votre mot de passe personnel, puis cliquez sur « Mettre à jour ».
+   - Dans « Mot de passe temporaire reçu », tapez le mot de passe donné par l'administration.
+   - Votre nouveau mot de passe doit avoir 12 caractères minimum, une majuscule, un chiffre et un caractère spécial.
 
-## Avant de commencer
+Bon à savoir :
 
-### Vocabulaire commun
+- Le code est valable 5 minutes. Expiré ? Cliquez sur « Utiliser une autre méthode » et recommencez.
+- Après 3 codes faux, le compte est bloqué 15 minutes. L'écran affiche le temps restant.
+- « Trop de tentatives » : attendez une minute.
+- Mot de passe perdu : demandez un nouveau mot de passe à l'administrateur de votre institution.
+- Le cadre « Espace Démo Interactif », sous le formulaire, sert aux démonstrations. Ne vous en servez pas.
 
-**Institution**
-: organisation hebergee dans GED237, par exemple un ministere ou une agence.
+## Se repérer
 
-**Service**
-: unite organisationnelle de l'institution. Il peut s'agir d'une direction, sous-direction ou cellule.
+- **Le menu** est à gauche. Chacun peut le placer en haut : roue dentée du bandeau, puis « Menu Supérieur ». Ce choix n'est pas gardé : le menu revient à gauche quand la page est rechargée. En haut, seuls « Dashboard », « Mes Documents » et « Tâches » s'affichent (plus « Audit » pour l'Auditeur), sauf pour l'Admin Institution, qui garde tout son menu.
+- **La barre de recherche** est en haut de l'écran.
+  - Sur « Mes Documents », « Explorateur documentaire », « Agents & Rôles » et « À distribuer », elle cherche dans la page ouverte.
+  - Ailleurs, elle cherche dans les documents que votre profil peut voir (voir ci-dessous), y compris le texte des fichiers scannés. Les résultats s'affichent sous la barre.
+- **Retirer un document** : aucun profil n'a de bouton pour cela dans cette version, et la corbeille n'a pas encore d'écran. Signalez le document à l'administrateur de votre institution : il fait le lien avec l'équipe technique, qui peut aussi récupérer un document supprimé.
 
-**Role**
-: droit principal donne a l'utilisateur. Le role dit ce que la personne peut faire.
+## Ce que vous voyez
 
-**Perimetre**
-: niveau organisationnel sur lequel s'exerce l'action. Le perimetre dit ou la personne peut agir.
+Chaque profil ne voit que ce qui le concerne. C'est voulu : l'administrateur prépare, chacun travaille sur sa part.
 
-**Espace documentaire**
-: vue des documents ranges par unite organisationnelle.
+- **Collaborateur** : vos propres documents seulement, dans « Mes Documents » comme dans la recherche.
+- **Responsable et Lecteur** : les documents de votre service.
+- **Admin Institution, Admin Service et Auditeur** : toute l'institution.
+- **Importer pour d'autres agents** (« Import en masse »), l'« Explorateur documentaire » et « Ma bannette » : réservés au Super Admin et à l'Admin Institution. Les autres profils demandent les imports en masse à leur administrateur.
 
-**Plan de classement**
-: logique de rangement documentaire. Il determine dans quel domaine, activite, annee et cible un document doit etre range.
-
-**Circuit**
-: suite d'etapes de visa, approbation, signature ou prise de connaissance.
-
-**Bannette**
-: file d'elements a traiter. Dans GED237, une bannette peut concerner le classement a arbitrer, des etapes en attente ou des affectations manuelles.
-
-**Audit**
-: journal de preuve des actions realisees sur les documents, les utilisateurs ou les regles.
-
-## Principes metier a retenir
-
-### 1. Le role ne suffit pas, le rattachement organisationnel compte aussi
-
-Dans GED237, le role donne le droit d'action, mais la structure hierarchique determine le bon niveau d'intervention.
-
-Exemple :
-
-- un `Responsable` dans un service ne joue pas le meme role organisationnel qu'un `Responsable` au niveau direction ;
-- le moteur peut rechercher le bon valideur selon le niveau vise par le circuit.
-
-### 2. Ne pas confondre structure, espace documentaire et classement
-
-Ces trois notions sont liees, mais distinctes :
-
-- **Structure hierarchique** : organise les services et les utilisateurs ;
-- **Explorateur documentaire** : permet de consulter les documents deja ranges dans les espaces ;
-- **Plan de classement** : definit les regles de rangement pour que les documents arrivent au bon endroit.
-
-### 3. L'import en masse se fait en deux temps
-
-L'import n'envoie pas directement les fichiers dans le fonds documentaire final :
-
-1. analyse des fichiers et proposition de classement ;
-2. verification puis import reel.
-
-Ce fonctionnement limite les erreurs de masse.
-
-### 4. Une bannette n'est pas une corbeille
-
-Une bannette est une file de traitement. Elle contient des elements qui attendent une action humaine :
-
-- arbitrer un classement ambigu ;
-- affecter une etape restee sans destinataire ;
-- traiter une etape de validation.
-
-### 5. L'audit sert d'abord a prouver
-
-L'audit ne remplace pas les ecrans de travail. Il sert a :
-
-- verifier qui a fait quoi ;
-- expliquer pourquoi un document a change d'etat ;
-- produire une trace de controle.
-
-## Parcours par profil
+---
 
 ## 1. Super Admin
 
-### Mission principale
+Vous ouvrez les institutions sur la plateforme. Vous ne gérez pas leur travail quotidien.
 
-Ouvrir et administrer les institutions sur la plateforme, sans gerer le contenu metier quotidien de chaque institution.
+**À la connexion, vous arrivez sur « Institutions ».**
 
-### Pages principales
+### Vos 3 gestes
 
-- `Dashboard Global`
-- `Institutions`
-- `Utilisateurs`
-- `Gestion AuthZ`
-- `Audit`
+1. **Ouvrir une institution** : dans « Institutions », créez-la, ouvrez sa fiche, puis créez son premier Admin Institution.
+2. **Gérer les comptes de la plateforme** : « Utilisateurs ».
+3. **Contrôler** : « Audit » pour savoir qui a fait quoi.
 
-### Parcours typique
+### Votre menu
 
-1. Ouvrir **Institutions**.
-2. Creer une nouvelle institution.
-3. Ouvrir le detail de l'institution.
-4. Creer le premier `Admin Institution`.
-5. Verifier que l'institution peut ensuite creer ses services et ses utilisateurs metier.
-6. En cas de besoin, controler les utilisateurs reseau, les politiques d'autorisation et l'audit.
+« Dashboard Global », « Institutions », « Utilisateurs », « Gestion AuthZ », « Documents », « Workflows », « Import en masse », « Bibliothèque locale », « Audit », « Paramètres ».
 
-### Ce que ce profil doit comprendre
+- « Gestion AuthZ » : les règles d'accès communes à toutes les institutions. Dans cette version, elles ne s'y modifient pas (voir « Ce qui se règle où »). Ce ne sont pas les circuits de validation.
+- « Workflows » : les circuits de validation.
 
-- Le `Super Admin` cree le cadre, mais n'organise pas le classement quotidien de chaque institution.
-- Il doit verifier l'etancheite entre institutions : une institution ne doit pas voir les donnees d'une autre.
-- La page `Gestion AuthZ` concerne les politiques d'autorisation transverses, pas les circuits documentaires metier.
+### Bon à savoir
 
-### Points d'attention UX
+- Ouvrez une institution dans cet ordre : institution, premier administrateur, puis services et agents (par son Admin Institution). Certaines actions restent masquées tant qu'une étape manque.
+- Une institution ne doit jamais voir les documents d'une autre. Au moindre doute, consultez « Audit ».
 
-- La creation d'une institution se fait dans un ordre volontairement guide : institution, admin principal, services, puis utilisateurs.
-- Si une institution n'a pas encore d'admin ou de services, certaines actions restent volontairement masquees.
+### Ce qui se règle où
+
+| À l'écran | Sur le serveur, par la personne qui installe |
+|---|---|
+| Institutions, leur organisation et leur premier administrateur (« Institutions ») | Mots de passe techniques et clé de sécurité |
+| Comptes (« Utilisateurs ») | Durée des sessions, nombre d'essais de connexion, taille maximale d'un envoi |
+| Affichage du menu (« Paramètres ») | Droits des rôles (fichier `policy.csv`) |
+| Côté Admin Institution : plan de classement, règles de rangement, modèles, espaces | Sauvegardes et restaurations |
+| — | Adresse et port de l'application |
+
+Les mots de passe techniques ne passent jamais par l'écran.
+
+Dans cette version, les droits ne se règlent pas à l'écran. Le serveur les garde dans un fichier, et l'onglet des règles de « Gestion AuthZ » indique que les droits ne sont pas modifiables sur cette installation.
+
+Dans la prochaine version :
+- la durée des sessions, le nombre d'essais de connexion et la taille maximale d'un envoi passeront à l'écran ;
+- les droits s'afficheront dans une grille (rôles et actions à cocher), que seul le super admin pourra modifier.
+
+Détail des réglages du serveur : `DOCS/exploitation/installation.md` § 3.
+
+---
 
 ## 2. Admin Institution
 
-### Mission principale
+Vous réglez le fonctionnement de votre institution. Vous traitez les cas que les agents ne peuvent pas régler seuls.
 
-Configurer le fonctionnement documentaire de l'institution et resoudre les cas que les autres profils ne peuvent pas traiter seuls.
+**À la connexion, vous arrivez sur « Tableau de bord ».**
 
-### Pages principales
+### Vos 3 gestes
 
-- `Tableau de bord`
-- `Ma bannette`
-- `A distribuer`
-- `Structure hierarchique`
-- `Explorateur documentaire`
-- `Agents & Roles`
-- `Traitement des documents`
-- `Plan de classement`
-- `Import en masse`
-- `Audit & Tracabilite`
-- `Paramètres`
+1. **« Ma bannette »** : corrigez le rangement des documents que l'application n'a pas su ranger seule (domaine, activité, année, destination), puis cliquez sur « Classer et relancer ».
+2. **« À distribuer »** : pour chaque document sans destinataire, choisissez l'agent qui le traite.
+3. **« Tableau de bord »** : repérez les alertes du jour.
 
-### Parcours recommande de mise en service
+### Votre menu
 
-1. Aller dans **Structure hierarchique**.
-2. Creer les services et sous-services.
-3. Aller dans **Agents & Roles** et creer les utilisateurs.
-4. Aller dans **Traitement des documents** pour definir :
-   - les types de documents ;
-   - les circuits de validation ;
-   - les regles d'aiguillage ;
-   - les simulations.
-5. Aller dans **Plan de classement** pour definir :
-   - les domaines ;
-   - les activites ;
-   - les regles de classement ;
-   - les tests de classement.
-6. Aller dans **Import en masse** pour reprendre les fonds existants.
-7. Aller dans **Explorateur documentaire** pour verifier le resultat concret dans les espaces documentaires.
-8. Aller dans **Ma bannette** et **A distribuer** pour traiter les cas non resolus automatiquement.
+« Tableau de bord », « Ma bannette », « À distribuer », « Structure hiérarchique », « Explorateur documentaire », « Agents & Rôles », « Traitement des documents », « Plan de classement », « Import en masse », « Bibliothèque locale », « Audit & Traçabilité », « Rapports & Statistiques », « Paramètres ».
 
-### Parcours recommande au quotidien
+### Mise en service (une seule fois, dans cet ordre)
 
-1. Ouvrir **Tableau de bord** pour reperer les alertes.
-2. Consulter **Ma bannette** pour traiter les documents a arbitrer.
-3. Consulter **A distribuer** pour affecter les etapes orphelines.
-4. Verifier **Explorateur documentaire** pour controler le rangement effectif.
-5. Consulter **Audit & Tracabilite** en cas d'anomalie ou de besoin de preuve.
+1. **« Structure hiérarchique »** : créez les services et les bureaux.
+2. **« Agents & Rôles »** : créez les comptes et donnez à chacun son profil.
+3. **« Traitement des documents »** : qui traite quoi, et dans quel ordre (types de documents, circuits de validation, règles d'aiguillage, simulateur).
+4. **« Plan de classement »** : où chaque document est rangé (domaines, activités, règles, simulateur).
+5. **« Import en masse »** : reprenez vos archives (voir [Ranger / Importer](#ranger--importer)).
+6. **« Explorateur documentaire »** : vérifiez où les documents sont rangés, service par service.
 
-### Ce que ce profil doit comprendre
+### Les autres pages
 
-#### Structure hierarchique
+- **« Explorateur documentaire »** : les documents rangés, par service. Un document marqué « À vérifier » se corrige dans « Ma bannette ».
+- **« Audit & Traçabilité »** : le journal des actions. Voir [7. Auditeur](#7-auditeur).
+- **« Rapports & Statistiques »** : les chiffres de toute l'institution.
+  - Onglets « Synthèse », « Activité documentaire », « Traitement & délais », « Services ».
+  - La période et le service se choisissent dans la fenêtre « Générer un rapport » (champs « Période » et « Service ou direction »).
+  - « Exporter la vue » produit un fichier Excel ; sur l'onglet « Activité documentaire », un fichier CSV.
+  - « Générer un rapport » produit un fichier Excel, CSV ou PDF. Pour le PDF, la fenêtre d'impression s'ouvre : choisissez « Enregistrer au format PDF ».
+- **« Paramètres »** : guide des rôles, position du menu (à gauche ou en haut), liste des unités.
+- **Rechercher un agent** : ouvrez « Agents & Rôles » et tapez dans la barre du haut. Le rôle de chaque agent se choisit aussi là.
 
-La page sert a organiser l'institution :
+### Bon à savoir
 
-- creation des services ;
-- rattachement des agents ;
-- lecture des documents lies a une unite ;
-- base de travail pour les circuits et l'isolation des acces.
+- « Ma bannette » et « À distribuer » ne traitent pas le même problème :
+  - « Ma bannette » : l'application ne sait pas **où ranger** le document ;
+  - « À distribuer » : elle ne sait pas **à qui le confier**.
+- Un document peut être bien rangé mais sans destinataire, ou l'inverse. Vérifiez les deux.
+- Traitez « Ma bannette » vite : un document mal rangé est difficile à retrouver.
+- **Archiver un document** (Admin Institution et Super Admin) : tapez son titre dans la barre de recherche du bandeau, choisissez « Ouvrir <titre> », cliquez sur « Archiver », puis sur « Oui, archiver ». Seul un document validé ou signé peut être archivé ; son badge passe à « Archivé ». Pour retrouver les documents archivés : page « Explorateur GED », menu « Statut : Tous », choix « Archivé ».
 
-Cette page n'est pas le lieu de rangement final du document, mais le point de reference organisationnel.
-
-#### Explorateur documentaire
-
-La page sert a parcourir les documents selon l'espace du service.
-
-Elle permet notamment de :
-
-- choisir une unite ;
-- voir les documents du service ;
-- etendre la vue aux sous-services ;
-- verifier le chemin logique de classement ;
-- ouvrir un apercu ;
-- relancer une correction de classement si necessaire.
-
-En pratique, c'est la page de controle du rangement reel.
-
-#### Traitement des documents
-
-Cette page regle la circulation des documents :
-
-- quels types de documents existent ;
-- quels circuits sont autorises ;
-- quelles regles d'aiguillage orientent les dossiers ;
-- comment tester la configuration avant mise en service.
-
-Elle repond a la question : "Qui doit traiter quoi, et dans quel ordre ?"
-
-#### Plan de classement
-
-Cette page regle le rangement :
-
-- domaine metier ;
-- activite ;
-- annee ;
-- cible de rangement ;
-- simulation de classement.
-
-Elle repond a la question : "Ou le document doit-il etre range ?"
-
-#### Import en masse
-
-La page suit une logique d'assistant :
-
-1. selection des fichiers ou d'un dossier ;
-2. choix du contexte de destination ;
-3. verification du classement propose ;
-4. import final.
-
-Deux choix ont un impact fort :
-
-- **Juste les ranger** : reprise d'archives sans lancement de circuit ;
-- **Les ranger et lancer le circuit** : import puis mise au travail documentaire.
-
-Il faut reserver le second mode aux dossiers qui doivent encore suivre un traitement actif.
-
-#### Ma bannette
-
-Dans l'etat actuel de l'application, cette entree renvoie surtout a la **revue de classement**.
-
-Elle doit etre utilisee pour :
-
-- comprendre pourquoi un document n'a pas ete classe automatiquement ;
-- corriger le domaine, l'activite, l'annee, la cible ou la categorie ;
-- relancer le workflow si le document etait en mode `process`.
-
-Autrement dit, cette bannette sert d'abord a arbitrer les exceptions de classement.
-
-#### A distribuer
-
-Cette page sert a traiter les **etapes orphelines** :
-
-- le systeme a cree une etape ;
-- mais aucun utilisateur n'a pu etre resolu automatiquement.
-
-L'admin doit alors designer manuellement l'acteur qui reprend l'etape.
-
-#### Audit et tracabilite
-
-Cette page permet de :
-
-- rechercher une action ;
-- filtrer par acteur, objet ou type d'action ;
-- expliquer un incident ;
-- preparer un controle.
-
-Elle ne sert pas a modifier un document. Elle sert a prouver l'historique.
-
-### Points d'attention UX
-
-- Un document peut etre bien range mais mal route, ou l'inverse.
-- Un import "propre" n'est pas seulement un import sans erreur technique ; c'est un import dont le classement est coherent et exploitable.
-- La revue de classement doit etre traitee rapidement pour eviter que les documents restent invisibles ou mal places.
+---
 
 ## 3. Admin Service
 
-### Mission principale
+Vous suivez l'activité de votre service.
 
-Suivre l'activite documentaire et la charge de traitement d'un service.
+**À la connexion, vous arrivez sur « Tableau de Bord », dont la page s'appelle « Chef Unité ».**
 
-### Page principale
+### Vos 3 gestes
 
-- `Tableau de bord service`
+1. **« Tableau de Bord »** : lisez les « Indicateurs du Service » : « Documents », « Workflows en attente » (circuits en cours), « Workflows complétés ».
+2. **« Mes Documents »** : consultez les documents. Dans cette version, vous voyez ceux de toute l'institution, pas seulement de votre service.
+3. **« Tâches & Suivi »** : traitez les étapes qui vous attendent.
 
-### Parcours typique
+### Votre menu
 
-1. Ouvrir le **Tableau de bord service**.
-2. Verifier les volumes documentaires et les workflows en attente.
-3. Identifier les besoins de permission ou de coordination locale.
-4. Relayer vers l'`Admin Institution` si le probleme releve du classement global, des roles ou du parametage central.
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi », « Ranger / Importer », « Bibliothèque locale ».
 
-### Ce que ce profil doit comprendre
+### Bon à savoir
 
-- Il supervise un perimetre local, pas toute l'institution.
-- Il peut etre implique dans les circuits, mais son role principal ici est le pilotage de proximite.
-- Si un dysfonctionnement concerne une regle de classement, un circuit global ou un import de masse, l'escalade doit se faire vers l'`Admin Institution`.
+- Vous ne créez pas de document. « Ranger / Importer » est verrouillé pour votre profil dans cette version : les imports passent par l'Admin Institution.
+- Un problème de rangement, de circuit ou d'import concerne toute l'institution : signalez-le à l'Admin Institution.
+
+---
 
 ## 4. Responsable
 
-### Mission principale
+Vous visez, approuvez ou signez les documents.
 
-Prendre une decision sur les etapes de validation, d'approbation, de visa ou de signature.
+**À la connexion, vous arrivez sur « Tâches & Suivi », dont la page s'appelle « Tâches & Validations ».**
 
-### Page principale
+### Vos 3 gestes
 
-- `Tasks` / espace de validation
+1. **« Tâches & Validations »** : pour chaque document, cliquez sur « Valider » ou « Rejeter ».
+2. **« Tableau de Bord »**, page « Espace Manager » : le bouton porte le nom de l'étape : « Viser », « Approuver », « Signer », « J'ai pris connaissance » ou « Valider ».
+3. **« Rapports »** : les chiffres de votre service et de ses bureaux.
 
-### Parcours typique
+### Votre menu
 
-1. Ouvrir la pile des dossiers en attente.
-2. Identifier le document et l'action attendue.
-3. Ouvrir ou consulter le document.
-4. Choisir l'action :
-   - viser ;
-   - approuver ;
-   - signer ;
-   - rejeter ;
-   - accuser reception selon le type d'etape.
-5. Verifier ensuite que le dossier disparait de la pile ou passe a l'etape suivante.
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi », « Ranger / Importer », « Bibliothèque locale », « Rapports ».
 
-### Ce que ce profil doit comprendre
+### Bon à savoir
 
-- Le type d'action depend du circuit, pas d'une preference utilisateur.
-- Une meme personne peut etre `Responsable` a plusieurs niveaux, mais le bon dossier lui arrive selon la structure hierarchique et le perimetre.
-- Si une etape n'arrive pas au bon acteur, ce n'est pas toujours un probleme de role ; cela peut etre un probleme de rattachement organisationnel ou de regle d'assignation.
+- Pour rejeter, écrivez le motif, puis cliquez sur « Confirmer le rejet ».
+- Le type d'action dépend du circuit, pas de vous.
+- « Aucune tâche en attente » veut dire : rien à décider pour vous maintenant. Les documents existent toujours.
+- Un document ne vous arrive pas, ou arrive à la mauvaise personne ? Signalez-le à l'Admin Institution : c'est souvent un rattachement de service.
+- « Rapports » ne montre pas les autres services. C'est normal.
+- Vous pouvez aussi déposer un document : « Mes Documents », puis « Nouveau Document ».
 
-### Point d'attention UX
-
-- Une pile vide ne veut pas toujours dire "aucun document dans le systeme" ; cela veut dire "aucune decision en attente pour ce profil a cet instant".
+---
 
 ## 5. Collaborateur
 
-### Mission principale
+Vous déposez les documents et les envoyez en validation.
 
-Creer ou deposer un document, puis le soumettre au bon circuit.
+**À la connexion, vous arrivez sur « Tableau de Bord », dont la page s'appelle « Mon Atelier ».**
 
-### Page principale
+### Vos 3 gestes
 
-- `Mon Atelier`
+1. **Déposer** : « Nouveau Document ». Saisissez le titre, choisissez la catégorie, ajoutez des mots-clés (tags) et joignez le fichier (PDF ou DOCX).
+2. **Envoyer en validation** : sur le document, cliquez sur « Soumettre », choisissez le valideur, puis « Soumettre au visa ».
+3. **Suivre** : l'état s'affiche sur chaque document : « En Validation », « Rejeté », « Validé » ou « Signé ».
 
-### Parcours typique
+### Votre menu
 
-1. Ouvrir **Mon Atelier**.
-2. Creer un nouveau document.
-3. Saisir le titre, la categorie, les tags et joindre le fichier.
-4. Enregistrer le document.
-5. Une fois le document pret, cliquer sur **Soumettre**.
-6. Choisir le valideur si le circuit le demande.
-7. Suivre l'etat du document :
-   - brouillon ;
-   - en validation ;
-   - rejete ;
-   - signe ou valide.
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi ».
 
-### Ce que ce profil doit comprendre
+### Bon à savoir
 
-- Le depot d'un fichier n'est pas encore une validation administrative.
-- Les tags et la categorie ont un impact sur le routage et parfois sur le classement.
-- Si le document est bloque ou rejete, il faut verifier le motif et reprendre le contenu, pas simplement reimporter un autre fichier.
+- Déposer un fichier ne le valide pas. Il faut le soumettre.
+- La catégorie et les tags orientent le document vers la bonne personne. Choisissez-les bien.
+- « Aucun valideur disponible » : demandez à l'administrateur.
+- Document rejeté : lisez le motif et corrigez le contenu. Ne déposez pas un autre fichier à la place.
+
+---
 
 ## 6. Lecteur
 
-### Mission principale
+Vous consultez les documents. Vous ne les modifiez pas.
 
-Consulter les documents autorises sans modifier le contenu ni les circuits.
+**À la connexion, vous arrivez sur « Mes Documents », dont la page s'appelle « Explorateur GED ».**
 
-### Page principale
+### Vos 3 gestes
 
-- `Ma Bibliotheque`
+1. **Chercher** : tapez dans la barre du haut (nom, informations du document ou texte du fichier).
+2. **Ouvrir** un document pour le lire.
+3. **« Tableau de Bord »**, page « Ma Bibliothèque » : les documents validés que vous pouvez lire.
 
-### Parcours typique
+### Votre menu
 
-1. Ouvrir **Ma Bibliotheque**.
-2. Rechercher ou parcourir les documents disponibles.
-3. Ouvrir le document pour lecture seule.
-4. Verifier le statut et la date si besoin.
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi ».
 
-### Ce que ce profil doit comprendre
+### Bon à savoir
 
-- L'absence de boutons d'action est normale : ce profil consulte, il ne traite pas.
-- Selon les politiques internes, un document bloque peut rester visible en lecture seule.
-- Si un document attendu n'apparait pas, la cause peut venir :
-   - d'un droit d'acces ;
-   - d'un classement non finalise ;
-   - d'un workflow non acheve ;
-   - d'un espace documentaire non partage avec ce profil.
+- Vous ne voyez pas de bouton d'action : c'est normal.
+- Un document attendu n'apparaît pas ? Il n'est peut-être pas encore validé, rangé ou partagé avec vous. Demandez à l'administrateur.
+
+---
 
 ## 7. Auditeur
 
-### Mission principale
+Vous vérifiez qui a fait quoi, et quand.
 
-Verifier la trace des actions, produire de la preuve et documenter les controles.
+**À la connexion, vous arrivez sur la page « Registre Des Actions ». Pour y revenir, cliquez sur « Tableau de Bord » ou sur « Audit ».**
 
-### Page principale
+### Vos 3 gestes
 
-- `Audit`
+1. **Filtrer** : par action, personne (« Effectuée par ») ou registre. La colonne « Date et heure » se trie d'un clic.
+2. **Reconstituer** l'histoire d'un document, d'une personne ou d'un import, ligne par ligne.
+3. **Exporter** : « Exporter (CSV) » télécharge tout le journal qui correspond à vos filtres, pas seulement les 200 dernières lignes affichées.
 
-### Parcours typique
+### Votre menu
 
-1. Ouvrir **Audit**.
-2. Filtrer par date, acteur, type d'action ou objet.
-3. Reconstituer la chronologie d'un document, d'un utilisateur ou d'une operation d'import.
-4. Exporter ou relever les informations utiles au controle.
+« Tableau de Bord », « Mes Documents », « Tâches & Suivi », « Ranger / Importer », « Bibliothèque locale », « Audit ».
 
-### Ce que ce profil doit comprendre
+### Bon à savoir
 
-- L'audit porte sur les actions, pas sur l'organisation du travail quotidien.
-- Une anomalie fonctionnelle doit etre rapprochee d'une trace precise : creation, modification, revue, import, consultation, suppression ou affectation.
-- L'audit est aussi utile pour verifier qu'une action automatique du systeme a bien eu lieu.
+- Si vous filtrez sur des personnes, l'export n'en accepte qu'une à la fois.
+- L'export s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre.
+- Filtrez avant de conclure.
+- Une ligne sans nom de personne est une action automatique de l'application. Ce n'est pas forcément une anomalie.
+- « Ranger / Importer » est verrouillé pour votre profil dans cette version.
 
-### Points d'attention UX
+---
 
-- Il faut privilegier les filtres avant d'interpreter les resultats.
-- Une action systeme peut apparaitre sans nom d'utilisateur ; ce n'est pas forcement une anomalie.
+## Pages communes
 
-## Cas transverses a bien expliquer aux utilisateurs
+### « Mes Documents »
 
-## 1. Difference entre les pages qui parlent de documents
+La page s'appelle « Explorateur GED ». Elle liste les documents que vous pouvez voir.
 
-- **Mon Atelier** : je cree et je soumets.
-- **Espace de validation** : je decide.
-- **Explorateur documentaire** : je controle le rangement et j'ouvre les documents ranges.
-- **Bibliotheque** : je consulte en lecture seule.
-- **Audit** : je verifie la preuve d'action.
+- Filtrez par catégorie (« Catégorie : Toutes ») ou par état (« Statut : Tous »). Pour chercher, utilisez la barre du haut.
+- « Nouveau Document » apparaît seulement pour le Super Admin, l'Admin Institution, le Responsable et le Collaborateur.
 
-## 2. Difference entre classement et routage
+### « Tâches & Suivi »
 
-- **Classement** : emplacement logique du document.
-- **Routage** : personne ou role qui doit agir sur le document.
+La page s'appelle « Tâches & Validations ». Elle liste les étapes qui vous attendent : « Valider » ou « Rejeter ».
 
-Un document peut etre :
+### Ranger / Importer
 
-- bien classe mais en attente d'affectation ;
-- bien route mais mal range ;
-- ni bien classe ni bien route, notamment apres un import partiel ou ambigu.
+L'entrée s'appelle « Ranger / Importer », ou « Import en masse » pour les administrateurs. Dans cette version, les deux choix ci-dessous sont réservés au Super Admin et à l'Admin Institution. Les autres profils voient l'écran verrouillé (« Bientôt disponible ») et confient leurs imports en masse à leur administrateur ; le Collaborateur et le Lecteur n'ont pas cette entrée.
 
-## 3. Difference entre revue de classement et assignation manuelle
+- **« Ranger sur mon poste »** : l'application range les fichiers dans un dossier de votre ordinateur. Rien n'entre dans E-Dossier.
+- **« Importer dans le Serveur de l'Application »** : les fichiers entrent dans E-Dossier.
 
-- **Revue de classement** : le systeme ne sait pas ou ranger avec certitude.
-- **Assignation manuelle** : le systeme ne sait pas a qui confier une etape de circuit.
+L'import se fait en deux temps : l'application analyse les fichiers et propose un rangement ; vous vérifiez, puis vous cliquez sur « Importer les documents ».
 
-Ce ne sont pas les memes causes ni les memes actions correctives.
+- **« Juste les ranger »** : pour des archives. Aucun circuit ne démarre.
+- **« Les ranger et lancer le circuit »** : pour des documents qui doivent encore être validés.
 
-## 4. Import initial vs travail courant
+Pour un document courant, utilisez plutôt « Nouveau Document ».
 
-- **Import en masse** sert surtout a reprendre l'existant.
-- **Mon Atelier** sert surtout a creer ou deposer des documents courants.
+**Doublons** : un fichier déjà présent dans E-Dossier est refusé. À l'import, il est marqué « Doublon » et n'entre pas ; au dépôt d'un seul document, un message le signale. La tuile « Doublons refusés » du tableau de bord de l'Admin Institution les compte ; un clic dessus ouvre le journal des actions filtré sur les doublons.
 
-Un utilisateur final ne doit pas utiliser l'import de masse comme substitut du depot quotidien, sauf consigne d'administration.
+### « Bibliothèque locale »
 
-## 5. Quand consulter l'audit
+Rangez des fichiers de **votre ordinateur** sans les envoyer dans E-Dossier. Vous récupérez le résultat rangé (dossier ou ZIP). Rien n'est partagé avec vos collègues.
 
-Consulter l'audit quand il faut repondre a une question de preuve :
+---
 
-- qui a importe ce fichier ;
-- qui a valide cette etape ;
-- pourquoi le document a change d'etat ;
-- quand la revue de classement a ete resolue ;
-- si le systeme a bien declenche une action automatique.
+## Mots utiles
 
-## Annexes proposees pour une version suivante
-
-- fiches reflexes "que faire si..."
-- captures d'ecran par page
-- tableau des statuts documentaires
-- tableau des statuts de classement
-- matrice simplifiee des droits par profil
-- pas-a-pas "onboarding d'une institution"
-- pas-a-pas "reprise d'archives par import en masse"
+- **Institution** : votre ministère ou organisme.
+- **Service** : une direction, une sous-direction ou une cellule de l'institution. Un **bureau** est un service rattaché à un autre.
+- **Circuit** : les étapes qu'un document suit avant d'être validé (visa, approbation, signature, prise de connaissance).
+- **Plan de classement** : les règles qui décident où un document est rangé.
+- **Bannette** : une liste de documents qui attendent une action de votre part.
+- **Journal (audit)** : la trace de toutes les actions. Il prouve ; il ne modifie rien.

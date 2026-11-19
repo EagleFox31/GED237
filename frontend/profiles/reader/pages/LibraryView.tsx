@@ -1,23 +1,33 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '../../../services/api';
+import DocumentDetailModal from '../../../components/DocumentDetailModal';
+import { ApiError } from '../../../lib/errors';
+import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import { Document, getFileTypeLabel, formatDate, getStatusLabel } from '../../../types';
 
 const LibraryView: React.FC = () => {
   const [docs, setDocs] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 
-  useEffect(() => {
-    const fetchDocs = async () => {
+  const fetchDocs = async () => {
+      setIsLoading(true);
+      setLoadFailed(false);
       try {
         const data = await api.getDocuments({ status: 'validated' });
         setDocs(data);
       } catch (err) {
-        console.error('Failed to fetch library documents:', err);
+        // Erreurs HTTP déjà au bus global ; on garde l'état d'échec pour ne pas afficher « Aucun document ».
+        setLoadFailed(true);
+        if (!(err instanceof ApiError)) pushClientOperationError(err, { fallbackDetail: 'Chargement de la bibliothèque impossible.' });
       } finally {
         setIsLoading(false);
       }
     };
+
+  useEffect(() => {
     fetchDocs();
   }, []);
 
@@ -36,21 +46,8 @@ const LibraryView: React.FC = () => {
           <div className="flex items-center gap-6">
              <div className="text-center">
                <p className="text-2xl font-black italic">{isLoading ? '...' : docs.length}</p>
-               <p className="text-[8px] font-black uppercase text-slate-400">Documents dispos</p>
+               <p className="text-[8px] font-black uppercase text-slate-400">Documents validés</p>
              </div>
-             <div className="h-10 w-px bg-slate-100"></div>
-             <div className="text-center">
-               <p className="text-2xl font-black italic">{isLoading ? '...' : docs.filter(d => d.status === 'validated').length}</p>
-               <p className="text-[8px] font-black uppercase text-slate-400">Validés</p>
-             </div>
-          </div>
-          <div className="flex gap-2">
-            <button className="p-3 bg-slate-50 rounded-xl text-slate-400 hover:bg-rdpc-blue hover:text-white transition-all">
-              <span className="material-symbols-outlined">grid_view</span>
-            </button>
-            <button className="p-3 bg-slate-50 rounded-xl text-slate-400">
-              <span className="material-symbols-outlined">list</span>
-            </button>
           </div>
         </div>
 
@@ -60,13 +57,26 @@ const LibraryView: React.FC = () => {
           </div>
         )}
 
-        {!isLoading && docs.length === 0 && (
+        {!isLoading && loadFailed && (
+          <div role="alert" className="text-center py-10 text-red-600 font-bold">
+            Impossible de charger la bibliothèque.{' '}
+            <button type="button" onClick={fetchDocs} className="underline">Réessayer</button>
+          </div>
+        )}
+
+        {!isLoading && !loadFailed && docs.length === 0 && (
           <div className="text-center py-10 text-slate-400 font-bold">Aucun document disponible.</div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {docs.map((doc) => (
-            <div key={doc.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-50 hover:border-slate-200 transition-all cursor-pointer">
+            <button
+              type="button"
+              key={doc.id}
+              onClick={() => setSelectedDoc(doc)}
+              aria-label={`Ouvrir ${doc.title}`}
+              className="w-full text-left flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-50 hover:border-slate-200 transition-all cursor-pointer"
+            >
               <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 italic font-black text-xs">
                 {getFileTypeLabel(doc.mime_type || doc.file_type)}
               </div>
@@ -75,10 +85,11 @@ const LibraryView: React.FC = () => {
                 <p className="text-[10px] font-bold text-slate-400">{formatDate(doc.created_at)} • {getStatusLabel(doc.status)}</p>
               </div>
               <span className="material-symbols-outlined text-slate-300">visibility</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+      {selectedDoc && <DocumentDetailModal document={selectedDoc} onClose={() => setSelectedDoc(null)} />}
     </div>
   );
 };

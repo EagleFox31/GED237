@@ -28,6 +28,7 @@
 | 1.7 | WebSocket : poignée de main avec jeton valide → 101 ; sans jeton → refus | idem | même fichier | — |
 | 1.8 | Version visible : pied de page / `/health` = `1.0.0-rc.1` attendue ou `dev` documenté (#94) | navigateur + `curl /health` | capture recadrée | — |
 | 1.9 | Polices : woff2 servis en 200 avec bon type MIME ; aucun contenu mixte sur :8443 (#116) | `curl -sI` des 3 fichiers ; console navigateur | `https-2026-11-20.txt` | — |
+| 1.10 | **Étape 8 de la démo, à la main** (le test automatique est reporté en V1.1) : document validé par visa ; `tenant_admin` le cherche dans la barre de recherche de l'en-tête, clique « Ouvrir <titre> » → l'URL devient `/documents?open=<id>` et la fiche s'ouvre ; « Archiver » puis « Oui, archiver » → badge « Archivé » ; fermer la fiche retire `?open=` | navigateur sur :8443 (après 1.5) ; statut contrôlé par `GET /api/v1/documents/<id>` = `archived` | capture recadrée de la fiche + statut dans `https-2026-11-20.txt` | — |
 
 ## 2. Vendredi 20 — après-midi
 

@@ -4,6 +4,8 @@ import { api } from '../../../services/api';
 import type { WorkflowDecision } from '../../../services/resources/workflows.api';
 import type { PendingWorkflowTask } from '../../../types';
 import { RejectReasonDialog } from '../../../components/workflow/RejectReasonDialog';
+import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
@@ -12,6 +14,7 @@ const ValidationHub: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<PendingWorkflowTask | null>(null);
+  const [accepting, setAccepting] = useState<PendingWorkflowTask | null>(null);
 
   useEffect(() => {
     fetchWorkflows();
@@ -44,11 +47,6 @@ const ValidationHub: React.FC = () => {
     }
   };
 
-  const accept = (task: PendingWorkflowTask) => {
-    if (!confirm(`Confirmer : ${getActionLabel(task.expected_action_type)} ?`)) return;
-    void decide(task, 'accept');
-  };
-
   const getActionLabel = (type: string) => {
     switch (type) {
       case 'visa': return 'Viser';
@@ -79,7 +77,7 @@ const ValidationHub: React.FC = () => {
           </div>
         ) : (
           documents.map((item) => (
-            <div key={item.id} className="glass p-6 rounded-[2rem] bg-white/60 border-white hover:shadow-2xl transition-all cursor-pointer group">
+            <div key={item.id} className="glass p-6 rounded-[2rem] bg-white/60 border-white hover:shadow-2xl transition-all group">
               <div className="flex justify-between items-start mb-4">
                 <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md bg-yellow-50 text-yellow-600`}>
                   En Attente
@@ -88,6 +86,10 @@ const ValidationHub: React.FC = () => {
               </div>
               <h4 className="font-black text-slate-800 text-lg leading-tight mb-2 italic line-clamp-2">"{item.document?.title || 'Document sans titre'}"</h4>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">Émis le: {new Date(item.created_at).toLocaleDateString()}</p>
+
+              <div className="mb-3">
+                <ViewDocumentButton documentId={item.document_id} />
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -98,7 +100,7 @@ const ValidationHub: React.FC = () => {
                   Rejeter
                 </button>
                 <button
-                  onClick={() => accept(item)}
+                  onClick={() => setAccepting(item)}
                   disabled={processingId === item.id}
                   className="py-3 bg-rdpc-blue text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all hover:bg-blue-800 disabled:opacity-50"
                 >
@@ -108,6 +110,19 @@ const ValidationHub: React.FC = () => {
             </div>
           )))}
       </div>
+
+      <ConfirmationModal
+        open={accepting !== null}
+        title={accepting ? getActionLabel(accepting.expected_action_type) : ""}
+        message={accepting ? `« ${accepting.document?.title || "Document sans titre"} »` : ""}
+        confirmLabel="Confirmer"
+        onCancel={() => setAccepting(null)}
+        onConfirm={() => {
+          const task = accepting;
+          setAccepting(null);
+          if (task) void decide(task, "accept");
+        }}
+      />
 
       <RejectReasonDialog
         documentTitle={rejecting ? rejecting.document?.title || 'Document sans titre' : null}

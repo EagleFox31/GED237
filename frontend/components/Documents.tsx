@@ -1,5 +1,5 @@
 // frontend/components/Documents.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import DocumentDetailModal from './DocumentDetailModal';
@@ -13,6 +13,10 @@ import { pushClientOperationError } from '../lib/errors';
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
 const CAN_CREATE_DOCUMENT = new Set(['super', 'tenant', 'manager', 'collab']);
+// Délai après la dernière frappe avant d'interroger le serveur.
+const SEARCH_DEBOUNCE_MS = 300;
+// Nombre de documents chargés (les plus récents) ; au-delà, passer par la recherche.
+const DOCUMENTS_LIMIT = 100;
 
 const Documents: React.FC = () => {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
@@ -35,46 +39,84 @@ const Documents: React.FC = () => {
     setSearchParams(nextParams, { replace: true });
   };
 
-  const fetchInitialData = useCallback(async () => {
+  // La recherche et le statut sont filtrés par le serveur, sur tout le périmètre de
+  // l'utilisateur : filtrer ici ne verrait que la première page (#256).
+  const [serverQuery, setServerQuery] = useState(searchQuery.trim());
+  useEffect(() => {
+    const timer = setTimeout(() => setServerQuery(searchQuery.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    // Les catégories ne servent qu'au filtre : leur échec (ex. 403) ne doit pas masquer la liste.
+    categoriesApi.list().then(setCategories).catch(() => {
+      pushClientOperationError(null, {
+        fallbackDetail: 'Catégories indisponibles : le filtre par catégorie est désactivé.',
+        errorCode: 'CATEGORIES_UNAVAILABLE',
+        severity: 'warning',
+      });
+    });
+  }, []);
+
+  // Seule la dernière requête met la liste à jour (frappe rapide, réponses dans le désordre).
+  const latestRequestRef = useRef(0);
+  const fetchDocuments = useCallback(async () => {
+    latestRequestRef.current += 1;
+    const request = latestRequestRef.current;
     setIsLoading(true);
     setError(null);
     try {
-      // Les catégories ne servent qu'au filtre : leur échec (ex. 403) ne doit pas masquer la liste.
-      const [docsData, catsResult] = await Promise.all([
-        api.getDocuments(),
-        categoriesApi.list().catch(() => {
-          pushClientOperationError(null, {
-            fallbackDetail: 'Catégories indisponibles : le filtre par catégorie est désactivé.',
-            errorCode: 'CATEGORIES_UNAVAILABLE',
-            severity: 'warning',
-          });
-          return [] as DocumentCategory[];
-        }),
-      ]);
-      setDocs(docsData);
-      setCategories(catsResult);
+      const data = await api.getDocuments({ q: serverQuery, status: filterStatus, limit: DOCUMENTS_LIMIT });
+      if (request === latestRequestRef.current) setDocs(data);
     } catch (err) {
-      console.error('Failed to fetch data:', err);
-      setError('Impossible de charger les données.');
+      console.error('Failed to fetch documents:', err);
+      if (request === latestRequestRef.current) setError('Impossible de charger les documents.');
     } finally {
-      setIsLoading(false);
+      if (request === latestRequestRef.current) setIsLoading(false);
     }
-  }, []);
+  }, [serverQuery, filterStatus]);
 
   useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
+    fetchDocuments();
+  }, [fetchDocuments]);
 
-  const filteredDocs = docs.filter(doc => {
-    const matchesSearch = !searchQuery ||
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (doc.category_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+  // `?open=<id>` (résultat de la recherche du bandeau) ouvre la fiche du document.
+  const openId = searchParams.get('open');
+  useEffect(() => {
+    if (!openId) return undefined;
+    let cancelled = false;
+    api
+      .getDocument(openId)
+      .then((doc) => {
+        if (!cancelled) setSelectedDoc(doc);
+      })
+      .catch(() => {
+        // Erreur HTTP déjà affichée par le bus d'erreurs ; on retire `open` de l'URL
+        // pour ne pas réessayer au rechargement. La liste reste utilisable.
+        if (cancelled) return;
+        setSearchParams(
+          (prev) => {
+            const nextParams = new URLSearchParams(prev);
+            nextParams.delete('open');
+            return nextParams;
+          },
+          { replace: true }
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [openId, setSearchParams]);
 
-    const matchesCategory = !filterCategory || doc.document_category_id === filterCategory;
-    const matchesStatus = !filterStatus || doc.status === filterStatus;
+  const closeDetail = () => {
+    setSelectedDoc(null);
+    if (!openId) return;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('open');
+    setSearchParams(nextParams, { replace: true });
+  };
 
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  const filteredDocs = docs.filter((doc) => !filterCategory || doc.document_category_id === filterCategory);
 
   const getTypeStyle = (fileType: string | null) => {
     const label = getFileTypeLabel(fileType);
@@ -207,7 +249,11 @@ const Documents: React.FC = () => {
       {docs.length > 0 && (
         <div className="flex items-center justify-center gap-4 py-8 opacity-40">
           <div className="h-px w-20 bg-slate-300"></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Fin de la liste • Archivage Sécurisé AES-256</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">
+            {docs.length >= DOCUMENTS_LIMIT
+              ? `${DOCUMENTS_LIMIT} documents les plus récents • Utilisez la recherche pour les autres`
+              : 'Fin de la liste • Archivage Sécurisé AES-256'}
+          </span>
           <div className="h-px w-20 bg-slate-300"></div>
         </div>
       )}
@@ -215,8 +261,9 @@ const Documents: React.FC = () => {
       {selectedDoc && (
         <DocumentDetailModal
           document={selectedDoc}
-          onClose={() => setSelectedDoc(null)}
+          onClose={closeDetail}
           onUpdated={(updated) => setDocs((prev) => prev.map((doc) => (doc.id === updated.id ? { ...doc, ...updated } : doc)))}
+          onTrashed={() => setDocs((current) => current.filter((d) => d.id !== selectedDoc.id))}
         />
       )}
 
@@ -225,7 +272,7 @@ const Documents: React.FC = () => {
           onClose={() => setIsUploadModalOpen(false)}
           onSuccess={() => {
             setIsUploadModalOpen(false);
-            fetchInitialData();
+            fetchDocuments();
           }}
         />
       )}
