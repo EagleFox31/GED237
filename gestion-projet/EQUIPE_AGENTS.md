@@ -69,7 +69,7 @@ Décisions déjà en attente du PO : B6 (`assignable-roles`, `users:update_own`,
   Toute branche de travail vit dans un worktree `../GED237-<sujet>` (`git worktree add ../GED237-<sujet> -b
   <branche> origin/main`) ; commit, push et PR se font depuis ce worktree. Incident du 2026-11-09 :
   un `git switch` dans le checkout partagé a déplacé la branche de toutes les sessions (LESSON-2026-019).
-- **Mots interdits avant chaque commit** (O, 18/11 ; LESSON-2026-067) : après `git add`, lancer
+- **Mots interdits avant chaque commit** (O, 18/11 ; LESSON-2026-071) : après `git add`, lancer
   `scripts/check-forbidden-words.sh` sans argument depuis le worktree. Code 0 = OK ; 1 = une ligne
   ajoutée est refusée (le message donne le fichier et le n° de règle, jamais le contenu) ; 2 = pas de
   liste `~/.config/forbidden-words`, donc rien n'a été vérifié. Le hook pre-commit n'en dispense pas

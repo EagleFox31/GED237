@@ -885,7 +885,7 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 
 ---
 
-### LESSON-2026-067 — Plan et script de démo : un chemin ou un libellé cité sans vérification
+### LESSON-2026-071 — Plan et script de démo : un chemin ou un libellé cité sans vérification
 
 - **Date :** 2026-11-18
 - **Catégorie :** pilotage / documentation

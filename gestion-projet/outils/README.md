@@ -5,7 +5,7 @@ Scripts en lecture seule pour le plan, la démo et les passations. Ils se lancen
 | Besoin | Commande | Remplace |
 |---|---|---|
 | Tableau charge, capacité et écart | `gestion-projet/outils/charges.sh gestion-projet/innovateur/charges-v1.1.csv` | le recalcul à la main après chaque changement |
-| Chemins cités dans un plan | `gestion-projet/outils/verif-chemins.sh gestion-projet/innovateur/plan-fusion-v1.1.md` | la relecture par les pairs (LESSON-2026-067) |
+| Chemins cités dans un plan | `gestion-projet/outils/verif-chemins.sh gestion-projet/innovateur/plan-fusion-v1.1.md` | la relecture par les pairs (LESSON-2026-071) |
 | Libellés cités dans un script de démo | `gestion-projet/outils/verif-libelles.sh "Tableau de Bord"` ; pour un menu : `--dans frontend/components/Sidebar.tsx "Menu > Sous-menu"` | la consigne « cliquer sur X » quand X n'existe pas |
 | Mots interdits avant un commit | `scripts/check-forbidden-words.sh` (sans argument : tous les fichiers indexés) | le grep à la main sur `git diff --cached` |
 | Entrée de passation | `scripts/passation-add.sh PASSATION-<rôle>.md "Sujet" <<'EOF'` … `EOF` | le titre provisoire puis le `sed` de la date |
