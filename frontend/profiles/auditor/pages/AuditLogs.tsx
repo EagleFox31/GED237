@@ -7,6 +7,24 @@ import type { AuditLogEntry } from '../../../types';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import { HelpHint } from '../../../components/HelpHint';
+import {
+  auditPageQuery,
+  auditServerFilters,
+  hasNextAuditPage,
+  hasPageOnlyFilter,
+} from '../../../lib/auditPagination';
+
+/** Ajoute les valeurs nouvelles ; renvoie la même Map si rien ne change (pas de rendu inutile). */
+function mergeOptions(known: Map<string, string>, entries: [string, string][]): Map<string, string> {
+  if (entries.every(([value]) => known.has(value))) return known;
+  const next = new Map(known);
+  entries.forEach(([value, label]) => next.set(value, label));
+  return next;
+}
+
+function toOptions(known: Map<string, string>): { value: string; label: string }[] {
+  return Array.from(known, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+}
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('fr-CM', {
@@ -74,43 +92,37 @@ const AuditLogs: React.FC = () => {
     'detail',
   ]);
 
+  const [page, setPage] = useState(0);
+  // Un seul type ou une seule action : filtré par le serveur sur tout le journal.
+  const { table_name: serverTable, action: serverAction } = auditServerFilters(columnFilters);
+  const pageOnlyFilter = hasPageOnlyFilter(columnFilters);
+  // Types et actions déjà vus : la liste de choix ne se réduit pas au filtre en cours.
+  const [knownTables, setKnownTables] = useState<Map<string, string>>(() => new Map());
+  const [knownActions, setKnownActions] = useState<Map<string, string>>(() => new Map());
+
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getAuditLogs({ limit: 200 });
-      setLogs(Array.isArray(data) ? data : []);
+      const data = await api.getAuditLogs({ ...auditPageQuery(page), table_name: serverTable, action: serverAction });
+      const rows: AuditLogEntry[] = Array.isArray(data) ? data : [];
+      setLogs(rows);
+      setKnownTables((prev) => mergeOptions(prev, rows.map((log) => [log.table_name, log.table_label || log.table_name])));
+      setKnownActions((prev) => mergeOptions(prev, rows.map((log) => [log.action, log.action_label || log.action])));
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
       setError('Impossible de charger le registre des actions.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page, serverTable, serverAction]);
 
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
-  const tableOptions = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          logs.map((log) => [log.table_name, { value: log.table_name, label: log.table_label || log.table_name }]),
-        ).values(),
-      ).sort((a, b) => a.label.localeCompare(b.label)),
-    [logs],
-  );
-
-  const actionOptions = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          logs.map((log) => [log.action, { value: log.action, label: log.action_label || log.action }]),
-        ).values(),
-      ).sort((a, b) => a.label.localeCompare(b.label)),
-    [logs],
-  );
+  const tableOptions = useMemo(() => toOptions(knownTables), [knownTables]);
+  const actionOptions = useMemo(() => toOptions(knownActions), [knownActions]);
 
   const actorOptions = useMemo(
     () =>
@@ -197,7 +209,10 @@ const AuditLogs: React.FC = () => {
 
   const setColumnFilter = (key: string, values: string[]) => {
     setColumnFilters((current) => ({ ...current, [key]: values }));
+    setPage(0);
   };
+
+  const hasNextPage = hasNextAuditPage(logs.length);
 
   const toggleSort = (key: string) => {
     setSort((current) => {
@@ -319,7 +334,7 @@ const AuditLogs: React.FC = () => {
             label="Aide sur l'export du journal"
             tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
           >
-            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
+            L'écran affiche le journal par pages de 200 actions. Un seul type ou une seule action choisi filtre tout le journal ; plusieurs choix, le filtre par agent et le tri portent sur la page affichée. L'export reprend le journal complet selon les filtres en cours (type, action, un seul agent) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
           </HelpHint>
           <button
             type="button"
@@ -348,7 +363,7 @@ const AuditLogs: React.FC = () => {
         <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Activité affichée</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sur cette page</p>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-4xl font-black tracking-tighter italic text-slate-900">{sortedLogs.length}</p>
@@ -367,7 +382,7 @@ const AuditLogs: React.FC = () => {
         <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Traçabilité humaine</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Traçabilité humaine, sur cette page</p>
               <p className="mt-4 text-4xl font-black tracking-tighter italic text-slate-900">{summary.uniqueActors}</p>
               <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-500">Acteurs concernés</p>
             </div>
@@ -399,6 +414,29 @@ const AuditLogs: React.FC = () => {
             />
           </div>
         )}
+        <nav aria-label="Pages du registre" className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-3">
+          {/* Le serveur trie du plus récent au plus ancien : tout autre tri ne range que la page. */}
+          {(pageOnlyFilter || (sort && !(sort.key === 'created_at' && sort.dir === 'desc'))) && (
+            <span className="mr-auto text-xs font-medium text-slate-500">Tri et filtres : sur cette page</span>
+          )}
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={isLoading || page === 0}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-700 disabled:opacity-40"
+          >
+            Précédent
+          </button>
+          <span className="text-xs font-bold text-slate-500" aria-live="polite">Page {page + 1}</span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={isLoading || !hasNextPage}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-700 disabled:opacity-40"
+          >
+            Suivant
+          </button>
+        </nav>
       </div>
     </div>
   );
