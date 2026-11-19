@@ -61,6 +61,7 @@ Rien d'autre ne bloque. #248, #267 et #268 (VPS) ne sont pas requis. Les scripts
 - **Ménage Docker (décision directe du PO, 19/11)** : 16 images de test jetables supprimées (gain réel 0,03 Go, couches partagées) et 382 volumes anonymes orphelins supprimés (13,3 Go).
 - **Écart levé (O, 11:15)** : le bon chiffre est **29,5/32**. O avait compté 0,5 de trop (29 + 0,5 pour l'item 31). Restent l'item 19 (+0,5) et l'item 29 (+0,5), soit 30,5 au mieux et aucune marge. L'item 8 partiel (+0,5) serait la marge. L'annonce de 30/32 plus haut (ligne « Score atteignable ») se lit donc 29,5 + 0,5 (19) = 30, puis 30,5 avec C6.
 - **#171 fusionnée (19/11, vers 11:50)** : `main` = d3f53564. Pour l'item 19, il reste #199 (+0,5).
+- **#199 fusionnée (19/11, 13:21, O)** : `main` = cffb7a4b. **Item 19 prouvé** (résolution d'un groupe de doublons depuis l'écran, test `duplicates.spec.ts`). **Score : 30/32.** Restent l'item 29 (lecture C6 à 18:00, +0,5, soit 30,5 = seuil de coupe) et l'item 8 (nouvel essai à 8 cœurs lancé à 13:18:49, fin attendue vers 13:45-13:55). Note de décision pour le PO préparée : `gestion-projet/innovateur/note-po-coupe-release-v1.0.0.md`.
 
 ## 3. Recette sur `main` : un état du jour
 
