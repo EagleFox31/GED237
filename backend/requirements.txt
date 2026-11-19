@@ -30,6 +30,8 @@ flower==2.0.1
 spacy>=3.8.18          # NLP normalisation — fr_core_news_sm required (python -m spacy download fr_core_news_sm)
 pytesseract==0.3.10
 easyocr==1.7.2
+rapidocr==3.10.0       # PP-OCRv5 latin ONNX : OCR léger des photos, captures et formulaires
+onnxruntime==1.31.1
 torch==2.6.0
 torchvision==0.21.0
 torchaudio==2.6.0
@@ -51,6 +53,7 @@ pytest-asyncio==0.23.5
 pytest-cov==7.1.0
 pytest-timeout==2.3.1
 pytest-benchmark==4.0.0
+pytest-split==0.11.0
 fakeredis[lua]==2.40.0
 
 # Security scanning (T6.7, T6.8)

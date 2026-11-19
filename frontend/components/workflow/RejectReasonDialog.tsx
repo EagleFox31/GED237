@@ -4,6 +4,9 @@ interface RejectReasonDialogProps {
   /** Titre du document rejeté ; null ferme la boîte. */
   documentTitle: string | null;
   submitting?: boolean;
+  /** Titre de la boîte (défaut : rejet) ; `Renvoyer pour correction` réutilise la même saisie. */
+  heading?: string;
+  confirmLabel?: string;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }
@@ -15,6 +18,8 @@ interface RejectReasonDialogProps {
 export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
   documentTitle,
   submitting = false,
+  heading = "Rejeter le document",
+  confirmLabel = "Confirmer le rejet",
   onConfirm,
   onCancel,
 }) => {
@@ -48,7 +53,7 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
         className="w-full max-w-lg rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
       >
         <h3 id={titleId} className="text-2xl font-black uppercase italic tracking-tight text-slate-900">
-          Rejeter le document
+          {heading}
         </h3>
         <p className="mt-2 text-sm text-slate-500 line-clamp-2">« {documentTitle} »</p>
 
@@ -80,7 +85,7 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
             disabled={!trimmed || submitting}
             className="rounded-2xl bg-red-500 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-red-600 disabled:opacity-50"
           >
-            {submitting ? '...' : 'Confirmer le rejet'}
+            {submitting ? '...' : confirmLabel}
           </button>
         </div>
       </form>

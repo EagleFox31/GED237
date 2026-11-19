@@ -1,5 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { notificationTarget } from '../lib/notificationTarget';
 
 import { api } from '../services/api';
 import { TenantMetrics } from '../types';
@@ -18,6 +20,7 @@ const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,11 +52,11 @@ const Dashboard: React.FC = () => {
           <p className="text-slate-500 mt-1 font-medium italic">Tableau de bord de conformité et traçabilité documentaire.</p>
         </div>
         <div className="flex gap-4">
-          <button className="px-6 py-3 bg-white border-2 border-slate-50 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-100 transition-all flex items-center gap-3">
+          <button type="button" onClick={() => navigate('/audit')} className="px-6 py-3 bg-white border-2 border-slate-50 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-100 transition-all flex items-center gap-3">
             <span className="material-symbols-outlined text-lg">history_edu</span>
             Journal d'Audit
           </button>
-          <button className="px-8 py-3 bg-rdpc-blue text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xl shadow-blue-500/20 hover:bg-blue-800 transition-all flex items-center gap-3 italic">
+          <button type="button" onClick={() => navigate('/reports')} className="px-8 py-3 bg-rdpc-blue text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xl shadow-blue-500/20 hover:bg-blue-800 transition-all flex items-center gap-3 italic">
             <span className="material-symbols-outlined text-lg">quick_reference_all</span>
             Rapport Hebdomadaire
           </button>
@@ -63,13 +66,24 @@ const Dashboard: React.FC = () => {
       {/* Stats Cards - From API */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {[
-          { label: 'Utilisateurs', value: isLoading ? '...' : metrics?.users?.total ?? 0, trend: 'Actifs', color: 'blue', icon: 'group' },
-          { label: 'Documents', value: isLoading ? '...' : metrics?.documents?.total ?? 0, trend: 'Enregistrés', color: 'slate', icon: 'description' },
+          { label: 'Utilisateurs', value: isLoading ? '...' : metrics?.users?.total ?? 0, trend: 'Actifs', color: 'blue', icon: 'group', to: '/users' },
+          { label: 'Documents', value: isLoading ? '...' : metrics?.documents?.total ?? 0, trend: 'Enregistrés', color: 'slate', icon: 'description', to: '/documents' },
           { label: 'Stockage Utilisé', value: isLoading ? '...' : `${metrics?.documents?.storage_used_mb ?? 0} MB`, trend: 'Sur Quota', color: 'green', icon: 'cloud' },
-          { label: 'Visa en Attente', value: isLoading ? '...' : metrics?.workflows?.pending ?? 0, trend: (metrics?.workflows?.rejected ?? 0) > 0 ? `${metrics!.workflows.rejected} rejetés` : 'À Jour', color: (metrics?.workflows?.rejected ?? 0) > 0 ? 'red' : 'green', icon: 'draw' },
-          { label: 'Doublons refusés', value: isLoading ? '...' : metrics?.duplicates?.refused ?? 0, trend: (metrics?.duplicates?.refused ?? 0) === 0 ? 'Aucun doublon refusé' : `${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`, color: 'slate', icon: 'content_copy', help: true },
+          { label: 'Visa en Attente', value: isLoading ? '...' : metrics?.workflows?.pending ?? 0, trend: (metrics?.workflows?.rejected ?? 0) > 0 ? `${metrics!.workflows.rejected} rejetés` : 'À Jour', color: (metrics?.workflows?.rejected ?? 0) > 0 ? 'red' : 'green', icon: 'draw', to: '/tasks' },
+          { label: 'Doublons refusés', value: isLoading ? '...' : metrics?.duplicates?.refused ?? 0, trend: (metrics?.duplicates?.refused ?? 0) === 0 ? 'Aucun doublon refusé' : `${metrics?.duplicates?.refused_upload ?? 0} dépôts · ${metrics?.duplicates?.refused_import ?? 0} imports`, color: 'slate', icon: 'content_copy', help: true, to: '/audit' },
         ].map((stat, i) => (
-          <div key={i} className="glass p-6 rounded-[2.5rem] hover:shadow-2xl transition-all border border-white group cursor-pointer overflow-hidden relative bg-white/40">
+          <div
+            key={i}
+            {...((stat as { to?: string }).to
+              ? {
+                  role: 'link',
+                  tabIndex: 0,
+                  onClick: () => navigate((stat as { to: string }).to),
+                  onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' && e.target === e.currentTarget) navigate((stat as { to: string }).to); },
+                }
+              : {})}
+            className={`glass p-6 rounded-[2.5rem] hover:shadow-2xl transition-all border border-white group overflow-hidden relative bg-white/40 ${(stat as { to?: string }).to ? 'cursor-pointer' : ''}`}
+          >
             <div className="flex justify-between items-start">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
               {(stat as { help?: boolean }).help ? (
@@ -77,7 +91,7 @@ const Dashboard: React.FC = () => {
                   label="Aide sur les doublons refusés"
                   tip="Fichiers refusés à l'import parce qu'un document identique existait déjà."
                 >
-                  Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refuse ».
+                  Le compte cumule tous les refus depuis la mise en service, dépôts et imports confondus. Le détail de chaque refus se trouve dans le journal d'audit, action « Doublon refusé ».
                 </HelpHint>
               ) : (
                 <span className={`material-symbols-outlined ${STAT_TONE[stat.color as StatTone]?.text ?? STAT_TONE.slate.text} opacity-30`}>{stat.icon}</span>
@@ -133,7 +147,7 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-slate-400 font-medium italic text-center py-8">Aucune notification récente.</p>
             )}
             {notifications.map((notif: any, i: number) => (
-              <div key={notif.id || i} className="flex gap-5 items-start group cursor-pointer hover:bg-slate-50/50 p-2 rounded-2xl transition-all">
+              <div key={notif.id || i} role="link" tabIndex={0} onClick={() => navigate(notificationTarget(notif.meta_data))} onKeyDown={(e) => { if (e.key === 'Enter') navigate(notificationTarget(notif.meta_data)); }} className="flex gap-5 items-start group cursor-pointer hover:bg-slate-50/50 p-2 rounded-2xl transition-all">
                 <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
                   <span className="material-symbols-outlined text-rdpc-blue opacity-40 text-2xl font-bold">
                     {notif.type === 'WORKFLOW_ASSIGNED' ? 'assignment' : notif.type === 'WORKFLOW_COMPLETED' ? 'task_alt' : 'notifications'}

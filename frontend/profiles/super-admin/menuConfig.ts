@@ -24,7 +24,7 @@ export const SUPER_ADMIN_MENU: MenuSection[] = [
     section: "Systeme",
     items: [
       { id: 'audit_central', label: 'Audit', icon: 'analytics' },
-      { id: 'settings', label: 'Parametres', icon: 'settings' },
+      { id: 'settings', label: 'Paramètres', icon: 'settings' },
     ]
   },
 ];
