@@ -1,5 +1,5 @@
 # backend/app/api/v1/endpoints/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, false, true
 from sqlalchemy.orm import selectinload
@@ -16,6 +16,7 @@ from app.core.authz import (
 )
 from app.core.errors.domain import AuthorizationError, ConflictError
 from app.core.tenant_guard import assert_org_unit_scope
+from app.models.audit import AuditLog
 from app.services.reports_scope import unit_subtree_ids
 from app.services.unit_admin_scope import assert_unit_admin_in_tree
 from app.models.user import User
@@ -29,6 +30,7 @@ from app.schemas.user import (
     UserCreateResponse,
 )
 from app.core.security import hash_password
+from app.services.audit_trail import request_origin
 from app.services.email_service import send_account_created
 import secrets
 
@@ -361,6 +363,7 @@ async def read_user(
 async def update_user(
     user_id: UUID,
     user_in: UserUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -421,12 +424,15 @@ async def update_user(
             reports_to_user_id=update_data["reports_to_user_id"],
         )
 
+    audit = await _update_audit(db, current_user, user, update_data, request)
     if "password" in update_data:
         plain_password = update_data.pop("password")
         user.password_hash = hash_password(plain_password)
 
     for field, value in update_data.items():
         setattr(user, field, value)
+    if audit is not None:
+        db.add(audit)
 
     db.add(user)
     await db.commit()
@@ -441,6 +447,59 @@ async def update_user(
         )
     ).scalar_one()
     return user
+
+
+# Values written to the audit: who the account answers to and what it may do.
+# Personal data (name, e-mail, phone, password, avatar) is named, never copied.
+AUDITED_VALUES = ("org_unit_id", "reports_to_user_id", "is_active")
+
+
+def _audit_value(value):
+    return value if value is None or isinstance(value, bool) else str(value)
+
+
+async def _update_audit(
+    db: AsyncSession,
+    current_user: User,
+    user: User,
+    update_data: dict,
+    request: Optional[Request] = None,
+) -> Optional[AuditLog]:
+    """``user_updated`` row for the fields this PATCH really changes (#225).
+
+    None when nothing changes. ``old_data``/``new_data`` carry the changed field
+    names, plus the role code and the AUDITED_VALUES among them.
+    ``password`` always counts as changed: the stored hash is never compared.
+    """
+    changed = sorted(
+        field
+        for field, value in update_data.items()
+        if field == "password" or getattr(user, field, None) != value
+    )
+    if not changed:
+        return None
+    old: dict = {"fields": changed}
+    new: dict = {"fields": changed}
+    if "role_id" in changed:
+        from app.models.role import Role
+
+        for data, role_id in ((old, user.role_id), (new, update_data["role_id"])):
+            role = await db.get(Role, role_id) if role_id is not None else None
+            data["role"] = role.code if role else None
+    for field in AUDITED_VALUES:
+        if field in changed:
+            old[field] = _audit_value(getattr(user, field))
+            new[field] = _audit_value(update_data[field])
+    return AuditLog(
+        tenant_id=user.tenant_id,
+        user_id=current_user.id,
+        table_name="users",
+        record_id=user.id,
+        action="user_updated",
+        old_data=old,
+        new_data=new,
+        **request_origin(request),
+    )
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

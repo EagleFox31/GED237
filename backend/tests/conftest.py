@@ -386,6 +386,8 @@ def client_as(test_engine):
     Keyword arguments are set on the fake user as-is, so ``None`` really means
     ``None``. Clients share the app's dependency overrides: open them one at a
     time, and not alongside ``auth_client`` / ``admin_client``.
+    A route that writes an audit row (PATCH /users, …) needs ``id=`` of a real
+    user: audit_logs.user_id references users, so a fake caller gets a 500.
     """
     session_factory = async_sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False

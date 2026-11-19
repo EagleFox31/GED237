@@ -63,6 +63,7 @@ ACTION_LABELS = {
     "watch_ingested": "Import automatique d'un dossier",
     "dup_detected": "Doublon refusé",
     "exported": "Export du journal",
+    "user_updated": "Compte utilisateur modifié",
 }
 
 # Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.
