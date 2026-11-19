@@ -30,6 +30,7 @@ from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
+from app.services.ocr_status import compute_ocr_status
 from app.services.unit_admin_scope import (
     assert_unit_admin_object_in_tree,
     unit_admin_scope_ids,
@@ -629,6 +630,7 @@ def _serialize_document(document: Document) -> DocumentRead:
         updated_at=document.updated_at,
         owner_name=owner_name,
         current_version_number=document.current_version_number,
+        ocr_status=compute_ocr_status(document),
     )
 
 
@@ -1700,18 +1702,10 @@ async def get_document_ocr(
             status_code=403, detail="Not enough privileges to access this document"
         )
 
-    ocr_status = "not_processed"
+    ocr_status = compute_ocr_status(document)
     ocr_confidence = None
-    if document.ocr_content:
-        ocr_status = "completed"
-        if document.extra_data and "ocr_confidence" in document.extra_data:
-            ocr_confidence = document.extra_data["ocr_confidence"]
-    else:
-        ocr_source_type = document.mime_type or document.file_type
-        if ocr_source_type and (
-            ocr_source_type.startswith("image/") or ocr_source_type == "application/pdf"
-        ):
-            ocr_status = "processing"
+    if document.ocr_content and document.extra_data:
+        ocr_confidence = document.extra_data.get("ocr_confidence")
 
     return DocumentOCRContent(
         document_id=document.id,

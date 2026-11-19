@@ -70,6 +70,8 @@ class DocumentRead(DocumentBase):
     updated_at: datetime
     owner_name: Optional[str] = None
     current_version_number: Optional[str] = None
+    # not_processed | processing | completed | failed (read only, derived).
+    ocr_status: str = "not_processed"
     # Corbeille : qui a retiré le document (restauration réservée à l'admin si ce n'est pas soi).
     deleted_by: Optional[UUID] = None
 
