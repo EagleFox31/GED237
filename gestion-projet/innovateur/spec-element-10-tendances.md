@@ -23,7 +23,8 @@ Hors lot :
 |---|---|---|---|
 | Institution | Documents déposés | Visas rendus : acceptés, et rejetés ou renvoyés (2 traits) | En attente de visa ; espace utilisé |
 | Unité | Documents déposés | Visas rendus (2 traits) | À revoir ; circuits actifs |
-| Collaborateur | Mes dépôts | Issue de mes documents : visés, et rejetés ou renvoyés (2 traits) | Brouillons ; en attente de visa |
+| Collaborateur | Mes dépôts | Issue de mes documents : visés, et rejetés ou renvoyés (2 traits), sans le visa de l'auteur sur son propre document | Brouillons ; en attente de visa |
+| Toute personne qui vise (`scope=mine`) | « Visas que j'ai donnés » (DEC-2026-014) : acceptés, et rejetés ou renvoyés, sur les documents des autres (2 traits) | — | carte affichée seulement s'il y a au moins un visa donné en 12 semaines |
 
 Les chiffres du jour viennent des appels existants. L'institution utilise `/analytics/tenant`. L'unité utilise `/analytics/manager`, qui filtre déjà par `org_unit_id`. Pour le collaborateur, ce sont deux nombres ajoutés à la réponse des tendances (voir le contrat).
 
@@ -72,6 +73,8 @@ Les chiffres du jour viennent des appels existants. L'institution utilise `/anal
   - `documents_created` : `Document.created_at` ;
   - `visas_*` : `WorkflowAction.performed_at`, avec `outcome` dans `accepted`/`acknowledged`, ou dans `rejected`/`returned`. La table est jointe au document, avec le filtre de la portée ;
   - `now` n'existe que pour `mine` : nombre de documents de l'utilisateur en `draft` et en `in_review`.
+  - pour `mine`, `visas_*` exclut les actions dont `performed_by` est l'auteur du document (DEC-2026-014, décision 2) ;
+  - `visas_given_accepted` et `visas_given_rejected_or_returned` n'existent que pour `mine` : actions avec `performed_by` = l'utilisateur, sur un document dont il n'est pas l'auteur. Contrat complet et tests dans DEC-2026-014.
 - **Fuseau** : les colonnes de `TimestampMixin` sont de type `TIMESTAMP` sans fuseau, et l'heure du serveur est l'UTC. Il faut les passer en `Africa/Douala` avant `date_trunc('week', …)`. Les semaines sans valeur sont complétées par un `generate_series`, une requête par série.
 - **Tests attendus** :
   - isolation entre deux tenants ;

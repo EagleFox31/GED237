@@ -29,3 +29,5 @@ Deux questions différentes, posées par deux personnes différentes :
 
 « Sur l'accueil d'un agent, le compteur montre ce qui est arrivé à **ses** documents (visés, rejetés) et pas les visas qu'il donne lui-même. On garde ce choix, en retirant le cas où quelqu'un vise son propre document ? »
 ☐ Oui ☐ Non, je veux aussi voir les visas que je donne (V1.3)
+
+**Réponse du PO (19/11, vers 15:55)** : « Ajouter aussi les visas que j'ai donnés ». La courbe est faite par B dans une PR brouillon à part. Elle entre en V1.1 si elle est prouvée avant le 05/12, sinon elle part en V1.3. Voir DEC-2026-014.
