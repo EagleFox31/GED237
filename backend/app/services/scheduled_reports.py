@@ -127,6 +127,7 @@ async def _issue(db: AsyncSession, schedule: ReportSchedule, period: Period, run
             request = report_request(schedule, period)
             scope = await resolve_report_scope(
                 creator,
+                db,
                 tenant_id=request.tenant_id,
                 org_unit_id=request.org_unit_id,
                 recursive=request.recursive,

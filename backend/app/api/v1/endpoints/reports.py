@@ -189,6 +189,7 @@ async def issue_official_report_route(
     await authorize_or_403(current_user, "analytics.tenant", "read")
     scope = await resolve_report_scope(
         current_user,
+        db,
         tenant_id=payload.tenant_id,
         org_unit_id=payload.org_unit_id,
         recursive=payload.recursive,
@@ -225,7 +226,7 @@ async def list_official_report_issues(
     Roles limited to their unit see only the copies they issued themselves.
     """
     await authorize_or_403(current_user, "analytics.tenant", "read")
-    scope = await resolve_report_scope(current_user, tenant_id=tenant_id)
+    scope = await resolve_report_scope(current_user, db, tenant_id=tenant_id)
     own_only = scope.org_unit_id is not None
     total, issues = await list_issues(
         db,
@@ -260,7 +261,7 @@ async def reprint_official_report(
     Same visibility as the register; logged as ``report_reprinted``.
     """
     await authorize_or_403(current_user, "analytics.tenant", "read")
-    scope = await resolve_report_scope(current_user, tenant_id=tenant_id)
+    scope = await resolve_report_scope(current_user, db, tenant_id=tenant_id)
     try:
         issue = await reprint_issue(
             db,
@@ -326,6 +327,7 @@ async def create_report_schedule(
         )
     scope = await resolve_report_scope(
         current_user,
+        db,
         tenant_id=payload.report.tenant_id,
         org_unit_id=payload.report.org_unit_id,
         recursive=payload.report.recursive,
