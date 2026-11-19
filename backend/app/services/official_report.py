@@ -527,7 +527,7 @@ async def issue_official_report(
     )
     db.add(issue)
     await db.flush()
-    _log(db, user, issue, "report_generated")
+    _log(db, user, issue, action="report_generated")
     await db.commit()
     await db.refresh(issue)
     return IssuedReport(
@@ -538,7 +538,8 @@ async def issue_official_report(
     )
 
 
-def _log(db: AsyncSession, user, issue: ReportIssue, action: str) -> None:
+def _log(db: AsyncSession, user, issue: ReportIssue, *, action: str) -> None:
+    # Keyword-only so test_audit_labels sees every action passed here.
     db.add(
         AuditLog(
             tenant_id=issue.tenant_id,
@@ -575,7 +576,7 @@ async def reprint_issue(
     issue = await db.scalar(query)
     if issue is None:
         raise LookupError("Rapport introuvable.")
-    _log(db, user, issue, "report_reprinted")
+    _log(db, user, issue, action="report_reprinted")
     await db.commit()
     return issue
 
