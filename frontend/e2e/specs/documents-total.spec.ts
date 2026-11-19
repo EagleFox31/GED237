@@ -28,7 +28,10 @@ const fakeDoc = (index: number) => ({
 });
 
 test.describe('Mes Documents : compteur et suite de la liste (audit n° 14)', () => {
-  test('affiche « N sur M », charge la suite, puis signale la fin de la liste', async ({ page, loginAs }) => {
+  test('affiche « N sur M », charge la suite, puis signale la fin de la liste', async ({ page, loginAs, browserName }) => {
+    // #476 : en webkit sous Docker, afficher 230 cartes dépasse parfois 30 s (1 échec sur 27, bouton resté
+    // sur « Chargement… » avec la page déjà demandée). Plus de temps, et chaque clic attend sa réponse.
+    test.slow(browserName === 'webkit', 'rendu de 230 cartes lent en webkit');
     const requested: URL[] = [];
     await page.route(LIST, (route) => {
       const url = new URL(route.request().url());
@@ -47,10 +50,18 @@ test.describe('Mes Documents : compteur et suite de la liste (audit n° 14)', ()
     const more = page.getByRole('button', { name: 'Afficher plus' });
     await expect(counter).toContainText('100 sur 230 documents');
 
-    await more.click();
-    await expect(counter).toContainText('200 sur 230 documents');
-    await more.click();
-    await expect(counter).toContainText('230 documents • fin de la liste');
+    // Le clic et la réponse de la page demandée, ensemble : un échec dit lequel des deux manque.
+    const showMore = (skip: string) =>
+      Promise.all([
+        page.waitForResponse((res) => LIST.test(res.url()) && new URL(res.url()).searchParams.get('skip') === skip),
+        more.click(),
+      ]);
+    const RENDER = { timeout: 15_000 };
+
+    await showMore('100');
+    await expect(counter).toContainText('200 sur 230 documents', RENDER);
+    await showMore('200');
+    await expect(counter).toContainText('230 documents • fin de la liste', RENDER);
     await expect(more).toBeHidden();
     await expect(page.getByText('Courrier 230', { exact: true })).toBeVisible();
 
