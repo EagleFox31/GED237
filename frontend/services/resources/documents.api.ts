@@ -4,7 +4,9 @@
 //           audit logs, ingestion répertoire, démarrage workflow).
 // SRP : change uniquement si le contrat /documents/* ou /classification-reviews/* évolue.
 
-import { apiCall, apiCallVoid, apiCallBlob } from '../http/client';
+import { API_URL } from '../../constants';
+import { apiCall, apiCallVoid, apiCallBlob, fetchWithRefresh, getHeaders, type ApiCallOptions } from '../http/client';
+import { buildApiError } from '../http/errorAdapter';
 import type {
     Document,
     ClassificationReview,
@@ -37,6 +39,25 @@ export interface ResolveReviewPayload {
     mark_as_resolved: boolean;
     create_rule_suggestion?: boolean;
 }
+
+export interface TrashPage {
+    items: Document[];
+    /** Nombre total d'éléments dans la corbeille visible par l'utilisateur (en-tête X-Total-Count). */
+    total: number;
+}
+
+export interface TrashEmptyResult {
+    purged: number;
+    remaining: number;
+}
+
+// 404 : document déjà purgé, restauré ailleurs, ou hors du périmètre de l'utilisateur (#247).
+const TRASH_MESSAGES: ApiCallOptions = {
+    statusMessages: {
+        403: "Vous n'avez pas le droit de faire cette action.",
+        404: "Ce document n'est plus dans la corbeille ou ne vous est pas accessible.",
+    },
+};
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -102,10 +123,45 @@ export const documentsApi = {
             'Mise à jour du document impossible',
         ),
 
+    /** Met le document à la corbeille (rien n'est supprimé définitivement ici). */
     deleteDocument: async (id: string): Promise<true> => {
-        await apiCallVoid(`/documents/${id}`, { method: 'DELETE' }, 'Suppression du document impossible');
+        await apiCallVoid(`/documents/${id}`, { method: 'DELETE' }, 'Suppression du document impossible', {
+            statusMessages: { 403: 'Vous ne pouvez pas supprimer ce document.' },
+        });
         return true;
     },
+
+    // ── Corbeille ─────────────────────────────────────────────────────────
+
+    getTrashPage: async (skip = 0, limit = 50): Promise<TrashPage> => {
+        const response = await fetchWithRefresh(`${API_URL}/documents/trash?skip=${skip}&limit=${limit}`, {
+            headers: getHeaders(false),
+        });
+        if (!response.ok) throw await buildApiError(response, 'Récupération de la corbeille impossible');
+        const items = (await response.json()) as Document[];
+        const header = response.headers.get('X-Total-Count');
+        const total = header === null ? NaN : Number(header);
+        return { items, total: Number.isInteger(total) && total >= 0 ? total : items.length };
+    },
+
+    restoreDocument: async (id: string): Promise<true> => {
+        await apiCallVoid(`/documents/${id}/restore`, { method: 'POST' }, 'Restauration impossible', TRASH_MESSAGES);
+        return true;
+    },
+
+    purgeDocument: async (id: string): Promise<true> => {
+        await apiCallVoid(`/documents/${id}/purge`, { method: 'DELETE' }, 'Suppression définitive impossible', TRASH_MESSAGES);
+        return true;
+    },
+
+    /** Un lot par appel : rappeler tant que `remaining` > 0. */
+    emptyTrash: (): Promise<TrashEmptyResult> =>
+        apiCall<TrashEmptyResult>(
+            '/documents/trash/empty',
+            { method: 'POST', body: JSON.stringify({}) },
+            'Vidage de la corbeille impossible',
+            TRASH_MESSAGES,
+        ),
 
     // ── Versions ──────────────────────────────────────────────────────────
 

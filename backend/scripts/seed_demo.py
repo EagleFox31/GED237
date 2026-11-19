@@ -224,6 +224,7 @@ class Demo:
         payload = {
             "code": rule["code"],
             "name": rule["name"],
+            "description": rule.get("description"),
             "priority": rule["priority"],
             "is_active": rule.get("isActive", True),
             "source_scope": rule.get("sourceScope", "service"),

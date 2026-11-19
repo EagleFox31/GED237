@@ -10,6 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.classification_reasons import (
+    MULTIPLE_RULES_MESSAGE,
+    NO_VALID_SPACE_MESSAGE,
+)
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
 from app.models.classification_rule import ClassificationRule
@@ -154,7 +158,7 @@ class ClassificationRuleEngine:
             )
             return ClassificationResolution(
                 status=ClassificationStatus.needs_review,
-                message="Plusieurs regles de meme priorite correspondent. Revue manuelle requise.",
+                message=MULTIPLE_RULES_MESSAGE,
                 classification_year=review_year,
                 logical_space_path=review_path,
                 diagnostics=diagnostics,
@@ -184,7 +188,7 @@ class ClassificationRuleEngine:
         if not logical_space_path:
             return ClassificationResolution(
                 status=ClassificationStatus.rejected,
-                message="La regle correspondante ne permet pas de construire un espace logique valide.",
+                message=NO_VALID_SPACE_MESSAGE,
                 rule=first,
                 diagnostics=diagnostics,
                 stages=stages,
@@ -192,7 +196,7 @@ class ClassificationRuleEngine:
 
         return ClassificationResolution(
             status=ClassificationStatus.classified,
-            message=f"Regle '{first.name}' appliquee avec succes.",
+            message=f"Règle « {first.name} » appliquée avec succès.",
             rule=first,
             target_scope=first.target_scope,
             target_org_unit=target_org_unit,
@@ -356,7 +360,7 @@ class ClassificationRuleEngine:
                 passed=category_ok,
                 detail="Le type correspond."
                 if category_ok
-                else "Le type du document ne correspond pas a la regle.",
+                else "Le type du document ne correspond pas à la règle.",
             )
         )
 
@@ -391,7 +395,7 @@ class ClassificationRuleEngine:
                 passed=source_user_ok,
                 detail="L'agent emetteur correspond."
                 if source_user_ok
-                else "L'agent emetteur ne correspond pas a la regle.",
+                else "L'agent émetteur ne correspond pas à la règle.",
             )
         )
 
@@ -403,11 +407,11 @@ class ClassificationRuleEngine:
         checks.append(
             RuleCheck(
                 key="filename_pattern",
-                label="Mots-cles du nom",
+                label="Mots-clés du nom",
                 passed=filename_ok,
-                detail="Au moins un mot-cle a ete trouve dans le nom du fichier."
+                detail="Au moins un mot-clé a été trouvé dans le nom du fichier."
                 if filename_ok
-                else "Aucun des mots-cles de la regle n'a ete trouve dans le nom du fichier.",
+                else "Aucun des mots-clés de la règle n'a été trouvé dans le nom du fichier.",
             )
         )
 
@@ -420,43 +424,43 @@ class ClassificationRuleEngine:
                     content, rule.content_pattern
                 )
                 content_detail = (
-                    "Au moins un mot-cle a ete trouve dans le contenu."
+                    "Au moins un mot-clé a été trouvé dans le contenu."
                     if content_ok
-                    else "Aucun des mots-cles de la regle n'a ete trouve dans le contenu."
+                    else "Aucun des mots-clés de la règle n'a été trouvé dans le contenu."
                 )
         else:
-            content_ok, content_detail = True, "Aucun mot-cle de contenu exige."
+            content_ok, content_detail = True, "Aucun mot-clé de contenu exigé."
         checks.append(
             RuleCheck(
                 key="content_pattern",
-                label="Mots-cles du contenu",
+                label="Mots-clés du contenu",
                 passed=content_ok,
                 detail=content_detail,
             )
         )
 
         year_ok = True
-        year_detail = "Aucune borne d'annee exigee."
+        year_detail = "Aucune borne d'année exigée."
         if rule.year_min is not None or rule.year_max is not None:
             # No fallback to the current year: a range is only met by a year actually written.
             year = self._year_in_filename(filename)
             bounds = f"{rule.year_min or '...'}-{rule.year_max or '...'}"
             if year is None:
                 year_ok = False
-                year_detail = "Aucune annee dans le nom du fichier."
+                year_detail = "Aucune année dans le nom du fichier."
             else:
                 year_ok = (rule.year_min is None or year >= rule.year_min) and (
                     rule.year_max is None or year <= rule.year_max
                 )
                 year_detail = (
-                    f"Annee {year} dans la plage {bounds}."
+                    f"Année {year} dans la plage {bounds}."
                     if year_ok
-                    else f"Annee {year} hors de la plage {bounds}."
+                    else f"Année {year} hors de la plage {bounds}."
                 )
         checks.append(
             RuleCheck(
                 key="year_range",
-                label="Annee du document",
+                label="Année du document",
                 passed=year_ok,
                 detail=year_detail,
             )
@@ -472,7 +476,7 @@ class ClassificationRuleEngine:
                 passed=mime_ok,
                 detail="Le format du fichier correspond."
                 if mime_ok
-                else "Le format du fichier ne fait pas partie des formats acceptes par la regle.",
+                else "Le format du fichier ne fait pas partie des formats acceptés par la règle.",
             )
         )
 
@@ -494,11 +498,11 @@ class ClassificationRuleEngine:
         }
         ordered_checks = [
             ("document_category", "Filtre sur le type de document"),
-            ("source_origin", "Filtre sur l'origine concernee"),
-            ("source_user", "Filtre sur l'agent emetteur"),
-            ("filename_pattern", "Filtre sur les mots-cles du nom"),
-            ("content_pattern", "Filtre sur les mots-cles du contenu"),
-            ("year_range", "Filtre sur l'annee du document"),
+            ("source_origin", "Filtre sur l'origine concernée"),
+            ("source_user", "Filtre sur l'agent émetteur"),
+            ("filename_pattern", "Filtre sur les mots-clés du nom"),
+            ("content_pattern", "Filtre sur les mots-clés du contenu"),
+            ("year_range", "Filtre sur l'année du document"),
             ("mime_type", "Filtre sur le format du fichier"),
         ]
 
@@ -686,7 +690,7 @@ class ClassificationRuleEngine:
             if source_org_unit_id is None:
                 return (
                     False,
-                    "Aucune unite d'origine n'a ete fournie alors que la regle cible un perimetre precis.",
+                    "Aucune unité d'origine n'a été fournie alors que la règle cible un périmètre précis.",
                 )
             ancestor_ids = await self._ancestor_ids_for_org_unit(source_org_unit_id)
             matched_include_ids = ancestor_ids.intersection(include_ids)
@@ -701,23 +705,23 @@ class ClassificationRuleEngine:
             if not matched_include_ids:
                 return (
                     False,
-                    f"L'unite testee « {source_name} » n'appartient pas aux origines concernees: {', '.join(include_names) or 'aucune'}.",
+                    f"L'unité testée « {source_name} » n'appartient pas aux origines concernées : {', '.join(include_names) or 'aucune'}.",
                 )
             if blocked_exclude_ids:
                 return (
                     False,
-                    f"L'unite testee « {source_name} » entre dans une exception de la regle: {', '.join(exclude_names) or 'exception non resolue'}.",
+                    f"L'unité testée « {source_name} » entre dans une exception de la règle : {', '.join(exclude_names) or 'exception non résolue'}.",
                 )
             matched_names = await self._org_unit_names(list(matched_include_ids))
             return (
                 True,
-                f"L'unite testee « {source_name} » appartient bien au perimetre couvre par: {', '.join(matched_names) or 'la regle'}.",
+                f"L'unité testée « {source_name} » appartient bien au périmètre couvert par : {', '.join(matched_names) or 'la règle'}.",
             )
 
         if rule_source_scope != source_scope:
             return (
                 False,
-                f"Le niveau d'origine teste est « {source_scope} », alors que la regle attend « {rule_source_scope} ».",
+                f"Le niveau d'origine testé est « {source_scope} », alors que la règle attend « {rule_source_scope} ».",
             )
 
         if self._matches_id_constraint(
@@ -725,7 +729,7 @@ class ClassificationRuleEngine:
             None,
             single_source_org_unit_id,
         ):
-            return True, "Le niveau d'origine et l'unite source legacy correspondent."
+            return True, "Le niveau d'origine et l'unité source correspondent."
 
         if single_source_org_unit_id is not None:
             source_org_unit = (
@@ -738,9 +742,9 @@ class ClassificationRuleEngine:
             )
             return (
                 False,
-                f"L'unite testee « {source_org_unit.name if source_org_unit else source_org_unit_id} » ne correspond pas a l'unite attendue « {expected_org_unit.name if expected_org_unit else single_source_org_unit_id} ».",
+                f"L'unité testée « {source_org_unit.name if source_org_unit else source_org_unit_id} » ne correspond pas à l'unité attendue « {expected_org_unit.name if expected_org_unit else single_source_org_unit_id} ».",
             )
-        return True, "Aucune contrainte d'unite source supplementaire sur cette regle."
+        return True, "Aucune contrainte d'unité source supplémentaire sur cette règle."
 
     async def _ancestor_ids_for_org_unit(self, org_unit_id: UUID) -> set[str]:
         result = await self.db.execute(
