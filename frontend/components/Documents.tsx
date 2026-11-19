@@ -270,8 +270,8 @@ const Documents: React.FC = () => {
       {canCreate && isUploadModalOpen && (
         <UploadDocumentModal
           onClose={() => setIsUploadModalOpen(false)}
-          onSuccess={() => {
-            setIsUploadModalOpen(false);
+          onSuccess={(_doc, options) => {
+            if (!options?.keepOpen) setIsUploadModalOpen(false);
             fetchDocuments();
           }}
         />
