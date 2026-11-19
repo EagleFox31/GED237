@@ -283,7 +283,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                     </div>
                   )}
                 </div>
-                <div className="p-6 bg-blue-600 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+                <div className="p-6 bg-blue-800 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
                   <h3 className="text-lg font-bold mb-2">Actions rapides</h3>
                   <div className="grid grid-cols-1 gap-3">
                     <button type="button" onClick={handleDownload} data-testid="document-download" className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">

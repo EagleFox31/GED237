@@ -60,10 +60,10 @@ const ValidationHub: React.FC = () => {
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-700 h-full flex flex-col">
       <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-cam-yellow/10 text-cam-yellow rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-3 border border-cam-yellow/20">
+        <div className="inline-flex items-center gap-2 px-3 py-1 bg-cam-yellow/10 text-yellow-900 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-3 border border-cam-yellow/20">
           Pile de Décision
         </div>
-        <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">Espace <span className="text-cam-yellow">Manager</span></h2>
+        <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">Espace <span className="text-yellow-700">Manager</span></h2>
         <p className="text-slate-500 mt-1 font-medium italic">Validez et signez les dossiers en attente de décision.</p>
       </div>
 
