@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from typing import Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime
@@ -44,6 +44,15 @@ class UserUpdate(BaseModel):
     role_id: Optional[int] = None
     is_active: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=6)
+
+    @field_validator("role_id", "is_active", "password")
+    @classmethod
+    def _no_explicit_null(cls, value):
+        # These columns cannot be emptied: an explicit null is a client error,
+        # not a 500 at commit. Omit the field to leave it unchanged.
+        if value is None:
+            raise ValueError("ne peut pas être vide : omettez le champ pour le garder")
+        return value
 
 
 class ReportsToBrief(BaseModel):
