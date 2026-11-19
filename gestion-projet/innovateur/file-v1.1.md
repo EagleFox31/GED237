@@ -20,7 +20,8 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Tête de file (O, 19/11) : #464 (correctif 1.0 de /trash, OK de Q) ; la candidate release/v1.0.0 est coupée dès sa fusion.
 # Juste après la coupe : la paire doublons, qui doit entrer dans la candidate (décision du PO, 19/11). Elle fusionne dans main avant toute autre PR, puis une PR de report main → release/v1.0.0 l'amène dans la candidate (plan-fusion-v1.1.md, § 1 bis). Ces PR sortent du brouillon sur décision d'O, par exception à la règle du 24/11.
 # Approche A retenue par O (19/11). main est gelé de la coupe au report : seules #152, #181, #171, #199 et #104 y entrent. #104 (HORS_FILE) passe après #199 et entre dans la candidate par la même PR de report.
-ORDER_V0="464 152 181 171 199 389 403 383"
+# #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
+ORDER_V0="464 152 181 171 199 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
 ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 449 448 454 438 466 465 444 440 455 439 442 419 447 434 424 428 443"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
