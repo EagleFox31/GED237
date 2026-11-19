@@ -26,7 +26,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
 ORDER_V0="464 152 181 477 482 479 171 199 480 485 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 439 419 447 434 424 428 443 486 487 493 494 495"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 502 439 419 447 434 424 428 443 486 487 493 494 495"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -61,7 +61,8 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # #499 (F, anneau de focus clavier du menu profil, suite du contrôle de #484 par Q ; OK code de Q, non brouillon, base main) : série V1.0 ; fusion automatique armée par O sur 8d6ea915, boucle arrêtée à 17:55 (jamais après la lecture C6 de 18:00).
 # #500 (lab W2 : poste Windows d'agence avec prérequis KVM et lien dégradable, 14052550) et #501 (ops : diagnostic en lecture seule de l'arrêt d'une pile compose, 649c7520) : brouillons ouverts le 19/11, outillage hors application, place dans un train à confirmer par O.
 # #441, #450 et #442 (DEC-2026-013, décision du PO du 19/11 vers 14:57) : sorties de la file V1.1. Elles entrent dans main pour l'UAT du 23, après la décision de coupe, une par une après une nouvelle preuve de Q sur main, dans l'ordre #441, #450 (re-ciblée sur main avant la fusion de #441, comme #484), puis #442.
-# #484 (Q, contrastes AA, lot 8 point 4 : liste des documents, fiche, parapheur ; brouillon V1.1, tête b5aafabe) : empilée sur #441 (base feat/v11-a11y-keyboard), à re-cibler sur main avant la fusion de #441 ; vague 5 juste après #441, DEP[484]=441. Pas encore jouée au navigateur : ajoutée par O aux contre-tests du prochain lot d'audit.
+# #502 (F, brouillon V1.1, première friction de DEC-2026-013 : motif du rejet sur la carte de « Mon Atelier » et bouton « Corriger / resoumettre ») : empilée sur #438 (base feat/v11-l12b-rejections), vague 1 juste après #455, DEP[502]=438. Re-ciblée sur main avant la fusion de #438. #323 fermée (O, 19/11) ; #444 confiée à aide-api pour la résolution de conflit.
+# #484 (Q, contrastes AA, lot 8 point 4 : liste des documents, fiche, parapheur ; brouillon V1.1, tête b5aafabe) : empilée sur #441 (base feat/v11-a11y-keyboard), à re-cibler sur main avant la fusion de #441 ; reste en vague 5. Son DEP vers #441 est retiré le 19/11 : #441 entre dans main par DEC-2026-013, avant l'ouverture des trains. Pas encore jouée au navigateur : ajoutée par O aux contre-tests du prochain lot d'audit.
 # Ticket #483 (défaut de l'écran de revue du classement, V1.0) : PR #485 de B (tête 79dd873c, relecture Q ; branche fix/review-sync-ingest-ocr, base main ; deux cas, plus un script de rattrapage lancé d'abord en plan, puis avec --apply, sans suppression), dans ORDER_V0 juste après #480 ; rattrapage ajouté à la checklist de recette (ligne 1.2 bis). #449 : tête 58d75f7b (brouillon V1.1). #199 a encore pour base feat/post-rc1-trash-ui (#181 fusionnée) : à re-cibler sur main avant sa fusion.
 # #471 (0ec2b5dd, brouillon V1.1, empilée sur #155 : à re-cibler sur main avant la fusion de #155) : OK sécurité de B, contrôle final de Q en cours ; reste en vague 4, après #155 et #479 (DEP). #181 fusionnée le 19/11 (main = 2174cfd3). Suites de sécurité d'aide-api (une PR à venir, base main : ticket WebSocket lié à la session, sockets fermés à la déconnexion, vérification de l'Origine) : après #479 et #471.
 # #476 (aide-api, n° 14 du tri de l'audit : total et page suivante dans « Mes Documents », V1.1, base main) : HORS_FILE (O, 19/11). Même fichier Documents.tsx que #440 : à rebaser après #440.
@@ -126,7 +127,7 @@ DEP[436]="387"
 # Piles et suites ouvertes le 18/11 au soir (O) ; #445 porte une migration (chaîne alembic, plan-fusion § 4)
 DEP[438]="429"; DEP[466]="438"; DEP[448]="437"; DEP[444]="438"; DEP[446]="416"; DEP[440]="438"; DEP[445]="429 436"
 # Ouvertes le 18/11 dans la nuit (O) : #449 empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437 (Q) ; #450 empilée sur #441
-DEP[449]="435 437"; DEP[450]="441"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"; DEP[456]="445"; DEP[457]="445"; DEP[463]="457"
+DEP[449]="435 437"; DEP[502]="438"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"; DEP[456]="445"; DEP[457]="445"; DEP[463]="457"
 DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
 DEP[267]="248"; DEP[268]="248 389"
 DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
@@ -144,7 +145,7 @@ DEP[284]="372 370"; DEP[290]="284"; DEP[338]="290"
 DEP[404]="370 372"; DEP[355]="372 404"
 DEP[296]="263"; DEP[347]="221"; DEP[342]="297"; DEP[294]="238"
 DEP[351]="388"; DEP[344]="383"; DEP[398]="377"; DEP[400]="401"
-DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155 479"; DEP[484]="441"; DEP[468]="435"; DEP[283]="152"
+DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155 479"; DEP[468]="435"; DEP[283]="152"
 ```
 
 Les contraintes « après X » du plan qui servent seulement à éviter un conflit de fichier (#407 après #293 et #362, #362 après #390, #354 après #351…) ne sont pas dans DEP : l'ORDER les respecte déjà.
