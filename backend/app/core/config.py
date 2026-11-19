@@ -91,6 +91,11 @@ class Settings(BaseSettings):
     INGEST_WATCH_PROTECTED_DIRS_STR: str = Field(
         default="", alias="INGEST_WATCH_PROTECTED_DIRS"
     )
+    # Validation queues. Off by default: current behaviour until switched on.
+    # Unified queue GET /workflows/inbox (404 while disabled).
+    WORKFLOW_INBOX_ENABLED: bool = Field(default=False)
+    # Hide steps of trashed documents from /workflows/pending and /pending-assignments.
+    WORKFLOW_PENDING_EXCLUDE_TRASHED: bool = Field(default=False)
     # Trash retention: trashed documents older than this are purged for good by the
     # worker. 0 (default) disables the automatic purge and its beat entry.
     TRASH_RETENTION_DAYS: int = Field(default=0, ge=0, le=36500)
