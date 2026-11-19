@@ -20,6 +20,8 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Tête de file (O, 19/11) : #464 (correctif 1.0 de /trash, OK de Q, fusionnée).
 # Décision du PO (19/11, remplace celle du matin) : pas de coupe de release/v1.0.0 avant 95 % du CDC prouvés (30,5/32). Ni gel de main ni PR de report.
 # La paire doublons (#152, #181, #171, #199) fusionne dans main avant toute autre PR. Ces PR sortent du brouillon sur décision d'O, par exception à la règle du 24/11. #104 (HORS_FILE) passe après #199. La coupe vient ensuite, dès 30,5/32 (DEC-2026-010, plan-fusion-v1.1.md § 1 bis et 1 quater).
+# Décision du PO (19/11, via O) : la suppression définitive se fait dans un écran dédié du super-administrateur (choix de l'institution sur sa page corbeille), PR à part de F, à inscrire dès qu'elle a un numéro. Le tenant_admin reste sans purge.
+# Écart signalé le 19/11 (B l'a confirmé) : l'import d'un dossier (ingest-directory, dossier surveillé) ne classe pas les DOCX, XLSX, TXT ni CSV. Issue et version (V1.0 ou V1.1) à décider par O.
 # #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
 ORDER_V0="464 152 181 171 199 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
