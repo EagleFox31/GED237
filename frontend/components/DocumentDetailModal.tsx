@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { DocumentPreviewTab } from './document/DocumentPreviewTab';
 import { downloadName } from '../lib/downloadName';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
@@ -258,7 +259,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">
           {activeTab === 'info' && (
-            <div className="grid grid-cols-1 gap-8 h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
               <div className="space-y-6">
                 <div className="glass p-6 rounded-3xl border-white space-y-4">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Métadonnées Officielles</h3>
@@ -306,6 +307,10 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <Icons.Flame className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 rotate-12" />
                 </div>
               </div>
+              <DocumentPreviewTab
+                document={document}
+                enabled={activeTab === 'info'}
+              />
             </div>
           )}
 
