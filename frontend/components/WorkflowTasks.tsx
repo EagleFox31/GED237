@@ -15,7 +15,7 @@ import { taskSubmissionLabel } from '../lib/taskSubmission';
 const SubmissionLine: React.FC<{ task: PendingWorkflowTask }> = ({ task }) => {
   const label = taskSubmissionLabel(task.submitted_by_name, task.created_at);
   return label ? (
-    <p className="text-xs text-slate-400 mt-0.5" data-testid="task-submission">{label}</p>
+    <p className="text-xs text-slate-500 mt-0.5" data-testid="task-submission">{label}</p>
   ) : null;
 };
 
