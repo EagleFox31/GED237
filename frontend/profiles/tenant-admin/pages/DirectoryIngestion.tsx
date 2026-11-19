@@ -5,6 +5,7 @@ import { api } from '../../../services/api';
 import { categoriesApi, DocumentCategory } from '../../../services/categories.api';
 import { useAuthStore } from '../../../stores/authStore';
 import { Tooltip } from '../../../components/ui/Tooltip';
+import { HelpHint } from '../../../components/HelpHint';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { IngestWatchNotice } from './IngestWatchNotice';
 import { UI_TOOLTIPS } from '../../../content/uiTooltips';
@@ -18,6 +19,7 @@ import {
   ImportSourceScope,
 } from '../../../types';
 import { errorMessage } from '../../../utils/errors';
+import { formatImportError } from '../../../lib/importErrorMessage';
 import {
   applyLocalFolderPathOverrides,
   arrangeFiles,
@@ -300,7 +302,12 @@ const DirectoryIngestion: React.FC = () => {
   const [showDirectoryPrompt, setShowDirectoryPrompt] = useState(false);
   const [analyzedJob, setAnalyzedJob] = useState<ImportJobWithItems | null>(null);
   const [commitResult, setCommitResult] = useState<ImportCommitResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<{ message: string; detail?: string } | null>(null);
+  const error = errorState?.message ?? null;
+  const errorDetail = errorState?.detail ?? null;
+  const setError = (message: string | null, detail?: string) => {
+    setErrorState(message ? { message, detail } : null);
+  };
   /** Manifeste rejoué depuis la bibliothèque : aperçu OK, écriture/ZIP interdits jusqu’à nouvelle sélection disque. */
   const [libraryReplayStubMode, setLibraryReplayStubMode] = useState(false);
 
@@ -977,7 +984,8 @@ const DirectoryIngestion: React.FC = () => {
       setCurrentStep('review');
       setProgress(null);
     } catch (analyzeError) {
-      setError(errorMessage(analyzeError, 'Analyse des fichiers impossible.'));
+      const formatted = formatImportError(analyzeError, 'Analyse des fichiers impossible.');
+      setError(formatted.message, formatted.technicalDetail);
       setProgress(null);
     } finally {
       setIsAnalyzing(false);
@@ -1009,7 +1017,8 @@ const DirectoryIngestion: React.FC = () => {
       setCurrentStep('confirm');
       setProgress(null);
     } catch (commitError) {
-      setError(errorMessage(commitError, 'Import final impossible.'));
+      const formatted = formatImportError(commitError, 'Import final impossible.');
+      setError(formatted.message, formatted.technicalDetail);
       setProgress(null);
     } finally {
       setIsCommitting(false);
@@ -1235,7 +1244,12 @@ const DirectoryIngestion: React.FC = () => {
         {error && (
           <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
             <span className="material-symbols-outlined text-red-500">error</span>
-            <p className="text-sm font-bold text-red-600">{error}</p>
+            <p className="text-sm font-bold text-red-600 flex-1">{error}</p>
+            {errorDetail && (
+              <HelpHint label="Détail technique de l'erreur" tip="Détail technique">
+                {errorDetail}
+              </HelpHint>
+            )}
           </div>
         )}
 
