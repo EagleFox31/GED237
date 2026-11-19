@@ -23,7 +23,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Décision du PO (19/11, via O) : la suppression définitive se fait dans un écran dédié du super-administrateur (choix de l'institution sur sa page corbeille), PR à part de F, à inscrire dès qu'elle a un numéro. Le tenant_admin reste sans purge.
 # Écart signalé le 19/11 (B l'a confirmé) : l'import d'un dossier (ingest-directory, dossier surveillé) ne classe pas les DOCX, XLSX, TXT ni CSV. Issue et version (V1.0 ou V1.1) à décider par O.
 # #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
-ORDER_V0="464 152 181 477 171 199 480 389 403 383 467"
+ORDER_V0="464 152 181 477 482 171 199 479 480 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
 ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 439 442 419 447 434 424 428 443"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
@@ -44,9 +44,10 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # #475 (Q, hooks pre-commit dans un conteneur, réparation du hook, empilée sur #433 docs/outils-pilotage) : HORS_FILE, suit #433. #152 fusionnée le 19/11 (main = 6162d867).
 # #474 fusionnée le 19/11 (main = da09df90). #477 (Q, import hors ligne des images sur overlay2, item 28 prouvé, OK de B et de Q) : dans ORDER_V0, série d'O une à une : #181, #477, #171, #199. Le SHA de référence de l'item 28 est celui de main après la fusion de #477 (DEC-2026-010).
 # #478 (montée starlette 1.10, fastapi 0.165, pydantic 2.9 ; remplace #113 ; brouillon) : HORS_FILE, en vague 6 avec Dependabot, une à une. #113 se ferme quand #478 fusionne. #481 (Python 3.13, remplace #110, aide-api, brouillon) : même traitement ; #110 se ferme quand #481 fusionne.
-# #480 (B, classement à l'import des fichiers que l'OCR ne lit pas, V1.0, base main, tête c6c13c7e) : dans ORDER_V0 après #199, sous réserve de l'OK de Q (O, 19/11). #479 (aide-api, la déconnexion révoque toute la session, V1.0, base main, relecture Q) : HORS_FILE, place à fixer par O, avant #471.
+# #480 (B, classement à l'import des fichiers que l'OCR ne lit pas, V1.0, base main, tête c6c13c7e) : dans ORDER_V0 après #199, sous réserve de l'OK de Q (O, 19/11). #479 (aide-api, la déconnexion révoque toute la session, V1.0, base main, relecture Q) : dans ORDER_V0 juste après #199 ; elle remonte juste après #477 si l'OK de Q et les tests d'aide-api sont là à ce moment ; toujours avant #471 (O, 19/11).
+# #482 (Q, ops/ : la sauvegarde s'arrête avant toute écriture si l'image d'aide manque ; après la relance d'api, nginx est relancé et /health vérifié ; base main, tête 0eb1eaca, relecteur B) : juste après #477 si l'OK de B est là, sinon dès qu'il arrive. Sa fusion donne le demi-point de l'item 31 (PO, 19/11).
 # #476 (aide-api, n° 14 du tri de l'audit : total et page suivante dans « Mes Documents », V1.1, base main) : HORS_FILE (O, 19/11). Même fichier Documents.tsx que #440 : à rebaser après #440.
-HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 476 478 479 481"
+HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 476 478 481"
 ```
 
 Écarts avec `plan-fusion-v1.1.md` (validés par O le 18/11) :
@@ -125,7 +126,7 @@ DEP[284]="372 370"; DEP[290]="284"; DEP[338]="290"
 DEP[404]="370 372"; DEP[355]="372 404"
 DEP[296]="263"; DEP[347]="221"; DEP[342]="297"; DEP[294]="238"
 DEP[351]="388"; DEP[344]="383"; DEP[398]="377"; DEP[400]="401"
-DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155"; DEP[468]="435"; DEP[283]="152"
+DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155 479"; DEP[468]="435"; DEP[283]="152"
 ```
 
 Les contraintes « après X » du plan qui servent seulement à éviter un conflit de fichier (#407 après #293 et #362, #362 après #390, #354 après #351…) ne sont pas dans DEP : l'ORDER les respecte déjà.

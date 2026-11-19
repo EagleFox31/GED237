@@ -36,6 +36,6 @@ Palliatif V1.0 : la PR `ops/` de Q relance nginx puis contrôle `/health`. Il su
 ## Charge et porteur
 
 - Environ 0,5 h-s de configuration et 0,25 h-s de preuve, en Docker.
-- Porteur proposé : Q, qui a le lab et le palliatif, et garde 1,45 h-s de marge après le transfert de #471. **À confirmer par O.**
-- Place : V1.1, après la fusion de la PR `ops/` de Q.
+- Porteur : Q, **confirmé par O le 19/11**. Q commence par `nginx -v`, puis fixe l'image à `nginx:1.28-alpine` ou à la version stable du moment. L'archive hors ligne est régénérée avec cette image.
+- Place : V1.1, après la fusion de la PR `ops/` de Q (#482).
 - Ensuite, le palliatif « relancer nginx » peut rester comme filet de sécurité.
