@@ -49,11 +49,13 @@ Une page pour O. Relevé `gh` du 19/11 vers 16:35, à partir de `file-v1.1.md` (
   - **#502** (base : branche de #438) est re-ciblée avant TR-06.
 - **Avant TR-01** : #403. **TR-02** : #405. **TR-03 bis** : #238, puis #503 (base : branche de #238). **TR-04** : #267, #268, puis #468 et #449 (base #435).
 - **Avant TR-05** : #448, puis #454 ; #438 et #445 (base #429). **TR-06** : #466, #444, #455, #502.
+- **Dès maintenant** : #184 et #301, dont la base (`feat/post-rc1-trash-ui`, #181) est déjà fusionnée. Re-ciblage seul, sans fusion, donc compatible avec le gel (carte des piles d'aide-api, 19/11).
 - **Avant TR-09** : #462 ; #262 ; #310 (base #262) ; #302 (base #301). **TR-10** : #311, #386, puis #387.
 - **Avant TR-12** : #457, #456, puis #463. **TR-13** : #213, puis #261, #263, #221 ; #308, plus #315 (V1.2, OK final de Q sur 9f322eaa) avant #263.
 - **Avant TR-16** : #209 (base #180). **TR-17** : #212, #219. **TR-18** : #205.
 - **Avant TR-19** : #293, #295, plus #313 et #343 (V1.2). **TR-20** : #303, plus #333 et #352 (V1.2). **TR-21** : #504 (base : branche de #329), re-ciblée sur `main` avant la fusion de #329 ; #401, fusionnée après #407. **TR-24** : #446.
 - **Hors tableau** : #429 remise en brouillon par O (19/11). Les avis du PO du § 4 de la file (capacités post-rc1) restent requis avant leur train.
+- **Contrôle croisé avec la carte des piles d'aide-api (19/11, 17:10)** : ses « absentes » sont bien placées. #184 et #301 sont dans TR-09 (numéros écrits sans #). #450 est hors file (DEC-2026-013). #194, #306, #320 et #322 sont en V1.2 (étiquette ou branche `feat/v12-*`), exclues par règle. Les piles à 3 niveaux (#308, #315, #463, #313) suivent l'ordre de re-ciblage ci-dessus, du bas de la pile vers le haut.
 
 ## PR sans relecture ni preuve de Q à ce jour (lecture automatique, à confirmer par Q)
 
