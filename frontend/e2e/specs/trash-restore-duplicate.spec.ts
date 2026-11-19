@@ -44,7 +44,7 @@ test.describe('Corbeille : restauration d’un doublon', () => {
     await page.getByRole('button', { name: `Restaurer ${DOC.title}` }).click();
     const notice = page.getByRole('status').filter({ hasText: 'Un document identique existe déjà' });
     await expect(notice).toBeVisible();
-    await expect(notice.getByRole('link', { name: TWIN.title })).toHaveAttribute('href', new RegExp(`/documents\?open=${TWIN.id}$`));
+    await expect(notice.getByRole('link', { name: TWIN.title })).toHaveAttribute('href', new RegExp(String.raw`/documents\?open=${TWIN.id}$`));
     await expect(notice.getByRole('link', { name: 'Voir les doublons' })).toHaveAttribute('href', /\/duplicates$/);
     // La restauration est faite : la ligne quitte la corbeille.
     await expect(page.getByText('La corbeille est vide.')).toBeVisible();
