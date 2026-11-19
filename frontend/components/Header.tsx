@@ -183,7 +183,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead, loadNotifications } = useNotifications();
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   useEffect(() => {
@@ -353,7 +353,13 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
           <div className="flex items-center" ref={notifRef}>
             <div className="relative">
               <button
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  // Pas de temps réel (WebSocket en V1.1) : liste relue à chaque ouverture.
+                  if (!showNotifications) loadNotifications();
+                  setShowNotifications(!showNotifications);
+                }}
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
+                aria-expanded={showNotifications}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-all relative ${showNotifications ? 'bg-slate-100 text-rdpc-blue' : 'text-slate-400'}`}
               >
                 <span className="material-symbols-outlined text-xl">notifications</span>
@@ -364,7 +370,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div role="region" aria-label="Liste des notifications" className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="p-3 border-b border-slate-50 flex justify-between items-center">
                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-2">Notifications</p>
                     {unreadCount > 0 && (
@@ -423,7 +429,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
             <button
               type="button"
               onClick={() => setShowUserMenu((v) => !v)}
-              className="flex items-center gap-3 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-rdpc-blue/40 rounded-xl"
+              className="flex items-center gap-3 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue rounded-xl"
               aria-haspopup="menu"
               aria-expanded={showUserMenu}
             >
