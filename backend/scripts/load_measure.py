@@ -11,7 +11,9 @@ Runs in the probe service of docker-compose.load.yml (api image: httpx, asyncpg,
    number of documents of the corpus carrying ``extra_data.ocr_engine`` has not moved for
    ``--settle-seconds``. A document classified "no rule" stays ``pending`` forever, so "zero pending"
    is not a stop rule. Every imported document without text at the end is a loss (worker failure).
-4. Stops at ``--cap-seconds`` (default 2 h 30) and publishes the rate seen and what is left.
+4. Times the read side on the loaded base: first page of GET /documents/, with a common word and with
+   one reference (``--read-repeats`` calls each, median and max, X-Total-Count when sent).
+5. Stops at ``--cap-seconds`` (default 2 h 30) and publishes the rate seen and what is left.
 
 Writes ``<out-dir>/<label>.json`` and ``<label>.txt`` (rates, per batch times, losses, classification
 statuses overall and for the family without keyword).
@@ -125,6 +127,48 @@ async def statuses(db: asyncpg.Connection, prefix: str) -> dict:
     return {"overall": dict(overall), NO_KEYWORD_FAMILY: dict(no_keyword)}
 
 
+# Read side once the corpus is in: first page of the list, a word found in almost every
+# document (worst case for search + total), a reference found in one document.
+READ_QUERIES = (
+    ("liste", None),
+    ("mot courant", "bordereau"),
+    ("reference", "LOAD-000042"),
+)
+
+
+async def read_timings(client: httpx.AsyncClient, args) -> list[dict]:
+    """Time GET /documents/ (first page of 100) for each query; X-Total-Count when the API sends it."""
+    token = await login(client, args.institution, args.matricule)
+    rows = []
+    for name, q in READ_QUERIES:
+        params = {"limit": 100} | ({"q": q} if q else {})
+        times, status, count, total = [], None, None, None
+        for _ in range(args.read_repeats):
+            start = time.monotonic()
+            res = await client.get(
+                "/documents/",
+                params=params,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            times.append(time.monotonic() - start)
+            status = res.status_code
+            if status == 200:
+                count, total = len(res.json()), res.headers.get("x-total-count")
+        times.sort()
+        rows.append(
+            {
+                "name": name,
+                "q": q,
+                "http": status,
+                "returned": count,
+                "total_header": total,
+                "median_ms": round(times[len(times) // 2] * 1000),
+                "max_ms": round(times[-1] * 1000),
+            }
+        )
+    return rows
+
+
 async def run(args) -> dict:
     root = Path(args.root)
     corpus = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
@@ -185,6 +229,10 @@ async def run(args) -> dict:
     # Last change of the text count: when the worker really finished (not when we noticed).
     done_s = stable_since if not capped else time.monotonic() - t0
     total, with_text, queued = await progress(db, queue, prefix)
+    async with httpx.AsyncClient(
+        base_url=args.api, timeout=httpx.Timeout(120, connect=10)
+    ) as client:
+        reads = await read_timings(client, args) if args.read_repeats > 0 else []
     result = {
         "label": args.label,
         "git_sha": os.environ.get("LOAD_GIT_SHA", "unknown"),
@@ -203,6 +251,7 @@ async def run(args) -> dict:
         "rate_files_per_s": round(with_text / done_s, 1) if done_s else None,
         "ingest_rate_files_per_s": round(imported / ingest_s, 1) if ingest_s else None,
         "statuses": await statuses(db, prefix),
+        "reads": reads,
         "samples": samples,
     }
     await db.close()
@@ -239,6 +288,15 @@ def report(r: dict) -> str:
         f"  {b['batch']} {b['start_s']} {b['seconds']} {b.get('imported')} {b.get('duplicates')} {b.get('errors')} {b['http']}"
         for b in r["batches"]
     ]
+    if r.get("reads"):
+        lines.append(
+            "Lecture GET /documents/ apres import (page de 100, mediane / max, total) :"
+        )
+        lines += [
+            f"  {x['name']}{' q=' + x['q'] if x['q'] else ''} : {x['median_ms']} / {x['max_ms']} ms, "
+            f"HTTP {x['http']}, {x['returned']} rendus, total {x['total_header'] or 'non envoye'}"
+            for x in r["reads"]
+        ]
     return "\n".join(lines)
 
 
@@ -266,6 +324,9 @@ def main() -> int:
     parser.add_argument("--poll-seconds", type=float, default=5)
     parser.add_argument(
         "--cap-seconds", type=float, default=9000, help="hard stop (default 2 h 30)"
+    )
+    parser.add_argument(
+        "--read-repeats", type=int, default=5, help="timed reads per query, 0 = none"
     )
     parser.add_argument("--out-dir", default="/results/charge")
     args = parser.parse_args()
