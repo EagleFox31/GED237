@@ -10,7 +10,10 @@ Sorties brutes (non versionnees) : gestion-projet/recette/charge/charge-100k-8c-
 
 Reglage mesure (limites verifiees par docker inspect au depart)
 - postgres 2 cpus 1 Go ; redis 0,5 cpu ; api 2 cpus 1,5 Go, 2 processus uvicorn ; worker 3 cpus 1,5 Go, concurrence 4.
-- Total 7,5 cpus. Reglage livre a ce jour : 1 processus uvicorn, concurrence 2, environ 4 cpus.
+- Total 7,5 cpus. Reglage « livre » du premier essai : 1 processus uvicorn, concurrence 2, 4 cpus en tout.
+- Precision : le docker-compose.yml de main est un peu different. postgres 1 cpu ; api 1,5 cpu, 1 processus,
+  --reload ; worker 2 cpus, 2 Go, concurrence 1. Le premier essai en etait une approximation dans 4 cpus.
+  Avec la concurrence 1 de main, le worker serait encore moins rapide : le verdict NON PROUVE vaut a fortiori.
 
 Corpus : identique au premier essai (100 000 PDF texte de 1 a 4 Ko, 250,2 Mo, graine 237, sha256 9b782be6d8a0),
 10 lots de 10 000, 4 lots en parallele. Horaires : 13:18:49 -> 13:38:44.
