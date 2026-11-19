@@ -7,7 +7,6 @@
 - **Comment** : jouez les profils dans l'ordre, car chacun prépare le suivant. Cochez OK si vous voyez ce qui est écrit, KO sinon, avec un mot en remarque.
 - **Déjà connus, à ne pas noter KO** :
   - le code de connexion est déjà rempli à l'écran : cliquez sur « Confirmer l'identité » ;
-  - quelques accents manquent (« A verifier », « Parametres ») ;
   - la recherche tient compte des accents : tapez « Décret », pas « decret » ;
   - aucun message ne confirme un dépôt ou une soumission : regardez la liste ;
   - les autres comportements connus sont listés dans la checklist d'UAT, § 6 ;
@@ -25,7 +24,7 @@
 | 3 bis | « Nouveau Document » deux fois : `IMG_0412.jpg`, puis `IMG_0413.jpg` (dossier `demo-ocr` remis par O). Notez l'heure | les deux documents apparaissent ; le texte de l'image est lu en arrière-plan, vous pouvez continuer | ☐ | ☐ | OCR ⚠ |
 | 4 | Recommencez avec un fichier de plus de 100 Mo | un message qui donne la limite ; rien n'est déposé | ☐ | ☐ | SC-RED-01 ⚠ (le refus est testé, pas le message) |
 | 5 | Menu « Tableau de Bord » (page « Mon Atelier ») : sur la carte du premier PDF, « Soumettre » → choisissez `MGR001` → « Soumettre au visa ». Recommencez avec le second PDF. (« Soumettre » n'existe pas dans « Mes Documents ».) | le statut des deux documents change : ils partent en validation | ☐ | ☐ | SC-VAL-01 (test de nuit) |
-| 6 | Depuis « Tableau de Bord », barre de recherche en haut : un mot présent dans vos documents, avec ses accents exacts (« Décret », pas « decret ») | les documents attendus ; un clic ouvre la fiche | ☐ | ☐ | SC-LEC-01 |
+| 6 | Depuis « Tableau de Bord », barre de recherche en haut : un mot présent dans vos documents, avec ses accents exacts (« Décret », pas « decret ») | les documents attendus ; un clic ouvre la fiche. Ouvrez ainsi un des deux PDF du n° 3 et notez l'adresse du navigateur (elle finit par `?open=…`) : elle sert au § 3 bis. Un clic dans « Mes Documents » ne change pas l'adresse | ☐ | ☐ | SC-LEC-01 |
 | 6 bis | Depuis « Tableau de Bord », barre de recherche en haut : `photocopieurs`, puis `agrafeuses`. Notez l'heure du premier résultat | `photocopieurs` : 1 résultat, `IMG_0412.jpg` ; `agrafeuses` : 1 résultat, `IMG_0413.jpg`. Attente : le texte est prêt en moins d'une minute après l'envoi (limite 30 s par photo) ; à ce stade, il l'est déjà | ☐ | ☐ | OCR ⚠ (document « en cours » plus de 10 min : anomalie « Lecture bloquée ») |
 | 7 | Déconnectez-vous, puis bouton « Précédent » du navigateur | vous restez sur l'écran de connexion | ☐ | ☐ | SC-AUTH-03 |
 
@@ -37,7 +36,7 @@
 | 2 | « Valider » le premier. Bon à savoir : sur « Tableau de Bord », où vous arrivez à la connexion, le même geste s'appelle « Viser » et demande une confirmation ; dans « Tâches & Suivi », « Valider » agit tout de suite | il passe à l'étape suivante, ou à « Validé » | ☐ | ☐ | SC-VAL-02 |
 | 3 | Sur le second : « Rejeter » sans motif, puis avec un motif | sans motif : impossible ; avec motif : **Rejeté** | ☐ | ☐ | SC-VAL-03 |
 | 4 | Cherchez le mot-clé du jeu de démo | 3 résultats en moins de 2 secondes | ☐ | ☐ | SC-LEC-01 (durée mesurée par Q le 17/11 : p95 de 20 ms) |
-| 5 | Filtrez par domaine, puis activité, puis année ; puis « Réinitialiser » | la liste et le compteur suivent chaque choix ; tout revient à zéro | ☐ | ☐ | SC-ESP-01 |
+| 5 | Tapez l'adresse de la page `/spaces` (elle n'est pas dans le menu). Filtrez par domaine, puis activité, puis année ; puis cliquez sur l'icône d'entonnoir barré (« Réinitialiser les filtres » au survol, visible dès qu'un filtre est choisi) | la liste et le compteur suivent chaque choix ; tout revient à zéro | ☐ | ☐ | SC-ESP-01 |
 | 6 | Ouvrez une fiche → « Télécharger » | les informations du document ; le fichier reçu est l'original | ☐ | ☐ | SC-LEC-02 |
 | 7 | Ouvrez « Rapports » | les chiffres de votre direction seulement, pas ceux des autres | ☐ | ☐ | rapports |
 
@@ -48,7 +47,7 @@
 | 1 | « Import en masse » → dossier `live` → « Vérifier le classement » → « Importer les documents » | un compte rendu : importés, doublons (2), à revoir (2), en moins d'une minute | ☐ | ☐ | SC-ADM-08 |
 | 2 | Refaites exactement le même import | rien de nouveau : tout est signalé en doublon | ☐ | ☐ | SC-ADM-08 ⚠ |
 | 3 | « Explorateur documentaire » : direction → domaine → activité → année | les documents importés sont rangés au bon endroit | ☐ | ☐ | SC-E2E-01 (taux testé : 357/357) |
-| 4 | « Règles de classement » : créez une règle, puis lancez le « Simulateur » | la liste des documents et de leur nouvelle place ; **aucun document n'a bougé** | ☐ | ☐ | SC-ADM-05, 06 ⚠ (« rien ne bouge » non testé) |
+| 4 | « Règles de classement » : créez une règle en **décochant** « Règle active dès l'enregistrement » (cochée par défaut), puis lancez le « Simulateur » | la liste des documents et de leur nouvelle place ; **aucun document n'a bougé** | ☐ | ☐ | SC-ADM-05, 06 ⚠ (« rien ne bouge » non testé) |
 | 5 | « Ma bannette » : classez un document à revoir → « Classer et relancer » | il quitte la file et apparaît à sa place | ☐ | ☐ | SC-ADM-07 |
 | 6 | Cherchez un mot présent **seulement** dans les documents du MINESUP | aucun résultat, aucun titre du MINESUP | ☐ | ☐ | SC-SEC-02 (testé côté serveur) |
 | 7 | Rechargez la page (F5) | même page, toujours connecté | ☐ | ☐ | GUARD-06 |
@@ -59,8 +58,9 @@
 |---|---|---|---|---|---|
 | 1 | Ouvrez la liste des documents, puis le tableau de bord | les documents et les chiffres de la DRH et de ses sous-unités seulement | ☐ | ☐ | #203 |
 | 2 | Cherchez le mot-clé du jeu de démo (celui du chef, n° 4) | aucun résultat : ces documents sont à la DAF | ☐ | ☐ | #203 |
-| 3 | Collez l'adresse d'un document de la DAF (copiée par l'agent, n° 3) | « introuvable » ; ni titre ni contenu | ☐ | ☐ | #203 (404) |
-| 4 | Créez un utilisateur rattaché à la DAF ; puis déplacez un agent de la DRH vers la DAF | refusé les deux fois : personne n'est créé, l'agent reste à la DRH | ☐ | ☐ | #360 |
+| 3 | Collez l'adresse du document de la DAF notée par l'agent (§ 1, n° 6, elle finit par `?open=…`) | « introuvable » ; ni titre ni contenu | ☐ | ☐ | #203 (404) |
+
+Les comptes et l'organigramme ne sont pas à l'écran pour l'administrateur d'unité (pages réservées à l'administrateur d'institution). Le refus de créer ou de déplacer un compte hors de la DRH est prouvé par Q (#360).
 
 ## 4. Auditeur — `AUDIT001`
 
@@ -82,7 +82,7 @@ Signature : ______________________ Date : 23/11/2026
 # Partie 2 — Détail pour O
 
 - **Pour** : O, qui la déroule sur `main` (décision du PO du 19/11), poste principal, jeu de démo remis à zéro. Si #441, #450 et #442 y sont fusionnées après la coupe (DEC-2026-013), `main` diffère du SHA coupé de ces trois écrans : le noter dans le relevé.
-- **Source** : `criteres-acceptation.md` § 2 (version du 17/11, branche `docs/notes-version-rc1`), une ligne par critère, dans l'ordre de `scenario-demo-30-11.md`, groupées par compte de connexion. Libellés vérifiés sur b701314.
+- **Source** : `criteres-acceptation.md` § 2 (version du 17/11, branche `docs/notes-version-rc1`), une ligne par critère, dans l'ordre de `scenario-demo-30-11.md`, groupées par compte de connexion. Libellés vérifiés sur b701314 ; écarts de la relecture du 19/11 (comptes et organigramme de l'unité, `/spaces`, adresse `?open=`, règle active par défaut, anomalies E23, E24 et « Oublié ? » retirées car corrigées) vérifiés sur `main` f890b3cb.
 - **Comptes** : seulement le rôle et l'identifiant. Les mots de passe sont ceux du jeu de démo et ne figurent pas ici.
 - **Durée** : 90 min au plus. ★ = indispensable (≈ 65 min) ; ○ = facultatif, à jouer s'il reste du temps. Les lignes « Q » ne se rejouent pas à la main : on reporte le verdict du rapport de Q.
 - **Remplir** : `OK`, `KO` ou `—` (non joué) ; en remarque, l'heure et ce qui a été vu. Un KO hors de la liste ci-dessous est une anomalie nouvelle.
@@ -91,14 +91,11 @@ Signature : ______________________ Date : 23/11/2026
 
 | Réf. | Ce que vous verrez | Contournement | Suite |
 |---|---|---|---|
-| E23 | Admin Service : « Gérer les Permissions » ne fait rien | passer par l'Admin Institution | réponse du PO (Q6) |
-| E24 | Accents manquants : « A verifier » (Explorateur), « Parametres » (menu du super admin) | aucun, simple libellé | réponse du PO (Q6) |
 | OCR | L'écriture à la main n'est pas lue | aucun : seul le texte imprimé est lu. Un seul moteur à la fois, choisi par configuration | moteur de la démo fixé le 20 à 09:00 |
 | Lecture bloquée | Un document reste « en cours » plus de 10 min | noter le nom du document et l'heure, puis prévenir Q. Ne pas redéposer le fichier (refusé comme doublon) ni le mettre à la corbeille. Q relance la lecture côté serveur avec `DOCS/exploitation/relancer-ocr.md` (#369, fusionnée le 18/11) | V1.2 (OCR-1, #370) ; remonte en V1.1 si un arrêt brutal du worker est vu du 20 au 25 |
 | Code de connexion | Le code n'est pas reçu : il est pré-rempli à l'écran ; le cadre « Espace Démo Interactif » est visible | cliquer sur « Confirmer l'identité » | après le 30 (#154) |
 | Hors V1.0 | Pas de numérotation des rapports, pas de TOTP, pas de dépôt de version à l'écran, pas d'export d'audit pour plusieurs personnes à la fois (#435, V1.1) | non joués | après le 30 |
 | Frictions connues (DEC-2026-013) | Pas de message après un dépôt ou une soumission ; « Soumettre » seulement dans « Tableau de Bord » ; motif de rejet seulement dans l'onglet « Circuit de Validation » ; recherche sensible aux accents ; liste complète dans la checklist d'UAT, § 6 | contournement écrit dans les lignes concernées | V1.1 |
-| Lien « Oublié ? » | Ne fait rien | demander un mot de passe à l'administrateur | V1.1 |
 
 ## 0. Avant de commencer (5 min) ★
 
@@ -117,7 +114,7 @@ Signature : ______________________ Date : 23/11/2026
 | ★ SC-ADM-08 | `MINFI001` | « Import en masse » → « Importer dans le Serveur de l'Application » → « Juste les ranger » → dossier `live` → « Vérifier le classement » → « Importer les documents » | compteurs : importés = N−2, doublons = 2, à revoir = 2 ; moins de 60 s pour ≤ 50 fichiers | | |
 | ○ P2 étape 8 | `MINFI001` | Refaire le même import | importés = 0, doublons = N, aucun document créé | | |
 | ★ SC-E2E-01 (classement) | `MINFI001` | « Explorateur documentaire » : DAF → domaine → activité → année | les fichiers couverts par les règles sont à la destination attendue ; ≥ 95 % (C2 local) | | |
-| ○ SC-ADM-05 | `MINFI001` | « Règles de classement » : créer « si nom contient X et type PDF alors domaine D, activité A » | règle visible dans la liste, **inactive** par défaut | | |
+| ○ SC-ADM-05 | `MINFI001` | « Règles de classement » : créer « si nom contient X et type PDF alors domaine D, activité A », en décochant « Règle active dès l'enregistrement » (cochée par défaut, `ClassificationSettingsTab.tsx:110`) | règle visible dans la liste, **inactive** | | |
 | ★ SC-ADM-06 | `MINFI001` | « Simulateur » du « Plan de classement » sur la règle inactive | tableau document / destination actuelle / destination proposée, ≥ 1 ligne ; aucun document n'a bougé dans l'Explorateur | | |
 | ★ SC-ADM-07 | `MINFI001` | « Ma bannette » (page « Revue de classement ») : un document à revoir, raison lisible → service, domaine, activité, année → « Classer et relancer » | le document quitte la file, apparaît à destination dans l'Explorateur, compteur « à classer » −1 | | |
 | ○ P3 étape 7 | `MINFI001` | Activer la règle, puis « Classer et relancer » sur un document qu'elle couvre | sa destination devient celle de la règle | | |
@@ -135,7 +132,7 @@ Signature : ______________________ Date : 23/11/2026
 | ★ SC-VAL-03 | `MGR001` | Sur le second document de Prépa 2 : « Rejeter » sans motif, puis avec motif → « Confirmer le rejet » | sans motif : refus ; avec motif : statut **Rejeté** | | |
 | ★ Rapports | `MGR001` | « Rapports » : « Traitement & délais », puis « Services » | chiffres de la DAF seulement ; pas d'onglet « Synthèse » ; pas les autres services | | |
 | ○ SC-LEC-02 | `MGR001` | Documents du service → ouvrir une fiche → « Télécharger » | métadonnées affichées ; le fichier téléchargé est l'original | | |
-| ○ SC-ESP-01 | `MGR001` | Filtres domaine → activité (liste dépendante) → année, puis « Réinitialiser » | liste et compteur cohérents à chaque choix ; « Réinitialiser » vide les filtres | | |
+| ○ SC-ESP-01 | `MGR001` | Adresse `/spaces` tapée à la main (absente du menu du manager) ; filtres domaine → activité (liste dépendante) → année, puis icône « Réinitialiser les filtres » (entonnoir barré, visible seulement si un filtre est actif, `SpacesPage.tsx:834-842`) | liste et compteur cohérents à chaque choix ; l'icône vide les filtres | | |
 | ○ Pagination | `MGR001` | Liste > 50 documents → page 2 | la page 2 se charge, le compteur ne change pas | | |
 | Q SC-RED-01 (manager) | `MGR001` | Brouillon de `MINFI002` visible ou non | `À vérifier` en recette : reporter le constat de Q | | |
 
@@ -176,9 +173,8 @@ Signature : ______________________ Date : 23/11/2026
 
 | ID | Compte | Geste | Résultat attendu | OK / KO | Remarque |
 |---|---|---|---|---|---|
-| Périmètre | `UNIT001` | Liste des documents, recherche, tableau de bord | DRH et ses sous-unités seulement (#203) ; rapports, circuits, imports, revues et règles limités de même (#358) | | |
-| Au-delà | `UNIT001` | URL d'un document de la DAF (Prépa 2) ; mot-clé de SC-LEC-01 | « introuvable » (404), aucun titre ; 0 résultat | | |
-| Comptes | `UNIT001` | Créer un utilisateur à la DAF ; déplacer un agent DRH vers la DAF ; organigramme | refus dans les deux cas, rien n'est écrit ; l'organigramme et les comptes se limitent à la DRH (#360) | | |
+| Périmètre | `UNIT001` | Liste des documents, recherche, tableau de bord | DRH et ses sous-unités seulement (#203). Rapports, circuits, imports, revues et règles sont limités de même côté serveur (#358, preuve de Q) : « Rapports » et « Règles de classement » ne sont pas dans son menu | | |
+| Au-delà | `UNIT001` | Adresse `/documents?open=<id>` d'un document de la DAF (Prépa 2), obtenue par `MINFI002` en ouvrant le document depuis la recherche du bandeau (un clic dans « Mes Documents » ne change pas l'adresse, `Documents.tsx:216`) ; mot-clé de SC-LEC-01 | « introuvable » (404), aucun titre ; 0 résultat | | |
 
 ## 6. Prouvés par Q, pas rejoués à la main
 
@@ -190,7 +186,7 @@ Signature : ______________________ Date : 23/11/2026
 | Q SC-RED-05/06 | suppression puis restauration (pytest) | | |
 | Q SC-RED-04 | nouvelle version, ancienne lisible, écriture concurrente refusée (pytest) | | |
 | Q Titulaire d'étape | le titulaire d'une étape lit le document, son contenu et son texte lu, mais pas son historique (`audit-logs` refusé) ; pas d'écran pour cet historique, donc preuve par l'API (pytest de #203) | | |
-| Q Hors arbre | `UNIT001` : lecture hors de son arbre → 404 ; création ou déplacement d'un compte hors de son arbre → refus (pytest de #203 et #360) | | |
+| Q Hors arbre | `UNIT001` : lecture hors de son arbre → 404 ; création ou déplacement d'un compte hors de son arbre → refus ; comptes et organigramme limités à la DRH (pytest de #203 et #360). Pas d'écran : `/users` et `/org` sont réservés à l'administrateur d'institution (`App.tsx`, `ADMIN_ROUTES`) et absents du menu | | |
 
 ## Verdict
 
