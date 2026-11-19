@@ -16,7 +16,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
     section: "Mon Travail",
     items: [
       { id: 'dashboard', label: 'Tableau de bord', icon: 'dashboard', subItems: ['Vue générale', 'Alertes'] },
-      { id: 'needs_review', label: 'Ma bannette', icon: 'inbox', subItems: ['Documents à revoir', 'En attente de ma signature'] },
+      { id: 'needs_review', label: 'À traiter', icon: 'inbox', subItems: ['Documents à revoir', 'En attente de ma signature'] },
       { id: 'tasks', label: 'Tâches & Validations', icon: 'task_alt', subItems: ['Documents à valider ou rejeter'] },
       { id: 'pending_assignments', label: 'À distribuer', icon: 'assignment_ind', subItems: ['Documents sans destinataire'] },
     ]
@@ -32,9 +32,9 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
     ]
   },
   {
-    section: "Configuration GED",
+    section: "Rangement des documents",
     items: [
-      { id: 'ged_rules', label: 'Traitement des documents', icon: 'directions', subItems: ['Types de documents', 'Circuits de validation', "Règles d'aiguillage", 'Simulateur'] },
+      { id: 'ged_rules', label: 'Traitement des documents', icon: 'directions', subItems: ['Types de documents', 'Circuits de validation', 'Règles automatiques', 'Simulateur'] },
       { id: 'classement', label: 'Plan de classement', icon: 'account_tree', subItems: ['Domaines métier', 'Activités', 'Règles de classement', 'Simulateur'] },
       { id: 'ingestion', label: 'Import en masse', icon: 'drive_folder_upload', subItems: ['Scanner un dossier', 'Classement automatique'] },
       { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library', subItems: ['Recherche', 'Historique des rangements'] },

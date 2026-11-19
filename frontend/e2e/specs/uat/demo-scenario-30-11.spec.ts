@@ -117,7 +117,7 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     test.skip(open === 0, 'aucune revue ouverte : la bannette est vide (voir plan B, § 4 du scénario)');
 
     await loginAs('tenant_admin');
-    await MAIN_MENU(page, /Ma bannette/).click();
+    await MAIN_MENU(page, /À traiter/).click();
     await expect(page).toHaveURL(/\/classification-reviews/);
     await expect(page.getByText('Revue de classement').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Classer et relancer/ }).first()).toBeVisible();

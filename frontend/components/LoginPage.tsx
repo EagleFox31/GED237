@@ -125,7 +125,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       return;
     }
 
-    setError('Ce compte de démonstration ne fait pas partie de la seed courante.');
+    setError('Ce compte de test n\'est pas disponible ici.');
   };
 
   const handleInitialSubmit = async (e: React.FormEvent) => {

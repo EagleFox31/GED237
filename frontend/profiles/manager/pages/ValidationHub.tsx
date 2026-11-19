@@ -71,7 +71,7 @@ const ValidationHub: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto p-1">
         {loading ? (
-          <p className="text-slate-400 font-bold italic">Chargement du parapheur...</p>
+          <p className="text-slate-400 font-bold italic">Chargement des documents à valider…</p>
         ) : documents.length === 0 ? (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-[3rem]">
             <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">check_circle</span>

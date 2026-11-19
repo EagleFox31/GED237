@@ -254,7 +254,7 @@ const RunCard: React.FC<{
           >
             <summary
               className="list-none flex cursor-pointer items-center justify-center rounded-full border border-slate-200 p-1.5 text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 [&::-webkit-details-marker]:hidden"
-              aria-label="Télécharger la liste du manifeste"
+              aria-label="Télécharger la liste des fichiers"
               aria-haspopup="menu"
             >
               <span className="material-symbols-outlined text-[18px]" aria-hidden>download</span>
@@ -698,7 +698,7 @@ const LocalLibraryPage: React.FC = () => {
           icon="cloud_off"
           eyebrow="Bibliothèque locale"
           title="Effacer la copie sur votre compte ?"
-          message="Le dernier manifeste synchronisé sera supprimé du serveur. L'historique IndexedDB sur cet appareil reste inchangé."
+          message="La dernière liste enregistrée sera effacée du serveur. L'historique sur cet ordinateur est conservé."
           confirmLabel="Effacer la copie"
           onConfirm={() => void handleClearServer()}
           onCancel={() => setConfirmation(null)}

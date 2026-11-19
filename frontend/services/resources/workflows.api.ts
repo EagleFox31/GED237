@@ -52,7 +52,7 @@ export const workflowsApi = {
         apiCall<any>(
             `/workflows/document/${documentId}/steps`,
             { method: 'POST', body: JSON.stringify(steps) },
-            'Création des étapes de workflow impossible',
+            'Impossible d\'enregistrer les étapes de validation.',
         ),
 
     getWorkflowSteps: (documentId: string): Promise<any[]> =>
@@ -70,7 +70,7 @@ export const workflowsApi = {
         ),
 
     getPendingWorkflows: (options: ApiCallOptions = {}): Promise<PendingWorkflowTask[]> =>
-        apiCall<PendingWorkflowTask[]>('/workflows/pending', {}, 'Récupération des workflows en attente impossible', options),
+        apiCall<PendingWorkflowTask[]>('/workflows/pending', {}, 'Impossible de charger les documents à valider.', options),
 
     getWorkflowValidators: (): Promise<WorkflowValidator[]> =>
         apiCall<WorkflowValidator[]>('/workflows/validators', {}, 'Récupération des valideurs impossible'),
@@ -101,6 +101,6 @@ export const workflowsApi = {
 
     getWorkflowStats: (tenantId?: string): Promise<any> => {
         const qs = tenantId ? `?tenant_id=${tenantId}` : '';
-        return apiCall<any>(`/workflows/stats${qs}`, {}, 'Récupération des statistiques workflow impossible');
+        return apiCall<any>(`/workflows/stats${qs}`, {}, 'Impossible de charger le suivi des validations.');
     },
 };

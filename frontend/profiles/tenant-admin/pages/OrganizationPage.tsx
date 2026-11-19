@@ -267,7 +267,7 @@ const OrganizationPage: React.FC = () => {
               <div className="flex gap-8 border-b border-slate-200">
                 {[
                   { id: 'info', label: 'Informations Générales', icon: 'info' },
-                  { id: 'config', label: 'Règles GED', icon: 'gavel' },
+                  { id: 'config', label: 'Règles de classement', icon: 'gavel' },
                   { id: 'staff', label: 'Personnel', icon: 'group', count: unitStaff.length },
                   { id: 'chart', label: 'Organigramme', icon: 'account_tree' },
                   { id: 'stats', label: 'Statistiques', icon: 'analytics' }

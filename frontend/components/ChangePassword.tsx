@@ -94,7 +94,7 @@ const ChangePassword: React.FC = () => {
         </div>
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">E-Dossier Cameroun</p>
-          <p className="text-xs font-bold text-slate-600">Plateforme GED — Accès sécurisé</p>
+          <p className="text-xs font-bold text-slate-600">Accès sécurisé</p>
         </div>
       </div>
 

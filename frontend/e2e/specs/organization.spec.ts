@@ -34,7 +34,7 @@ test.describe('Feature: Arbre organisationnel', () => {
    *   GIVEN  l'arbre est chargé avec des noeuds
    *   WHEN   l'utilisateur clique sur un noeud de l'arbre
    *   THEN   le panneau droit affiche le nom et le code de l'unité
-   *   AND    les onglets Info, Règles GED, Personnel, Organigramme, Statistiques sont visibles
+   *   AND    les onglets Info, Règles de classement, Personnel, Organigramme, Statistiques sont visibles
    */
   test('Given arbre chargé, When clic noeud, Then détails affichés avec onglets', async ({ page }) => {
     const orgPage = new OrganizationPage(page);

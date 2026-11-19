@@ -123,7 +123,7 @@ const SimulatorTab: React.FC = () => {
             Variables d'entrée
           </h3>
           <p className="text-xs text-slate-500 font-medium mb-6">
-            Testez l'aiguillage avant le déploiement réel.
+            Testez vos règles avant de les appliquer.
           </p>
 
           <div className="space-y-5">
@@ -249,7 +249,7 @@ const SimulatorTab: React.FC = () => {
                     <span className="material-symbols-outlined">check_circle</span>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Règle d'aiguillage trouvée</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Règle correspondante trouvée</p>
                     <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">{results.matched_rule_name}</h2>
                   </div>
                 </div>
@@ -340,7 +340,7 @@ const SimulatorTab: React.FC = () => {
               <div className="p-8 bg-amber-50 border-2 border-amber-200 rounded-[2.5rem] flex flex-col items-center text-center">
                 <span className="material-symbols-outlined text-6xl text-amber-400 mb-4">route</span>
                 <h3 className="text-xl font-black text-amber-700 uppercase italic tracking-tighter mb-2">Aucune règle correspondante</h3>
-                <p className="text-amber-600 font-medium text-sm">Aucune règle d'aiguillage active ne correspond à cette combinaison. Créez une règle dans l'onglet <strong>[3] Règles d'aiguillage</strong>.</p>
+                <p className="text-amber-600 font-medium text-sm">Aucune règle active ne correspond à ce cas. Créez une règle dans l'onglet <strong>[3] Règles automatiques</strong>.</p>
               </div>
             )}
           </div>

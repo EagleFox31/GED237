@@ -172,7 +172,7 @@ const formatYearStrategy = (strategy: RuleFormState['year_strategy']) => {
     case 'from_filename':
       return 'Depuis le nom de fichier';
     case 'from_metadata':
-      return 'Depuis les métadonnées';
+      return 'Depuis les infos du fichier';
     case 'fixed':
       return 'Année fixe';
     default:
@@ -1942,7 +1942,7 @@ const ClassificationSettingsTab: React.FC = () => {
               <select aria-label="Stratégie année" value={ruleForm.year_strategy} onChange={(event) => setRuleForm((prev) => ({ ...prev, year_strategy: event.target.value as RuleFormState['year_strategy'], fixed_year: event.target.value === 'fixed' ? prev.fixed_year : '' }))} className="w-full mt-1 bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
                 <option value="current">Année courante (au moment du dépôt)</option>
                 <option value="from_filename">Lue dans le nom du fichier</option>
-                <option value="from_metadata">Lue dans les métadonnées du document</option>
+                <option value="from_metadata">Lue dans les infos du document</option>
                 <option value="fixed">Toujours la même (à préciser)</option>
               </select>
               {ruleForm.year_strategy === 'fixed' && (

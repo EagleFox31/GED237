@@ -24,7 +24,7 @@ export class DocumentsPage {
   readonly errorMessage: Locator;
 
   constructor(page: Page) {
-    this.heading = page.getByRole('heading', { name: /explorateur.*ged/i });
+    this.heading = page.getByRole('heading', { name: /mes documents/i });
     this.uploadButton = page.getByRole('button', { name: /nouveau document/i });
 
     this.searchInput = page.getByPlaceholder(/rechercher par titre/i);

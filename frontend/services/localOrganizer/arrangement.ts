@@ -294,7 +294,7 @@ const classifyByBusinessRulesFlow = (
           folderPath: fallback,
           confidence: officialScored?.score ?? 38,
           source: 'catch_all',
-          reasons: officialScored?.reasons ?? ['Aucune projection fiable depuis le référentiel'],
+          reasons: officialScored?.reasons ?? ['Aucun dossier évident trouvé dans le plan de classement'],
         }),
       };
     }
@@ -315,7 +315,7 @@ const classifyByBusinessRulesFlow = (
           confidence: Math.min(winner.score, 72),
           source: 'ambiguous_hold',
           reasons: [
-            `Ambiguïté référentiel (${candidates.length} chemins proches)`,
+            `Plusieurs dossiers possibles (${candidates.length} choix proches)`,
             ...(winner.reasons ?? []).slice(0, 2),
           ],
         }),

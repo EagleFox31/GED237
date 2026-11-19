@@ -91,7 +91,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
             </div>
             <div>
               <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tight">Guide des rôles</h3>
-              <p className="text-xs text-slate-500 mt-1">Choisissez le rôle d'un utilisateur en fonction de ses droits GED, pas de son poste métier (assistante, secrétaire, chef de service…).</p>
+              <p className="text-xs text-slate-500 mt-1">Choisissez le rôle selon ce que l'agent doit pouvoir faire, pas selon son titre (assistante, secrétaire, chef de service…).</p>
             </div>
           </div>
 

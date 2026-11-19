@@ -43,7 +43,7 @@ export class DocumentDetailModal {
   readonly confirmArchiveButton: Locator;
 
   constructor(page: Page) {
-    this.modal = page.locator('.fixed.inset-0').filter({ has: page.getByText('Métadonnées Officielles').or(page.getByText('Circuit de Validation')).or(page.getByText('Détails & Aperçu')) });
+    this.modal = page.locator('.fixed.inset-0').filter({ has: page.getByText('Informations du document').or(page.getByText('Circuit de Validation')).or(page.getByText('Détails & Aperçu')) });
     this.backdrop = page.locator('.fixed.inset-0 .bg-slate-900\\/40');
 
     // Header
@@ -56,7 +56,7 @@ export class DocumentDetailModal {
     this.historyTab = page.getByRole('button', { name: /historique des versions/i });
 
     // Info content
-    this.metadataSection = page.getByText('Métadonnées Officielles');
+    this.metadataSection = page.getByText('Informations du document');
     this.ownerField = page.locator('text=Propriétaire').locator('..').locator('p.font-bold');
     this.categoryField = page.locator('text=Catégorie').locator('..').locator('p.font-bold');
     this.versionField = page.locator('text=Version').locator('..').locator('p.font-bold');
@@ -66,7 +66,7 @@ export class DocumentDetailModal {
 
     // Workflow content
     this.workflowSteps = page.locator('.relative.flex.items-start.gap-8');
-    this.workflowEmpty = page.getByText('Aucune étape de workflow définie.');
+    this.workflowEmpty = page.getByText('Aucune étape de validation prévue.');
     this.workflowLoading = page.locator('.fixed.inset-0 .animate-spin');
     this.approveButton = page.getByRole('button', { name: /valider/i });
     this.rejectButton = page.getByRole('button', { name: /rejeter/i });

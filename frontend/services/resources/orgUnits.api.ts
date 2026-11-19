@@ -24,7 +24,7 @@ export const orgUnitsApi = {
         apiCall<any>(
             `/org-units/tree?tenant_id=${tenantId}`,
             {},
-            'Récupération de l\'arbre organisationnel pour ce tenant impossible',
+            'Impossible de charger l\'organigramme.',
         ),
 
     getOrgUnits: (): Promise<any[]> =>
@@ -39,7 +39,7 @@ export const orgUnitsApi = {
         apiCall<any[]>(
             `/org-units/?tenant_id=${tenantId}`,
             {},
-            'Récupération des unités pour ce tenant impossible',
+            'Impossible de charger la liste des services.',
         ),
 
     createOrgUnit: (data: any): Promise<any> =>

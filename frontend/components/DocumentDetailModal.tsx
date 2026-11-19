@@ -144,7 +144,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
       }
     } catch (err) {
       console.error('Validation failed:', err);
-      setActionError("L'action de workflow a échoué. Veuillez réessayer.");
+      setActionError("L'envoi n'a pas fonctionné. Veuillez réessayer.");
     }
   };
 
@@ -222,7 +222,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 {document.processing_mode === 'archive' && (
                   <>
                     <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-1" title="Cette pièce a été déposée en mode archivage. Aucune règle d'aiguillage n'a été appliquée.">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-1" title="Cette pièce a été déposée en mode archivage. Aucune règle automatique n'a été appliquée.">
                       <span className="material-symbols-outlined" style={{fontSize: '12px'}}>folder</span>
                       Archivé sans circuit
                     </span>
@@ -265,7 +265,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
             <div className="grid grid-cols-1 gap-8 h-full">
               <div className="space-y-6">
                 <div className="glass p-6 rounded-3xl border-white space-y-4">
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Métadonnées Officielles</h3>
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Informations du document</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-slate-400 font-medium">Propriétaire</p>
@@ -331,7 +331,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                     <span className="material-symbols-outlined text-amber-600 mt-0.5">archive</span>
                     <div className="flex-1">
                       <p className="text-sm font-bold text-amber-800">Cette pièce a été archivée sans circuit.</p>
-                      <p className="text-xs text-amber-700 mt-1">Vous pouvez à tout moment lancer un circuit de validation a posteriori (les règles d'aiguillage seront appliquées si elles existent).</p>
+                      <p className="text-xs text-amber-700 mt-1">Vous pouvez envoyer ce document en validation quand vous voulez (selon les règles de votre service).</p>
                       <button
                         onClick={handleStartWorkflow}
                         disabled={startingWorkflow}
@@ -345,7 +345,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 </div>
               )}
               {!stepsLoading && steps.length === 0 && processingMode !== 'archive' && (
-                <div className="text-center py-10 text-slate-400 font-bold">Aucune étape de workflow définie.</div>
+                <div className="text-center py-10 text-slate-400 font-bold">Aucune étape de validation prévue.</div>
               )}
               {!stepsLoading && steps.length > 0 && (
                 <div className="relative space-y-12 before:absolute before:inset-0 before:left-7 before:h-full before:w-0.5 before:bg-slate-200">

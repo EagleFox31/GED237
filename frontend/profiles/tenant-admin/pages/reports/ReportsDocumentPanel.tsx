@@ -432,7 +432,7 @@ export const ReportsDocumentPanel: React.FC<ReportsDocumentPanelProps> = ({
               label="Documents à revoir"
               value={activity?.signals.documents_needing_review ?? 0}
               description="Décision manuelle encore attendue."
-              actionLabel="Ouvrir la bannette de reprise"
+              actionLabel="Voir les documents à corriger"
               actionHref={
                 (activity?.signals.documents_needing_review ?? 0) > 0
                   ? '/classification-reviews'

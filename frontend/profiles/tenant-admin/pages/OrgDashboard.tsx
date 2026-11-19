@@ -153,7 +153,7 @@ const OrgDashboard: React.FC = () => {
               icon="upload_file"
               color="text-amber-600"
               title="Importer ou tester un document"
-              desc="Validez la chaîne upload → OCR → indexation, ou démarrez un import en masse depuis un dossier."
+              desc="Testez l'envoi et la lecture automatique d'un fichier, ou importez un dossier entier."
               onClick={() => navigate('/ingestion')}
             />
             <FirstStep
@@ -189,7 +189,7 @@ const OrgDashboard: React.FC = () => {
         <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-base font-black text-slate-800 tracking-tighter italic uppercase">Résumé Des Workflows</h3>
+              <h3 className="text-base font-black text-slate-800 tracking-tighter italic uppercase">Suivi des validations</h3>
               <p className="text-xs text-slate-500 font-medium mt-1">Répartition des étapes de validation.</p>
             </div>
           </div>
@@ -220,7 +220,7 @@ const OrgDashboard: React.FC = () => {
           <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <span className="material-symbols-outlined text-slate-500">cloud_queue</span>
-              <h3 className="text-sm font-black text-slate-800 tracking-tighter italic uppercase">Stockage Tenant</h3>
+              <h3 className="text-sm font-black text-slate-800 tracking-tighter italic uppercase">Espace utilisé</h3>
             </div>
             {(() => {
               const used = metrics?.documents?.storage_used_mb ?? 0;

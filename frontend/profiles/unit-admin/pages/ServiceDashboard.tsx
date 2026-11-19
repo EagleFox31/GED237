@@ -38,8 +38,8 @@ const ServiceDashboard: React.FC = () => {
           <div className="space-y-4">
             {[
               { label: "Documents", count: isLoading ? '...' : metrics?.documents?.total ?? 0, icon: "description", to: "/documents" },
-              { label: "Workflows en attente", count: isLoading ? '...' : metrics?.workflows?.pending ?? 0, icon: "pending_actions", to: "/tasks" },
-              { label: "Workflows complétés", count: isLoading ? '...' : metrics?.workflows?.completed ?? 0, icon: "task_alt" },
+              { label: "Validations en attente", count: isLoading ? '...' : metrics?.workflows?.pending ?? 0, icon: "pending_actions", to: "/tasks" },
+              { label: "Validations terminées", count: isLoading ? '...' : metrics?.workflows?.completed ?? 0, icon: "task_alt" },
             ].map((stat: { label: string; count: string | number; icon: string; to?: string }, i) => {
               // Seuls les indicateurs qui ont une liste existante sont cliquables (pas de nouvelle page).
               const row = (
