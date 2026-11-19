@@ -66,3 +66,82 @@ async def test_seed_refuses_a_database_not_at_head(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         await seed_db.seed()
     assert exc.value.code == 2
+
+
+async def _minfi_daf(db_session):
+    from app.models.org_unit import OrgUnit
+    from app.models.tenant import Tenant
+
+    tenant = Tenant(
+        name="Ministère des Finances",
+        short_name="MINFI",
+        domain="minfi-seed-test.gov.cm",
+        is_active=True,
+    )
+    db_session.add(tenant)
+    await db_session.flush()
+    unit = OrgUnit(
+        tenant_id=tenant.id, code="MINFI-DAF", name="DAF", level=1, is_active=True
+    )
+    db_session.add(unit)
+    await db_session.flush()
+    return unit
+
+
+@pytest.mark.asyncio
+async def test_extra_demo_users_are_added_once_to_an_already_seeded_database(
+    db_session, db_seed
+):
+    """A database seeded before MINFI003 existed gets the third DAF agent on the next
+    pass (the MINFI guard skips the user block); the pass after that writes nothing."""
+    from app.models.user import User
+
+    seed_db = _load_seed_module()
+    unit = await _minfi_daf(db_session)
+    role_ids = {"collaborator": db_seed["role_id"]}
+
+    first = await seed_db.ensure_extra_demo_users(db_session, role_ids)
+    second = await seed_db.ensure_extra_demo_users(db_session, role_ids)
+    await db_session.commit()
+
+    agents = (
+        (await db_session.execute(select(User).where(User.matricule == "MINFI003")))
+        .scalars()
+        .all()
+    )
+    assert (first, second) == (1, 0)
+    assert [(a.org_unit_id, a.is_active) for a in agents] == [(unit.id, True)]
+
+
+@pytest.mark.asyncio
+async def test_extra_demo_users_never_modify_an_existing_account(db_session, db_seed):
+    from app.models.user import User
+
+    seed_db = _load_seed_module()
+    unit = await _minfi_daf(db_session)
+    db_session.add(
+        User(
+            tenant_id=unit.tenant_id,
+            org_unit_id=unit.id,
+            role_id=db_seed["role_id"],
+            matricule="MINFI003",
+            email="renamed@minfi.gov.cm",
+            first_name="Nom",
+            last_name="Choisi",
+            password_hash="kept",
+            is_active=False,
+        )
+    )
+    await db_session.flush()
+
+    created = await seed_db.ensure_extra_demo_users(
+        db_session, {"collaborator": db_seed["role_id"]}
+    )
+
+    agent = await db_session.scalar(select(User).where(User.matricule == "MINFI003"))
+    assert created == 0
+    assert (agent.last_name, agent.password_hash, agent.is_active) == (
+        "Choisi",
+        "kept",
+        False,
+    )
