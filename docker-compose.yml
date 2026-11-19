@@ -239,6 +239,7 @@ services:
     environment:
       - VITE_API_URL=/api/v1
       - VITE_APP_VERSION=${APP_VERSION:-dev}
+      - FRONTEND_ALLOWED_HOSTS=${FRONTEND_ALLOWED_HOSTS:-}
       # Same value as the API's cap, so the upload window refuses too-large files before sending.
       - VITE_MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-100}
       - VITE_LOGIN_DEMO_HINTS=${LOGIN_DEMO_HINTS:-true}
