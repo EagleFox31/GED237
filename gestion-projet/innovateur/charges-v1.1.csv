@@ -39,3 +39,6 @@ ch;tri audit 19/11, n° 2 (dépôt de plusieurs fichiers);aide-api;2
 # Efforts donnés par aide-api (19/11, 10:05) : #474 = 0,25 h-s, terminé ; suite sécurité (identifiant de session commun) = 0,5 h-s, dont 0,4 fait.
 ch;#474 jeton de type access;aide-api;0,25
 ch;suite sécurité identifiant de session;aide-api;0,5
+# Relecture sécurité de #471 (WebSocket L13-4) passée de Q à B (proposition du PO, validée par O le 19/11) ; Q garde un coup d'oeil de 10 minutes.
+ch;relecture #471 vers B;Q;-0,5
+ch;relecture #471 vers B;B;0,5

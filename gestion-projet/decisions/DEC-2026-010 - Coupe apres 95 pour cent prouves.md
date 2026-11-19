@@ -24,8 +24,8 @@ Au 19/11 : **28/32**. #464 est fusionnée, `main` = 103ce48b, et l'item 27 (HTTP
 | 27. HTTPS | +0,5 | `prove_tls` réussi | Q | **fait le 19/11** | — |
 | 19. Détection des doublons | +0,5 | #152, #181, #171 et #199 fusionnées dans `main` | B, F, Q, O | `‹date›` | moyen : ≈ 4 h-s, 2 PR à remettre à jour |
 | 29. Disponibilité ≥ 99 % | +0,5 (`partiel` au mieux) | relevé C6 tenu à 18:00 (≥ 6 relevés verts consécutifs) | Q | 19/11, 18:00 | **élevé** : trou de nuit, puis arrêt de Docker ce matin |
-| 28. Déploiement sur site | +1 | installation sans Internet réussie (réponse 15 du PO) | Q | 25/11, avançable : `‹date›`, dès que les conditions du § 2 bis sont remplies | moyen |
-| 31. Documentation | +0,5 | rejeu du manuel sans écart (issue #273) | Q | même passage que l'item 28 | moyen |
+| 28. Déploiement sur site | +1 | installation sans Internet réussie (réponse 15 du PO) | Q | **prouvé au lab le 19/11** ; compte à la fusion de #477, sur le SHA de `main` qui suit : `‹sha›` | faible |
+| 31. Documentation | +0,5 | rejeu du manuel sans écart (issue #273) | Q | compte à la fusion de la PR `ops/` de Q (décision du PO, 19/11 vers 10:25) : `‹n° de PR›` | faible |
 
 28 + 0,5 (19) + 0,5 (29) + 1 (28) + 0,5 (31) = 30,5. Il n'y a **aucune marge** : si C6 échoue ce soir, le meilleur score est 30/32, et seul l'item 8 permet d'atteindre 95 % (§ 4).
 
@@ -44,6 +44,14 @@ Rien d'autre ne bloque. #248, #267 et #268 (VPS) ne sont pas requis. Les scripts
 - #470 rend le manuel valable pour « un tag ou un SHA ».
 - Le lab a trouvé un échec bloquant : `images_import.sh` échoue sur un poste cible en overlay2, car les identifiants d'image diffèrent de ceux du magasin containerd. Q prépare le correctif en PR. L'item 28 ne compte qu'après la fusion de ce correctif et un rejeu jusqu'à `/health`.
 - Item 19 : #171 a deux bloquants relevés par Q, chez B en priorité. La règle de la corbeille est contournée dans `/duplicates/resolve`, et la visibilité pour `unit_admin` est à revoir.
+
+**État au 19/11, 10:30 (O, puis I)** :
+- Lab de Q démonté à 10:17. Il a prouvé l'item 28 avec #477 : correctif de `images_import.sh` sur overlay2, compte rendu `gestion-projet/recette/2026-11-19-lab-hors-ligne-items-28-31.md`, OK de B et de Q.
+- **Référence de l'item 28** : le SHA de `main` après la fusion de #477. O le donne et l'innovateur le reporte dans le tableau.
+- **Item 31 (décision du PO, vers 10:25)** : le demi-point compte dès la fusion de la PR `ops/` de Q. Cette PR fait trois choses : la sauvegarde échoue proprement, nginx est relancé, puis `/health` est contrôlé.
+- Écart restant du lab, hors barème : après une sauvegarde ou une restauration, `api` change d'adresse IP. nginx garde l'ancienne, et `/health` répond 502 jusqu'à la relance de nginx. La relance faite par la PR `ops/` suffit pour V1.0. Le correctif de fond va en V1.1.
+- Item 19 : #152 et #474 sont fusionnées (`main` = da09df90). Série d'O, une PR à la fois : #181, #477, #171, #199. #171 a l'OK de code de Q (efda93ef).
+- Score atteignable après ces fusions : 28 + 1 (28) + 0,5 (31) + 0,5 (19) = **30/32**. Le dernier demi-point dépend de C6 à 18:00 (item 29), ou de l'item 8 (#473, étalonnage lancé par aide-api).
 
 ## 3. Recette sur `main` : un état du jour
 
