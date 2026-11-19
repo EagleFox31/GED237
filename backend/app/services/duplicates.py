@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
+from app.models.workflow import WorkflowStep
 
 CHECKSUM = DocumentVersion.checksum_sha256
 
@@ -107,13 +108,52 @@ async def list_groups(
 
 
 async def load_with_checksum(
-    db: AsyncSession, filters: list, ids: Iterable[UUID]
+    db: AsyncSession, filters: list, ids: Iterable[UUID], *, lock: bool = False
 ) -> dict[UUID, tuple[Document, str | None]]:
-    """Visible documents (trashed included) with the checksum of their current version."""
-    rows = await db.execute(
+    """Visible documents (trashed included) with the checksum of their current version.
+
+    ``lock`` holds the document rows until commit, taken in id order so two
+    resolutions of the same group queue up instead of deadlocking: crossed
+    choices (one keeps A and trashes B, the other keeps B and trashes A) would
+    otherwise both pass and trash every copy.
+    """
+    query = (
         select(Document, CHECKSUM)
         .select_from(Document)
         .outerjoin(DocumentVersion, DocumentVersion.id == Document.current_version_id)
         .where(*filters, Document.id.in_(list(ids)))
     )
+    if lock:
+        query = (
+            query.order_by(Document.id)
+            .with_for_update(of=Document)
+            .execution_options(populate_existing=True)
+        )
+    rows = await db.execute(query)
     return {document.id: (document, checksum) for document, checksum in rows.all()}
+
+
+# A validation is under way: the document is in review, or one of its steps waits
+# for someone (current step, or a step waiting for an assignee).
+OPEN_STEP_STATUSES = ("current", "pending_assignment")
+
+
+async def in_validation(db: AsyncSession, documents: Iterable[Document]) -> list[UUID]:
+    """Ids of the documents a validation is under way on, in the order given.
+
+    Trashing such a copy would pull it out from under its validators: the
+    validation must be finished or cancelled first."""
+    documents = list(documents)
+    with_open_step = set(
+        (
+            await db.execute(
+                select(WorkflowStep.document_id).where(
+                    WorkflowStep.document_id.in_([d.id for d in documents]),
+                    WorkflowStep.status.in_(OPEN_STEP_STATUSES),
+                )
+            )
+        ).scalars()
+    )
+    return [
+        d.id for d in documents if d.status == "in_review" or d.id in with_open_step
+    ]
