@@ -12,6 +12,7 @@ from app.core.config import settings
 
 from .base import OCREngine, OCRResult
 from .easyocr_engine import EasyOCREngine
+from .rapidocr_engine import RapidOCREngine
 from .tesseract_engine import TesseractOCREngine
 
 
@@ -44,16 +45,20 @@ class OCRStrategy:
     def __init__(self, primary_engine: Optional[str] = None):
         self.tesseract = TesseractOCREngine()
         self.easyocr = EasyOCREngine()
+        self.rapidocr = RapidOCREngine()
         self.primary_engine = (primary_engine or settings.OCR_PRIMARY_ENGINE).lower()
 
-    @staticmethod
-    def _should_use_fallback(result: OCRResult) -> bool:
+    def _should_use_fallback(self, result: OCRResult, fallback_engine=None) -> bool:
         """Fallback when the primary engine failed or produced weak OCR.
 
-        Off by default (OCR_FALLBACK_ENABLED): the heavy fallback engine exceeds the
-        worker memory limit, which kills the task; the primary text is kept as is.
+        The heavy fallback (EasyOCR) is off by default (OCR_FALLBACK_ENABLED): it exceeds
+        the worker memory limit, which kills the task, so the primary text is kept as is.
+        The light fallback to Tesseract is never switched off by that setting.
         """
-        if not settings.OCR_FALLBACK_ENABLED:
+        heavy = fallback_engine is getattr(self, "easyocr", None) or (
+            getattr(fallback_engine, "name", "").lower() == "easyocr"
+        )
+        if heavy and not settings.OCR_FALLBACK_ENABLED:
             return False
         return not result.text.strip() or not result.is_reliable
 
@@ -96,7 +101,7 @@ class OCRStrategy:
         result = primary_engine.extract_from_image(image_path)
 
         # Try fallback if the primary result is empty or unreliable.
-        if try_fallback and self._should_use_fallback(result):
+        if try_fallback and self._should_use_fallback(result, fallback_engine):
             print(
                 f"⚠️ Primary OCR weak/empty ({result.confidence:.2%}), "
                 f"trying fallback engine: {fallback_engine.name}"
@@ -156,7 +161,7 @@ class OCRStrategy:
                     continue
                 result = self.tesseract.extract_from_pil_image(pages[index])
 
-                if self._should_use_fallback(result):
+                if self._should_use_fallback(result, self.easyocr):
                     fallback_result = self.easyocr.extract_from_pil_image(pages[index])
                     if self._prefer_fallback(result, fallback_result):
                         result = fallback_result
@@ -233,6 +238,16 @@ class OCRStrategy:
         Returns:
             Tuple of (primary_engine, fallback_engine)
         """
+        # RapidOCR first for photos, captures and forms (Tesseract is its fallback,
+        # on error, timeout or weak result). Clean scans never go through it.
+        if (
+            self.primary_engine == "rapidocr"
+            and settings.OCR_RAPIDOCR_ENABLED
+            and document_type
+            in [DocumentType.PHOTO, DocumentType.SCREENSHOT, DocumentType.FORM]
+        ):
+            return self.rapidocr, self.tesseract
+
         # Tesseract-first scenarios
         if document_type in [
             DocumentType.SCANNED_DOCUMENT,
@@ -256,5 +271,6 @@ class OCRStrategy:
         engines = {
             "tesseract": self.tesseract,
             "easyocr": self.easyocr,
+            "rapidocr": self.rapidocr,
         }
         return engines.get(engine_name.lower())
