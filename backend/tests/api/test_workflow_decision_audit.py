@@ -54,13 +54,14 @@ async def test_each_decision_writes_one_audit_row(
 
 @pytest.mark.asyncio
 async def test_decision_shows_in_the_document_journal(
-    auth_client: AsyncClient, db_seed
+    admin_client: AsyncClient, db_seed
 ):
-    doc = await _upload(auth_client, "Audit decision journal")
-    await _submit(auth_client, doc["id"], str(db_seed["user_id"]))
-    await _act(auth_client, doc, "accepted", "Bon pour accord")
+    # Reading the journal needs audit_logs:read: the same seeded user, as admin.
+    doc = await _upload(admin_client, "Audit decision journal")
+    await _submit(admin_client, doc["id"], str(db_seed["user_id"]))
+    await _act(admin_client, doc, "accepted", "Bon pour accord")
 
-    resp = await auth_client.get(
+    resp = await admin_client.get(
         "/api/v1/audit/logs", params={"action": "workflow_approved", "limit": 500}
     )
     assert resp.status_code == 200, resp.text
