@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '../services/api';
 import type { Document } from '../types';
 import { useCan } from '../hooks/useCan';
+import { canEmptyTrash, isGoneFromTrash, isPurgeProtected } from '../lib/trashRules';
 import { InlineHelpButton } from './ui/InlineHelpButton';
 
 const PAGE_SIZE = 50;
@@ -18,19 +19,28 @@ const TrashPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const { 'documents:purge': canPurge } = useCan('documents:purge');
 
+  // Seule la dernière lecture lancée compte : une réponse plus ancienne arrivée après est ignorée.
+  const loadSeq = useRef(0);
+
   const load = useCallback(async (append = false, skip = 0) => {
+    loadSeq.current += 1;
+    const mine = loadSeq.current;
     setLoading(true);
     try {
       const page = await api.getTrashPage(skip, PAGE_SIZE);
+      if (mine !== loadSeq.current) return;
       setItems((current) => (append ? [...current, ...page.items] : page.items));
       setTotal(page.total);
+      setLoadError(false);
     } catch {
-      /* erreur déjà affichée par le bus global */
+      // Détail déjà affiché par le bus global ; ici on évite seulement un faux « vide ».
+      if (mine === loadSeq.current && !append) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (mine === loadSeq.current) setLoading(false);
     }
   }, []);
 
@@ -48,8 +58,9 @@ const TrashPage: React.FC = () => {
     try {
       await api.restoreDocument(doc.id);
       removeLocally(doc.id);
-    } catch {
-      /* bus global */
+    } catch (error) {
+      // Message déjà affiché par le bus global ; un 404 retire en plus la ligne disparue.
+      if (isGoneFromTrash(error)) removeLocally(doc.id);
     } finally {
       setBusy(false);
     }
@@ -61,7 +72,11 @@ const TrashPage: React.FC = () => {
       message: `« ${doc.title} » sera effacé. Impossible de revenir en arrière.`,
       label: 'Supprimer',
       run: async () => {
-        await api.purgeDocument(doc.id);
+        try {
+          await api.purgeDocument(doc.id);
+        } catch (error) {
+          if (!isGoneFromTrash(error)) throw error;
+        }
         removeLocally(doc.id);
       },
     });
@@ -69,16 +84,22 @@ const TrashPage: React.FC = () => {
   const askEmpty = () =>
     setConfirm({
       title: 'Vider la corbeille ?',
-      message: `${total} document${total > 1 ? 's' : ''} ${total > 1 ? 'seront effacés' : 'sera effacé'}. Impossible de revenir en arrière.`,
+      message: 'Les documents seront effacés, sauf ceux signés ou archivés. Impossible de revenir en arrière.',
       label: 'Vider',
       run: async () => {
-        // Le serveur purge par lots : on rappelle tant qu'il en reste.
-        for (let guard = 0; guard < 100; guard += 1) {
-          // eslint-disable-next-line no-await-in-loop -- en série : chaque appel dépend du `remaining` du précédent.
-          const { remaining } = await api.emptyTrash();
-          if (remaining === 0) break;
+        // Le serveur purge par lots : on rappelle tant qu'il en reste. `remaining` ne compte que
+        // ce qu'un nouvel appel purgerait (signés et archivés exclus) ; un lot vide arrête aussi.
+        try {
+          for (let guard = 0; guard < 100; guard += 1) {
+            // Séquentiel voulu : chaque appel dépend du reste laissé par le précédent.
+            // eslint-disable-next-line no-await-in-loop
+            const { purged, remaining } = await api.emptyTrash();
+            if (remaining <= 0 || purged === 0) break;
+          }
+        } finally {
+          // Lot en échec : les lots précédents sont déjà effacés, la liste doit le montrer.
+          await load();
         }
-        await load();
       },
     });
 
@@ -101,15 +122,17 @@ const TrashPage: React.FC = () => {
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-black tracking-tight text-slate-900">Corbeille</h1>
-          <span data-testid="trash-count" className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-            {total}
-          </span>
+          {!loadError && (
+            <span data-testid="trash-count" className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+              {total}
+            </span>
+          )}
           <InlineHelpButton
             label="Aide sur la corbeille"
             content="Les documents supprimés arrivent ici. Restaurez-les pour les remettre à leur place."
           />
         </div>
-        {canPurge && total > 0 && (
+        {canPurge && canEmptyTrash(items, total) && (
           <button
             type="button"
             onClick={askEmpty}
@@ -122,7 +145,21 @@ const TrashPage: React.FC = () => {
         )}
       </header>
 
-      {!loading && items.length === 0 ? (
+      {loadError && (
+        <div role="alert" className="rounded-[2rem] border border-red-100 bg-red-50 p-10 text-center">
+          <p className="text-sm font-medium text-red-700">Corbeille indisponible pour le moment.</p>
+          <button
+            type="button"
+            onClick={() => load()}
+            disabled={loading}
+            className="mt-4 rounded-2xl bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
+
+      {!loadError && (!loading && items.length === 0 ? (
         <div className="rounded-[2rem] border border-slate-100 bg-white p-10 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-300" aria-hidden>delete</span>
           <p className="mt-2 text-sm font-medium text-slate-500">La corbeille est vide.</p>
@@ -148,7 +185,17 @@ const TrashPage: React.FC = () => {
               >
                 <span className="material-symbols-outlined" aria-hidden>restore_from_trash</span>
               </button>
-              {canPurge && (
+              {canPurge && isPurgeProtected(doc) && (
+                <span
+                  role="img"
+                  aria-label={`${doc.title} : signé ou archivé, ne peut pas être effacé`}
+                  title="Signé ou archivé : ne peut pas être effacé"
+                  className="material-symbols-outlined p-2 text-slate-300"
+                >
+                  lock
+                </span>
+              )}
+              {canPurge && !isPurgeProtected(doc) && (
                 <button
                   type="button"
                   onClick={() => askPurge(doc)}
@@ -163,7 +210,7 @@ const TrashPage: React.FC = () => {
             </li>
           ))}
         </ul>
-      )}
+      ))}
 
       {items.length < total && (
         <div className="mt-4 text-center">

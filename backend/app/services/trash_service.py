@@ -44,6 +44,20 @@ class NotInTrashError(Exception):
     """Permanent deletion is only allowed for a document already in the trash."""
 
 
+# Never purged, by hand, in bulk or by retention: a signed or archived document
+# keeps its legal value in the trash, where it can only be restored.
+PROTECTED_STATUSES = ("signed", "archived")
+# The official register (report_issues) holds its own copies, no key to documents.
+
+
+class ProtectedDocumentError(Exception):
+    """A signed or archived document is never deleted for good."""
+
+
+def is_protected(document: Document) -> bool:
+    return document.status in PROTECTED_STATUSES or document.archived_at is not None
+
+
 def is_locked(document: Document, now: Optional[datetime] = None) -> bool:
     """True while an edit lock is active, whoever holds it."""
     now = now or datetime.now(timezone.utc)
@@ -58,6 +72,8 @@ def assert_purgeable(document: Document) -> None:
     """Single gate before any permanent deletion (a legal hold will plug in here)."""
     if document.deleted_at is None:
         raise NotInTrashError(str(document.id))
+    if is_protected(document):
+        raise ProtectedDocumentError(str(document.id))
 
 
 async def stage_purge(
@@ -154,8 +170,14 @@ def trashed_query(
     skip_edit_locked: bool = False,
     now: Optional[datetime] = None,
 ):
-    """Trashed documents, oldest first. ``tenant_id`` None: every tenant (worker only)."""
-    query = select(Document).where(Document.deleted_at.is_not(None))
+    """Purgeable trashed documents, oldest first: never a protected one.
+
+    ``tenant_id`` None: every tenant (worker only)."""
+    query = select(Document).where(
+        Document.deleted_at.is_not(None),
+        Document.status.not_in(PROTECTED_STATUSES),
+        Document.archived_at.is_(None),
+    )
     if tenant_id is not None:
         query = query.where(Document.tenant_id == tenant_id)
     if document_ids is not None:
@@ -174,11 +196,10 @@ def trashed_query(
     return query.order_by(Document.deleted_at.asc(), Document.id.asc())
 
 
-async def count_trashed(db: AsyncSession, tenant_id: UUID) -> int:
+async def count_matching(db: AsyncSession, query) -> int:
+    """Documents a :func:`trashed_query` still matches (``remaining`` of a bulk purge)."""
     result = await db.execute(
-        select(func.count())
-        .select_from(Document)
-        .where(Document.tenant_id == tenant_id, Document.deleted_at.is_not(None))
+        select(func.count()).select_from(query.order_by(None).subquery())
     )
     return int(result.scalar_one() or 0)
 

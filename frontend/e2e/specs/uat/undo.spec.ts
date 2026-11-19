@@ -90,7 +90,7 @@ test.describe('Annuler la dernière action dans l’explorateur', () => {
     await loginAs('tenant_admin');
     await page.goto('spaces');
     const item = page.getByLabel(new RegExp(`^${title} — `));
-    const folder = page.getByRole('button', { name: /Direction des Affaires Financieres/ }).first();
+    const folder = page.getByRole('button', { name: /Direction des Affaires Financi[eè]res/ }).first();
     await item.dragTo(folder);
 
     const toast = page.getByRole('status').filter({ hasText: 'déplacé vers' });
@@ -122,7 +122,7 @@ test.describe('Annuler la dernière action dans l’explorateur', () => {
     await page.goto('spaces');
     await page
       .getByLabel(new RegExp(`^${title} — `))
-      .dragTo(page.getByRole('button', { name: /Direction des Affaires Financieres/ }).first());
+      .dragTo(page.getByRole('button', { name: /Direction des Affaires Financi[eè]res/ }).first());
 
     const toast = page.getByRole('status').filter({ hasText: 'déplacé vers' });
     await expect(toast).toBeVisible();

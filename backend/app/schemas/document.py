@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.core.classification_reasons import ReviewReasonText
+
 DocumentStatus = Literal[
     "draft", "in_review", "validated", "signed", "archived", "rejected", "returned"
 ]
@@ -121,7 +123,7 @@ class DirectoryIngestResponse(BaseModel):
 
 
 class NeedsReviewDocument(DocumentRead):
-    arbitration_reason: Optional[str] = None
+    arbitration_reason: ReviewReasonText = None
 
 
 class RuleSuggestion(BaseModel):

@@ -5,8 +5,8 @@
 // SRP : change uniquement si le contrat /documents/* ou /classification-reviews/* évolue.
 
 import { API_URL } from '../../constants';
-import { apiCall, apiCallVoid, apiCallBlob, fetchWithRefresh, getHeaders } from '../http/client';
-import { buildApiError, type StatusMessages } from '../http/errorAdapter';
+import { apiCall, apiCallVoid, apiCallBlob, fetchWithRefresh, getHeaders, type ApiCallOptions } from '../http/client';
+import { buildApiError } from '../http/errorAdapter';
 import type {
     Document,
     ClassificationReview,
@@ -51,7 +51,13 @@ export interface TrashEmptyResult {
     remaining: number;
 }
 
-const TRASH_FORBIDDEN: StatusMessages = { 403: "Vous n'avez pas le droit de faire cette action." };
+// 404 : document déjà purgé, restauré ailleurs, ou hors du périmètre de l'utilisateur (#247).
+const TRASH_MESSAGES: ApiCallOptions = {
+    statusMessages: {
+        403: "Vous n'avez pas le droit de faire cette action.",
+        404: "Ce document n'est plus dans la corbeille ou ne vous est pas accessible.",
+    },
+};
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -75,9 +81,11 @@ export const documentsApi = {
             'Upload du document impossible',
         ),
 
-    getDocuments: (params: { status?: string; skip?: number; limit?: number } = {}): Promise<Document[]> => {
+    getDocuments: (params: { status?: string; q?: string; skip?: number; limit?: number } = {}): Promise<Document[]> => {
         const q = new URLSearchParams();
         if (params.status) q.append('status', params.status);
+        // Recherche côté serveur, sur tout le périmètre de l'utilisateur (titre, mots-clés, classement).
+        if (params.q?.trim()) q.append('q', params.q.trim());
         if (typeof params.skip === 'number') q.append('skip', String(params.skip));
         if (typeof params.limit === 'number') q.append('limit', String(params.limit));
         const qs = q.toString();
@@ -118,7 +126,7 @@ export const documentsApi = {
     /** Met le document à la corbeille (rien n'est supprimé définitivement ici). */
     deleteDocument: async (id: string): Promise<true> => {
         await apiCallVoid(`/documents/${id}`, { method: 'DELETE' }, 'Suppression du document impossible', {
-            403: 'Vous ne pouvez pas supprimer ce document.',
+            statusMessages: { 403: 'Vous ne pouvez pas supprimer ce document.' },
         });
         return true;
     },
@@ -137,12 +145,12 @@ export const documentsApi = {
     },
 
     restoreDocument: async (id: string): Promise<true> => {
-        await apiCallVoid(`/documents/${id}/restore`, { method: 'POST' }, 'Restauration impossible', TRASH_FORBIDDEN);
+        await apiCallVoid(`/documents/${id}/restore`, { method: 'POST' }, 'Restauration impossible', TRASH_MESSAGES);
         return true;
     },
 
     purgeDocument: async (id: string): Promise<true> => {
-        await apiCallVoid(`/documents/${id}/purge`, { method: 'DELETE' }, 'Suppression définitive impossible', TRASH_FORBIDDEN);
+        await apiCallVoid(`/documents/${id}/purge`, { method: 'DELETE' }, 'Suppression définitive impossible', TRASH_MESSAGES);
         return true;
     },
 
@@ -152,7 +160,7 @@ export const documentsApi = {
             '/documents/trash/empty',
             { method: 'POST', body: JSON.stringify({}) },
             'Vidage de la corbeille impossible',
-            TRASH_FORBIDDEN,
+            TRASH_MESSAGES,
         ),
 
     // ── Versions ──────────────────────────────────────────────────────────

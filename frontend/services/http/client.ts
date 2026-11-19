@@ -15,7 +15,7 @@ import {
     clearAuthSession,
     isAuthEndpoint,
 } from './session';
-import { buildApiError, buildNetworkError, type StatusMessages } from './errorAdapter';
+import { buildApiError, buildNetworkError, type ApiErrorOptions } from './errorAdapter';
 
 export { getHeaders };
 
@@ -81,11 +81,14 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
  * @param fallback   Message métier affiché si le backend ne renvoie pas de
  *                   `detail` lisible (ex: "Lecture du document impossible")
  */
+/** Statuts gérés par l'appelant et messages courts par code HTTP (voir errorAdapter). */
+export type ApiCallOptions = ApiErrorOptions;
+
 export const apiCall = async <T>(
     path: string,
     init: RequestInit = {},
     fallback = 'Requête échouée',
-    statusMessages?: StatusMessages,
+    options: ApiCallOptions = {},
 ): Promise<T> => {
     const isMultipart = init.body instanceof FormData;
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
@@ -95,7 +98,7 @@ export const apiCall = async <T>(
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     });
-    if (!response.ok) throw await buildApiError(response, fallback, statusMessages);
+    if (!response.ok) throw await buildApiError(response, fallback, options);
     return response.json() as Promise<T>;
 };
 
@@ -107,7 +110,7 @@ export const apiCallVoid = async (
     path: string,
     init: RequestInit = {},
     fallback = 'Requête échouée',
-    statusMessages?: StatusMessages,
+    options: ApiCallOptions = {},
 ): Promise<void> => {
     const isMultipart = init.body instanceof FormData;
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
@@ -117,7 +120,7 @@ export const apiCallVoid = async (
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     });
-    if (!response.ok) throw await buildApiError(response, fallback, statusMessages);
+    if (!response.ok) throw await buildApiError(response, fallback, options);
 };
 
 /**
