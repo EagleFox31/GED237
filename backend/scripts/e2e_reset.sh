@@ -13,6 +13,9 @@ set -eu
 profile="${1:-e2e}"
 : "${E2E_MANIFEST:?E2E_MANIFEST must point to frontend/e2e/data/seed-manifest.json (or demo-manifest.json)}"
 alembic upgrade head
+# SQL rights store filled from policy.csv when empty, left alone otherwise (same step as the migrate
+# service of docker-compose.yml): with AUTHZ_BACKEND=sql an empty store denies every request.
+python scripts/bootstrap_authz_sql.py
 python scripts/seed_db.py
 python scripts/seed_e2e.py --manifest "$E2E_MANIFEST" --profile "$profile"
 if [ "$profile" = "demo" ]; then
