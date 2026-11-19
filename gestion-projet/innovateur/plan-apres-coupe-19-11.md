@@ -27,10 +27,10 @@ Une page pour O. État relevé le 19/11 vers 16:35. La coupe se fait à 30,5/32,
 ## 2. Matin du 20/11
 
 - **08:00** : relever `git rev-parse origin/main` et le noter dans l'en-tête du rapport du run 1 (checklist, ligne 0.5).
-- **08:00, rejeu `ged-replay` (I)** :
+- **08:00, `prove_tls` (Q) en premier**, seul sur Docker, avec au moins 5 Go libres (plan du 18/11, confirmé par O le 19/11).
+- **Vers 08:10, rejeu `ged-replay` (I)**, seulement après le message « prove_tls fini » de Q :
   - projet `-p ged-replay`, port 18080, sans TLS, fichier de surcharge dans le scratchpad ;
   - à la fin : `down -v` et suppression des images `ged-replay` par leur nom, jamais de `prune`.
-  - Point à confirmer par O : le plan du 18/11 faisait passer `prove_tls` de Q en premier (5 Go libres), puis `ged-replay` vers 08:10, sur message de Q.
 - **Ensuite, Q** : la pile et le jeu de démo (lignes 1.0 à 1.2), puis les points critiques **C.22** (circuits de validation) et **C.24** (toutes tailles d'écran), avant tout le reste. Un KO remonte à O dans l'heure, en `REC-nn`.
 - **Contre-testeur** : pas de Docker de 08:00 à 11:00. Il fait seulement de la lecture de code et la relecture des fiches.
 
