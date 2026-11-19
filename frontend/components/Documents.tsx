@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
+import { DOCUMENT_STATUS_FILTERS, filterFromParam, statusesForFilter } from '../lib/documentStatusFilter';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -28,16 +29,18 @@ const Documents: React.FC = () => {
   const canCreate = !!profileId && CAN_CREATE_DOCUMENT.has(profileId);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
+  // Recherche (`?q=`, barre globale du Header) et statut (`?status=`, liens de l'accueil) pilotés par l'URL.
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
-  const setSearchQuery = (next: string) => {
+  const filterStatus = filterFromParam(searchParams.get('status'));
+  const setParam = (key: string, next: string) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (next) nextParams.set('q', next);
-    else nextParams.delete('q');
+    if (next) nextParams.set(key, next);
+    else nextParams.delete(key);
     setSearchParams(nextParams, { replace: true });
   };
+  const setSearchQuery = (next: string) => setParam('q', next);
+  const setFilterStatus = (next: string) => setParam('status', next);
 
   // La recherche et le statut sont filtrés par le serveur, sur tout le périmètre de
   // l'utilisateur : filtrer ici ne verrait que la première page (#256).
@@ -66,7 +69,7 @@ const Documents: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getDocuments({ q: serverQuery, status: filterStatus, limit: DOCUMENTS_LIMIT });
+      const data = await api.getDocuments({ q: serverQuery, status: statusesForFilter(filterStatus), limit: DOCUMENTS_LIMIT });
       if (request === latestRequestRef.current) setDocs(data);
     } catch (err) {
       console.error('Failed to fetch documents:', err);
@@ -137,6 +140,7 @@ const Documents: React.FC = () => {
     if (status === 'validated' || status === 'signed') return 'bg-green-50 text-green-600';
     if (status === 'in_review') return 'bg-blue-50 text-blue-600';
     if (status === 'rejected') return 'bg-red-50 text-red-600';
+    if (status === 'returned') return 'bg-amber-50 text-amber-700';
     return 'bg-slate-50 text-slate-400';
   };
 
@@ -187,11 +191,9 @@ const Documents: React.FC = () => {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="px-5 py-4 bg-slate-50 border-none rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 focus:ring-8 focus:ring-blue-500/5 outline-none cursor-pointer">
-              <option value="">Statut : Tous</option>
-              <option value="draft">Brouillon</option>
-              <option value="in_review">En Révision</option>
-              <option value="validated">Validé</option>
-              <option value="archived">Archivé</option>
+              {DOCUMENT_STATUS_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </div>
         </div>
