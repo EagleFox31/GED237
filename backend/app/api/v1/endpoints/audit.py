@@ -52,6 +52,7 @@ ACTION_LABELS = {
     "workflow_approved": "Validation",
     "workflow_rejected": "Rejet",
     "workflow_returned": "Retour pour correction",
+    "workflow_reassigned": "Réassignation d'une étape",
     "lock": "Verrouillage",
     "unlock": "Déverrouillage",
     "archive": "Archivage",

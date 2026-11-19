@@ -32,6 +32,7 @@ from app.schemas.workflow import (
     AssignStepAdminRequest,
 )
 from app.core.events.dispatcher import dispatcher
+from app.services.audit_trail import audit_entry
 from app.services.workflow_service import (
     SubmitWorkflowActionUseCase,
     WorkflowActionPolicy,
@@ -478,28 +479,105 @@ async def get_pending_assignments(
     return enriched
 
 
+# Steps an assigner may (re)assign: blocked, waiting for a previous step, or in progress.
+_ASSIGNABLE_STEP_STATUSES = ("pending_assignment", "pending", "current")
+
+
+async def _reassign_step(
+    db: AsyncSession,
+    step: WorkflowStep,
+    document: Document,
+    new_assignee: User,
+    current_user: User,
+    http_request: Request,
+) -> WorkflowStep:
+    """Move a step not yet done to another validator, keeping its status (L12-5).
+
+    Idempotent: the current assignee as target writes nothing and notifies nobody.
+    """
+    former_id = step.assigned_to
+    if former_id == new_assignee.id:
+        return step
+
+    # Same rule as the validators offered on screen (GET /workflows/validators).
+    target_role = await db.scalar(
+        select(Role.code).where(Role.id == new_assignee.role_id)
+    )
+    if target_role not in VALIDATOR_ROLE_CODES:
+        raise HTTPException(
+            status_code=400,
+            detail="Cette personne ne peut pas valider : choisissez un chef de service ou un administrateur.",
+        )
+    # A manager hands the step only to someone of the manager's own service.
+    assert_org_unit_scope(new_assignee.org_unit_id, current_user)
+
+    former = await db.get(User, former_id) if former_id else None
+    step.assigned_to = new_assignee.id
+    db.add(
+        audit_entry(
+            tenant_id=document.tenant_id,
+            user_id=current_user.id,
+            table_name="documents",
+            record_id=document.id,
+            action="workflow_reassigned",
+            details={
+                "step_id": str(step.id),
+                "step_label": step.label,
+                "document_title": document.title,
+                "previous_assignee_id": str(former_id) if former_id else None,
+                "previous_assignee_name": former.full_name if former else None,
+                "new_assignee_id": str(new_assignee.id),
+                "new_assignee_name": new_assignee.full_name,
+            },
+            request=http_request,
+        )
+    )
+    await db.commit()
+    await db.refresh(step)
+
+    await dispatcher.dispatch(
+        "WORKFLOW_ASSIGNED",
+        {
+            "user_id": str(new_assignee.id),
+            "tenant_id": str(document.tenant_id),
+            "document_title": document.title,
+            "step_name": step.label,
+        },
+    )
+    return step
+
+
 @router.post("/steps/{step_id}/assign", response_model=WorkflowStepRead)
 async def assign_step_admin(
     step_id: UUID,
-    request: AssignStepAdminRequest,
+    body: AssignStepAdminRequest,
+    http_request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Permet à un admin de résoudre un step bloqué en 'pending_assignment'
-    et de le passer en 'current'.
+    Assign a step blocked in 'pending_assignment' (it becomes 'current' or
+    'pending'), or reassign a step not yet done ('pending' or 'current') when
+    its validator is unexpectedly absent (L12-5). A reassignment keeps the
+    step status, is journaled with the former and new validator, and is a
+    no-op when the target is already the assignee.
     """
     await authorize_or_403(current_user, "workflows", "assign")
 
-    result = await db.execute(select(WorkflowStep).where(WorkflowStep.id == step_id))
+    # Row lock until commit: two concurrent (re)assignments of one step run one after the other.
+    result = await db.execute(
+        select(WorkflowStep).where(WorkflowStep.id == step_id).with_for_update()
+    )
     step = result.scalar_one_or_none()
     if not step:
         raise HTTPException(status_code=404, detail="Etape introuvable.")
 
-    if step.status != "pending_assignment":
+    if step.status not in _ASSIGNABLE_STEP_STATUSES:
         raise HTTPException(
-            status_code=400, detail="Cette étape n'est pas en attente d'assignation."
+            status_code=400,
+            detail="Cette étape est déjà traitée : elle ne peut plus être réassignée.",
         )
+    reassigning = step.status != "pending_assignment"
 
     document_result = await db.execute(
         select(Document).where(Document.id == step.document_id)
@@ -509,11 +587,14 @@ async def assign_step_admin(
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
     await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
+    if reassigning:
+        # A manager reassigns only the documents of the manager's own service.
+        assert_org_unit_scope(document.org_unit_id, current_user)
 
     # Validate assignee exists
     user_result = await db.execute(
         select(User).where(
-            User.id == request.assigned_to,
+            User.id == body.assigned_to,
             User.tenant_id == current_user.tenant_id,
             User.is_active.is_(True),
         )
@@ -525,8 +606,13 @@ async def assign_step_admin(
             detail="L'utilisateur ciblé est introuvable, inactif ou hors tenant.",
         )
 
+    if reassigning:
+        return await _reassign_step(
+            db, step, document, user, current_user, http_request
+        )
+
     # Appliquer l'assignation
-    step.assigned_to = request.assigned_to
+    step.assigned_to = body.assigned_to
 
     # Vérifier l'état des étapes précédentes pour déterminer si elle devient 'current' ou 'pending'
     prev_steps_result = await db.execute(
