@@ -31,7 +31,7 @@ ORDER_V2="184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 33
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
-ORDER_V4="309 310 153 155 169 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170"
+ORDER_V4="309 310 153 155 169 471 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
 ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 446 417 441 450 459"
 # Vague 6 : outils et documentation (03 au 05/12, 18:00)
@@ -117,7 +117,7 @@ DEP[284]="372 370"; DEP[290]="284"; DEP[338]="290"
 DEP[404]="370 372"; DEP[355]="372 404"
 DEP[296]="263"; DEP[347]="221"; DEP[342]="297"; DEP[294]="238"
 DEP[351]="388"; DEP[344]="383"; DEP[398]="377"; DEP[400]="401"
-DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[283]="152"
+DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155"; DEP[283]="152"
 ```
 
 Les contraintes « après X » du plan qui servent seulement à éviter un conflit de fichier (#407 après #293 et #362, #362 après #390, #354 après #351…) ne sont pas dans DEP : l'ORDER les respecte déjà.
@@ -159,7 +159,7 @@ Toutes ces bases ont été vérifiées sur le relevé `gh` du 18/11. Les PR V1.2
 **Avis du PO**
 - **Capacités post-rc1 (§ 6)** : #147, #152, #153, #154, #162, #165, #168, #170, #171, #172, #179, #180, #181, #182, #184, #186, #190, #192, #193, #197, #199, #205, #209, #211, #212, #219. Sans réponse le 23/11, on applique la recommandation du plan. Les lignes « retravailler » (#184, #182, #190, #212, #193, #180, #205) attendent leur rebase.
 - **Réponse du PO (18/11, par O) : « on repousse rien ».**
-  - #155 et #169 restent en V1.1 (vague 4). Le jeton dans l'URL du WebSocket (écart à #148) reste à trancher par B et O avant la fusion de #155 (`plan-fusion` § 9).
+  - #155 et #169 restent en V1.1 (vague 4). Le jeton dans l'URL du WebSocket (écart à #148) reste à trancher par B et O avant la fusion de #155 (`plan-fusion` § 9). Réponse proposée le 19/11 : #471 (L13-4, aide-api, empilée sur #155). Elle reprend le ticket à usage unique de #323 (B) et fusionne juste après #155. Relecture sécurité par Q.
   - #359 entre en vague 5. #378 est fermée (F, 18/11) au profit de #422 (`LOGIN_DEMO_HINTS`, fusionnée) ; il reste à F une petite PR après #423 : `ARG VITE_LOGIN_DEMO_HINTS` dans l’image front de production, sans quoi un build de prod affiche encore les profils de démo.
   - #370, #404 et #355 entrent en vague 2 ; la suite de #211 en vague 5 ; la pagination du journal (#424) en fin de vague 1.
   - Lecture de l'innovateur, à confirmer par O : les capacités post-rc1 du § 6 marquées « retravailler » sont retravaillées, pas sorties.
