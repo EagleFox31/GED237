@@ -313,12 +313,14 @@ gh issue close 133 --repo $REPO --reason completed \
 |---|---|---|---|---|---|---|
 | 1 | #441 clavier | `main` | f7022895 | OK du code sur 7819235f (18/11 22:28) | #450, #484 | relire le delta jusqu'à f7022895, puis contre-test |
 | 2 | #450 « Envoyer » visible | branche de #441 | 45668ba6 | OK du code sur 0638e016, contre-test navigateur 19/11 07:58 | — | après re-ciblage et mise à jour avec `main` : le diff doit tomber à environ 2 fichiers (aujourd'hui 89, mesuré contre la base empilée) |
-| 3 | #442 compteur du menu | `main` | f32715be | OK sur c294453d (18/11 22:00) | — | delta jusqu'à f32715be |
-| 4 | #429 clause « assigné » | `main` | 81364027 | OK du code sur la même tête (18/11 18:21) | **#438, #445⛁** | mise à jour avec `main` seulement |
-| 5 | #438 rejets | branche de #429 | 348ee750 | OK sur 7467344c (19/11 07:49) | **#502, #444, #455, #466** | delta jusqu'à 348ee750, après re-ciblage |
-| 6 | #502 corriger et renvoyer | branche de #438 | e04feeca | **aucun OK** (réserve, `trains` § « Les 27 sans OK ») | — | relecture complète et contre-test : c'est l'étape la plus longue |
+| 3 | #442 compteur du menu | `main` | f32715be, puis la tête de F après la mise à jour avec `main` | OK sur c294453d (18/11 22:00) | — | delta jusqu'à la nouvelle tête (voir la note ci-dessous) |
+| 4 | #429 clause « assigné » | `main` | **7ec66cc1** (19/11 soir ; avant : 81364027) | OK du code sur 81364027 (18/11 18:21) | **#438, #445⛁** | delta 81364027 → 7ec66cc1, puis mise à jour avec `main` |
+| 5 | #438 rejets | branche de #429 | **1e9f5c75** (avant : 348ee750) | OK sur 7467344c (19/11 07:49) | **#502, #444, #455, #466** | delta 7467344c → 1e9f5c75, après re-ciblage |
+| 6 | #502 corriger et renvoyer | branche de #438 | **71f84a1d** (avant : e04feeca) | **aucun OK** (réserve, `trains` § « Les 27 sans OK ») | — | relecture complète et contre-test sur 71f84a1d : c'est l'étape la plus longue |
 
-- Les six PR sont des brouillons. #441, #450 et #442 sont déjà des exceptions à la règle des brouillons. Pour #429, #438 et #502, il faut que O les sorte du brouillon sur décision du PO du 19/11, et l'écrire dans la PR.
+- **Têtes données par O (19/11, après 18:20)** pour #429, #438 et #502, confirmées par `gh pr view`. Il n'y a toujours aucune migration sur les nouvelles têtes (git diff contre `main`).
+- **#442 après #450** : F signale un conflit d'import trivial dans `DocumentDetailModal.tsx`. F fusionne `main` dans #442 juste après la fusion de #450. Q prouve ensuite cette nouvelle tête. Le § 9.4 ne change pas, car le delta reste petit.
+- **Brouillons** : O sort chacune des six PR du brouillon au moment de sa fusion, avec une note dans la PR (décision du PO du 19/11, 18:03).
 - Les PR re-ciblées sans être fusionnées (#484, #445, #444, #455, #466) restent dans leur train V1.1. Elles ne sont pas fusionnées cette nuit.
 - Après une fusion en squash, la fille re-ciblée garde les commits d'origine de sa mère. Son auteur fait une mise à jour avec `main`, et Q prouve la nouvelle tête. Pas de `update-branch` sur une PR en file.
 
@@ -351,4 +353,4 @@ gh issue close 133 --repo $REPO --reason completed \
 - **Environ 5,25 h-s** du premier contre-test à la question de coupe ; fourchette de 4,5 à 7 h-s. Q n'a qu'un créneau Docker : les preuves passent l'une après l'autre.
 - **Gain possible** : #442 et #429 ne dépendent pas de #441 et #450. Le contre-testeur peut prouver leurs têtes pendant la CI d'une autre fusion. Le total tombe alors vers 4,5 h-s.
 - **Risque principal** : #502, qui n'a aucun OK. Si Q trouve un blocage, l'auteur corrige et la boucle recommence. Il faut compter de 1 à 1,5 h-s de plus.
-- Le rejeu `ged-replay` prévu à 19:15 passe sur le SHA final, après la lecture C6, pour ne pas prendre le créneau de Q.
+- Le rejeu `ged-replay` prévu à 19:15 passe sur le SHA final, après la lecture C6, dans le **créneau d'aide-api** (décision d'O). I l'annonce à aide-api avant le lancement. En fin de run : `down -v`, puis suppression des images `ged-replay` par leur nom.
