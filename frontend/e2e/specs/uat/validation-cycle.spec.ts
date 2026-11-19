@@ -9,6 +9,8 @@ import { test, expect, apiAs } from '../../fixtures/uat.fixture';
  * au visa du manager MGR001). Les tâches E2E-VAL-* du seed ne sont plus consommées : seed.spec et les autres specs
  * les retrouvent intactes, quel que soit l'ordre de lancement, et la spec se rejoue sans remise à zéro.
  *
+ * SC-VAL-02/03 retiennent l'envoi de la décision pour vérifier les libellés d'attente (audit UX lot 6, point 2).
+ *
  * SC-VAL-04 est réduit (écart 17, « Retourner pour correction » -> V1.1) : le rédacteur voit le statut Rejeté
  * de son document ; SC-VAL-04b vérifie le motif dans le détail du document (/documents, onglet Circuit de Validation).
  */
@@ -46,6 +48,14 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
 
   const card = (page: Page, title: string) => page.locator('.grid > div').filter({ hasText: title });
 
+  // Retient la décision envoyée au serveur (réseau lent) jusqu'à release() : le libellé d'attente reste observable.
+  const holdDecision = async (page: Page) => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('**/workflows/step/*/actions', async (route) => { await gate; await route.continue(); });
+    return release;
+  };
+
   // The manager session from beforeEach would hide the login form: drop it before changing user.
   const switchTo = async (page: Page, loginAs: (role: 'collaborator') => Promise<void>) => {
     await page.context().clearCookies();
@@ -64,8 +74,12 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
     }
   });
 
-  test('SC-VAL-02 - Given une tâche, When Valider, Then elle quitte la pile sans erreur', async ({ page }) => {
+  test('SC-VAL-02 - Given une tâche, When Valider, Then « Validation… » pendant l’envoi puis elle quitte la pile', async ({ page }) => {
+    const release = await holdDecision(page);
     await card(page, TO_APPROVE).getByRole('button', { name: 'Valider' }).click();
+    // Audit lot 6, point 2 : sur réseau lent, le bouton dit qu'il travaille.
+    await expect(card(page, TO_APPROVE).getByRole('button', { name: 'Validation…' })).toBeDisabled();
+    release();
     await expect(card(page, TO_APPROVE)).toHaveCount(0);
   });
 
@@ -76,7 +90,11 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
     await expect(dialog.getByRole('button', { name: 'Confirmer le rejet' })).toBeDisabled();
 
     await dialog.getByLabel('Motif du rejet').fill(REASON);
+    const release = await holdDecision(page);
     await dialog.getByRole('button', { name: 'Confirmer le rejet' }).click();
+    await expect(dialog.getByRole('button', { name: 'Envoi…' })).toBeDisabled();
+    await expect(card(page, TO_REJECT).getByRole('button', { name: 'Rejet…' })).toBeDisabled();
+    release();
     await expect(dialog).toBeHidden();
     await expect(card(page, TO_REJECT)).toHaveCount(0);
   });

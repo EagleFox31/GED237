@@ -83,9 +83,10 @@ export const RejectReasonDialog: React.FC<RejectReasonDialogProps> = ({
           <button
             type="submit"
             disabled={!trimmed || submitting}
+            aria-busy={submitting}
             className="rounded-2xl bg-red-500 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-red-600 disabled:opacity-50"
           >
-            {submitting ? '...' : confirmLabel}
+            {submitting ? 'Envoi…' : confirmLabel}
           </button>
         </div>
       </form>
