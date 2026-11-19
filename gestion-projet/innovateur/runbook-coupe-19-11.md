@@ -302,3 +302,53 @@ gh issue close 133 --repo $REPO --reason completed \
 5. **#121** : confirmé par O, reciblée sur `release/v1.0.0` après la coupe ; jamais fusionnée sur `main` (contrôle 3 du § 2).
 6. **#104** a 70 commits de retard sur `main`. L'essai à blanc de 17:30 se fait sur la tête notée au gel de 17:15, et non plus sur `2f15b6e`.
 7. **Remise à zéro du jeu de démo sur la pile complète** (#363, `DOCS/exploitation/donnees-demo.md`) : rejouée le 18/11 par Q, en 26 s, 408 documents (contrôle « demo baseline matches expected »), montée de la pile en environ 2 min 30. Sur un poste où une autre pile tourne déjà, `docker-compose.yml` fixe les `container_name` `edossier_*` : `-p` seul ne suffit pas, il faut une copie du fichier sans `container_name`.
+
+## 9. Report du 19/11 (décision du PO à 18:03) : la pile qui entre avant la coupe
+
+**Cette section fait foi pour la nuit du 19 au 20/11.** Les §§ 1 à 7 restent valables pour les commandes de coupe et de ruleset, avec `M` = SHA final de `main` (et non plus `f890b3cb`). Relevé fait à 18:20 par `gh pr view`.
+
+### 9.1 Ordre, têtes et preuves
+
+| # | PR | Base aujourd'hui | Tête relevée | Dernière preuve de Q | Re-cibler sur `main` **avant** sa fusion | Preuve à faire |
+|---|---|---|---|---|---|---|
+| 1 | #441 clavier | `main` | f7022895 | OK du code sur 7819235f (18/11 22:28) | #450, #484 | relire le delta jusqu'à f7022895, puis contre-test |
+| 2 | #450 « Envoyer » visible | branche de #441 | 45668ba6 | OK du code sur 0638e016, contre-test navigateur 19/11 07:58 | — | après re-ciblage et mise à jour avec `main` : le diff doit tomber à environ 2 fichiers (aujourd'hui 89, mesuré contre la base empilée) |
+| 3 | #442 compteur du menu | `main` | f32715be | OK sur c294453d (18/11 22:00) | — | delta jusqu'à f32715be |
+| 4 | #429 clause « assigné » | `main` | 81364027 | OK du code sur la même tête (18/11 18:21) | **#438, #445⛁** | mise à jour avec `main` seulement |
+| 5 | #438 rejets | branche de #429 | 348ee750 | OK sur 7467344c (19/11 07:49) | **#502, #444, #455, #466** | delta jusqu'à 348ee750, après re-ciblage |
+| 6 | #502 corriger et renvoyer | branche de #438 | e04feeca | **aucun OK** (réserve, `trains` § « Les 27 sans OK ») | — | relecture complète et contre-test : c'est l'étape la plus longue |
+
+- Les six PR sont des brouillons. #441, #450 et #442 sont déjà des exceptions à la règle des brouillons. Pour #429, #438 et #502, il faut que O les sorte du brouillon sur décision du PO du 19/11, et l'écrire dans la PR.
+- Les PR re-ciblées sans être fusionnées (#484, #445, #444, #455, #466) restent dans leur train V1.1. Elles ne sont pas fusionnées cette nuit.
+- Après une fusion en squash, la fille re-ciblée garde les commits d'origine de sa mère. Son auteur fait une mise à jour avec `main`, et Q prouve la nouvelle tête. Pas de `update-branch` sur une PR en file.
+
+### 9.2 Migrations alembic
+
+- Aucune des six PR ne touche `backend/alembic/` (vérifié sur les fichiers de chaque PR, 19/11 18:20).
+- La tête de `main` reste `a7c8d9e0f1b2`. Le contrôle Q du § 8.3 (une seule ligne `"a7c8d9e0f1b2"`) vaut donc tel quel pour la release.
+- Croisement avec la chaîne : seulement **#445⛁** (0f6f64260460 → 7680f303299d), fille de #429. Elle est re-ciblée sur `main` avant la fusion de #429, sans être fusionnée. Sa `down_revision` ne change pas. L'ordre de `trains-v1.1-24-11-05-12.md` § « Migrations alembic » reste valable.
+
+### 9.3 Nouvelle lecture C6 (Q)
+
+1. La sixième fusion est faite : noter `M` = `git ls-remote origin refs/heads/main`.
+2. Relancer la pile de démo sur `M` (même procédure qu'au 19/11 après l'arrêt de 12:01Z).
+3. Laisser tourner la sonde. Critère : **au moins 6 relevés verts consécutifs sur `M`** (soit au moins 30 min). Un trou ou un échec remet le compte à zéro.
+4. Donner à O : `M`, l'heure du premier et du dernier relevé vert, et leur nombre. I remplit le § 6 de la note de 18:05.
+
+### 9.4 Durée, en heures de session
+
+| Étape | Q | Attente (CI, fusion) |
+|---|---|---|
+| #441 : delta + contre-test | 0,5 | 0,25 |
+| #450 : après re-ciblage et mise à jour | 0,5 | 0,25 |
+| #442 : delta | 0,25 | 0,25 |
+| #429 : mise à jour seule | 0,25 | 0,25 |
+| #438 : delta après re-ciblage | 0,5 | 0,25 |
+| #502 : relecture complète + contre-test | 1 | 0,25 |
+| Relance de la pile + C6 (≥ 6 relevés) | 0,25 | 0,5 |
+| **Total en série** | **3,25** | **2** |
+
+- **Environ 5,25 h-s** du premier contre-test à la question de coupe ; fourchette de 4,5 à 7 h-s. Q n'a qu'un créneau Docker : les preuves passent l'une après l'autre.
+- **Gain possible** : #442 et #429 ne dépendent pas de #441 et #450. Le contre-testeur peut prouver leurs têtes pendant la CI d'une autre fusion. Le total tombe alors vers 4,5 h-s.
+- **Risque principal** : #502, qui n'a aucun OK. Si Q trouve un blocage, l'auteur corrige et la boucle recommence. Il faut compter de 1 à 1,5 h-s de plus.
+- Le rejeu `ged-replay` prévu à 19:15 passe sur le SHA final, après la lecture C6, pour ne pas prendre le créneau de Q.

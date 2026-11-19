@@ -1,5 +1,7 @@
 # Décision de coupe de la V1.0 : note au PO (19/11, vers 18:05)
 
+> **Décision du PO à 18:03 : « on les attend ».** Pas de coupe sur `f890b3cb`. La coupe se fait cette nuit, après l'entrée de #450 et #502 dans `main`. La suite est au § 6. Les §§ 1 à 5 gardent l'état présenté à 18:05.
+
 Une page, présentée par O. Le SHA de `main` et la lecture C6 sont remplis avec les relevés de Q (18:01). Le détail est dans `note-po-coupe-release-v1.0.0.md` et `couverture-95-19-11.md`.
 
 - **SHA de `main` lu à 18:00** : `f890b3cb5a232f441e625b3cac8ca39de2cf43a8` (lu par Q à 18:01)
@@ -63,3 +65,15 @@ Si C6 n'est pas tenue, le score reste à 30/32 : **pas de coupe ce soir**.
 ☐ Oui ☐ Non
 
 Tant que la question 2 n'a pas de réponse positive et que la protection n'est pas active, rien n'est fusionné sur la release.
+
+## 6. Après la décision de 18:03 : ce qui entre avant la coupe
+
+- **Ordre de fusion** : #441 → #450 → #442 → #429 → #438 → #502. Une PR à la fois, chacune après la preuve de Q sur sa tête à jour avec `main`. Commandes et re-ciblages : `runbook-coupe-19-11.md` § 9.
+- **Effet sur le score.** Le score ne change pas : **30,5/32**, si la nouvelle lecture C6 est tenue. Les items 22 et 24 comptaient déjà comme « fait ». Le seuil reste à 30,4 : la marge en points reste la même (0,1).
+  - Ce qui change, c'est le risque. Avec #450, le bouton « Envoyer » reste visible en 1366×768 : l'item 24 n'a plus de défaut connu. Avec #502, un document rejeté peut être corrigé et renvoyé : le premier défaut de l'item 22 disparaît.
+  - Les deux autres gênes de l'item 22 restent : le motif du rejet est seulement dans un onglet, et la validation se fait en un clic. Elles sont annoncées aux testeurs.
+  - Il reste aussi une condition : le rapport mobile de l'item 24 doit être retrouvé ou refait. Sans lui, l'item reste « fait » par déduction.
+  - En clair : les deux points fragiles deviennent solides, mais aucun point n'est gagné. La perte d'un seul demi-point ramène toujours le score sous le seuil.
+- **Chaîne des migrations** : aucune de ces six PR n'apporte de migration. La base de données de la release reste à `a7c8d9e0f1b2`. Une seule précaution : #445 (qui a une migration) part de la branche de #429. Elle est donc re-ciblée sur `main` avant la fusion de #429, et sa migration ne change pas.
+- **Nouvelle lecture C6** : la pile de démo est relancée sur le SHA final. Il faut ensuite au moins 6 relevés verts consécutifs, soit au moins 30 min, puisque la sonde relève toutes les 5 min.
+- **Les deux questions du § 5** sont reposées avec le SHA final : `__________`. Lecture C6 sur ce SHA : ____ relevés verts consécutifs → ☐ tenue ☐ non tenue.
