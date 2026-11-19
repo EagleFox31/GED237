@@ -41,6 +41,7 @@ manifest() { sed -n "s/^$1=//p" "$SRC/MANIFEST.txt" | head -n1; }
 cd "$ROOT_DIR"
 load_env
 resolve_target
+require_helper_image
 started=$SECONDS
 log "source : $SRC (base $(manifest database), alembic $(manifest alembic_version))"
 log "cible  : conteneur=$PG base=$PG_DB volume=$VOLUME"
