@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.authz import authorize_or_403
 from app.core.database import get_db
+from app.services.unit_admin_scope import is_unit_admin, unit_admin_scope_ids
 from app.core.dependencies import get_current_user
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
@@ -629,6 +630,47 @@ async def delete_classification_activity(
     return None
 
 
+def _rule_unit_ids(rule_or_payload) -> set:
+    """Units a rule is aimed at (single unit and unit list); empty = institution-wide."""
+    ids = {
+        str(i) for i in (getattr(rule_or_payload, "source_org_unit_ids", None) or [])
+    }
+    single = getattr(rule_or_payload, "source_org_unit_id", None)
+    if single:
+        ids.add(str(single))
+    target = getattr(rule_or_payload, "target_org_unit_id", None)
+    if target:
+        ids.add(str(target))
+    return ids
+
+
+def _rule_in_scope(rule_or_payload, unit_ids) -> bool:
+    """Read: institution-wide rules stay visible, others must sit inside the tree."""
+    if unit_ids is None:
+        return True
+    return _rule_unit_ids(rule_or_payload) <= {str(i) for i in unit_ids}
+
+
+def _assert_rule_writable(rule_or_payload, unit_ids) -> None:
+    """A unit administrator writes only rules aimed at units of its own tree."""
+    if unit_ids is None:
+        return
+    ids = _rule_unit_ids(rule_or_payload)
+    if not ids or not ids <= {str(i) for i in unit_ids}:
+        raise HTTPException(
+            status_code=403,
+            detail="Cette règle sort du périmètre de votre unité.",
+        )
+
+
+def _forbid_unit_admin(user: User) -> None:
+    if is_unit_admin(user):
+        raise HTTPException(
+            status_code=403,
+            detail="Réservé à l'administrateur de l'institution.",
+        )
+
+
 @router.get("/rules", response_model=list[ClassificationRuleRead])
 async def list_classification_rules(
     current_user: User = Depends(get_current_user),
@@ -642,7 +684,8 @@ async def list_classification_rules(
             ClassificationRule.priority.asc(), ClassificationRule.created_at.asc()
         )
     )
-    return result.scalars().all()
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    return [r for r in result.scalars().all() if _rule_in_scope(r, unit_ids)]
 
 
 @router.get("/rules/export")
@@ -652,6 +695,7 @@ async def export_classification_rules(
 ):
     """All rules of the tenant, active or not, with references written as codes (portable file)."""
     await authorize_or_403(current_user, "classification_rules", "read")
+    _forbid_unit_admin(current_user)
     tenant_id = current_user.tenant_id
     rules = (
         (
@@ -714,6 +758,7 @@ async def import_classification_rules(
     twice writes nothing the second time.
     """
     await authorize_or_403(current_user, "classification_rules", "create")
+    _forbid_unit_admin(current_user)
     if mode == "upsert":
         await authorize_or_403(current_user, "classification_rules", "update")
     if (
@@ -823,7 +868,9 @@ async def get_classification_rule(
         )
     )
     rule = result.scalar_one_or_none()
-    if not rule:
+    if not rule or not _rule_in_scope(
+        rule, await unit_admin_scope_ids(db, current_user)
+    ):
         raise HTTPException(status_code=404, detail="Règle de classement introuvable.")
     return rule
 
@@ -839,6 +886,7 @@ async def create_classification_rule(
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "classification_rules", "create")
+    _assert_rule_writable(payload, await unit_admin_scope_ids(db, current_user))
     code = _normalize_code(payload.code)
     await _ensure_rule_code_unique(db, tenant_id=current_user.tenant_id, code=code)
     await _validate_rule_payload(
@@ -874,8 +922,18 @@ async def update_classification_rule(
         )
     )
     rule = result.scalar_one_or_none()
-    if not rule:
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if not rule or not _rule_in_scope(rule, unit_ids):
         raise HTTPException(status_code=404, detail="Règle de classement introuvable.")
+    _assert_rule_writable(rule, unit_ids)
+    if unit_ids is not None:
+        touched = payload.model_dump(exclude_unset=True)
+        if (
+            "source_org_unit_id" in touched
+            or "source_org_unit_ids" in touched
+            or touched.get("target_org_unit_id")
+        ):
+            _assert_rule_writable(payload, unit_ids)
     update_data = _rule_column_values(payload, exclude_unset=True)
     if "code" in update_data and update_data["code"]:
         update_data["code"] = _normalize_code(update_data["code"])
@@ -914,8 +972,10 @@ async def delete_classification_rule(
         )
     )
     rule = result.scalar_one_or_none()
-    if not rule:
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if not rule or not _rule_in_scope(rule, unit_ids):
         raise HTTPException(status_code=404, detail="Règle de classement introuvable.")
+    _assert_rule_writable(rule, unit_ids)
     await db.delete(rule)
     await db.commit()
     return None

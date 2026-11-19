@@ -217,6 +217,9 @@ const ClassificationReviewPage: React.FC = () => {
       relaunchWorkflow: (review.document?.processing_mode || review.processing_mode) === 'process',
     });
 
+    // Une réponse arrivée après un changement de dossier ne doit pas afficher
+    // l'historique de l'ancien dossier sous le nouveau.
+    let stale = false;
     const loadLogs = async () => {
       if (!review.document_id) {
         setAuditLogs([]);
@@ -226,16 +229,19 @@ const ClassificationReviewPage: React.FC = () => {
       setLoadingLogs(true);
       try {
         const logs = await api.getDocumentAuditLogs(review.document_id);
-        setAuditLogs(logs);
+        if (!stale) setAuditLogs(logs);
       } catch (error) {
         console.error(error);
-        setAuditLogs([]);
+        if (!stale) setAuditLogs([]);
       } finally {
-        setLoadingLogs(false);
+        if (!stale) setLoadingLogs(false);
       }
     };
 
     loadLogs();
+    return () => {
+      stale = true;
+    };
   }, [selectedReview]);
 
   const availableActivities = useMemo(() => {
@@ -270,7 +276,7 @@ const ClassificationReviewPage: React.FC = () => {
       return 'L’année de classement doit être comprise entre 1900 et 2100.';
     }
     if (form.scope === 'person' && !form.targetUserId) {
-      return 'Choisissez un utilisateur cible pour le scope personne.';
+      return 'Choisissez un utilisateur cible pour la portée « Personne ».';
     }
     if (form.scope !== 'person' && !form.targetOrgUnitId) {
       return 'Choisissez un service cible.';
@@ -386,6 +392,7 @@ const ClassificationReviewPage: React.FC = () => {
                 key={review.id}
                 type="button"
                 onClick={() => setSelectedReviewId(review.id)}
+                aria-pressed={selectedReview?.id === review.id}
                 className={`p-4 rounded-[1.5rem] border-2 text-left transition-all group ${
                   selectedReview?.id === review.id
                     ? 'bg-white border-rdpc-blue shadow-xl ring-2 ring-rdpc-blue/10'
@@ -542,9 +549,9 @@ const ClassificationReviewPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Scope</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Portée</label>
                     <select
-                      aria-label="Scope"
+                      aria-label="Portée"
                       value={form.scope}
                       onChange={(e) => setForm((current) => ({ ...current, scope: e.target.value as ReviewFormState['scope'] }))}
                       className="w-full bg-slate-50 border-2 border-slate-100 focus:border-rdpc-blue outline-none rounded-xl py-2.5 px-3 text-sm font-bold text-slate-700"
@@ -653,7 +660,7 @@ const ClassificationReviewPage: React.FC = () => {
                   <div>
                     <p className="text-sm font-bold text-slate-700">Relancer le workflow</p>
                     <p className="mt-1 text-xs font-medium text-slate-400">
-                      En mode process, relancez le routage GED après correction du classement.
+                      En circuit de validation, relancez le rangement automatique après correction du classement.
                     </p>
                   </div>
                 </label>

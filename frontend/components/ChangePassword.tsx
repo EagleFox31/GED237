@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { errorMessage } from '../utils/errors';
-
-const MIN_LENGTH = 12;
+import { allPasswordCriteriaMet, passwordCriteria, PASSWORD_MIN_LENGTH as MIN_LENGTH } from '../lib/passwordCriteria';
+import { defaultRouteForProfile } from '../lib/defaultRoute';
 
 // Calcul de la force du mot de passe (ANSSI-inspired)
 const getStrength = (pwd: string): { score: number; label: string; color: string } => {
@@ -52,12 +52,8 @@ const ChangePassword: React.FC = () => {
   const strength = useMemo(() => getStrength(newPassword), [newPassword]);
 
   // Critères en temps réel
-  const criteria = [
-    { label: '12 caractères minimum', ok: newPassword.length >= 12 },
-    { label: 'Une lettre majuscule', ok: /[A-Z]/.test(newPassword) },
-    { label: 'Un chiffre', ok: /[0-9]/.test(newPassword) },
-    { label: 'Un caractère spécial (@, #, &…)', ok: /[^A-Za-z0-9]/.test(newPassword) },
-  ];
+  const criteria = passwordCriteria(newPassword);
+  const criteriaMet = allPasswordCriteriaMet(newPassword);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +76,7 @@ const ChangePassword: React.FC = () => {
     try {
       await api.changePassword(currentPassword, newPassword);
       clearMustChangePassword();
-      navigate('/dashboard', { replace: true });
+      navigate(defaultRouteForProfile(userProfile?.id), { replace: true });
     } catch (err) {
       setError(errorMessage(err, 'Échec du changement de mot de passe'));
     } finally {
@@ -290,7 +286,7 @@ const ChangePassword: React.FC = () => {
           )}
           <button
             type="submit"
-            disabled={submitting || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+            disabled={submitting || !currentPassword || !criteriaMet || !confirmPassword || newPassword !== confirmPassword}
             className="flex-1 py-3 rounded-xl bg-rdpc-blue text-white text-xs font-black uppercase tracking-widest hover:bg-blue-800 transition-all disabled:opacity-50"
           >
             {submitting ? 'Enregistrement...' : 'Mettre à jour'}
