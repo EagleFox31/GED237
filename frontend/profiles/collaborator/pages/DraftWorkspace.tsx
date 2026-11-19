@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
-import type { WorkflowValidator } from '../../../types';
+import type { Document, WorkflowValidator } from '../../../types';
+import DocumentDetailModal from '../../../components/DocumentDetailModal';
+import UploadDocumentModal from '../../../components/UploadDocumentModal';
+import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -14,7 +17,7 @@ const DraftWorkspace: React.FC = () => {
   const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 
   // State for the submission modal
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -42,27 +45,6 @@ const DraftWorkspace: React.FC = () => {
     }
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUploading(true);
-
-    try {
-      const form = e.currentTarget as HTMLFormElement;
-      const formData = new FormData(form);
-
-      await api.uploadDocument(formData);
-
-      setShowModal(false);
-      fetchData(); // Refresh list
-      form.reset();
-    } catch (error) {
-      console.error("Upload failed", error);
-      alert("Erreur lors de l'envoi du document");
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const openSubmitModal = (id: string) => {
     setDocumentToSubmit(id);
     setShowSubmitModal(true);
@@ -70,7 +52,7 @@ const DraftWorkspace: React.FC = () => {
 
   const submitWorkflow = async () => {
     if (!documentToSubmit || !selectedValidator) {
-      alert("Veuillez sélectionner un valideur.");
+      pushClientOperationError(null, { fallbackDetail: "Veuillez sélectionner un valideur.", severity: "warning" });
       return;
     }
 
@@ -92,8 +74,8 @@ const DraftWorkspace: React.FC = () => {
       setSelectedValidator('');
       fetchData();
     } catch (e) {
+      // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
       console.error(e);
-      alert("Erreur lors de la création du circuit de validation");
     } finally {
       setSubmitting(false);
     }
@@ -129,9 +111,9 @@ const DraftWorkspace: React.FC = () => {
           </div>
         ) : (
           documents.map((doc) => (
-            <div key={doc.id} className="glass p-6 rounded-[2rem] bg-white border-white hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden">
+            <div key={doc.id} onClick={() => setSelectedDoc(doc as Document)} className="glass p-6 rounded-[2rem] bg-white border-white hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden" data-testid="draft-card">
               <span className="material-symbols-outlined text-slate-200 group-hover:text-cam-green mb-4 transition-colors text-4xl">description</span>
-              <h4 className="font-black text-slate-800 leading-tight mb-2 group-hover:text-cam-green transition-colors line-clamp-2 min-h-[3rem]">{doc.title}</h4>
+              <h4 className="font-black text-slate-800 leading-tight mb-2 group-hover:text-cam-green transition-colors line-clamp-2 min-h-[3rem]"><button type="button" onClick={(e) => { e.stopPropagation(); setSelectedDoc(doc as Document); }} className="text-left" aria-label={`Ouvrir ${doc.title}`}>{doc.title}</button></h4>
 
               <div className="flex flex-wrap gap-2 mb-4">
                 {doc.tags?.map((tag: string, i: number) => (
@@ -169,62 +151,17 @@ const DraftWorkspace: React.FC = () => {
         )}
       </div>
 
-      {/* Modal Upload */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Nouveau Document</h3>
-            <p className="text-sm text-slate-500 font-medium mb-8">Importez un fichier pour commencer le circuit de validation.</p>
-
-            <form onSubmit={handleUpload} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Titre du document</label>
-                <input name="title" type="text" required className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none focus:border-cam-green/50 focus:ring-4 focus:ring-green-500/10 transition-all" placeholder="Ex: Note de Service - Mars 2025" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Catégorie</label>
-                  <select name="category" className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none focus:border-cam-green/50 appearance-none">
-                    <option value="Note">Note de Service</option>
-                    <option value="Courrier">Courrier Arrivée</option>
-                    <option value="Facture">Facture / Bordereau</option>
-                    <option value="Autre">Autre Document</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tags (séparés par virgule)</label>
-                  <input name="tags" type="text" className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none focus:border-cam-green/50" placeholder="Urgent, Finance..." />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Fichier (PDF, DOCX)</label>
-                <div className="relative border-2 border-dashed border-slate-300 bg-slate-50 rounded-2xl p-8 text-center hover:bg-blue-50 hover:border-cam-green transition-all group cursor-pointer">
-                  <input name="file" type="file" required className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                  <span className="material-symbols-outlined text-4xl text-slate-300 group-hover:text-cam-green mb-2 transition-colors">upload_file</span>
-                  <p className="text-xs font-bold text-slate-400 group-hover:text-cam-green uppercase tracking-wider">Cliquez ou glissez un fichier ici</p>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={uploading}
-                className="w-full py-4 bg-cam-green text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-green-200 hover:bg-green-700 hover:scale-[1.02] transition-all disabled:opacity-70 disabled:hover:scale-100"
-              >
-                {uploading ? 'Envoi en cours...' : 'Créer le Document'}
-              </button>
-            </form>
-          </div>
-        </div>
+        <UploadDocumentModal
+          onClose={() => setShowModal(false)}
+          onSuccess={() => {
+            setShowModal(false);
+            fetchData();
+          }}
+        />
       )}
+
+      {selectedDoc && <DocumentDetailModal document={selectedDoc} onClose={() => setSelectedDoc(null)} />}
 
       {/* Modal Workflow Submit */}
       {showSubmitModal && (
