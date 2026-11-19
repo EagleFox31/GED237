@@ -4,7 +4,7 @@ Préparée par l'innovateur le 19/11 à partir de `couverture-95-19-11.md`, de D
 
 ## 1. Où on en est
 
-- Score au 19/11, 13:21 : **30/32**, avec `main` = cffb7a4b (#199 fusionnée, item 19 prouvé). Depuis, #492 (menu « Doublons » masqué selon le droit) est fusionnée : `main` = 9cbe452e, score inchangé. Puis #498 (résumé C6 avec trous et échecs) est fusionnée : `main` = 1c4cea16, score inchangé. Le SHA de la coupe sera celui de la lecture C6 de 18:00.
+- Score au 19/11, 13:21 : **30/32**, avec `main` = cffb7a4b (#199 fusionnée, item 19 prouvé). Depuis, #492 (menu « Doublons » masqué selon le droit) est fusionnée : `main` = 9cbe452e, score inchangé. Puis #498 (résumé C6 avec trous et échecs) est fusionnée : `main` = 1c4cea16, score inchangé. Puis #499 (anneau de focus clavier du menu profil, suite du contrôle de #484) est fusionnée à 14:39 : `main` = f890b3cb, score inchangé. Le SHA de la coupe sera celui de la lecture C6 de 18:00.
 - Le seuil est **30,5/32** (95 %, méthode du 10/11 : 32 items à poids égal, `fait` = 1, `partiel` = 0,5).
 - **Il manque un demi-point : l'item 29 (disponibilité ≥ 99 %).** Il passe à `partiel` si la sonde C6 compte au moins 6 relevés verts consécutifs entre le 17 matin et le 19 soir (checklist, ligne 0.2). **Lecture de Q sur `c6.tsv` (19/11, 14:00) : la ligne 0.2 est acquise dans les deux lectures.**
   - Lecture brute : 714 relevés verts consécutifs, du 17/11 07:18Z au 19/11 03:29Z.
