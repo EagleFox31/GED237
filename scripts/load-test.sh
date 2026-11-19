@@ -66,7 +66,7 @@ case "${1:-}" in
     ;;
   tune)  # tune <label> <seed>: same shape as calib-4 (2 000 files, 4 batches), fresh folder and seed
     [ -n "${2:-}" ] && [ -n "${3:-}" ] || { echo "usage: tune <label> <seed>"; exit 2; }
-    echo "setting: api ${LOAD_API_CPUS:-1.25} cpu, worker ${LOAD_WORKER_CPUS:-1.25} cpu, concurrency ${LOAD_WORKER_CONCURRENCY:-2}" \
+    echo "setting: api ${LOAD_API_CPUS:-2.0} cpu, worker ${LOAD_WORKER_CPUS:-3.0} cpu, concurrency ${LOAD_WORKER_CONCURRENCY:-4}" \
       | tee "$out_dir/$2-setting.txt"
     stack_up
     corpus "tune-$2" 2000 1-4 4 "$3"
@@ -80,9 +80,9 @@ case "${1:-}" in
   full)
     [ "${LOAD_CONFIRM:-}" = yes ] || { echo "full run needs LOAD_CONFIRM=yes (signal of O: lab of Q down, 30 min of calm)"; exit 2; }
     label="${3:-charge-100k-$(date +%F)}"  # a second run of the day gets its own label
-    echo "setting: postgres ${LOAD_PG_CPUS:-1.0} cpu ${LOAD_PG_MEM:-704m}, redis ${LOAD_REDIS_CPUS:-0.25} cpu," \
-      "api ${LOAD_API_CPUS:-1.25} cpu ${LOAD_API_MEM:-1g} x${LOAD_API_WORKERS:-1} process," \
-      "worker ${LOAD_WORKER_CPUS:-1.25} cpu ${LOAD_WORKER_MEM:-1g} concurrency ${LOAD_WORKER_CONCURRENCY:-2}" \
+    echo "setting: postgres ${LOAD_PG_CPUS:-2.0} cpu ${LOAD_PG_MEM:-1g}, redis ${LOAD_REDIS_CPUS:-0.5} cpu," \
+      "api ${LOAD_API_CPUS:-2.0} cpu ${LOAD_API_MEM:-1536m} x${LOAD_API_WORKERS:-2} process," \
+      "worker ${LOAD_WORKER_CPUS:-3.0} cpu ${LOAD_WORKER_MEM:-4g} concurrency ${LOAD_WORKER_CONCURRENCY:-4}" \
       | tee "$out_dir/$label-setting.txt"
     stack_up
     corpus full 100000 1-4 10 237
