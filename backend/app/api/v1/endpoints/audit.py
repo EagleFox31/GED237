@@ -43,6 +43,7 @@ ACTION_LABELS = {
     "otp_sent": "Code de connexion envoyé",
     "otp_send_failed": "Échec d'envoi du code",
     "totp_enrolled": "Application d'authentification activée",
+    "totp_disabled": "Application d'authentification désactivée",
     "totp_enrolment_required": "Activation de l'authentification exigée",
     "totp_reset": "Application d'authentification réinitialisée",
     "import_committed": "Import exécuté",
