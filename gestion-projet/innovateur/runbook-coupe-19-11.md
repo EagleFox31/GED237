@@ -354,3 +354,15 @@ gh issue close 133 --repo $REPO --reason completed \
 - **Gain possible** : #442 et #429 ne dépendent pas de #441 et #450. Le contre-testeur peut prouver leurs têtes pendant la CI d'une autre fusion. Le total tombe alors vers 4,5 h-s.
 - **Risque principal** : #502, qui n'a aucun OK. Si Q trouve un blocage, l'auteur corrige et la boucle recommence. Il faut compter de 1 à 1,5 h-s de plus.
 - Le rejeu `ged-replay` prévu à 19:15 passe sur le SHA final, après la lecture C6, dans le **créneau d'aide-api** (décision d'O). I l'annonce à aide-api avant le lancement. En fin de run : `down -v`, puis suppression des images `ged-replay` par leur nom.
+
+### 9.5 Ajout du 19/11 au soir : #515 avant la coupe (option C du PO)
+
+- Les six PR du § 9.1 sont fusionnées, ce qui donne `d96c1e67`, avec une seule tête de migration `a7c8d9e0f1b2`.
+- **Étape 7 : #515** (`fix(audit)`, tête `b62925cf`, base `main`, 4 fichiers, +112/−1, sans migration). Elle est fusionnée après l'OK de Q, puis O la sort du brouillon avec une note dans la PR.
+- **Après la fusion** :
+  - `M` = la nouvelle tête de `main`, à relire avec `git ls-remote` ;
+  - nouvelle C6 sur `M` (§ 9.3) ;
+  - C.22 point 4 rejoué sur `M` : les trois décisions doivent apparaître dans le journal ;
+  - la tête alembic doit toujours être `a7c8d9e0f1b2`.
+- **Durée** : environ 1,25 h-s jusqu'à la question au PO (preuve de Q 0,25, fusion et CI 0,25, C6 0,5, C.22 point 4 0,25).
+- **Question 2** : le plan en lecture seule du § 4.1 dit **CRÉER**. Aucun ruleset ne vise `release/**`, aucune branche `release/*` n'existe, et le ruleset 26190959 n'a pas changé.
