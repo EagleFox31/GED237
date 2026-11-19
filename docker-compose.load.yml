@@ -53,7 +53,7 @@ services:
   redis:
     image: redis:7-alpine
     mem_limit: 192m
-    memswap_limit: 128m
+    memswap_limit: 192m
     cpus: ${LOAD_REDIS_CPUS:-0.5}
     logging: *default-logging
     healthcheck:
