@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface ConfirmationModalProps {
   open: boolean;
@@ -11,6 +11,10 @@ interface ConfirmationModalProps {
   eyebrow?: string;
   icon?: string;
   bullets?: string[];
+  /** Contenu libre sous le message (ex. un champ de saisie). */
+  children?: React.ReactNode;
+  confirmDisabled?: boolean;
+  hideConfirm?: boolean;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -24,12 +28,22 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   eyebrow,
   icon = 'info',
   bullets = [],
+  children,
+  confirmDisabled = false,
+  hideConfirm = false,
 }) => {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4">
-      <div className="w-full max-w-xl rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-xl rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
         <div className="flex items-start gap-4">
           <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cam-green text-white shadow-lg">
             <span className="material-symbols-outlined text-xl">{icon}</span>
@@ -44,6 +58,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               {title}
             </h3>
             <p className="mt-3 text-sm leading-7 text-slate-600">{message}</p>
+            {children}
             {bullets.length > 0 && (
               <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                 <p className="font-bold text-slate-800">Avant de continuer :</p>
@@ -64,13 +79,16 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           >
             {cancelLabel}
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-2xl bg-cam-green px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-green-700"
-          >
-            {confirmLabel}
-          </button>
+          {!hideConfirm && (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={confirmDisabled}
+              className="rounded-2xl bg-cam-green px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+            >
+              {confirmLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -15,6 +15,8 @@ export interface UserProfile {
   tenantId?: string;
   orgUnitId?: string;
   mustChangePassword?: boolean;
+  /** UUID du compte (`id` ci-dessus est la clé de profil). Absent d'un profil stocké avant son ajout. */
+  userId?: string;
 }
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -28,7 +30,7 @@ const DEFAULT_PROFILE: UserProfile = {
 
 const ROLE_PROFILE_MAP: Record<string, Omit<UserProfile, 'name' | 'backendRole' | 'backendRoleLabel' | 'matricule' | 'email' | 'tenantId' | 'orgUnitId'>> = {
   SUPER_ADMIN: { id: 'super', label: 'Super Admin', role: 'Plateforme', icon: 'security_update_good', color: 'bg-cam-red' },
-  TENANT_ADMIN: { id: 'tenant', label: 'Admin Tenant', role: 'Organisation', icon: 'account_balance', color: 'bg-rdpc-blue' },
+  TENANT_ADMIN: { id: 'tenant', label: 'Admin Institution', role: 'Organisation', icon: 'account_balance', color: 'bg-rdpc-blue' },
   UNIT_ADMIN: { id: 'unit', label: 'Admin Unité', role: 'Service', icon: 'domain', color: 'bg-blue-500' },
   MANAGER: { id: 'manager', label: 'Manager', role: 'Valideur', icon: 'verified', color: 'bg-cam-yellow' },
   COLLABORATOR: { id: 'collab', label: 'Collaborateur', role: 'Contributeur', icon: 'edit_square', color: 'bg-cam-green' },
@@ -91,6 +93,7 @@ const normalizeBackendUser = (user: BackendUser): UserProfile => {
     tenantId: user.tenant_id,
     orgUnitId: user.org_unit_id || undefined,
     mustChangePassword: user.must_change_password || false,
+    userId: user.id,
   };
 };
 
@@ -118,6 +121,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
+      userId: candidate.userId?.toString(),
     };
   }
 
@@ -137,6 +141,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
+      userId: candidate.userId?.toString(),
     };
   }
 
