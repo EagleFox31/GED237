@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import CameroonMap from './CameroonMap';
 import DemoProfiles from './widgets/DemoProfiles';
+import { LOGIN_DEMO_HINTS } from '../constants';
 import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
 import { otpDigitsFromPaste, otpFocusAfterPaste, otpFromPaste } from '../lib/otp';
+import { clearSessionExpiredNotice, isSessionExpiredNoticePending } from '../services/http/session';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans une minute.';
 const isRateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
@@ -56,6 +58,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [error, setError] = useState<string | null>(null);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [lockSeconds, setLockSeconds] = useState(0);
+  // Session refusée par le serveur pendant le travail : annoncée une seule fois.
+  const [sessionExpired] = useState(isSessionExpiredNoticePending);
+  useEffect(() => {
+    clearSessionExpiredNotice();
+  }, []);
 
   useEffect(() => {
     if (lockedUntil === null) return;
@@ -278,8 +285,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         Attendez la fin du décompte avant de réessayer ; saisir un nouveau code ne raccourcit pas le délai. Si vous ne pouvez pas attendre, demandez le déblocage à votre administrateur.
                       </HelpHint>
                     </p>
+                  ) : error ? (
+                    <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
                   ) : (
-                    error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
+                    sessionExpired && (
+                      <p role="status" className="text-amber-800 text-sm font-bold bg-amber-50 p-3 rounded-xl">
+                        Votre session a expiré, reconnectez-vous.
+                      </p>
+                    )
                   )}
                 </div>
 
@@ -380,7 +393,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </div>
             )}
 
-            {step === 'login' && <DemoProfiles onSelect={handleDemoSelect} />}
+            {step === 'login' && LOGIN_DEMO_HINTS && <DemoProfiles onSelect={handleDemoSelect} />}
 
             <div className="mt-8 pt-8 border-t border-slate-50 opacity-30 group hover:opacity-100 transition-opacity">
               <p className="text-[9px] text-slate-500 font-bold text-center leading-relaxed italic">

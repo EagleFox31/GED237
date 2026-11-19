@@ -72,6 +72,8 @@ class DocumentRead(DocumentBase):
     current_version_number: Optional[str] = None
     # not_processed | processing | completed | failed (read only, derived).
     ocr_status: str = "not_processed"
+    # Corbeille : qui a retiré le document (restauration réservée à l'admin si ce n'est pas soi).
+    deleted_by: Optional[UUID] = None
 
     class Config:
         from_attributes = True
@@ -172,3 +174,15 @@ class IngestWatchStatus(BaseModel):
     enabled: bool
     interval_seconds: int
     last_run: Optional[IngestWatchLastRun] = None
+
+
+class TrashEmptyRequest(BaseModel):
+    """Filters of a bulk trash purge. No filter: the whole trash, one batch per call."""
+
+    document_ids: Optional[List[UUID]] = Field(None, min_length=1, max_length=500)
+    older_than_days: Optional[int] = Field(None, ge=1, le=36500)
+
+
+class TrashEmptyResponse(BaseModel):
+    purged: int
+    remaining: int
