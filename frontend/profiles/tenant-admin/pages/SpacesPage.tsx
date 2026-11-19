@@ -19,6 +19,12 @@ import {
 import { UndoToast } from '../../../components/ui/UndoToast';
 import { useUndoableAction } from '../../../hooks/useUndoableAction';
 import { canUndoMove, moveToUnitPatch, placementOf, restorePlacementPatch } from '../../../lib/undo/placement';
+import { settleLimited, titleList } from '../../../lib/bulk';
+import { pushClientOperationError } from '../../../lib/errors';
+
+// Résumé d'une action groupée partiellement refusée : un seul message, sans détail technique.
+const pushBulkWarning = (detail: string) =>
+  pushClientOperationError(null, { fallbackDetail: detail, errorCode: 'BULK_PARTIAL_FAILURE', severity: 'warning' });
 
 /** Type MIME interne du glisser-déposer d'un document vers un dossier. */
 const DOCUMENT_DRAG_TYPE = 'application/x-ged-document-id';
@@ -699,24 +705,31 @@ const SpacesPage: React.FC = () => {
     });
   };
 
-  // Corbeille groupée : chaque document est traité seul ; un échec n'empêche pas les autres.
+  // Corbeille groupée : chaque document est traité seul, quelques-uns à la fois ; un échec
+  // n'empêche pas les autres. Les échecs sont résumés en un seul message, pas un toast par refus.
   const handleTrashSelection = async () => {
     setContextMenu(null);
     const targets = orderedDocuments.filter((doc) => selectedIds.has(doc.id));
     if (targets.length === 0) return;
-    const results = await Promise.allSettled(targets.map((doc) => api.deleteDocument(doc.id)));
+    const results = await settleLimited(targets, (doc) => api.deleteDocument(doc.id, { silent: true }));
     const trashed = targets.filter((_, index) => results[index]?.status === 'fulfilled');
     const failed = targets.filter((_, index) => results[index]?.status === 'rejected');
     clearSelection();
     loadDocumentsRef.current();
-    if (trashed.length === 0) return; /* messages déjà affichés par le bus global */
+    const failedTitles = titleList(failed.map((doc) => doc.title));
+    if (trashed.length === 0) {
+      pushBulkWarning(`Aucun document mis à la corbeille. Échec : ${failedTitles}.`);
+      return;
+    }
     const moved = trashed.length === 1 ? `« ${trashed[0]?.title} » mis à la corbeille` : `${trashed.length} documents mis à la corbeille`;
-    const message = failed.length > 0
-      ? `${moved}. Échec : ${failed.map((doc) => `« ${doc.title} »`).join(', ')}`
-      : moved;
+    const message = failed.length > 0 ? `${moved}. Échec : ${failedTitles}` : moved;
     undo.propose(message, async () => {
-      await Promise.allSettled(trashed.map((doc) => api.restoreDocument(doc.id)));
+      const restored = await settleLimited(trashed, (doc) => api.restoreDocument(doc.id, { silent: true }));
+      const notRestored = trashed.filter((_, index) => restored[index]?.status === 'rejected');
       loadDocumentsRef.current();
+      if (notRestored.length > 0) {
+        pushBulkWarning(`Non restauré, toujours dans la corbeille : ${titleList(notRestored.map((doc) => doc.title))}.`);
+      }
     });
   };
 

@@ -36,6 +36,36 @@ test.describe('Explorateur : sélection multiple', () => {
     await expect(item(titles[2]!)).toBeVisible();
   });
 
+  test('corbeille groupée avec un refus : un seul message qui nomme l’échec', async ({ page, loginAs, adminApi, runId }) => {
+    const titles = [`Refus A ${runId}`, `Refus B ${runId}`, `Refus C ${runId}`];
+    const uploaded = [];
+    for (const [index, title] of titles.entries()) {
+      uploaded.push(await adminApi.uploadDocument(`refus-${index}-${runId}.txt`, title, `Refus ${index} ${runId}`));
+    }
+    const refusedId = uploaded[1]!.id;
+    await page.route(
+      (url) => url.pathname.endsWith(`/documents/${refusedId}`),
+      (route) => (route.request().method() === 'DELETE'
+        ? route.fulfill({ status: 403, json: { status: 403, detail: 'Forbidden' } })
+        : route.continue()),
+    );
+
+    await loginAs('tenant_admin');
+    await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
+    const item = (title: string) => page.getByLabel(new RegExp(`^${title} — `));
+    await expect(item(titles[2]!)).toBeVisible();
+
+    await item(titles[0]!).focus();
+    await page.keyboard.press('ControlOrMeta+a');
+    await expect(page.getByRole('toolbar', { name: 'Sélection' }).getByRole('status')).toHaveText('3 sélectionnés');
+    await page.getByRole('toolbar', { name: 'Sélection' }).getByRole('button', { name: 'Mettre à la corbeille' }).click();
+
+    await expect(page.getByRole('status').filter({ hasText: `2 documents mis à la corbeille. Échec : « ${titles[1]} »` })).toBeVisible();
+    await expect(item(titles[1]!)).toBeVisible();
+    // Pas de notification séparée par refus.
+    await expect(page.getByText('Vous ne pouvez pas supprimer ce document.')).toHaveCount(0);
+  });
+
   test('clavier : Ctrl+A, Échap, Ctrl+Espace puis Suppr', async ({ page, loginAs, adminApi, runId }) => {
     const titles = [`Clavier A ${runId}`, `Clavier B ${runId}`];
     for (const [index, title] of titles.entries()) {

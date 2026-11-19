@@ -20,6 +20,8 @@ export interface ApiErrorOptions {
     handledStatuses?: readonly number[];
     /** Message court par code HTTP, affiché par le bus au lieu du détail du serveur. */
     statusMessages?: StatusMessages;
+    /** L'appelant résume lui-même les échecs (action groupée) : aucun toast global, quel que soit le statut. */
+    silent?: boolean;
 }
 
 /**
@@ -30,7 +32,7 @@ export interface ApiErrorOptions {
 export const buildApiError = async (
     response: Response,
     fallback: string,
-    { handledStatuses = [], statusMessages }: ApiErrorOptions = {},
+    { handledStatuses = [], statusMessages, silent = false }: ApiErrorOptions = {},
 ): Promise<ApiError> => {
     let apiErr = await apiErrorFromResponse(response);
     const override = statusMessages?.[apiErr.status];
@@ -43,7 +45,7 @@ export const buildApiError = async (
     // Les 401 sont gérés par fetchWithRefresh (refresh ou logout) :
     // pas de toast intermédiaire redondant. Les statuts « handled » sont
     // affichés par l'appelant avec son propre message : pas de toast non plus.
-    if (apiErr.status !== 401 && !handledStatuses.includes(apiErr.status)) {
+    if (!silent && apiErr.status !== 401 && !handledStatuses.includes(apiErr.status)) {
         pushApiError(apiErr);
     }
     return apiErr;
