@@ -262,17 +262,38 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
+# Markers of the placeholder keys shipped in the code, docker-compose.yml and the
+# .env.example files: none of them may sign tokens in production.
+PLACEHOLDER_KEY_MARKERS = (
+    "dev-secret-key",
+    "change-this-in-production",
+    "change-in-production",
+)
+# `openssl rand -hex 32` gives 64 characters; anything under 32 is not a real key.
+MIN_PRODUCTION_KEY_LENGTH = 32
+
+
+def check_production_secret_key(environment: str, secret_key: str) -> None:
+    """Refuse a placeholder or short SECRET_KEY in production. Never echoes the key."""
+    if environment != "production":
+        return
+    lowered = secret_key.lower()
+    if (
+        any(marker in lowered for marker in PLACEHOLDER_KEY_MARKERS)
+        or len(secret_key) < MIN_PRODUCTION_KEY_LENGTH
+    ):
+        raise RuntimeError(
+            "SECRET_KEY is a development placeholder or shorter than "
+            f"{MIN_PRODUCTION_KEY_LENGTH} characters, refused with ENVIRONMENT=production. "
+            "Generate one with `openssl rand -hex 32` and set SECRET_KEY in .env."
+        )
+
+
 @lru_cache()
 def get_settings() -> Settings:
     """Get cached settings instance"""
     s = Settings()
-    if (
-        s.ENVIRONMENT == "production"
-        and s.SECRET_KEY == "dev-secret-key-change-this-in-production"  # nosec B105 - explicit production guard against unchanged dev default
-    ):
-        raise RuntimeError(
-            "SECRET_KEY must be changed in production! Set a strong random key via the SECRET_KEY environment variable."
-        )
+    check_production_secret_key(s.ENVIRONMENT, s.SECRET_KEY)
     return s
 
 
