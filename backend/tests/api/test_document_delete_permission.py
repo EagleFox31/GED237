@@ -94,6 +94,35 @@ async def test_collaborator_cannot_delete_a_document_in_review(
     assert response.status_code == 403
 
 
+@pytest.mark.parametrize("role", ["manager", "collaborator"])
+@pytest.mark.asyncio
+async def test_owner_cannot_trash_a_document_in_review(
+    client_as, db_session, db_seed, role
+):
+    document_id = await _document(db_session, db_seed, status="in_review")
+
+    async with client_as(role, **_owner(db_seed)) as client:
+        response = await client.post(f"{DOCUMENTS}/{document_id}/trash")
+
+    assert response.status_code == 403
+    document = await db_session.get(Document, document_id)
+    await db_session.refresh(document)
+    assert document.deleted_at is None
+
+
+@pytest.mark.asyncio
+async def test_tenant_admin_trashes_a_document_in_review(
+    client_as, db_session, db_seed
+):
+    document_id = await _document(db_session, db_seed, status="in_review")
+
+    # A real account: the trash writes an audit line that references the user.
+    async with client_as("tenant_admin", **_owner(db_seed)) as client:
+        response = await client.post(f"{DOCUMENTS}/{document_id}/trash")
+
+    assert response.status_code == 200
+
+
 @pytest.mark.asyncio
 async def test_tenant_admin_delete_is_unchanged(client_as, db_session, db_seed):
     document_id = await _document(db_session, db_seed, status="validated")

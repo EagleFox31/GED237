@@ -1,11 +1,13 @@
 // frontend/components/Header.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { notificationTarget } from '../lib/notificationTarget';
 import { FLAT_TENANT_MENU } from '../profiles/tenant-admin/menuConfig';
 import { api } from '../services/api';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../stores/authStore';
 import { Avatar } from './ui/Avatar';
+import { HighlightedExcerpt } from './HighlightedExcerpt';
 import { getStatusLabel } from '../types';
 
 /** Résultat de `GET /search` (SearchHitResponse côté serveur). */
@@ -18,6 +20,8 @@ interface SearchHit {
   status: string;
   category?: string | null;
   file_type?: string | null;
+  /** Extrait du contenu lu, mot trouvé entre <mark> (jamais injecté comme HTML). */
+  highlight?: string | null;
 }
 
 /**
@@ -49,7 +53,9 @@ const ROUTE_SEARCH_CONFIG: Record<string, RouteSearchConfig> = {
   },
   '/documents': {
     mode: 'page-local',
-    placeholder: 'Rechercher par nom, métadonnées ou contenu…',
+    // GET /documents?q= filtre titre, mots-clés, classement et catégorie ; le texte lu dans les scans
+    // n'est cherché que par la recherche globale (GET /search).
+    placeholder: 'Rechercher par titre, mot-clé ou catégorie…',
   },
   '/pending-assignments': {
     mode: 'page-local',
@@ -176,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead, loadNotifications } = useNotifications();
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   useEffect(() => {
@@ -322,6 +328,10 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                           <p className="text-[10px] text-slate-400 font-medium truncate">
                             {result.category ? `${result.category} • ` : ''}{getStatusLabel(result.status)}
                           </p>
+                          <HighlightedExcerpt
+                            highlight={result.highlight}
+                            className="text-xs text-slate-600 mt-1 line-clamp-2 break-words"
+                          />
                         </div>
                       </button>
                     ))}
@@ -340,7 +350,13 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
           <div className="flex items-center" ref={notifRef}>
             <div className="relative">
               <button
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  // Pas de temps réel (WebSocket en V1.1) : liste relue à chaque ouverture.
+                  if (!showNotifications) loadNotifications();
+                  setShowNotifications(!showNotifications);
+                }}
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
+                aria-expanded={showNotifications}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 transition-all relative ${showNotifications ? 'bg-slate-100 text-rdpc-blue' : 'text-slate-400'}`}
               >
                 <span className="material-symbols-outlined text-xl">notifications</span>
@@ -351,7 +367,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div role="region" aria-label="Liste des notifications" className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="p-3 border-b border-slate-50 flex justify-between items-center">
                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-2">Notifications</p>
                     {unreadCount > 0 && (
@@ -363,7 +379,11 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
                       notifications.map((notif) => (
                         <div
                           key={notif.id}
-                          onClick={() => { if (!notif.is_read) markAsRead(notif.id); }}
+                          onClick={() => {
+                            if (!notif.is_read) markAsRead(notif.id);
+                            setShowNotifications(false);
+                            navigate(notificationTarget(notif.meta_data));
+                          }}
                           className={`p-4 border-b border-slate-50 relative cursor-pointer hover:bg-slate-50 transition-colors ${!notif.is_read ? 'bg-blue-50/30' : ''}`}
                         >
                           {!notif.is_read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-rdpc-blue"></div>}
