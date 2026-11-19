@@ -69,23 +69,23 @@ const ValidationHub: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto p-1">
         {loading ? (
-          <p className="text-slate-400 font-bold italic">Chargement du parapheur...</p>
+          <p className="text-slate-500 font-bold italic">Chargement du parapheur...</p>
         ) : documents.length === 0 ? (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-[3rem]">
             <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">check_circle</span>
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Aucun dossier en attente</p>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Aucun dossier en attente</p>
           </div>
         ) : (
           documents.map((item) => (
             <div key={item.id} className="glass p-6 rounded-[2rem] bg-white/60 border-white hover:shadow-2xl transition-all group">
               <div className="flex justify-between items-start mb-4">
-                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md bg-yellow-50 text-yellow-600`}>
+                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md bg-yellow-50 text-amber-800`}>
                   En Attente
                 </span>
                 <span className="material-symbols-outlined text-slate-300 group-hover:text-cam-yellow transition-colors">draw</span>
               </div>
               <h4 className="font-black text-slate-800 text-lg leading-tight mb-2 italic line-clamp-2">"{item.document?.title || 'Document sans titre'}"</h4>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">Émis le: {new Date(item.created_at).toLocaleDateString()}</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-6">Émis le: {new Date(item.created_at).toLocaleDateString()}</p>
 
               <div className="mb-3">
                 <ViewDocumentButton documentId={item.document_id} />
@@ -95,7 +95,7 @@ const ValidationHub: React.FC = () => {
                 <button
                   onClick={() => setRejecting(item)}
                   disabled={processingId === item.id}
-                  className="py-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
+                  className="py-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-600 hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
                 >
                   Rejeter
                 </button>

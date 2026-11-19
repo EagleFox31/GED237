@@ -135,10 +135,10 @@ const Documents: React.FC = () => {
   };
 
   const getStatusStyle = (status: string) => {
-    if (status === 'validated' || status === 'signed') return 'bg-green-50 text-green-600';
-    if (status === 'in_review') return 'bg-blue-50 text-blue-600';
-    if (status === 'rejected') return 'bg-red-50 text-red-600';
-    return 'bg-slate-50 text-slate-400';
+    if (status === 'validated' || status === 'signed') return 'bg-green-50 text-green-800';
+    if (status === 'in_review') return 'bg-blue-50 text-blue-800';
+    if (status === 'rejected') return 'bg-red-50 text-red-800';
+    return 'bg-slate-50 text-slate-600';
   };
 
   return (
@@ -209,7 +209,7 @@ const Documents: React.FC = () => {
       )}
 
       {!isLoading && !error && docs.length === 0 && (
-        <div className="text-center py-20 text-slate-400 font-bold">Aucun document trouvé.</div>
+        <div className="text-center py-20 text-slate-500 font-bold">Aucun document trouvé.</div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -238,16 +238,16 @@ const Documents: React.FC = () => {
               <h4 className="font-bold text-slate-800 line-clamp-1 group-hover:text-rdpc-blue transition-colors text-lg tracking-tight">{doc.title}</h4>
               <div className="flex items-center gap-2">
                 {doc.category_name && <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-tighter">{doc.category_name}</span>}
-                <span className="text-[10px] font-medium text-slate-400">V{doc.current_version_number} • {getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
+                <span className="text-[10px] font-medium text-slate-500">V{doc.current_version_number} • {getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-5 border-t border-slate-50">
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                 <span className="material-symbols-outlined text-sm">schedule</span>
                 {formatDate(doc.updated_at)}
               </div>
-              <span className="text-[10px] font-black text-slate-400">{formatFileSize(doc.file_size)}</span>
+              <span className="text-[10px] font-black text-slate-500">{formatFileSize(doc.file_size)}</span>
             </div>
           </div>
         ))}
@@ -257,7 +257,7 @@ const Documents: React.FC = () => {
       {docs.length > 0 && (
         <div className="flex items-center justify-center gap-4 py-8 opacity-40">
           <div className="h-px w-20 bg-slate-300"></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-500">
             {docs.length >= DOCUMENTS_LIMIT
               ? `${DOCUMENTS_LIMIT} documents les plus récents • Utilisez la recherche pour les autres`
               : 'Fin de la liste • Archivage Sécurisé AES-256'}
