@@ -12,7 +12,10 @@ test.describe('Journal d’audit — export CSV (V1.1 lot 3a)', () => {
     await expect(page.getByText('Registre Des Actions')).toBeVisible();
 
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Exporter (CSV)' }).click();
+    const exportButton = page.getByRole('button', { name: 'Exporter (CSV)' });
+    // Infobulle alignée sur le libellé : c'est un CSV, pas un classeur Excel.
+    await expect(exportButton).toHaveAttribute('title', 'Télécharger le journal (fichier CSV)');
+    await exportButton.click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/\.csv$/);
