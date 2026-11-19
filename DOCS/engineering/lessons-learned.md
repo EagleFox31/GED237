@@ -924,3 +924,17 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
 **Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
 **Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
+
+### LESSON-2026-079 — Type MIME deviné par `mimetypes` : Word et Excel deviennent `octet-stream` dans l'image slim
+
+- **Date :** 2026-11-19
+- **Catégorie :** backend / packaging
+- **Statut :** resolved (`guess_mime_type`, test sans table système)
+- **Liens :** PR #458 (`feat/v11-api-office-text`, 1e085198), `backend/app/services/extraction/formats.py`
+
+**Contexte** — L'import de dossier (`ingestion.py`) déduisait le type d'un fichier avec `mimetypes.guess_type`. Après la fusion de main dans #458, les .docx et .xlsx doivent passer par la lecture du texte avant d'être classés.
+**Échec / near miss** — Dans Docker, `test_ingest_classification` échouait : `reparation_note.docx` était classé dès l'import, sans lecture du texte. Sous Windows, le même code donnait le bon type.
+**Cause racine** — La table intégrée de Python ne connaît pas .docx ni .xlsx. Elle complète avec `/etc/mime.types`, que `python:*-slim` ne fournit pas. Le type tombe donc à `application/octet-stream`, et `has_text_reader` répond non.
+**Résolution** — `guess_mime_type(path)` associe explicitement .docx et .xlsx à leur type, puis utilise `mimetypes`, puis `octet-stream`. L'import l'appelle à la place de `mimetypes.guess_type`.
+**Prévention** — `test_guess_mime_type_without_system_table` réinitialise `mimetypes` sans fichier système et vérifie .docx, .xlsx, .pdf, .csv et l'absence d'extension. Les tests tournent dans l'image Docker, pas sur le poste.
+**Leçon généralisée** — Un comportement qui dépend d'un fichier du système (table MIME, fuseaux, polices, locales) change d'une image à l'autre : déclarer explicitement ce dont le métier dépend, et le tester avec ce fichier absent.
