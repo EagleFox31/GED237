@@ -3,7 +3,7 @@
 // Domaine : workflows (étapes, actions, en attente, assignation, stats).
 // SRP : change uniquement si le contrat /workflows/* évolue.
 
-import { apiCall } from '../http/client';
+import { apiCall, type ApiCallOptions } from '../http/client';
 import type { PendingWorkflowTask, WorkflowValidator } from '../../types';
 
 // ── DTOs locaux ─────────────────────────────────────────────────────────────
@@ -69,8 +69,8 @@ export const workflowsApi = {
             'Récupération de l\'historique des actions impossible',
         ),
 
-    getPendingWorkflows: (): Promise<PendingWorkflowTask[]> =>
-        apiCall<PendingWorkflowTask[]>('/workflows/pending', {}, 'Impossible de charger les documents à valider.'),
+    getPendingWorkflows: (options: ApiCallOptions = {}): Promise<PendingWorkflowTask[]> =>
+        apiCall<PendingWorkflowTask[]>('/workflows/pending', {}, 'Impossible de charger les documents à valider.', options),
 
     getWorkflowValidators: (): Promise<WorkflowValidator[]> =>
         apiCall<WorkflowValidator[]>('/workflows/validators', {}, 'Récupération des valideurs impossible'),

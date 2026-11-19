@@ -8,6 +8,8 @@ import {
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 import { MAX_UPLOAD_MB } from '../constants';
 import { resolvePreviewStrategy } from './preview/PreviewStrategyRegistry';
+import { onActivationKey } from '../lib/keyboardActivation';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 /** Avertissement de format pour le fichier choisi (aperçu : mêmes règles que la fenêtre de détail). */
 function formatNoticeFor(f: File): string | null {
@@ -34,6 +36,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  useEscapeToClose(onClose, !isLoading);
 
   React.useEffect(() => {
     categoriesApi.list(false).then(setCategories).catch(console.error);
@@ -118,23 +121,28 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             <p className="text-sm text-slate-400 font-medium mt-0.5">Déposez un fichier puis choisissez s'il doit être archivé ou soumis au traitement</p>
           </div>
           <button
+            type="button"
             onClick={handleClose}
             disabled={isLoading}
+            aria-label="Fermer"
             className="w-10 h-10 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors disabled:opacity-40"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5">
+        <form onSubmit={handleSubmit} className="px-8 space-y-5">
 
           {/* Zone Drag & Drop */}
           <div
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
+            role="button"
+            tabIndex={0}
             onClick={() => fileInputRef.current?.click()}
-            className={`relative flex flex-col items-center justify-center gap-3 py-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all
+            onKeyDown={onActivationKey(() => fileInputRef.current?.click())}
+            className={`relative flex flex-col items-center justify-center gap-3 py-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300
               ${isDragging ? 'border-blue-500 bg-blue-50' : file ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
           >
             <input
@@ -212,10 +220,10 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
 
           {/* Titre */}
           <div className="space-y-1.5">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+            <label htmlFor="upload-title" className="text-xs font-black uppercase tracking-wider text-slate-500">
               Titre <span className="text-red-400">*</span>
             </label>
-            <input
+            <input id="upload-title"
               type="text"
               value={title}
               onChange={(e) => { setTitle(e.target.value); setTitleEditedByHand(e.target.value !== ''); }}
@@ -228,10 +236,10 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
 
           {/* Catégorie — liste déroulante dynamique */}
           <div className="space-y-1.5">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+            <label htmlFor="upload-category" className="text-xs font-black uppercase tracking-wider text-slate-500">
               Catégorie
             </label>
-            <select
+            <select id="upload-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none"
@@ -248,10 +256,10 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
 
           {/* Tags */}
           <div className="space-y-1.5">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+            <label htmlFor="upload-tags" className="text-xs font-black uppercase tracking-wider text-slate-500">
               Mots-clés <span className="text-slate-300 font-medium normal-case">(séparés par des virgules)</span>
             </label>
-            <input
+            <input id="upload-tags"
               type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
@@ -263,8 +271,8 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
 
           {/* Description */}
           <div className="space-y-1.5">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-500">Description</label>
-            <textarea
+            <label htmlFor="upload-description" className="text-xs font-black uppercase tracking-wider text-slate-500">Description</label>
+            <textarea id="upload-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Contexte ou note sur ce document..."
@@ -283,8 +291,8 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          {/* Actions : collées au bas de la fenêtre, visibles sans défiler sur petit écran (1366×768, zoom 125 %). */}
+          <div data-testid="upload-actions" className="sticky bottom-0 z-10 -mx-8 px-8 pt-4 pb-8 flex gap-3 bg-white border-t border-slate-100">
             <button
               type="button"
               onClick={handleClose}

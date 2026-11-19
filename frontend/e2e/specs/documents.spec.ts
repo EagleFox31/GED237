@@ -351,6 +351,38 @@ test.describe('Feature: Upload depuis « Mes documents » (Admin)', () => {
   });
 
   /**
+   * SCENARIO 11 bis (Lot 8 point 5) : petit écran 1366×768 zoomé à 125 % (≈ 1093×614 px CSS)
+   *   GIVEN  la fenêtre « Nouveau Document » plus haute que l'écran
+   *   THEN   « Annuler » et « Envoyer » sont visibles sans faire défiler la fenêtre
+   */
+  test('Given petit écran zoomé, When modale ouverte, Then boutons visibles sans défiler', async ({ page }) => {
+    await page.setViewportSize({ width: 1093, height: 614 });
+    const docsPage = new DocumentsPage(page);
+    const modal = new UploadDocumentModalPage(page);
+    await docsPage.goto();
+    await docsPage.expectPageVisible();
+    await docsPage.uploadButton.click();
+    await modal.expectVisible();
+
+    const actions = page.getByTestId('upload-actions');
+    const layout = await actions.evaluate((el) => {
+      const scroller = el.closest('.overflow-y-auto') as HTMLElement;
+      return {
+        overflows: scroller.scrollHeight > scroller.clientHeight,
+        scrollTop: scroller.scrollTop,
+        actionsBottom: el.getBoundingClientRect().bottom,
+        scrollerBottom: scroller.getBoundingClientRect().bottom,
+      };
+    });
+    // Le cas n'a de sens que si la fenêtre déborde : sinon le test ne prouverait rien.
+    expect(layout.overflows, 'la fenêtre doit déborder à cette taille').toBe(true);
+    expect(layout.scrollTop).toBe(0);
+    expect(layout.actionsBottom).toBeLessThanOrEqual(layout.scrollerBottom + 1);
+    await expect(actions.getByRole('button', { name: /annuler/i })).toBeInViewport({ ratio: 1 });
+    await expect(actions.getByRole('button', { name: /envoyer/i })).toBeInViewport({ ratio: 1 });
+  });
+
+  /**
    * SCENARIO 12: Fermeture de la modale via Annuler
    *
    *   GIVEN  la modale d'upload est ouverte
