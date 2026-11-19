@@ -1,9 +1,9 @@
 // Specs purs (sans navigateur, sans pile, sans serveur de dev) : exécutés en CI par `npm run test:unit`.
-// Tout nouveau spec pur s'ajoute au motif ci-dessous, sinon la CI ne le voit pas (cf. LESSON-2026-034).
+// Convention : tout spec pur se place dans e2e/unit/ ; ce fichier ne se modifie pas pour en ajouter un
+// (cf. LESSON-2026-034 et LESSON-2026-066).
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e/specs',
-  testMatch: /(safe-path|account-key|explorer-keys|review-labels|download-name|otp|org-tree-filter|password-criteria|notification-target|upload-feedback|refresh-outcome|draft-validator|draft-status-filter|pending-assignments|needs-review-destination|library-filter|workflow-batch-ack|task-decision-detail)\.spec\.ts/,
+  testDir: './e2e/unit',
   reporter: process.env.CI ? 'dot' : 'list',
 });

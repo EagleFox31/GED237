@@ -18,6 +18,7 @@ import {
   type TaskActionFilter,
 } from '../lib/workflowBatch';
 import { taskWithDetailVersion } from '../lib/taskDecisionFromDetail';
+import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -178,7 +179,7 @@ const WorkflowTasks: React.FC = () => {
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white">
                   Étape {task.step_order}
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{task.status}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{workflowStepStatusLabel(task.status)}</span>
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
               <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span></p>
