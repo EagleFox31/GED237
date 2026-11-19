@@ -134,7 +134,11 @@ def scope_query(
             WorkflowStep.status == STEP_CURRENT,
             Document.org_unit_id.in_(list(org_unit_ids or [])),
         )
-    return query.where(WorkflowStep.status == STEP_PENDING_ASSIGNMENT)
+    query = query.where(WorkflowStep.status == STEP_PENDING_ASSIGNMENT)
+    # unassigned: None means the whole tenant; a list (unit_admin tree) restricts it.
+    if org_unit_ids is not None:
+        query = query.where(Document.org_unit_id.in_(list(org_unit_ids)))
+    return query
 
 
 async def _routing_decisions(

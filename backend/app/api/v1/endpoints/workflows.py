@@ -12,6 +12,11 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
+from app.services.unit_admin_scope import (
+    assert_unit_admin_in_tree,
+    assert_unit_admin_object_in_tree,
+    unit_admin_scope_ids,
+)
 from app.models.document import Document
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.role import Role
@@ -154,11 +159,14 @@ def _validate_step_order(
     return sorted_steps
 
 
-async def _authorize_workflow_read(user: User, document: Document) -> None:
+async def _authorize_workflow_read(
+    user: User, document: Document, db: AsyncSession
+) -> None:
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
+        await assert_unit_admin_in_tree(db, document.org_unit_id, user)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -176,6 +184,7 @@ async def create_workflow_steps(
 ):
     """Define a validation workflow for a document."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     # Propriétaire (update_own) ou admin (manage) peut soumettre
     is_owner = document.owner_id == current_user.id
     action = "update_own" if is_owner else "manage"
@@ -243,7 +252,7 @@ async def get_workflow_steps(
 ):
     """Get all workflow steps for a document in the current tenant."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
     result = await db.execute(
         select(WorkflowStep)
         .where(WorkflowStep.document_id == document_id)
@@ -340,7 +349,7 @@ async def get_document_action_history(
     """Récupérer l'historique complet des actions métier posées sur un document."""
     # Vérifier que le document appartient au tenant
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
 
     # Récupérer toutes les actions via les steps du document
     result = await db.execute(
@@ -375,12 +384,14 @@ async def get_pending_assignments(
     Seulement pour les administrateurs du tenant.
     """
     await authorize_or_403(current_user, "workflows", "manage")
+    unit_ids = await unit_admin_scope_ids(db, current_user)
 
     steps, _total = await workflow_inbox.list_steps(
         db,
         "unassigned",
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
+        org_unit_ids=unit_ids,
         exclude_trashed=settings.WORKFLOW_PENDING_EXCLUDE_TRASHED,
     )
     return steps
@@ -410,7 +421,7 @@ async def get_workflow_inbox(
     if not settings.WORKFLOW_INBOX_ENABLED:
         raise HTTPException(status_code=404, detail="Not Found")
 
-    org_unit_ids: List[UUID] = []
+    org_unit_ids: Optional[List[UUID]] = []
     if scope == "mine":
         if not await can_perform(current_user, "workflows", "read"):
             await authorize_or_403(current_user, "workflows", "read_own")
@@ -429,6 +440,8 @@ async def get_workflow_inbox(
             )
     else:
         await authorize_or_403(current_user, "workflows", "manage")
+        # Same tree as /pending-assignments for a unit_admin; None elsewhere.
+        org_unit_ids = await unit_admin_scope_ids(db, current_user)
 
     steps, total = await workflow_inbox.list_steps(
         db,
@@ -474,6 +487,7 @@ async def assign_step_admin(
     if document is None:
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
 
     # Validate assignee exists
     user_result = await db.execute(
