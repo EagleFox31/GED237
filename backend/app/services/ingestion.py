@@ -437,6 +437,12 @@ class DirectoryIngestionService:
                     f"[Ingestion] Could not queue OCR for {document.id}: {e}"
                 )
 
+        # 5. Without an OCR pass to come, the classification is final: a document left
+        # « à vérifier » must reach the review screen, as on upload. The OCR pass does
+        # the same for images and PDFs once their text is read.
+        if not ocr_queued:
+            await self._sync_review(document)
+
         matched_rules = []
 
         return {
@@ -449,3 +455,23 @@ class DirectoryIngestionService:
             "ocr_queued": ocr_queued,
             "source_path": file_path,
         }
+
+    async def _sync_review(self, document: Document) -> None:
+        """Own transaction: a review that cannot be opened never loses the import; the
+        document stays « à vérifier » and the back-fill script can catch it up."""
+        from app.services.classification_review_service import (
+            ClassificationReviewService,
+        )
+
+        document_id = document.id
+        try:
+            await ClassificationReviewService(self.db).sync_review_with_document_status(
+                document=document
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            logger.exception(
+                "[Ingestion] Review not opened for document %s", document_id
+            )
+        await self.db.refresh(document)
