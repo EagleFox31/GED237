@@ -77,19 +77,32 @@ const AuditLogs: React.FC<AuditLogsProps> = ({ ownOnly = false }) => {
     ['created_at', 'resource', 'action', 'actor', 'detail'].filter((key) => !(ownOnly && key === 'actor')),
   );
 
+  // « Effectuée par » est filtré par le serveur (user_id répété) : le filtre porte sur tout le
+  // journal, pas seulement sur les lignes déjà chargées. La liste des acteurs proposés vient du
+  // dernier chargement sans filtre d'acteur, pour pouvoir en cocher d'autres ensuite.
+  const [actorSource, setActorSource] = useState<AuditLogEntry[]>([]);
+  const actorLabels = columnFilters.actor ?? [];
+  const actorIds = auditExportActors(actorSource, actorLabels);
+  // Les actions système n'ont pas d'identifiant : si « Système » est coché, on charge sans filtre
+  // d'acteur et le tableau trie ces lignes localement (l'export reste bloqué dans ce cas).
+  const serverActorKey = actorIds.blocked ? '' : actorIds.userIds.join(',');
+
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getAuditLogs({ limit: 200, mine: ownOnly });
-      setLogs(Array.isArray(data) ? data : []);
+      const userIds = serverActorKey ? serverActorKey.split(',') : [];
+      const data = await api.getAuditLogs({ limit: 200, user_id: userIds, mine: ownOnly });
+      const rows = Array.isArray(data) ? data : [];
+      setLogs(rows);
+      if (userIds.length === 0) setActorSource(rows);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
       setError('Impossible de charger le registre des actions.');
     } finally {
       setIsLoading(false);
     }
-  }, [ownOnly]);
+  }, [serverActorKey, ownOnly]);
 
   useEffect(() => {
     fetchLogs();
@@ -119,20 +132,19 @@ const AuditLogs: React.FC<AuditLogsProps> = ({ ownOnly = false }) => {
     () =>
       Array.from(
         new Map(
-          logs.map((log) => {
+          actorSource.map((log) => {
             const actorLabel = getActorLabel(log);
             return [actorLabel, { value: actorLabel, label: actorLabel }];
           }),
         ).values(),
       ).sort((a, b) => a.label.localeCompare(b.label)),
-    [logs],
+    [actorSource],
   );
 
   // L'export reprend les filtres du tableau, tous les acteurs cochés compris.
   const tableValues = columnFilters.table_name ?? [];
   const actionValues = columnFilters.action ?? [];
-  const actorLabels = columnFilters.actor ?? [];
-  const { userIds: exportUserIds, blocked: exportBlocked } = auditExportActors(logs, actorLabels);
+  const { userIds: exportUserIds, blocked: exportBlocked } = actorIds;
   const [exporting, setExporting] = useState(false);
 
   const exportCsv = async () => {
@@ -168,12 +180,12 @@ const AuditLogs: React.FC<AuditLogsProps> = ({ ownOnly = false }) => {
       const actionFilter = columnFilters.action ?? [];
       if (actionFilter.length > 0 && !actionFilter.includes(log.action)) return false;
 
-      const actorFilter = columnFilters.actor ?? [];
-      if (actorFilter.length > 0 && !actorFilter.includes(getActorLabel(log))) return false;
+      // Acteurs : déjà filtrés par le serveur, sauf quand « Système » est coché (voir fetchLogs).
+      if (actorIds.blocked && !actorLabels.includes(getActorLabel(log))) return false;
 
       return true;
     });
-  }, [columnFilters, logs]);
+  }, [columnFilters, logs, actorIds.blocked, actorLabels]);
 
   const nothingToExport = !isLoading && filteredLogs.length === 0;
 
@@ -390,7 +402,9 @@ const AuditLogs: React.FC<AuditLogsProps> = ({ ownOnly = false }) => {
           <div className="max-h-[70vh] overflow-auto px-4 py-4">
             <DataTable<AuditLogEntry>
               rows={sortedLogs}
-              loading={isLoading}
+              // Vue « chargement » au premier chargement seulement : un rechargement dû au filtre
+              // « Effectuée par » garde le tableau (et son menu de filtre ouvert) à l'écran.
+              loading={isLoading && logs.length === 0}
               getRowKey={(log) => log.id}
               sort={sort}
               onSortChange={toggleSort}

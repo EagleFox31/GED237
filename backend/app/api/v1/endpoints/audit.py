@@ -366,6 +366,8 @@ async def list_audit_logs(
     table_name: Optional[str] = Query(default=None),
     action: Optional[str] = Query(default=None),
     mine: bool = Query(default=False),
+    # Same actor filter as the export: filtering server-side keeps it right across pages.
+    user_id: Optional[list[UUID]] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -378,7 +380,8 @@ async def list_audit_logs(
         current_user.tenant_id,
         table_name=table_name,
         action=action,
-        user_id=current_user.id if own_only else None,
+        # Without the right to read the journal, the caller only ever sees their own lines.
+        user_id=current_user.id if own_only else user_id,
     )
     query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
