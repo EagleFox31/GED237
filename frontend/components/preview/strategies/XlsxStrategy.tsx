@@ -1,18 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { PreviewRenderProps, PreviewStrategy } from '../types';
+import { rowCount, truncatedRowsNotice } from '../previewLimits';
+import { listSheets, readSheet, sheetHasTable } from '../xlsxReader';
+
+// Messages pour l'utilisateur : le détail technique de la bibliothèque n'est pas affiché.
+const BOOK_UNREADABLE = "Ce classeur ne peut pas être affiché. Téléchargez-le pour l'ouvrir.";
+const SHEET_UNREADABLE = "Cet onglet ne peut pas être affiché. Téléchargez le fichier pour l'ouvrir.";
+const SHEET_NO_TABLE = 'Aucun tableau dans cet onglet.';
 
 const XLSX_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
 ];
 
-interface SheetView {
-  name: string;
-  html: string;
+type XlsxModule = typeof import('xlsx');
+
+interface LoadedWorkbook {
+  XLSX: XlsxModule;
+  data: ArrayBuffer;
+  names: string[];
 }
 
 const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
-  const [sheets, setSheets] = useState<SheetView[] | null>(null);
+  const [loaded, setLoaded] = useState<LoadedWorkbook | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,22 +35,15 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     (async () => {
       try {
         const XLSX = await import('xlsx');
-        const arrayBuffer = await blob.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const views: SheetView[] = workbook.SheetNames
-          .filter((name) => Boolean(workbook.Sheets[name]))
-          .map((name) => ({
-            name,
-            html: XLSX.utils.sheet_to_html(workbook.Sheets[name]!, { editable: false }),
-          }));
+        const data = await blob.arrayBuffer();
+        // Liste des onglets seulement : leur contenu est lu un par un, à l'affichage.
+        const names = listSheets(XLSX, data);
         if (cancelled) return;
-        setSheets(views);
+        setLoaded({ XLSX, data, names });
         setActiveIndex(0);
-      } catch (err: unknown) {
+      } catch {
         if (cancelled) return;
-        const message = (err as { message?: string })?.message
-          || 'Conversion du classeur Excel impossible.';
-        setError(message);
+        setError(BOOK_UNREADABLE);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -51,6 +54,25 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     };
   }, [blob]);
 
+  // Seul l'onglet affiché est lu puis converti en HTML, à la demande.
+  const active = useMemo(() => {
+    if (!loaded) return null;
+    try {
+      const sheet = readSheet(loaded.XLSX, loaded.data, loaded.names[activeIndex] ?? '');
+      if (!sheetHasTable(sheet)) return { html: '', notice: null, error: null, empty: true };
+      const shown = rowCount(sheet['!ref']);
+      const total = rowCount((sheet['!fullref'] as string | undefined) ?? sheet['!ref']);
+      return {
+        html: loaded.XLSX.utils.sheet_to_html(sheet, { editable: false }),
+        notice: truncatedRowsNotice(shown, total),
+        error: null,
+        empty: false,
+      };
+    } catch {
+      return { html: '', notice: null, error: SHEET_UNREADABLE, empty: false };
+    }
+  }, [loaded, activeIndex]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center gap-3 text-slate-400">
@@ -60,11 +82,11 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     );
   }
 
-  if (error || !sheets) {
+  if (error || !loaded || !active) {
     return (
       <div className="rounded-3xl border border-rose-100 bg-white p-10 shadow-sm max-w-md">
         <span className="material-symbols-outlined mb-4 text-6xl text-rose-300">error</span>
-        <p className="text-sm font-bold text-rose-700">{error ?? 'Classeur illisible.'}</p>
+        <p className="text-sm font-bold text-rose-700">{error ?? BOOK_UNREADABLE}</p>
       </div>
     );
   }
@@ -74,28 +96,41 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
       className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
       aria-label={`Aperçu de ${filename}`}
     >
-      {sheets.length > 1 && (
+      {loaded.names.length > 1 && (
         <div className="flex flex-shrink-0 gap-1 overflow-x-auto border-b border-slate-100 bg-slate-50 px-3 py-2">
-          {sheets.map((sheet, index) => (
+          {loaded.names.map((name, index) => (
             <button
-              key={sheet.name}
+              key={name}
               type="button"
               onClick={() => setActiveIndex(index)}
+              aria-pressed={index === activeIndex}
               className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
                 index === activeIndex
                   ? 'bg-white text-slate-800 shadow-sm'
                   : 'text-slate-500 hover:bg-white/60'
               }`}
             >
-              {sheet.name}
+              {name}
             </button>
           ))}
         </div>
       )}
-      <div
-        className="xlsx-preview flex-1 overflow-auto p-4 text-left text-xs text-slate-800"
-        dangerouslySetInnerHTML={{ __html: sheets[activeIndex]?.html ?? '' }}
-      />
+      {active.notice && (
+        <p data-testid="xlsx-truncated" className="flex-shrink-0 border-b border-amber-100 bg-amber-50 px-4 py-1.5 text-left text-xs text-amber-800">
+          {active.notice}
+        </p>
+      )}
+      {active.error ? (
+        <p className="p-4 text-sm font-bold text-rose-700">{active.error}</p>
+      ) : active.empty ? (
+        // Onglet vide ou graphique : situation normale, pas une erreur.
+        <p data-testid="xlsx-empty-sheet" className="p-4 text-sm text-slate-500">{SHEET_NO_TABLE}</p>
+      ) : (
+        <div
+          className="xlsx-preview flex-1 overflow-auto p-4 text-left text-xs text-slate-800"
+          dangerouslySetInnerHTML={{ __html: active.html }}
+        />
+      )}
     </div>
   );
 };
