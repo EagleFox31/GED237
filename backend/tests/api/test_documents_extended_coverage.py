@@ -165,8 +165,9 @@ async def test_document_start_workflow_trash_restore_purge_and_hard_delete(
         name="coverage-hard-delete.txt",
         content=b"hard-delete",
     )
-    hard_deleted = await admin_client.delete(f"/api/v1/documents/{second['id']}")
-    assert hard_deleted.status_code == 204
+    # DELETE no longer removes for good: the document goes to the trash.
+    deleted = await admin_client.delete(f"/api/v1/documents/{second['id']}")
+    assert deleted.status_code == 204
 
-    missing_after_delete = await admin_client.get(f"/api/v1/documents/{second['id']}")
-    assert missing_after_delete.status_code == 404
+    trash_after_delete = await admin_client.get("/api/v1/documents/trash")
+    assert [row["id"] for row in trash_after_delete.json()] == [second["id"]]

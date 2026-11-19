@@ -27,9 +27,23 @@ export interface AuthzMetricsFilters {
 
 // ── API ─────────────────────────────────────────────────────────────────────
 
+/** Clé « ressource:action », ex. `documents:purge`. */
+export type PermissionKey = `${string}:${string}`;
+
 export const authzApi = {
+    /** Droits de l'utilisateur courant, évalués par le serveur (1 à 20 paires). */
+    getMyPermissions: (checks: PermissionKey[]): Promise<Record<string, boolean>> =>
+        apiCall<Record<string, boolean>>(
+            `/authz/me/permissions?checks=${encodeURIComponent(checks.join(','))}`,
+            {},
+            'Récupération des droits impossible',
+        ),
+
+    // 409 : politiques non modifiables sur cette installation (AUTHZ_BACKEND=csv) ; l'écran l'affiche lui-même.
     getAuthzPolicies: (): Promise<any[]> =>
-        apiCall<any[]>('/authz/policies', {}, 'Récupération des politiques impossible'),
+        apiCall<any[]>('/authz/policies', {}, 'Récupération des politiques impossible', {
+            handledStatuses: [409],
+        }),
 
     addAuthzPolicy: (policy: AuthzPolicy): Promise<any> =>
         apiCall<any>(
@@ -45,8 +59,11 @@ export const authzApi = {
             'Suppression de la politique impossible',
         ),
 
+    // Même garde que /authz/policies côté API (409 en csv), chargé en parallèle : l'écran l'affiche lui-même.
     getAuthzRoles: (): Promise<any[]> =>
-        apiCall<any[]>('/authz/roles', {}, 'Récupération des rôles impossible'),
+        apiCall<any[]>('/authz/roles', {}, 'Récupération des rôles impossible', {
+            handledStatuses: [409],
+        }),
 
     getAuthzMetrics: (filters: AuthzMetricsFilters = {}): Promise<any> => {
         const p = new URLSearchParams();

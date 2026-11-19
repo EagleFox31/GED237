@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     classification,
     classification_reviews,
     documents,
+    duplicates,
     gedrules,
     imports,
     notifications,
@@ -33,6 +34,7 @@ api_router.include_router(
 api_router.include_router(spaces.router, prefix="/spaces", tags=["Spaces"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(documents.router, prefix="/documents", tags=["Documents"])
+api_router.include_router(duplicates.router, prefix="/duplicates", tags=["Duplicates"])
 api_router.include_router(imports.router, prefix="/imports", tags=["Imports"])
 api_router.include_router(workflows.router, prefix="/workflows", tags=["Workflows"])
 api_router.include_router(search.router, prefix="/search", tags=["Search"])
