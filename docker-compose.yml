@@ -242,6 +242,8 @@ services:
       # Same value as the API's cap, so the upload window refuses too-large files before sending.
       - VITE_MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-100}
       - VITE_LOGIN_DEMO_HINTS=${LOGIN_DEMO_HINTS:-true}
+      # Extra host names the Vite dev server accepts (comma-separated). Empty: localhost and IPs only.
+      - FRONTEND_ALLOWED_HOSTS=${FRONTEND_ALLOWED_HOSTS:-}
     networks:
       - edossier_network
 
