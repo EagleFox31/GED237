@@ -101,6 +101,14 @@ async def test_document_read_content_update_ocr_and_audit_endpoints(
     assert processing_ocr.status_code == 200
     assert processing_ocr.json()["ocr_status"] == "processing"
 
+    # Word files are read too, so they show as being processed until text is stored.
+    document.mime_type = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    await db_session.commit()
+    word_ocr = await admin_client.get(f"/api/v1/documents/{document_id}/ocr")
+    assert word_ocr.json()["ocr_status"] == "processing"
+
     document.ocr_content = "recognized coverage text"
     document.extra_data = {"ocr_confidence": 0.97}
     await db_session.commit()

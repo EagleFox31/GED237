@@ -1644,10 +1644,7 @@ async def get_document_ocr(
         if document.extra_data and "ocr_confidence" in document.extra_data:
             ocr_confidence = document.extra_data["ocr_confidence"]
     else:
-        ocr_source_type = document.mime_type or document.file_type
-        if ocr_source_type and (
-            ocr_source_type.startswith("image/") or ocr_source_type == "application/pdf"
-        ):
+        if has_text_reader(document.mime_type or document.file_type):
             ocr_status = "processing"
 
     return DocumentOCRContent(

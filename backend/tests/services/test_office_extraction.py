@@ -160,6 +160,79 @@ def test_too_many_parts_is_refused(tmp_path, monkeypatch):
         extract_office_text(str(path), DOCX_MIME_TYPE)
 
 
+def _varied_paragraphs(document):
+    # Varied text, so the XML does not compress past the ratio check.
+    for i in range(1500):
+        document.add_paragraph(f"article {i} {i * 7919 % 104729} {i:x}")
+
+
+@pytest.mark.parametrize(
+    "mime, build, save",
+    [
+        (DOCX_MIME_TYPE, _varied_paragraphs, _save_docx),
+        (
+            XLSX_MIME_TYPE,
+            lambda w: [
+                w.active.append([f"cellule {i} {i * 7919}"]) for i in range(1500)
+            ],
+            _save_xlsx,
+        ),
+    ],
+)
+def test_xml_part_cap_at_the_limit(tmp_path, monkeypatch, mime, build, save):
+    path = save(tmp_path, build)
+    with zipfile.ZipFile(path) as archive:  # the cap is set on the largest XML part
+        largest = max(
+            (i for i in archive.infolist() if i.filename.endswith((".xml", ".rels"))),
+            key=lambda i: i.file_size,
+        )
+    part, size = largest.filename, largest.file_size
+
+    monkeypatch.setattr(office, "MAX_XML_PART_BYTES", size)
+    assert "1" in extract_office_text(path, mime)  # exactly at the cap: read
+
+    monkeypatch.setattr(office, "MAX_XML_PART_BYTES", size - 1)
+    with pytest.raises(OfficeExtractionError, match=f"part {part}") as error:
+        extract_office_text(path, mime)  # one byte over: refused before parsing
+    assert error.value.reason == "engine_error"
+
+
+def test_xml_total_cap_at_the_limit(tmp_path, monkeypatch):
+    path = _save_docx(tmp_path, _varied_paragraphs)
+    with zipfile.ZipFile(path) as archive:
+        xml = sum(
+            i.file_size
+            for i in archive.infolist()
+            if i.filename.endswith((".xml", ".rels"))
+        )
+
+    monkeypatch.setattr(office, "MAX_XML_TOTAL_BYTES", xml)
+    assert "article" in extract_office_text(path, DOCX_MIME_TYPE)
+
+    monkeypatch.setattr(office, "MAX_XML_TOTAL_BYTES", xml - 1)
+    with pytest.raises(OfficeExtractionError, match="MB of XML"):
+        extract_office_text(path, DOCX_MIME_TYPE)
+
+
+def test_media_part_is_not_held_to_the_xml_cap(tmp_path, monkeypatch):
+    base = _save_docx(tmp_path, lambda d: d.add_paragraph("texte"))
+    path = tmp_path / "media.docx"
+    with zipfile.ZipFile(base) as source, zipfile.ZipFile(path, "w") as target:
+        for item in source.infolist():
+            target.writestr(item, source.read(item.filename))
+        target.writestr("word/media/image1.png", bytes(range(256)) * 8192)  # 2 MB
+    monkeypatch.setattr(office, "MAX_XML_PART_BYTES", 1024 * 1024)
+    assert extract_office_text(str(path), DOCX_MIME_TYPE) == "texte"
+
+
+def test_abnormal_compression_ratio_is_refused(tmp_path):
+    path = tmp_path / "ratio.docx"
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("word/document.xml", b"<w:p/>" * (2 * 1024 * 1024 // 6))
+    with pytest.raises(OfficeExtractionError, match="compressed more than"):
+        extract_office_text(str(path), DOCX_MIME_TYPE)
+
+
 def test_file_size_cap(tmp_path, monkeypatch):
     monkeypatch.setattr(office, "MAX_FILE_BYTES", 100)
 

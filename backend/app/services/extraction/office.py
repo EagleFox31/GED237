@@ -5,8 +5,9 @@ whose ``reason`` uses the same codes as the task's failure states (``no_text``,
 ``unsupported_format``, ``engine_error``). Never returns "".
 
 Files come from users, so every read is bounded:
-- archive: file size, declared uncompressed size and entry count are checked before any
-  parsing (zip bomb). zipfile never inflates an entry past its declared size;
+- archive: file size, declared uncompressed size, entry count, and the size and
+  compression ratio of each XML part are checked before any parsing (zip bomb, memory of
+  the worker). zipfile never inflates an entry past its declared size;
 - XML: python-docx parses with ``resolve_entities=False``; openpyxl switches to defusedxml
   when it is installed (pinned in requirements.txt);
 - work: a cell budget for spreadsheets and a time budget, checked between paragraphs and
@@ -17,6 +18,7 @@ Files come from users, so every read is bounded:
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import os
 import time
 import zipfile
@@ -25,11 +27,22 @@ from contextlib import closing
 
 from .formats import DOCX_MIME_TYPE, XLSX_MIME_TYPE
 
+logger = logging.getLogger(__name__)
+
 # Caps sized for administrative files: a 50 MB .docx is already image-heavy, and the text
 # of a 500-page report is about 1.5 M characters, so 500 k characters keeps the searchable
 # part of anything realistic while staying far from the tsvector limit.
 MAX_FILE_BYTES = 50 * 1024 * 1024
-MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024
+MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+# XML parts are parsed into a tree (python-docx) or style and string tables (openpyxl):
+# dense XML takes about 11 times its size in memory. The worker runs one child that also
+# holds the OCR models (~1.3 GB) under a 2 GB limit. Measured worst case at these caps
+# (dense, varied XML, every part just under its cap): see the PR of this change.
+MAX_XML_PART_BYTES = 10 * 1024 * 1024
+MAX_XML_TOTAL_BYTES = 30 * 1024 * 1024
+# Real Office XML compresses about 5 to 30 times; far beyond is a crafted file.
+MAX_XML_COMPRESSION_RATIO = 100
+XML_RATIO_FLOOR_BYTES = 1024 * 1024  # small parts may compress well; ignore their ratio
 MAX_ENTRIES = 5_000
 MAX_CELLS = 500_000
 MAX_CHARS = 500_000
@@ -104,6 +117,30 @@ def _check_archive(path: str) -> None:
             ENGINE_ERROR,
             f"more than {MAX_UNCOMPRESSED_BYTES // 2**20} MB once uncompressed",
         )
+    xml_entries = [e for e in entries if e.filename.endswith((".xml", ".rels"))]
+    # images and other media are kept as bytes, not parsed: only the overall cap applies
+    if sum(entry.file_size for entry in xml_entries) > MAX_XML_TOTAL_BYTES:
+        raise OfficeExtractionError(
+            ENGINE_ERROR,
+            f"more than {MAX_XML_TOTAL_BYTES // 2**20} MB of XML once uncompressed",
+        )
+    for entry in xml_entries:
+        if entry.file_size > MAX_XML_PART_BYTES:
+            raise OfficeExtractionError(
+                ENGINE_ERROR,
+                f"part {entry.filename} is more than "
+                f"{MAX_XML_PART_BYTES // 2**20} MB once uncompressed",
+            )
+        if (
+            entry.file_size > XML_RATIO_FLOOR_BYTES
+            and entry.file_size
+            > MAX_XML_COMPRESSION_RATIO * max(entry.compress_size, 1)
+        ):
+            raise OfficeExtractionError(
+                ENGINE_ERROR,
+                f"part {entry.filename} is compressed more than "
+                f"{MAX_XML_COMPRESSION_RATIO}:1",
+            )
 
 
 def _docx_lines(path: str) -> Iterator[str]:
@@ -145,6 +182,11 @@ def _xlsx_lines(path: str) -> Iterator[str]:
             for row in sheet.iter_rows(values_only=True):
                 cells += len(row)
                 if cells > MAX_CELLS:
+                    logger.info(
+                        "Spreadsheet text cut at %s cells (sheet %r)",
+                        MAX_CELLS,
+                        sheet.title,
+                    )
                     return
                 line = " ".join(
                     text for text in map(_cell_text, row) if text and text.strip()
