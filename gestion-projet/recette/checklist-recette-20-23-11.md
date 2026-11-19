@@ -96,11 +96,17 @@
 
 ## 6. Comportements de `main` à annoncer aux testeurs (ne pas les noter en KO)
 
-Les cinq premiers comportements viennent du tri de l’audit du 19/11 (`innovateur/tri-audit-quotidien-fonctionnaire-19-11.md`). Ils sont connus et traités en V1.1.
+Les cinq premiers comportements viennent du tri de l’audit du 19/11 (`innovateur/tri-audit-quotidien-fonctionnaire-19-11.md`). Ils sont connus et traités en V1.1. Les comportements marqués « audit du fonctionnaire » viennent du parcours joué le 19/11 sur f890b3cb (DEC-2026-013). Ils sont connus et partent en V1.1 chez F.
 
-- **« Tâches & Suivi » valide en un seul clic, sans confirmation.** Préparer un document de rechange en attente (SC-VAL-03), et toujours cliquer d'abord sur « Voir le document ».
-- **Le dépôt se fait un fichier à la fois.** La fenêtre se ferme après chaque envoi. À 1366×768 avec un zoom de 125 %, le bouton « Envoyer » sort de l'écran : tester à 100 %.
-- **Document rejeté.** Le motif se lit dans l'onglet « Circuit de Validation » de la fiche, et aucun bouton ne permet de le renvoyer. C'est conforme à SC-VAL-04.
+**Corrigés pour l'UAT (DEC-2026-013), si les PR sont fusionnées sur `main` avant le 23** : le bouton « Envoyer » reste visible dans la fenêtre de dépôt (#441, #450), et le menu « Tâches » affiche le nombre de tâches en attente (#442). Q note au relevé le SHA de `main` joué. Si l'une n'est pas fusionnée, le comportement d'avant reste annoncé ci‑dessous.
+
+- **« Tâches & Suivi » valide en un seul clic, sans confirmation.** Préparer un document de rechange en attente (SC-VAL-03), et toujours cliquer d'abord sur « Voir le document ». Le tableau de bord, lui, demande une confirmation (audit du fonctionnaire).
+- **Le dépôt se fait un fichier à la fois.** La fenêtre se ferme après chaque envoi. Sans #450 : à 1366×768, le bouton « Envoyer » peut sortir de l'écran ; faire défiler la fenêtre de dépôt. Le libellé « règle d'aiguillage » est affiché tel quel (audit du fonctionnaire).
+- **Document rejeté.** Le motif se lit dans l'onglet « Circuit de Validation » de la fiche, pas sur la carte de « Mon Atelier ». Aucun bouton ne permet de le corriger et de le renvoyer, et le filtre « Statut » de « Mes Documents » ne propose pas « Rejeté ». C'est conforme à SC-VAL-04 (audit du fonctionnaire).
+- **Pas de message de confirmation après un dépôt ou une soumission.** La fenêtre se ferme sans message : vérifier dans « Mes Documents » que le document est arrivé, sans le redéposer (audit du fonctionnaire).
+- **Recherche sans accent.** « decret » ne trouve pas « Décret » : taper le mot avec ses accents (audit du fonctionnaire).
+- **Rien n'est mémorisé d'un envoi à l'autre.** Le valideur est à choisir à chaque soumission, et l'institution à chaque connexion. « Soumettre » se trouve dans « Mon Atelier » (tableau de bord), pas dans « Mes Documents » (audit du fonctionnaire).
+- **Le nom de l'expéditeur n'apparaît pas** dans le parapheur du tableau de bord ni dans « Tâches & Suivi » : ouvrir la fiche pour le voir (audit du fonctionnaire).
 - **« Mes Documents » s'arrête à 100 lignes.** La recherche du bandeau ne filtre que la page affichée. Un document absent de cette page n'est pas perdu : le chercher avec « Recherche ».
 - **Pas de « Renvoyer le code ».** Si le code a expiré, recommencer la connexion.
 - **Restaurer un document peut recréer un doublon.** La restauration depuis la corbeille ne vérifie pas les doublons. Le document se retrouve dans la vue « Doublons ». Ne pas le noter en KO (décision du PO, 19/11, 11:40).
