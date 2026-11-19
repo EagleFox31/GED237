@@ -2,10 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../services/api';
 import type { TenantUser, OrgUnitNode } from './types';
 import { PAGE_SIZE, ROLE_LABELS, ROLE_BADGE_STYLES } from './constants';
-import { errorMessage } from './hooks';
 import { Avatar } from './Avatar';
-import { DataTable, type Column, type SortState } from '../../../../components/ui/DataTable';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
+import { DataTable, type Column, type SortState } from '../../../../components/ui/DataTable';
 import { useAuthStore } from '../../../../stores/authStore';
 import { canResetApp } from '../../../../components/auth/otpRules';
 
@@ -15,6 +14,9 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
   const self = useAuthStore((s) => s.userProfile);
   // Le super_admin ne peut viser que les comptes administrateurs, jamais le sien (403 sinon).
   const canResetTotp = canResetApp('super_admin', user.role, user.role === 'super_admin' && self?.matricule === user.matricule);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [pwd, setPwd] = useState('');
+  const [pwdDone, setPwdDone] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,20 +38,32 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
     try {
       await api.updateUser(user.id, { is_active: !user.is_active });
       onAfter();
-    } catch (e) {
-      window.alert(`Échec : ${errorMessage(e)}`);
+    } catch {
+      // L'erreur est publiée au bus global par buildApiError.
     }
   };
 
-  const resetPassword = async () => {
+  const resetPassword = () => {
     setOpen(false);
-    const pwd = window.prompt(`Nouveau mot de passe pour ${user.matricule} (min. 6 caractères) :`);
-    if (!pwd || pwd.length < 6) return;
+    setPwd('');
+    setPwdDone(false);
+    setPwdOpen(true);
+  };
+
+  const closePassword = () => {
+    setPwdOpen(false);
+    setPwd('');
+    setPwdDone(false);
+  };
+
+  const submitPassword = async () => {
+    if (pwd.length < 6) return;
     try {
       await api.updateUser(user.id, { password: pwd });
-      window.alert('Mot de passe réinitialisé.');
-    } catch (e) {
-      window.alert(`Échec : ${errorMessage(e)}`);
+      setPwd('');
+      setPwdDone(true);
+    } catch {
+      // L'erreur est publiée au bus global par buildApiError.
     }
   };
 
@@ -66,6 +80,32 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
 
   return (
     <div ref={ref} className="relative inline-block">
+      <ConfirmationModal
+        open={pwdOpen}
+        icon="key"
+        title={pwdDone ? 'Mot de passe réinitialisé' : 'Nouveau mot de passe'}
+        message={pwdDone ? `Le mot de passe de ${user.full_name || user.matricule} a été changé.` : `Pour ${user.full_name || user.matricule}.`}
+        confirmLabel="Réinitialiser"
+        cancelLabel={pwdDone ? 'Fermer' : 'Annuler'}
+        hideConfirm={pwdDone}
+        confirmDisabled={pwd.length < 6}
+        onConfirm={() => void submitPassword()}
+        onCancel={closePassword}
+      >
+        {!pwdDone && (
+          <input
+            type="password"
+            autoFocus
+            autoComplete="new-password"
+            value={pwd}
+            onChange={(e) => setPwd(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void submitPassword(); }}
+            placeholder="6 caractères minimum"
+            aria-label="Nouveau mot de passe"
+            className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+          />
+        )}
+      </ConfirmationModal>
       <button
         type="button"
         aria-label={`Actions pour ${user.full_name || user.matricule}`}

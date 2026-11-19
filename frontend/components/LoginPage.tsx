@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import CameroonMap from './CameroonMap';
 import DemoProfiles from './widgets/DemoProfiles';
+import { LOGIN_DEMO_HINTS } from '../constants';
 import { api, type AuthSession } from '../services/api';
 import { ApiError } from '../lib/errors';
 import { HelpHint } from './HelpHint';
@@ -8,6 +9,8 @@ import { isEnrolmentRequired } from '../services/resources/auth.api';
 import { TotpEnrolment } from './auth/TotpEnrolment';
 import { isAppCode, otpPrompt, resendErrorMessage, resendSecondsLeft } from './auth/otpRules';
 import { accountLockOf, authErrorMessage } from './auth/authErrors';
+import { otpDigitsFromPaste, otpFocusAfterPaste, otpFromPaste } from '../lib/otp';
+import { clearSessionExpiredNotice, isSessionExpiredNoticePending } from '../services/http/session';
 
 /** Message français d'une erreur d'API sur cet écran (l'API répond en anglais). */
 const messageOf = (err: unknown, fallback: string) =>
@@ -58,6 +61,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [error, setError] = useState<string | null>(null);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [lockSeconds, setLockSeconds] = useState(0);
+  // Session refusée par le serveur pendant le travail : annoncée une seule fois.
+  const [sessionExpired] = useState(isSessionExpiredNoticePending);
+  useEffect(() => {
+    clearSessionExpiredNotice();
+  }, []);
 
   useEffect(() => {
     if (lockedUntil === null) return;
@@ -233,6 +241,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError(message);
   }, []);
 
+  const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData('text');
+    if (otpDigitsFromPaste(text).length === 0) return;
+    event.preventDefault();
+    setOtp(otpFromPaste(text));
+    document.getElementById(`otp-${otpFocusAfterPaste(text)}`)?.focus();
+  };
+
+  // Retour arrière sur une case vide : on revient à la précédente en l'effaçant.
+  const handleOtpKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Backspace' || otp[index] || index === 0) return;
+    event.preventDefault();
+    const next = [...otp];
+    next[index - 1] = '';
+    setOtp(next);
+    document.getElementById(`otp-${index - 1}`)?.focus();
+  };
+
   const handleOtpChange = (index: number, value: string) => {
     const sanitizedValue = value.replace(/\D/g, '');
     if (sanitizedValue.length > 1) return;
@@ -306,8 +332,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         Attendez la fin du décompte avant de réessayer ; saisir un nouveau code ne raccourcit pas le délai. Si vous ne pouvez pas attendre, demandez le déblocage à votre administrateur.
                       </HelpHint>
                     </p>
+                  ) : error ? (
+                    <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
                   ) : (
-                    error && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>
+                    sessionExpired && (
+                      <p role="status" className="text-amber-800 text-sm font-bold bg-amber-50 p-3 rounded-xl">
+                        Votre session a expiré, reconnectez-vous.
+                      </p>
+                    )
                   )}
                 </div>
 
@@ -362,7 +394,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <div className="space-y-2 group">
                       <div className="flex justify-between px-1">
                         <label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Mot de Passe</label>
-                        <button type="button" className="text-[10px] font-black text-rdpc-blue uppercase hover:underline">Oublié ?</button>
                       </div>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-rdpc-blue transition-colors">
@@ -396,7 +427,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <form onSubmit={handleOtpSubmit} className="space-y-10">
                   <div className="flex justify-between gap-3">
                     {otp.map((digit, idx) => (
-                      <input key={idx} id={`otp-${idx}`} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpChange(idx, e.target.value)} className="w-full h-16 text-center text-2xl font-black text-rdpc-blue bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-rdpc-blue focus:ring-8 focus:ring-blue-500/5 outline-none transition-all" />
+                      <input key={idx} id={`otp-${idx}`} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpChange(idx, e.target.value)} onPaste={handleOtpPaste} onKeyDown={(e) => handleOtpKeyDown(idx, e)} inputMode="numeric" autoComplete="one-time-code" aria-label={`Chiffre ${idx + 1} du code`} className="w-full h-16 text-center text-2xl font-black text-rdpc-blue bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-rdpc-blue focus:ring-8 focus:ring-blue-500/5 outline-none transition-all" />
                     ))}
                   </div>
 
@@ -422,7 +453,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </div>
             )}
 
-            {step === 'login' && <DemoProfiles onSelect={handleDemoSelect} />}
+            {step === 'login' && LOGIN_DEMO_HINTS && <DemoProfiles onSelect={handleDemoSelect} />}
 
             <div className="mt-8 pt-8 border-t border-slate-50 opacity-30 group hover:opacity-100 transition-opacity">
               <p className="text-[9px] text-slate-500 font-bold text-center leading-relaxed italic">

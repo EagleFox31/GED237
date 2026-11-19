@@ -52,6 +52,16 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
     return encoded_jwt
 
 
+def new_session_id() -> str:
+    """Login session shared by the access and refresh tokens it issues (claim ``sid``)."""
+    return secrets.token_urlsafe(16)
+
+
+def revoked_session_key(session_id: str) -> str:
+    """Redis key set at logout: every token of this session is refused from then on."""
+    return f"revoked_session:{session_id}"
+
+
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """Decode and validate a JWT token"""
     try:

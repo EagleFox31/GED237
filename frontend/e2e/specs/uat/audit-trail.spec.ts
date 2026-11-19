@@ -48,10 +48,13 @@ test.describe('P7 — Journal d’audit (SC-AUD-01, SC-ADM-09)', () => {
     const history = await auditorApi.documentAuditLogs(doc.id);
     expect(history.map((h) => h.action)).toContain('review_resolved');
 
-    // Côté écran : /audit en auditeur.
+    // Côté écran : /audit en auditeur, ouvert depuis l'entrée « Audit » du menu (#229 E25).
     await loginAs('auditor');
+    const auditEntry = page.getByRole('navigation').getByRole('button', { name: /Audit$/ });
+    await expect(auditEntry).toBeVisible();
     const logsLoaded = page.waitForResponse((r) => /\/audit\/logs/.test(r.url()) && r.request().method() === 'GET');
-    await page.goto('audit');
+    await auditEntry.click();
+    await expect(page).toHaveURL(/\/audit$/);
     expect((await logsLoaded).status()).toBe(200);
 
     const rows = page.locator('tbody tr');

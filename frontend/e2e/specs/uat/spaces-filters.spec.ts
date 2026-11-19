@@ -35,15 +35,15 @@ test.describe('SC-ESP-01 — Navigation dans les espaces', () => {
     await expect(page.getByText(/^\d+ documents?$/)).toBeVisible();
 
     // Descendre dans un sous-service, puis remonter.
-    const daf = page.getByRole('button', { name: /Direction des Affaires Financieres/ }).first();
+    const daf = page.getByRole('button', { name: /Direction des Affaires Financi[eè]res/ }).first();
     await daf.click();
     const back = page.getByRole('button', { name: /^Retour vers/ });
     await expect(back).toBeVisible();
     await back.click();
 
-    // Inclure les sous-services : le document classé reste visible depuis la racine.
+    // Sous-services inclus dès l'ouverture : le document classé est visible depuis la racine.
     const recursive = page.getByLabel('Inclure les sous-services');
-    if (!(await recursive.isChecked())) await recursive.check();
+    await expect(recursive).toBeChecked();
     await expect(page.getByLabel(new RegExp(`^${title} — `))).toBeVisible();
 
     // Recherche (paramètre q de l'URL) : seul le document cherché reste affiché.

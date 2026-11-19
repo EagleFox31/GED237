@@ -1,11 +1,15 @@
-"""Email sending via Resend.
+"""Email sending via Resend (HTTP API) or SMTP (the institution's own server).
 
-Set RESEND_API_KEY, RESEND_FROM and EMAIL_ENABLED=true in .env to activate.
-When disabled, send_* helpers log the payload and return False without raising.
+Set EMAIL_ENABLED=true and EMAIL_TRANSPORT (resend or smtp) with its settings
+in .env to activate. When disabled, send_* helpers log the masked recipient and
+return False without raising.
 """
 
 import logging
-from typing import Optional
+import smtplib
+import ssl
+from email.message import EmailMessage
+from typing import Callable, Optional
 
 from app.core.config import settings
 
@@ -32,13 +36,63 @@ def mask_email(address: str) -> str:
 
 
 def _is_active() -> bool:
-    return bool(
-        settings.EMAIL_ENABLED and settings.RESEND_API_KEY and _RESEND_AVAILABLE
+    if not settings.email_configured():
+        return False
+    return settings.EMAIL_TRANSPORT != "resend" or _RESEND_AVAILABLE
+
+
+def _send_resend(to: str, subject: str, html: str) -> None:
+    resend.api_key = settings.RESEND_API_KEY  # type: ignore[attr-defined]
+    resend.Emails.send(
+        {  # type: ignore[attr-defined]
+            "from": settings.RESEND_FROM,
+            "to": to,
+            "subject": subject,
+            "html": html,
+        }
     )
 
 
+def _send_smtp(to: str, subject: str, html: str) -> None:
+    message = EmailMessage()
+    message["From"] = settings.smtp_sender
+    message["To"] = to
+    message["Subject"] = subject
+    message.set_content("Ce message s'affiche en HTML.")
+    message.add_alternative(html, subtype="html")
+    host, port = settings.SMTP_HOST, settings.SMTP_PORT
+    timeout = settings.EMAIL_SEND_TIMEOUT_SECONDS
+    context = ssl.create_default_context()
+    server = (
+        smtplib.SMTP_SSL(host, port, timeout=timeout, context=context)
+        if settings.SMTP_SSL
+        else smtplib.SMTP(host, port, timeout=timeout)
+    )
+    with server:
+        # Fail closed: a server that does not offer STARTTLS raises here,
+        # before any password or message is sent.
+        if settings.SMTP_STARTTLS and not settings.SMTP_SSL:
+            server.starttls(context=context)
+        if settings.SMTP_USER:
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD.get_secret_value())
+        server.send_message(message)
+
+
+_TRANSPORTS: dict[str, Callable[[str, str, str], None]] = {
+    "resend": _send_resend,
+    "smtp": _send_smtp,
+}
+
+
+def _failure_summary(exc: Exception) -> str:
+    # Never the message itself: a provider or SMTP reply can echo the full
+    # recipient address or the account name.
+    code = getattr(exc, "smtp_code", None)
+    return f"{type(exc).__name__}" + (f" (code {code})" if code else "")
+
+
 def send_email(to: str, subject: str, html: str) -> bool:
-    """Send an HTML email via Resend.
+    """Send an HTML email through the configured transport.
 
     Returns True on success, False otherwise (never raises — email failure
     must not block user-creation flows).
@@ -51,20 +105,20 @@ def send_email(to: str, subject: str, html: str) -> bool:
         )
         return False
 
+    transport = settings.EMAIL_TRANSPORT
     try:
-        resend.api_key = settings.RESEND_API_KEY  # type: ignore[attr-defined]
-        resend.Emails.send(
-            {  # type: ignore[attr-defined]
-                "from": settings.RESEND_FROM,
-                "to": to,
-                "subject": subject,
-                "html": html,
-            }
+        _TRANSPORTS[transport](to, subject, html)
+        logger.info(
+            "Email sent to=%s subject=%s via=%s", mask_email(to), subject, transport
         )
-        logger.info("Email sent to=%s subject=%s", mask_email(to), subject)
         return True
-    except Exception:
-        logger.exception("Failed to send email to=%s", mask_email(to))
+    except Exception as exc:
+        logger.error(
+            "Failed to send email to=%s via=%s: %s",
+            mask_email(to),
+            transport,
+            _failure_summary(exc),
+        )
         return False
 
 
