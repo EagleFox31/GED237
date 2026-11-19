@@ -2,7 +2,7 @@
 
 Une page pour O. Relevé `gh` du 19/11 vers 16:35, à partir de `file-v1.1.md` (ORDER_V0 à V6, DEP, § 3). Règles de DEC-2026-011 : un train à la fois, testé une fois, puis fusionné par une PR ordinaire vers `main`. Cette page remplace la liste des trains de `procedure-trains-fusion.md`, dont la méthode reste valable.
 
-- **154 PR ouvertes** (dont #503, ajoutée le 19/11) dans la file. Les 10 autres de la vague 0 sont déjà fusionnées : #464, #152, #181, #477, #482, #479, #171, #199, #480, #485.
+- **155 PR ouvertes** (dont #503 et #504, ajoutées le 19/11) dans la file. Les 10 autres de la vague 0 sont déjà fusionnées : #464, #152, #181, #477, #482, #479, #171, #199, #480, #485.
 - **27 trains de 4 à 6 PR**, 3 par jour ouvré (4 le 24/11, avec TR-03 bis), du mar 24/11 au ven 04/12. Le sam 05/12 jusqu'à 18:00 reste libre pour un train rouge à rejouer.
 - Dans un train, la base passe toujours avant sa pile. Une PR n'entre que si ses dépendances (DEP et branche de base) sont fusionnées avant ou plus tôt dans le même train.
 
@@ -31,14 +31,14 @@ Une page pour O. Relevé `gh` du 19/11 vers 16:35, à partir de `file-v1.1.md` (
 | mar 01/12 | TR-18 | V4 | 165⛁ 192⛁ 209↻ 205↻ 168✖ 182 — **migration : `alembic upgrade head` sur edossier et test_ged après fusion** |
 | mer 02/12 | TR-19 | V4/5 | 190 170 283 293↻ 295✖↻ 285 |
 | mer 02/12 | TR-20 | V5 | 297✖ 342✖ 294✖ 303◐↻ 347 298✖ |
-| mer 02/12 | TR-21 | V5 | 329 362 407◐ 401↻ 400 391 |
-| jeu 03/12 | TR-22 | V5 | 396◐ 392◐ 351 354 371 373 |
-| jeu 03/12 | TR-23 | V5 | 366 367 377 398◐ 395 359 |
-| jeu 03/12 | TR-24 | V5 | 344✖ 353 399✖ 416◐ 446◐↻ 417 |
-| ven 04/12 | TR-25 | V5/6 | 484✖↻⛓ 459◐ 476✖ 335✖ 312 |
+| mer 02/12 | TR-21 | V5 | 329 504✖↻ 362 407◐ 401↻ 400 |
+| jeu 03/12 | TR-22 | V5 | 391 396◐ 392◐ 351 354 371 |
+| jeu 03/12 | TR-23 | V5 | 373 366 367 377 398◐ 395 |
+| jeu 03/12 | TR-24 | V5 | 359 344✖ 353 399✖ 416◐ 446◐↻ |
+| ven 04/12 | TR-25 | V5/6 | 417 484✖↻⛓ 459◐ 476✖ 335✖ 312 |
 | ven 04/12 | TR-26 | V6 | 189✖ 166✖ 451◐ 452 |
 
-La PR des visas donnés (DEP=329) se place dans le premier train après TR-21 dès qu'elle a un numéro.
+#504 (visas donnés, B, brouillon, f3578334) suit #329 dans TR-21, d'après DEC-2026-014. Pour garder 6 PR par train, la dernière PR de TR-21 à TR-24 (#391, #373, #359, #417) ouvre le train suivant, sans dépendance rompue.
 
 ## Re-ciblages d'O, avant le train qui fusionne la base
 
@@ -52,19 +52,19 @@ La PR des visas donnés (DEP=329) se place dans le premier train après TR-21 d�
 - **Avant TR-09** : #462 ; #262 ; #310 (base #262) ; #302 (base #301). **TR-10** : #311, #386, puis #387.
 - **Avant TR-12** : #457, #456, puis #463. **TR-13** : #213, puis #261, #263, #221 ; #308, plus #315 (V1.2, OK final de Q sur 9f322eaa) avant #263.
 - **Avant TR-16** : #209 (base #180). **TR-17** : #212, #219. **TR-18** : #205.
-- **Avant TR-19** : #293, #295, plus #313 et #343 (V1.2). **TR-20** : #303, plus #333 et #352 (V1.2). **TR-21** : #401, fusionnée après #407. **TR-24** : #446.
+- **Avant TR-19** : #293, #295, plus #313 et #343 (V1.2). **TR-20** : #303, plus #333 et #352 (V1.2). **TR-21** : #504 (base : branche de #329), re-ciblée sur `main` avant la fusion de #329 ; #401, fusionnée après #407. **TR-24** : #446.
 - **Hors tableau** : #429 remise en brouillon par O (19/11). Les avis du PO du § 4 de la file (capacités post-rc1) restent requis avant leur train.
 
 ## PR sans relecture ni preuve de Q à ce jour (lecture automatique, à confirmer par Q)
 
-- **Aucun OK trouvé (25)** : 467, 405, 443, 493, 495, 262, 266, 309, 310, 147, 162, 212, 168, 295, 297, 342, 294, 298, 344, 399, 484, 476, 335, 189, 166.
-### Les 25 sans OK, par risque : Q commence la nuit par le haut
+- **Aucun OK trouvé (26)** : 467, 405, 443, 493, 495, 262, 266, 309, 310, 147, 162, 212, 168, 295, 297, 342, 294, 298, 344, 399, 484, 476, 335, 189, 166, 504.
+### Les 26 sans OK, par risque : Q commence la nuit par le haut
 
 Le classement vient des fichiers modifiés de chaque PR (relevé `gh` du 19/11 vers 16:50), pas d'une relecture du code. À risque égal, Q prend d'abord le train le plus proche.
 
 | Risque | PR (train) | Ce qui est touché |
 |---|---|---|
-| 1. Migration | aucune | aucune des 25 ne touche `alembic/versions` |
+| 1. Migration | aucune | aucune des 26 ne touche `alembic/versions` |
 | 2. Droits | #168 (TR-18) | règles d'accès (`policy.csv`, `authz`) |
 | | #294 (TR-20) | grille des droits, `casbin_enforcer` |
 | | #266 (TR-14) | périmètre par unité : rapports, statistiques, recherche, imports (17 fichiers) |
@@ -73,6 +73,7 @@ Le classement vient des fichiers modifiés de chaque PR (relevé `gh` du 19/11 v
 | | #399 (TR-24) | compteurs du tableau de bord du manager, périmètre |
 | 3. Sécurité | #212 (TR-17) | refus de démarrer en production, `auth_service`, compose |
 | | #484 (TR-25) | diff actuel de 90 fichiers (dont `authz` et `security.py`), mesuré contre la branche de #441 ; à mesurer de nouveau après re-ciblage sur `main` |
+| 3 bis. Après droits et sécurité (O) | #504 (TR-21) | courbe « visas que j'ai donnés » (portée « mine »), `analytics/trends.py` et son test ; 16 tests passés chez B dans Docker, preuve de Q à faire |
 | 4. Serveur, sans droits | #476 (TR-25), #147 (TR-16), #344 (TR-24), #495 (TR-09), #335 (TR-25) | pagination des documents, sonde `/health/ready`, recherche dans l'audit, tests en `TRUNCATE` et CI, script de test |
 | 5. Écran seul | #297 (TR-20), #295 (TR-19), #298 (TR-20), #493 (TR-08), #405 (TR-02), #342 (TR-20), #309 (TR-15), #443 (TR-08), #310 (TR-15) | #297 en tête : actualisation du profil dans `authStore` (15 fichiers) |
 | 6. Docs et CI | #467 (TR-01), #189 (TR-26), #166 (TR-26) | #467 change la CI : avant TR-01 |
