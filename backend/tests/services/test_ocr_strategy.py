@@ -181,7 +181,7 @@ def test_primary_engine_setting_is_validated():
     from app.core.config import Settings
 
     assert Settings(OCR_PRIMARY_ENGINE=" EasyOCR ").OCR_PRIMARY_ENGINE == "easyocr"
-    assert Settings(OCR_PRIMARY_ENGINE="").OCR_PRIMARY_ENGINE == "tesseract"
+    assert Settings(OCR_PRIMARY_ENGINE="").OCR_PRIMARY_ENGINE == "rapidocr"
     with pytest.raises(ValidationError):
         Settings(OCR_PRIMARY_ENGINE="paddle")
 
