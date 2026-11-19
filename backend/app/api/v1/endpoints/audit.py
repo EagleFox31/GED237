@@ -34,6 +34,7 @@ TABLE_LABELS = {
 
 ACTION_LABELS = {
     "account_locked": "Compte verrouillé",
+    "account_unlocked": "Compte débloqué",
     "create": "Création",
     "update": "Modification",
     "delete": "Suppression",

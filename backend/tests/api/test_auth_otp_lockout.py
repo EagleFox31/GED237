@@ -228,6 +228,9 @@ async def test_admin_unlocks_a_locked_account_once_and_it_is_audited(
     ) as admin:
         first = await admin.post(target)
         second = await admin.post(target)
+        journal = (
+            await admin.get("/api/v1/audit/logs", params={"action": "account_unlocked"})
+        ).json()
 
     assert first.status_code == 200, first.text
     assert first.json()["unlocked"] is True
@@ -253,3 +256,4 @@ async def test_admin_unlocks_a_locked_account_once_and_it_is_audited(
     assert len(rows) == 1
     assert rows[0].user_id == admin_id
     assert rows[0].record_id == db_seed["user_id"]
+    assert [entry["action_label"] for entry in journal] == ["Compte débloqué"]
