@@ -247,7 +247,7 @@ services:
 
   # Nginx Reverse Proxy (SEUL PORT EXPOSE)
   nginx:
-    image: nginx:alpine
+    image: nginx:1.30-alpine
     container_name: edossier_nginx
     mem_limit: 64m
     memswap_limit: 64m
