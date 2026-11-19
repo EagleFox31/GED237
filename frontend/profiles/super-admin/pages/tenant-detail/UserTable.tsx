@@ -11,6 +11,7 @@ import { canResetApp } from '../../../../components/auth/otpRules';
 const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ user, onAfter }) => {
   const [open, setOpen] = useState(false);
   const [confirmTotp, setConfirmTotp] = useState(false);
+  const [totpDone, setTotpDone] = useState(false);
   const self = useAuthStore((s) => s.userProfile);
   // Le super_admin ne peut viser que les comptes administrateurs, jamais le sien (403 sinon).
   const canResetTotp = canResetApp('super_admin', user.role, user.role === 'super_admin' && self?.matricule === user.matricule);
@@ -68,13 +69,19 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
   };
 
   const resetTotp = async () => {
-    setConfirmTotp(false);
     try {
       await api.resetUserTotp(user.id);
-      window.alert('Application réinitialisée. Sessions fermées.');
-      onAfter();
+      setTotpDone(true);
     } catch {
       /* bus global : le message du serveur est affiché */
+    }
+  };
+
+  const closeTotp = () => {
+    setConfirmTotp(false);
+    if (totpDone) {
+      setTotpDone(false);
+      onAfter();
     }
   };
 
@@ -158,13 +165,17 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
       )}
       <ConfirmationModal
         open={confirmTotp}
-        title="Réinitialiser l’application d’authentification"
-        message={`« ${user.full_name || user.matricule} » configurera une nouvelle application à sa prochaine connexion.`}
+        title={totpDone ? 'Application réinitialisée' : 'Réinitialiser l’application d’authentification'}
+        message={totpDone
+          ? `Sessions fermées. « ${user.full_name || user.matricule} » configurera une nouvelle application à sa prochaine connexion.`
+          : `« ${user.full_name || user.matricule} » configurera une nouvelle application à sa prochaine connexion.`}
         confirmLabel="Réinitialiser"
+        cancelLabel={totpDone ? 'Fermer' : 'Annuler'}
+        hideConfirm={totpDone}
         icon="smartphone"
-        bullets={['Vérifiez l’identité de l’administrateur en personne.', 'Toutes ses sessions seront fermées.']}
-        onConfirm={resetTotp}
-        onCancel={() => setConfirmTotp(false)}
+        bullets={totpDone ? undefined : ['Vérifiez l’identité de l’administrateur en personne.', 'Toutes ses sessions seront fermées.']}
+        onConfirm={() => void resetTotp()}
+        onCancel={closeTotp}
       />
     </div>
   );
