@@ -3,6 +3,7 @@
 Outside the caller's perimeter the document answers 404 like a missing one (#247).
 """
 
+import asyncio
 import io
 import os
 import uuid
@@ -10,7 +11,9 @@ import uuid
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints import documents as documents_endpoint
 from app.api.v1.endpoints.documents import storage_service
 from app.models.audit import AuditLog
 from app.models.document import Document
@@ -251,3 +254,122 @@ async def test_old_version_content_404_outside_the_perimeter(
         missing = await client.get(path(uuid.uuid4()))
     assert hidden.status_code == missing.status_code == 404
     assert hidden.json()["detail"] == missing.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_two_restores_at_once_get_two_distinct_version_numbers(
+    admin_client: AsyncClient, db_session, db_seed
+):
+    """The document row is locked while the next number is computed."""
+    document_id = await _document_with_two_versions(admin_client, db_seed)
+    v1, _ = await _versions(db_session, document_id)
+    url = f"{DOCUMENTS}/{document_id}/versions/{v1.id}/restore"
+
+    first, second = await asyncio.gather(admin_client.post(url), admin_client.post(url))
+
+    assert (first.status_code, second.status_code) == (201, 201), (
+        first.text,
+        second.text,
+    )
+    assert first.json()["version"] != second.json()["version"]
+    db_session.expire_all()
+    numbers = [v.version_number for v in await _versions(db_session, document_id)]
+    assert len(numbers) == 4
+    assert len(set(numbers)) == 4
+
+
+@pytest.mark.asyncio
+async def test_restoring_a_pdf_version_queues_the_ocr_again(
+    admin_client: AsyncClient, db_session, db_seed, monkeypatch
+):
+    created = await admin_client.post(
+        f"{DOCUMENTS}/upload",
+        files={
+            "file": ("plan.pdf", io.BytesIO(b"%PDF-1.4\n%%EOF\n"), "application/pdf")
+        },
+        data={
+            "title": "plan",
+            "document_category_id": str(db_seed["category_id"]),
+            "processing_mode": "archive",
+        },
+    )
+    assert created.status_code == 201, created.text
+    document_id = created.json()["id"]
+    second = await admin_client.post(
+        f"{DOCUMENTS}/{document_id}/versions",
+        files={
+            "file": (
+                "plan.pdf",
+                io.BytesIO(b"%PDF-1.4\n%v2\n%%EOF\n"),
+                "application/pdf",
+            )
+        },
+        data={"change_note": "correction"},
+    )
+    assert second.status_code == 201, second.text
+    v1, _ = await _versions(db_session, document_id)
+    queued = []
+    monkeypatch.setattr(
+        documents_endpoint.process_document_ocr,
+        "delay",
+        lambda *args: queued.append(args),
+    )
+
+    resp = await admin_client.post(
+        f"{DOCUMENTS}/{document_id}/versions/{v1.id}/restore"
+    )
+
+    assert resp.status_code == 201, resp.text
+    db_session.expire_all()
+    restored = (await _versions(db_session, document_id))[-1]
+    assert queued == [(document_id, restored.file_path, "application/pdf")]
+
+
+@pytest.mark.asyncio
+async def test_restoring_a_text_version_queues_no_ocr(
+    admin_client: AsyncClient, db_session, db_seed, monkeypatch
+):
+    document_id = await _document_with_two_versions(admin_client, db_seed)
+    v1, _ = await _versions(db_session, document_id)
+    queued = []
+    monkeypatch.setattr(
+        documents_endpoint.process_document_ocr,
+        "delay",
+        lambda *args: queued.append(args),
+    )
+
+    resp = await admin_client.post(
+        f"{DOCUMENTS}/{document_id}/versions/{v1.id}/restore"
+    )
+
+    assert resp.status_code == 201, resp.text
+    assert queued == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_commit_leaves_no_copied_file(
+    admin_client: AsyncClient, db_session, db_seed, monkeypatch
+):
+    document_id = await _document_with_two_versions(admin_client, db_seed)
+    v1, v2 = await _versions(db_session, document_id)
+    folder = os.path.dirname(storage_service.get_full_path(v1.file_path))
+    before = set(os.listdir(folder))
+
+    async def broken_commit(self):
+        raise RuntimeError("base indisponible")
+
+    monkeypatch.setattr(AsyncSession, "commit", broken_commit)
+    try:
+        resp = await admin_client.post(
+            f"{DOCUMENTS}/{document_id}/versions/{v1.id}/restore"
+        )
+        assert resp.status_code == 500
+    except RuntimeError:
+        pass
+    monkeypatch.undo()
+
+    assert set(os.listdir(folder)) == before
+    db_session.expire_all()
+    assert len(await _versions(db_session, document_id)) == 2
+    document = await db_session.get(Document, uuid.UUID(document_id))
+    assert document.current_version_id == v2.id

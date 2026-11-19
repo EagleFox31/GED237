@@ -2151,6 +2151,14 @@ async def restore_document_version(
         )
     await _ensure_not_locked_for_write(document, current_user)
 
+    # Two restores at once would compute the same next number: the row lock makes
+    # the second one read the versions (and current version) after the first commits.
+    await db.execute(
+        select(Document)
+        .where(Document.id == document.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     versions_result = await db.execute(
         select(DocumentVersion).where(DocumentVersion.document_id == document.id)
     )
@@ -2218,7 +2226,22 @@ async def restore_document_version(
             request=request,
         )
     )
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        # The new version never existed: drop the copy so storage holds no orphan.
+        await db.rollback()
+        storage_service.delete_file(target_path)
+        raise
+
+    mime = source.mime_type or ""
+    if mime.startswith("image/") or mime == "application/pdf":
+        try:
+            process_document_ocr.delay(str(document.id), target_path, mime)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "[Restore] OCR not queued for document %s", document.id, exc_info=True
+            )
     return {
         "message": "Version restauree",
         "version": new_version_num,
