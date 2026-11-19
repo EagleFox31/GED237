@@ -94,6 +94,37 @@ async def test_a_collaborator_sees_its_own_documents_only(
 
 
 @pytest.mark.asyncio
+async def test_a_collaborator_cannot_learn_of_a_colleague_document_through_the_trash(
+    client_as,
+    db_seed,
+    tree,  # noqa: F811
+    db_session,
+):
+    """DELETE, /trash and /restore check the perimeter first (404), then the
+    right: its own validated document stays out of the trash (403, #464)."""
+    ids, collaborator = tree["ids"], tree["collaborator"]
+    await db_session.execute(
+        update(Document).where(Document.id == ids["own"]).values(status="validated")
+    )
+    await db_session.commit()
+    async with _as(
+        client_as, db_seed, tree, "collaborator", "b", collaborator
+    ) as client:
+        hidden = {
+            "delete": _code(await client.delete(f"{DOCUMENTS}/{ids['b']}")),
+            "trash": _code(await client.post(f"{DOCUMENTS}/{ids['b']}/trash")),
+            "restore": _code(
+                await client.post(f"{DOCUMENTS}/{ids['b_trash']}/restore")
+            ),
+        }
+        own_trash = await client.post(f"{DOCUMENTS}/{ids['own']}/trash")
+    assert hidden == {key: HIDDEN for key in hidden}
+    assert own_trash.status_code == 403, own_trash.text
+    await db_session.refresh(await db_session.get(Document, ids["b"]))
+    assert (await db_session.get(Document, ids["b"])).deleted_at is None
+
+
+@pytest.mark.asyncio
 async def test_a_manager_keeps_its_own_document_moved_to_another_unit(
     client_as,
     db_seed,
