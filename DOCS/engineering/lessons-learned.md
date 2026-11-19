@@ -883,7 +883,7 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
 **Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
 
-### LESSON-2026-068 — Identifiant de révision Alembic choisi à la main : cycle dans le graphe
+### LESSON-2026-070 — Identifiant de révision Alembic choisi à la main : cycle dans le graphe
 
 - **Date :** 2026-11-18
 - **Catégorie :** database / process
