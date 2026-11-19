@@ -5,6 +5,7 @@ import { api } from '../../../services/api';
 import { TenantMetrics } from '../../../types';
 import { useAuthStore } from '../../../stores/authStore';
 import { HelpHint } from '../../../components/HelpHint';
+import { TrendCards } from '../../../components/TrendCards';
 
 function exportMetricsCsv(metrics: TenantMetrics | null) {
   if (!metrics) return;
@@ -118,6 +119,8 @@ const OrgDashboard: React.FC = () => {
           actionLabel="Voir les doublons refusés dans le journal"
         />
       </div>
+
+      <TrendCards scope="tenant" />
 
       {!isLoading && metrics && (metrics.documents?.total ?? 0) === 0 && ((metrics.workflows?.completed ?? 0) + (metrics.workflows?.pending ?? 0) + (metrics.workflows?.rejected ?? 0)) === 0 && (
         <div className="rounded-3xl bg-gradient-to-br from-rdpc-blue/5 via-white to-emerald-50 border border-rdpc-blue/20 p-6 md:p-8">

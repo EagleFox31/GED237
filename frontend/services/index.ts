@@ -199,6 +199,8 @@ export const api = {
     // Analytics
     getTenantAnalytics: analyticsApi.getTenantAnalytics,
     getPlatformAnalytics: analyticsApi.getPlatformAnalytics,
+    getTrends: analyticsApi.getTrends,
+    getManagerAnalytics: analyticsApi.getManagerAnalytics,
 
     // Reports
     getReportsEvolution: reportsApi.getReportsEvolution,
