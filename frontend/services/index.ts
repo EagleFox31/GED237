@@ -81,6 +81,7 @@ export const api = {
     unlockDocument: documentsApi.unlockDocument,
     refreshDocumentLock: documentsApi.refreshDocumentLock,
     getDocumentContentBlob: documentsApi.getDocumentContentBlob,
+    getDocumentVersionContentBlob: documentsApi.getDocumentVersionContentBlob,
     updateDocument: documentsApi.updateDocument,
     deleteDocument: documentsApi.deleteDocument,
     getTrashPage: documentsApi.getTrashPage,

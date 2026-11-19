@@ -134,6 +134,18 @@ export const documentsApi = {
             'Téléchargement du contenu impossible',
         ),
 
+    /** Octets d'une version précise (lecture seule, mêmes droits et 404 que /content). */
+    getDocumentVersionContentBlob: (
+        id: string,
+        versionId: string,
+        disposition: 'inline' | 'attachment' = 'inline',
+    ): Promise<Blob> =>
+        apiCallBlob(
+            `/documents/${id}/versions/${versionId}/content?disposition=${disposition}`,
+            {},
+            'Lecture de cette version impossible',
+        ),
+
     updateDocument: (id: string, data: Partial<Document>): Promise<Document> =>
         apiCall<Document>(
             `/documents/${id}`,
