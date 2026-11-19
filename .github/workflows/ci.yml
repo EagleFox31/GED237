@@ -97,9 +97,16 @@ jobs:
       - uses: actions/checkout@v7
       - name: actionlint (same version as .pre-commit-config.yaml)
         run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.7 -no-color -oneline
+      # Fake docker, no daemon: backup/restore stop before any write without the helper image,
+      # and nginx is restarted then /health checked after api restarts.
+      - name: Backup and restore guards
+        run: bash scripts/test_ops_backup_guards.sh
       # Same script as the pre-commit hook: a gate name the map never emits would skip its job forever.
       - name: Impact map and workflow gates agree
         run: python3 scripts/check-impact-gates.py
+      # Fake docker, no daemon: offline image import on containerd and overlay2 stores.
+      - name: Offline images import (both image stores)
+        run: bash scripts/test_images_import.sh
 
   # Same script as the pre-commit hook: no case collisions, UTF-16, NUL, control characters or U+FFFD.
   tracked-files:

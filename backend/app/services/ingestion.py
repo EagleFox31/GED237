@@ -78,6 +78,11 @@ class IngestionReport:
         }
 
 
+def _goes_through_ocr(mime_type: str) -> bool:
+    """Images and PDFs are read by the OCR worker, which classifies them afterwards."""
+    return mime_type.startswith("image/") or mime_type == "application/pdf"
+
+
 def _derive_file_type(filename: str, mime_type: str) -> str | None:
     extension = os.path.splitext(filename)[1].lower().lstrip(".")
     if extension:
@@ -281,6 +286,28 @@ class DirectoryIngestionService:
                 rejected.append(path)
         return files, rejected
 
+    async def _classify_without_ocr(
+        self, document: Document, owner_id: UUID, filename: str, mime_type: str
+    ) -> None:
+        """Separate transaction, as the pass after OCR: a failing rule never loses
+        the import, the document stays ``pending`` for a manual review."""
+        document_id = document.id
+        try:
+            await ClassificationRuleEngine(self.db).classify_document(
+                document=document,
+                source_scope="service",
+                source_user_id=owner_id,
+                filename=filename,
+                mime_type=mime_type,
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            logger.exception(
+                "[Ingestion] Classification failed for document %s", document_id
+            )
+        await self.db.refresh(document)
+
     async def _ingest_single_file(
         self,
         file_path: str,
@@ -404,6 +431,13 @@ class DirectoryIngestionService:
         await self.db.commit()
         await self.db.refresh(document)
 
+        # 2a. No OCR pass will ever come for DOCX, XLSX, TXT, CSV...: classify now on
+        # name, type and category, like an upload. Images and PDFs are unchanged.
+        if not _goes_through_ocr(mime_type):
+            await self._classify_without_ocr(
+                document, owner_id, os.path.basename(file_path), mime_type
+            )
+
         # 2b. Dispatch Event for GEDRules / Routing — sauté en mode 'archive'.
         if processing_mode == "process":
             from app.core.events.dispatcher import dispatcher
@@ -426,7 +460,7 @@ class DirectoryIngestionService:
 
         # 4. Queue OCR for images and PDFs (lazy import to avoid Celery at module level)
         ocr_queued = False
-        if mime_type.startswith("image/") or mime_type == "application/pdf":
+        if _goes_through_ocr(mime_type):
             try:
                 from app.workers.tasks import process_document_ocr
 
