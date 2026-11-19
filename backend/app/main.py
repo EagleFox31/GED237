@@ -5,7 +5,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import logging
 from uuid import uuid4
-from app.core.config import settings
+from app.core.config import refuse_unsafe_production, settings
 from app.api.v1.router import api_router
 from app.core.rate_limit import limiter
 from app.core.authz.casbin_enforcer import reload_enforcer
@@ -29,6 +29,8 @@ register_gedrules_listeners()
 async def lifespan(app: FastAPI):
     # Startup actions
     logger.info("Starting up e-Dossier API...")
+    # Production with a public key or no way to send the login code: stop here.
+    refuse_unsafe_production(settings)
     # Fail fast if the database has not been migrated to the code's revision.
     await enforce_schema_at_head(engine, settings.SCHEMA_CHECK_MODE)
     if settings.AUTHZ_BACKEND in {"sql", "shadow"}:
@@ -92,6 +94,8 @@ async def health_check():
         "status": "healthy",
         "version": settings.APP_VERSION,
         "service": "E-Dossier Cameroun API",
+        # The front shows the demo frame (sample accounts, shown code) only if true.
+        "demo": settings.is_development,
     }
 
 

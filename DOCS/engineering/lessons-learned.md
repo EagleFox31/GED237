@@ -598,6 +598,20 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+### LESSON-2026-042 — Garde de production contournée : la clé par défaut du compose n'était pas celle que le code refusait
+
+- **Date :** 2026-11-17
+- **Catégorie :** security / config
+- **Statut :** prevention-added
+- **Liens :** `backend/app/core/config.py` (`KNOWN_DEFAULT_SECRET_KEYS`, `production_refusals`), `docker-compose.yml`, `.env.example`, `backend/.env.example`, `backend/tests/api/test_environment.py`
+
+**Contexte** — `get_settings()` refusait de démarrer en production si `SECRET_KEY` valait le défaut de `config.py`. Inventaire de l'innovateur du 17/11 (`inventaire-environment-production.md`, n° 3 et 4).
+**Échec / near miss** — Le dépôt livrait trois valeurs par défaut différentes : `config.py` (`dev-secret-key-change-this-in-production`), les compose et le `.env.example` racine (`dev-secret-key-change-in-production`), et `backend/.env.example` (`your-secret-key-change-this-in-production`). La garde ne connaissait que la première. Une pile compose passée en production sans `SECRET_KEY` aurait démarré avec une clé JWT publique. Autre near miss du même relevé : en production, l'API démarrait sans aucun canal d'envoi du code de connexion, et plus personne ne pouvait se connecter.
+**Cause racine** — Une garde écrite contre une seule chaîne, alors que la valeur réelle vient de plusieurs fichiers (code, compose, modèles d'environnement) qui ont dérivé sans contrôle croisé.
+**Résolution** — Liste `KNOWN_DEFAULT_SECRET_KEYS` des trois valeurs. `ENVIRONMENT` est validé comme une énumération (`development`, `production`, casse ignorée). Au démarrage de l'API, la production est refusée avec une clé vide ou publique, avec `AUTH_OTP_CHANNEL=dev_response`, ou avec un canal e-mail sans `EMAIL_ENABLED` ni `RESEND_API_KEY`. Tous les motifs sont listés d'un coup.
+**Prévention** — `test_every_default_key_shipped_in_the_repository_is_known` lit les deux compose, les deux `.env.example` et le défaut de `Settings`. Une nouvelle valeur par défaut absente de la liste fait échouer la CI. Il y a un test par motif de refus.
+**Leçon généralisée** — Une garde qui compare à une valeur « interdite » doit lire toutes les sources où cette valeur est déclarée, sous peine de dériver sans bruit. Le test vérifie l'ensemble des sources, pas un exemple.
+
 ### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
 
 - **Date :** 2026-11-17

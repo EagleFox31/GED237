@@ -27,6 +27,8 @@ ACCENTED_LABELS = {
     "workflow_started_a_posteriori": "Circuit déclenché a posteriori",
     "local_snap_put": "Bibliothèque locale (sync)",
     "dup_detected": "Doublon refusé",
+    "otp_sent": "Code de connexion envoyé",
+    "otp_send_failed": "Échec d'envoi du code",
 }
 
 ACCENTED_TABLES = {

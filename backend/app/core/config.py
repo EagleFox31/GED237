@@ -3,10 +3,28 @@ import json
 import logging
 import os
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings
 from typing import List, Any
 from functools import lru_cache
+
+
+OTP_CHANNEL_NAMES = ("dev_response", "email")
+ENVIRONMENT_NAMES = ("development", "production")
+# Every SECRET_KEY default shipped in this repository (config.py, both
+# .env.example and both compose files). They are public: production refuses to start with one.
+KNOWN_DEFAULT_SECRET_KEYS = frozenset(
+    {
+        "dev-secret-key-change-this-in-production",  # nosec B105 - refused, not used
+        "dev-secret-key-change-in-production",  # nosec B105 - refused, not used
+        "your-secret-key-change-this-in-production",  # nosec B105 - refused, not used
+    }
+)
+# Channels that never deliver the code. Declared here because otp_delivery
+# imports this module; the guard test checks it against each channel's ``sends``.
+OTP_SILENT_CHANNELS = ("dev_response",)
+# Services that can carry every e-mail (login codes, new accounts).
+EMAIL_TRANSPORT_NAMES = ("resend", "smtp")
 
 
 class Settings(BaseSettings):
@@ -17,10 +35,31 @@ class Settings(BaseSettings):
     # Version shown by FastAPI and /health. Never hard-coded: a release sets it
     # from the git tag (APP_VERSION env), anything else is a dev build.
     APP_VERSION: str = "0.0.0-dev"
+    # development (demo, tests, e2e) or production. Production shows no login code,
+    # hides the demo frame and refuses to start on an unsafe setting (see
+    # production_refusals below).
     ENVIRONMENT: str = "development"
     # DEBUG only drives SQLAlchemy echo (database.py). It never relaxes security
     # controls such as rate limits: those have their own settings below.
     DEBUG: bool = False
+
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def validate_environment(cls, v: Any) -> str:
+        value = str(v).strip().lower()
+        if value not in ENVIRONMENT_NAMES:
+            raise ValueError(
+                "ENVIRONMENT must be one of: " + ", ".join(ENVIRONMENT_NAMES)
+            )
+        return value
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT == "production"
+
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT == "development"
 
     @field_validator("DEBUG", mode="before")
     @classmethod
@@ -57,6 +96,25 @@ class Settings(BaseSettings):
     # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
     AUTH_OTP_MAX_FAILURES: int = 3
     AUTH_LOCKOUT_SECONDS: int = 900
+    # How the second-factor code reaches the user (services/otp_delivery.py).
+    # dev_response sends nothing: the code is echoed in development only.
+    AUTH_OTP_CHANNEL: str = "dev_response"
+    # Minimum delay between two sendings of a code for the same login session.
+    AUTH_OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=30, ge=0)
+    # Resends per account and per window, whatever the login session (0: no quota).
+    AUTH_OTP_RESEND_MAX_PER_WINDOW: int = Field(default=3, ge=0)
+    AUTH_OTP_RESEND_WINDOW_SECONDS: int = Field(default=900, ge=1)
+
+    @field_validator("AUTH_OTP_CHANNEL", mode="before")
+    @classmethod
+    def validate_otp_channel(cls, v: Any) -> str:
+        value = str(v).strip().lower()
+        if value not in OTP_CHANNEL_NAMES:
+            raise ValueError(
+                "AUTH_OTP_CHANNEL must be one of: " + ", ".join(OTP_CHANNEL_NAMES)
+            )
+        return value
+
     # Development only. True: the OTP comes back in the login response and the screen
     # fills it in. False (demo in front of an audience): the code is only written to
     # the API log, for the presenter (gestion-projet/innovateur/parcours-demo.md).
@@ -198,6 +256,22 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = Field(default="")
     RESEND_FROM: str = Field(default="onboarding@resend.dev")
     EMAIL_ENABLED: bool = Field(default=False)
+    # Longest wait for the provider when sending a login code; beyond it the
+    # login answers 503 (retryable) instead of hanging.
+    EMAIL_SEND_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0)
+    # resend (HTTP API, RESEND_*) or smtp (the institution's own mail server).
+    EMAIL_TRANSPORT: str = Field(default="resend")
+    SMTP_HOST: str = Field(default="")
+    SMTP_PORT: int = Field(default=587, ge=1, le=65535)
+    SMTP_USER: str = Field(default="")
+    # Secret: masked in any repr, never logged.
+    SMTP_PASSWORD: SecretStr = Field(default=SecretStr(""))
+    SMTP_STARTTLS: bool = Field(default=True)
+    # Implicit TLS from the first byte (usually port 465). When true, STARTTLS
+    # is not used: the connection is already encrypted.
+    SMTP_SSL: bool = Field(default=False)
+    # Sender address; the SMTP account itself when empty and it is an address.
+    SMTP_FROM: str = Field(default="")
 
     @field_validator("EMAIL_ENABLED", mode="before")
     @classmethod
@@ -207,6 +281,41 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return v.lower() in ("1", "true", "yes", "on")
         return bool(v)
+
+    @field_validator("EMAIL_TRANSPORT", mode="before")
+    @classmethod
+    def validate_email_transport(cls, v: Any) -> str:
+        value = str(v or "").strip().lower()
+        if value not in EMAIL_TRANSPORT_NAMES:
+            raise ValueError(
+                "EMAIL_TRANSPORT must be one of: " + ", ".join(EMAIL_TRANSPORT_NAMES)
+            )
+        return value
+
+    @property
+    def smtp_sender(self) -> str:
+        if self.SMTP_FROM:
+            return self.SMTP_FROM
+        # A login such as "ged-mailer" is not a valid From: require SMTP_FROM.
+        return self.SMTP_USER if "@" in self.SMTP_USER else ""
+
+    @property
+    def smtp_encrypted(self) -> bool:
+        return self.SMTP_SSL or self.SMTP_STARTTLS
+
+    def email_configured(self) -> bool:
+        """E-mail is on and its transport has what it needs to send."""
+        if not self.EMAIL_ENABLED:
+            return False
+        if self.EMAIL_TRANSPORT == "smtp":
+            # A login needs its password: an empty one fails on every mail.
+            has_password = bool(self.SMTP_PASSWORD.get_secret_value())
+            return bool(
+                self.SMTP_HOST
+                and self.smtp_sender
+                and (not self.SMTP_USER or has_password)
+            )
+        return bool(self.RESEND_API_KEY)
 
     # Pagination
     DEFAULT_PAGE_SIZE: int = 20
@@ -262,17 +371,76 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
+def secret_key_refusal(s: Settings) -> str | None:
+    """Why the JWT key must not be used in production (None: it may)."""
+    if s.is_production and (
+        not s.SECRET_KEY.strip() or s.SECRET_KEY in KNOWN_DEFAULT_SECRET_KEYS
+    ):
+        return (
+            "SECRET_KEY is empty or a public default: set a strong random key "
+            "(openssl rand -hex 32) in .env."
+        )
+    return None
+
+
+def production_refusals(s: Settings) -> list[str]:
+    """Every reason why the API must not start with these settings (empty: it may).
+
+    Production never shows the login code, so it needs a channel that really
+    sends it; otherwise nobody can sign in.
+    """
+    if not s.is_production:
+        return []
+    reasons = [r for r in (secret_key_refusal(s),) if r]
+    if s.AUTH_OTP_CHANNEL in OTP_SILENT_CHANNELS:
+        reasons.append(
+            "AUTH_OTP_CHANNEL=dev_response sends no login code: in production "
+            "nobody could sign in. Set AUTH_OTP_CHANNEL to a channel that sends "
+            "the code (email) and configure it."
+        )
+    elif s.AUTH_OTP_CHANNEL == "email" and not s.email_configured():
+        reasons.append(
+            "AUTH_OTP_CHANNEL=email but e-mail cannot be sent: nobody could sign "
+            "in. Set EMAIL_ENABLED=true and configure EMAIL_TRANSPORT "
+            "(RESEND_API_KEY, or SMTP_HOST, a sender address and the password "
+            "of SMTP_USER)."
+        )
+    if s.EMAIL_TRANSPORT == "smtp" and not s.smtp_encrypted and s.SMTP_USER:
+        reasons.append(
+            "SMTP without TLS would send the SMTP password in clear text. "
+            "Enable SMTP_STARTTLS (or SMTP_SSL for port 465) in production."
+        )
+    return reasons
+
+
+def refuse_unsafe_production(s: Settings) -> None:
+    """Stop a production start that would be insecure or let nobody sign in."""
+    reasons = production_refusals(s)
+    if reasons:
+        raise RuntimeError(
+            "Refusing to start in production:\n- " + "\n- ".join(reasons)
+        )
+    if s.is_production and s.EMAIL_TRANSPORT == "smtp" and not s.smtp_encrypted:
+        # A relay without login has no password to leak, but mails (login
+        # codes, temporary passwords) still travel in clear: warn, not refuse,
+        # as some internal relays only accept plain connections.
+        logging.getLogger(__name__).warning(
+            "SMTP relay without TLS in production: e-mails, login codes "
+            "included, travel in clear text. Enable SMTP_STARTTLS or SMTP_SSL."
+        )
+
+
 @lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings instance"""
+    """Get cached settings instance.
+
+    Every process (API, worker, migrations, seed) refuses a public JWT key in
+    production; the login-code checks run at API start (main.py).
+    """
     s = Settings()
-    if (
-        s.ENVIRONMENT == "production"
-        and s.SECRET_KEY == "dev-secret-key-change-this-in-production"  # nosec B105 - explicit production guard against unchanged dev default
-    ):
-        raise RuntimeError(
-            "SECRET_KEY must be changed in production! Set a strong random key via the SECRET_KEY environment variable."
-        )
+    reason = secret_key_refusal(s)
+    if reason:
+        raise RuntimeError(reason)
     return s
 
 
