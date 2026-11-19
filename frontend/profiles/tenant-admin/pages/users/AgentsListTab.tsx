@@ -241,12 +241,12 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
   useEffect(() => {
     if (!from) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !modalOpen) goBack();
+      if (e.key === 'Escape' && !modalOpen && !pendingConfirm) goBack();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, modalOpen]);
+  }, [from, modalOpen, pendingConfirm]);
 
   const filteredAgents = useMemo(() => {
     const q = search.trim().toLowerCase();
