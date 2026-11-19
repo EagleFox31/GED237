@@ -152,7 +152,11 @@ class Seeder:
             domain = await self.upsert(
                 ClassificationDomain,
                 {"tenant_id": self.tenant.id, "code": domain_item["code"]},
-                {"name": domain_item["name"], "is_active": True},
+                {
+                    "name": domain_item["name"],
+                    "description": domain_item.get("description"),
+                    "is_active": True,
+                },
                 f"domain {domain_item['code']}",
             )
             for activity in domain_item.get("activities", []):
@@ -163,7 +167,11 @@ class Seeder:
                         "domain_id": domain.id,
                         "code": activity["code"],
                     },
-                    {"name": activity["name"], "is_active": True},
+                    {
+                        "name": activity["name"],
+                        "description": activity.get("description"),
+                        "is_active": True,
+                    },
                     f"activity {activity['code']}",
                 )
         for rule in plan.get("rules", []):

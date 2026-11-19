@@ -32,18 +32,21 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
       },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/, /demo-counters\.spec\.ts/],
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/, /demo-counters\.spec\.ts/],
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/]uat[\\/]/, /demo-counters\.spec\.ts/],
     },
     {
       name: 'authed-chromium',

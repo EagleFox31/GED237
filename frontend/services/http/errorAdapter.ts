@@ -53,8 +53,8 @@ export const buildApiError = async (
  * Pousse une erreur réseau (TypeError "Failed to fetch", abort, DNS…) au bus
  * et retourne l'ApiError pour un éventuel re-throw local.
  */
-export const buildNetworkError = (err: unknown): ApiError => {
+export const buildNetworkError = (err: unknown, silent = false): ApiError => {
     const apiErr = apiErrorFromException(err);
-    pushApiError(apiErr);
+    if (!silent) pushApiError(apiErr);
     return apiErr;
 };

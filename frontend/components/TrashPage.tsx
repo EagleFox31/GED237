@@ -3,7 +3,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import type { Document } from '../types';
 import { useCan } from '../hooks/useCan';
-import { canEmptyTrash, isGoneFromTrash, isPurgeProtected } from '../lib/trashRules';
+import {
+  RESTORE_RESERVED_HELP,
+  canEmptyTrash,
+  isGoneFromTrash,
+  isPurgeProtected,
+  isRestoreReservedToAdmin,
+} from '../lib/trashRules';
+import { useAuthStore } from '../stores/authStore';
 import { InlineHelpButton } from './ui/InlineHelpButton';
 
 const PAGE_SIZE = 50;
@@ -21,7 +28,8 @@ const TrashPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
-  const { 'documents:purge': canPurge } = useCan('documents:purge');
+  const { 'documents:purge': canPurge, 'documents:delete': canDelete } = useCan('documents:purge', 'documents:delete');
+  const myUserId = useAuthStore((s) => s.userProfile?.userId);
 
   // Seule la dernière lecture lancée compte : une réponse plus ancienne arrivée après est ignorée.
   const loadSeq = useRef(0);
@@ -175,16 +183,27 @@ const TrashPage: React.FC = () => {
                   <p className="truncate text-xs text-slate-500">{doc.logical_space_path}</p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => restore(doc)}
-                disabled={busy}
-                aria-label={`Restaurer ${doc.title}`}
-                title="Restaurer"
-                className="rounded-xl p-2 text-slate-500 hover:bg-blue-50 hover:text-rdpc-blue disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined" aria-hidden>restore_from_trash</span>
-              </button>
+              {isRestoreReservedToAdmin(doc, myUserId, Boolean(canDelete)) ? (
+                <span
+                  role="img"
+                  aria-label={`${doc.title} : ${RESTORE_RESERVED_HELP}`}
+                  title={RESTORE_RESERVED_HELP}
+                  className="material-symbols-outlined p-2 text-slate-300"
+                >
+                  restore_from_trash
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => restore(doc)}
+                  disabled={busy}
+                  aria-label={`Restaurer ${doc.title}`}
+                  title="Restaurer"
+                  className="rounded-xl p-2 text-slate-500 hover:bg-blue-50 hover:text-rdpc-blue disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined" aria-hidden>restore_from_trash</span>
+                </button>
+              )}
               {canPurge && isPurgeProtected(doc) && (
                 <span
                   role="img"
