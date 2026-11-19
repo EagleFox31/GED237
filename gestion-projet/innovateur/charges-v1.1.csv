@@ -46,3 +46,5 @@ ch;relecture #471 vers B;B;0,5
 ch;nginx resolve V1.1;Q;0,75
 # Revue du classement : la table des revues n'est alimentée que par l'envoi et l'import CSV/ZIP (défaut V1.0, Q, confirmé par B ; PR de B, relue par Q ; O, 19/11).
 ch;correctif revue du classement V1.0;B;1
+# Suites de sécurité WebSocket d'aide-api (ticket lié à la session, sockets fermés à la déconnexion, Origine ; O, 19/11).
+ch;suites sécurité WebSocket;aide-api;1,5
