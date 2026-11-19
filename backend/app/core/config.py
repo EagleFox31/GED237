@@ -188,6 +188,11 @@ class Settings(BaseSettings):
             raise ValueError("SCHEMA_CHECK_MODE must be one of: fail, warn, off")
         return value
 
+    # GET /health/ready : per-dependency timeout, and whether a silent Celery
+    # worker makes the API not ready (503) instead of degraded (200).
+    HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0, le=30)
+    HEALTH_READY_REQUIRE_CELERY: bool = Field(default=False)
+
     # Email (Resend)
     RESEND_API_KEY: str = Field(default="")
     RESEND_FROM: str = Field(default="onboarding@resend.dev")

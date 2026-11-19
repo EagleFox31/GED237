@@ -1,5 +1,6 @@
 # backend/app/main.py
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -12,6 +13,7 @@ from app.core.authz.casbin_enforcer import reload_enforcer
 from app.core.observability.request_id import set_request_id, reset_request_id
 from app.core.errors import register_error_handlers
 from app.core.database import engine
+from app.core.health import check_readiness
 from app.core.schema_check import enforce_schema_at_head
 
 from contextlib import asynccontextmanager
@@ -93,6 +95,16 @@ async def health_check():
         "version": settings.APP_VERSION,
         "service": "E-Dossier Cameroun API",
     }
+
+
+@app.get("/health/ready", tags=["Health"])
+async def readiness_check():
+    """Readiness: database, schema at head, Redis and Celery answer.
+
+    200 when the API can serve (``ready`` or ``degraded``), 503 otherwise.
+    """
+    can_serve, body = await check_readiness()
+    return JSONResponse(status_code=200 if can_serve else 503, content=body)
 
 
 @app.get("/", tags=["Root"])
