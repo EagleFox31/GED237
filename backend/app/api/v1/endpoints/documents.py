@@ -1409,7 +1409,7 @@ async def get_document_version_content(
             status_code=400, detail="disposition must be 'inline' or 'attachment'"
         )
     document = await _get_document_in_reach_or_404(db, current_user, document_id)
-    if not await _can_read_document(db, current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(status_code=404, detail="Document not found")
     version = (
         await db.execute(
@@ -2116,7 +2116,7 @@ async def restore_document_version(
     A document or version outside the caller's perimeter answers 404 (#247).
     """
     document = await _get_document_in_reach_or_404(db, current_user, document_id)
-    if not await _can_mutate_document(db, current_user, document):
+    if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
         raise HTTPException(
