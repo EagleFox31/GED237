@@ -46,6 +46,12 @@ export interface TrashPage {
     total: number;
 }
 
+/** POST /documents/{id}/restore : `identical_document` absent sur un serveur plus ancien. */
+export interface RestoreResponse {
+    message?: string;
+    identical_document?: { id: string; title: string } | null;
+}
+
 export interface TrashEmptyResult {
     purged: number;
     remaining: number;
@@ -144,10 +150,9 @@ export const documentsApi = {
         return { items, total: Number.isInteger(total) && total >= 0 ? total : items.length };
     },
 
-    restoreDocument: async (id: string): Promise<true> => {
-        await apiCallVoid(`/documents/${id}/restore`, { method: 'POST' }, 'Restauration impossible', TRASH_MESSAGES);
-        return true;
-    },
+    /** Corps brut : `identical_document` se lit avec `identicalAfterRestore` (lib/trashRules). */
+    restoreDocument: (id: string): Promise<RestoreResponse> =>
+        apiCall<RestoreResponse>(`/documents/${id}/restore`, { method: 'POST' }, 'Restauration impossible', TRASH_MESSAGES),
 
     purgeDocument: async (id: string): Promise<true> => {
         await apiCallVoid(`/documents/${id}/purge`, { method: 'DELETE' }, 'Suppression définitive impossible', TRASH_MESSAGES);

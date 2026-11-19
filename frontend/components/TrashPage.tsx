@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { api } from '../services/api';
 import type { Document } from '../types';
@@ -6,6 +7,8 @@ import { useCan } from '../hooks/useCan';
 import {
   RESTORE_RESERVED_HELP,
   canEmptyTrash,
+  identicalAfterRestore,
+  type IdenticalDocument,
   isGoneFromTrash,
   isPurgeProtected,
   isRestoreReservedToAdmin,
@@ -28,6 +31,8 @@ const TrashPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
+  // Avertissement non bloquant : le document restauré a un double déjà actif.
+  const [identical, setIdentical] = useState<IdenticalDocument | null>(null);
   const { 'documents:purge': canPurge, 'documents:delete': canDelete } = useCan('documents:purge', 'documents:delete');
   const myUserId = useAuthStore((s) => s.userProfile?.userId);
 
@@ -63,8 +68,9 @@ const TrashPage: React.FC = () => {
 
   const restore = async (doc: Document) => {
     setBusy(true);
+    setIdentical(null);
     try {
-      await api.restoreDocument(doc.id);
+      setIdentical(identicalAfterRestore(await api.restoreDocument(doc.id)));
       removeLocally(doc.id);
     } catch (error) {
       // Message déjà affiché par le bus global ; un 404 retire en plus la ligne disparue.
@@ -152,6 +158,28 @@ const TrashPage: React.FC = () => {
           </button>
         )}
       </header>
+
+      {identical && (
+        <div role="status" className="mb-4 flex items-center gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="material-symbols-outlined text-[20px]" aria-hidden>content_copy</span>
+          <p className="min-w-0 flex-1">
+            Un document identique existe déjà :{' '}
+            <Link to={`/documents?open=${encodeURIComponent(identical.id)}`} className="font-bold underline">
+              {identical.title}
+            </Link>
+            .{' '}
+            <Link to="/duplicates" className="font-bold underline">Voir les doublons</Link>
+          </p>
+          <button
+            type="button"
+            onClick={() => setIdentical(null)}
+            aria-label="Fermer l’avertissement"
+            className="rounded-xl p-1 text-amber-700 hover:bg-amber-100"
+          >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden>close</span>
+          </button>
+        </div>
+      )}
 
       {loadError && (
         <div role="alert" className="rounded-[2rem] border border-red-100 bg-red-50 p-10 text-center">

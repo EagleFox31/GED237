@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { canEmptyTrash, isGoneFromTrash, isPurgeProtected, isRestoreReservedToAdmin } from '../../lib/trashRules';
+import { canEmptyTrash, identicalAfterRestore, isGoneFromTrash, isPurgeProtected, isRestoreReservedToAdmin } from '../../lib/trashRules';
 
 test.describe('Corbeille : actions définitives possibles', () => {
   test('signé et archivé sont protégés, les autres statuts non', () => {
@@ -37,5 +37,18 @@ test.describe('Corbeille : document disparu', () => {
     expect(isRestoreReservedToAdmin({ deleted_by: 'admin' }, 'moi', false)).toBe(true);
     expect(isRestoreReservedToAdmin({ deleted_by: 'admin' }, 'moi', true)).toBe(false);
     expect(isRestoreReservedToAdmin({ deleted_by: null }, 'moi', false)).toBe(false);
+  });
+});
+
+test.describe('Corbeille : restauration d’un doublon', () => {
+  test('un document identique lisible est signalé, sinon rien', () => {
+    const twin = { id: 'doc-1', title: 'Arrêté 12' };
+    expect(identicalAfterRestore({ message: 'Document restaure.', identical_document: twin })).toEqual(twin);
+    expect(identicalAfterRestore({ message: 'Document restaure.', identical_document: null })).toBeNull();
+    // Serveur plus ancien, sans le champ.
+    expect(identicalAfterRestore({ message: 'Document restaure.' })).toBeNull();
+    for (const body of [null, undefined, true, {}, { identical_document: { id: '', title: 'x' } }, { identical_document: { id: 'doc-1' } }]) {
+      expect(identicalAfterRestore(body), JSON.stringify(body)).toBeNull();
+    }
   });
 });
