@@ -29,19 +29,44 @@ jobs:
       appfactory_ref: 0523510a8e42290df3bae5749d034b1637569af5 # v1.4.0
       mode: ${{ github.event_name == 'workflow_dispatch' && 'all' || 'auto' }}
 
+  # Push to main only: a merge whose commit has the same tree as the pull request head that
+  # already passed "CI Gate" does not re-run the heavy jobs (backend, frontend, e2e). Any doubt
+  # runs everything. Gitleaks and the other cheap checks always run. Nothing changes for pull
+  # requests. Decision and tests: scripts/ci_reuse_validated_tree.sh, scripts/test_ci_reuse_validated_tree.sh.
+  reuse:
+    name: Reuse validated tree
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      skip: ${{ steps.decide.outputs.skip }}
+      reason: ${{ steps.decide.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v7
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - name: Same tree as a pull request head already validated?
+        id: decide
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci_reuse_validated_tree.sh
+
   # ──────────────────────────────────────────────
   # Stage 1 — Backend + Frontend + Security (parallel, gated by impact)
   # ──────────────────────────────────────────────
   backend:
     name: Backend
-    needs: impact
-    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'backend') }}
+    needs: [impact, reuse]
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'backend') && needs.reuse.outputs.skip != 'true' }}
     uses: ./.github/workflows/backend.yml
 
   frontend:
     name: Frontend
-    needs: impact
-    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'frontend') }}
+    needs: [impact, reuse]
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'frontend') && needs.reuse.outputs.skip != 'true' }}
     uses: ./.github/workflows/frontend.yml
 
   # Gitleaks always runs; the other scans follow the gates.
@@ -55,8 +80,8 @@ jobs:
   # Critical journeys in a real browser against the real API (docker-compose.e2e.yml, smoke project).
   e2e:
     name: E2E smoke (Playwright)
-    needs: impact
-    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'e2e') }}
+    needs: [impact, reuse]
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'e2e') && needs.reuse.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -107,6 +132,9 @@ jobs:
       # Fake docker, no daemon: offline image import on containerd and overlay2 stores.
       - name: Offline images import (both image stores)
         run: bash scripts/test_images_import.sh
+      # Fake gh and a throwaway repo, no network: the push-to-main reuse decision (one skip case, every doubt runs all).
+      - name: CI reuse decision
+        run: bash scripts/test_ci_reuse_validated_tree.sh
 
   # Same script as the pre-commit hook: no case collisions, UTF-16, NUL, control characters or U+FFFD.
   tracked-files:
@@ -126,7 +154,7 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [impact, backend, frontend, security, workflows, tracked-files]
+    needs: [impact, reuse, backend, frontend, security, workflows, tracked-files]
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
@@ -141,6 +169,23 @@ jobs:
           if [[ "$(echo "$NEEDS" | jq -r '.impact.result')" != "success" ]]; then
             echo "::error::Change impact analysis did not succeed"
             exit 1
+          fi
+
+          # The reuse decision must have run without error; its answer only matters for the summary.
+          if [[ "$(echo "$NEEDS" | jq -r '.reuse.result')" != "success" ]]; then
+            echo "::error::Reuse decision did not succeed"
+            exit 1
+          fi
+          if [[ "$(echo "$NEEDS" | jq -r '.reuse.outputs.skip // ""')" == "true" ]]; then
+            reason=$(echo "$NEEDS" | jq -r '.reuse.outputs.reason')
+            echo "::notice::Backend, frontend and e2e not re-run: $reason"
+            {
+              echo "### CI reused, not re-run"
+              echo "This push to main has the same content as the merged pull request head, whose CI Gate was already green."
+              echo "Backend, frontend and e2e were skipped on purpose. Secrets, SAST, workflow lint and file checks ran."
+              echo ""
+              echo "Reason: $reason"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
           # Skipped means its gate was not required by this change; anything else but success fails.

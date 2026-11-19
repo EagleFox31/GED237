@@ -29,3 +29,11 @@ Mécanisme à retenir : un échec simultané sur des branches sans lien, dont un
 ## Preuve et mémoire
 
 Toute panne plateforme ou CI instable > 15 min : entrée dans `lessons-learned.md` (contexte daté UTC, cause, classification, prévention vérifiable), identifiant d'incident du fournisseur quand il existe (ex. GitHub `tp8cghg7tlc4`, 09/11/2026).
+
+## CI sautée sur main (arbre déjà validé)
+
+Sur un push vers `main`, le job « Reuse validated tree » compare l'arbre du commit à celui de la tête de la PR fusionnée et vérifie que « CI Gate » était vert sur cette tête. Si tout concorde, backend, frontend et e2e sont sautés, « CI Gate » passe au vert et le résumé du run l'écrit (« CI reused, not re-run »). Secrets, SAST, lint des workflows et contrôle des fichiers tournent toujours.
+
+- Au moindre doute (push direct, plusieurs PR dans le commit, arbre différent, API en erreur, « CI Gate » absent ou rouge), la passe complète tourne, comme avant.
+- Pour forcer la passe complète sur main : lancer le workflow à la main (`workflow_dispatch`), qui exécute tout.
+- Décision : `scripts/ci_reuse_validated_tree.sh` ; test sans réseau : `scripts/test_ci_reuse_validated_tree.sh` (un cas qui saute, treize qui testent tout).
