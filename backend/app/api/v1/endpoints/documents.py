@@ -66,6 +66,7 @@ from app.services.classification_review_service import ClassificationReviewServi
 from app.core.redis import get_redis
 from app.models.tenant import Tenant
 from app.services.ingest_watch import read_last_run, status_for_tenant
+from app.services.my_documents import record_access as record_document_access
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.services import trash_service
@@ -1299,7 +1300,9 @@ async def get_document(
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
-    return _serialize_document(document)
+    payload = _serialize_document(document)
+    await record_document_access(db, current_user, document.id)
+    return payload
 
 
 @router.get("/{document_id}/versions")

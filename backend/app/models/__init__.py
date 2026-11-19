@@ -24,6 +24,7 @@ from app.models.gedrules import (
 from app.models.routing_audit import DocumentRoutingDecision
 from app.models.audit import AuditLog
 from app.models.local_organize_event import LocalOrganizeEvent
+from app.models.my_documents import DocumentFavorite, DocumentRecentAccess
 from app.models.user_local_arrangement_snapshot import UserLocalArrangementSnapshot
 from app.models.notification import Notification
 from app.models.document_category import DocumentCategory
@@ -52,6 +53,8 @@ __all__ = [
     "WorkflowAction",
     "AuditLog",
     "LocalOrganizeEvent",
+    "DocumentFavorite",
+    "DocumentRecentAccess",
     "UserLocalArrangementSnapshot",
     "Notification",
     "WorkflowTemplate",
