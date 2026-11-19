@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     categories,
     classification,
     classification_reviews,
+    delegations,
     documents,
     duplicates,
     gedrules,
@@ -36,6 +37,9 @@ api_router.include_router(documents.router, prefix="/documents", tags=["Document
 api_router.include_router(duplicates.router, prefix="/duplicates", tags=["Duplicates"])
 api_router.include_router(imports.router, prefix="/imports", tags=["Imports"])
 api_router.include_router(workflows.router, prefix="/workflows", tags=["Workflows"])
+api_router.include_router(
+    delegations.router, prefix="/delegations", tags=["Delegations"]
+)
 api_router.include_router(search.router, prefix="/search", tags=["Search"])
 api_router.include_router(categories.router, prefix="/categories", tags=["Categories"])
 api_router.include_router(

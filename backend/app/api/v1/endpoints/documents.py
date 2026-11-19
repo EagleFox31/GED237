@@ -18,7 +18,7 @@ from fastapi import (
     status,
 )
 from app.core.rate_limit import limiter
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,10 +26,12 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
+from app.core.search.fts import fold_accents
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
+from app.services.workflow_assignee import actionable_step_clause
 from app.services.unit_admin_scope import (
     assert_unit_admin_object_in_tree,
     unit_admin_scope_ids,
@@ -138,11 +140,11 @@ def _escape_like(value: str) -> str:
 
 
 def _apply_text_filter(query, text: str):
-    """Literal, case-insensitive match on title, tags, domain, activity or category name."""
-    pattern = f"%{_escape_like(text)}%"
+    """Literal match, ignoring case and accents, on title, tags, domain, activity or category name."""
+    pattern = fold_accents(f"%{_escape_like(text)}%")
 
     def _match(column):
-        return column.ilike(pattern, escape=_LIKE_ESCAPE)
+        return fold_accents(column).ilike(pattern, escape=_LIKE_ESCAPE)
 
     return (
         query.outerjoin(
@@ -292,8 +294,15 @@ async def _has_workflow_step_access(
         .where(
             WorkflowStep.document_id == document.id,
             Document.tenant_id == user.tenant_id,
-            WorkflowStep.assigned_to == user.id,
-            WorkflowStep.status.in_(READ_GRANTING_STEP_STATUSES),
+            or_(
+                and_(
+                    WorkflowStep.assigned_to == user.id,
+                    WorkflowStep.status.in_(READ_GRANTING_STEP_STATUSES),
+                ),
+                # A stand-in reads only the absent agent's current step
+                # (DEC-2026-007): least privilege, nothing past or upcoming.
+                await actionable_step_clause(user),
+            ),
         )
         .limit(1)
     )

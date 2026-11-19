@@ -1,5 +1,9 @@
 from typing import Dict, Any
+from uuid import UUID
+
 from app.core.database import async_session_maker
+from app.models.user import User
+from app.services.workflow_assignee import active_delegate_ids
 from app.services.notifications.factory import NotificationFactory
 from app.core.events.dispatcher import dispatcher
 
@@ -35,6 +39,27 @@ async def on_workflow_assigned(payload: Dict[str, Any]):
             meta_data=payload,
             session=session,
         )
+        # The absent agent keeps their notification; each active stand-in gets
+        # one too, otherwise they would not know there is a task (DEC-2026-007).
+        delegate_ids = await active_delegate_ids(
+            session, UUID(tenant_id), UUID(user_id)
+        )
+        if not delegate_ids:
+            return
+        absent = await session.get(User, UUID(user_id))
+        absent_name = absent.full_name if absent else ""
+        for delegate_id in delegate_ids:
+            await notifier.send(
+                user_id=str(delegate_id),
+                tenant_id=tenant_id,
+                event_type="WORKFLOW_ASSIGNED",
+                message=(
+                    f"Au nom de {absent_name} : valider le document "
+                    f"'{document_title}' (Étape: {step_name})"
+                ),
+                meta_data={**payload, "on_behalf_of": user_id},
+                session=session,
+            )
 
 
 async def on_workflow_completed(payload: Dict[str, Any]):

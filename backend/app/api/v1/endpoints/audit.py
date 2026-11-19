@@ -7,12 +7,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
+from app.core.timezone import LOCAL_TZ
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.user import User
@@ -30,6 +31,7 @@ TABLE_LABELS = {
     "user_local_arrangement_snapshots": "Bibliothèque locale (compte)",
     "ingest_watch": "Dossiers surveillés",
     "audit_logs": "Journal d'audit",
+    "delegations": "Délégations",
 }
 
 ACTION_LABELS = {
@@ -63,10 +65,10 @@ ACTION_LABELS = {
     "watch_ingested": "Import automatique d'un dossier",
     "dup_detected": "Doublon refusé",
     "exported": "Export du journal",
+    "delegation_created": "Délégation pendant une absence",
+    "delegation_revoked": "Fin anticipée d'une délégation",
 }
 
-# Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.
-LOCAL_TZ = timezone(timedelta(hours=1), "WAT")
 EXPORT_MAX_ROWS = 50_000
 _EXPORT_BATCH = 2_000
 EXPORT_COLUMNS = (
@@ -88,6 +90,11 @@ def _extract_resource_label(
         document = documents_by_id.get(log.record_id)
         if document is not None:
             return document.title
+    if log.table_name == "delegations" and isinstance(log.new_data, dict):
+        absent = log.new_data.get("delegator_name")
+        stand_in = log.new_data.get("delegate_name")
+        if absent and stand_in:
+            return f"Remplacement de {absent} par {stand_in}"
 
     for payload in (log.new_data, log.old_data):
         if not isinstance(payload, dict):
@@ -131,6 +138,14 @@ def _extract_detail(log: AuditLog) -> str:
     return "Action tracée automatiquement par le système."
 
 
+def _on_behalf_of_name(log: AuditLog, absent: Optional[User]) -> Optional[str]:
+    if absent is not None:
+        return absent.full_name
+    if isinstance(log.new_data, dict) and log.new_data.get("on_behalf_of_name"):
+        return str(log.new_data["on_behalf_of_name"])
+    return None
+
+
 def _serialize_audit_log(
     log: AuditLog,
     *,
@@ -138,12 +153,17 @@ def _serialize_audit_log(
     documents_by_id: dict[UUID, Document],
 ) -> dict[str, Any]:
     actor = actors_by_id.get(log.user_id) if log.user_id else None
+    absent = actors_by_id.get(log.on_behalf_of) if log.on_behalf_of else None
     return {
         "id": str(log.id),
         "tenant_id": str(log.tenant_id) if log.tenant_id else None,
         "user_id": str(log.user_id) if log.user_id else None,
         "user_name": actor.full_name if actor else None,
         "user_matricule": actor.matricule if actor else None,
+        # Delegation (DEC-2026-007): "X on behalf of Y". The name falls back to the
+        # snapshot written at action time when the absent agent's account is gone.
+        "on_behalf_of": str(log.on_behalf_of) if log.on_behalf_of else None,
+        "on_behalf_of_name": _on_behalf_of_name(log, absent),
         "table_name": log.table_name,
         "table_label": TABLE_LABELS.get(
             log.table_name, log.table_name.replace("_", " ").title()
@@ -172,11 +192,13 @@ def _filtered_query(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     until: Optional[datetime] = None,
+    on_behalf: bool = False,
 ):
     """Tenant logs matching the screen filters; dates are local calendar days, both inclusive.
 
     ``table_name`` and ``action`` take one value or several (any of them matches).
     ``until`` freezes the result at an instant (same clock and type as created_at).
+    ``on_behalf`` keeps only the actions a stand-in did for an absent agent.
     """
     query = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
     table_names = _values(table_name)
@@ -186,7 +208,10 @@ def _filtered_query(
     if actions:
         query = query.where(func.lower(AuditLog.action).in_(actions))
     if user_id is not None:
-        query = query.where(AuditLog.user_id == user_id)
+        # An agent's journal includes what a stand-in did on their behalf.
+        query = query.where(
+            or_(AuditLog.user_id == user_id, AuditLog.on_behalf_of == user_id)
+        )
     if date_from:
         query = query.where(AuditLog.created_at >= _utc_naive(date_from))
     if date_to:
@@ -195,6 +220,8 @@ def _filtered_query(
         )
     if until is not None:
         query = query.where(AuditLog.created_at <= until)
+    if on_behalf:
+        query = query.where(AuditLog.on_behalf_of.is_not(None))
     return query
 
 
@@ -220,7 +247,10 @@ async def _load_references(
     db: AsyncSession, logs: list[AuditLog]
 ) -> tuple[dict[UUID, User], dict[UUID, Document]]:
     """Actors and documents named by ``logs``, loaded in two queries."""
-    user_ids = sorted({log.user_id for log in logs if log.user_id}, key=str)
+    user_ids = sorted(
+        {uid for log in logs for uid in (log.user_id, log.on_behalf_of) if uid},
+        key=str,
+    )
     document_ids = sorted(
         {log.record_id for log in logs if log.table_name == "documents"}, key=str
     )
@@ -258,19 +288,28 @@ def _csv_cell(value: Optional[str]) -> str:
     return f"'{text}" if text.startswith(_FORMULA_PREFIXES) else text
 
 
+def _csv_user(entry: dict[str, Any]) -> Optional[str]:
+    """Same columns as before: a delegated action reads "X (au nom de Y)"."""
+    if entry.get("on_behalf_of_name"):
+        return f"{entry['user_name'] or ''} (au nom de {entry['on_behalf_of_name']})"
+    return entry["user_name"]
+
+
 def _csv_row(entry: dict[str, Any], created_at: Optional[datetime]) -> list[str]:
-    return [_local_iso(created_at)] + [
-        _csv_cell(entry[key])
-        for key in (
-            "user_matricule",
-            "user_name",
-            "table_label",
-            "resource_label",
-            "action_label",
-            "detail",
-            "ip_address",
-        )
-    ]
+    return (
+        [_local_iso(created_at), _csv_cell(entry["user_matricule"])]
+        + [_csv_cell(_csv_user(entry))]
+        + [
+            _csv_cell(entry[key])
+            for key in (
+                "table_label",
+                "resource_label",
+                "action_label",
+                "detail",
+                "ip_address",
+            )
+        ]
+    )
 
 
 @router.get("/logs/export")
@@ -281,6 +320,7 @@ async def export_audit_logs(
     user_id: Optional[UUID] = Query(default=None),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
+    on_behalf: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -292,6 +332,7 @@ async def export_audit_logs(
         "user_id": str(user_id) if user_id else None,
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
+        "on_behalf": on_behalf,
     }
     # Rows logged after this instant (by anyone) would shift the offset pages: freeze them out.
     # localtimestamp is the clock created_at is filled from (now() stored without zone).
@@ -304,6 +345,7 @@ async def export_audit_logs(
         date_from=date_from,
         date_to=date_to,
         until=snapshot,
+        on_behalf=on_behalf,
     )
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
     if total > EXPORT_MAX_ROWS:
@@ -363,13 +405,17 @@ async def list_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     table_name: Optional[str] = Query(default=None),
     action: Optional[str] = Query(default=None),
+    on_behalf: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "audit_logs", "read")
 
     query = _filtered_query(
-        current_user.tenant_id, table_name=table_name, action=action
+        current_user.tenant_id,
+        table_name=table_name,
+        action=action,
+        on_behalf=on_behalf,
     )
     query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)

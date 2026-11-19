@@ -836,7 +836,8 @@ async def test_workflow_service_patterns(monkeypatch):
     with pytest.raises(Exception):
         await policy.check_can_perform_action(step, document, wrong_action, actor)
 
-    policy_mock = SimpleNamespace(check_can_perform_action=AsyncMock())
+    # Returns the absent agent stood in for: None, the assignee acts (DEC-2026-007).
+    policy_mock = SimpleNamespace(check_can_perform_action=AsyncMock(return_value=None))
     dispatcher = SimpleNamespace(dispatch=AsyncMock())
     use_case = SubmitWorkflowActionUseCase(policy_mock, event_dispatcher=dispatcher)
 

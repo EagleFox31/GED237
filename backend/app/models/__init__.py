@@ -23,6 +23,7 @@ from app.models.gedrules import (
 )
 from app.models.routing_audit import DocumentRoutingDecision
 from app.models.audit import AuditLog
+from app.models.delegation import Delegation
 from app.models.local_organize_event import LocalOrganizeEvent
 from app.models.user_local_arrangement_snapshot import UserLocalArrangementSnapshot
 from app.models.notification import Notification
@@ -51,6 +52,7 @@ __all__ = [
     "WorkflowStep",
     "WorkflowAction",
     "AuditLog",
+    "Delegation",
     "LocalOrganizeEvent",
     "UserLocalArrangementSnapshot",
     "Notification",
