@@ -124,9 +124,11 @@ export const documentsApi = {
         ),
 
     /** Met le document à la corbeille (rien n'est supprimé définitivement ici). */
-    deleteDocument: async (id: string): Promise<true> => {
+    // `silent` : action groupée, l'appelant résume lui-même les échecs en un seul message.
+    deleteDocument: async (id: string, { silent = false }: { silent?: boolean } = {}): Promise<true> => {
         await apiCallVoid(`/documents/${id}`, { method: 'DELETE' }, 'Suppression du document impossible', {
             statusMessages: { 403: 'Vous ne pouvez pas supprimer ce document.' },
+            silent,
         });
         return true;
     },
@@ -144,8 +146,8 @@ export const documentsApi = {
         return { items, total: Number.isInteger(total) && total >= 0 ? total : items.length };
     },
 
-    restoreDocument: async (id: string): Promise<true> => {
-        await apiCallVoid(`/documents/${id}/restore`, { method: 'POST' }, 'Restauration impossible', TRASH_MESSAGES);
+    restoreDocument: async (id: string, { silent = false }: { silent?: boolean } = {}): Promise<true> => {
+        await apiCallVoid(`/documents/${id}/restore`, { method: 'POST' }, 'Restauration impossible', { ...TRASH_MESSAGES, silent });
         return true;
     },
 
