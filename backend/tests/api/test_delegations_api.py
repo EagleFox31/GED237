@@ -287,3 +287,49 @@ async def test_check_constraints(db_session, delegation_world, broken):
     with pytest.raises(IntegrityError):
         await db_session.commit()
     await db_session.rollback()
+
+
+async def _candidates(client, **params):
+    response = await client.get(f"{URL}/candidates", params=params)
+    return response.status_code, response.json()
+
+
+@pytest.mark.asyncio
+async def test_candidates_follow_the_designation_perimeter(delegation_world, as_agent):
+    """The manager's own service only, without the caller nor inactive agents;
+    ``can_stand_in`` mirrors the stand-in rule of POST. GET /users stays closed."""
+    users = delegation_world["users"]
+    names = {str(user.id): name for name, user in users.items()}
+
+    def _world(body):
+        return {names[c["id"]]: c for c in body if c["id"] in names}
+
+    async with as_agent("manager_u") as client:
+        own = await _candidates(client)
+        other_unit = await _candidates(
+            client, org_unit_id=str(delegation_world["units"]["v"])
+        )
+        user_list = await client.get("/api/v1/users/")
+    async with as_agent("admin") as client:
+        any_unit = await _candidates(
+            client, org_unit_id=str(delegation_world["units"]["v"])
+        )
+    async with as_agent("reader") as client:
+        refused = await _candidates(client)
+
+    status_code, body = own
+    assert status_code == 200, body
+    seen = _world(body)
+    assert set(seen) == {"absent", "standin", "third", "admin", "reader"}
+    assert seen["standin"] == {
+        "id": str(users["standin"].id),
+        "full_name": users["standin"].full_name,
+        "org_unit_id": str(delegation_world["units"]["u"]),
+        "role": "collaborator",
+        "can_stand_in": True,
+    }
+    assert seen["reader"]["can_stand_in"] is False
+    assert other_unit[0] == 403
+    assert user_list.status_code == 403
+    assert set(_world(any_unit[1])) == {"manager_v"}
+    assert refused[0] == 403

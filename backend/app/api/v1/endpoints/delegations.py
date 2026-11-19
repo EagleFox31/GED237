@@ -16,7 +16,12 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.delegation import Delegation
 from app.models.user import User
-from app.schemas.delegation import DelegationCreate, DelegationRead, DelegationStatus
+from app.schemas.delegation import (
+    DelegationCandidate,
+    DelegationCreate,
+    DelegationRead,
+    DelegationStatus,
+)
 from app.services import delegation_service as svc
 
 router = APIRouter()
@@ -71,6 +76,18 @@ async def my_delegations(
     No Casbin check, like ``/users/me``: strictly filtered on the caller.
     """
     return await svc.list_delegations(db, svc.mine_filter(current_user, svc.utcnow()))
+
+
+@router.get("/candidates", response_model=List[DelegationCandidate])
+async def delegation_candidates(
+    org_unit_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Agents of the caller's service, for the "absent agent" and "stand-in"
+    lists. Same perimeter as POST /delegations; does not open GET /users."""
+    await authorize_or_403(current_user, "delegations", "create")
+    return await svc.list_candidates(db, current_user, org_unit_id)
 
 
 @router.post("/{delegation_id}/revoke", response_model=DelegationRead)

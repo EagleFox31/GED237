@@ -7,6 +7,7 @@ import { RejectReasonDialog } from '../../../components/workflow/RejectReasonDia
 import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { ApiError } from '../../../lib/errors';
+import { notifyTasksChanged } from '../../../lib/taskCount';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
 const ValidationHub: React.FC = () => {
@@ -36,6 +37,7 @@ const ValidationHub: React.FC = () => {
     try {
       await api.decideWorkflowStep(task, decision, comment);
       setDocuments(prev => prev.filter(d => d.id !== task.id));
+      notifyTasksChanged();
       setRejecting(null);
     } catch (e) {
       // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (version absente).

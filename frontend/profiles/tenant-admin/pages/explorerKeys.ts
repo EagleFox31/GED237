@@ -49,3 +49,19 @@ export const nextFocusIndex = (boxes: ItemBox[], current: number, key: ArrowKey)
     Math.abs(c.box.left - origin.left) < Math.abs(best.box.left - origin.left) ? c : best
   ).index;
 };
+
+/** Marge entre un menu flottant et le bord de la fenêtre, en px. */
+const VIEWPORT_MARGIN_PX = 8;
+
+/**
+ * Position d'un menu ouvert au point (x, y), ramenée dans la fenêtre : un clic près du bas
+ * ou du bord droit ne doit pas laisser d'entrée hors écran, donc inatteignable.
+ */
+export const clampToViewport = (
+  point: { x: number; y: number },
+  menu: { width: number; height: number },
+  viewport: { width: number; height: number }
+): { top: number; left: number } => ({
+  top: Math.max(VIEWPORT_MARGIN_PX, Math.min(point.y, viewport.height - menu.height - VIEWPORT_MARGIN_PX)),
+  left: Math.max(VIEWPORT_MARGIN_PX, Math.min(point.x, viewport.width - menu.width - VIEWPORT_MARGIN_PX)),
+});
