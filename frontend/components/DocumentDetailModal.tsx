@@ -249,7 +249,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
           </div>
           <div className="flex items-center gap-3">
           <DocumentReservation document={document} onChange={handleReservationChange} />
-          <button type="button" aria-label="Fermer" onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
+          <button type="button" aria-label="Fermer la fiche" onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-slate-400">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>

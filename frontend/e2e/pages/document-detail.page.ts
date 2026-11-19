@@ -73,7 +73,7 @@ export class DocumentDetailModal {
 
     // Footer
     this.signButton = page.getByRole('button', { name: /signer numériquement/i });
-    this.closeFooterButton = page.getByRole('button', { name: /fermer/i });
+    this.closeFooterButton = page.getByRole('button', { name: 'Fermer', exact: true });
     // Exact names: « Oui, archiver » (confirmation) and « Archivage… » (request pending) must not match.
     this.archiveButton = page.getByRole('button', { name: 'Archiver', exact: true });
     this.confirmArchiveButton = page.getByRole('button', { name: 'Oui, archiver', exact: true });
