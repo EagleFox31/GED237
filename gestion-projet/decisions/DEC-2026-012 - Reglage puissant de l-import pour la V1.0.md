@@ -29,3 +29,4 @@ Essais à 100 000 documents (rapport sur #473, 7243b3c7) :
 
 - O confirme vers 17:30 si la PR capacité est fusionnée ; l'innovateur note alors « item 8 compté » ou « item 8 non compté » dans `note-po-coupe-release-v1.0.0.md` et dans `couverture-95-19-11.md`.
 - Si l'essai de 16:00 échoue, l'item 8 n'est pas compté et le réglage retourne en V1.1 pour analyse.
+- **Porteur du minimum machine (décision 2) : aide-api, dans la PR capacité** (branche `feat/item8-capacity-settings`, pas encore poussée au 19/11 vers 13:50). Son diff de `DOCS/exploitation/installation.md` contient déjà « 8 cœurs » et « 12 Go de RAM », avec les nouveaux plafonds du compose et le renvoi au rapport de l'essai à 8 cœurs. La relecture de B vérifie que ces lignes sont présentes dans la PR fusionnée.
