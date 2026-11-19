@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import DocumentDetailModal from './DocumentDetailModal';
 import UploadDocumentModal from './UploadDocumentModal';
+import { SubmitForValidationDialog } from './workflow/SubmitForValidationDialog';
 import { Document, DocumentCategory, formatFileSize, getFileTypeLabel, getStatusLabel, formatDate } from '../types';
 import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
@@ -25,6 +26,9 @@ const Documents: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const profileId = useAuthStore((s) => s.userProfile?.id);
+  const userId = useAuthStore((s) => s.userProfile?.userId);
+  // Brouillon dont la fenêtre de soumission est ouverte (null : fermée).
+  const [documentToSubmit, setDocumentToSubmit] = useState<string | null>(null);
   const canCreate = !!profileId && CAN_CREATE_DOCUMENT.has(profileId);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('');
@@ -239,7 +243,22 @@ const Documents: React.FC = () => {
                 <span className="material-symbols-outlined text-sm">schedule</span>
                 {formatDate(doc.updated_at)}
               </div>
-              <span className="text-[10px] font-black text-slate-400">{formatFileSize(doc.file_size)}</span>
+              {doc.status === 'draft' && !!userId && doc.owner_id === userId ? (
+                // Le rédacteur soumet son brouillon sans repasser par « Mon Atelier ».
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDocumentToSubmit(doc.id);
+                  }}
+                  aria-label={`Soumettre ${doc.title}`}
+                  className="px-3 py-1 bg-rdpc-blue text-white rounded-lg text-[9px] font-bold uppercase tracking-wide hover:bg-blue-800 transition-colors"
+                >
+                  Soumettre
+                </button>
+              ) : (
+                <span className="text-[10px] font-black text-slate-400">{formatFileSize(doc.file_size)}</span>
+              )}
             </div>
           </div>
         ))}
@@ -264,6 +283,17 @@ const Documents: React.FC = () => {
           onClose={closeDetail}
           onUpdated={(updated) => setDocs((prev) => prev.map((doc) => (doc.id === updated.id ? { ...doc, ...updated } : doc)))}
           onTrashed={() => setDocs((current) => current.filter((d) => d.id !== selectedDoc.id))}
+        />
+      )}
+
+      {documentToSubmit && (
+        <SubmitForValidationDialog
+          documentId={documentToSubmit}
+          onClose={() => setDocumentToSubmit(null)}
+          onSubmitted={() => {
+            setDocumentToSubmit(null);
+            fetchDocuments();
+          }}
         />
       )}
 
