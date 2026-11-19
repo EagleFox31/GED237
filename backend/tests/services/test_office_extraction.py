@@ -215,14 +215,17 @@ def test_xml_total_cap_at_the_limit(tmp_path, monkeypatch):
         extract_office_text(path, DOCX_MIME_TYPE)
 
 
-def _docx_with_part(tmp_path, name: str, data: bytes, declared: str) -> str:
-    """A real .docx plus one extra part; ``declared`` is added to [Content_Types].xml."""
-    base = _save_docx(tmp_path, lambda d: d.add_paragraph("texte"))
-    path = tmp_path / "extra.docx"
+def _with_part(tmp_path, save, name: str, data: bytes, declared: str = "") -> str:
+    """A real file with ``name`` added or replaced by ``data``; ``declared`` is added
+    to [Content_Types].xml (an Override or Default giving the part a type)."""
+    base = save(tmp_path, lambda _: None)
+    path = tmp_path / f"crafted{base[-5:]}"
     with zipfile.ZipFile(base) as source, zipfile.ZipFile(
         path, "w", zipfile.ZIP_DEFLATED
     ) as target:
         for item in source.infolist():
+            if item.filename == name:
+                continue
             content = source.read(item.filename)
             if item.filename == "[Content_Types].xml":
                 content = content.replace(b"</Types>", declared.encode() + b"</Types>")
@@ -231,36 +234,70 @@ def _docx_with_part(tmp_path, name: str, data: bytes, declared: str) -> str:
     return str(path)
 
 
-_TWO_MB = random.Random(0).randbytes(
-    2 * 1024 * 1024
-)  # does not compress: ratio is fine
-_PNG = '<Default Extension="png" ContentType="image/png"/>'
-_AS_XML = '<Override PartName="/{}" ContentType="application/xml"/>'
+_NOISE = random.Random(0).randbytes(2 * 1024 * 1024)  # does not compress
+_BIG_XML = b"<x>" + _NOISE  # refused on size, before any parsing
+_PNG_TYPE = '<Default Extension="png" ContentType="image/png"/>'
 
 
-def test_declared_media_part_is_not_held_to_the_xml_cap(tmp_path, monkeypatch):
-    path = _docx_with_part(tmp_path, "word/media/image1.png", _TWO_MB, _PNG)
+def _as(part: str, content_type: str) -> str:
+    return f'<Override PartName="/{part}" ContentType="{content_type}"/>'
+
+
+def test_binary_media_part_is_not_held_to_the_xml_cap(tmp_path, monkeypatch):
+    png = b"\x89PNG\r\n\x1a\n" + _NOISE
+    path = _with_part(tmp_path, _save_docx, "word/media/image1.png", png, _PNG_TYPE)
     monkeypatch.setattr(office, "MAX_XML_PART_BYTES", 1024 * 1024)
-    assert extract_office_text(path, DOCX_MIME_TYPE) == "texte"
+    with pytest.raises(OfficeExtractionError) as error:
+        extract_office_text(path, DOCX_MIME_TYPE)
+    assert error.value.reason == "no_text"  # read through, not refused by a cap
 
 
 @pytest.mark.parametrize(
-    "name, declared",
+    "save, name, data, declared",
     [
-        ("word/extra.dat", _AS_XML.format("word/extra.dat")),  # renamed, declared XML
-        ("word/EXTRA.XML", ""),  # upper case, matched by the xml default
-        ("word/extra.bin", ""),  # no declared type at all: default deny
-        ("word/media/image1.png", _AS_XML.format("word/media/image1.png")),
+        # by name
+        (_save_docx, "word/extra.dat", _BIG_XML, ""),
+        (_save_docx, "word/EXTRA.XML", _BIG_XML, ""),
+        # by path: media folder, and parts the readers open by path
+        (_save_docx, "word/media/image1.png", _BIG_XML, _PNG_TYPE),
+        (_save_docx, "word/_rels/document.xml.rels", _BIG_XML, ""),
+        (_save_xlsx, "xl/styles.xml", _BIG_XML, ""),
+        # by declared type: an XML part declared as an image
+        (_save_xlsx, "xl/styles.xml", _BIG_XML, _as("xl/styles.xml", "image/png")),
+        (
+            _save_docx,
+            "word/_rels/document.xml.rels",
+            _BIG_XML,
+            '<Default Extension="rels" ContentType="image/png"/>',
+        ),
+        # by encoding: leading whitespace, byte order mark, UTF-16
+        (_save_docx, "word/extra.bin", b" \n" * 70_000 + _BIG_XML, ""),
+        (_save_docx, "word/extra.bin", b"\xef\xbb\xbf" + _BIG_XML, ""),
+        (_save_docx, "word/extra.bin", "<x>".encode("utf-16") + _NOISE, ""),
+    ],
+    ids=[
+        "renamed-dat",
+        "upper-case-XML",
+        "media-folder",
+        "rels-by-path",
+        "styles-by-path",
+        "styles-declared-image",
+        "rels-default-image",
+        "leading-whitespace",
+        "utf8-bom",
+        "utf16",
     ],
 )
-def test_part_declared_or_left_as_xml_is_held_to_the_cap(
-    tmp_path, monkeypatch, name, declared
+def test_hidden_xml_part_is_held_to_the_cap(
+    tmp_path, monkeypatch, save, name, data, declared
 ):
-    """The cap follows the declared content type, as the readers do, not the name."""
-    path = _docx_with_part(tmp_path, name, _TWO_MB, declared)
+    """Any part that can be parsed as XML is capped, whatever its name, path or
+    declared type: the decision is made on its content."""
+    path = _with_part(tmp_path, save, name, data, declared)
+    mime = DOCX_MIME_TYPE if path.endswith(".docx") else XLSX_MIME_TYPE
     monkeypatch.setattr(office, "MAX_XML_PART_BYTES", 1024 * 1024)
     with pytest.raises(OfficeExtractionError, match=f"part {name} ") as error:
-        extract_office_text(path, DOCX_MIME_TYPE)
+        extract_office_text(path, mime)
     assert error.value.reason == "engine_error"
 
 

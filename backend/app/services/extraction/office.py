@@ -7,7 +7,8 @@ whose ``reason`` uses the same codes as the task's failure states (``no_text``,
 Files come from users, so every read is bounded:
 - archive: file size, declared uncompressed size, entry count, and the size and
   compression ratio of each XML part are checked before any parsing (zip bomb, memory of
-  the worker). zipfile never inflates an entry past its declared size;
+  the worker). A part is XML by its content, whatever its name, path or declared type.
+  zipfile never inflates an entry past its declared size;
 - XML: python-docx parses with ``resolve_entities=False``; openpyxl switches to defusedxml
   when it is installed (pinned in requirements.txt);
 - work: a cell budget for spreadsheets and a time budget, checked between paragraphs and
@@ -106,19 +107,20 @@ def _check_archive(path: str) -> None:
     try:
         with zipfile.ZipFile(path) as archive:
             entries = archive.infolist()
-            content_types = _content_types(archive)
+            if len(entries) > MAX_ENTRIES:
+                raise OfficeExtractionError(
+                    ENGINE_ERROR, f"more than {MAX_ENTRIES} parts"
+                )
+            if sum(entry.file_size for entry in entries) > MAX_UNCOMPRESSED_BYTES:
+                raise OfficeExtractionError(
+                    ENGINE_ERROR,
+                    f"more than {MAX_UNCOMPRESSED_BYTES // 2**20} MB once uncompressed",
+                )
+            xml_entries = [e for e in entries if _looks_like_xml(archive, e)]
     except (zipfile.BadZipFile, OSError) as exc:
         raise OfficeExtractionError(
             ENGINE_ERROR, "not a valid Office file (damaged, or renamed)"
         ) from exc
-    if len(entries) > MAX_ENTRIES:
-        raise OfficeExtractionError(ENGINE_ERROR, f"more than {MAX_ENTRIES} parts")
-    if sum(entry.file_size for entry in entries) > MAX_UNCOMPRESSED_BYTES:
-        raise OfficeExtractionError(
-            ENGINE_ERROR,
-            f"more than {MAX_UNCOMPRESSED_BYTES // 2**20} MB once uncompressed",
-        )
-    xml_entries = [e for e in entries if _may_be_parsed(e.filename, content_types)]
     if sum(entry.file_size for entry in xml_entries) > MAX_XML_TOTAL_BYTES:
         raise OfficeExtractionError(
             ENGINE_ERROR,
@@ -143,64 +145,33 @@ def _check_archive(path: str) -> None:
             )
 
 
-# Only these content types are kept as bytes by python-docx and openpyxl, never parsed.
-_UNPARSED_TYPE_PREFIXES = ("image/", "audio/", "video/", "font/")
-_UNPARSED_TYPES = frozenset(
-    {
-        "application/vnd.openxmlformats-officedocument.oleobject",
-        "application/vnd.openxmlformats-officedocument.obfuscatedfont",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.printersettings",
-        "application/vnd.ms-office.vbaproject",
-        "application/octet-stream",
-    }
-)
-_CONTENT_TYPES_PART = "[Content_Types].xml"
+# Bytes an XML parser accepts before the first "<": whitespace, byte order marks, and
+# the zero bytes of UTF-16 and UTF-32.
+_BEFORE_XML = b"\x00\t\n\r \xef\xbb\xbf\xfe\xff"
+_EBCDIC_XML_DECLARATION = b"\x4c\x6f\xa7\x94"  # "<?xm", which lxml also detects
+_SNIFF_CHUNK = 64 * 1024
 
 
-def _content_types(archive: zipfile.ZipFile) -> tuple[dict[str, str], dict[str, str]]:
-    """(overrides by part name, defaults by extension), lowercased, from the package's
-    [Content_Types].xml; empty when missing or unreadable, so every part counts as XML."""
-    from defusedxml.ElementTree import fromstring
+def _looks_like_xml(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> bool:
+    """Whether the XML caps apply to this part, decided on its content.
 
+    The readers open some parts by path (_rels, xl/styles.xml) or by declared type, so
+    neither the name, the path nor the declared content type can exempt a part: any
+    part whose first significant byte is "<" can be parsed, so it is held to the caps.
+    Images, fonts and OLE objects start with binary signatures and stay exempt. The
+    scan goes past leading whitespace of any length, within the archive size checks
+    already passed. An unreadable part is held to the caps (default deny)."""
+    if entry.is_dir():
+        return False
     try:
-        info = archive.getinfo(_CONTENT_TYPES_PART)
-    except KeyError:
-        return {}, {}
-    if info.file_size > MAX_XML_PART_BYTES:
-        return {}, {}  # refused by the per-part cap below
-    try:
-        root = fromstring(archive.read(info))
-    except Exception:  # damaged or hostile: no exemption at all
-        return {}, {}
-    overrides: dict[str, str] = {}
-    defaults: dict[str, str] = {}
-    for element in root:
-        tag = element.tag.rsplit("}", 1)[-1]
-        kind = (element.get("ContentType") or "").lower()
-        if tag == "Override" and element.get("PartName"):
-            overrides[element.get("PartName").lstrip("/").lower()] = kind
-        elif tag == "Default" and element.get("Extension"):
-            defaults[element.get("Extension").lower()] = kind
-    return overrides, defaults
-
-
-def _may_be_parsed(name: str, content_types: tuple[dict, dict]) -> bool:
-    """Held to the XML caps unless the package declares a binary type for the part.
-
-    Decided on the declared content type, as the readers do, not on the file name:
-    a part renamed .dat or .XML is still parsed if declared as XML. A part with no
-    declared type is held to the caps too (default deny)."""
-    overrides, defaults = content_types
-    lowered = name.lower()
-    kind = overrides.get(lowered)
-    if kind is None:
-        extension = (
-            lowered.rsplit(".", 1)[-1] if "." in lowered.rsplit("/", 1)[-1] else ""
-        )
-        kind = defaults.get(extension)
-    if kind is None:
+        with archive.open(entry) as stream:
+            while chunk := stream.read(_SNIFF_CHUNK):
+                significant = chunk.lstrip(_BEFORE_XML)
+                if significant:
+                    return significant.startswith((b"<", _EBCDIC_XML_DECLARATION))
+    except Exception:
         return True
-    return not (kind.startswith(_UNPARSED_TYPE_PREFIXES) or kind in _UNPARSED_TYPES)
+    return False
 
 
 def _docx_lines(path: str) -> Iterator[str]:
