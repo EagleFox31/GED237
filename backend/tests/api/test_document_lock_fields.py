@@ -71,6 +71,8 @@ async def test_the_trash_tells_when_and_by_whom_a_document_was_deleted(
         data={
             "title": "Trash fields",
             "document_category_id": str(db_seed["category_id"]),
+            # Archived at upload: the owner may trash it (not under validation).
+            "processing_mode": "archive",
         },
     )
     assert up.status_code == 201, up.text
