@@ -3,7 +3,7 @@
 # chronometer backend/scripts/load_measure.py. Results in gestion-projet/recette/charge/.
 #   bash scripts/load-test.sh calibrate     # 2 000 files: 1 batch, then 4 batches in parallel
 #   bash scripts/load-test.sh witness       # 1 000 files of ~70 KB (file size of the #166 protocol)
-#   LOAD_CONFIRM=yes bash scripts/load-test.sh full [parallel]   # 100 000 files, 10 batches
+#   LOAD_CONFIRM=yes bash scripts/load-test.sh full [parallel] [label]   # 100 000 files, 10 batches
 #   bash scripts/load-test.sh down          # containers and volumes removed
 # Each run uses its own seed and folder: contents never collide with an earlier run (no duplicate),
 # so runs follow each other on the same database. The demo baseline (accounts, rules, demo corpus)
@@ -79,9 +79,14 @@ case "${1:-}" in
     ;;
   full)
     [ "${LOAD_CONFIRM:-}" = yes ] || { echo "full run needs LOAD_CONFIRM=yes (signal of O: lab of Q down, 30 min of calm)"; exit 2; }
+    label="${3:-charge-100k-$(date +%F)}"  # a second run of the day gets its own label
+    echo "setting: postgres ${LOAD_PG_CPUS:-1.0} cpu ${LOAD_PG_MEM:-704m}, redis ${LOAD_REDIS_CPUS:-0.25} cpu," \
+      "api ${LOAD_API_CPUS:-1.25} cpu ${LOAD_API_MEM:-1g} x${LOAD_API_WORKERS:-1} process," \
+      "worker ${LOAD_WORKER_CPUS:-1.25} cpu ${LOAD_WORKER_MEM:-1g} concurrency ${LOAD_WORKER_CONCURRENCY:-2}" \
+      | tee "$out_dir/$label-setting.txt"
     stack_up
     corpus full 100000 1-4 10 237
-    measure full "charge-100k-$(date +%F)" "${2:-1}"
+    measure full "$label" "${2:-1}"
     ;;
   down)
     "${dc[@]}" --profile tools down -v
