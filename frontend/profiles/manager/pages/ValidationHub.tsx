@@ -5,6 +5,7 @@ import type { WorkflowDecision } from '../../../services/resources/workflows.api
 import type { PendingWorkflowTask } from '../../../types';
 import { RejectReasonDialog } from '../../../components/workflow/RejectReasonDialog';
 import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
+import { TaskSubmissionLine } from '../../../components/workflow/TaskSubmissionLine';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { ApiError } from '../../../lib/errors';
 import { notifyTasksChanged } from '../../../lib/taskCount';
@@ -87,7 +88,9 @@ const ValidationHub: React.FC = () => {
                 <span className="material-symbols-outlined text-slate-300 group-hover:text-cam-yellow transition-colors">draw</span>
               </div>
               <h4 className="font-black text-slate-800 text-lg leading-tight mb-2 italic line-clamp-2">"{item.document?.title || 'Document sans titre'}"</h4>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">Émis le: {new Date(item.created_at).toLocaleDateString()}</p>
+              <div className="mb-6">
+                <TaskSubmissionLine task={item} className="text-xs text-slate-500 font-bold" />
+              </div>
 
               <div className="mb-3">
                 <ViewDocumentButton documentId={item.document_id} />

@@ -10,6 +10,7 @@ import { ApiError } from '../lib/errors';
 import { notifyTasksChanged } from '../lib/taskCount';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
+import { TaskSubmissionLine } from './workflow/TaskSubmissionLine';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -92,6 +93,7 @@ const WorkflowTasks: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
               <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span></p>
+              <TaskSubmissionLine task={task} />
               <div className="mt-2"><ViewDocumentButton documentId={task.document_id} /></div>
             </div>
 
