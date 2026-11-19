@@ -70,7 +70,7 @@
 | 4.2 | Relevé 18:00 : les 8 critères du plan § 2 cochés un par un, preuve par critère | Q | tableau ci-dessous |
 | 4.3 | Message daté Q → O : GO ou NO-GO argumenté | Q | message + passation |
 | 4.4 | 23/11, avant la séance — Prépa 1 : rapport du jour, jeu remis à zéro, dossier `live` présent ; compte jetable du verrou créé (`VERROU-23`, rôle reader), jamais un compte de la démo | Q | rapport + compteurs |
-| 4.5 | Prépa 2 : MINFI002 soumet un document au visa de MGR001 | Q | capture de la corbeille de visa |
+| 4.5 | Prépa 2 : MINFI002 soumet **deux** documents au visa de MGR001, depuis « Tableau de Bord » (« Mon Atelier ») : un à valider (SC-VAL-02), un à rejeter (SC-VAL-03, SC-VAL-04) | Q | capture de la corbeille de visa |
 | 4.6 | UAT manuelle du 23 selon la fiche de passage `gestion-projet/innovateur/fiche-uat-manuelle-23-11.md` (branche docs/scenario-demo-30-11) : ★ indispensables (≈ 65 min), verrou après 3 codes faux en dernier sur `VERROU-23`. Q fournit à O pour le § 6 : SC-AUTH-03 (API), SC-ESP-01 (API), Corbeille exclue, SC-RED-04, SC-RED-05/06 ; constat SC-RED-01 (manager) | O, Q | fiche § 6 |
 
 ### Relevé des critères (lun 23, 18:00)
@@ -96,7 +96,7 @@
 
 ## 6. Comportements de `main` à annoncer aux testeurs (ne pas les noter en KO)
 
-Les cinq premiers comportements viennent du tri de l’audit du 19/11 (`innovateur/tri-audit-quotidien-fonctionnaire-19-11.md`). Ils sont connus et traités en V1.1. Les comportements marqués « audit du fonctionnaire » viennent du parcours joué le 19/11 sur f890b3cb (DEC-2026-013). Ils sont connus et partent en V1.1 chez F.
+Les comportements sans mention viennent du tri de l’audit du 19/11 (`innovateur/tri-audit-quotidien-fonctionnaire-19-11.md`). Ils sont connus et traités en V1.1. Les comportements marqués « audit du fonctionnaire » viennent du parcours joué le 19/11 sur f890b3cb (DEC-2026-013). Ils sont connus et partent en V1.1 chez F.
 
 **Corrigés pour l'UAT (DEC-2026-013), si les PR sont fusionnées sur `main` avant le 23** : le bouton « Envoyer » reste visible dans la fenêtre de dépôt (#441, #450), et le menu « Tâches » affiche le nombre de tâches en attente (#442). Q note au relevé le SHA de `main` joué. Si l'une n'est pas fusionnée, le comportement d'avant reste annoncé ci‑dessous.
 
@@ -107,6 +107,6 @@ Les cinq premiers comportements viennent du tri de l’audit du 19/11 (`innovate
 - **Recherche sans accent.** « decret » ne trouve pas « Décret » : taper le mot avec ses accents (audit du fonctionnaire).
 - **Rien n'est mémorisé d'un envoi à l'autre.** Le valideur est à choisir à chaque soumission, et l'institution à chaque connexion. « Soumettre » se trouve dans « Mon Atelier » (tableau de bord), pas dans « Mes Documents » (audit du fonctionnaire).
 - **Le nom de l'expéditeur n'apparaît pas** dans le parapheur du tableau de bord ni dans « Tâches & Suivi » : ouvrir la fiche pour le voir (audit du fonctionnaire).
-- **« Mes Documents » s'arrête à 100 lignes.** La recherche du bandeau ne filtre que la page affichée. Un document absent de cette page n'est pas perdu : le chercher avec « Recherche ».
+- **« Mes Documents » affiche les 100 premiers documents.** Un document au-delà n'est pas perdu. Sur cet écran, la barre de recherche en haut cherche dans tous vos documents, par titre, mot-clé ou catégorie. Pour un mot du texte d'un scan ou d'une photo, taper le mot dans la même barre depuis « Tableau de Bord ». Il n'y a pas de menu « Recherche ».
 - **Pas de « Renvoyer le code ».** Si le code a expiré, recommencer la connexion.
 - **Restaurer un document peut recréer un doublon.** La restauration depuis la corbeille ne vérifie pas les doublons. Le document se retrouve dans la vue « Doublons ». Ne pas le noter en KO (décision du PO, 19/11, 11:40).
