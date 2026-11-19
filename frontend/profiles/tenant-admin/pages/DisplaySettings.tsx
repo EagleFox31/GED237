@@ -16,7 +16,7 @@ const ORG_SETTINGS_PROFILES: ReadonlyArray<string> = ['super', 'tenant'];
 const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayoutMode }) => {
   const profileId = useAuthStore((state) => state.userProfile?.id);
   const isOrgAdmin = !!profileId && ORG_SETTINGS_PROFILES.includes(profileId);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'appearance' | 'config' | 'roles'>('appearance');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'appearance' | 'roles'>('appearance');
   const [orgUnits, setOrgUnits] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -62,7 +62,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
           )}
         </div>
         <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 text-rdpc-blue rounded-xl border border-blue-100">
-           <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+           <span className="material-symbols-outlined text-sm">cloud_done</span>
            <span className="text-[10px] font-black uppercase tracking-widest">Connecté au Cloud National</span>
         </div>
       </div>
@@ -75,14 +75,6 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
         >
           Apparence & UI
         </button>
-        {isOrgAdmin && (
-          <button
-            onClick={() => setActiveSettingsTab('config')}
-            className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'config' ? 'bg-white text-rdpc-blue shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            Configuration Système
-          </button>
-        )}
         <button
           onClick={() => setActiveSettingsTab('roles')}
           className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'roles' ? 'bg-white text-rdpc-blue shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
@@ -141,7 +133,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
             </div>
           </div>
         </div>
-      ) : activeSettingsTab === 'appearance' ? (
+      ) : (
         <div className="space-y-16 animate-in fade-in zoom-in duration-500">
           {/* Layout Mode */}
           <section className="space-y-8">
@@ -208,51 +200,9 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ layoutMode, setLayout
           </section>
           )}
         </div>
-      ) : (
-        <div className="space-y-10 animate-in fade-in slide-in-from-right duration-500">
-           <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-cam-green text-white rounded-xl flex items-center justify-center shadow-lg">
-                <span className="material-symbols-outlined text-xl">verified</span>
-              </div>
-              <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tight">Checklist de déploiement</h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ConfigStep icon="corporate_fare" title="Structure Organisationnelle" status="COMPLÉTÉ" desc="Organigramme et directions." done />
-              <ConfigStep icon="group" title="Utilisateurs & Rôles" status="EN COURS" desc="Importation des agents." active />
-              <ConfigStep icon="folder_managed" title="Espaces Documentaires" status="COMPLÉTÉ" desc="GED par service activée." done />
-              <ConfigStep icon="account_tree" title="Circuits de Validation" status="CONFIGURER" desc="Définir les étapes de visa." />
-              <ConfigStep icon="shield_lock" title="Politique de Sécurité" status="CONFIGURER" desc="MFA et accès IP." />
-              <ConfigStep icon="history_edu" title="Archivage Légal" status="CONFIGURER" desc="Règles de rétention (10 ans)." />
-            </div>
-
-            <div className="p-8 bg-slate-900 rounded-[3rem] text-white flex items-center justify-between overflow-hidden relative">
-               <div className="relative z-10">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter mb-2">Finaliser l'installation</h4>
-                  <p className="text-slate-400 text-xs font-medium max-w-md">Une fois ces étapes terminées, votre tenant sera officiellement prêt pour la production nationale.</p>
-               </div>
-               <span className="material-symbols-outlined absolute -right-4 -bottom-4 text-9xl text-white/5 rotate-12">rocket_launch</span>
-            </div>
-        </div>
       )}
     </div>
   );
 };
-
-const ConfigStep = ({ icon, title, status, desc, done, active }: any) => (
-  <div className={`p-6 rounded-[2rem] border transition-all ${done ? 'bg-green-50 border-green-100' : active ? 'bg-white border-blue-100 shadow-xl' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
-     <div className="flex items-center gap-4 mb-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${done ? 'bg-green-500 text-white' : active ? 'bg-rdpc-blue text-white' : 'bg-slate-200 text-slate-400'}`}>
-           <span className="material-symbols-outlined text-xl">{icon}</span>
-        </div>
-        <div className="flex-1">
-           <h4 className="text-[11px] font-black uppercase text-slate-800 leading-tight">{title}</h4>
-           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{status}</p>
-        </div>
-        {done && <span className="material-symbols-outlined text-green-500">check_circle</span>}
-     </div>
-     <p className="text-[10px] text-slate-500 italic">{desc}</p>
-  </div>
-);
 
 export default DisplaySettings;
