@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { TENANT_ADMIN_MENU } from '../profiles/tenant-admin/menuConfig';
 import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
+import { useCan } from '../hooks/useCan';
 import { Logo } from './Logo';
 import { APP_VERSION } from '../constants';
 import { usePendingTaskCount } from '../hooks/usePendingTaskCount';
@@ -32,6 +33,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
   const [tenantLabel, setTenantLabel] = useState<string>('');
   const pendingTasks = usePendingTaskCount();
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  // Doublons : résoudre un groupe met des copies à la corbeille. Sans l'un de ces droits
+  // (lecteur, auditeur), l'écran n'offre rien à faire : l'entrée est masquée.
+  const { 'documents:delete': canDelete, 'documents:trash_own': canTrashOwn } = useCan(
+    'documents:delete',
+    'documents:trash_own',
+  );
 
   useEffect(() => {
     if (!userProfile?.tenantId) return;
@@ -73,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <span className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-500'}`}>
+              <span aria-hidden="true" className={`material-symbols-outlined text-xl transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-rdpc-blue font-bold' : 'text-slate-500'}`}>
                 {item.icon}
               </span>
               <span className={`text-[11px] font-bold uppercase tracking-tight ${activeTab === item.id ? 'font-black' : ''}`}>
@@ -120,13 +127,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           ...(userProfile?.id === 'audit'
             ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
             : []),
+          { id: 'trash', label: 'Corbeille', icon: 'delete' },
+          ...(canDelete || canTrashOwn
+            ? [{ id: 'duplicates', label: 'Doublons', icon: 'content_copy' }]
+            : []),
         ].map(item => (
           <button
             key={item.id}
             onClick={() => onTabChange(item.id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-blue-50 text-rdpc-blue' : 'text-slate-500 hover:bg-slate-50'}`}
           >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-xl">{item.icon}</span>
             <span className="text-[11px] font-bold uppercase">{item.label}</span>
             {item.id === 'tasks' && <TaskBadge count={pendingTasks} />}
           </button>
