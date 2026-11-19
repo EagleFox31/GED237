@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
+import { emptyDocumentsMessage } from '../lib/documentsEmptyMessage';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -208,7 +209,9 @@ const Documents: React.FC = () => {
       )}
 
       {!isLoading && !error && docs.length === 0 && (
-        <div className="text-center py-20 text-slate-400 font-bold">Aucun document trouvé.</div>
+        <div className="text-center py-20 text-slate-400 font-bold">
+          {emptyDocumentsMessage({ query: serverQuery, status: filterStatus })}
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
