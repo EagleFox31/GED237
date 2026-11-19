@@ -261,7 +261,8 @@ async def test_on_behalf_filter_on_list_and_export(
 async def test_stand_in_whose_role_changed_can_no_longer_act(
     db_session, delegation_world, client_as
 ):
-    """The role is checked at designation and again at each action."""
+    """The role is checked at designation and again at each action and in the task
+    list: a stand-in who may no longer validate sees no delegated task."""
     world = delegation_world
     await _delegate(db_session, world, "absent", "standin")
     standin = world["users"]["standin"]
@@ -271,8 +272,37 @@ async def test_stand_in_whose_role_changed_can_no_longer_act(
         tenant_id=standin.tenant_id,
         org_unit_id=standin.org_unit_id,
     ) as client:
+        pending = await client.get(PENDING)
+        # A reader may lack the task list altogether (403); never a delegated task.
+        assert pending.status_code == 403 or pending.json() == [], pending.text
         assert (await _act(client, world)).status_code == 403
     assert await _circuit_audit(db_session, world) == []
+
+
+@pytest.mark.asyncio
+async def test_stand_in_without_the_validation_right_sees_no_delegated_task(
+    db_session, delegation_world, as_agent, monkeypatch
+):
+    """Task list, document read and action apply the same rule: a stand-in whose
+    rights no longer include resolving reviews gets none of the absent agent's steps."""
+    import app.services.workflow_assignee as assignee
+
+    world = delegation_world
+    await _delegate(db_session, world, "absent", "standin")
+    real_can_perform = assignee.can_perform
+
+    async def without_resolve_review(user, resource, action, *args, **kwargs):
+        if (resource, action) == ("workflows", "resolve_review"):
+            return False
+        return await real_can_perform(user, resource, action, *args, **kwargs)
+
+    monkeypatch.setattr(assignee, "can_perform", without_resolve_review)
+    async with as_agent("standin") as client:
+        pending = await client.get(PENDING)
+        assert pending.status_code == 200 and pending.json() == [], pending.text
+        doc = await client.get(f"{DOCUMENTS}/{world['document_id']}")
+        assert doc.status_code in (403, 404)
+        assert (await _act(client, world)).status_code == 403
 
 
 @pytest.mark.asyncio

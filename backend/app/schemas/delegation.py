@@ -22,6 +22,17 @@ class DelegationUser(BaseModel):
     full_name: str
 
 
+class DelegationCandidate(BaseModel):
+    """An agent the caller may name as absent agent or as stand-in."""
+
+    id: UUID
+    full_name: str
+    org_unit_id: UUID
+    role: str  # role code
+    # Holds ``workflows resolve_review``: only these may be named as stand-in.
+    can_stand_in: bool
+
+
 class DelegationRead(BaseModel):
     id: UUID
     org_unit_id: UUID

@@ -23,7 +23,12 @@ from app.core.timezone import LOCAL_TZ
 from app.models.delegation import Delegation
 from app.models.notification import Notification
 from app.models.user import User
-from app.schemas.delegation import DelegationCreate, DelegationRead, DelegationUser
+from app.schemas.delegation import (
+    DelegationCandidate,
+    DelegationCreate,
+    DelegationRead,
+    DelegationUser,
+)
 from app.services.audit_trail import audit_entry
 
 TENANT_WIDE_ROLES = {"tenant_admin"}
@@ -65,6 +70,50 @@ def scope_filter(actor: User):
     if _role_code(actor) not in TENANT_WIDE_ROLES:
         clauses.append(Delegation.org_unit_id == actor.org_unit_id)
     return and_(*clauses)
+
+
+async def list_candidates(
+    db: AsyncSession, actor: User, org_unit_id: Optional[UUID] = None
+) -> list[DelegationCandidate]:
+    """Active agents of one service, other than the caller: the people
+    ``create_delegation`` accepts as absent agent, and as stand-in when
+    ``can_stand_in``. A manager only gets their own service; a tenant-wide
+    role may name any service of the institution (its own by default).
+
+    Lets a manager fill the form without ``users read`` (GET /users stays closed).
+    """
+    unit_id = org_unit_id or actor.org_unit_id
+    if unit_id is None:
+        return []
+    if _role_code(actor) not in TENANT_WIDE_ROLES and unit_id != actor.org_unit_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Agent hors de votre service.")
+    users = (
+        (
+            await db.execute(
+                select(User)
+                .options(selectinload(User.role))
+                .where(
+                    User.tenant_id == actor.tenant_id,
+                    User.org_unit_id == unit_id,
+                    User.is_active.is_(True),
+                    User.id != actor.id,
+                )
+                .order_by(User.last_name, User.first_name, User.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        DelegationCandidate(
+            id=user.id,
+            full_name=user.full_name,
+            org_unit_id=unit_id,
+            role=_role_code(user),
+            can_stand_in=await can_perform(user, "workflows", "resolve_review"),
+        )
+        for user in users
+    ]
 
 
 def to_read(d: Delegation, delegator: User, delegate: User, now: datetime):
