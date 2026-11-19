@@ -29,6 +29,39 @@ export async function settleLimited<T, R>(
   return results;
 }
 
+/** Résultats triés : réussis, refusés par le serveur, perdus faute de connexion. */
+export interface SettledSplit<T> {
+  done: T[];
+  refused: T[];
+  offline: T[];
+}
+
+// Code posé par apiErrorFromException quand le serveur est injoignable.
+const isOffline = (reason: unknown): boolean =>
+  (reason as { errorCode?: unknown } | null)?.errorCode === 'NETWORK_UNREACHABLE';
+
+export function splitSettled<T>(items: readonly T[], results: readonly PromiseSettledResult<unknown>[]): SettledSplit<T> {
+  const split: SettledSplit<T> = { done: [], refused: [], offline: [] };
+  items.forEach((item, index) => {
+    const result = results[index];
+    if (result?.status === 'fulfilled') split.done.push(item);
+    else if (isOffline(result?.reason)) split.offline.push(item);
+    else split.refused.push(item);
+  });
+  return split;
+}
+
+/** Une seule phrase pour tous les documents perdus par une coupure, au lieu d'une notification chacun. */
+export function offlineSentence(count: number, action: string): string {
+  const subject = count === 1 ? "1 document n'a pas été" : `${count} documents n'ont pas été`;
+  return `Connexion perdue : ${subject} ${action}. Réessayez.`;
+}
+
+/** Assemble les phrases retenues (les `false` sont ignorés) en un seul message. */
+export function sentences(...parts: readonly (string | false)[]): string {
+  return parts.filter(Boolean).join(' ');
+}
+
 /** « a », « b », « c » et N autres : liste courte des titres pour un message. */
 export function titleList(titles: readonly string[], max = 3): string {
   const shown = titles.slice(0, max).map((title) => `« ${title} »`).join(', ');

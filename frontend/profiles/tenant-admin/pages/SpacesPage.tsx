@@ -19,7 +19,7 @@ import {
 import { UndoToast } from '../../../components/ui/UndoToast';
 import { useUndoableAction } from '../../../hooks/useUndoableAction';
 import { canUndoMove, moveToUnitPatch, placementOf, restorePlacementPatch } from '../../../lib/undo/placement';
-import { settleLimited, titleList } from '../../../lib/bulk';
+import { offlineSentence, sentences, settleLimited, splitSettled, titleList } from '../../../lib/bulk';
 import { pushClientOperationError } from '../../../lib/errors';
 
 // Résumé d'une action groupée partiellement refusée : un seul message, sans détail technique.
@@ -712,24 +712,28 @@ const SpacesPage: React.FC = () => {
     const targets = orderedDocuments.filter((doc) => selectedIds.has(doc.id));
     if (targets.length === 0) return;
     const results = await settleLimited(targets, (doc) => api.deleteDocument(doc.id, { silent: true }));
-    const trashed = targets.filter((_, index) => results[index]?.status === 'fulfilled');
-    const failed = targets.filter((_, index) => results[index]?.status === 'rejected');
+    const { done: trashed, refused, offline } = splitSettled(targets, results);
     clearSelection();
     loadDocumentsRef.current();
-    const failedTitles = titleList(failed.map((doc) => doc.title));
+    const problems = sentences(
+      refused.length > 0 && `Échec : ${titleList(refused.map((doc) => doc.title))}.`,
+      offline.length > 0 && offlineSentence(offline.length, 'mis à la corbeille'),
+    );
     if (trashed.length === 0) {
-      pushBulkWarning(`Aucun document mis à la corbeille. Échec : ${failedTitles}.`);
+      pushBulkWarning(refused.length > 0 ? `Aucun document mis à la corbeille. ${problems}` : problems);
       return;
     }
     const moved = trashed.length === 1 ? `« ${trashed[0]?.title} » mis à la corbeille` : `${trashed.length} documents mis à la corbeille`;
-    const message = failed.length > 0 ? `${moved}. Échec : ${failedTitles}` : moved;
-    undo.propose(message, async () => {
+    undo.propose(problems ? `${moved}. ${problems}` : moved, async () => {
       const restored = await settleLimited(trashed, (doc) => api.restoreDocument(doc.id, { silent: true }));
-      const notRestored = trashed.filter((_, index) => restored[index]?.status === 'rejected');
+      const notRestored = splitSettled(trashed, restored);
       loadDocumentsRef.current();
-      if (notRestored.length > 0) {
-        pushBulkWarning(`Non restauré, toujours dans la corbeille : ${titleList(notRestored.map((doc) => doc.title))}.`);
-      }
+      const restoreProblems = sentences(
+        notRestored.refused.length > 0
+          && `Non restauré, toujours dans la corbeille : ${titleList(notRestored.refused.map((doc) => doc.title))}.`,
+        notRestored.offline.length > 0 && offlineSentence(notRestored.offline.length, 'remis en place'),
+      );
+      if (restoreProblems) pushBulkWarning(restoreProblems);
     });
   };
 

@@ -66,6 +66,35 @@ test.describe('Explorateur : sélection multiple', () => {
     await expect(page.getByText('Vous ne pouvez pas supprimer ce document.')).toHaveCount(0);
   });
 
+  test('corbeille groupée pendant une coupure : une seule phrase, pas une notification par document', async ({ page, loginAs, adminApi, runId }) => {
+    const titles = [`Coupure A ${runId}`, `Coupure B ${runId}`, `Coupure C ${runId}`];
+    const uploaded = [];
+    for (const [index, title] of titles.entries()) {
+      uploaded.push(await adminApi.uploadDocument(`coupure-${index}-${runId}.txt`, title, `Coupure ${index} ${runId}`));
+    }
+    const lostIds = new Set([uploaded[1]!.id, uploaded[2]!.id]);
+    await page.route(
+      (url) => [...lostIds].some((id) => url.pathname.endsWith(`/documents/${id}`)),
+      (route) => (route.request().method() === 'DELETE' ? route.abort('internetdisconnected') : route.continue()),
+    );
+
+    await loginAs('tenant_admin');
+    await page.goto(`spaces?q=${encodeURIComponent(runId)}`);
+    const item = (title: string) => page.getByLabel(new RegExp(`^${title} — `));
+    await expect(item(titles[2]!)).toBeVisible();
+
+    await item(titles[0]!).focus();
+    await page.keyboard.press('ControlOrMeta+a');
+    await expect(page.getByRole('toolbar', { name: 'Sélection' }).getByRole('status')).toHaveText('3 sélectionnés');
+    await page.keyboard.press('Delete');
+
+    await expect(page.getByRole('status').filter({
+      hasText: `« ${titles[0]} » mis à la corbeille. Connexion perdue : 2 documents n'ont pas été mis à la corbeille. Réessayez.`,
+    })).toBeVisible();
+    await expect(item(titles[1]!)).toBeVisible();
+    await expect(page.getByText('Le serveur est injoignable', { exact: false })).toHaveCount(0);
+  });
+
   test('clavier : Ctrl+A, Échap, Ctrl+Espace puis Suppr', async ({ page, loginAs, adminApi, runId }) => {
     const titles = [`Clavier A ${runId}`, `Clavier B ${runId}`];
     for (const [index, title] of titles.entries()) {

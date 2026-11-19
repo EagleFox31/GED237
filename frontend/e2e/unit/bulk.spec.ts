@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { settleLimited, titleList } from '../../lib/bulk';
+import { offlineSentence, sentences, settleLimited, splitSettled, titleList } from '../../lib/bulk';
 
 test.describe('actions groupées', () => {
   test('au plus 4 requêtes à la fois, résultats dans l’ordre, un échec n’arrête pas les autres', async () => {
@@ -27,6 +27,32 @@ test.describe('actions groupées', () => {
       { status: 'fulfilled', value: 1 },
       { status: 'fulfilled', value: 2 },
     ]);
+  });
+
+  test('tri des résultats : réussis, refusés, perdus faute de connexion', () => {
+    const results: PromiseSettledResult<unknown>[] = [
+      { status: 'fulfilled', value: true },
+      { status: 'rejected', reason: { errorCode: 'NETWORK_UNREACHABLE', status: 0 } },
+      { status: 'rejected', reason: { errorCode: 'HTTP_403', status: 403 } },
+      { status: 'rejected', reason: new Error('inattendu') },
+      { status: 'rejected', reason: { errorCode: 'NETWORK_UNREACHABLE', status: 0 } },
+    ];
+    expect(splitSettled(['a', 'b', 'c', 'd', 'e'], results)).toEqual({
+      done: ['a'],
+      refused: ['c', 'd'],
+      offline: ['b', 'e'],
+    });
+  });
+
+  test('coupure réseau : une seule phrase, accordée au nombre', () => {
+    expect(offlineSentence(1, 'mis à la corbeille')).toBe(
+      "Connexion perdue : 1 document n'a pas été mis à la corbeille. Réessayez.",
+    );
+    expect(offlineSentence(5, 'remis en place')).toBe(
+      "Connexion perdue : 5 documents n'ont pas été remis en place. Réessayez.",
+    );
+    expect(sentences('Échec : « a ».', false, 'Réessayez.')).toBe('Échec : « a ». Réessayez.');
+    expect(sentences(false, false)).toBe('');
   });
 
   test('liste des titres abrégée', () => {

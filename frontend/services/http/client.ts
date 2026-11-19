@@ -23,14 +23,18 @@ export { getHeaders };
  * Wrapper fetch avec refresh automatique sur 401.
  * Point d'entrée unique pour tous les appels authentifiés.
  */
-export const fetchWithRefresh = async (url: string, options: RequestInit = {}): Promise<Response> => {
+export const fetchWithRefresh = async (
+    url: string,
+    options: RequestInit = {},
+    silent = false,
+): Promise<Response> => {
     let response: Response;
     try {
         response = await fetch(url, options);
     } catch (err) {
         // Erreur réseau (TypeError "Failed to fetch", abort, DNS…).
-        // Pousse au bus ET rejette pour que le call site puisse aussi gérer.
-        throw buildNetworkError(err);
+        // Pousse au bus (sauf appelant silencieux) ET rejette pour que le call site puisse aussi gérer.
+        throw buildNetworkError(err, silent);
     }
 
     if (response.status !== 401 || isAuthEndpoint(url)) {
@@ -97,7 +101,7 @@ export const apiCall = async <T>(
             ...getHeaders(isMultipart),
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
-    });
+    }, options.silent);
     if (!response.ok) throw await buildApiError(response, fallback, options);
     return response.json() as Promise<T>;
 };
@@ -119,7 +123,7 @@ export const apiCallVoid = async (
             ...getHeaders(isMultipart),
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
-    });
+    }, options.silent);
     if (!response.ok) throw await buildApiError(response, fallback, options);
 };
 
