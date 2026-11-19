@@ -41,8 +41,8 @@ test.describe('Journal : renommage et reclassement en français (#262, #179)', (
     const byAction = (action: string) => entries.filter((e) => e.action === action);
     expect(byAction('document_updated'), 'une entrée pour le renommage').toHaveLength(1);
     expect(byAction('reclassify'), 'une entrée pour le reclassement').toHaveLength(1);
-    expect(byAction('document_updated')[0].action_label).toBe('Modification du document');
-    expect(byAction('reclassify')[0].action_label).toBe('Reclassement');
+    expect(byAction('document_updated')[0]?.action_label).toBe('Modification du document');
+    expect(byAction('reclassify')[0]?.action_label).toBe('Reclassement');
 
     // Journal d'audit (/audit) : les deux lignes du document, lisibles.
     await loginAs('auditor');
