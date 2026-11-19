@@ -13,7 +13,6 @@ from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
 from app.services.unit_admin_scope import (
-    assert_unit_admin_in_tree,
     assert_unit_admin_object_in_tree,
     unit_admin_scope_ids,
 )
@@ -169,7 +168,8 @@ async def _authorize_workflow_read(
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
-        await assert_unit_admin_in_tree(db, document.org_unit_id, user)
+        # Outside its tree the document answers like a missing one (#215).
+        await assert_unit_admin_object_in_tree(db, document.org_unit_id, user)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -492,11 +492,6 @@ async def assign_step_admin(
     if not step:
         raise HTTPException(status_code=404, detail="Etape introuvable.")
 
-    if step.status != "pending_assignment":
-        raise HTTPException(
-            status_code=400, detail="Cette étape n'est pas en attente d'assignation."
-        )
-
     document_result = await db.execute(
         select(Document).where(Document.id == step.document_id)
     )
@@ -504,7 +499,13 @@ async def assign_step_admin(
     if document is None:
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
+    # Before the status check, so a step outside the tree reveals nothing (#215).
     await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
+
+    if step.status != "pending_assignment":
+        raise HTTPException(
+            status_code=400, detail="Cette étape n'est pas en attente d'assignation."
+        )
 
     # Validate assignee exists
     user_result = await db.execute(

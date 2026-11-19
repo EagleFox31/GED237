@@ -31,6 +31,7 @@ from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
 from app.services.unit_admin_scope import (
+    assert_unit_admin_in_tree,
     assert_unit_admin_object_in_tree,
     unit_admin_scope_ids,
 )
@@ -1069,6 +1070,8 @@ async def resolve_manual_review(
             raise HTTPException(
                 status_code=400, detail="target_folder_id must be a valid UUID"
             ) from exc
+        # A unit_admin cannot file the document outside its tree (#215).
+        await assert_unit_admin_in_tree(db, target_folder_uuid, current_user)
         document.org_unit_id = target_folder_uuid
         document.classification_target_org_unit_id = target_folder_uuid
 

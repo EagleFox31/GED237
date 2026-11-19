@@ -795,6 +795,7 @@ async def test_workflow_service_patterns(monkeypatch):
         current_version_id=version_id,
         status="in_review",
         title="Note",
+        org_unit_id=None,
     )
     step = SimpleNamespace(
         id=uuid.uuid4(),
