@@ -881,9 +881,11 @@ async def upload_document(
 
 @router.get("/", response_model=List[DocumentRead])
 async def list_documents(
+    response: Response,
     skip: int = 0,
     limit: int = 100,
     document_status: Optional[str] = Query(default=None, alias="status"),
+    category_id: Optional[UUID] = None,
     q: Optional[str] = Query(default=None, max_length=120),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -898,6 +900,12 @@ async def list_documents(
     # Search runs on the whole scope, not on the page the client already holds.
     if q and q.strip():
         query = _apply_text_filter(query, q.strip())
+    if category_id:
+        query = query.where(Document.document_category_id == category_id)
+
+    # Size of the whole scope (filters included): the list shows "N of M" and offers the next page.
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    response.headers[TOTAL_COUNT_HEADER] = str(total or 0)
 
     # Stable order: the most recent documents first, so pages do not shift.
     query = query.order_by(Document.created_at.desc(), Document.id).options(

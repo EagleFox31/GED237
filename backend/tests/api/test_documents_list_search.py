@@ -1,4 +1,5 @@
-"""GET /documents?q= searches the caller's whole read scope, not the first page (#256)."""
+"""GET /documents?q= searches the caller's whole read scope, not the first page (#256);
+X-Total-Count gives the size of that scope, filters included (audit n° 14)."""
 
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -103,3 +104,59 @@ async def test_search_is_literal_and_bounded(client_as, db_seed, list_seed):
     assert _ids(wildcard) == set()
     assert len(_ids(blank)) == 100
     assert too_long.status_code == 422
+
+
+def _total(response) -> int:
+    assert response.status_code == 200, response.text
+    return int(response.headers["X-Total-Count"])
+
+
+@pytest.mark.asyncio
+async def test_total_counts_the_whole_scope_and_the_next_page_completes_it(
+    client_as, db_seed, list_seed
+):
+    async with client_as(
+        "tenant_admin",
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+    ) as client:
+        first = await client.get(DOCUMENTS, params={"limit": 100})
+        total = _total(first)
+        rest = await client.get(DOCUMENTS, params={"skip": 100, "limit": 100})
+
+    # 101 fillers and two live targets at least; the trashed one is not counted.
+    assert total >= 103
+    assert _total(rest) == total
+    pages = _ids(first) | _ids(rest)
+    assert len(pages) == total
+    assert {list_seed["own"], list_seed["other_unit"]} <= pages
+    assert list_seed["trashed"] not in pages
+
+
+@pytest.mark.asyncio
+async def test_total_follows_filters_and_read_scope(client_as, db_seed, list_seed):
+    async with client_as(
+        "tenant_admin",
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+    ) as client:
+        searched = _total(await client.get(DOCUMENTS, params={"q": NEEDLE}))
+        in_category = _total(
+            await client.get(
+                DOCUMENTS,
+                params={"q": NEEDLE, "category_id": str(db_seed["category_id"])},
+            )
+        )
+        other_category = await client.get(
+            DOCUMENTS, params={"category_id": str(uuid.uuid4())}
+        )
+        bad_category = await client.get(DOCUMENTS, params={"category_id": "x"})
+    async with client_as(
+        "reader", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
+    ) as client:
+        reader_searched = _total(await client.get(DOCUMENTS, params={"q": NEEDLE}))
+
+    assert searched == in_category == 2
+    assert _total(other_category) == 0 and _ids(other_category) == set()
+    assert bad_category.status_code == 422
+    assert reader_searched == 1

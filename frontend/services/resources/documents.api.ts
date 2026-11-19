@@ -4,7 +4,9 @@
 //           audit logs, ingestion répertoire, démarrage workflow).
 // SRP : change uniquement si le contrat /documents/* ou /classification-reviews/* évolue.
 
-import { apiCall, apiCallVoid, apiCallBlob } from '../http/client';
+import { API_URL } from '../../constants';
+import { apiCall, apiCallVoid, apiCallBlob, fetchWithRefresh, getHeaders } from '../http/client';
+import { buildApiError } from '../http/errorAdapter';
 import type {
     Document,
     ClassificationReview,
@@ -48,6 +50,32 @@ const orgUnitQuery = (orgUnitId?: string, recursive = false): string => {
     return qs ? `?${qs}` : '';
 };
 
+export interface DocumentListParams {
+    status?: string;
+    q?: string;
+    categoryId?: string;
+    skip?: number;
+    limit?: number;
+}
+
+export interface DocumentsPage {
+    items: Document[];
+    /** Total après filtres, avant pagination. */
+    total: number;
+}
+
+const documentListQuery = (params: DocumentListParams): string => {
+    const q = new URLSearchParams();
+    if (params.status) q.append('status', params.status);
+    // Recherche côté serveur, sur tout le périmètre de l'utilisateur (titre, mots-clés, classement).
+    if (params.q?.trim()) q.append('q', params.q.trim());
+    if (params.categoryId) q.append('category_id', params.categoryId);
+    if (typeof params.skip === 'number') q.append('skip', String(params.skip));
+    if (typeof params.limit === 'number') q.append('limit', String(params.limit));
+    const qs = q.toString();
+    return qs ? `?${qs}` : '';
+};
+
 // ── API ─────────────────────────────────────────────────────────────────────
 
 export const documentsApi = {
@@ -60,19 +88,23 @@ export const documentsApi = {
             'Upload du document impossible',
         ),
 
-    getDocuments: (params: { status?: string; q?: string; skip?: number; limit?: number } = {}): Promise<Document[]> => {
-        const q = new URLSearchParams();
-        if (params.status) q.append('status', params.status);
-        // Recherche côté serveur, sur tout le périmètre de l'utilisateur (titre, mots-clés, classement).
-        if (params.q?.trim()) q.append('q', params.q.trim());
-        if (typeof params.skip === 'number') q.append('skip', String(params.skip));
-        if (typeof params.limit === 'number') q.append('limit', String(params.limit));
-        const qs = q.toString();
-        return apiCall<Document[]>(
-            `/documents${qs ? `?${qs}` : ''}`,
+    getDocuments: (params: DocumentListParams = {}): Promise<Document[]> =>
+        apiCall<Document[]>(
+            `/documents${documentListQuery(params)}`,
             {},
             'Récupération des documents impossible',
-        );
+        ),
+
+    /** Une page de la liste + le total après filtres (en-tête X-Total-Count). */
+    getDocumentsPage: async (params: DocumentListParams = {}): Promise<DocumentsPage> => {
+        const response = await fetchWithRefresh(`${API_URL}/documents${documentListQuery(params)}`, {
+            headers: getHeaders(false),
+        });
+        if (!response.ok) throw await buildApiError(response, 'Récupération des documents impossible');
+        const items = (await response.json()) as Document[];
+        const header = response.headers.get('X-Total-Count');
+        const total = header === null ? NaN : Number(header);
+        return { items, total: Number.isInteger(total) && total >= 0 ? total : items.length };
     },
 
     getDocument: (id: string): Promise<Document> =>
