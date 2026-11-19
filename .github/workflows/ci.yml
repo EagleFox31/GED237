@@ -121,6 +121,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Guard tests
         run: bash scripts/test_check_lessons_frozen.sh
+      # Local push guard of LESSON-2026-075 (run on each workstation; only its tests run here).
+      - name: Git push safety tests
+        run: bash scripts/test_check_git_safety.sh
       # Pull request: against its base. Push: against the previous tip. Manual run: tests only.
       - name: No new lesson in the frozen register
         if: github.event_name != 'workflow_dispatch'
