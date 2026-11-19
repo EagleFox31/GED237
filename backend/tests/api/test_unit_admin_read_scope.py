@@ -202,6 +202,45 @@ async def test_unit_admin_workspace_stays_in_its_tree(client_as, db_seed, tree):
 
 
 @pytest.mark.asyncio
+async def test_unit_admin_opens_by_id_only_in_its_tree(client_as, db_seed, tree):
+    """Par id, hors de son sous-arbre, le document n'existe pas pour unit_admin (404)."""
+    units, ids = tree["units"], tree["ids"]
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a1"]
+    ) as client:
+        below = await client.get(f"{DOCUMENTS}{ids['a2']}")
+        beside = await client.get(f"{DOCUMENTS}{ids['b']}")
+        above = await client.get(f"{DOCUMENTS}{ids['a']}")
+
+    assert below.status_code == 200
+    assert beside.status_code == 404
+    assert above.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_edits_only_in_its_tree(client_as, db_seed, tree):
+    """PATCH hors de son sous-arbre : 404 et document inchangé ; dans le sous-arbre : 200."""
+    units, ids = tree["units"], tree["ids"]
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a"]
+    ) as client:
+        outside = await client.patch(
+            f"{DOCUMENTS}{ids['b']}", json={"title": "Hors perimetre"}
+        )
+        inside = await client.patch(
+            f"{DOCUMENTS}{ids['a2']}", json={"title": "Dans le perimetre"}
+        )
+    async with client_as(
+        "tenant_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a"]
+    ) as client:
+        untouched = await client.get(f"{DOCUMENTS}{ids['b']}")
+
+    assert outside.status_code == 404
+    assert inside.status_code == 200
+    assert untouched.json()["title"] == f"Dossier {NEEDLE} b"
+
+
+@pytest.mark.asyncio
 async def test_reports_reach_a_grandchild_without_closure_rows(
     client_as, db_seed, tree
 ):

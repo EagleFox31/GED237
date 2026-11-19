@@ -7,7 +7,7 @@ from fastapi import UploadFile
 
 from app.core.config import settings
 from app.core.errors.domain import FileTooLargeError
-from app.services.storage.base import IStorageService
+from app.services.storage.base import IStorageService, unique_storage_name
 
 
 class S3StorageService(IStorageService):
@@ -30,7 +30,8 @@ class S3StorageService(IStorageService):
 
     async def save_file(self, file: UploadFile, directory: str = "") -> str:
         filename = file.filename
-        object_name = f"{directory}/{filename}" if directory else filename
+        stored_name = unique_storage_name(filename)
+        object_name = f"{directory}/{stored_name}" if directory else stored_name
         object_name = object_name.replace("\\", "/")
 
         # Rewind if already read
@@ -47,7 +48,8 @@ class S3StorageService(IStorageService):
         if max_bytes is None:
             max_bytes = settings.MAX_UPLOAD_SIZE
         filename = file.filename
-        object_name = f"{directory}/{filename}" if directory else filename
+        stored_name = unique_storage_name(filename)
+        object_name = f"{directory}/{stored_name}" if directory else stored_name
         object_name = object_name.replace("\\", "/")
 
         await file.seek(0)

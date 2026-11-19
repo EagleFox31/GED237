@@ -16,7 +16,7 @@ const RolesPermissionsTab: React.FC = () => (
         unit_admin, manager, collab, reader, auditor) et ce que chacun peut
         faire dans le système.
       </p>
-      <p className="text-[11px] text-slate-400 italic mt-4">Sprint B — à venir.</p>
+      <p className="text-[11px] text-slate-400 italic mt-4">Bientôt disponible.</p>
     </div>
   </div>
 );
