@@ -42,7 +42,7 @@ def _residue(root: str | pathlib.Path, stem: str) -> list[pathlib.Path]:
     root = pathlib.Path(root)
     if not root.exists():
         return []
-    return [p for p in root.rglob(f"{stem}*") if p.is_file()]
+    return [p for p in root.rglob(f"*{stem}*") if p.is_file()]
 
 
 async def _count(db_session, model, tenant_id) -> int:

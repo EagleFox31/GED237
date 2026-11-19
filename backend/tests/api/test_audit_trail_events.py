@@ -174,6 +174,6 @@ async def test_login_rows_are_labelled_in_the_audit_list(
     [row] = response.json()
     assert (row["table_label"], row["action_label"]) == (
         "Utilisateurs",
-        "Connexion refusee",
+        "Connexion refusée",
     )
     assert row["user_matricule"] == "TEST001"
