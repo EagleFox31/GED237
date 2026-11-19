@@ -1,6 +1,6 @@
 // Spec pur (npm run test:unit) : motifs rapides de rejet.
 import { test, expect } from '@playwright/test';
-import { QUICK_REJECT_REASONS, appendQuickReason } from '../../components/workflow/RejectReasonDialog';
+import { QUICK_REJECT_REASONS, appendQuickReason } from '../../lib/quickRejectReasons';
 
 test.describe('Motifs de rejet rapides (RejectReasonDialog)', () => {
   test('propose 3 ou 4 motifs courts et non vides', () => {
