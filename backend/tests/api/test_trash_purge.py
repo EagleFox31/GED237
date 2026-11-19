@@ -457,6 +457,8 @@ def _cfg(**overrides):
         "INGEST_WATCH_INTERVAL_SECONDS": 60,
         "TRASH_RETENTION_DAYS": 0,
         "TRASH_PURGE_INTERVAL_SECONDS": 3600,
+        "OCR_STUCK_MINUTES": 0,
+        "OCR_STUCK_SWEEP_INTERVAL_SECONDS": 300,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -492,6 +494,21 @@ def test_beat_registry_merges_retention_with_the_watch():
             "schedule": 3600.0,
         },
     }
+
+
+def test_beat_registry_adds_the_stuck_ocr_sweep_only_when_enabled():
+    assert build_beat_schedule(_cfg(OCR_STUCK_MINUTES=15)) == {
+        "requeue-stuck-ocr": {
+            "task": "app.workers.tasks.requeue_stuck_ocr",
+            "schedule": 300.0,
+        }
+    }
+    assert (
+        build_beat_schedule(
+            _cfg(OCR_STUCK_MINUTES=15, OCR_STUCK_SWEEP_INTERVAL_SECONDS=0)
+        )
+        == {}
+    )
 
 
 # --- documents purge: platform administrator only (PO decision, V1.1) -------

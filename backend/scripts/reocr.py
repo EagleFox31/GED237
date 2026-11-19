@@ -3,8 +3,9 @@
     python /app/scripts/reocr.py <nom> [--tenant <domaine ou id>] [--run]
 
 Sans --run : liste seulement les documents dont le titre contient <nom> (id, titre, nombre de
-caractères OCR) ; rien n'est écrit ni mis en file. Avec --run : remet en file la tâche Celery
-existante `process_document_ocr` pour chacun, sur sa version courante. Les documents en corbeille
+caractères OCR) ; rien n'est écrit ni mis en file. Avec --run : remet à zéro les compteurs de
+tentatives OCR et le drapeau d'échec de chacun (reset_ocr_attempts), puis remet en file la tâche
+Celery existante `process_document_ocr` sur sa version courante. Les documents en corbeille
 sont ignorés. À lancer dans le conteneur worker (ou api), après un OCR tué (SIGKILL) qui laisse
 un document sans texte.
 
@@ -54,7 +55,25 @@ def plan(
     return count
 
 
-async def _fetch(name: str, tenant: str | None) -> list[Sequence]:
+async def reset_attempts(db, doc_ids: Sequence) -> int:
+    """Remet à zéro compteurs et drapeau d'échec : sans cela, un document marqué en échec ou
+    au plafond OCR_MAX_DELIVERIES serait refusé par la tâche relancée. Retourne leur nombre."""
+    from sqlalchemy import select
+
+    from app.models.document import Document
+    from app.services.ocr_recovery import reset_ocr_attempts
+
+    if not doc_ids:
+        return 0
+    result = await db.execute(select(Document).where(Document.id.in_(list(doc_ids))))
+    documents = list(result.scalars())
+    for document in documents:
+        reset_ocr_attempts(document)
+    await db.commit()
+    return len(documents)
+
+
+async def _fetch(name: str, tenant: str | None, reset: bool) -> list[Sequence]:
     from sqlalchemy import text
 
     from app.core.database import AsyncSessionLocal
@@ -63,7 +82,10 @@ async def _fetch(name: str, tenant: str | None) -> list[Sequence]:
         result = await db.execute(
             text(SELECT_SQL), {"pattern": like_pattern(name), "tenant": tenant}
         )
-        return list(result.all())
+        rows = list(result.all())
+        if reset:
+            await reset_attempts(db, [row[0] for row in rows])
+        return rows
 
 
 def _dispatch(doc_id: str, file_path: str, mime: str) -> str:
@@ -79,7 +101,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--run", action="store_true", help="remettre l'OCR en file")
     args = parser.parse_args(argv)
     sys.path.insert(0, "/app")
-    count = plan(asyncio.run(_fetch(args.name, args.tenant)), args.run, _dispatch)
+    rows = asyncio.run(_fetch(args.name, args.tenant, args.run))
+    count = plan(rows, args.run, _dispatch)
     if count == 0:
         print(f"aucun document dont le titre contient « {args.name} »", file=sys.stderr)
         return 1

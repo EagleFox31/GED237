@@ -49,6 +49,12 @@ def build_beat_schedule(cfg=settings) -> dict:
             "task": "app.workers.tasks.purge_expired_trash",
             "schedule": float(cfg.TRASH_PURGE_INTERVAL_SECONDS),
         }
+    # Documents left without OCR text after OCR_STUCK_MINUTES are sent again (0 = off).
+    if cfg.OCR_STUCK_MINUTES > 0 and cfg.OCR_STUCK_SWEEP_INTERVAL_SECONDS > 0:
+        schedule["requeue-stuck-ocr"] = {
+            "task": "app.workers.tasks.requeue_stuck_ocr",
+            "schedule": float(cfg.OCR_STUCK_SWEEP_INTERVAL_SECONDS),
+        }
     return schedule
 
 

@@ -36,6 +36,8 @@ async def update_document_ocr(
 
     Single Responsibility: Database update only
     """
+    from app.services import ocr_recovery
+
     async with AsyncSessionLocal() as session:
         document = await session.get(Document, document_id)
         if document:
@@ -46,6 +48,8 @@ async def update_document_ocr(
 
             # Store OCR metadata in extra_data. A new dict, not an in-place change: the
             # JSONB column is not change-tracked, so mutating it would never be written.
+            # A finished OCR resets the delivery counter and the failure flag.
+            ocr_recovery.reset_ocr_attempts(document)
             document.extra_data = {
                 **(document.extra_data or {}),
                 "ocr_confidence": confidence,
@@ -84,8 +88,15 @@ async def update_document_ocr(
                 )
 
 
-@celery_app.task(name="app.workers.tasks.process_document_ocr")
-def process_document_ocr(document_id: str, file_path: str, file_type: str):
+@celery_app.task(
+    bind=True,
+    name="app.workers.tasks.process_document_ocr",
+    # Acked once the task ends, and requeued when its process dies (OOM kill): the job
+    # is not lost with the worker. The sweep below covers what this cannot (LESSON-2026-060).
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def process_document_ocr(self, document_id: str, file_path: str, file_type: str):
     """
     Process document OCR using intelligent strategy
 
@@ -105,6 +116,11 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
 
     if not os.path.exists(full_path):
         print(f"❌ File not found for OCR: {full_path}")
+        return False
+
+    # 1b. Own delivery cap, saved before the OCR: a document that kills the worker is
+    # delivered again by the broker, and must stop being tried after N deliveries.
+    if not _within_delivery_cap(document_id):
         return False
 
     # 2. Initialize OCR Strategy lazily so API/tests don't import heavy OCR deps at startup
@@ -175,7 +191,87 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
         import traceback
 
         traceback.print_exc()
+        _retry_or_give_up(self, e, document_id)
         return False
+
+
+def _run_async(coro):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+
+def _within_delivery_cap(document_id: str) -> bool:
+    """Count this delivery; past the cap, mark the document failed and refuse the run."""
+    from app.services import ocr_recovery
+
+    try:
+        count = _run_async(
+            ocr_recovery.register_delivery(AsyncSessionLocal, document_id)
+        )
+        if ocr_recovery.delivery_cap_reached(count):
+            _run_async(
+                ocr_recovery.mark_failed(
+                    AsyncSessionLocal,
+                    document_id,
+                    f"{settings.OCR_MAX_DELIVERIES} deliveries without a result",
+                )
+            )
+            logger.error(
+                "OCR refused for document %s: %s deliveries (cap %s)",
+                document_id,
+                count - 1,
+                settings.OCR_MAX_DELIVERIES,
+            )
+            return False
+    except Exception:
+        # The counter must never block OCR on a database hiccup.
+        logger.exception("OCR delivery counter failed for document %s", document_id)
+    return True
+
+
+def _retry_or_give_up(task, error: Exception, document_id: str) -> None:
+    """Bounded retry with exponential backoff after an unexpected OCR error.
+
+    No-op when the task is called directly (tests, scripts) or once the retries are
+    spent: the sweep and the status of the document take over from there.
+    """
+    if task.request.called_directly:
+        return
+    max_retries = settings.OCR_TASK_MAX_RETRIES
+    attempt = task.request.retries
+    if attempt >= max_retries:
+        logger.error(
+            "OCR gave up on document %s after %s retries (%s)",
+            document_id,
+            attempt,
+            type(error).__name__,
+        )
+        return
+    countdown = settings.OCR_TASK_RETRY_BACKOFF_SECONDS * (2**attempt)
+    raise task.retry(exc=error, countdown=countdown, max_retries=max_retries)
+
+
+@celery_app.task(name="app.workers.tasks.requeue_stuck_ocr")
+def requeue_stuck_ocr():
+    """Beat task: send again the documents left without OCR text."""
+    from app.services.ocr_recovery import recovery_enabled, requeue_stuck_documents
+
+    if not recovery_enabled():
+        return 0
+
+    def _enqueue(document_id: str, file_path: str, mime_type: str) -> None:
+        process_document_ocr.delay(document_id, file_path, mime_type)
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(requeue_stuck_documents(AsyncSessionLocal, _enqueue))
 
 
 @celery_app.task(name="app.workers.tasks.watch_ingest_folders")
