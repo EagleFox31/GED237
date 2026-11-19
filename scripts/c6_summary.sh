@@ -2,9 +2,10 @@
 # Résume c6.tsv par demi-journée (UTC) : relevés, taux de 200, plus grand écart entre deux relevés
 # consécutifs (verts ou non), puis liste les trous sans relevé (> C6_GAP_MAX s, 900 par défaut) et
 # les relevés KO. Une sonde muette ne passe pas pour verte : un trou n'est jamais compté en succès.
-# Usage : sh scripts/c6_summary.sh [c6.tsv]
+# Usage : sh scripts/c6_summary.sh [c6.tsv]  (requiert gawk : mktime)
+command -v gawk >/dev/null 2>&1 || { echo "gawk requis" >&2; exit 2; }
 f="${1:-c6.tsv}"
-awk -F'\t' -v gapmax="${C6_GAP_MAX:-900}" '
+gawk -F'\t' -v gapmax="${C6_GAP_MAX:-900}" '
 function ts(s,  d,t){ gsub(/[-:TZ]/," ",s); return mktime(s) }
 {
   day=substr($1,1,10); h=substr($1,12,2)+0; half=(h<12)?"matin":"soir"; k=day" "half
