@@ -157,3 +157,70 @@ async def test_restore_and_purge_answer_403_inside_the_perimeter_404_outside(
     assert reader_in == (403, 403)
     assert reader_out == (HIDDEN, HIDDEN)
     assert collaborator_out == (HIDDEN, HIDDEN)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role,unit", [("manager", "a1"), ("reader", "a1"), ("collaborator", "b")]
+)
+async def test_workflow_routes_answer_a_hidden_document_like_a_missing_one(
+    client_as,
+    db_seed,
+    tree,  # noqa: F811
+    role,
+    unit,
+):
+    """Steps and actions by document id: 404 outside the perimeter, never 403 (#308)."""
+    ids = tree["ids"]
+    hidden = ids["a"] if role != "collaborator" else ids["a1"]
+    missing = uuid.uuid4()
+    async with _as(client_as, db_seed, tree, role, unit) as client:
+        for target in (hidden, missing):
+            base = f"/api/v1/workflows/document/{target}"
+            step = {"document_id": str(target), "step_order": 1, "label": "Visa"}
+            answers = [
+                _code(await client.get(f"{base}/steps")),
+                _code(await client.get(f"{base}/actions")),
+                _code(await client.post(f"{base}/steps", json=[step])),
+            ]
+            assert answers == [HIDDEN] * 3, (target, answers)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role,unit", [("manager", "a1"), ("reader", "a1"), ("collaborator", "b")]
+)
+@pytest.mark.parametrize("status", ["current", "pending"])
+async def test_step_action_answers_a_hidden_step_like_a_missing_one(
+    client_as,
+    db_seed,
+    db_session,
+    tree,  # noqa: F811
+    role,
+    unit,
+    status,
+):
+    """POST /workflows/step/{id}/actions: 404 outside the perimeter, any step state (#308)."""
+    from app.models.workflow import WorkflowStep
+
+    ids = tree["ids"]
+    hidden = ids["a"] if role != "collaborator" else ids["a1"]
+    step = WorkflowStep(document_id=hidden, step_order=1, label="Visa", status=status)
+    db_session.add(step)
+    await db_session.commit()
+    payload = {
+        "action_type": "visa",
+        "outcome": "accepted",
+        "document_version_id": str(uuid.uuid4()),
+    }
+    async with _as(client_as, db_seed, tree, role, unit) as client:
+        seen = await client.post(
+            f"/api/v1/workflows/step/{step.id}/actions", json=payload
+        )
+        missing = await client.post(
+            f"/api/v1/workflows/step/{uuid.uuid4()}/actions", json=payload
+        )
+    # A role without the route-level right answers 403 for any step: no leak either.
+    assert seen.status_code == missing.status_code
+    assert missing.status_code == (403 if role == "reader" else 404)
+    assert seen.json()["detail"] == missing.json()["detail"]

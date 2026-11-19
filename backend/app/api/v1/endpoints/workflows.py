@@ -7,16 +7,20 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.api.v1.endpoints.documents import visible_document_scope
+from app.api.v1.endpoints.documents import _in_perimeter, visible_document_scope
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
+from app.services.unit_admin_scope import (
+    assert_unit_admin_in_tree,
+    assert_unit_admin_object_in_tree,
+    unit_admin_scope_ids,
+)
 from app.models.document import Document
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.role import Role
 from app.models.user import User
-from app.services.reports_scope import in_actor_unit_tree, unit_tree_filter
 from app.schemas.workflow import (
     WorkflowStepCreate,
     WorkflowStepRead,
@@ -158,22 +162,18 @@ def _validate_step_order(
     return sorted_steps
 
 
-async def _assert_in_actor_unit_tree(
-    db: AsyncSession, user: User, document: Document
-) -> None:
-    """404 for a document outside a unit-bounded role's tree (#215)."""
-    if not await in_actor_unit_tree(db, user, document.org_unit_id):
-        raise HTTPException(status_code=404, detail="Document not found")
-
-
 async def _authorize_workflow_read(
-    db: AsyncSession, user: User, document: Document
+    user: User, document: Document, db: AsyncSession
 ) -> None:
+    # Outside the caller's perimeter the document answers like a missing one,
+    # before any right check reveals that it exists (#247, #308).
+    if not await _in_perimeter(db, user, document):
+        raise HTTPException(status_code=404, detail="Document not found")
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
-        await _assert_in_actor_unit_tree(db, user, document)
+        await assert_unit_admin_in_tree(db, document.org_unit_id, user)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -191,10 +191,11 @@ async def create_workflow_steps(
 ):
     """Define a validation workflow for a document."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     # Propriétaire (update_own) ou admin (manage) peut soumettre
+    if not await _in_perimeter(db, current_user, document):
+        raise HTTPException(status_code=404, detail="Document not found")
     is_owner = document.owner_id == current_user.id
-    if not is_owner:
-        await _assert_in_actor_unit_tree(db, current_user, document)
     action = "update_own" if is_owner else "manage"
     await authorize_or_403(
         current_user, "workflows", action, ctx_from_resource(document)
@@ -260,7 +261,7 @@ async def get_workflow_steps(
 ):
     """Get all workflow steps for a document in the current tenant."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(db, current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
     result = await db.execute(
         select(WorkflowStep)
         .where(WorkflowStep.document_id == document_id)
@@ -385,7 +386,7 @@ async def get_document_action_history(
     """Récupérer l'historique complet des actions métier posées sur un document."""
     # Vérifier que le document appartient au tenant
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(db, current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
 
     # Récupérer toutes les actions via les steps du document
     result = await db.execute(
@@ -420,10 +421,11 @@ async def get_pending_assignments(
     Seulement pour les administrateurs du tenant.
     """
     await authorize_or_403(current_user, "workflows", "manage")
+    unit_ids = await unit_admin_scope_ids(db, current_user)
 
     from app.models.routing_audit import DocumentRoutingDecision
 
-    result = await db.execute(
+    query = (
         select(WorkflowStep, Document, OwnerUser, DocumentRoutingDecision)
         .join(Document, Document.id == WorkflowStep.document_id)
         .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
@@ -435,9 +437,11 @@ async def get_pending_assignments(
         .where(
             WorkflowStep.status == "pending_assignment",
             Document.tenant_id == current_user.tenant_id,
-            *unit_tree_filter(current_user, Document.org_unit_id),
         )
     )
+    if unit_ids is not None:
+        query = query.where(Document.org_unit_id.in_(unit_ids))
+    result = await db.execute(query)
     rows = result.all()
 
     enriched: List[WorkflowStepWithDocument] = []
@@ -502,8 +506,7 @@ async def assign_step_admin(
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
     # Before the status check, so a step outside the tree reveals nothing (#215).
-    if not await in_actor_unit_tree(db, current_user, document.org_unit_id):
-        raise HTTPException(status_code=404, detail="Etape introuvable.")
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
 
     if step.status != "pending_assignment":
         raise HTTPException(
