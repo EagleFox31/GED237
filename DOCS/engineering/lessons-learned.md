@@ -954,3 +954,18 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Prévention** — `verif-file.sh` contrôle maintenant, en 4e point, les LESSON ajoutées par chaque PR ouverte (`git diff origin/main...origin/<branche>`). Il sort en erreur si un même numéro désigne une autre leçon sur `main` ou dans une autre PR. Le même titre est permis dans des PR empilées. Il faut lancer `git fetch origin` avant le contrôle.
 **Leçon généralisée** — Un identifiant séquentiel attribué en parallèle par plusieurs branches entre en collision dès que deux branches partent du même état. Il faut soit le vérifier contre toutes les branches ouvertes, soit l'attribuer à la fusion.
 **Évolution de standard** — Avant de prendre un numéro de LESSON ou de DEC, lancer `verif-file.sh` ou demander le numéro à O, qui tient la file.
+
+### LESSON-2026-075 — Contrôle des mots interdits suivi de « ; » : le commit et le push partent malgré l'échec
+
+- **Date :** 2026-11-19
+- **Catégorie :** process | outillage
+- **Statut :** prevention-added
+- **Liens :** #452 (commits 22ece922 et 1e189dcc), `../GED237-outils-pilotage/scripts/check-forbidden-words.sh`
+
+**Contexte** — Ajout d'une note d'inventaire dans `gestion-projet/innovateur/` sur #452, le 19/11 vers 16:45. La commande enchaînait le contrôle des mots interdits, une recherche `grep` sur le diff indexé, puis le commit et le push.
+**Échec / near miss** — Le contrôle a échoué (deux noms de fichiers de configuration interdits dans les lignes ajoutées). Le commit et le push sont pourtant partis : 22ece922 est dans l'historique de #452. Le fichier a été corrigé par 1e189dcc.
+**Cause racine** — La chaîne était `contrôle && grep ... ; git commit ... && git push`. Le `;` remet à zéro l'effet du code de sortie : le commit s'exécute quel que soit le résultat du contrôle. Le contrôle n'avait donc aucun effet bloquant.
+**Résolution** — Fichier corrigé (1e189dcc). Pas de force push. Décision d'O : #452 est fusionnée en squash, ce qui retire 22ece922 de l'historique de `main`.
+**Prévention** — Toute chaîne qui précède un commit ou un push est liée par `&&` du premier contrôle jusqu'au push, sans `;` ni `||`. Le test du `grep` s'écrit `[ "$(… | grep -ci …)" = 0 ]`, pour qu'un compte non nul arrête la chaîne. Consigné dans la passation d'I.
+**Leçon généralisée** — Un contrôle qui ne bloque pas l'étape suivante n'est pas un contrôle. Il faut vérifier que l'échec du contrôle arrête bien la commande, pas seulement qu'il s'affiche.
+**Évolution de standard** — Quand une consigne impose un contrôle avant un commit, elle donne la commande complète liée par `&&`. Un `;` après un contrôle est relevé en relecture.
