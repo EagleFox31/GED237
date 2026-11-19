@@ -3,12 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { useWorkflowInbox } from '../../../hooks/useWorkflowInbox';
+import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
 
 const PendingAssignmentsInbox: React.FC = () => {
   // Même file que l'onglet « Sans validateur » de Tâches & Validations (#153).
   const inbox = useWorkflowInbox('unassigned', { pageSize: 200 });
   const assignments: any[] = inbox.items;
   const loading = inbox.loading && assignments.length === 0;
+  // Échec de chargement : évite le faux « Aucune étape orpheline » (erreur HTTP déjà au bus global).
+  const loadFailed = inbox.failed && assignments.length === 0;
   const fetchAssignments = () => {
     inbox.reload();
   };
@@ -49,8 +52,8 @@ const PendingAssignmentsInbox: React.FC = () => {
       setSelectedAssignment(null);
       setSelectedUserId('');
     } catch (e) {
+      // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
       console.error(e);
-      alert('Erreur lors de l\'assignation.');
     } finally {
       setAssigning(false);
     }
@@ -102,10 +105,15 @@ const PendingAssignmentsInbox: React.FC = () => {
         <div className="col-span-12 lg:col-span-7 space-y-4">
           {loading ? (
              <div className="text-slate-500 italic p-8 text-center bg-white rounded-[2rem] shadow-sm">Chargement...</div>
+          ) : loadFailed ? (
+            <div role="alert" className="text-red-600 font-bold p-8 text-center bg-white rounded-[2rem] shadow-sm">
+              <p>Impossible de charger les étapes.</p>
+              <button type="button" onClick={fetchAssignments} className="mt-2 underline text-sm">Réessayer</button>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="text-slate-500 italic p-8 text-center bg-white rounded-[2rem] shadow-sm">
               <span className="material-symbols-outlined text-4xl mb-2 opacity-50">done_all</span>
-              <p>Aucune étape orpheline.</p>
+              <p>{search ? `Aucune étape ne correspond à « ${search} ».` : 'Aucune étape orpheline.'}</p>
             </div>
           ) : (
             filtered.map((item) => (
@@ -120,6 +128,7 @@ const PendingAssignmentsInbox: React.FC = () => {
                     <div>
                       <h3 className="font-bold text-slate-800 text-lg uppercase italic tracking-tight">{item.document?.title || "Document Inconnu"}</h3>
                       <p className="text-sm font-medium text-slate-500">Étape: {item.label} (Ordre: {item.step_order})</p>
+                      {item.document_id && <div className="mt-1"><ViewDocumentButton documentId={item.document_id} /></div>}
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full italic uppercase tracking-wider">Bloqué</span>

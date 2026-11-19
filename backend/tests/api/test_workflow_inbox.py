@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings, settings
@@ -133,7 +133,7 @@ async def test_mine_is_ordered_paginated_and_matches_pending(
 
 @pytest.mark.asyncio
 async def test_trashed_documents_leave_the_inbox_and_pending_follows_its_switch(
-    auth_client: AsyncClient, db_seed, inbox_enabled, monkeypatch
+    auth_client: AsyncClient, db_seed, inbox_enabled, monkeypatch, db_session
 ):
     kept = (await _document_with_step(auth_client, db_seed, "inbox-kept"))[
         "document_id"
@@ -141,9 +141,14 @@ async def test_trashed_documents_leave_the_inbox_and_pending_follows_its_switch(
     trashed = (await _document_with_step(auth_client, db_seed, "inbox-trashed"))[
         "document_id"
     ]
-    assert (
-        await auth_client.post(f"{API}/documents/{trashed}/trash")
-    ).status_code == 200
+    # A document under validation is not trashed through the API since #464 (an
+    # administrator may still do it): mark it in the database.
+    await db_session.execute(
+        update(Document)
+        .where(Document.id == uuid.UUID(trashed))
+        .values(deleted_at=func.now())
+    )
+    await db_session.commit()
 
     assert _ids(await auth_client.get(INBOX)) == [kept]
 

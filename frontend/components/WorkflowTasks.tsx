@@ -6,10 +6,12 @@ import type { PendingWorkflowTask } from '../types';
 import { api } from '../services/api';
 import type { InboxScope, WorkflowDecision } from '../services/resources/workflows.api';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { useCan } from '../hooks/useCan';
 import { useWorkflowInbox } from '../hooks/useWorkflowInbox';
+import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
 
 type Tab = { scope: InboxScope; label: string; empty: string };
 
@@ -148,17 +150,16 @@ const WorkflowTasks: React.FC = () => {
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white">
                   Étape {task.step_order}
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {new Date(task.created_at).toLocaleDateString()}
-                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{workflowStepStatusLabel(task.status)}</span>
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
               <p className="text-sm text-slate-500 truncate">
-                Document : <span className="font-bold text-slate-700">{task.document?.title || task.document_id}</span>
+                Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span>
               </p>
               {scope === 'unassigned' && task.assignment_error && (
                 <p className="mt-2 text-xs text-amber-700">{task.assignment_error}</p>
               )}
+              <div className="mt-2"><ViewDocumentButton documentId={task.document_id} /></div>
             </div>
 
             {scope === 'mine' && (

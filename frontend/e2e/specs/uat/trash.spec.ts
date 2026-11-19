@@ -1,11 +1,13 @@
 import type { APIRequestContext } from '@playwright/test';
 
 import { test, expect, API_URL, apiLogin } from '../../fixtures/uat.fixture';
+import { trash, upload } from './trashApi';
 
 /**
  * Corbeille : mise à la corbeille depuis l'explorateur, restauration, suppression définitive.
  * Les actions définitives suivent les droits renvoyés par le serveur (GET /authz/me/permissions),
- * jamais un rôle codé en dur. Seed : tenant_admin a `documents purge`, le Manager seulement `trash_own`.
+ * jamais un rôle codé en dur. Seed : seul le super_admin a `documents purge` (décision du PO du 18/11) ;
+ * tenant_admin et Manager mettent à la corbeille et restaurent, sans rien effacer.
  */
 async function canPurge(request: APIRequestContext, token: string): Promise<boolean> {
   const res = await request.get(`${API_URL}/authz/me/permissions?checks=documents:purge`, {
@@ -15,23 +17,7 @@ async function canPurge(request: APIRequestContext, token: string): Promise<bool
   return ((await res.json()) as Record<string, boolean>)['documents:purge'] === true;
 }
 
-async function upload(request: APIRequestContext, token: string, runId: string, title: string) {
-  const res = await request.post(`${API_URL}/documents/upload`, {
-    headers: { Authorization: `Bearer ${token}` },
-    multipart: {
-      title,
-      file: { name: `corbeille-${runId}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`Corbeille ${title}`, 'utf-8') },
-    },
-  });
-  expect(res.ok(), `upload ${title}`).toBeTruthy();
-  return (await res.json()) as { id: string };
-}
-
-async function trash(request: APIRequestContext, token: string, id: string) {
-  const res = await request.delete(`${API_URL}/documents/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-  expect(res.ok(), `trash ${id}`).toBeTruthy();
-}
-
+// « Vider » (purge de tout le tenant) vit dans trash-empty.spec.ts, projet `uat-destructive`.
 test.describe('Corbeille', () => {
   test('explorateur → corbeille → restauration', async ({ page, loginAs, adminApi, runId }) => {
     const title = `Corbeille restaurée ${runId}`;
@@ -56,23 +42,29 @@ test.describe('Corbeille', () => {
     await expect(page.getByLabel(new RegExp(`^${title} — `))).toBeVisible();
   });
 
-  test('administrateur : suppression définitive après confirmation', async ({ page, loginAs, request, adminToken, runId }) => {
-    expect(await canPurge(request, adminToken), 'tenant_admin a documents:purge (seed)').toBe(true);
-    const title = `Corbeille purgée ${runId}`;
+  test('administrateur de l’institution : suppression définitive masquée et refusée par le serveur', async ({
+    page,
+    loginAs,
+    request,
+    adminToken,
+    runId,
+  }) => {
+    expect(await canPurge(request, adminToken), 'tenant_admin sans documents:purge (seed)').toBe(false);
+    const title = `Corbeille non purgée ${runId}`;
     const doc = await upload(request, adminToken, runId, title);
     await trash(request, adminToken, doc.id);
+    const headers = { Authorization: `Bearer ${adminToken}` };
+    expect((await request.delete(`${API_URL}/documents/${doc.id}/purge`, { headers })).status()).toBe(403);
 
     await loginAs('tenant_admin');
     await page.getByRole('button', { name: 'Corbeille', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toBeVisible();
-    await page.getByRole('button', { name: `Supprimer définitivement ${title}` }).click();
-    const dialog = page.getByRole('alertdialog');
-    await expect(dialog).toContainText(title);
-    await dialog.getByRole('button', { name: 'Supprimer' }).click();
-    await expect(page.getByRole('list', { name: 'Documents dans la corbeille' }).getByText(title)).toHaveCount(0);
+    const list = page.getByRole('list', { name: 'Documents dans la corbeille' });
+    await expect(list.getByText(title)).toBeVisible();
+    await expect(page.getByRole('button', { name: `Supprimer définitivement ${title}` })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toHaveCount(0);
 
-    const gone = await request.get(`${API_URL}/documents/${doc.id}`, { headers: { Authorization: `Bearer ${adminToken}` } });
-    expect(gone.status()).toBe(404);
+    await page.getByRole('button', { name: `Restaurer ${title}` }).click();
+    await expect(list.getByText(title)).toHaveCount(0);
   });
 
   test('Manager : restaurer oui, actions définitives masquées (droit refusé par le serveur)', async ({
@@ -95,5 +87,46 @@ test.describe('Corbeille', () => {
 
     await page.getByRole('button', { name: `Restaurer ${title}` }).click();
     await expect(page.getByRole('button', { name: `Restaurer ${title}` })).toHaveCount(0);
+  });
+
+  /**
+   * Aucun compte de la pile e2e n'a `documents:purge` sur ce tenant ni ne peut archiver (super_admin
+   * seul, sur PLATFORM). L'écran reçoit donc le droit de purge et le statut archivé par
+   * interception : on vérifie ici le seul affichage (cadenas, pas de « Vider »), sans appel de
+   * purge. La règle serveur est couverte par backend/tests/api/test_trash_purge.py.
+   */
+  test('droit de purge : document archivé dans la corbeille, cadenas et pas de « Vider »', async ({
+    page,
+    loginAs,
+    request,
+    adminToken,
+    runId,
+  }) => {
+    const kept = `Corbeille archivée ${runId}`;
+    const keptDoc = await upload(request, adminToken, runId, kept);
+    await trash(request, adminToken, keptDoc.id);
+    await page.route('**/documents/trash?*', async (route) => {
+      const response = await route.fetch();
+      const items = ((await response.json()) as { id: string; status: string }[])
+        .filter((doc) => doc.id === keptDoc.id)
+        .map((doc) => ({ ...doc, status: 'archived' }));
+      await route.fulfill({ response, json: items, headers: { ...response.headers(), 'x-total-count': String(items.length) } });
+    });
+    await page.route('**/authz/me/permissions?*', async (route) => {
+      const response = await route.fetch();
+      const rights = (await response.json()) as Record<string, boolean>;
+      await route.fulfill({ response, json: { ...rights, 'documents:purge': true } });
+    });
+
+    await loginAs('tenant_admin');
+    await page.getByRole('button', { name: 'Corbeille', exact: true }).click();
+    const list = page.getByRole('list', { name: 'Documents dans la corbeille' });
+    await expect(list.getByText(kept)).toBeVisible();
+    await expect(page.getByRole('img', { name: `${kept} : signé ou archivé, ne peut pas être effacé` })).toBeVisible();
+    await expect(page.getByRole('button', { name: `Supprimer définitivement ${kept}` })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: `Restaurer ${kept}` }).click();
+    await expect(list.getByText(kept)).toHaveCount(0);
   });
 });
