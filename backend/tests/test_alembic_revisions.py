@@ -1,7 +1,7 @@
 """The migration graph is a single line: unique revision ids, one head, no cycle.
 
 Runs without a database, so the local suite catches a reused revision id that would
-otherwise only surface when ``alembic upgrade`` runs (LESSON-2026-068).
+otherwise only surface when ``alembic upgrade`` runs (LESSON-2026-070).
 """
 
 import re
