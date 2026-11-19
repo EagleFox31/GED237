@@ -3,8 +3,9 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
 import {
-  fileTooLargeMessage, formatFileSize, nextTitle, unreadableFormatNotice, uploadErrorMessage,
+  formatFileSize, nextTitle, titleFromFileName, unreadableFormatNotice, uploadErrorMessage,
 } from '../lib/uploadFeedback';
+import { addFiles, uploadedNotice, uploadFailureSummary } from '../lib/multiUpload';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 import { MAX_UPLOAD_MB } from '../constants';
 import { pushSuccess } from '../lib/successNotice';
@@ -23,7 +24,13 @@ interface UploadDocumentModalProps {
 }
 
 const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess }) => {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  // Un seul fichier : formulaire inchangé (titre saisi). Plusieurs : chacun prend le nom de son fichier.
+  const file = files.length === 1 ? files[0] ?? null : null;
+  const multi = files.length > 1;
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  // Dernier document créé lors d'un dépôt groupé partiel : la liste de l'écran est rafraîchie à la fermeture.
+  const lastUploaded = useRef<Document | null>(null);
   const [title, setTitle] = useState('');
   const [titleEditedByHand, setTitleEditedByHand] = useState(false);
   const [category, setCategory] = useState('');
@@ -40,42 +47,40 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     categoriesApi.list(false).then(setCategories).catch(console.error);
   }, []);
 
-  const handleFile = (f: File | null) => {
-    if (!f) return;
-    // Refus immédiat : inutile de remplir le formulaire puis d'attendre l'échec de l'envoi.
-    const tooLarge = fileTooLargeMessage(f.size, MAX_UPLOAD_MB);
-    if (tooLarge) {
-      setFile(null);
-      setError(tooLarge);
-      // Permet de rechoisir le même fichier (sinon onChange ne se redéclenche pas).
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-    setFile(f);
+  /**
+   * Choix par la fenêtre du système : remplace la sélection. Glisser-déposer : complète la sélection.
+   * Un fichier trop volumineux est refusé tout de suite, avec son nom.
+   */
+  const handleFiles = (incoming: File[], replace: boolean) => {
+    if (incoming.length === 0) return;
+    const { files: next, refused } = addFiles(replace ? [] : files, incoming, MAX_UPLOAD_MB);
+    setFiles(next);
+    setError(refused.length ? refused.join('\n') : null);
     // Le titre suit le fichier, sauf s'il a été saisi à la main.
-    setTitle(nextTitle(title, titleEditedByHand, f.name));
-    setError(null);
+    const only = next.length === 1 ? next[0] : undefined;
+    if (only) setTitle(nextTitle(title, titleEditedByHand, only.name));
+    // Permet de rechoisir le même fichier (sinon onChange ne se redéclenche pas).
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    const next = files.filter((_, i) => i !== index);
+    setFiles(next);
+    const only = next.length === 1 ? next[0] : undefined;
+    if (only) setTitle(nextTitle(title, titleEditedByHand, only.name));
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) handleFile(dropped);
-  }, [title, titleEditedByHand]);
+    handleFiles(Array.from(e.dataTransfer.files), false);
+  }, [files, title, titleEditedByHand]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    // Validation
-    if (!file) { setError('Veuillez sélectionner un fichier.'); return; }
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) { setError('Le titre est obligatoire.'); return; }
-
+  /** Champs communs à tous les fichiers du dépôt. */
+  const buildFormData = (f: File, docTitle: string) => {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', trimmedTitle);
+    formData.append('file', f);
+    formData.append('title', docTitle);
     formData.append('processing_mode', processingMode);
     if (category) formData.append('document_category_id', category);
     if (description.trim()) formData.append('description', description.trim());
@@ -86,21 +91,57 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
       .filter(Boolean)
       .join(',');
     if (cleanTags) formData.append('tags', cleanTags);
+    return formData;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validation
+    if (files.length === 0) { setError('Veuillez sélectionner un fichier.'); return; }
+    const trimmedTitle = title.trim();
+    if (!multi && !trimmedTitle) { setError('Le titre est obligatoire.'); return; }
 
     setIsLoading(true);
+    // Envoi un par un : le serveur traite chaque fichier comme un dépôt simple.
+    const uploaded: Document[] = [];
+    const uploadedTitles: string[] = [];
+    const failed: { file: File; message: string }[] = [];
     try {
-      const doc = await api.uploadDocument(formData) as Document;
-      pushSuccess(`Document déposé : « ${doc.title || title.trim() || file.name} ».`);
-      onSuccess(doc);
-    } catch (err: any) {
-      setError(uploadErrorMessage(err?.status, err?.userMessage ?? err?.message));
+      for (const [index, f] of files.entries()) {
+        if (multi) setProgress({ done: index, total: files.length });
+        const docTitle = multi ? titleFromFileName(f.name) : trimmedTitle;
+        try {
+          const doc = await api.uploadDocument(buildFormData(f, docTitle)) as Document;
+          uploaded.push(doc);
+          uploadedTitles.push(doc.title || docTitle);
+        } catch (err: any) {
+          failed.push({ file: f, message: uploadErrorMessage(err?.status, err?.userMessage ?? err?.message) });
+        }
+      }
     } finally {
       setIsLoading(false);
+      setProgress(null);
     }
+
+    const notice = uploadedNotice(uploadedTitles);
+    if (notice) pushSuccess(notice);
+    const last = uploaded[uploaded.length - 1];
+    if (failed.length === 0 && last) { onSuccess(last); return; }
+    if (last) lastUploaded.current = last;
+    // Seuls les fichiers en échec restent, prêts à être renvoyés.
+    setFiles(failed.map((x) => x.file));
+    setError(failed.length === 1 && !multi
+      ? failed[0]?.message ?? null
+      : uploadFailureSummary(failed.map((x) => ({ name: x.file.name, message: x.message }))));
   };
 
   const handleClose = () => {
-    if (!isLoading) onClose();
+    if (isLoading) return;
+    // Après un dépôt groupé partiel, l'écran appelant rafraîchit sa liste comme après un succès.
+    if (lastUploaded.current) onSuccess(lastUploaded.current);
+    else onClose();
   };
 
   return (
@@ -117,7 +158,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
         <div className="flex items-center justify-between px-8 pt-8 pb-6">
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Nouveau Document</h2>
-            <p className="text-sm text-slate-400 font-medium mt-0.5">Déposez un fichier puis choisissez s'il doit être archivé ou soumis au traitement</p>
+            <p className="text-sm text-slate-400 font-medium mt-0.5">Déposez un ou plusieurs fichiers puis choisissez s'ils doivent être archivés ou soumis au traitement</p>
           </div>
           <button
             onClick={handleClose}
@@ -137,16 +178,17 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             onDragLeave={() => setIsDragging(false)}
             onClick={() => fileInputRef.current?.click()}
             className={`relative flex flex-col items-center justify-center gap-3 py-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all
-              ${isDragging ? 'border-blue-500 bg-blue-50' : file ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
+              ${isDragging ? 'border-blue-500 bg-blue-50' : files.length ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
           >
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               className="hidden"
-              onChange={(e) => handleFile(e.target.files?.[0] || null)}
+              onChange={(e) => handleFiles(Array.from(e.target.files ?? []), true)}
             />
-            <span className={`material-symbols-outlined text-4xl ${file ? 'text-green-500' : 'text-slate-300'}`}>
-              {file ? 'check_circle' : 'upload_file'}
+            <span className={`material-symbols-outlined text-4xl ${files.length ? 'text-green-500' : 'text-slate-300'}`}>
+              {files.length ? 'check_circle' : 'upload_file'}
             </span>
             {file ? (
               <div className="text-center">
@@ -156,9 +198,34 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
                   <p data-testid="upload-format-notice" className="text-xs font-medium text-amber-800 mt-1">{formatNoticeFor(file)}</p>
                 )}
               </div>
+            ) : multi ? (
+              <ul className="w-full px-4 space-y-1.5" data-testid="upload-file-list" onClick={(e) => e.stopPropagation()}>
+                {files.map((f, index) => (
+                  <li key={`${f.name}-${f.size}-${f.lastModified}`} className="flex items-center gap-2 bg-white/70 rounded-xl px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-700 text-sm truncate">{f.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {formatFileSize(f.size)}
+                        {formatNoticeFor(f) && <span className="text-amber-800 font-medium"> · {formatNoticeFor(f)}</span>}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      disabled={isLoading}
+                      aria-label={`Retirer ${f.name}`}
+                      title="Retirer"
+                      className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-40"
+                    >
+                      <span className="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                  </li>
+                ))}
+                <li className="text-xs text-slate-500 text-center pt-1">Glissez d'autres fichiers ici pour les ajouter.</li>
+              </ul>
             ) : (
               <div className="text-center">
-                <p className="font-bold text-slate-500 text-sm">Glissez un fichier ici</p>
+                <p className="font-bold text-slate-500 text-sm">Glissez un ou plusieurs fichiers ici</p>
                 <p className="text-xs text-slate-400 mt-0.5">ou cliquez pour sélectionner</p>
                 <p data-testid="upload-limits" className="text-xs text-slate-500 mt-1">PDF, images, Word, Excel · {MAX_UPLOAD_MB} Mo max</p>
               </div>
@@ -212,7 +279,12 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             </div>
           </div>
 
-          {/* Titre */}
+          {/* Titre : un seul fichier ; à plusieurs, chaque document prend le nom de son fichier. */}
+          {multi ? (
+            <p className="text-xs text-slate-500" data-testid="upload-multi-title-hint">
+              {files.length} fichiers : chaque document prend le nom de son fichier. Les choix ci-dessous valent pour tous.
+            </p>
+          ) : (
           <div className="space-y-1.5">
             <label className="text-xs font-black uppercase tracking-wider text-slate-500">
               Titre <span className="text-red-400">*</span>
@@ -227,6 +299,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
               disabled={isLoading}
             />
           </div>
+          )}
 
           {/* Catégorie — liste déroulante dynamique */}
           <div className="space-y-1.5">
@@ -281,7 +354,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
           {error && (
             <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 text-red-600">
               <span className="material-symbols-outlined text-lg mt-0.5 shrink-0">error</span>
-              <p className="text-sm font-medium">{error}</p>
+              <p className="text-sm font-medium whitespace-pre-line">{error}</p>
             </div>
           )}
 
@@ -297,18 +370,18 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             </button>
             <button
               type="submit"
-              disabled={isLoading || !file}
+              disabled={isLoading || files.length === 0}
               className="flex-2 flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Envoi en cours...
+                  {progress ? `Envoi ${progress.done + 1}/${progress.total}...` : 'Envoi en cours...'}
                 </>
               ) : (
                 <>
                   <span className="material-symbols-outlined text-lg">upload</span>
-                  Envoyer
+                  {multi ? `Envoyer les ${files.length}` : 'Envoyer'}
                 </>
               )}
             </button>
