@@ -136,3 +136,43 @@ async def test_super_admin_still_targets_a_tenant(admin_client, db_seed, other_u
         DOCUMENT_STATS, params={"tenant_id": str(db_seed["tenant_id"])}
     )
     assert (response.json()["total"], response.json()["trashed"]) == (5, 1)
+
+
+@pytest.mark.asyncio
+async def test_manager_dashboard_counts_pending_and_completed_steps_of_its_unit(
+    client_as, db_session, db_seed, other_unit
+):
+    """ServiceDashboard: only the unit's live documents; rejected steps are not counted."""
+    document = await _doc(db_session, db_seed, db_seed["org_unit_id"])
+    for order, status in ((2, "completed"), (3, "completed"), (4, "rejected")):
+        db_session.add(
+            WorkflowStep(
+                id=uuid.uuid4(),
+                document_id=document.id,
+                step_order=order,
+                label="Visa",
+                status=status,
+            )
+        )
+    trashed = await _doc(db_session, db_seed, db_seed["org_unit_id"], trashed=True)
+    db_session.add(
+        WorkflowStep(
+            id=uuid.uuid4(),
+            document_id=trashed.id,
+            step_order=2,
+            label="Visa",
+            status="completed",
+        )
+    )
+    await db_session.commit()
+
+    async with client_as(
+        "manager", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
+    ) as client:
+        response = await client.get("/api/v1/analytics/manager")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    # Seed unit: 2 documents from the fixture + this one, each with a current step.
+    assert body["workflows"] == {"pending": 3, "completed": 2}
+    assert body["active_workflows"] == 3

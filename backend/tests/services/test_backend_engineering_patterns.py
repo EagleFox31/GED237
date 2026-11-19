@@ -593,7 +593,7 @@ async def test_dashboard_facade_patterns():
                     total_docs=6, total_storage_bytes=1024 * 1024, needs_review=2
                 )
             ),
-            FakeResult(first=SimpleNamespace(active_workflows=3)),
+            FakeResult(first=SimpleNamespace(pending=3, completed=4)),
         ]
     )
     manager = await DashboardFacade(manager_db).get_manager_metrics(
@@ -605,6 +605,7 @@ async def test_dashboard_facade_patterns():
         "needs_review": 2,
     }
     assert manager["active_workflows"] == 3
+    assert manager["workflows"] == {"pending": 3, "completed": 4}
 
     platform_db = QueueDB(
         scalar_values=[2, 10],
