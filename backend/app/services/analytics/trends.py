@@ -30,9 +30,14 @@ def week_starts(weeks: int, today: date | None = None) -> List[date]:
     return [current_monday - timedelta(weeks=n) for n in range(weeks - 1, -1, -1)]
 
 
-def _scope_filters(scope: str, tenant_id: UUID, user_id: UUID, org_unit_id):
+def _scope_filters(
+    scope: str, tenant_id: UUID, user_id: UUID, org_unit_id, unit_ids=None
+):
     filters = [Document.tenant_id == tenant_id, Document.deleted_at.is_(None)]
-    if scope == "unit":
+    # unit_ids: a unit_admin's tree, applied to the "tenant" scope (same as /tenant).
+    if scope == "tenant" and unit_ids is not None:
+        filters.append(Document.org_unit_id.in_(unit_ids))
+    elif scope == "unit":
         filters.append(Document.org_unit_id == org_unit_id)
     elif scope == "mine":
         filters.append(Document.owner_id == user_id)
@@ -52,11 +57,12 @@ async def compute_trends(
     tenant_id: UUID,
     user_id: UUID,
     org_unit_id: UUID | None,
+    unit_ids: List[UUID] | None = None,
     today: date | None = None,
 ) -> Dict[str, Any]:
     mondays = week_starts(weeks, today)
     start = datetime.combine(mondays[0], datetime.min.time())
-    filters = _scope_filters(scope, tenant_id, user_id, org_unit_id)
+    filters = _scope_filters(scope, tenant_id, user_id, org_unit_id, unit_ids)
     tz = literal(TIMEZONE)
 
     created_local = func.timezone(

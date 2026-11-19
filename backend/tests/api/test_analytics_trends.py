@@ -214,3 +214,40 @@ async def test_unit_admin_reaches_trends_and_manager(client_as, db_seed):
         assert (await client.get(MANAGER)).status_code == 200
         assert (await client.get(TRENDS, params={"scope": "unit"})).status_code == 200
         assert (await client.get(TRENDS, params={"scope": "tenant"})).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_tenant_scope_of_a_unit_admin_stays_in_its_tree(
+    client_as, admin_client, db_session, db_seed
+):
+    """Same perimeter as /analytics/tenant: a unit outside the tree is not counted."""
+    other_unit = OrgUnit(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        code=f"OU-{uuid.uuid4().hex[:8]}",
+        name="Hors arbre",
+        level=1,
+        is_active=True,
+    )
+    db_session.add(other_unit)
+    await db_session.flush()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for unit_id in (db_seed["org_unit_id"], other_unit.id):
+        document = await _doc(
+            db_session, db_seed["tenant_id"], unit_id, db_seed["user_id"], now
+        )
+        await _action(
+            db_session, document, db_seed["user_id"], OutcomeType.accepted, now
+        )
+    await db_session.commit()
+    whole = (await admin_client.get(TRENDS, params={"scope": "tenant"})).json()
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
+    ) as client:
+        response = await client.get(TRENDS, params={"scope": "tenant"})
+    assert response.status_code == 200, response.text
+    scoped = response.json()
+    assert scoped["series"]["documents_created"][-1] == 1
+    assert whole["series"]["documents_created"][-1] == 2
+    assert scoped["series"]["visas_accepted"][-1] == 1
+    assert whole["series"]["visas_accepted"][-1] == 2
