@@ -11,8 +11,10 @@ const DELEGATIONS_API = /\/api\/v1\/delegations(\/|\?|$)/;
 const USERS_API = /\/api\/v1\/users\/?(\?|$)/;
 const PENDING_API = /\/api\/v1\/workflows\/pending(\?|$)/;
 
-const ABSENT = { id: '11111111-1111-4111-8111-111111111111', full_name: 'Awa Absente' };
-const INTERIM = { id: '22222222-2222-4222-8222-222222222222', full_name: 'Paul Intérim' };
+const ABSENT = { id: '11111111-1111-4111-8111-111111111111', full_name: 'Awa Absente', org_unit_id: 'ou-1' };
+const INTERIM = { id: '22222222-2222-4222-8222-222222222222', full_name: 'Paul Intérim', org_unit_id: 'ou-1' };
+/** Agent d'un autre service : jamais proposé comme remplaçant d'Awa (le serveur refuserait). */
+const ELSEWHERE = { id: '33333333-3333-4333-8333-333333333333', full_name: 'Zoé Autre service', org_unit_id: 'ou-2' };
 
 const delegation = (over: Record<string, unknown> = {}) => ({
   id: 'd-1',
@@ -46,7 +48,10 @@ test.describe('Remplacements pendant une absence (L4)', () => {
   test('DLG-02 — Given manager, When il crée un remplacement, Then dates avec fuseau envoyées et liste rechargée', async ({ loginAs, page }) => {
     const created: Record<string, string>[] = [];
     let list = [delegation({ id: 'd-0', status: 'scheduled' })];
-    await page.route(USERS_API, (route) => json(route, [ABSENT, INTERIM].map((u) => ({ ...u, is_active: true }))));
+    await page.route(USERS_API, (route) => json(route, [
+      ...[ABSENT, INTERIM].map((u) => ({ ...u, is_active: true })),
+      { ...ELSEWHERE, is_active: true },
+    ]));
     await page.route(DELEGATIONS_API, async (route) => {
       const request = route.request();
       if (request.method() === 'POST') {
@@ -62,12 +67,14 @@ test.describe('Remplacements pendant une absence (L4)', () => {
     await expect(page.getByRole('heading', { level: 1, name: /remplacements/i })).toBeVisible();
     await expect(page.getByTestId('delegation-row')).toHaveCount(1);
 
+    const standIn = page.getByLabel('Remplacé par');
+    await expect(standIn).toBeDisabled();
     await page.getByLabel('Agent absent').selectOption(ABSENT.id);
-    await page.getByLabel('Remplacé par').selectOption(ABSENT.id);
-    await expect(page.getByText('deux personnes différentes')).toBeVisible();
+    // Seuls les agents du même service, sans l'absente elle-même.
+    await expect(standIn.locator('option')).toHaveText(['Choisir…', INTERIM.full_name]);
     await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
 
-    await page.getByLabel('Remplacé par').selectOption(INTERIM.id);
+    await standIn.selectOption(INTERIM.id);
     await page.getByLabel('Début').fill('2026-11-20T08:00');
     await page.getByLabel('Fin').fill('2026-11-27T08:00');
     await page.getByRole('button', { name: 'Enregistrer' }).click();

@@ -50,6 +50,29 @@ export function myOutgoingActive(mine: Delegation[], myUserId: string | undefine
   return mine.find((d) => d.status === 'active' && d.delegator.id === myUserId) ?? null;
 }
 
+/** Agent proposé dans le formulaire de remplacement (sous-ensemble de GET /users). */
+export interface DelegationCandidate {
+  id: string;
+  full_name: string;
+  org_unit_id?: string | null;
+}
+
+/** Agents qu'on peut déclarer absents : rattachés à un service, jamais soi-même (refus du serveur). */
+export function absentCandidates(users: DelegationCandidate[], myUserId: string | undefined): DelegationCandidate[] {
+  return users.filter((u) => u.id !== myUserId && Boolean(u.org_unit_id));
+}
+
+/** Remplaçants possibles : même service que l'agent absent (règle du serveur), ni lui ni soi-même. */
+export function standInCandidates(
+  users: DelegationCandidate[],
+  myUserId: string | undefined,
+  absentId: string,
+): DelegationCandidate[] {
+  const unit = users.find((u) => u.id === absentId)?.org_unit_id;
+  if (!unit) return [];
+  return users.filter((u) => u.id !== myUserId && u.id !== absentId && u.org_unit_id === unit);
+}
+
 /** Date courte lisible (« 20/11/2026 18:00 »). */
 export function formatDelegationDate(iso: string): string {
   const date = new Date(iso);

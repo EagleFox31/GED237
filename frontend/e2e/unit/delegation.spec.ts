@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { myOutgoingActive, onBehalfOfName, toAwareIso } from '../../lib/delegation';
+import { absentCandidates, myOutgoingActive, onBehalfOfName, standInCandidates, toAwareIso } from '../../lib/delegation';
 import type { Delegation } from '../../types';
 
 const ME = 'u-me';
@@ -55,5 +55,20 @@ test.describe('Délégation : règles d’affichage', () => {
     expect(myOutgoingActive([delegation()], ME)).toBeNull();
     expect(myOutgoingActive([{ ...outgoing, status: 'scheduled' }], ME)).toBeNull();
     expect(myOutgoingActive([outgoing], undefined)).toBeNull();
+  });
+
+  test('formulaire : absents sans soi-même, remplaçants du même service seulement', () => {
+    const users = [
+      { id: ME, full_name: 'Moi', org_unit_id: 'ou-1' },
+      { id: 'a', full_name: 'Absente', org_unit_id: 'ou-1' },
+      { id: 'b', full_name: 'Collègue', org_unit_id: 'ou-1' },
+      { id: 'c', full_name: 'Autre service', org_unit_id: 'ou-2' },
+      { id: 'd', full_name: 'Sans service', org_unit_id: null },
+    ];
+    expect(absentCandidates(users, ME).map((u) => u.id)).toEqual(['a', 'b', 'c']);
+    expect(standInCandidates(users, ME, 'a').map((u) => u.id)).toEqual(['b']);
+    expect(standInCandidates(users, ME, 'c')).toEqual([]);
+    expect(standInCandidates(users, ME, '')).toEqual([]);
+    expect(standInCandidates(users, ME, 'd')).toEqual([]);
   });
 });

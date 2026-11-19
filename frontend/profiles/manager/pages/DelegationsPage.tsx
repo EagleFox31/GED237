@@ -8,7 +8,15 @@ import { api } from '../../../services/api';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
-import { DELEGATION_STATUS_LABELS, formatDelegationDate, toAwareIso } from '../../../lib/delegation';
+import {
+  DELEGATION_STATUS_LABELS,
+  absentCandidates,
+  formatDelegationDate,
+  standInCandidates,
+  toAwareIso,
+  type DelegationCandidate,
+} from '../../../lib/delegation';
+import { useAuthStore } from '../../../stores/authStore';
 import type { Delegation, DelegationStatus } from '../../../types';
 
 type StatusFilter = DelegationStatus | '';
@@ -36,7 +44,8 @@ const DelegationsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('');
-  const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
+  const [users, setUsers] = useState<DelegationCandidate[]>([]);
+  const myUserId = useAuthStore((s) => s.userProfile?.userId);
 
   const [delegatorId, setDelegatorId] = useState('');
   const [delegateId, setDelegateId] = useState('');
@@ -67,9 +76,19 @@ const DelegationsPage: React.FC = () => {
   useEffect(() => {
     api
       .getUsers()
-      .then((data) => setUsers(data.filter((u) => u.is_active !== false).map((u) => ({ id: u.id, full_name: u.full_name }))))
+      .then((data) => setUsers(data
+        .filter((u) => u.is_active !== false)
+        .map((u) => ({ id: u.id, full_name: u.full_name, org_unit_id: u.org_unit_id ?? null }))))
       .catch(() => setUsers([]));
   }, []);
+
+  const absentOptions = absentCandidates(users, myUserId);
+  const standInOptions = standInCandidates(users, myUserId, delegatorId);
+  // Changer d'agent absent vide un remplaçant qui n'est plus de son service.
+  const chooseAbsent = (id: string) => {
+    setDelegatorId(id);
+    if (!standInCandidates(users, myUserId, id).some((u) => u.id === delegateId)) setDelegateId('');
+  };
 
   const startIso = toAwareIso(startsAt);
   const endIso = toAwareIso(endsAt);
@@ -196,16 +215,22 @@ const DelegationsPage: React.FC = () => {
             <h2 id="delegation-form-title" className="text-xl font-black text-slate-800 uppercase italic">Nouveau remplacement</h2>
             <div>
               <label htmlFor="delegation-delegator" className="block text-sm font-bold text-slate-700 mb-1">Agent absent</label>
-              <select id="delegation-delegator" value={delegatorId} onChange={(e) => setDelegatorId(e.target.value)} className={FIELD}>
+              <select id="delegation-delegator" value={delegatorId} onChange={(e) => chooseAbsent(e.target.value)} className={FIELD}>
                 <option value="">Choisir…</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                {absentOptions.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </select>
             </div>
             <div>
               <label htmlFor="delegation-delegate" className="block text-sm font-bold text-slate-700 mb-1">Remplacé par</label>
-              <select id="delegation-delegate" value={delegateId} onChange={(e) => setDelegateId(e.target.value)} className={FIELD}>
-                <option value="">Choisir…</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              <select
+                id="delegation-delegate"
+                value={delegateId}
+                onChange={(e) => setDelegateId(e.target.value)}
+                disabled={!delegatorId}
+                className={`${FIELD} disabled:opacity-60`}
+              >
+                <option value="">{delegatorId ? 'Choisir…' : 'Choisir d’abord l’agent absent'}</option>
+                {standInOptions.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
