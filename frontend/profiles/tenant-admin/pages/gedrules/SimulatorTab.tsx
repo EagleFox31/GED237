@@ -105,9 +105,8 @@ const SimulatorTab: React.FC = () => {
         owner_id: ownerId || null,
       });
       setResults(res);
-    } catch (e: any) {
-      console.error(e);
-      alert('Erreur de simulation');
+    } catch {
+      // L'erreur est publiée au bus global par buildApiError.
     } finally {
       setLoading(false);
     }
