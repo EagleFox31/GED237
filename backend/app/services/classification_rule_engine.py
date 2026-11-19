@@ -19,8 +19,8 @@ from app.models.classification_domain import ClassificationDomain
 from app.models.classification_rule import ClassificationRule
 from app.models.document import Document
 from app.models.org_unit import OrgUnit
-from app.models.org_unit import OrgUnitClosure
 from app.models.user import User
+from app.services.reports_scope import unit_ancestors
 from app.services.space_path_builder import SpacePathBuilder
 
 
@@ -747,11 +747,9 @@ class ClassificationRuleEngine:
         return True, "Aucune contrainte d'unité source supplémentaire sur cette règle."
 
     async def _ancestor_ids_for_org_unit(self, org_unit_id: UUID) -> set[str]:
-        result = await self.db.execute(
-            select(OrgUnitClosure.ancestor_id).where(
-                OrgUnitClosure.descendant_id == org_unit_id
-            )
-        )
+        # The unit and every unit above it, read on parent_id (#201).
+        ancestors = unit_ancestors(org_unit_id).subquery()
+        result = await self.db.execute(select(ancestors.c.id))
         ancestor_ids = {str(row[0]) for row in result.all() if row[0]}
         ancestor_ids.add(str(org_unit_id))
         return ancestor_ids
@@ -878,15 +876,16 @@ class ClassificationRuleEngine:
         if target_level is None:
             return None
 
+        # The nearest unit of the target level above the source unit (#201).
+        ancestors = unit_ancestors(source_org_unit_id).subquery()
         result = await self.db.execute(
             select(OrgUnit)
-            .join(OrgUnitClosure, OrgUnitClosure.ancestor_id == OrgUnit.id)
+            .join(ancestors, ancestors.c.id == OrgUnit.id)
             .where(
-                OrgUnitClosure.descendant_id == source_org_unit_id,
                 OrgUnit.tenant_id == tenant_id,
                 OrgUnit.level == target_level,
             )
-            .order_by(OrgUnitClosure.depth.asc())
+            .order_by(ancestors.c.depth.asc())
         )
         return result.scalars().first()
 

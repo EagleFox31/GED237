@@ -416,7 +416,6 @@ async def test_space_path_builder_patterns():
                     SimpleNamespace(id=child_id, name=" Service   Finance "),
                 ]
             ),
-            FakeResult(rows=[]),
             FakeResult(
                 rows=[
                     SimpleNamespace(id=root_id, parent_id=None, name="Root"),
@@ -432,8 +431,8 @@ async def test_space_path_builder_patterns():
     assert chain == ["Ministère - Test", "Service Finance"]
     assert await builder._org_chain(child_id, tenant_id) == chain
 
-    fallback = await builder._org_chain(orphan_id, tenant_id)
-    assert fallback == ["Root", "Orphan"]
+    # One query per unit, read on parent_id (#201): no second lookup.
+    assert await builder._org_chain(orphan_id, tenant_id) == ["Root", "Orphan"]
 
     assert await builder._user_name(user_id, tenant_id) == "Alice Doe"
     assert await builder._user_name(user_id, tenant_id) == "Alice Doe"
