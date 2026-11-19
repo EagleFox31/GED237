@@ -22,7 +22,7 @@ from app.services.auth_service import AuthService
 from app.core.dependencies import get_current_user
 from app.core.redis import get_redis
 from app.services.ws_ticket import WS_TICKET_TTL_SECONDS, issue_ws_ticket
-from app.core.security import hash_password, verify_password
+from app.core.security import decode_token, hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import ChangePasswordRequest
 
@@ -158,8 +158,20 @@ async def change_password(
 
 
 @router.post("/ws-ticket")
-async def create_ws_ticket(current_user: User = Depends(get_current_user)):
-    """Single-use ticket (valid ~30 s) to open the notifications WebSocket."""
+async def create_ws_ticket(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: User = Depends(get_current_user),
+):
+    """Single-use ticket (valid ~30 s) to open the notifications WebSocket.
+
+    Only an access token gets one (a refresh token is refused), as the socket
+    required before tickets; a token revoked by logout is refused upstream."""
+    if (decode_token(credentials.credentials) or {}).get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     ticket = await issue_ws_ticket(
         await get_redis(),
         user_id=str(current_user.id),

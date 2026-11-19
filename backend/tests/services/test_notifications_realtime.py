@@ -1,4 +1,6 @@
-"""Real-time push of in-app notifications (issue #148): modes, instances, token rules."""
+"""Real-time push of in-app notifications (issue #148): modes, instances.
+
+The WebSocket credential rules live in tests/api/test_ws_ticket.py."""
 
 import asyncio
 import json
@@ -8,10 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core import dependencies
 from app.core.config import Settings, settings
-from app.core.redis import get_redis
-from app.core.security import create_access_token, create_refresh_token
 from app.models.notification import Notification
 from app.services.notifications import realtime
 from app.services.notifications.in_app import InAppNotifier
@@ -47,15 +46,6 @@ async def _connected(connections: realtime.ConnectionManager, user_id: str):
 
 def _factory(test_engine):
     return async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
-
-
-def _token_data(db_seed) -> dict:
-    return {
-        "sub": str(db_seed["user_id"]),
-        "tenant_id": str(db_seed["tenant_id"]),
-        "role": "collaborator",
-        "matricule": "TEST001",
-    }
 
 
 # --- Settings -----------------------------------------------------------------
@@ -289,30 +279,3 @@ async def test_a_failing_push_does_not_fail_the_notification(
         )
 
     assert saved is True and count == 1
-
-
-# --- WebSocket token --------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_the_websocket_accepts_an_access_token_only_and_not_a_revoked_one(
-    db_seed, test_engine, monkeypatch
-):
-    monkeypatch.setattr(dependencies, "AsyncSessionLocal", _factory(test_engine))
-    access = create_access_token(_token_data(db_seed))
-    revoked = create_access_token({**_token_data(db_seed), "jti": "revoked"})
-    refresh = create_refresh_token(_token_data(db_seed))
-    redis = await get_redis()
-    await redis.set(f"blacklist:{revoked}", "1", ex=60)
-    try:
-        accepted = await dependencies.get_current_user_ws(access)
-        with_refresh = await dependencies.get_current_user_ws(refresh)
-        with_revoked = await dependencies.get_current_user_ws(revoked)
-        with_garbage = await dependencies.get_current_user_ws("not-a-token")
-    finally:
-        await redis.delete(f"blacklist:{revoked}")
-
-    assert accepted is not None and accepted.id == db_seed["user_id"]
-    assert with_refresh is None
-    assert with_revoked is None
-    assert with_garbage is None

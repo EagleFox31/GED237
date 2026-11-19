@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.v1.endpoints import notifications
+from app.core.security import create_access_token, create_refresh_token
 from app.services.ws_ticket import (
     WS_TICKET_TTL_SECONDS,
     issue_ws_ticket,
@@ -63,17 +64,46 @@ async def test_unknown_or_empty_ticket_is_refused(fake_redis):
     assert await redeem_ws_ticket(fake_redis, "") is None
 
 
+def _bearer(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _token_data(db_seed) -> dict:
+    return {
+        "sub": str(db_seed["user_id"]),
+        "tenant_id": str(db_seed["tenant_id"]),
+        "role": "collaborator",
+        "matricule": "TEST001",
+    }
+
+
 @pytest.mark.asyncio
 async def test_endpoint_issues_a_ticket_for_the_caller(
-    admin_client: AsyncClient, redis_for_app, db_seed
+    async_client: AsyncClient, redis_for_app, db_seed
 ):
-    response = await admin_client.post(TICKET_URL)
+    access = create_access_token(_token_data(db_seed))
+    response = await async_client.post(TICKET_URL, headers=_bearer(access))
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["expires_in"] == WS_TICKET_TTL_SECONDS
     owner = await redeem_ws_ticket(redis_for_app, body["ticket"])
     assert owner.user_id == str(db_seed["user_id"])
     assert owner.tenant_id == str(db_seed["tenant_id"])
+
+
+@pytest.mark.asyncio
+async def test_refresh_or_revoked_token_gets_no_ticket(
+    async_client: AsyncClient, redis_for_app, db_seed
+):
+    """The rule the socket applied before tickets (#155) now applies here."""
+    refresh = create_refresh_token(_token_data(db_seed))
+    revoked = create_access_token({**_token_data(db_seed), "jti": "revoked"})
+    await redis_for_app.set(f"blacklist:{revoked}", "1", ex=60)
+
+    for token in (refresh, revoked, "not-a-token"):
+        response = await async_client.post(TICKET_URL, headers=_bearer(token))
+        assert response.status_code == 401, (token[:12], response.text)
+    assert await redis_for_app.keys("ws_ticket:*") == []
 
 
 @pytest.mark.asyncio
