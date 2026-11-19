@@ -1,6 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 
 import { test, expect, API_URL, apiLogin } from '../../fixtures/uat.fixture';
+import { trash, upload } from './trashApi';
 
 /**
  * Corbeille : mise à la corbeille depuis l'explorateur, restauration, suppression définitive.
@@ -15,23 +16,7 @@ async function canPurge(request: APIRequestContext, token: string): Promise<bool
   return ((await res.json()) as Record<string, boolean>)['documents:purge'] === true;
 }
 
-async function upload(request: APIRequestContext, token: string, runId: string, title: string) {
-  const res = await request.post(`${API_URL}/documents/upload`, {
-    headers: { Authorization: `Bearer ${token}` },
-    multipart: {
-      title,
-      file: { name: `corbeille-${runId}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`Corbeille ${title}`, 'utf-8') },
-    },
-  });
-  expect(res.ok(), `upload ${title}`).toBeTruthy();
-  return (await res.json()) as { id: string };
-}
-
-async function trash(request: APIRequestContext, token: string, id: string) {
-  const res = await request.delete(`${API_URL}/documents/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-  expect(res.ok(), `trash ${id}`).toBeTruthy();
-}
-
+// « Vider » (purge de tout le tenant) vit dans trash-empty.spec.ts, projet `uat-destructive`.
 test.describe('Corbeille', () => {
   test('explorateur → corbeille → restauration', async ({ page, loginAs, adminApi, runId }) => {
     const title = `Corbeille restaurée ${runId}`;
@@ -95,5 +80,40 @@ test.describe('Corbeille', () => {
 
     await page.getByRole('button', { name: `Restaurer ${title}` }).click();
     await expect(page.getByRole('button', { name: `Restaurer ${title}` })).toHaveCount(0);
+  });
+
+  /**
+   * Aucun compte de la pile e2e ne peut archiver : PATCH status=archived exige `documents:manage`
+   * (super_admin seul, sur un autre tenant). Le statut est donc posé sur la vraie réponse de la
+   * liste ; la conservation côté serveur est couverte par backend/tests/api/test_trash_purge.py.
+   */
+  test('administrateur : document archivé dans la corbeille, cadenas et pas de « Vider »', async ({
+    page,
+    loginAs,
+    request,
+    adminToken,
+    runId,
+  }) => {
+    const kept = `Corbeille archivée ${runId}`;
+    const keptDoc = await upload(request, adminToken, runId, kept);
+    await trash(request, adminToken, keptDoc.id);
+    await page.route('**/documents/trash?*', async (route) => {
+      const response = await route.fetch();
+      const items = ((await response.json()) as { id: string; status: string }[])
+        .filter((doc) => doc.id === keptDoc.id)
+        .map((doc) => ({ ...doc, status: 'archived' }));
+      await route.fulfill({ response, json: items, headers: { ...response.headers(), 'x-total-count': String(items.length) } });
+    });
+
+    await loginAs('tenant_admin');
+    await page.getByRole('button', { name: 'Corbeille', exact: true }).click();
+    const list = page.getByRole('list', { name: 'Documents dans la corbeille' });
+    await expect(list.getByText(kept)).toBeVisible();
+    await expect(page.getByRole('img', { name: `${kept} : signé ou archivé, ne peut pas être effacé` })).toBeVisible();
+    await expect(page.getByRole('button', { name: `Supprimer définitivement ${kept}` })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Vider la corbeille' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: `Restaurer ${kept}` }).click();
+    await expect(list.getByText(kept)).toHaveCount(0);
   });
 });

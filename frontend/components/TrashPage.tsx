@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '../services/api';
 import type { Document } from '../types';
 import { useCan } from '../hooks/useCan';
+import { canEmptyTrash, isGoneFromTrash, isPurgeProtected } from '../lib/trashRules';
 import { InlineHelpButton } from './ui/InlineHelpButton';
 
 const PAGE_SIZE = 50;
@@ -22,18 +23,24 @@ const TrashPage: React.FC = () => {
   const [confirm, setConfirm] = useState<Confirm>(null);
   const { 'documents:purge': canPurge } = useCan('documents:purge');
 
+  // Seule la dernière lecture lancée compte : une réponse plus ancienne arrivée après est ignorée.
+  const loadSeq = useRef(0);
+
   const load = useCallback(async (append = false, skip = 0) => {
+    loadSeq.current += 1;
+    const mine = loadSeq.current;
     setLoading(true);
     try {
       const page = await api.getTrashPage(skip, PAGE_SIZE);
+      if (mine !== loadSeq.current) return;
       setItems((current) => (append ? [...current, ...page.items] : page.items));
       setTotal(page.total);
       setLoadError(false);
     } catch {
       // Détail déjà affiché par le bus global ; ici on évite seulement un faux « vide ».
-      if (!append) setLoadError(true);
+      if (mine === loadSeq.current && !append) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (mine === loadSeq.current) setLoading(false);
     }
   }, []);
 
@@ -51,8 +58,9 @@ const TrashPage: React.FC = () => {
     try {
       await api.restoreDocument(doc.id);
       removeLocally(doc.id);
-    } catch {
-      /* bus global */
+    } catch (error) {
+      // Message déjà affiché par le bus global ; un 404 retire en plus la ligne disparue.
+      if (isGoneFromTrash(error)) removeLocally(doc.id);
     } finally {
       setBusy(false);
     }
@@ -64,7 +72,11 @@ const TrashPage: React.FC = () => {
       message: `« ${doc.title} » sera effacé. Impossible de revenir en arrière.`,
       label: 'Supprimer',
       run: async () => {
-        await api.purgeDocument(doc.id);
+        try {
+          await api.purgeDocument(doc.id);
+        } catch (error) {
+          if (!isGoneFromTrash(error)) throw error;
+        }
         removeLocally(doc.id);
       },
     });
@@ -72,16 +84,22 @@ const TrashPage: React.FC = () => {
   const askEmpty = () =>
     setConfirm({
       title: 'Vider la corbeille ?',
-      message: `${total} document${total > 1 ? 's' : ''} ${total > 1 ? 'seront effacés' : 'sera effacé'}. Impossible de revenir en arrière.`,
+      message: 'Les documents seront effacés, sauf ceux signés ou archivés. Impossible de revenir en arrière.',
       label: 'Vider',
       run: async () => {
-        // Le serveur purge par lots : on rappelle tant qu'il en reste.
-        for (let guard = 0; guard < 100; guard += 1) {
-          // eslint-disable-next-line no-await-in-loop -- en série : chaque appel dépend du `remaining` du précédent.
-          const { remaining } = await api.emptyTrash();
-          if (remaining === 0) break;
+        // Le serveur purge par lots : on rappelle tant qu'il en reste. `remaining` ne compte que
+        // ce qu'un nouvel appel purgerait (signés et archivés exclus) ; un lot vide arrête aussi.
+        try {
+          for (let guard = 0; guard < 100; guard += 1) {
+            // Séquentiel voulu : chaque appel dépend du reste laissé par le précédent.
+            // eslint-disable-next-line no-await-in-loop
+            const { purged, remaining } = await api.emptyTrash();
+            if (remaining <= 0 || purged === 0) break;
+          }
+        } finally {
+          // Lot en échec : les lots précédents sont déjà effacés, la liste doit le montrer.
+          await load();
         }
-        await load();
       },
     });
 
@@ -114,7 +132,7 @@ const TrashPage: React.FC = () => {
             content="Les documents supprimés arrivent ici. Restaurez-les pour les remettre à leur place."
           />
         </div>
-        {canPurge && total > 0 && (
+        {canPurge && canEmptyTrash(items, total) && (
           <button
             type="button"
             onClick={askEmpty}
@@ -167,7 +185,17 @@ const TrashPage: React.FC = () => {
               >
                 <span className="material-symbols-outlined" aria-hidden>restore_from_trash</span>
               </button>
-              {canPurge && (
+              {canPurge && isPurgeProtected(doc) && (
+                <span
+                  role="img"
+                  aria-label={`${doc.title} : signé ou archivé, ne peut pas être effacé`}
+                  title="Signé ou archivé : ne peut pas être effacé"
+                  className="material-symbols-outlined p-2 text-slate-300"
+                >
+                  lock
+                </span>
+              )}
+              {canPurge && !isPurgeProtected(doc) && (
                 <button
                   type="button"
                   onClick={() => askPurge(doc)}

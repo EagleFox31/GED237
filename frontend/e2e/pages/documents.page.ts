@@ -83,6 +83,11 @@ export class DocumentsPage {
     await this.searchInput.fill(query);
   }
 
+  /** Title of a document card (h4). */
+  documentHeading(title: string): Locator {
+    return this.page.getByRole('heading', { level: 4, name: title });
+  }
+
   async filterByCategory(category: string) {
     await this.categoryFilter.selectOption({ label: category });
   }

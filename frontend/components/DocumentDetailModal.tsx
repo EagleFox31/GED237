@@ -3,15 +3,30 @@ import React, { useState, useEffect } from 'react';
 import { Icons } from '../constants';
 import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, formatFileSize } from '../types';
 import { api } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
+import { ConfirmationModal } from './ui/ConfirmationModal';
+
+// Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
+// super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
+export const CAN_ARCHIVE_DOCUMENT = new Set(['super', 'tenant']);
+// Statuts de départ acceptés par l'API (ARCHIVABLE_SOURCE_STATUSES) ; sinon 409.
+const ARCHIVABLE_STATUSES = new Set(['validated', 'signed']);
 
 interface DocumentDetailModalProps {
   document: Document;
   onClose: () => void;
+  /** Appelé après une modification (ex. archivage) pour rafraîchir la liste appelante. */
+  onUpdated?: (document: Document) => void;
   /** Fourni par la liste appelante : affiche « Mettre à la corbeille » et rafraîchit après succès. */
   onTrashed?: () => void;
 }
 
-const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onClose, onTrashed }) => {
+const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated, onTrashed }) => {
+  const [document, setDocument] = useState<Document>(initialDocument);
+  const profileId = useAuthStore((s) => s.userProfile?.id);
+  const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
+  const [archiving, setArchiving] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [trashing, setTrashing] = useState(false);
   const handleTrash = async () => {
     setTrashing(true);
@@ -110,6 +125,21 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
       setActionError("Impossible de lancer le circuit. Veuillez vérifier qu'il existe une règle ou un circuit applicable.");
     } finally {
       setStartingWorkflow(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    setActionError(null);
+    setArchiving(true);
+    try {
+      const updated = await api.updateDocument(document.id, { status: 'archived' });
+      setDocument(updated);
+      onUpdated?.(updated);
+    } catch (err) {
+      // Le message de l'API (403, 409) est déjà affiché par le bus d'erreurs.
+      console.error('Archive failed:', err);
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -405,9 +435,33 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
               Mettre à la corbeille
             </button>
           )}
-          <button onClick={onClose} className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-all">Fermer</button>
+          {canArchive && (
+            <button
+              type="button"
+              onClick={() => setConfirmArchive(true)}
+              disabled={archiving}
+              title="Le document archivé est protégé contre l'effacement."
+              className="px-6 py-3 text-sm font-bold text-white bg-slate-700 hover:bg-slate-800 disabled:opacity-60 rounded-2xl transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-base" aria-hidden="true">inventory_2</span>
+              {archiving ? 'Archivage…' : 'Archiver'}
+            </button>
+          )}
+          <button type="button" onClick={onClose} className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-all">Fermer</button>
         </div>
       </div>
+      <ConfirmationModal
+        open={confirmArchive}
+        title="Archiver ce document ?"
+        message="Il ne pourra plus être effacé de la corbeille."
+        icon="inventory_2"
+        confirmLabel="Oui, archiver"
+        onConfirm={() => {
+          setConfirmArchive(false);
+          handleArchive();
+        }}
+        onCancel={() => setConfirmArchive(false)}
+      />
     </div>
   );
 };

@@ -35,7 +35,7 @@ test.describe('SC-ESP-01 — Navigation dans les espaces', () => {
     await expect(page.getByText(/^\d+ documents?$/)).toBeVisible();
 
     // Descendre dans un sous-service, puis remonter.
-    const daf = page.getByRole('button', { name: /Direction des Affaires Financieres/ }).first();
+    const daf = page.getByRole('button', { name: /Direction des Affaires Financi[eè]res/ }).first();
     await daf.click();
     const back = page.getByRole('button', { name: /^Retour vers/ });
     await expect(back).toBeVisible();
