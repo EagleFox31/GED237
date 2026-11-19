@@ -122,6 +122,7 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [orgUnits, setOrgUnits] = useState<OrgUnitOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [agentsLoadFailed, setAgentsLoadFailed] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -175,6 +176,8 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
       api.getAssignableRoles(),
       api.getOrgUnits(),
     ]);
+    // Erreur HTTP déjà au bus global ; l'état d'échec évite le faux « Aucun agent ».
+    setAgentsLoadFailed(agentsRes.status === 'rejected');
     if (agentsRes.status === 'fulfilled') {
       setAgents((agentsRes.value || []) as Agent[]);
     }
@@ -572,7 +575,12 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
 
         {/* Liste */}
         <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar space-y-2">
-          {filteredAgents.length === 0 ? (
+          {agentsLoadFailed ? (
+            <div role="alert" className="p-5 rounded-[1.5rem] border-2 border-dashed border-red-200 bg-white/40 text-center">
+              <p className="text-xs font-bold text-red-600">Impossible de charger la liste des agents.</p>
+              <button type="button" onClick={() => void loadData()} className="mt-2 text-xs underline text-slate-600">Réessayer</button>
+            </div>
+          ) : filteredAgents.length === 0 ? (
             <div className="p-5 rounded-[1.5rem] border-2 border-dashed border-slate-200 bg-white/40 text-center">
               <p className="text-xs italic text-slate-500 leading-relaxed">
                 {agents.length === 0
