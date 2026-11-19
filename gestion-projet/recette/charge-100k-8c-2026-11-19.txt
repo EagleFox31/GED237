@@ -4,8 +4,8 @@ Suite de charge-100k-2026-11-19.txt (reglage livre, item 8 non prouve). Decision
 au-dela du plafond de 4 cpus par charge, personne d'autre sur Docker pendant l'essai.
 Branche feat/item8-load-dataset, tete 6ce454a1. Commande :
   LOAD_PG_CPUS=2 LOAD_PG_MEM=1g LOAD_REDIS_CPUS=0.5 LOAD_API_CPUS=2 LOAD_API_MEM=1536m LOAD_API_WORKERS=2 \
-  LOAD_WORKER_CPUS=3 LOAD_WORKER_MEM=1536m LOAD_WORKER_CONCURRENCY=4 \
-  scripts/load-test.sh full 4 charge-100k-8c-2026-11-19
+  LOAD_WORKER_CPUS=3 LOAD_WORKER_MEM=1536m LOAD_WORKER_CONCURRENCY=4 LOAD_CONFIRM=yes \
+  bash scripts/load-test.sh full 4 charge-100k-8c-2026-11-19
 Sorties brutes (non versionnees) : gestion-projet/recette/charge/charge-100k-8c-2026-11-19{.txt,.json,-stats.txt,-setting.txt}.
 
 Reglage mesure (limites verifiees par docker inspect au depart)
