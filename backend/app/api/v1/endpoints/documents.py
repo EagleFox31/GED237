@@ -1,9 +1,11 @@
 # backend/app/api/v1/endpoints/documents.py
+import hashlib
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import (
     APIRouter,
@@ -575,6 +577,23 @@ def _serialize_audit_log(audit_log: AuditLog) -> Dict[str, Any]:
         if audit_log.created_at
         else None,
     }
+
+
+_RESTORED_SUFFIX = re.compile(r"(?:_restored_[0-9a-f]{8})+$")
+
+
+def _restored_copy_path(source_path: str) -> str:
+    """Path of a restored copy: the original name plus one fresh suffix.
+
+    Restoring an already restored version must not stack suffixes, or the name
+    grows past the filesystem limit (255 bytes) after enough restores.
+    """
+    directory, name = os.path.split(source_path)
+    stem, ext = os.path.splitext(name)
+    stem = _RESTORED_SUFFIX.sub("", stem)
+    return os.path.join(directory, f"{stem}_restored_{uuid4().hex[:8]}{ext}").replace(
+        "\\", "/"
+    )
 
 
 def _derive_file_type(
@@ -1448,9 +1467,73 @@ async def get_document_content(
     )
     await db.commit()
 
+    return _serve_stored_file(
+        title=document.title,
+        file_path=document.file_path,
+        mime_type=document.mime_type,
+        disposition=disposition,
+    )
+
+
+@router.get("/{document_id}/versions/{version_id}/content")
+@limiter.limit("60/minute")
+async def get_document_version_content(
+    request: Request,
+    document_id: UUID,
+    version_id: UUID,
+    disposition: str = "inline",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sert les octets d'une ancienne version (lecture seule, sans migration).
+
+    Meme regle que #247 : 404 hors perimetre, et 404 si la version appartient
+    a un autre document.
+    """
+    if disposition not in ("inline", "attachment"):
+        raise HTTPException(
+            status_code=400, detail="disposition must be 'inline' or 'attachment'"
+        )
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_read_document(current_user, document, db):
+        raise HTTPException(status_code=404, detail="Document not found")
+    version = (
+        await db.execute(
+            select(DocumentVersion).where(
+                DocumentVersion.id == version_id,
+                DocumentVersion.document_id == document.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if version is None or not version.file_path:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=document.id,
+            action="content_viewed",
+            details={
+                "disposition": disposition,
+                "version": version.version_number,
+            },
+        )
+    )
+    await db.commit()
+    return _serve_stored_file(
+        title=document.title,
+        file_path=version.file_path,
+        mime_type=version.mime_type or document.mime_type,
+        disposition=disposition,
+    )
+
+
+def _serve_stored_file(
+    *, title: str | None, file_path: str, mime_type: str | None, disposition: str
+):
     # Nom de fichier : title + extension d'origine si manquante.
-    filename = document.title or "document"
-    ext = os.path.splitext(document.file_path)[1]
+    filename = title or "document"
+    ext = os.path.splitext(file_path)[1]
     if ext and not filename.lower().endswith(ext.lower()):
         filename += ext
 
@@ -1463,7 +1546,7 @@ async def get_document_content(
         f"filename*=UTF-8''{quote(filename)}"
     )
 
-    media_type = document.mime_type or "application/octet-stream"
+    media_type = mime_type or "application/octet-stream"
 
     # Headers de sécurité communs (locaux + S3).
     common_headers = {
@@ -1474,11 +1557,11 @@ async def get_document_content(
         "Referrer-Policy": "no-referrer",
     }
 
-    full_path = storage_service.get_full_path(document.file_path)
+    full_path = storage_service.get_full_path(file_path)
 
     # ── Stockage S3 ────────────────────────────────────────────────────
     if full_path.startswith("s3://"):
-        content = storage_service.get_file_content(document.file_path)
+        content = storage_service.get_file_content(file_path)
         if not content:
             raise HTTPException(status_code=404, detail="Document not found")
         from fastapi import Response
@@ -2071,6 +2154,8 @@ async def upload_new_version(
             detail="User must be attached to an org unit for this operation",
         )
     directory = f"{current_user.tenant_id}/{org_unit_id}"
+    # One file per version: the storage key is unique (unique_storage_name), and
+    # the client's name is kept intact for error messages (413 FILE_TOO_LARGE).
     file_path, checksum = await storage_service.save_file_with_checksum(
         file, directory=directory
     )
@@ -2184,6 +2269,136 @@ async def upload_new_version(
     )
     await db.commit()
     return {"message": "Nouvelle version televersee", "version": new_version_num}
+
+
+@router.post(
+    "/{document_id}/versions/{version_id}/restore",
+    status_code=status.HTTP_201_CREATED,
+)
+async def restore_document_version(
+    request: Request,
+    document_id: UUID,
+    version_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Restore an old version by copying it into a new current version.
+
+    Nothing is overwritten: the old version keeps its row and its file, and the
+    history gains one more version (the next number) holding a copy of that file.
+    A document or version outside the caller's perimeter answers 404 (#247).
+    """
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_mutate_document(current_user, document, db):
+        raise HTTPException(status_code=403, detail="Privileges insuffisants")
+    if document.deleted_at:
+        raise HTTPException(
+            status_code=400,
+            detail="Impossible de modifier un document dans la corbeille.",
+        )
+    await _ensure_not_locked_for_write(document, current_user)
+
+    # Two restores at once would compute the same next number: the row lock makes
+    # the second one read the versions (and current version) after the first commits.
+    await db.execute(
+        select(Document)
+        .where(Document.id == document.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    versions_result = await db.execute(
+        select(DocumentVersion).where(DocumentVersion.document_id == document.id)
+    )
+    versions = versions_result.scalars().all()
+    source = next((v for v in versions if v.id == version_id), None)
+    if source is None:
+        raise HTTPException(status_code=404, detail="Version not found")
+    if str(source.id) == str(document.current_version_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "already_current",
+                "message": "Cette version est deja la version actuelle.",
+            },
+        )
+
+    # A copy under a fresh name: purging one version never removes another's file.
+    target_path = _restored_copy_path(source.file_path)
+    missing = HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "error": "version_file_missing",
+            "message": "Le fichier de cette version est introuvable.",
+        },
+    )
+    if not storage_service.copy_file(source.file_path, target_path):
+        raise missing
+    # Fingerprint and size of the bytes actually copied, not the source row's: on
+    # older data two versions may share one file_path, so the row can be wrong.
+    copied = storage_service.get_file_content(target_path)
+    if not copied and source.file_size:
+        storage_service.delete_file(target_path)
+        raise missing
+    checksum = hashlib.sha256(copied).hexdigest()
+    file_size = len(copied)
+
+    new_version_num = _parse_next_version(versions)
+    db_version = DocumentVersion(
+        document_id=document.id,
+        version_number=new_version_num,
+        file_path=target_path,
+        file_size=file_size,
+        mime_type=source.mime_type,
+        checksum_sha256=checksum,
+        uploaded_by_id=current_user.id,
+        uploaded_at=datetime.now(timezone.utc),
+        change_note=f"Restauration de la version {source.version_number}",
+    )
+    db.add(db_version)
+    await db.flush()
+
+    document.current_version_id = db_version.id
+    document.file_path = target_path
+    document.file_size = file_size
+    document.file_type = _derive_file_type(
+        target_path, source.mime_type or "application/octet-stream"
+    )
+    document.mime_type = source.mime_type
+
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=document.id,
+            action="version_restored",
+            details={
+                "restored_version": source.version_number,
+                "new_version": new_version_num,
+                "checksum_sha256": checksum,
+            },
+            request=request,
+        )
+    )
+    try:
+        await db.commit()
+    except Exception:
+        # The new version never existed: drop the copy so storage holds no orphan.
+        await db.rollback()
+        storage_service.delete_file(target_path)
+        raise
+
+    mime = source.mime_type or ""
+    if mime.startswith("image/") or mime == "application/pdf":
+        try:
+            process_document_ocr.delay(str(document.id), target_path, mime)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "[Restore] OCR not queued for document %s", document.id, exc_info=True
+            )
+    return {
+        "message": "Version restauree",
+        "version": new_version_num,
+        "restored_from": source.version_number,
+    }
 
 
 @router.post("/{document_id}/lock", status_code=status.HTTP_200_OK)
