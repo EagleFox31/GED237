@@ -4,6 +4,10 @@
 - Méthode du 10/11 inchangée : 32 items à poids égal, `fait` = 1, `partiel` = 0,5, `absent` / `non vérifiable` = 0. Un item est `fait` seulement sur une preuve fusionnée sur main ou citée par sa PR. Grille identique au relevé préliminaire du 17/11 (#104) et au recalcul du 18/11 10:54.
 - Seuil : 95 % = 30,4/32. Il faut donc **30,5 points**, car les notes vont par demi-points.
 - Niveaux : `Vérifié` = lu (liste des fusions, `git ls-tree origin/main`, `gh pr view`, passations) ; `Déduit` = supposé. Dans la colonne « Chgt 10/11 », seuls les statuts qui ont changé depuis le 10/11 sont marqués.
+- **Mise à jour du 19/11 à 18:01** (`main` f890b3cb, relevés de Q). Les sections ci-dessous gardent l'état de 08:21. Le score de coupe à jour est dans `note-po-decision-coupe-19-11-18h05.md` : 30/32 avant C6, 30,5/32 avec C6.
+  - **Item 29 (C6)** : tenu. Tous les relevés sont verts depuis 12:46Z ; 11 échecs sur 857 depuis le 17/11, tous serveur muet (2 à la reprise du 19/11, 9 entre 12:01Z et 12:41Z). Gain : +0,5 (`partiel`), `Vérifié` par Q.
+  - **Item 8 (100 000 fichiers)** : essayé le 19/11 à 16:01, 23 min 07 pour moins de 20 min demandées : non tenu, 0 point. #497 n'est pas fusionnée avant la coupe ; nouvel essai en V1.1.
+  - La ligne « pas de coupe le 19/11 » du § 4 bis date de 08:21 : la coupe dépend maintenant de la décision du PO sur la note de 18:05.
 
 ## 1. Taux
 
