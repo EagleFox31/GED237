@@ -3,6 +3,13 @@ repos:
     rev: v5.0.0
     hooks:
       - id: check-yaml
+        exclude: ^docker-compose\.vps\.yml$
+      - id: check-yaml
+        # Compose merge tags (!override, !reset) are valid for Compose, unknown to a
+        # plain YAML loader: --unsafe checks the syntax only, so it is kept to this file.
+        name: check yaml (compose overlay with merge tags)
+        files: ^docker-compose\.vps\.yml$
+        args: [--unsafe]
       - id: check-json
         # tsconfig files are JSONC (comments allowed by TypeScript).
         exclude: (^|/)tsconfig[^/]*\.json$

@@ -1,0 +1,100 @@
+# Small shared VPS (≈ 2 GB free RAM): resource overlay for the reference stack.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --no-build
+#
+# Deployment settings only, no application change. Figures and trade-offs:
+# gestion-projet/innovateur/empreinte-pile-rc1-vps.md § 3. Install procedure and the
+# VPN-only access rule: DOCS/exploitation/installation.md § 10.
+# Needs Docker Compose >= 2.24.4 for the !override tags.
+#
+# Caps: api 512 MB + worker 1.2 GB + postgres 384 MB + redis 64 MB + frontend 64 MB
+# + nginx 64 MB ≈ 2.3 GB (migrate 512 MB is transient, before api and worker start).
+
+# Own project name: never adopt an existing edossier stack, its containers or its
+# postgres volume. Fixed container names are dropped for the same reason, so the
+# containers are ged237-vps-<service>-1 and the volumes ged237-vps_*.
+name: ged237-vps
+
+x-backend-env: &backend-env
+  # No development fallback on a shared server: the stack refuses to start without them.
+  DATABASE_URL: postgresql+asyncpg://edossier_user:${DB_PASSWORD:?DB_PASSWORD est obligatoire sur le VPS}@postgres/edossier
+
+services:
+  postgres:
+    container_name: !reset null
+    # Reduction 4: same cap as the other databases of the VPS.
+    mem_limit: 384m
+    memswap_limit: 384m
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD est obligatoire sur le VPS}
+
+  redis:
+    container_name: !reset null
+    # Reduction 4: broker and cache only, 16 MB measured at rest.
+    mem_limit: 64m
+    memswap_limit: 64m
+
+  migrate:
+    container_name: !reset null
+    environment:
+      <<: *backend-env
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY est obligatoire sur le VPS}
+
+  seed:
+    container_name: !reset null
+    # Reduction 5: no demo accounts on the VPS. Real accounts are created by hand
+    # (donnees-demo.md, « Plateforme vide »). Opt-in only: --profile demo-seed.
+    profiles: ["demo-seed"]
+    environment:
+      <<: *backend-env
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY est obligatoire sur le VPS}
+
+  api:
+    container_name: !reset null
+    # Reduction 3: no --reload and no source bind mount, the image code runs as built.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    volumes: !override
+      - storage_data:/var/storage_data
+      - ${INGEST_SOURCE_DIR:-./data/ingest}:/data/ingest:ro
+    environment:
+      <<: *backend-env
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY est obligatoire sur le VPS}
+
+  worker:
+    container_name: !reset null
+    # Reduction 1: one OCR at a time. EasyOCR loads PyTorch in each child process,
+    # so the cap must hold one child plus the parent.
+    command: celery -A app.workers.celery_app worker -B --schedule=/tmp/celerybeat-schedule --loglevel=info --concurrency=1
+    mem_limit: 1200m
+    memswap_limit: 1200m
+    cpus: 1.0
+    volumes: !override
+      - storage_data:/var/storage_data
+      - ${INGEST_SOURCE_DIR:-./data/ingest}:/data/ingest
+    environment:
+      <<: *backend-env
+
+  frontend:
+    container_name: !reset null
+    # Reduction 2: compiled assets served by nginx instead of the Vite dev server.
+    # Explicit image name so it never collides with the development image.
+    image: ged237-vps-frontend:production
+    build:
+      target: production
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.5
+    volumes: !override []
+
+  nginx:
+    container_name: !reset null
+    # VPN-only access: the proxy listens on one host address, which must be reachable
+    # only through the tunnel. Never 0.0.0.0 nor the public address (installation.md § 10).
+    ports: !override
+      - "${GED_BIND_ADDR:?GED_BIND_ADDR doit etre une adresse joignable par le VPN seulement}:${APP_PORT:-8080}:80"
+    volumes: !override
+      - ./nginx/nginx-vps.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/app-locations.conf:/etc/nginx/snippets/app-locations.conf:ro
