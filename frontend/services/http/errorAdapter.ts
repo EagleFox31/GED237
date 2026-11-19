@@ -12,6 +12,16 @@ import { ApiError, apiErrorFromResponse, apiErrorFromException, pushApiError } f
 
 export type { ApiError };
 
+/** Message court à afficher pour un code HTTP donné, à la place du détail technique du serveur. */
+export type StatusMessages = Partial<Record<number, string>>;
+
+export interface ApiErrorOptions {
+    /** Statuts que l'appelant affiche lui-même : l'erreur est levée sans toast global. */
+    handledStatuses?: readonly number[];
+    /** Message court par code HTTP, affiché par le bus au lieu du détail du serveur. */
+    statusMessages?: StatusMessages;
+}
+
 /**
  * Construit une ApiError typée depuis une Response non-ok, la pousse au bus
  * global (sauf 401 déjà géré par le refresh interceptor), et la retourne pour
@@ -20,11 +30,14 @@ export type { ApiError };
 export const buildApiError = async (
     response: Response,
     fallback: string,
-    handledStatuses: readonly number[] = [],
+    { handledStatuses = [], statusMessages }: ApiErrorOptions = {},
 ): Promise<ApiError> => {
     let apiErr = await apiErrorFromResponse(response);
-    // Si le backend n'a pas renvoyé de detail lisible, utiliser le fallback métier.
-    if (!apiErr.userMessage || apiErr.userMessage === 'Erreur.') {
+    const override = statusMessages?.[apiErr.status];
+    if (override) {
+        apiErr = new ApiError({ ...apiErr.raw, detail: override });
+    } else if (!apiErr.userMessage || apiErr.userMessage === 'Erreur.') {
+        // Si le backend n'a pas renvoyé de detail lisible, utiliser le fallback métier.
         apiErr = new ApiError({ ...apiErr.raw, detail: fallback });
     }
     // Les 401 sont gérés par fetchWithRefresh (refresh ou logout) :

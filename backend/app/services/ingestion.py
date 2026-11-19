@@ -282,6 +282,28 @@ class DirectoryIngestionService:
                 rejected.append(path)
         return files, rejected
 
+    async def _classify_without_ocr(
+        self, document: Document, owner_id: UUID, filename: str, mime_type: str
+    ) -> None:
+        """Separate transaction, as the pass after OCR: a failing rule never loses
+        the import, the document stays ``pending`` for a manual review."""
+        document_id = document.id
+        try:
+            await ClassificationRuleEngine(self.db).classify_document(
+                document=document,
+                source_scope="service",
+                source_user_id=owner_id,
+                filename=filename,
+                mime_type=mime_type,
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            logger.exception(
+                "[Ingestion] Classification failed for document %s", document_id
+            )
+        await self.db.refresh(document)
+
     async def _ingest_single_file(
         self,
         file_path: str,
@@ -405,6 +427,14 @@ class DirectoryIngestionService:
         await self.db.commit()
         await self.db.refresh(document)
 
+        # 2a. No text reading will ever come for TXT, CSV...: classify now on name, type
+        # and category, like an upload. Images, PDFs, Word and Excel are classified by
+        # the worker once their text is read.
+        if not has_text_reader(mime_type):
+            await self._classify_without_ocr(
+                document, owner_id, os.path.basename(file_path), mime_type
+            )
+
         # 2b. Dispatch Event for GEDRules / Routing — sauté en mode 'archive'.
         if processing_mode == "process":
             from app.core.events.dispatcher import dispatcher
@@ -438,6 +468,12 @@ class DirectoryIngestionService:
                     f"[Ingestion] Could not queue OCR for {document.id}: {e}"
                 )
 
+        # 5. Without an OCR pass to come, the classification is final: a document left
+        # « à vérifier » must reach the review screen, as on upload. The worker does
+        # the same for images, PDFs, Word and Excel once their text is read.
+        if not ocr_queued:
+            await self._sync_review(document)
+
         matched_rules = []
 
         return {
@@ -450,3 +486,23 @@ class DirectoryIngestionService:
             "ocr_queued": ocr_queued,
             "source_path": file_path,
         }
+
+    async def _sync_review(self, document: Document) -> None:
+        """Own transaction: a review that cannot be opened never loses the import; the
+        document stays « à vérifier » and the back-fill script can catch it up."""
+        from app.services.classification_review_service import (
+            ClassificationReviewService,
+        )
+
+        document_id = document.id
+        try:
+            await ClassificationReviewService(self.db).sync_review_with_document_status(
+                document=document
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            logger.exception(
+                "[Ingestion] Review not opened for document %s", document_id
+            )
+        await self.db.refresh(document)
