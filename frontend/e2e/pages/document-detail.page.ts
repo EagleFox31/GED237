@@ -28,7 +28,6 @@ export class DocumentDetailModal {
   readonly fileSizeField: Locator;
   readonly tags: Locator;
   readonly downloadButton: Locator;
-  readonly shareButton: Locator;
 
   // Workflow tab content
   readonly workflowSteps: Locator;
@@ -40,6 +39,8 @@ export class DocumentDetailModal {
   // Footer
   readonly signButton: Locator;
   readonly closeFooterButton: Locator;
+  readonly archiveButton: Locator;
+  readonly confirmArchiveButton: Locator;
 
   constructor(page: Page) {
     this.modal = page.locator('.fixed.inset-0').filter({ has: page.getByText('Métadonnées Officielles').or(page.getByText('Circuit de Validation')).or(page.getByText('Détails & Aperçu')) });
@@ -62,7 +63,6 @@ export class DocumentDetailModal {
     this.fileSizeField = page.locator('text=Taille').locator('..').locator('p.font-bold');
     this.tags = page.locator('span:has-text("#")');
     this.downloadButton = page.getByRole('button', { name: /télécharger/i });
-    this.shareButton = page.getByRole('button', { name: /partager/i });
 
     // Workflow content
     this.workflowSteps = page.locator('.relative.flex.items-start.gap-8');
@@ -74,8 +74,32 @@ export class DocumentDetailModal {
     // Footer
     this.signButton = page.getByRole('button', { name: /signer numériquement/i });
     this.closeFooterButton = page.getByRole('button', { name: /fermer/i });
+    // Exact names: « Oui, archiver » (confirmation) and « Archivage… » (request pending) must not match.
+    this.archiveButton = page.getByRole('button', { name: 'Archiver', exact: true });
+    this.confirmArchiveButton = page.getByRole('button', { name: 'Oui, archiver', exact: true });
 
     this.page = page;
+  }
+
+  /** Title of the open document (h2 of the modal header; the confirmation dialog uses an h3). */
+  heading(title: string): Locator {
+    return this.page.getByRole('heading', { level: 2, name: title });
+  }
+
+  async expectOpenOn(title: string) {
+    await expect(this.heading(title)).toBeVisible({ timeout: 10_000 });
+  }
+
+  /** « Archiver » then « Oui, archiver » (ConfirmationModal). */
+  async archive() {
+    await this.archiveButton.click();
+    await this.confirmArchiveButton.click();
+  }
+
+  /** Status badge next to the title reads « Archivé » and « Archiver » is gone. */
+  async expectArchived(title: string) {
+    await expect(this.heading(title).locator('xpath=..').getByText('Archivé', { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(this.archiveButton).toHaveCount(0);
   }
 
   async expectModalVisible() {

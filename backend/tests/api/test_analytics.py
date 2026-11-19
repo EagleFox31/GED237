@@ -1,9 +1,9 @@
 from httpx import AsyncClient
 
 
-async def test_get_tenant_analytics(auth_client: AsyncClient):
-    """Test that an authenticated user can fetch their tenant's analytics."""
-    response = await auth_client.get("/api/v1/analytics/tenant")
+async def test_get_tenant_analytics(admin_client: AsyncClient):
+    """An institution administrator can fetch the tenant analytics."""
+    response = await admin_client.get("/api/v1/analytics/tenant")
     assert response.status_code == 200
     data = response.json()
     assert "users" in data

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
+import logging
 import re
 import secrets
 import unicodedata
@@ -14,6 +15,7 @@ from app.core.errors.domain import (
     AccountLockedError,
     OtpContactMissingError,
     OtpDeliveryError,
+    OtpResendQuotaError,
     OtpResendTooSoonError,
 )
 from app.core.exceptions import AuthenticationError, NotFoundError
@@ -23,6 +25,8 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
     generate_otp,
+    new_session_id,
+    revoked_session_key,
     verify_password,
 )
 from app.models.role import Role
@@ -30,6 +34,8 @@ from app.models.tenant import Tenant
 from app.models.user import User
 from app.services import otp_delivery
 from app.services.audit_trail import audit_entry
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -123,7 +129,9 @@ class AuthService:
             self.SESSION_TOKEN_EXPIRY_SECONDS,
             str(user.id),
         )
-        return self._code_response(session_token, otp, self.OTP_EXPIRY_SECONDS)
+        return self._code_response(
+            session_token, otp, self.OTP_EXPIRY_SECONDS, user.matricule
+        )
 
     async def resend_otp(
         self,
@@ -150,6 +158,7 @@ class AuthService:
         # SET NX: two requests racing get one sending.
         if cooldown > 0 and not await redis.set(resend_key, "1", ex=cooldown, nx=True):
             raise OtpResendTooSoonError(retry_after=await redis.ttl(resend_key))
+        quota_key = await self._count_resend(redis, user_id, resend_key)
         try:
             otp = await self._send_code(
                 db, redis, user, session_token, expires_in=remaining, request=request
@@ -157,8 +166,31 @@ class AuthService:
         except OtpDeliveryError:
             # Nothing was sent: the previous code still works and a retry is allowed.
             await redis.delete(resend_key)
+            if quota_key:
+                await redis.decr(quota_key)
             raise
-        return self._code_response(session_token, otp, remaining)
+        return self._code_response(session_token, otp, remaining, user.matricule)
+
+    async def _count_resend(self, redis, user_id: UUID, resend_key: str):
+        """Count one resend for the account; 429 beyond the quota of the window.
+
+        Counted per account, not per login session: opening new sessions does not
+        give more codes. The window starts at the first resend (SET NX EX).
+        """
+        allowed = settings.AUTH_OTP_RESEND_MAX_PER_WINDOW
+        if allowed <= 0:
+            return None
+        quota_key = f"otp_resend_count:{user_id}"
+        window = settings.AUTH_OTP_RESEND_WINDOW_SECONDS
+        await redis.set(quota_key, 0, ex=window, nx=True)
+        count = await redis.incr(quota_key)
+        if await redis.ttl(quota_key) < 0:  # expired between SET and INCR
+            await redis.expire(quota_key, window)
+        if count > allowed:
+            await redis.decr(quota_key)
+            await redis.delete(resend_key)
+            raise OtpResendQuotaError(retry_after=await redis.ttl(quota_key))
+        return quota_key
 
     async def _send_code(
         self,
@@ -197,7 +229,9 @@ class AuthService:
         return otp
 
     @staticmethod
-    def _code_response(session_token: str, otp: str, expires_in: int) -> Dict[str, Any]:
+    def _code_response(
+        session_token: str, otp: str, expires_in: int, matricule: str
+    ) -> Dict[str, Any]:
         response: Dict[str, Any] = {
             "session_token": session_token,
             "message": "OTP sent to your registered contact",
@@ -207,7 +241,11 @@ class AuthService:
             settings.ENVIRONMENT == "development"
             and otp_delivery.get_channel().echoes_code
         ):
-            response["otp"] = otp
+            if settings.LOGIN_DEMO_HINTS:
+                response["otp"] = otp
+            else:
+                # Echo channel, demo in front of an audience: the presenter reads the code here.
+                logger.warning("Code OTP de demonstration : %s pour %s", otp, matricule)
         return response
 
     @staticmethod
@@ -325,6 +363,7 @@ class AuthService:
             "tenant_id": str(user.tenant_id),
             "role": role.code,
             "matricule": user.matricule,
+            "sid": new_session_id(),
         }
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
@@ -411,12 +450,19 @@ class AuthService:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
             raise AuthenticationError("Invalid refresh token")
+        session_id = payload.get("sid")
+        if session_id:
+            redis = await get_redis()
+            if await redis.get(revoked_session_key(session_id)):
+                raise AuthenticationError("Invalid refresh token")
 
         token_data = {
             "sub": payload["sub"],
             "tenant_id": payload["tenant_id"],
             "role": payload["role"],
             "matricule": payload["matricule"],
+            # Tokens issued before sessions existed get one now, so a later logout revokes them.
+            "sid": session_id or new_session_id(),
         }
         new_access_token = create_access_token(token_data)
         new_refresh_token = create_refresh_token(token_data)
@@ -431,6 +477,8 @@ class AuthService:
         """
         Logout user by blacklisting the access token in Redis.
         The token is stored with its remaining TTL so it auto-expires.
+        Its login session is revoked too: the refresh token of that session (and any
+        access token it issued) is refused until it would have expired anyway.
         """
         payload = decode_token(access_token)
         if not payload:
@@ -442,5 +490,14 @@ class AuthService:
             if remaining > 0:
                 redis = await get_redis()
                 await redis.setex(f"blacklist:{access_token}", remaining, "1")
+
+        session_id = payload.get("sid")
+        if session_id:
+            redis = await get_redis()
+            await redis.setex(
+                revoked_session_key(session_id),
+                settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+                "1",
+            )
 
         return {"message": "Logged out successfully"}

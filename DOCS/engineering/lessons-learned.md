@@ -528,3 +528,399 @@ première requête utilisateur.
 **Résolution** — Spec réécrit sur `/classement` dans #108 (helper `openClassementRules`), à valider par le run `--project=uat` de #108.
 **Prévention** — (1) Un spec e2e ajouté ou modifié est **exécuté** avant fusion : la PR cite la commande et le résultat (`E2E_ARGS="--project=uat <spec>"`) ; « listé, non exécuté » = limite écrite, pas preuve. (2) Run `uat` complet obligatoire avant chaque tag rc (checklist de recette), à défaut d'un job CI planifié — à trancher par ci-qa (`ci.yml` hors de ce lot). (3) Objet de page = un écran : la fonctionnalité testée doit être rendue par la route du `goto()` choisi ; contrôle en relecture : `git grep -n "<Composant>" frontend/profiles` mène bien à la page de la route visée.
 **Leçon généralisée** — Un test qui ne tourne jamais n'est pas un filet, c'est une dette silencieuse : tout ensemble de tests hors CI doit avoir un déclencheur explicite (avant release, planifié) sinon il pourrit sans bruit. Et quand une fonctionnalité change d'écran, ses objets de page et ses specs font partie du changement.
+
+### LESSON-2026-035 — Comparaison visuelle avec API simulée « réussie » sur une page plantée
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing
+- **Statut :** prevention-added (#138 : script versionné `frontend/e2e/visual/`, garde `screen-guard.ts` et test qui la prouve)
+- **Liens :** PR #122 (migration Tailwind compilé), `frontend/components/Dashboard.tsx`, `frontend/App.tsx` (`ProfileDashboard`)
+
+**Contexte** — Pour vérifier #122 sans pile complète, les écrans login, dashboard et règles ont été comparés (build CDN vs build compilé) avec une API simulée répondant `{}` ou `[]` à toute requête, sur la base de styles calculés et de captures.
+**Échec / near miss** — Le « dashboard » comparé était l'écran d'erreur de l'application : la réponse `{}` faisait planter le composant (`metrics.workflows.completed` sur un objet vide), et le profil de test (`tenant`) n'affichait de toute façon pas ce composant, réservé aux profils hors des sept rôles connus. Les deux builds affichaient la même page d'erreur, donc « aucune différence ». Le défaut n'a été vu qu'en cherchant les tuiles au survol.
+**Cause racine** — (1) La comparaison mesurait l'égalité de deux pages, pas la présence de la page voulue. (2) Une maquette d'API trop pauvre ne respecte pas le contrat de type attendu par l'écran. (3) Aucun contrôle ne confirmait que l'écran visé était celui rendu.
+**Résolution** — Maquette complète (forme de `TenantMetrics`, `[]` pour les listes), profil adapté à l'écran, puis comparaison refaite : tuiles et sélecteur identiques. Seuls login et règles du premier passage étaient réellement rendus.
+**Prévention** — Avant toute capture ou comparaison de styles : (1) asserter un sélecteur métier de l'écran visé (titre ou tuile visible) ; (2) asserter l'absence de l'écran d'erreur (texte « Une erreur est survenue ») ; (3) faire échouer le script sinon ; (4) bâtir la maquette depuis le type du contrat (`types.ts`), pas depuis `{}`. Le script de capture n'est pas versionné : la règle vaut pour tout script futur sous `e2e/` ou `scripts/`.
+**Leçon généralisée** — Une comparaison « sans différence » ne prouve rien tant qu'on n'a pas prouvé que ce qui est comparé est bien l'objet visé.
+
+### LESSON-2026-036 — Specs unitaires purs rattachés à un projet e2e dépendant d'une pile : jamais exécutés en CI
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / ci
+- **Statut :** prevention-added (PR #143)
+- **Liens :** PR #97 (`safe-path.spec.ts`), PR #140 (`account-key.spec.ts`), PR #143, `frontend/playwright.config.ts` (projet `chromium` → `setup`), `frontend/playwright.unit.config.ts`, `.github/workflows/frontend.yml`
+
+**Contexte** — Les specs purs (aucun navigateur, aucune API) tournaient sous `@playwright/test`, dans le projet `chromium`, qui dépend de `setup` (connexion sur une pile réelle). La CI ne lance que `--project=smoke`.
+**Échec / near miss** — Un cas de `safe-path.spec.ts` était rouge depuis #97 sans que personne le voie : `'/\evil.example'` vaut `/evil.example` en JS, donc il testait une URL sûre. Découvert le 2026-11-17 en lançant ces specs à la main pour #140.
+**Cause racine** — Même schéma que LESSON-2026-034 : un ensemble de tests sans déclencheur. Le rattachement à un projet qui exige une pile rendait leur exécution coûteuse, donc jamais faite.
+**Résolution** — #143 : `playwright.unit.config.ts` (sans pile ni `webServer`), `npm run test:unit` lancé dans le job Frontend Lint & Typecheck ; cas antislash corrigé (`'/\evil.example'`). 12/12 verts.
+**Prévention** — Un spec pur s'ajoute au `testMatch` de `playwright.unit.config.ts` (commentaire dans le fichier) ; contrôle en relecture : `git grep -L "page\|request" frontend/e2e/specs/*.spec.ts` doit renvoyer seulement des fichiers listés dans ce motif.
+**Leçon généralisée** — Un test unitaire ne doit pas dépendre de l'infrastructure d'un test d'intégration : sinon il en hérite le coût et sort de la CI.
+
+### LESSON-2026-037 — Commande git lancée dans le checkout partagé après un `cd` raté : passations non commitées mises de côté
+
+- **Date :** 2026-11-17
+- **Catégorie :** process / tooling
+- **Statut :** rule-added
+- **Liens :** checkout partagé `GED237` (branche `main`), worktrees `GED237-prc*`, `PASSATION*.md`
+
+**Contexte** — Chaque session travaille dans son worktree ; le checkout partagé `GED237` porte les passations non commitées de toutes les sessions. Une seule commande Bash enchaînait `cd <worktree>; git fetch …; git merge …`.
+**Échec / near miss** — Le chemin du worktree était faux : `cd` a échoué, mais `;` a laissé s'exécuter le reste dans le répertoire de départ. `git merge` a tourné sur `main` du checkout partagé, a mis de côté les modifications locales (autostash), puis s'est arrêté (« Index was not unstashed »). Les cinq `PASSATION*.md` sont revenues à l'état de `HEAD` pendant environ 7 minutes.
+**Cause racine** — Enchaînement par `;` après un `cd` : un échec de navigation ne coupe pas la suite. Le répertoire de départ par défaut est justement le checkout partagé.
+**Résolution** — L'autostash a été retrouvé (`git fsck --no-reflog`, commit « WIP on main »). Chaque fichier a été rétabli dans l'état de l'autostash, puis les entrées ajoutées entre-temps par les autres sessions y ont été remises. Contrôle : uniquement des ajouts par rapport à `HEAD`, et `HEAD` inchangé. Une deuxième session a vérifié.
+**Prévention** — Commandes git hors du checkout partagé : `git -C <worktree> …` systématique, ou `cd <worktree> && …` ; `set -e` en tête des scripts. Dans le checkout partagé, aucune écriture git hormis `pull --ff-only`. Contrôle en relecture des scripts de session : `grep -nE 'cd [^&|]+; *git' <script>` ne doit rien renvoyer.
+**Leçon généralisée** — Une navigation qui peut échouer doit conditionner la suite (`&&`, `set -e`, chemin explicite). Sinon, la commande s'applique là où l'on ne voulait pas agir, et c'est souvent le répertoire le plus partagé.
+
+### LESSON-2026-040 — Entrée du menu admin sans page : « Recherche » ouvrait la page introuvable
+
+- **Date :** 2026-11-17
+- **Catégorie :** frontend / testing
+- **Statut :** prevention-added
+- **Liens :** `frontend/profiles/tenant-admin/menuConfig.ts`, `frontend/App.tsx` (`TAB_TO_ROUTE`, repli `/${tab}`, `NotFoundPage`), `frontend/e2e/specs/route-guard.spec.ts` (GUARD-07)
+
+**Contexte** — Le menu admin est déclaré dans `menuConfig.ts` par identifiants d'onglet. `App.tsx` traduit l'identifiant en route via `TAB_TO_ROUTE`, et à défaut navigue vers `/${tab}`.
+**Échec / near miss** — L'entrée « Recherche » (`search_config`) n'avait ni route ni page : `/search_config` affichait « Espace en Travaux ». Signalé pendant la recette rc.1.
+**Cause racine** — Le menu et les routes sont deux listes séparées, sans contrôle qui les relie. Le repli `/${tab}` masque l'absence de correspondance au lieu de la signaler.
+**Résolution** — Entrée retirée : aucune page de recherche n'existe. La recherche plein texte passe par le bandeau, et le filtre par l'Explorateur documentaire. Ensuite, la version durcie de GUARD-07 a trouvé un 2e lien mort, « Accès & Permissions » (`security_config`). La 1re version l'avait laissé passer. L'entrée est retirée elle aussi : `/authz` est réservé au super admin, et les rôles et permissions sont gérés dans « Agents & Rôles ».
+**Prévention** — GUARD-07 (projet `smoke`, CI des PR) clique chaque entrée de `TENANT_ADMIN_MENU`. Il attend que l'entrée soit active (`aria-current="page"`, posé par `Sidebar`), puis échoue si la page introuvable s'affiche. Une entrée de menu ajoutée sans route fait donc échouer la CI.
+**Leçon généralisée** — Deux déclarations qui doivent rester alignées (menu et routes, config et code) ont besoin d'un test qui les parcourt ensemble. Un repli silencieux transforme l'écart en défaut visible du seul utilisateur. Une assertion négative (« rien de tel n'apparaît ») n'a de valeur qu'après une attente positive qui prouve que l'état visé est atteint. Sinon elle passe trop tôt : la 1re version de GUARD-07 a laissé passer `security_config`.
+
+### LESSON-2026-041 — Table de fermeture des unités jamais alimentée : « unité et sous-unités » réduit en silence à « son unité »
+
+- **Date :** 2026-11-17
+- **Catégorie :** data / authz
+- **Statut :** test-added
+- **Liens :** #195, #196, `app/services/reports_scope.py`, `org_unit_closure`
+
+**Contexte** — La règle des rapports (D-L12-1) borne les rôles d'unité à leur unité et à ses sous-unités ; les sous-unités étaient lues dans `org_unit_closure`.
+**Échec / near miss** — Aucun chemin de l'application n'écrit cette table (ni migration, ni seed, ni création d'unité ; pas même la ligne de profondeur 0). Les tests l'alimentaient à la main. En production, la règle « unité et sous-unités » se réduisait donc à « son unité » sans erreur visible. Trouvé en préparant #195, avant tout signalement.
+**Cause racine** — Une structure dérivée (fermeture transitive) consommée sans propriétaire qui la tienne à jour ; les tests fabriquaient la donnée au lieu de passer par le chemin de création réel.
+**Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
+**Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
+**Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
+
+- **Date :** 2026-11-17
+- **Catégorie :** security / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/users.py` (`_assert_role_grantable`, `update_user`), `backend/tests/api/test_users.py`
+
+**Contexte** — POST et PATCH /users acceptent `role_id` (ou `role_code` à la création). Le droit `users:create`/`users:update` était le seul contrôle.
+**Échec / near miss** — Relevé en revue de #222 : un tenant_admin pouvait donner le rôle super_admin à un agent ou à lui-même, donc l'accès à toutes les institutions.
+**Cause racine** — L'autorisation portait sur l'action (« modifier un agent »), pas sur la valeur écrite. Le rôle attribué n'était comparé à rien.
+**Résolution** — Seul un super_admin attribue super_admin ; personne n'attribue un rôle plus élevé que le sien (`hierarchy_level` plus bas) ; personne ne change son propre rôle. Refus en 403 explicite (`ROLE_GRANT_FORBIDDEN`, `OWN_ROLE_CHANGE_FORBIDDEN`). PATCH refuse aussi un e-mail déjà pris (409 `USER_EMAIL_TAKEN`).
+**Prévention** — Tests de non-régression en POST et en PATCH : tenant_admin vers super_admin refusé (sur lui-même et sur un agent), rôle inférieur et super_admin autorisés.
+**Leçon généralisée** — Un droit d'écriture sur une ressource ne couvre pas les champs qui portent eux-mêmes un privilège (rôle, institution, rattachement). Chaque champ de ce type a son contrôle de valeur et son test de refus.
+
+### LESSON-2026-045 — Verrou avec `populate_existing` : le propriétaire ne pouvait plus restaurer
+
+- **Date :** 2026-11-17
+- **Catégorie :** backend / testing
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_get_document_or_404`), `backend/tests/api/test_trash_purge.py` (`owner_client`)
+
+**Contexte** — #152 verrouille le document (`FOR UPDATE`) avant restauration ou purge, pour voir une purge concurrente.
+**Échec / near miss** — Recette : POST /documents/{id}/restore répondait 500 `MissingGreenlet` quand l'appelant était le propriétaire.
+**Cause racine** — Le verrou était posé sur la lecture complète avec `populate_existing=True`. Le chargement de `Document.owner` réécrivait alors le `current_user` de la même session et déchargeait `User.role` ; le contrôle de droits le relisait hors greenlet. Les tests ne l'ont pas vu : leur utilisateur est un faux objet hors session.
+**Résolution** — Verrou dans une requête à part, sur l'id seul ; puis lecture normale sans `populate_existing`.
+**Prévention** — `owner_client` lit l'appelant dans la session de la requête, comme en production ; le propriétaire restaure et purge son document. Le test échoue sur l'ancien code.
+**Leçon généralisée** — `populate_existing` réécrit tout objet déjà dans la session, y compris l'utilisateur courant. Verrouiller sur une requête minimale, et tester au moins un chemin avec un appelant réel tiré de la session de la requête.
+
+### LESSON-2026-046 — Données e2e partagées consommées par une spec : la suite dépendait de l'ordre de lancement
+
+- **Date :** 2026-11-17
+- **Catégorie :** testing / e2e
+- **Statut :** prevention-added
+- **Liens :** `frontend/e2e/specs/uat/validation-cycle.spec.ts`, `frontend/e2e/specs/seed.spec.ts`, `frontend/e2e/data/seed-manifest.json` (`pendingTasks`), `frontend/e2e/specs/demo-counters.spec.ts`, `frontend/e2e/data/demo.ts` (`DEMO_P8_TITLES`)
+
+**Contexte** — Le seed e2e crée 3 tâches de visa pour MGR001 (`E2E-VAL-*`). `seed.spec` vérifie qu'elles sont en attente ; `validation-cycle` les validait et les rejetait. Cette spec est dans deux projets (`smoke` et `uat`).
+**Échec / near miss** — Suite complète du 17/11 sur f8f1d75 : `seed.spec:58` et SC-VAL-01 [smoke] en échec. MGR001 n'avait plus qu'une tâche sur trois : le 1er passage de `validation-cycle` avait consommé les deux autres. Même jour, `demo-counters:113` attendait 357 documents et en trouvait 359 : les 2 documents P8, ajoutés après le jeu de démo par `e2e_reset.sh demo`.
+**Cause racine** — Une spec qui modifie l'état consommait des données partagées, créées une seule fois par remise à zéro. Le passage n'était donc ni rejouable ni indépendant de l'ordre. Pour demo-counters : le manifeste P8 annonce que ses documents ne comptent pas dans `expected`, mais la spec ne les excluait pas.
+**Résolution** — `validation-cycle` crée ses 3 tâches à chaque passage, par l'API (le collaborateur dépose 3 documents uniques et les soumet au visa du manager), avec des titres propres au passage et à la reprise. Les tâches du seed restent intactes. `demo-counters` écarte les titres de `demo-p8-manifest.json`, dans les documents et dans les revues ouvertes : les 2 bordereaux P8 ne trouvent aucune règle et ont chacun une revue, ce qui donnait 43 revues au lieu de 41.
+**Prévention** — Vérifié sur une pile isolée : smoke (48), `validation-cycle` deux fois (5 + 5), `seed` (3) et `responsive` (13), tous verts dans cet ordre sur la même base ; puis reset démo et `--project=demo` 8/8. Convention déjà écrite pour le projet `uat` (« chaque spec crée ses données par l'API ») et désormais appliquée à la seule spec qui la contournait.
+**Leçon généralisée** — Les données d'un seed se lisent ; elles ne se consomment pas. Une spec qui change l'état crée ses propres données, avec un identifiant de passage. Un test rejoué deux fois de suite sur la même base est la preuve la moins chère de cette indépendance.
+
+### LESSON-2026-051 — Clé de stockage dérivée du nom de fichier : un dépôt de même nom écrasait un autre fichier
+
+- **Date :** 2026-11-18
+- **Catégorie :** data-loss / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/storage/base.py` (`unique_storage_name`), `local.py`, `s3.py`, `backend/tests/api/test_version_storage_keys.py`
+
+**Contexte** — `save_file_with_checksum` rangeait chaque dépôt sous `{tenant}/{unité}/{nom du fichier}`, en local comme en S3/MinIO.
+**Échec / near miss** — Relevé pendant le chantier de restauration de version (V1.2) : deux dépôts de même nom dans la même unité s'écrasaient. Une nouvelle version au nom identique détruisait les octets de la version précédente ; deux dépôts directs de même nom, ceux d'un autre document. Les branches « identique à la version courante » supprimaient ensuite le fichier partagé, donc la version courante elle-même.
+**Cause racine** — La clé de stockage venait d'une donnée utilisateur non unique (le nom), et aucun test ne déposait deux fois le même nom.
+**Résolution** — Clé `{uuid}_{nom}` (le motif de l'import) dans les deux backends, via un seul point (`unique_storage_name`). Aucune migration : les fichiers existants ne sont pas touchés.
+**Prévention** — Tests : même nom deux fois avec octets différents (deux chemins, deux lectures, sha256 = checksum), dépôt identique refusé sans perdre la version courante, retour à une ancienne version refusé, deux dépôts directs de même nom, clé S3 distincte.
+**Leçon généralisée** — Une clé de stockage ne se dérive jamais d'une donnée fournie par l'utilisateur sans élément unique. Tout stockage testé avec deux entrées de même nom, et toute suppression « de nettoyage » vérifie que le fichier n'est pas partagé.
+
+### LESSON-2026-052 — Disque C: saturé pendant une nuit de sessions parallèles : écritures et commits gelés
+
+- **Date :** 2026-11-18
+- **Catégorie :** infra / poste de développement
+- **Statut :** open
+- **Liens :** données Docker de WSL (`docker_data.vhdx`), scripts e2e, `images_export.sh`, builds compose. Numéro 051 laissé à la leçon en cours côté backend.
+
+**Contexte** — Cinq sessions de travail tournaient en parallèle sur un même poste au disque de 476 Go. Les données Docker vivent dans le disque virtuel de WSL (`docker_data.vhdx`). Vers 02:36, il ne restait plus que 0 à 300 Mo libres.
+**Échec / near miss** — Aucune perte constatée. Risques : objets git tronqués, base PostgreSQL abîmée en écriture, faux rouges en e2e. L'orchestration a gelé toute écriture locale et tout commit jusqu'au retour de l'espace.
+**Cause racine** — Personne ne surveille l'espace libre, et aucune tâche lourde (build, e2e, export d'images) ne le vérifie avant de démarrer. Le disque virtuel de WSL grossit et ne rend jamais la place : `docker system prune` libère de l'espace dans WSL, pas sur C:. S'y ajoutent les caches d'outils (paquets, navigateurs de test, compilations).
+**Classification** — Capacité de l'environnement ; near miss ; répétable tant que plusieurs piles tournent sur le même poste.
+**Résolution** — Place libérée par le PO sur le poste ; 49 Go libres (90 % utilisés) au contrôle du 18/11 au matin, au-dessus du seuil de 20 Go. Détail des éléments libérés : à compléter par le PO.
+**Prévention** —
+1. Garde réutilisable `scripts/ensure_free_space.sh`, seuil `MIN_FREE_GB` (20 par défaut). Elle contrôle le disque du dépôt et celui des données Docker, et elle est appelée par les scripts e2e, `images_export.sh` et les builds compose. En cas de refus, elle affiche un message qui dit quoi faire, et ne propose jamais `down -v`. Test : valeur simulée sous le seuil → code de sortie 1 ; au-dessus → 0. Porteur : backend, ≈ 0,25 h-s ; relecture : QA.
+2. `df -h` noté dans chaque passation et chaque point de reprise : alerte sous 50 Go, aucune charge lourde sous 20 Go.
+3. Le compactage de `docker_data.vhdx` est documenté comme une action du PO, jamais celle d'une session.
+4. Plafonds de journaux (`max-size`, `max-file`) vérifiés sur toutes les piles compose.
+**Leçon généralisée** — Une ressource partagée se vérifie avant chaque charge lourde. Une garde qui refuse coûte une ligne ; un disque plein coûte une nuit de travail gelée.
+
+### LESSON-2026-053 — Initialisation immédiate avec effet de bord réseau : un moteur facultatif faisait tomber toute la chaîne OCR
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / backend
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/easyocr_engine.py`, `backend/app/services/ocr/strategy.py`, `backend/Dockerfile` (`EASYOCR_MODEL_DIR`), `backend/tests/services/test_ocr_strategy.py`
+
+**Contexte** — `OCRStrategy()` construit les deux moteurs ; `EasyOCREngine.__init__` chargeait ses modèles, que l'image ne contenait pas : ils se téléchargeaient au premier usage.
+**Échec / near miss** — Relevé par Q pour le 25/11 : sans réseau, `easyocr.Reader` lève `URLError` dans le constructeur, `OCRStrategy()` échoue et toute la tâche OCR tombe, Tesseract compris, alors qu'il aurait lu le scan seul. Sur un réseau coupé sans réponse, le téléchargement n'a pas de délai.
+**Cause racine** — Un composant de repli construit de façon immédiate, avec un effet de bord réseau, et une dépendance d'exécution (les modèles) absente de l'image.
+**Résolution** — Constructeur sans effet de bord ; lecteur chargé à la demande avec `download_enabled=False` ; modèles fr+en cuits dans l'image (couche cachée, `EASYOCR_MODEL_DIR`) ; modèle absent = un avertissement, résultat vide, repli sur Tesseract.
+**Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
+**Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.
+
+### LESSON-2026-054 — Moteur lourd en premier choix et deux processus dans 2 Go : le worker était tué, le document restait « en traitement »
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / capacity
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/strategy.py` (`_select_engines`), `backend/app/core/config.py` (`OCR_PRIMARY_ENGINE`), `docker-compose.yml` (worker `--concurrency=1`), `backend/tests/services/test_ocr_strategy.py`
+
+**Contexte** — Les photos et captures passaient d'abord par EasyOCR (torch), Tesseract n'étant que le repli. Le worker Celery tournait avec `--concurrency=2` et `mem_limit: 2g`.
+**Échec / near miss** — Chaque processus enfant charge son propre lecteur EasyOCR (~1,3 Go) : deux lecteurs dépassent 2 Go, le noyau tue le processus (OOM). La tâche est perdue et le document reste « en traitement » indéfiniment, sans erreur visible.
+**Cause racine** — Moteur le plus lourd choisi par défaut sans budget mémoire par processus, et concurrence réglée sur les CPU sans tenir compte de la mémoire par enfant.
+**Résolution** — `OCR_PRIMARY_ENGINE` (défaut `tesseract`) : EasyOCR n'est plus qu'un repli chargé à la demande, `easyocr` reste possible en option ; worker en `--concurrency=1`. Aucun moteur retiré.
+**Prévention** — Tests : une photo ne charge pas EasyOCR quand le moteur principal est tesseract ; avec `easyocr`, comportement inchangé ; valeur du réglage validée. Reste en V1.1 : un statut d'échec explicite quand une tâche OCR est perdue (un OOM ne doit plus laisser « en traitement »).
+**Leçon généralisée** — Concurrence × mémoire du composant le plus lourd doit rester sous la limite du conteneur ; le chemin par défaut utilise le moteur le plus léger, le lourd est un repli ou une option. Une tâche tuée doit laisser un état d'échec visible, jamais un état « en cours » éternel.
+
+### LESSON-2026-055 — Revue limitée aux diffs : les écrans non modifiés gardaient des contrôles morts et des fenêtres natives
+
+- **Date :** 2026-11-18
+- **Catégorie :** qualité / revue
+- **Statut :** prevention-added
+- **Liens :** `frontend/.eslintrc.json` (`no-alert`), `frontend/e2e/fixtures/noNativeDialog.ts`, `frontend/e2e/fixtures/auth.fixture.ts`, `frontend/e2e/fixtures/authenticated.fixture.ts`
+
+**Contexte** — Les relectures de PR portaient sur les fichiers modifiés. Des écrans d'accueil par rôle, jamais touchés par les PR récentes, contenaient des contrôles sans action et des `alert` / `confirm` / `prompt` natifs, visibles seulement en parcourant l'application comme un utilisateur de chaque rôle.
+**Échec / near miss** — Relevé en recette avant le gel V1.0 : la revue de diff ne pouvait pas voir ce qui n'était pas dans le diff.
+**Cause racine** — Angle mort de la revue limitée aux diffs ; règle `no-alert` désactivée, aucun garde-fou automatique contre les fenêtres natives.
+**Classification** — Couverture de revue ; near miss ; répétable à chaque nouvel écran.
+**Résolution** — Contrôles morts corrigés et fenêtres natives remplacées par `ConfirmationModal` / `RejectReasonDialog` (PR #334, #336). Écrans d'administration corrigés dans une PR dédiée.
+**Prévention** —
+1. `no-alert` en erreur, sans exception.
+2. Garde Playwright automatique (`noNativeDialog`) dans les fixtures communes : tout test qui ouvre une fenêtre native échoue.
+3. Grille de recette : parcours par persona sur l'accueil de chaque rôle, tout élément cliquable agit, aucune fenêtre native.
+**Leçon généralisée** — Une revue de diff ne couvre pas les écrans non modifiés : ce qu'on interdit doit l'être par une règle automatique, et la recette doit parcourir l'application par persona.
+
+### LESSON-2026-056 — Périmètre restreint sur les listes, ouvert par id : unit_admin modifiait les documents d'autres unités
+
+- **Date :** 2026-11-18
+- **Catégorie :** security / authz
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_ensure_in_unit_tree`, `_can_read_document`, `_can_mutate_document`, `_can_trash_document`, `_can_manage_lock`), `backend/tests/api/test_unit_admin_read_scope.py`
+
+**Contexte** — Le périmètre de unit_admin (son unité et les unités en dessous) était appliqué par le filtre des listes (`visible_document_scope`).
+**Échec / near miss** — Relevé en relecture avant fusion : les routes par id (`GET`, `PATCH`, `DELETE`, corbeille, verrou, nouvelle version) ne vérifiaient que le type de droit Casbin. Un unit_admin lisait, modifiait ou supprimait par id un document de toute l'institution.
+**Cause racine** — Deux chemins pour une même règle : le filtre de liste et les prédicats par objet. Seul le premier avait été adapté, et les tests ne couvraient que les listes.
+**Résolution** — Les prédicats par objet appliquent le sous-arbre à unit_admin ; hors sous-arbre, le document est traité comme inconnu (404). Une étape de circuit assignée ouvre toujours la lecture.
+**Prévention** — Tests 404 sur `GET` et `PATCH` par id hors sous-arbre, avec témoins 200 dans le sous-arbre.
+**Leçon généralisée** — Toute règle de périmètre se teste sur les deux chemins : la liste et l'accès par id (lecture et écriture). Un filtre de liste n'est pas un contrôle d'accès.
+
+### LESSON-2026-057 — Ensemble de rôles trop large : unit_admin lisait et écrivait à l'échelle de l'institution
+
+- **Date :** 2026-11-18
+- **Catégorie :** security / authz
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/unit_admin_scope.py`, `backend/app/api/v1/endpoints/analytics.py`, `classification.py`, `classification_reviews.py`, `imports.py`, `workflows.py`, `backend/tests/api/test_unit_admin_write_scope.py`
+
+**Contexte** — Le périmètre de unit_admin (unité et sous-unités) avait été posé sur les documents, la recherche et les rapports (#195, LESSON-2026-056).
+**Échec / near miss** — Relevé par l'audit de routes : `/analytics/tenant`, le circuit d'un document, la cible d'un import, la file de revue et les règles de classement acceptaient unit_admin avec la portée de l'institution, y compris en écriture (créer ou supprimer une règle valable pour toute l'institution).
+**Cause racine** — Ces routes testaient un ensemble de rôles (`ADMIN_ROLES`, `TENANT_WIDE_READ_ROLES`) qui range unit_admin avec tenant_admin ; l'ajout d'un rôle intermédiaire n'a pas relu les routes qui s'appuient sur ces ensembles.
+**Résolution** — Une seule définition de l'arbre (`reports_scope`), des aides asynchrones partagées ; analytics calculé sur le sous-arbre, hors arbre = 403/404, règles hors arbre en lecture seule ou masquées.
+**Prévention** — `test_unit_admin_write_scope.py` : chaque route concernée est jouée avec unit_admin d'une sous-unité et témoin tenant_admin ; `test_unit_admin_crawl` vérifie qu'aucun identifiant d'une autre unité ne sort.
+**Leçon généralisée** — Ajouter un rôle intermédiaire impose de relire chaque ensemble de rôles qui le contient et de jouer les routes avec ce rôle. Un ensemble « admin » n'est pas un périmètre.
+
+### LESSON-2026-058 — Repli automatique vers un moteur trop lourd : un texte déjà lu était perdu avec la tâche
+
+- **Date :** 2026-11-18
+- **Catégorie :** reliability / ocr
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/strategy.py` (`_should_use_fallback`), `backend/app/core/config.py` (`OCR_FALLBACK_ENABLED`), `backend/tests/services/test_ocr_strategy.py`, [LESSON-2026-054](#lesson-2026-054)
+
+**Contexte** — Tesseract lit les photos de la démo en environ 1 s, mais avec une confiance de 57 % ; une confiance faible déclenchait le repli sur EasyOCR.
+**Échec / near miss** — Le worker (2 Go) était tué par SIGKILL en 3 s au chargement d'EasyOCR : la tâche était perdue, `ocr_content` restait vide et aucune photo n'était indexée (363 SIGKILL sur le corpus), alors que le texte de Tesseract était correct.
+**Cause racine** — Le repli était un chemin automatique sans réglage ni borne mémoire : un texte exploitable était remplacé par une tentative qui dépasse la limite du conteneur.
+**Résolution** — Réglage `OCR_FALLBACK_ENABLED` (défaut `false`, déclaré en config, compose et `.env.example`) : désactivé, le texte du premier moteur est conservé tel quel.
+**Prévention** — Tests : réglage à `false`, EasyOCR n'est jamais appelé (images et pages de PDF) ; à `true`, le comportement précédent est inchangé.
+**Leçon généralisée** — Un repli plus lourd que le chemin principal doit être configurable et borné par la mémoire disponible ; ne jamais le laisser remplacer un résultat déjà exploitable au risque de tuer la tâche. La perte d'une tâche tuée (pas d'`acks_late`) reste à traiter en V1.1.
+
+### LESSON-2026-059 — Modèles chargés à la première inférence : un build « réussi » n'embarquait pas les modèles attendus
+
+- **Date :** 2026-11-18
+- **Catégorie :** build / ocr
+- **Statut :** prevention-added
+- **Liens :** `backend/app/services/ocr/rapidocr_params.py` (`download_models`), `backend/app/services/ocr/rapidocr_engine.py`, `backend/Dockerfile`, `backend/tests/services/test_rapidocr_engine.py`
+
+**Contexte** — RapidOCR devait être livré avec ses modèles PP-OCRv5 latin dans l'image, sans téléchargement à l'exécution (hors ligne).
+**Échec / near miss** — Le premier build instanciait seulement le moteur : dossier de modèles vide (la version 3.10.0 charge chaque modèle à la première inférence, et le recognizer seulement si du texte est détecté). Les fichiers `.onnx` visibles dans le paquet étaient les modèles PP-OCRv6 intégrés à la roue, pas ceux choisis. L'étape de contrôle du Dockerfile a arrêté le build ; sans elle, le moteur aurait téléchargé au premier appel en production.
+**Cause racine** — Hypothèse non vérifiée : « instancier = télécharger ». Les paramètres de version n'étaient posés que pour le recognizer ; le détecteur gardait la version par défaut.
+**Résolution** — `download_models()` exécute une inférence sur une image contenant du texte, pour forcer les deux téléchargements ; versions et type de modèle posés pour le détecteur et le recognizer ; le build vérifie la présence du modèle latin.
+**Prévention** — Contrôle de présence dans le Dockerfile (`ls | grep -i latin`) ; essai réel avec `--network none` ; test unitaire de l'absence de modèle (moteur indisponible, aucun accès réseau).
+**Leçon généralisée** — Pour toute bibliothèque qui télécharge ses modèles, forcer l'usage réel au build et prouver l'absence de réseau à l'exécution. Mesurer la mémoire par le pic du conteneur (`memory.peak`) et régler la taille d'entrée en conséquence : 2000 px donnait 755 à 895 Mo, 1600 px 609 à 695 Mo, 1800 px 626 Mo (défaut retenu après le banc de Q : rappel -0,64 point par rapport à 2000).
+
+### LESSON-2026-061 — PR de base entrée dans la file alors que trois PR la ciblaient encore
+
+- **Date :** 2026-11-18
+- **Catégorie :** process
+- **Statut :** captured (contrôle à ajouter par O dans le script de file)
+- **Liens :** `gestion-projet/innovateur/runbook-coupe-19-11.md` § 8.2 (étape 1) et § 8.4, PR #203, #358, #266, #241
+
+**Contexte** — Il n'y a pas de file de fusion GitHub. Un script d'O met la branche à jour, attend que le CI Gate soit vert, puis lance `gh pr merge --merge`. Le ruleset ne protège que la branche par défaut. Le 18/11, #203 (`feat/post-rc1-195-unit-admin-scope`) est entrée dans la file alors que #358, #266 et #241 avaient encore cette branche comme base.
+**Échec / near miss** — La relecture du runbook (§ 8.2, étape 1) l'a détecté, et O a reciblé les trois PR sur `main` avant la fusion. Sans cela :
+- si la branche avait été supprimée à la main (`git push --delete`), les PR qui la ciblent auraient pu être fermées. GitHub ne retarget automatiquement que si la branche est supprimée après la fusion de sa PR ([changelog GitHub, 19/05/2020](https://github.blog/changelog/2020-05-19-pull-request-retargeting)). Ici, `delete_branch_on_merge` vaut `false` ;
+- **risque plus probable, et silencieux** : les trois PR restent ouvertes sur une branche déjà fusionnée. Leur fusion ultérieure atterrit sur cette branche et pas sur `main`, hors du ruleset, donc sans CI Gate obligatoire. Les changements manquent alors à la release sans aucune erreur.
+**Cause racine** — Le script de file ne regarde que la PR à fusionner, pas les PR qui dépendent de sa branche. Le reciblage des PR empilées était une règle orale (mémoire « re-cibler avant fusion »), sans contrôle automatique.
+**Classification** — Processus ; near miss ; répétable à chaque pile de PR. La règle de reciblage existait déjà, mais sans contrôle : il faut donc un contrôle plus fort.
+**Résolution** — #358, #266 et #241 reciblées sur `main` par O le 18/11, avant la fusion de #203. #360 et #361, empilées sur #358, ont été reciblées sur `main` avant sa fusion ; #358 et #360 sont fusionnées le 18/11.
+**Prévention** — Dans le script de file, avant `gh pr merge` : `gh pr list --repo $REPO --base <headRefName> --state open --json number -q 'length'` doit renvoyer `0`. Sinon, refus avec la liste des PR à recibler. Vérifiable : lancer le script à blanc sur #358 tant que #360 la cible, il doit refuser.
+**Leçon généralisée** — On ne fusionne jamais une branche qui sert encore de base à une PR ouverte. Le contrôle doit être dans l'outil de fusion, pas dans la mémoire de l'opérateur : une PR qui cible une branche non protégée échappe aux contrôles obligatoires.
+
+### LESSON-2026-062 — Procédure d'exploitation écrite par déduction : le rejeu a trouvé un écart
+
+- **Date :** 2026-11-18
+- **Catégorie :** process
+- **Statut :** captured (point à ajouter à la grille de relecture de Q)
+- **Liens :** `DOCS/exploitation/donnees-demo.md` (étape 2), PR #363, PR #408 (item 31, #273), `docker-compose.yml` (`name: edossier`, `container_name: edossier_*`)
+
+**Contexte** — La remise à zéro du jeu de démo sur la pile complète a été écrite à partir de la lecture de `docker-compose.yml`, sans l'exécuter. Le texte le disait (« procédure déduite, pas encore rejouée »).
+**Échec / near miss** — Le rejeu de Q (18/11 : 26 s, 408 documents) a buté sur un cas que la lecture n'avait pas vu : une autre pile tourne déjà sur le poste. La première correction proposée, lancer avec un autre nom de projet (`-p`), était elle aussi déduite et elle ne suffit pas. `container_name` fixe le nom du conteneur quel que soit le projet, donc les noms `edossier_*` restent en conflit. La version poussée sur #363 demande une copie du fichier sans `container_name`, avec `-p` et un autre `APP_PORT`.
+**Cause racine** — Une procédure d'exploitation déduite a été traitée comme une procédure prête. La correction est passée par le même chemin (déduction), sans rejeu.
+**Classification** — Documentation ; near miss, corrigé avant la fusion ; répétable sur toute procédure d'exploitation (installation, remise à zéro, sauvegarde, test hors ligne).
+**Résolution** — #363 corrigée (dbca5d0) avec le résultat du rejeu et la note sur une pile concurrente. La même correction est reportée sur `docs/scenario-demo-30-11` et dans le runbook (f5f5d25). #363 est fusionnée le 18/11.
+**Suivi (18/11, item 31)** — Le même manuel d'installation, relu sur papier contre le compose et la config, comptait 3 écarts bloquants, 9 gênants et 8 mineurs (corrigés par #408). `docker compose config` a confirmé que `-p` ne change pas les `container_name`. Le rejeu sur poste neuf du 20/11 passe donc par une surcharge hors dépôt (`container_name: !reset null`, port de l'hôte déplacé), vérifiée elle aussi avec `config` avant le lancement.
+**Prévention** —
+1. Aucune procédure d'exploitation (`DOCS/exploitation/`, runbooks, protocoles) n'est fusionnée sans la mention explicite « rejouée le JJ/MM : résultat » ou « non rejouée ».
+2. Q vérifie ce point dans sa grille de relecture.
+3. Une correction de procédure suit la même règle que la procédure : elle est rejouée, ou marquée « non rejouée ».
+4. Contrôle plus fort, à décider : un hook pre-commit ou un job CI qui échoue si un fichier modifié sous `DOCS/exploitation/` ne contient ni « rejouée le » ni « non rejouée ».
+**Leçon généralisée** — Une procédure qu'on n'a pas exécutée est une hypothèse. Elle le dit, et on ne la fusionne qu'avec l'état de son rejeu. Le correctif d'une procédure est lui aussi une procédure.
+
+### LESSON-2026-063 — Pools d'adresses Docker épuisés : un KO e2e sans test en échec est un faux rouge
+
+- **Date :** 2026-11-18
+- **Catégorie :** infrastructure / testing
+- **Statut :** captured (surcharge compose et consigne de lecture des logs, à porter par F et Q)
+- **Liens :** piles e2e lancées en parallèle par session, mémoire « charges Docker en parallèle » (3 au plus)
+
+**Contexte** — Plusieurs sessions lancent chacune une pile compose e2e, jusqu'à 3 en parallèle. Compose crée un réseau par projet. Les pools d'adresses par défaut du démon Docker n'offrent qu'une trentaine de réseaux : les /16 de 172.17 à 172.31, plus 192.168.0.0/16 découpé en /20. Les réseaux des piles précédentes, jamais supprimés, s'y ajoutent.
+**Échec / near miss** — Le démarrage d'une pile a échoué sur « all predefined address pools have been fully subnetted ». La passe e2e a été lue comme KO, alors qu'aucun test n'avait tourné : c'est un faux rouge. Le temps est passé à chercher une régression dans le code, pas dans l'environnement.
+**Cause racine** — Les réseaux compose s'accumulent : la pile est arrêtée sans être supprimée, ou chaque session prend un nom de projet différent. L'adressage est laissé au pool par défaut. La conclusion « échec de test » a été tirée du code de retour, sans lire le log.
+**Classification** — Environnement et diagnostic ; faux rouge ; répétable dès que plusieurs piles tournent sur le même poste.
+**Résolution** (F, 18/11) — Le premier lot e2e de #364 était tombé en KO, sans aucun test en échec, alors qu'environ 32 réseaux étaient présents, dont certains de projets arrêtés.
+- Seuls les réseaux de F (préfixe `gedtest-f`) ont été supprimés. Aucun réseau d'un autre pair n'a été touché.
+- Un sous-réseau fixe dédié a été ajouté dans la surcharge compose de la passe : `networks.default.ipam.config`, subnet `10.231.77.0/24`, dont on a vérifié qu'il était libre.
+- Relance : #364 est verte (`notifications.spec` : 9 passed ; tsc et tests unitaires OK).
+**Prévention** —
+1. Chaque session déclare un sous-réseau fixe dans sa surcharge compose, par exemple `10.231.77.0/24` (un /24 distinct par session). La pile ne puise plus dans le pool par défaut.
+2. En fin de passe, `docker compose -p <projet de session> down -v --remove-orphans` est obligatoire. C'est valable pour les piles de session uniquement : la pile `edossier_*` reste gelée jusqu'au 22/11, sans `down -v` ni redémarrage.
+3. Avant de conclure à un échec de test, on lit le log : un KO sans test en échec dans le rapport est classé « environnement », pas « régression ».
+4. Contrôle vérifiable : le script e2e échoue avec un message explicite si le rapport ne contient aucun test exécuté. Cela distingue « pile non démarrée » de « tests rouges ».
+**Leçon généralisée** — Un rouge sans test en échec n'est pas un résultat de test. Les ressources partagées d'un poste (réseaux, ports, noms de conteneurs) s'attribuent de façon fixe par session et se libèrent en fin de passe.
+
+### LESSON-2026-064 — Boucle `echo | while read` : docker avale l'entrée standard et la passe s'arrête sans erreur
+
+- **Date :** 2026-11-18
+- **Catégorie :** automation / testing
+- **Statut :** captured (règle d'écriture des boucles, à porter par F et Q)
+- **Liens :** passes e2e en série sur une liste de PR
+
+**Contexte** — Une passe de vérification parcourt une table de PR avec `echo "$table" | while read ...; do ...; done`. Le corps de la boucle appelle une commande docker.
+**Échec / near miss** — La passe s'est arrêtée après 2 PR, sans erreur et avec un code de retour 0. Les PR suivantes n'ont pas été vérifiées, et rien ne le signalait.
+**Cause racine** — La commande docker du corps de boucle hérite de l'entrée standard de la boucle. C'est le cas de `docker compose exec` sans `-T`, de `docker run -i`, et aussi de `ssh`. Elle lit donc le reste de la table, et le `read` suivant trouve une entrée vide : la boucle se termine normalement.
+**Classification** — Outillage ; échec silencieux, un faux vert par omission ; répétable avec toute commande qui lit l'entrée standard dans une boucle `while read`.
+**Résolution** (F, 18/11) — La passe s'était arrêtée après #353. #355, #356, #357 et #361 n'avaient pas été lancées, et `summary.txt` comptait 2 lignes au lieu de 6.
+- Correctif : la table est lue sur un descripteur dédié, `while read -u 3 ...; done 3<<<"$TABLE"`.
+- Relance : toutes les PR sont de nouveau parcourues (#364, #355 et #356 lancées ensuite).
+- À noter, sans lien avec la leçon : le KO de #355 venait d'un paramètre du spec (`undefined` redevenait `true`), pas du code. Deux lancements du même script ont aussi tourné en parallèle par erreur, car `pkill` est absent sous Git Bash. L'un a été tué par PID et ses conteneurs nettoyés. Un seul lot de F tourne à la fois.
+**Prévention** —
+1. On lit la table par un descripteur dédié : `while read -u 3 ...; do ...; done 3< fichier` (ou `3< <(commande)`). Sinon, on coupe l'entrée de chaque commande du corps : `docker ... </dev/null`, `docker compose exec -T`.
+2. En fin de passe, on compare le nombre d'éléments traités au nombre de lignes de la table. Un écart fait échouer le script.
+3. Contrôle vérifiable : une table de 5 lignes factices avec un corps qui appelle `docker compose exec` doit afficher 5 traitements.
+**Leçon généralisée** — Une boucle qui se termine sans erreur n'a pas forcément tout traité. Toute boucle d'outillage compte ses éléments et isole son entrée standard des commandes qu'elle appelle.
+
+### LESSON-2026-065 — Réglage ajouté au code et à la doc, mais jamais transmis par Docker (deux fois le 18/11)
+
+- **Date :** 2026-11-18
+- **Catégorie :** release-deployment / ci-cd
+- **Statut :** captured (contrôle écrit dans #389, à fusionner en V1.1 après la coupe)
+- **Liens :** PR #378 (`VITE_DEMO_PROFILES`), PR #383 (`AUDIT_EXPORT_MAX_ROWS`), PR #389 (contrôle de parité), `backend/app/core/config.py`, `docker-compose.yml`, `.env.example` racine, mémoire « grille de relecture Q » (compose et `.env.example`)
+
+**Contexte** — Les services `api` et `worker` de `docker-compose.yml` ont un bloc `environment` explicite. Une variable du `.env` n'atteint donc le conteneur que si le compose la cite. Côté frontend, une variable `VITE_*` est figée au build : elle doit être déclarée en `ARG` dans le Dockerfile et passée par `build.args` dans le compose. Sur `main`, `Settings` compte 45 champs et le `.env.example` racine 11 variables.
+**Échec / near miss** — La même erreur est arrivée deux fois dans la journée :
+- #378 : `VITE_DEMO_PROFILES` a été ajoutée au code sans être passée au Dockerfile ni au compose ;
+- #383 : `AUDIT_EXPORT_MAX_ROWS` a été ajoutée à `Settings` sans être reprise dans le bloc `environment` du service `api` ni dans le `.env.example` racine.
+Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Docker. L'application tourne avec la valeur par défaut, sans erreur ni avertissement.
+**Cause racine** — Ajouter un réglage touche trois ou quatre fichiers (code, `.env.example`, compose, Dockerfile pour `VITE_*`). Rien ne relie ces fichiers. Les tests tournent hors Docker ou avec la valeur par défaut, donc ils restent verts. La seule barrière était la relecture : la grille de Q cite bien compose et `.env.example`, mais à la main.
+**Classification** — Configuration ; défaut silencieux, attrapé en relecture avant la fusion ; **répété deux fois le même jour**. Une checklist existait déjà : il faut un contrôle automatique.
+**Résolution** — Les deux PR, encore ouvertes, sont corrigées avant leur fusion. #378 passe la variable par le Dockerfile du frontend, le compose et les deux `.env.example`. #383 la reprend dans le compose et les deux `.env.example`.
+**Prévention** — Un test CI de « parité de configuration », écrit dans #389 (`scripts/check-config-parity.py`, exceptions dans `scripts/config-parity-exceptions.txt`, tests dans `scripts/test_check_config_parity.py`, OK de Q en 3d3ad2e). Il est fusionné en premier en V1.1 : toute PR qui ajoute une variable passe ensuite ce contrôle. Ce qu'il vérifie :
+1. **Inventaire** :
+   - lire les champs de `Settings` dans `backend/app/core/config.py`, par analyse statique, sans importer l'application ;
+   - lire les `import.meta.env.VITE_*` utilisés dans `frontend/`.
+2. **Contrôles** :
+   - chaque champ `Settings` est présent dans le `.env.example` racine et transmis par le compose au service qui le lit (`api` ou `worker`, ou les deux) ;
+   - chaque `VITE_*` est présent dans le `.env.example`, déclaré en `ARG` dans le Dockerfile du frontend et passé par `build.args` dans le compose.
+3. **Exceptions explicites** : un fichier versionné, une ligne par variable avec sa raison. Exemples : réglage interne à valeur fixe, variable fournie par la plateforme, variable propre aux tests. Une exception sans raison fait échouer le test.
+4. **Reprise de l'existant** : au premier passage, les écarts actuels (environ 34 champs `Settings` absents du `.env.example`) sont triés un par un. Chacun est ajouté au compose et au `.env.example`, ou passe en exception justifiée. On ne met pas d'exception en masse sans tri.
+5. **Périmètre d'exécution** : le test est un gate de la carte d'impact. Il se déclenche sur `config.py`, `docker-compose*.yml`, `.env.example`, le Dockerfile du frontend et tout fichier du frontend qui lit `import.meta.env`. Il tourne aussi en pre-commit, car il est rapide et ne dépend pas de Docker.
+6. **Preuve que le test fonctionne** : un cas qui ajoute un champ factice à `Settings` sans le compose doit échouer, avec un message qui nomme la variable et le fichier à compléter.
+**Leçon généralisée** — Un réglage existe pour l'utilisateur seulement s'il traverse tous les fichiers qui le transportent jusqu'au conteneur. Quand une erreur de liaison entre fichiers se répète, la checklist ne suffit plus : un test qui compare ces fichiers et n'accepte que des exceptions écrites doit la remplacer.
+
+### LESSON-2026-066 — Motif `testMatch` sur une seule ligne : 30 PR V1.1 en conflit sur la même ligne
+
+- **Date :** 2026-11-18
+- **Catégorie :** testing / process
+- **Statut :** resolved (dossier `frontend/e2e/unit/`)
+- **Liens :** `frontend/playwright.unit.config.ts`, `frontend/e2e/unit/`, LESSON-2026-036
+
+**Contexte** — Les specs purs étaient enregistrés dans une seule regex `testMatch` (ligne 7 de `playwright.unit.config.ts`).
+**Échec / near miss** — Chaque PR qui ajoutait un spec pur modifiait cette même ligne : 30 PR V1.1 en conflit sur ce fichier, résolues une à une par union manuelle.
+**Cause racine** — Un registre centralisé sur une ligne unique pour une liste qui grandit à chaque PR.
+**Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
+**Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
+**Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
+
+### LESSON-2026-067 — Rendu React dans `e2e/unit` : le runner Playwright transforme le JSX, 2 tests rouges sur main
+
+- **Date :** 2026-11-19
+- **Catégorie :** testing
+- **Statut :** resolved (garde-fou `frontend/e2e/unit/unit-folder-guard.spec.ts`)
+- **Liens :** 2d20a028, `frontend/e2e/unit/search-highlight.spec.ts`, `frontend/e2e/specs/uat/search-excerpt.spec.ts`, LESSON-2026-066
+
+**Contexte** — 2d20a028 a ajouté dans `e2e/unit/search-highlight.spec.ts` deux tests qui rendaient `HighlightedExcerpt` avec `renderToStaticMarkup`.
+**Échec / near miss** — Les deux tests échouent sur main : le runner Playwright transforme le JSX des `.tsx` importés en objets `{__pw_type:'jsx'}` (format des tests de composants), que `react-dom/server` ne sait pas rendre.
+**Cause racine** — `e2e/unit` est exécuté par le runner Playwright, pas par un outil de rendu React : seul du code TypeScript pur y fonctionne.
+**Résolution** — `e2e/unit` garde les tests des fonctions pures (`parseHighlight`, `hasHighlightMatch`). Le rendu (HTML échappé, extrait sans mot trouvé, marqueur douteux) est vérifié dans le navigateur par `e2e/specs/uat/search-excerpt.spec.ts`, avec une réponse de `GET /search` simulée. Le composant n'est pas modifié.
+**Prévention** — `e2e/unit/unit-folder-guard.spec.ts` (exécuté par `npm run test:unit`) échoue si un spec de `e2e/unit` importe `react-dom` ou un module `.tsx`. Un second test vérifie que le garde-fou repère bien ces imports.
+**Leçon généralisée** — Un dossier de tests « purs » n'est pur que si un contrôle automatique le garantit : une convention seule ne suffit pas.
+
+### LESSON-2026-068 — Heredoc non protégé : une commande citée dans une note de passation a été exécutée (push involontaire)
+
+- **Date :** 2026-11-19
+- **Catégorie :** process / git
+- **Statut :** resolved (règle de session : heredoc toujours protégé)
+- **Liens :** PR #184 (`feat/post-rc1-undo-ui`, bb1de95d puis 3f5ae410), `PASSATION-dev-frontend.md`
+
+**Contexte** — Une entrée de `PASSATION-dev-frontend.md` est ajoutée par `cat >> fichier <<EOF … EOF` pour y insérer l'heure réelle. Le texte décrit l'étape suivante : « commit, puis `git push origin wip-184:feat/post-rc1-undo-ui` ».
+**Échec / near miss** — Avec un délimiteur non protégé, bash exécute les substitutions du texte. La commande entre accents graves a été lancée à 08:09:37 : `feat/post-rc1-undo-ui` (PR #184, brouillon) a été poussée avec 2 tests e2e encore rouges, et la note a gardé un trou à la place de la commande. Corrigé 3 minutes plus tard (3f5ae410, sans force). Ni main ni une PR en file n'ont été touchées.
+**Cause racine** — `<<EOF` interprète `` `…` ``, `$(…)` et `$VAR` ; la mise en forme Markdown d'une commande (accents graves) devient une exécution.
+**Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
+**Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
+**Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.

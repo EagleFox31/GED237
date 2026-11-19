@@ -32,18 +32,21 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
       },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/, /demo-counters\.spec\.ts/],
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/, /demo-counters\.spec\.ts/],
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/, /demo-counters\.spec\.ts/],
     },
     {
       name: 'authed-chromium',
@@ -83,7 +86,18 @@ export default defineConfig({
       // Each spec seeds its own data through the API, so specs are order-independent and replayable.
       name: 'uat',
       testMatch: /specs[\\/]uat[\\/].*\.spec\.ts/,
+      testIgnore: /specs[\\/]uat[\\/]trash-empty\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // Specs around tenant-wide state (« Vider » acts on the whole trash; reserved to super_admin, so the spec
+      // checks the refusal): alone, after seed and uat, so a right granted by mistake would empty no other test's
+      // data. Not after `demo`: it needs the demo profile, absent from the nightly.
+      name: 'uat-destructive',
+      testMatch: /specs[\\/]uat[\\/]trash-empty\.spec\.ts/,
+      fullyParallel: false,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['seed', 'uat'],
     },
   ],
   webServer: {
