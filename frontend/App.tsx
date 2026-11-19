@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { useFeaturesStore } from './stores/featuresStore';
 import { DEFAULT_ROUTE_BY_PROFILE, defaultRouteForProfile } from './lib/defaultRoute';
 import { takePostLoginDestination, accountKeyOf } from './services';
 import { pushClientOperationError } from './lib/errors';
@@ -169,6 +170,18 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userProfile, layoutMode, setLayoutMode, justLoggedIn, consumeJustLoggedIn } = useAuthStore();
+
+  // Fonctions activables (#230) : lues une fois par session connectée, remises à zéro à la déconnexion.
+  const loadFeatures = useFeaturesStore((s) => s.load);
+  const resetFeatures = useFeaturesStore((s) => s.reset);
+  const sessionProfileId = userProfile?.id;
+  React.useEffect(() => {
+    if (!sessionProfileId) {
+      resetFeatures();
+      return;
+    }
+    loadFeatures().catch(() => resetFeatures());
+  }, [sessionProfileId, loadFeatures, resetFeatures]);
 
   // Tiroir de navigation (écrans < 768 px) : refermé après chaque navigation.
   const [menuOpen, setMenuOpen] = React.useState(false);
