@@ -30,7 +30,7 @@ Cette mise à jour remplace celle de 10:00, conservée dans l'historique git. La
 - **Lab de Q (item 28)** : environ 7 Go de mémoire et 6 Go de disque. Pendant cette plage, l'essai complet de l'item 8 ne démarre pas.
 - **Lab à plusieurs postes** (décision du PO à 10:10 : « oui, après les preuves »). Il se lance après les items 28, 29, 31 et 8.
   - Phase 1 : postes Playwright sur un réseau interne. Porteur : Q.
-  - Phase 2 : un seul vrai Windows (W2). Porteur : ged237-6a.
+  - Phase 2 : un seul vrai Windows (W2). Porteur : ged237-6a. **Décision du PO du 19/11, 11:40 : ce soir à 18:30, environ 1 h.** Les autres sessions arrêtent Docker pendant la plage ; le relevé C6 de 18:00 doit être terminé avant.
   - Conditions de la phase 2 :
     - ménage Docker fait, avec 17 Go libres dans le disque Docker ;
     - une plage d'environ 1 h pendant laquelle les autres sessions arrêtent Docker ;

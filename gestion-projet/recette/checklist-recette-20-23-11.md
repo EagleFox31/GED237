@@ -102,6 +102,7 @@ Les cinq premiers comportements viennent du tri de l’audit du 19/11 (`innovate
 - **Document rejeté.** Le motif se lit dans l'onglet « Circuit de Validation » de la fiche, et aucun bouton ne permet de le renvoyer. C'est conforme à SC-VAL-04.
 - **« Mes Documents » s'arrête à 100 lignes.** La recherche du bandeau ne filtre que la page affichée. Un document absent de cette page n'est pas perdu : le chercher avec « Recherche ».
 - **Pas de « Renvoyer le code ».** Si le code a expiré, recommencer la connexion.
+- **Restaurer un document peut recréer un doublon.** La restauration depuis la corbeille ne vérifie pas les doublons. Le document se retrouve dans la vue « Doublons ». Ne pas le noter en KO (décision du PO, 19/11, 11:40).
 
 Le point suivant est un défaut V1.0, trouvé par Q et confirmé par B le 19/11. La PR de B est en cours, relue par Q. Le point reste annoncé aux testeurs **tant qu'elle n'est pas fusionnée** (#485). À sa fusion : retirer ce point du § 6, puis rejouer un dossier importé pour confirmer qu'il apparaît dans la revue (Q).
 
