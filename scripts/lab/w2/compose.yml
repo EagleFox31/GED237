@@ -17,6 +17,10 @@ services:
       REGION: "fr-FR"
       KEYBOARD: "fr-FR"
       RAM_SIZE: "3G"
+      # Garde RAM_SIZE fixe. Sinon, 3G + la réserve de l'image (0,5 Go) dépassent mem_limit,
+      # l'image passe en mode « max » et mesure ce maximum sur limite - memory.current, cache
+      # disque compris. Après le téléchargement de l'ISO, il ne reste que 4 Mo : arrêt en code 16.
+      RAM_CHECK: "N"
       CPU_CORES: "2"
       DISK_SIZE: "40G"
       BALLOONING: "Y"

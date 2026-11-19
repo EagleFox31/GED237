@@ -910,3 +910,17 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
 **Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
 **Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
+
+### LESSON-2026-081 — Poste de lab W2 : arrêt après le téléchargement, faute de RAM fixe sous le plafond du conteneur
+
+- **Date :** 2026-11-19
+- **Catégorie :** infra / lab
+- **Statut :** resolved (numéro à recaler si une autre PR le prend avant la fusion)
+- **Liens :** PR #500 (`feat/lab-kvm-prereq`), `scripts/lab/w2/compose.yml`, `scripts/lab/test_w2_compose.sh`
+
+**Contexte** — Le poste W2 (image `dockurr/windows:6.06`) est réglé avec `RAM_SIZE: "3G"` et un plafond `mem_limit: 3500m`. Premier lancement le 19/11 à 18:37, sur une VM Docker passée à 16 Go.
+**Échec / near miss** — À 19:07, juste après les 25 min de téléchargement de l'ISO, le conteneur s'arrête en code 16 : « Windows 10 requires at least 2.0 GB of RAM, but only 4.0 MB can be allocated ». La VM avait pourtant plus de 11 Go disponibles.
+**Cause racine** — L'image exige que RAM_SIZE plus sa réserve (0,5 Go) tiennent dans la mémoire restante du conteneur. Ici, 3 Go + 0,5 Go dépassent les 3,5 Go du plafond : RAM_SIZE passe donc en mode « max ». Ce maximum vaut `memory.max - memory.current`, et `memory.current` compte aussi le cache disque. Après l'écriture des 4,9 Go de l'ISO, le cache avait rempli le plafond et il ne restait que 4 Mo. Le message de l'image, qui conseille d'augmenter la mémoire de WSL, menait sur une fausse piste.
+**Résolution** — `RAM_CHECK: "N"` : RAM_SIZE reste fixe à 3 Go, le plafond ne change pas, et le cache se libère de lui-même sous pression. L'ISO déjà téléchargée a été déplacée en `custom.iso` dans le volume, ce qui a évité un second téléchargement. Relance à 19:10.
+**Prévention** — `scripts/lab/test_w2_compose.sh` échoue si `RAM_CHECK` n'est pas à `"N"` ou si `mem_limit` est inférieur à RAM_SIZE + 256 Mo.
+**Leçon généralisée** — Dans un conteneur plafonné, « mémoire disponible » calculée sur `memory.current` inclut le cache disque : une image qui s'auto-dimensionne sur ce chiffre se trompe après toute grosse écriture. Fixer la taille explicitement et lire le code de l'image avant de suivre le conseil affiché.
