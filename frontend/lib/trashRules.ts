@@ -33,3 +33,17 @@ export const isRestoreReservedToAdmin = (
 ): boolean => !canDelete && Boolean(doc.deleted_by) && doc.deleted_by !== myUserId;
 
 export const RESTORE_RESERVED_HELP = 'Retiré par un administrateur. Demandez-lui de le restaurer.';
+
+export type IdenticalDocument = { id: string; title: string };
+
+/**
+ * Restaurer réussit toujours. Le serveur signale en plus un document actif au même fichier
+ * (`identical_document`), seulement s'il est lisible par l'utilisateur. Réponse sans ce champ
+ * (serveur plus ancien) ou incomplète : rien à signaler.
+ */
+export const identicalAfterRestore = (body: unknown): IdenticalDocument | null => {
+  const found = (body as { identical_document?: unknown } | null | undefined)?.identical_document;
+  if (!found || typeof found !== 'object') return null;
+  const { id, title } = found as { id?: unknown; title?: unknown };
+  return typeof id === 'string' && id && typeof title === 'string' ? { id, title } : null;
+};
