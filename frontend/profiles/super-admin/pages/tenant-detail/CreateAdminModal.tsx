@@ -203,7 +203,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ tenantId, or
               required={orgRequired}
               className="w-full px-4 py-3 rounded-xl bg-slate-50 border-2 border-slate-100 focus:border-rdpc-blue outline-none text-sm"
             >
-              <option value="">{form.role_code === 'tenant_admin' ? '— Aucun (admin tenant) —' : '— Sélectionner un service —'}</option>
+              <option value="">{form.role_code === 'tenant_admin' ? '— Aucun (admin institution) —' : '— Sélectionner un service —'}</option>
               {orgOptions.map((o) => (
                 <option key={o.id} value={o.id}>{o.label}</option>
               ))}
