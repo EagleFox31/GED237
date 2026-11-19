@@ -38,7 +38,10 @@ from app.services.workflow_service import (
 )
 
 # Re-exported: the task counters import the clause from this module.
-from app.services.workflow_assignee import _pending_assignee_clause  # noqa: F401
+from app.services.workflow_assignee import (  # noqa: F401
+    _pending_assignee_clause,
+    pending_assignee_clause,
+)
 
 router = APIRouter()
 
@@ -285,7 +288,7 @@ async def get_pending_tasks(
         .join(Document, Document.id == WorkflowStep.document_id)
         .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
         .where(
-            _pending_assignee_clause(current_user),
+            await pending_assignee_clause(current_user),
             WorkflowStep.status == "current",
             Document.tenant_id == current_user.tenant_id,
         )

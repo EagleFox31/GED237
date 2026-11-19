@@ -297,7 +297,7 @@ async def _has_workflow_step_access(
                 ),
                 # A stand-in reads only the absent agent's current step
                 # (DEC-2026-007): least privilege, nothing past or upcoming.
-                actionable_step_clause(user),
+                await actionable_step_clause(user),
             ),
         )
         .limit(1)
