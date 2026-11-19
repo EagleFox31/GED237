@@ -26,9 +26,14 @@ os.environ.setdefault("AUTH_LOGIN_RATE_LIMIT", "1000/minute")
 os.environ.setdefault("AUTH_OTP_RATE_LIMIT", "1000/minute")
 os.environ.setdefault("AUTH_REFRESH_RATE_LIMIT", "1000/minute")
 
+import asyncio
+import functools
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy import text
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from typing import AsyncGenerator, AsyncIterator
@@ -96,22 +101,57 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def prepare_database(test_engine):
-    """Reset application tables before and after every test.
+async def _rebuild_schema(create: bool) -> None:
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            if create:
+                await conn.run_sync(Base.metadata.create_all)
+    finally:
+        await engine.dispose()
+
+
+def _run_outside_test_loop(coro) -> None:
+    # A private loop: pytest-asyncio owns the current one, never touch it.
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+@pytest.fixture(scope="session")
+def test_schema():
+    """Create the application schema once per test session, drop it at the end.
 
     CI runs Alembic migrations before pytest, and some migrations seed reference
-    data such as roles. A bare ``create_all`` therefore preserves those rows and
-    makes test fixtures that use deterministic primary keys fail on the very
-    first test. Drop/create gives each test the same clean starting state,
-    independent of whether the database was freshly migrated or reused locally.
+    data such as roles. Drop/create removes those rows and gives the session the
+    schema of the models, whether the database was freshly migrated or reused.
+    """
+    _run_outside_test_loop(_rebuild_schema(create=True))
+    yield
+    _run_outside_test_loop(_rebuild_schema(create=False))
+
+
+@functools.cache
+def _truncate_statement() -> str:
+    preparer = postgresql.dialect().identifier_preparer
+    tables = ", ".join(preparer.format_table(t) for t in Base.metadata.sorted_tables)
+    return f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def prepare_database(test_schema, test_engine):
+    """Empty every application table before each test.
+
+    One ``TRUNCATE`` replaces the former drop/create around each test, which cost
+    about 1.4 s per test. ``RESTART IDENTITY`` restarts the integer keys (roles,
+    org units), so fixtures with deterministic primary keys keep working.
     """
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text(_truncate_statement()))
     yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest_asyncio.fixture

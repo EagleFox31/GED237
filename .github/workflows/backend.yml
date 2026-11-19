@@ -118,8 +118,8 @@ jobs:
           fi
 
   # The suite runs in 4 parts, balanced by the durations in backend/.test_durations
-  # (pytest-split). Each part has its own PostgreSQL and Redis: the conftest drops and
-  # recreates the schema around every test, so two parts cannot share a database.
+  # (pytest-split). Each part has its own PostgreSQL and Redis: the conftest empties
+  # every table before each test, so two parts cannot share a database.
   # Refresh the durations after large test changes:
   #   python -m pytest tests/ --store-durations
   # A test missing from the file still runs; it is counted at the average duration.
