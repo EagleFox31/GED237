@@ -127,12 +127,13 @@ async def statuses(db: asyncpg.Connection, prefix: str) -> dict:
     return {"overall": dict(overall), NO_KEYWORD_FAMILY: dict(no_keyword)}
 
 
-# Read side once the corpus is in: first page of the list, a word found in almost every
-# document (worst case for search + total), a reference found in one document.
+# Read side once the corpus is in: first page of the list, a word found in every load document
+# (worst case for search + total), one reference (one document per corpus). Search reads the
+# title only, built from the file name: "Annexe Load 000130 2025".
 READ_QUERIES = (
     ("liste", None),
-    ("mot courant", "bordereau"),
-    ("reference", "LOAD-000042"),
+    ("mot courant", "load"),
+    ("reference", "Load 000042"),
 )
 
 

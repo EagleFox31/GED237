@@ -46,7 +46,8 @@ measure() {  # measure <folder> <label> <parallel>
     done ) &
   stats_pid=$!
   local code=0
-  "${dc[@]}" run --rm --no-deps probe python scripts/load_measure.py \
+  # --build: the probe image must carry the current load_measure.py.
+  "${dc[@]}" run --rm --no-deps --build probe python scripts/load_measure.py \
     --root "/data/ingest/$1" --label "$2" --parallel "$3" --out-dir /results/charge || code=$?
   stop_stats
   for id in $("${dc[@]}" ps -aq); do
