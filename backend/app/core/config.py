@@ -194,6 +194,20 @@ class Settings(BaseSettings):
             raise ValueError("SCHEMA_CHECK_MODE must be one of: fail, warn, off")
         return value
 
+    # Real-time push of in-app notifications (services/notifications/realtime.py).
+    # off: REST list only. local: this process. redis: every instance, via pub/sub.
+    NOTIFICATIONS_BROADCAST_MODE: str = "off"
+
+    @field_validator("NOTIFICATIONS_BROADCAST_MODE", mode="before")
+    @classmethod
+    def validate_notifications_broadcast_mode(cls, v: Any) -> str:
+        value = str(v).strip().lower()
+        if value not in {"off", "local", "redis"}:
+            raise ValueError(
+                "NOTIFICATIONS_BROADCAST_MODE must be one of: off, local, redis"
+            )
+        return value
+
     # Email (Resend)
     RESEND_API_KEY: str = Field(default="")
     RESEND_FROM: str = Field(default="onboarding@resend.dev")

@@ -15,6 +15,7 @@ from app.core.database import engine
 from app.core.schema_check import enforce_schema_at_head
 
 from contextlib import asynccontextmanager
+from app.services.notifications import realtime as notifications_realtime
 from app.services.notifications.listeners import register_all_listeners
 from app.services.gedrules_listeners import register_gedrules_listeners
 
@@ -34,8 +35,11 @@ async def lifespan(app: FastAPI):
     if settings.AUTHZ_BACKEND in {"sql", "shadow"}:
         # Fail fast at boot if SQL authz backend is misconfigured or unavailable.
         await reload_enforcer()
+    # No-op unless NOTIFICATIONS_BROADCAST_MODE=redis.
+    await notifications_realtime.start_listener()
     yield
     # Shutdown actions
+    await notifications_realtime.stop_listener()
 
 
 app = FastAPI(
