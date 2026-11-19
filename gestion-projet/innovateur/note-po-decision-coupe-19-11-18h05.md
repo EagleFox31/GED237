@@ -76,9 +76,15 @@ Tant que la question 2 n'a pas de réponse positive et que la protection n'est p
   - En clair : les deux points fragiles deviennent solides, mais aucun point n'est gagné. La perte d'un seul demi-point ramène toujours le score sous le seuil.
 - **Chaîne des migrations** : aucune de ces six PR n'apporte de migration. La base de données de la release reste à `a7c8d9e0f1b2`. Une seule précaution : #445 (qui a une migration) part de la branche de #429. Elle est donc re-ciblée sur `main` avant la fusion de #429, et sa migration ne change pas.
 - **Nouvelle lecture C6** : la pile de démo est relancée sur le SHA final. Il faut ensuite au moins 6 relevés verts consécutifs, soit au moins 30 min, puisque la sonde relève toutes les 5 min.
-- **Les deux questions du § 5** sont reposées avec le SHA final : `d96c1e679c0ff470de4bce30f296dc3fe82cc59e` (`d96c1e67`, les six PR fusionnées, une seule tête de migration `a7c8d9e0f1b2`). Lecture C6 sur ce SHA : ____ relevés verts consécutifs → ☐ tenue ☐ non tenue.
+- **Étape 1, faite** : `d96c1e679c0ff470de4bce30f296dc3fe82cc59e` (`d96c1e67`). Les six PR sont fusionnées, avec une seule tête de migration `a7c8d9e0f1b2`. Ce n'est **plus le SHA de coupe**.
+- **Étape 2, choix du PO (option C)** : #515 « une ligne de journal par décision du circuit » est fusionnée sur `main` après l'OK de Q. Tête `b62925cf`, 4 fichiers, +112/−1, sans migration : la tête reste `a7c8d9e0f1b2`.
+- **Les deux questions du § 5** sont reposées avec le **SHA final, après #515** : `__________`. Lecture C6 sur ce SHA : ____ relevés verts consécutifs → ☐ tenue ☐ non tenue. Le geste C.22 point 4 est rejoué sur ce SHA : ☐ vert ☐ rouge.
 
-## 7. Lecture pour la question de coupe (à présenter après la C6 sur `d96c1e67`)
+## 7. Lecture pour la question de coupe
+
+**Décision du PO : option C.** #515 entre dans `main` avant la coupe. Une nouvelle C6 est lue sur le SHA final. **L'item 11 n'est plus fragile dès que C.22 point 4 est vert sur ce SHA.** Le score reste à 30,5/32 si la C6 est tenue (marge de 0,1), mais il ne reste plus aucun point fragile connu : les items 11, 22 et 24 sont alors prouvés. Si C.22 point 4 reste rouge, l'item 11 redevient fragile, et on le dit au PO avant la question 1.
+
+L'historique de la lecture préparée sur `d96c1e67` suit.
 
 - **Score** : **30,5/32** si la C6 est tenue sur `d96c1e67` ; sinon 30/32 et pas de coupe. La marge reste de 0,1 point : aucun demi-point ne peut être perdu.
 - **Écart trouvé à la recette (C.22, point 4)** : les décisions du circuit (viser, valider, rejeter) n'apparaissent pas dans le journal d'audit. B corrige.
@@ -98,3 +104,18 @@ Tant que la question 2 n'a pas de réponse positive et que la protection n'est p
   - **Item 22** : C.22 points 1, 2 et 3 **verts** (pytest du circuit : 19 tests passés). L'item reste « fait » avec une preuve. Le point 4 (journal d'audit) est **rouge sur `d96c1e67`**, et **vert sur `d96c1e67` + #445** : le journal contient alors `workflow_approved` (2 fois) et `workflow_rejected` pour les trois décisions.
   - **Item 24** : C.24 points 1, 2 et 3 **verts**. Il n'est plus « fait » par déduction : il a maintenant sa preuve. En 1366×768, « Envoyer » est atteint et le dépôt aboutit. En 375 px, les 20 boutons de « Tâches & Suivi » et les 6 de la fenêtre de dépôt sont atteignables.
   - **Bilan** : les deux points fragiles du § 3 (items 22 et 24) sont levés. Il ne reste qu'un point fragile, l'item 11 (journal sans les décisions du circuit). Le choix entre A, B et C le concerne lui seul.
+
+## 8. Question 2 préparée : protection de `release/**`
+
+- **Le texte au PO ne change pas** (§ 5, question 2). Elle se pose seulement si la réponse à la question 1 est oui.
+- **Plan en lecture seule, fait le 19/11 au soir** (runbook § 4.1) :
+  - aucun ruleset ne vise `release/**` : le plan est **CRÉER** ;
+  - aucune branche `release/*` n'existe encore ;
+  - le ruleset de `main` (26190959) n'a pas changé : il vise `~DEFAULT_BRANCH`, avec les règles suppression, réécriture, PR et contrôle CI `CI Gate` ;
+  - `CI Gate` est bien le nom du contrôle, et il est vert sur `d96c1e67`.
+- **Ce que le oui déclenche (O)** :
+  1. Créer la branche à partir du SHA final (runbook § 3).
+  2. Créer le ruleset (§ 4.2). C'est le JSON du § 4, avec les règles de `main` et la création de branche non bloquée par la CI.
+  3. Lancer le plan de contrôle (§ 4.3). Il doit répondre « rien à faire », et la branche doit porter les quatre règles.
+  4. Aucune fusion sur la release avant le vert de 4.3.
+- **En cas de non** : la branche reste créée mais n'est pas protégée. Aucun correctif ne passe alors sur la release (§ 5), et tout correctif de V1.0 passe par `main` puis par une nouvelle coupe.
