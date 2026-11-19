@@ -11,6 +11,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { api } from '../../../../services/api';
+import { ApiError } from '../../../../lib/errors';
+import { canResetApp, isEmailRequiredError } from '../../../../components/auth/otpRules';
 import { useAuthStore } from '../../../../stores/authStore';
 
 interface AgentsListTabProps {
@@ -136,6 +138,7 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
   const [loading, setLoading] = useState(true);
   const [agentsLoadFailed, setAgentsLoadFailed] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Mini-dialogue dédié à l'affichage one-shot du mot de passe temporaire
@@ -309,6 +312,7 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
 
   const closeModal = () => {
     setModalOpen(false);
+    setEmailError(null);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -323,6 +327,7 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
     }
 
     setWorking('agent');
+    setEmailError(null);
     try {
       if (form.id) {
         await api.updateUser(form.id, {
@@ -363,8 +368,11 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
         }
         await loadData();
       }
-    } catch {
-      // Bus centralisé.
+    } catch (err) {
+      // Bus centralisé ; en plus, l'e-mail exigé pour un administrateur est signalé sous le champ.
+      if (err instanceof ApiError && isEmailRequiredError(err.status, err.message)) {
+        setEmailError('E-mail obligatoire pour ce rôle : le code de connexion y est envoyé.');
+      }
     } finally {
       setWorking(null);
     }
@@ -425,21 +433,21 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
     });
   };
 
-  const handleDisableMfa = (agent: Agent) => {
+  const handleResetTotp = (agent: Agent) => {
     setPendingConfirm({
-      title: 'Réinitialiser la double authentification',
-      message: `Le secret 2FA actuel de « ${agent.full_name} » sera effacé. À sa prochaine connexion, l’agent devra reconfigurer son application d’authentification (Google Authenticator, etc.).`,
-      confirmLabel: 'Réinitialiser le 2FA',
+      title: 'Réinitialiser l’application d’authentification',
+      message: `« ${agent.full_name} » configurera une nouvelle application à sa prochaine connexion.`,
+      confirmLabel: 'Réinitialiser',
       icon: 'smartphone',
       bullets: [
-        'À utiliser uniquement si l’agent a perdu son téléphone ou son accès 2FA.',
-        'L’agent ne pourra pas se connecter tant qu’il n’aura pas reconfiguré son application.',
+        'Vérifiez l’identité de l’agent en personne.',
+        'Toutes ses sessions seront fermées.',
       ],
       run: async () => {
         setWorking(`mfa:${agent.id}`);
         try {
-          await api.disableUserMfa(agent.id);
-          showToast({ tone: 'success', message: '2FA réinitialisé. L’agent devra le reconfigurer.' });
+          await api.resetUserTotp(agent.id);
+          showToast({ tone: 'success', message: 'Application réinitialisée. Sessions de l’agent fermées.' });
           await loadData();
         } catch {
           /* bus */
@@ -718,15 +726,15 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
                 <span className="material-symbols-outlined text-[16px]">lock_reset</span>
                 Réinitialiser le mot de passe
               </button>
-              {!isSelf && (
+              {canResetApp(userProfile?.backendRole, selectedAgent.role, isSelf) && (
                 <button
                   type="button"
-                  onClick={() => { void handleDisableMfa(selectedAgent); }}
+                  onClick={() => handleResetTotp(selectedAgent)}
                   disabled={Boolean(working)}
                   className="px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-amber-500 hover:text-white transition-all text-xs tracking-widest uppercase flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[16px]">smartphone</span>
-                  Réinitialiser la double authentification
+                  Réinitialiser l’application d’authentification
                 </button>
               )}
               {!isSelf && (
@@ -887,11 +895,19 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
                     <input
                       type="email"
                       aria-label="Email de l'agent"
+                      aria-invalid={emailError ? true : undefined}
+                      aria-describedby={emailError ? 'agent-email-error' : undefined}
                       value={form.email}
-                      onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                      onChange={(e) => {
+                        setEmailError(null);
+                        setForm((p) => ({ ...p, email: e.target.value }));
+                      }}
                       placeholder="agent@minfi.gov.cm"
-                      className="w-full mt-1 bg-slate-50 border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-rdpc-blue"
+                      className={`w-full mt-1 bg-slate-50 border-2 rounded-2xl py-3 px-4 text-sm font-medium text-slate-700 focus:outline-none focus:border-rdpc-blue ${emailError ? 'border-red-400' : 'border-slate-200'}`}
                     />
+                    {emailError && (
+                      <p id="agent-email-error" role="alert" className="mt-1 ml-1 text-xs font-bold text-red-600">{emailError}</p>
+                    )}
                   </div>
                 </div>
 

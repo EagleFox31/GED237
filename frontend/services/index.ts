@@ -70,6 +70,9 @@ export const api = {
     // Auth
     login: authApi.login,
     verifyOTP: authApi.verifyOTP,
+    resendOTP: authApi.resendOTP,
+    startTotpEnrolment: authApi.startTotpEnrolment,
+    confirmTotpEnrolment: authApi.confirmTotpEnrolment,
     logout: authApi.logout,
     changePassword: authApi.changePassword,
 
@@ -135,6 +138,7 @@ export const api = {
     resetUserPassword: usersApi.resetUserPassword,
     toggleUserActive: usersApi.toggleUserActive,
     disableUserMfa: usersApi.disableUserMfa,
+    resetUserTotp: usersApi.resetUserTotp,
 
     // Tenants
     getPublicTenants: tenantsApi.getPublicTenants,

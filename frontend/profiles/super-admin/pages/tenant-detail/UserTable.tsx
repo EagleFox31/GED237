@@ -5,9 +5,16 @@ import { PAGE_SIZE, ROLE_LABELS, ROLE_BADGE_STYLES } from './constants';
 import { Avatar } from './Avatar';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { DataTable, type Column, type SortState } from '../../../../components/ui/DataTable';
+import { useAuthStore } from '../../../../stores/authStore';
+import { canResetApp } from '../../../../components/auth/otpRules';
 
 const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ user, onAfter }) => {
   const [open, setOpen] = useState(false);
+  const [confirmTotp, setConfirmTotp] = useState(false);
+  const [totpDone, setTotpDone] = useState(false);
+  const self = useAuthStore((s) => s.userProfile);
+  // Le super_admin ne peut viser que les comptes administrateurs, jamais le sien (403 sinon).
+  const canResetTotp = canResetApp('super_admin', user.role, user.role === 'super_admin' && self?.matricule === user.matricule);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [pwd, setPwd] = useState('');
   const [pwdDone, setPwdDone] = useState(false);
@@ -58,6 +65,23 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
       setPwdDone(true);
     } catch {
       // L'erreur est publiée au bus global par buildApiError.
+    }
+  };
+
+  const resetTotp = async () => {
+    try {
+      await api.resetUserTotp(user.id);
+      setTotpDone(true);
+    } catch {
+      /* bus global : le message du serveur est affiché */
+    }
+  };
+
+  const closeTotp = () => {
+    setConfirmTotp(false);
+    if (totpDone) {
+      setTotpDone(false);
+      onAfter();
     }
   };
 
@@ -123,8 +147,36 @@ const RowActionMenu: React.FC<{ user: TenantUser; onAfter: () => void }> = ({ us
             <span aria-hidden="true" className="material-symbols-outlined text-base">key</span>
             Réinitialiser le mot de passe
           </button>
+          {canResetTotp && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setConfirmTotp(true);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">smartphone</span>
+              Réinitialiser l’application d’authentification
+            </button>
+          )}
         </div>
       )}
+      <ConfirmationModal
+        open={confirmTotp}
+        title={totpDone ? 'Application réinitialisée' : 'Réinitialiser l’application d’authentification'}
+        message={totpDone
+          ? `Sessions fermées. « ${user.full_name || user.matricule} » configurera une nouvelle application à sa prochaine connexion.`
+          : `« ${user.full_name || user.matricule} » configurera une nouvelle application à sa prochaine connexion.`}
+        confirmLabel="Réinitialiser"
+        cancelLabel={totpDone ? 'Fermer' : 'Annuler'}
+        hideConfirm={totpDone}
+        icon="smartphone"
+        bullets={totpDone ? undefined : ['Vérifiez l’identité de l’administrateur en personne.', 'Toutes ses sessions seront fermées.']}
+        onConfirm={() => void resetTotp()}
+        onCancel={closeTotp}
+      />
     </div>
   );
 };

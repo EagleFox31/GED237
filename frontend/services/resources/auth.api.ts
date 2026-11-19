@@ -4,9 +4,11 @@
 // SRP : change uniquement si le contrat /auth/* évolue.
 
 import { API_URL } from '../../constants';
-import { apiCall, requestJson, fetchWithRefresh } from '../http/client';
+import { apiCall, fetchWithRefresh } from '../http/client';
 import { clearAuthSession, getHeaders } from '../http/session';
 import { buildApiError } from '../http/errorAdapter';
+import { apiErrorFromResponse } from '../../lib/errors';
+import type { SecurityNotice } from '../../components/auth/securityNotices';
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,21 @@ export interface OTPVerifyPayload {
 export interface LoginResponse {
     session_token: string;
     otp?: string;
+    /** Origine du code : "totp" (application d'authentification), "email", "dev_response". */
+    method?: string;
+}
+
+/** verify-otp d'un rôle qui doit utiliser l'application et n'en a pas encore. */
+export interface TotpEnrolmentRequired {
+    status: 'totp_enrolment_required';
+    enrolment_token: string;
+    expires_in: number;
+    message: string;
+}
+
+export interface TotpSecret {
+    secret: string;
+    otpauth_uri: string;
 }
 
 export interface BackendUser {
@@ -45,24 +62,50 @@ export interface AuthSession {
     refresh_token: string;
     token_type?: string;
     user: BackendUser;
+    /** Changements de l'application depuis la connexion précédente, donnés une seule fois. */
+    security_notices?: SecurityNotice[];
 }
+
+export type OtpVerifyResult = AuthSession | TotpEnrolmentRequired;
+
+export const isEnrolmentRequired = (result: OtpVerifyResult): result is TotpEnrolmentRequired =>
+    'status' in result && result.status === 'totp_enrolment_required';
+
+/**
+ * Écrans avant session (connexion, code, enrôlement) : l'erreur n'est PAS poussée au bus
+ * global (dont le toast montrerait le détail anglais de l'API) ; l'écran affiche son propre
+ * message français (components/auth/authErrors.ts).
+ */
+const postJson = async <T>(path: string, body: unknown): Promise<T> => {
+    const response = await fetch(`${API_URL}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw await apiErrorFromResponse(response);
+    return response.json() as Promise<T>;
+};
 
 // ── API ─────────────────────────────────────────────────────────────────────
 
 export const authApi = {
     login: (payload: LoginPayload): Promise<LoginResponse> =>
-        requestJson<LoginResponse>(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        }),
+        postJson<LoginResponse>('/auth/login', payload),
 
-    verifyOTP: (payload: OTPVerifyPayload): Promise<AuthSession> =>
-        requestJson<AuthSession>(`${API_URL}/auth/verify-otp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        }),
+    verifyOTP: (payload: OTPVerifyPayload): Promise<OtpVerifyResult> =>
+        postJson<OtpVerifyResult>('/auth/verify-otp', payload),
+
+    /** Nouveau code e-mail pour la même session de connexion (409 sur une session TOTP). */
+    resendOTP: (session_token: string): Promise<LoginResponse> =>
+        postJson<LoginResponse>('/auth/resend-otp', { session_token }),
+
+    /** Enrôlement imposé : secret à scanner, montré une seule fois. */
+    startTotpEnrolment: (enrolment_token: string): Promise<TotpSecret> =>
+        postJson<TotpSecret>('/auth/totp/enrolment/start', { enrolment_token }),
+
+    /** Premier code de l'application : termine la connexion. */
+    confirmTotpEnrolment: (enrolment_token: string, code: string): Promise<AuthSession> =>
+        postJson<AuthSession>('/auth/totp/enrolment/confirm', { enrolment_token, code }),
 
     logout: async (): Promise<any> => {
         const response = await fetchWithRefresh(`${API_URL}/auth/logout`, {
