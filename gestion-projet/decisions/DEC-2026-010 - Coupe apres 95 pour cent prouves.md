@@ -56,6 +56,13 @@ Instruction de l'option b (19/11) :
 - **Bloquant** : le disque. Il faut 25 Go libres, et il y en a 21. Si l'item 28 passe avant, sa machine simulée doit d'abord être libérée.
 - **Risque élevé sur les 20 minutes** : le seul ordre de grandeur connu (seed de démo : 408 documents en 26 à 32 s) donne 13 à 16 fichiers/s, contre 84 requis, soit 1 h 45 à 2 h pour 100 000 fichiers. L'API est plafonnée à 1 Go et ne sait pas reprendre un import interrompu. Le « fait » est donc improbable, le « partiel » est atteignable.
 
+**Mise à jour du 19/11 (deuxième instruction, demande du PO de le faire aujourd'hui)** : protocole réduit et corrigé, porté par aide-api.
+- **Correction de #166.** `ingest-directory` ne classe rien dans la requête : le classement se fait dans le worker, pour les PDF et les images (B doit le confirmer). La mesure ajoute donc un worker et arrête le chrono quand plus aucun document n'est `pending`.
+- **Jeu de données.** 100 000 PDF texte de 1 à 4 Ko, sans OCR, dans un volume Docker. Le disque monte à environ 2,5 Go au pic au lieu de 7 Go. Un lot témoin de 1 000 fichiers est fait à la taille prévue par #166.
+- **Déroulé.** Étalonnage sur 2 000 fichiers, puis M1, M2 et M6. L'essai à 100 000 se lance après le démontage du lab de Q.
+- **Coût.** Environ 3 h-s, plus 20 min à 2 h de machine.
+- **Écarts à #166 à faire valider par le PO** : la taille des fichiers et le classement par le worker.
+
 Recommandation de l'innovateur : **b si C6 échoue ce soir, a sinon**. Dans les deux cas, la passe des items 28 et 31 (§ 2 bis) vient d'abord : elle rapporte +1,5 pour 2,5 h-s. O présente les options au PO après le relevé de 18:00. Décision du PO : `‹a / b / c›`, le `‹date›`.
 
 ## 5. Réversibilité
