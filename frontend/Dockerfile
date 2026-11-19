@@ -25,8 +25,9 @@ RUN HUSKY=0 npm ci
 
 COPY . .
 
-# Login screen demo profiles: same LOGIN_DEMO_HINTS as the API (false hides them).
-ARG VITE_LOGIN_DEMO_HINTS=true
+# Login screen demo profiles: hidden in a production image unless built with
+# --build-arg VITE_LOGIN_DEMO_HINTS=true (demo installations only).
+ARG VITE_LOGIN_DEMO_HINTS=false
 ENV VITE_LOGIN_DEMO_HINTS=${VITE_LOGIN_DEMO_HINTS}
 ARG VITE_API_URL=/api/v1
 ENV VITE_API_URL=${VITE_API_URL}
