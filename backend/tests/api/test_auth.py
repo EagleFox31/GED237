@@ -22,10 +22,11 @@ async def test_login_invalid_credentials(async_client: AsyncClient, db_seed):
 
 @pytest.mark.asyncio
 async def test_protected_route_without_token(async_client: AsyncClient):
-    """Test accessing a protected route without a JWT token returns 403."""
+    """Test accessing a protected route without a JWT token returns 401."""
     response = await async_client.get("/api/v1/users/me")
-    # HTTPBearer returns 403 when no credentials are provided
-    assert response.status_code == 403
+    # HTTPBearer answers 401 with a Bearer challenge when no credentials are sent.
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 async def _full_login(client: AsyncClient, db_seed) -> dict:
