@@ -12,6 +12,8 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import Documents from './components/Documents';
+import TrashPage from './components/TrashPage';
+import DuplicatesPage from './components/DuplicatesPage';
 import WorkflowTasks from './components/WorkflowTasks';
 import LoginPage from './components/LoginPage';
 import ChangePassword from './components/ChangePassword';
@@ -63,6 +65,8 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/local-library': 'local_library',
   '/audit': 'audit_central',
   '/reports': 'reports',
+  '/trash': 'trash',
+  '/duplicates': 'duplicates',
 };
 
 const TAB_TO_ROUTE: Record<string, string> = {
@@ -85,6 +89,8 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'local_library': '/local-library',
   'audit_central': '/audit',
   'reports': '/reports',
+  'trash': '/trash',
+  'duplicates': '/duplicates',
 };
 
 export { defaultRouteForProfile };
@@ -104,6 +110,8 @@ export const ADMIN_ROUTES = {
   '/users': ['super', 'tenant'],
   // Lecture du journal : super_admin, tenant_admin, auditor (backend/app/core/authz/policy.csv).
   '/audit': ['super', 'tenant', 'audit'],
+  // Statistiques (analytics.tenant, read) : tous les profils sauf le lecteur (policy.csv).
+  '/reports': ['super', 'tenant', 'unit', 'manager', 'collab', 'audit'],
 } as const satisfies Record<string, ReadonlyArray<ProfileId>>;
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
@@ -270,7 +278,9 @@ const AppLayout: React.FC = () => {
             <Route path="/ingestion" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><DirectoryIngestion /></RequireProfile>} />
             <Route path="/local-library" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><LocalLibraryPage /></RequireProfile>} />
             <Route path="/audit" element={<RequireProfile allow={ADMIN_ROUTES['/audit']} message={AUDIT_DENIED_MESSAGE}><AuditLogs /></RequireProfile>} />
-            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/reports" element={<RequireProfile allow={ADMIN_ROUTES['/reports']} message={LOCAL_TOOLS_DENIED_MESSAGE}><ReportsPage /></RequireProfile>} />
+            <Route path="/trash" element={<TrashPage />} />
+            <Route path="/duplicates" element={<DuplicatesPage />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
