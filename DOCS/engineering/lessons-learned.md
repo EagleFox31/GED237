@@ -598,6 +598,7 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+
 ### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
 
 - **Date :** 2026-11-17
