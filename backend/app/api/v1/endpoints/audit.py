@@ -1,9 +1,8 @@
 # backend/app/api/v1/endpoints/audit.py
 import csv
-import hashlib
 import io
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Any, Literal, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,9 +15,7 @@ from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
 from app.models.audit import AuditLog
 from app.models.document import Document
-from app.models.tenant import Tenant
 from app.models.user import User
-from app.services.audit_pdf import content_digest, render_audit_pdf
 
 router = APIRouter()
 _T = TypeVar("_T")
@@ -72,8 +69,6 @@ ACTION_LABELS = {
 # Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.
 LOCAL_TZ = timezone(timedelta(hours=1), "WAT")
 EXPORT_MAX_ROWS = 50_000
-# About 70 landscape pages: a longer printed journal is slow to build and nobody reads it; use the CSV.
-EXPORT_MAX_ROWS_PDF = 2_000
 _EXPORT_BATCH = 2_000
 EXPORT_COLUMNS = (
     "Date",
@@ -280,92 +275,6 @@ def _csv_row(entry: dict[str, Any], created_at: Optional[datetime]) -> list[str]
     ]
 
 
-def _pdf_row(entry: dict[str, Any], created_at: Optional[datetime]) -> list[str]:
-    """Same columns as the CSV, local date written the French way; no formula guard (not a sheet)."""
-    when = ""
-    if created_at is not None:
-        aware = (
-            created_at if created_at.tzinfo else created_at.replace(tzinfo=timezone.utc)
-        )
-        when = aware.astimezone(LOCAL_TZ).strftime("%d/%m/%Y %H:%M:%S")
-    return [when] + [
-        entry[key] or ""
-        for key in (
-            "user_matricule",
-            "user_name",
-            "table_label",
-            "resource_label",
-            "action_label",
-            "detail",
-            "ip_address",
-        )
-    ]
-
-
-def _period_label(date_from: Optional[str], date_to: Optional[str]) -> str:
-    def french(value: str) -> str:
-        return date.fromisoformat(value).strftime("%d/%m/%Y")
-
-    if date_from and date_to:
-        return f"Du {french(date_from)} au {french(date_to)} inclus"
-    if date_from:
-        return f"Depuis le {french(date_from)}"
-    if date_to:
-        return f"Jusqu'au {french(date_to)} inclus"
-    return "Tout le journal"
-
-
-def _labels(
-    value: str | list[str] | None, labels: dict[str, str], everything: str
-) -> str:
-    items = _values(value)
-    return ", ".join(labels.get(item.lower(), item) for item in items) or everything
-
-
-async def _pdf_meta(
-    db: AsyncSession,
-    current_user: User,
-    *,
-    filters: dict[str, Any],
-    user_ids: list[UUID],
-    total: int,
-    now: datetime,
-    data_sha256: str,
-) -> list[tuple[str, str]]:
-    """Label/value block printed above the table: who, when, which filters, fingerprint."""
-    tenant_name = await db.scalar(
-        select(Tenant.name).where(Tenant.id == current_user.tenant_id)
-    )
-    users = "Tous"
-    if user_ids:
-        found = (
-            await db.execute(
-                select(User).where(
-                    User.tenant_id == current_user.tenant_id, User.id.in_(user_ids)
-                )
-            )
-        ).scalars()
-        users = ", ".join(sorted(f"{u.full_name} ({u.matricule})" for u in found)) or (
-            "Aucun utilisateur connu"
-        )
-    return [
-        ("Établissement", tenant_name or ""),
-        ("Exporté par", f"{current_user.full_name} ({current_user.matricule})"),
-        ("Exporté le", f"{now:%d/%m/%Y à %H:%M} (heure du Cameroun)"),
-        ("Période", _period_label(filters.get("date_from"), filters.get("date_to"))),
-        ("Objets", _labels(filters.get("table_name"), TABLE_LABELS, "Tous")),
-        ("Actions", _labels(filters.get("action"), ACTION_LABELS, "Toutes")),
-        ("Utilisateurs", users),
-        ("Nombre de lignes", str(total)),
-        ("Empreinte des données (SHA-256)", data_sha256),
-        (
-            "Empreinte du fichier",
-            "SHA-256 de ce fichier PDF, consignée dans le journal d'audit "
-            "(ligne « Export du journal » de cet export).",
-        ),
-    ]
-
-
 @router.get("/logs/export")
 async def export_audit_logs(
     # Repeat the parameter for several values (?action=upload&action=delete), like the screen.
@@ -374,15 +283,10 @@ async def export_audit_logs(
     user_id: Optional[list[UUID]] = Query(default=None),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
-    export_format: Literal["csv", "pdf"] = Query(default="csv", alias="format"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """The filtered journal, as CSV (default) or as an official PDF. The export is itself logged.
-
-    CSV: Excel in French (UTF-8 BOM, ``;``). PDF: printable copy with the data fingerprint
-    printed in it; the file's SHA-256 is in ``X-Report-SHA256`` and in the export's audit row.
-    """
+    """CSV of the filtered journal (Excel in French: UTF-8 BOM, ``;``). The export is itself logged."""
     await authorize_or_403(current_user, "audit_logs", "read")
     filters = {
         "table_name": _logged_filter(table_name),
@@ -409,22 +313,12 @@ async def export_audit_logs(
             status_code=422,
             detail=f"Plus de {EXPORT_MAX_ROWS} lignes : affinez la periode ou les filtres.",
         )
-    as_pdf = export_format == "pdf"
-    if as_pdf and total > EXPORT_MAX_ROWS_PDF:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Plus de {EXPORT_MAX_ROWS_PDF} lignes pour un PDF : affinez la p\u00e9riode "
-                "ou les filtres, ou exportez en CSV."
-            ),
-        )
 
-    # Rows are read in batches; the file is built before the response so the DB session
+    # Rows are read in batches; the CSV is built before the response so the DB session
     # is not used after the dependency closes it.
     buffer = io.StringIO()
     writer = csv.writer(buffer, delimiter=";", lineterminator="\r\n")
     writer.writerow(EXPORT_COLUMNS)
-    pdf_rows: list[list[str]] = []
     ordered = query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
     for offset in range(0, total, _EXPORT_BATCH):
         logs = list(
@@ -437,47 +331,7 @@ async def export_audit_logs(
             entry = _serialize_audit_log(
                 log, actors_by_id=actors_by_id, documents_by_id=documents_by_id
             )
-            if as_pdf:
-                pdf_rows.append(_pdf_row(entry, log.created_at))
-            else:
-                writer.writerow(_csv_row(entry, log.created_at))
-
-    logged_filters = {key: value for key, value in filters.items() if value}
-    now = datetime.now(LOCAL_TZ)
-    stamp = now.strftime("%Y%m%d-%H%M")
-    new_data: dict[str, Any] = {"rows": total, "filters": logged_filters}
-    if as_pdf:
-        data_sha256 = content_digest(EXPORT_COLUMNS, pdf_rows, logged_filters)
-        content = render_audit_pdf(
-            title="Journal d'audit",
-            meta=await _pdf_meta(
-                db,
-                current_user,
-                filters=logged_filters,
-                user_ids=_values(user_id),
-                total=total,
-                now=now,
-                data_sha256=data_sha256,
-            ),
-            columns=EXPORT_COLUMNS,
-            rows=pdf_rows,
-            footer=f"Journal d'audit, export\u00e9 le {now:%d/%m/%Y \u00e0 %H:%M}",
-        )
-        file_sha256 = hashlib.sha256(content).hexdigest()
-        new_data.update(
-            format="pdf", content_sha256=data_sha256, file_sha256=file_sha256
-        )
-        media_type = "application/pdf"
-        headers = {
-            "Content-Disposition": f'attachment; filename="journal-audit-{stamp}.pdf"',
-            "X-Report-SHA256": file_sha256,
-        }
-    else:
-        content = ("\ufeff" + buffer.getvalue()).encode("utf-8")
-        media_type = "text/csv; charset=utf-8"
-        headers = {
-            "Content-Disposition": f'attachment; filename="journal-audit-{stamp}.csv"'
-        }
+            writer.writerow(_csv_row(entry, log.created_at))
 
     db.add(
         AuditLog(
@@ -486,12 +340,23 @@ async def export_audit_logs(
             table_name="audit_logs",
             record_id=current_user.id,
             action="exported",
-            new_data=new_data,
+            new_data={
+                "rows": total,
+                "filters": {key: value for key, value in filters.items() if value},
+            },
         )
     )
     await db.commit()
 
-    return Response(content=content, media_type=media_type, headers=headers)
+    content = "\ufeff" + buffer.getvalue()
+    stamp = datetime.now(LOCAL_TZ).strftime("%Y%m%d-%H%M")
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="journal-audit-{stamp}.csv"'
+        },
+    )
 
 
 @router.get("/logs")
