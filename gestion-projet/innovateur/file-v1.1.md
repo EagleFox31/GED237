@@ -19,9 +19,10 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # Avant la file (ou en tête de la vague 0) : PR de convention de F pour playwright.unit.config.ts ; ensuite chaque PR ne fait que déplacer sa spec (simulation de Q, 18/11 : 109 PR, 61 en conflit avec main). C’est #421 (OK de Q, en file le 18/11).
 # Tête de file (O, 19/11) : #464 (correctif 1.0 de /trash, OK de Q) ; la candidate release/v1.0.0 est coupée dès sa fusion.
 # Juste après la coupe : la paire doublons, qui doit entrer dans la candidate (décision du PO, 19/11). Elle fusionne dans main avant toute autre PR, puis une PR de report main → release/v1.0.0 l'amène dans la candidate (plan-fusion-v1.1.md, § 1 bis). Ces PR sortent du brouillon sur décision d'O, par exception à la règle du 24/11.
+# Approche A retenue par O (19/11). main est gelé de la coupe au report : seules #152, #181, #171, #199 et #104 y entrent. #104 (HORS_FILE) passe après #199 et entre dans la candidate par la même PR de report.
 ORDER_V0="464 152 181 171 199 389 403 383"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 449 448 454 438 465 444 440 455 439 442 419 447 434 424 428 443"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 449 448 454 438 466 465 444 440 455 439 442 419 447 434 424 428 443"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -95,7 +96,7 @@ DEP[403]="389"; DEP[401]="407"; DEP[405]="394"
 # Après la chaîne OCR (O, 18/11 au soir)
 DEP[436]="387"
 # Piles et suites ouvertes le 18/11 au soir (O) ; #445 porte une migration (chaîne alembic, plan-fusion § 4)
-DEP[438]="429"; DEP[448]="437"; DEP[444]="438"; DEP[446]="416"; DEP[440]="438"; DEP[445]="429 436"
+DEP[438]="429"; DEP[466]="438"; DEP[448]="437"; DEP[444]="438"; DEP[446]="416"; DEP[440]="438"; DEP[445]="429 436"
 # Ouvertes le 18/11 dans la nuit (O) : #449 empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437 (Q) ; #450 empilée sur #441
 DEP[449]="435 437"; DEP[450]="441"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"; DEP[456]="445"; DEP[457]="445"; DEP[463]="457"
 DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
@@ -142,7 +143,7 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 | #193 | #219 |
 | #180 | #209 |
 | #165 | #205 |
-| #429 | #438, #445 ; puis, avant #438 : #444, #455 |
+| #429 | #438, #445 ; puis, avant #438 : #444, #455, #466 |
 | #416 | #446 |
 | #437 | #448 ; puis, avant #448 : #454 |
 | #435 | #449 |

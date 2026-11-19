@@ -68,11 +68,53 @@ Aucune des quatre n'a de migration. #152 et #181 ajoutent chacune une leçon dan
 | Risque principal | Si une autre PR fusionne dans `main` pendant la fenêtre, le report l'emporte aussi. Parade : gel de `main` de la coupe au report. Il ne coûte presque rien, puisque les PR V1.1 restent en brouillon jusqu'au 24/11. Sinon, la branche de report part de `release/v1.0.0` avec `git cherry-pick -m 1` des 4 commits de fusion. | La candidate reçoit du code qui n'est pas encore sur `main`. Si le retour tarde, `main` n'a plus ce que la recette a validé, et la V1.1 doit être reprise. |
 | Effort (h-s) | ≈ 4,25 : #152 B 0,5 ; #181 F 0,5 ; #199 F 1 (fusion de #181, 8 fichiers) ; Q 2 (4 relectures, dont le contrôle de #464 sur #152) ; report O et Q 0,25. | ≈ 5 : le même travail, plus les 4 re-ciblages, le retour vers `main` et sa relecture (≈ 0,75). |
 
-**Recommandation : A.** Elle garde `main` comme seule source et ne demande aucun changement d'outil. Le report se relit en une passe, car c'est le diff des 4 PR déjà validées. Conditions : O lève le brouillon de ces 4 PR seulement, et gèle `main` de la coupe au report. S'il faut quand même fusionner un correctif 1.0 pendant la fenêtre, on le fait passer par la même PR de report, puisqu'il doit aussi aller dans la candidate.
+**Décision d'O (19/11) : approche A retenue.**
+- `main` est gelé de la coupe au report. Seules #152, #181, #171, #199 et #104 (notes de version) y entrent.
+- O sort les 4 PR de la paire du brouillon au moment de leur passage, par exception à la règle du 24/11 (DEC-2026-010).
+- Un correctif 1.0 urgent pendant le gel passe par la même PR de report.
+- La variante « couper après #199 » est écartée : le PO a tranché « coupe dès que #464 est fusionnée et `main` vert ». #464 est fusionnée, `main` = 103ce48b.
 
-**Variante, si la paire est verte avant la coupe** : couper juste après #199 au lieu de #464. Il n'y a alors aucun report, mais la coupe attend la paire. Le choix revient à O, selon l'heure de la recette du 20/11.
+**Ordre** : #464 (fusionnée) → CI de `main` verte et accord du PO → coupe → #152 → re-cibler #181 sur `main` → #181 → #171 → re-cibler #199 sur `main` → #199 → #104 → PR de report (§ 1 ter) → OK de Q → fusion dans la candidate → fin du gel de `main`.
 
-**Ordre** : #464 → coupe → #152 → re-cibler #181 sur `main` → #181 → #171 → re-cibler #199 sur `main` → #199 → PR de report → OK de Q → fusion dans la candidate → fin du gel de `main`.
+## 1 ter. PR de report `main → release/v1.0.0` (texte prêt pour O)
+
+**Branche** : `report/v1.0.0-doublons`, créée depuis `main` après la fusion de #104. Cible : `release/v1.0.0`. Si une PR hors liste est entrée dans `main` malgré le gel, on crée plutôt la branche depuis `release/v1.0.0` et on y applique `git cherry-pick -m 1` des 5 commits de fusion.
+
+**Titre** : `chore(release): report de la vue doublons et des notes de version dans la candidate 1.0`
+
+**Corps** :
+
+> Report dans `release/v1.0.0` des PR fusionnées dans `main` pendant le gel (DEC-2026-010, approche A de `plan-fusion-v1.1.md` § 1 bis).
+>
+> **Contenu attendu, et rien d'autre**
+> - #152 : corbeille côté serveur (DELETE vers la corbeille, purge sûre, groupée et automatique)
+> - #181 : écran Corbeille, restauration et purge selon les droits serveur
+> - #171 : vue doublons côté API (garder un document, mettre les autres à la corbeille)
+> - #199 : écran des doublons
+> - #104 : notes de version et relevé
+>
+> Objectif : item 19 du CDC (détection des doublons) de `partiel` à `fait`. C'est une des 5 conditions des 95 % de la 1.0 finale.
+>
+> **Contrôles avant fusion**
+> 1. `git log --first-parent --oneline origin/release/v1.0.0..HEAD` ne liste que les 5 commits de fusion ci-dessus. Tout autre commit bloque la fusion.
+> 2. `git diff --stat origin/release/v1.0.0...HEAD` est égal à la somme des diffs des 5 PR : pas de fichier en plus.
+> 3. Aucune migration alembic dans le diff ; la tête alembic de la candidate ne change pas.
+> 4. CI verte sur la PR (`ci.yml` tourne sur `release/**`).
+> 5. `test_document_delete_permission.py` (#464) vert : la règle « pas de corbeille pendant une validation » tient sur DELETE, sur la mise à la corbeille et sur la restauration.
+> 6. Parcours doublons et corbeille rejoué par Q sur une pile Docker de la branche : voir les doublons, en garder un, mettre les autres à la corbeille, puis les restaurer.
+> 7. `check-forbidden-words.sh` : OK.
+> 8. OK de Q sur la tête de la PR.
+>
+> **Après fusion** : O lève le gel de `main`. I recompte l'item 19 dans `couverture-95-19-11.md`.
+>
+> **RAIDER review**
+> - Reusable : la même PR de report sert à tout correctif 1.0 pendant la recette.
+> - Agnostic : aucune hypothèse d'environnement ; les contrôles sont des commandes git.
+> - Idempotent : rejouer le report sur une candidate qui contient déjà ces commits ne produit aucun diff.
+> - Durable : aucun contrat d'API retiré ; #464 couvert par le contrôle 5.
+> - Failure memory : sans objet, aucun incident.
+> - Engineering-grade : le contrôle 1 empêche d'emporter du code non relu.
+> - Retroactive : aucune donnée migrée.
 
 ## 2. Ordre de fusion proposé (PR V1.1, hors section PO)
 

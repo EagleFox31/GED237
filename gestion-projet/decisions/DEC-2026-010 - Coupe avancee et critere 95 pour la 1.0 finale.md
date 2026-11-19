@@ -7,11 +7,12 @@
 
 ## 1. Décision
 
-1. **Coupe avancée.** `release/v1.0.0` est créée dès que #464 (correctif 1.0 de `/trash`, OK de Q) est dans `main`. Le point de coupe n'est plus la fusion de #104.
+1. **Coupe avancée.** `release/v1.0.0` est créée dès que #464 (correctif 1.0 de `/trash`, OK de Q) est dans `main` et que `main` est vert, avec l'accord du PO. #464 est fusionnée le 19/11 (`main` = 103ce48b). Le point de coupe n'est plus la fusion de #104.
    - Point de coupe : `‹sha court›`, fusion de #464 à `‹hh:mm›`.
 2. **La recette du 20 au 23/11 et la démo du 30/11 se font sur la candidate figée**, et non sur `main`.
-3. **La paire doublons entre dans la candidate.** #152, #181, #171 et #199 passent en tête de file juste après la coupe. Elles fusionnent dans `main`, puis une PR de report `main → release/v1.0.0` les amène dans la candidate (approche A, `plan-fusion-v1.1.md` § 1 bis). O sort ces 4 PR du brouillon, par exception. Les autres PR V1.1 restent en brouillon jusqu'au 24/11.
-4. **`main` est gelé de la coupe jusqu'à la fusion de la PR de report.** Un correctif 1.0 urgent pendant le gel passe par la même PR de report.
+3. **La paire doublons entre dans la candidate.** #152, #181, #171 et #199 passent en tête de file juste après la coupe. Elles fusionnent dans `main`, puis une PR de report `main → release/v1.0.0` les amène dans la candidate (approche A retenue par O le 19/11, `plan-fusion-v1.1.md` § 1 bis ; texte de la PR au § 1 ter). #104 (notes de version) entre dans la candidate par la même PR de report.
+   - **Exception à la règle du brouillon** : O sort ces 4 PR du brouillon au moment de leur passage. Les autres PR V1.1 restent en brouillon jusqu'au 24/11.
+4. **`main` est gelé de la coupe jusqu'à la fusion de la PR de report.** Seules #152, #181, #171, #199 et #104 y entrent. Un correctif 1.0 urgent pendant le gel passe par la même PR de report.
 5. **Critère de la 1.0 finale : 95 % du CDC, prouvés.** Cela fait 30,5 points sur 32, par la méthode du 10/11 (32 items à poids égal, `fait` = 1, `partiel` = 0,5). La candidate n'est déclarée 1.0 finale que lorsque les preuves du § 2 sont versées. Le dénominateur ne change pas.
 6. **Échéances qui suivent la coupe**, sur signal d'O et non plus à 18:00 : push de #104, DEC-2026-004, DEC-2026-009.
 
@@ -47,7 +48,7 @@ Aujourd'hui, l'item 8 n'est pas planifié : c'est la « mesure de décembre » (
 
 Recommandation de l'innovateur : **b si C6 échoue ce soir, a sinon**. On décide après le relevé de 18:00, pour ne pas immobiliser Q avant d'en avoir besoin.
 
-Décision du PO : `‹a / b / c›`, le `‹date›`.
+O présente les 3 options et cette recommandation au PO après le relevé C6 du 19/11 au soir. Décision du PO : `‹a / b / c›`, le `‹date›`.
 
 ## 5. Réversibilité
 
