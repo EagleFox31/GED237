@@ -54,6 +54,7 @@ ACTION_LABELS = {
     "unlock": "Déverrouillage",
     "archive": "Archivage",
     "reclassify": "Reclassement",
+    "document_updated": "Modification du document",
     "document_trashed": "Mise à la corbeille",
     "document_restored": "Restauration depuis la corbeille",
     "document_purged": "Suppression définitive",

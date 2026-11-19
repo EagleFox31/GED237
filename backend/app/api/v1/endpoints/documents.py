@@ -124,6 +124,10 @@ PLACEMENT_FIELDS = (
     "org_unit_id",
     "owner_id",
 )
+# The other fields a PATCH may change (rename, category, tags, archiving). A change
+# is audited as "document_updated" with only the changed fields, before and after
+# (#250). Placement keeps its own "reclassify" entry: one field, one entry.
+DETAIL_FIELDS = ("title", "document_category_id", "tags", "status")
 LOCK_DURATION_MINUTES = 30
 
 
@@ -1508,6 +1512,7 @@ async def update_document(
             status_code=403, detail="Not enough privileges to update this document"
         )
     placement_before = _placement(document)
+    details_before = _snapshot(document, DETAIL_FIELDS)
     if document.deleted_at:
         raise HTTPException(status_code=400, detail="Cannot update a document in trash")
     await _ensure_not_locked_for_write(document, current_user)
@@ -1711,18 +1716,43 @@ async def update_document(
                 request=request,
             )
         )
+    details_after = _snapshot(document, DETAIL_FIELDS)
+    changed = [f for f in DETAIL_FIELDS if details_after[f] != details_before[f]]
+    if changed:
+        db.add(
+            _audit_document_action(
+                user=current_user,
+                document_id=document.id,
+                action="document_updated",
+                details={
+                    "changed": changed,
+                    "before": {f: details_before[f] for f in changed},
+                    "after": {f: details_after[f] for f in changed},
+                },
+                request=request,
+            )
+        )
     await db.commit()
     # Reload with relationships
     return await _get_document_or_404(db, current_user.tenant_id, document.id)
 
 
+def _snapshot(document: Document, fields: tuple[str, ...]) -> Dict[str, Any]:
+    """JSON-ready copy of the given fields, taken before and after a change."""
+    snapshot = {}
+    for field in fields:
+        value = getattr(document, field)
+        if isinstance(value, UUID):
+            value = str(value)
+        elif isinstance(value, list):
+            value = list(value)  # a later in-place change must not alter the copy
+        snapshot[field] = value
+    return snapshot
+
+
 def _placement(document: Document) -> Dict[str, Any]:
     """JSON-ready snapshot of PLACEMENT_FIELDS."""
-    snapshot = {}
-    for field in PLACEMENT_FIELDS:
-        value = getattr(document, field)
-        snapshot[field] = str(value) if isinstance(value, UUID) else value
-    return snapshot
+    return _snapshot(document, PLACEMENT_FIELDS)
 
 
 @router.get("/{document_id}/ocr", response_model=DocumentOCRContent)
