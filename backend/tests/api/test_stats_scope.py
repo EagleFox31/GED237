@@ -79,7 +79,7 @@ async def test_institution_roles_keep_tenant_wide_counters(
     assert workflows.json()["active_workflow_steps"] == 6
     assert analytics.status_code == 200
     institution = analytics.json()
-    # The dashboard leaves the trashed document and its steps out (like /stats).
+    # The dashboard leaves the trash out, its steps included (9acbbd27).
     assert (institution["documents"]["total"], institution["workflows"]["pending"]) == (
         5,
         5,
@@ -101,7 +101,7 @@ async def test_unit_admin_counts_its_tree_in_every_counter(
     assert workflows["active_workflow_steps"] == 3
     assert analytics.status_code == 200
     tree = analytics.json()
-    # Same keys as the institution figures, counted in the unit tree, trash left out.
+    # Same keys as the institution figures, counted in the unit tree, trash out.
     assert (tree["documents"]["total"], tree["workflows"]["pending"]) == (2, 2)
     assert tree["users"]["total"] == 1
     assert tree["duplicates"]["refused"] == 0

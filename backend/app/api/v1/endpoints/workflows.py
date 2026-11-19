@@ -7,12 +7,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.api.v1.endpoints.documents import visible_document_scope
+from app.api.v1.endpoints.documents import _in_perimeter, visible_document_scope
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
 from app.services.unit_admin_scope import (
+    assert_unit_admin_in_tree,
     assert_unit_admin_object_in_tree,
     unit_admin_scope_ids,
 )
@@ -164,12 +165,15 @@ def _validate_step_order(
 async def _authorize_workflow_read(
     user: User, document: Document, db: AsyncSession
 ) -> None:
+    # Outside the caller's perimeter the document answers like a missing one,
+    # before any right check reveals that it exists (#247, #308).
+    if not await _in_perimeter(db, user, document):
+        raise HTTPException(status_code=404, detail="Document not found")
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
-        # Outside its tree the document answers like a missing one (#215).
-        await assert_unit_admin_object_in_tree(db, document.org_unit_id, user)
+        await assert_unit_admin_in_tree(db, document.org_unit_id, user)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -189,6 +193,8 @@ async def create_workflow_steps(
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
     await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     # Propriétaire (update_own) ou admin (manage) peut soumettre
+    if not await _in_perimeter(db, current_user, document):
+        raise HTTPException(status_code=404, detail="Document not found")
     is_owner = document.owner_id == current_user.id
     action = "update_own" if is_owner else "manage"
     await authorize_or_403(

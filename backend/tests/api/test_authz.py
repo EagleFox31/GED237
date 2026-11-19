@@ -2005,7 +2005,7 @@ async def test_standard_can_read_own_document_after_upload(test_engine, db_seed)
         r2 = await client.get(f"/api/v1/documents/{doc_id}")
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
-    assert r2.status_code == 403
+    assert r2.status_code == 404  # outside its perimeter: like a missing one (#247)
 
 
 @pytest.mark.asyncio
@@ -2088,7 +2088,7 @@ async def test_standard_cannot_read_other_user_workflow_steps(test_engine, db_se
         resp = await client.get(f"/api/v1/workflows/document/{doc_id}/steps")
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
-    assert resp.status_code == 403
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -2167,7 +2167,7 @@ async def test_manager_cannot_read_workflow_steps_outside_org_unit(
         resp = await client.get(f"/api/v1/workflows/document/{doc_id}/steps")
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
-    assert resp.status_code == 403
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -2261,7 +2261,7 @@ async def test_manager_cannot_read_workflow_actions_outside_org_unit(
         resp = await client.get(f"/api/v1/workflows/document/{doc_id}/actions")
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
-    assert resp.status_code == 403
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio

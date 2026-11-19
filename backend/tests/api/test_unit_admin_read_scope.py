@@ -290,9 +290,9 @@ async def test_reading_a_document_by_id_follows_the_listing_scope(
     user = {"tenant_id": db_seed["tenant_id"], "org_unit_id": tree["units"][unit]}
     if role == "collaborator":
         user["id"] = tree["collaborator"]
-    # Out of a unit_admin's tree: 404 like a missing document (#202). The
-    # manager, reader and collaborator still answer 403 until #247.
-    refused = 404 if role == "unit_admin" else 403
+    # Outside the perimeter: 404 like a missing document, for every role
+    # (#202 for unit_admin, #247 for the others).
+    refused = 404
     readable = {suffix: set() for suffix in BY_ID}
     async with client_as(role, **user) as client:
         for key in WIDE:
