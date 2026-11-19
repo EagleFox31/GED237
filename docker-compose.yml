@@ -140,6 +140,8 @@ services:
       # Per-file upload cap; the frontend service reads the same variable.
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
+      # Fields users may change on their own account (#216); email is opt-in.
+      USER_SELF_EDITABLE_FIELDS: ${USER_SELF_EDITABLE_FIELDS:-first_name,last_name,phone}
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
       DEBUG: "false"

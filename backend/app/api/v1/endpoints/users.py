@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import (
@@ -308,6 +309,8 @@ async def list_assignable_roles(
     rôles (tenant_admin, unit_admin, manager, collab, reader, auditor) sont
     retournés avec leur id, leur code et leur libellé humain.
     """
+    # Read by the user administration screens only (#216).
+    await authorize_or_403(current_user, "users", "read")
     from app.models.role import Role
 
     result = await db.execute(
@@ -385,6 +388,23 @@ async def update_user(
     assert_org_unit_scope(user.org_unit_id, current_user)
 
     update_data = user_in.dict(exclude_unset=True)
+
+    if is_self and not await can_perform(current_user, "users", "update"):
+        # What users may change on their own account without the right to
+        # update users (#216): settings.USER_SELF_EDITABLE_FIELDS. Role, unit,
+        # manager and status are an administrator's call; the password has its
+        # own route, which asks for the current one.
+        refused = sorted(set(update_data) - settings.USER_SELF_EDITABLE_FIELDS)
+        if refused:
+            raise AuthorizationError(
+                "Seul un administrateur peut modifier ces informations.",
+                technical_detail=(
+                    f"user {current_user.id} tried to change {refused} on their "
+                    "own account"
+                ),
+                error_code="SELF_UPDATE_FIELD_FORBIDDEN",
+                extras_public={"fields": refused},
+            )
 
     if "role_id" in update_data and update_data["role_id"] != user.role_id:
         if is_self:

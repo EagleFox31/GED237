@@ -9,6 +9,13 @@ from typing import List, Any
 from functools import lru_cache
 
 
+# UserUpdate fields a deployment may open to self-service (#216). Role, unit,
+# manager, status and password are never in this set.
+SELF_EDITABLE_CANDIDATES = frozenset(
+    {"first_name", "last_name", "phone", "email", "avatar_url"}
+)
+
+
 class Settings(BaseSettings):
     """Application settings"""
 
@@ -120,6 +127,34 @@ class Settings(BaseSettings):
     AUTHZ_METRICS_BACKEND: str = "memory"  # memory | redis
     AUTHZ_METRICS_REDIS_URL: str = ""
     AUTHZ_METRICS_REDIS_PREFIX: str = "authz:metrics"
+
+    # Fields users may change on their own account without users:update
+    # (#216), comma-separated. Default: names and phone. The e-mail is the
+    # login and the OTP channel, so it is opt-in.
+    USER_SELF_EDITABLE_FIELDS_STR: str = Field(
+        default="first_name,last_name,phone", alias="USER_SELF_EDITABLE_FIELDS"
+    )
+
+    @field_validator("USER_SELF_EDITABLE_FIELDS_STR")
+    @classmethod
+    def _check_self_editable_fields(cls, v: str) -> str:
+        names = {name.strip() for name in v.split(",") if name.strip()}
+        unknown = sorted(names - SELF_EDITABLE_CANDIDATES)
+        if unknown:
+            raise ValueError(
+                f"USER_SELF_EDITABLE_FIELDS: {unknown} not allowed; choose among "
+                f"{sorted(SELF_EDITABLE_CANDIDATES)} (role, unit, manager, status "
+                "and password stay with administrators)"
+            )
+        return v
+
+    @property
+    def USER_SELF_EDITABLE_FIELDS(self) -> frozenset:
+        return frozenset(
+            name.strip()
+            for name in self.USER_SELF_EDITABLE_FIELDS_STR.split(",")
+            if name.strip()
+        )
 
     @model_validator(mode="after")
     def _derive_max_upload_size(self):
