@@ -39,7 +39,11 @@ async def _close_at_logout(websocket: WebSocket, session_id: str) -> None:
             logger.warning("Notification socket: session check failed", exc_info=True)
             continue
         if ended:
-            await websocket.close(code=_LOGGED_OUT_CLOSE_CODE)
+            try:
+                await websocket.close(code=_LOGGED_OUT_CLOSE_CODE)
+            except RuntimeError:
+                # Already closed by the client: nothing left to close.
+                pass
             return
 
 
