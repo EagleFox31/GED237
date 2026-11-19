@@ -1,7 +1,10 @@
 # backend/tests/api/test_documents.py
 import pytest
 import io
+import uuid
 from httpx import AsyncClient
+
+from app.models.document import Document
 
 
 @pytest.mark.asyncio
@@ -26,7 +29,9 @@ async def test_upload_document(auth_client: AsyncClient, db_seed):
 
 
 @pytest.mark.asyncio
-async def test_trash_and_restore_document(auth_client: AsyncClient, db_seed):
+async def test_trash_and_restore_document(
+    auth_client: AsyncClient, db_seed, db_session
+):
     # 1. Upload
     file = io.BytesIO(b"content for trash")
     up_resp = await auth_client.post(
@@ -36,7 +41,14 @@ async def test_trash_and_restore_document(auth_client: AsyncClient, db_seed):
     )
     doc_id = up_resp.json()["id"]
 
-    # 2. Trash
+    # 2. The upload starts the validation: the owner cannot trash it meanwhile.
+    in_review = await auth_client.post(f"/api/v1/documents/{doc_id}/trash")
+    assert in_review.status_code == 403
+
+    # Back to draft (e.g. after the validation is cancelled): the owner may trash it.
+    document = await db_session.get(Document, uuid.UUID(doc_id))
+    document.status = "draft"
+    await db_session.commit()
     trash_resp = await auth_client.post(f"/api/v1/documents/{doc_id}/trash")
     assert trash_resp.status_code == 200
 
