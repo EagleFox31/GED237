@@ -18,13 +18,13 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-/** Pastille du nombre de tâches en attente ; « en attente » n'est lu que par les lecteurs d'écran. */
+/** Pastille du nombre de tâches en attente ; « tâches en attente » n'est lu que par les lecteurs d'écran. */
 const TaskBadge: React.FC<{ count: number }> = ({ count }) => {
   const label = taskBadgeLabel(count);
   if (!label) return null;
   return (
-    <span data-testid="task-badge" className="ml-auto min-w-[1.25rem] rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black text-white">
-      {label}<span className="sr-only"> en attente</span>
+    <span data-testid="task-badge" className="ml-auto shrink-0 min-w-[1.25rem] rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black text-white">
+      {label}<span className="sr-only"> tâches en attente</span>
     </span>
   );
 };
