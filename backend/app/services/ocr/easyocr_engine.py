@@ -8,15 +8,16 @@ import os
 import time
 from PIL import Image
 import numpy as np
-import easyocr
 from .base import OCREngine, OCRResult
 
-try:
-    import torch
-except ImportError:  # pragma: no cover - depends on optional runtime install
-    torch = None
+# easyocr and torch are heavy (~260 MB at import): they are imported on first real
+# use only, so a worker that never reaches the EasyOCR fallback never loads them.
 
 logger = logging.getLogger(__name__)
+
+# Longest side sent to EasyOCR. A 12 MP photo makes torch allocate enough memory to
+# get the 2 GB worker killed; Tesseract is not affected and keeps the full resolution.
+MAX_IMAGE_SIDE = 2000
 
 
 class EasyOCREngine(OCREngine):
@@ -38,9 +39,19 @@ class EasyOCREngine(OCREngine):
     """
 
     # Cache readers by (languages, gpu_mode) to avoid rebuilding models.
-    _readers: dict[tuple[tuple[str, ...], bool], easyocr.Reader] = {}
+    _readers: dict[tuple[tuple[str, ...], bool], object] = {}
     # Keys whose models could not be loaded: warn once, then answer empty at once.
     _unavailable: set[tuple[tuple[str, ...], bool]] = set()
+
+    @staticmethod
+    def _limit_size(image: Image.Image) -> Image.Image:
+        """Shrink so the longest side is at most MAX_IMAGE_SIDE (aspect ratio kept)."""
+        longest = max(image.size)
+        if longest <= MAX_IMAGE_SIDE:
+            return image
+        ratio = MAX_IMAGE_SIDE / longest
+        size = (max(1, round(image.width * ratio)), max(1, round(image.height * ratio)))
+        return image.resize(size, Image.Resampling.LANCZOS)
 
     @staticmethod
     def _empty_result(start_time: float) -> OCRResult:
@@ -62,14 +73,29 @@ class EasyOCREngine(OCREngine):
             use_gpu: `None` = auto-detect, otherwise force CPU/GPU preference
         """
         self.languages = languages or ["fr", "en"]
-        self.use_gpu = self._resolve_gpu_mode(use_gpu)
-        self._reader_key = (tuple(self.languages), self.use_gpu)
+        self._requested_gpu = use_gpu
+        self._resolved_gpu: bool | None = None
         # No model loading here: building the engine must never touch the network
         # or the disk (OCRStrategy builds it for every OCR task, Tesseract included).
+
+    @property
+    def use_gpu(self) -> bool:
+        """GPU mode, resolved on first use (imports torch only then)."""
+        if self._resolved_gpu is None:
+            self._resolved_gpu = self._resolve_gpu_mode(self._requested_gpu)
+        return self._resolved_gpu
+
+    @property
+    def _reader_key(self) -> tuple[tuple[str, ...], bool]:
+        return (tuple(self.languages), self.use_gpu)
 
     @staticmethod
     def _resolve_gpu_mode(requested: bool | None) -> bool:
         """Resolve GPU usage without making CUDA mandatory."""
+        try:
+            import torch
+        except ImportError:  # pragma: no cover - depends on optional runtime install
+            torch = None
         gpu_available = bool(torch and torch.cuda.is_available())
         if requested is None:
             return gpu_available
@@ -92,6 +118,8 @@ class EasyOCREngine(OCREngine):
             # Models are baked into the image (EASYOCR_MODEL_DIR, see the
             # Dockerfile): never download at runtime. A missing model raises
             # and the caller falls back to Tesseract.
+            import easyocr
+
             model_dir = os.environ.get("EASYOCR_MODEL_DIR") or None
             EasyOCREngine._readers[self._reader_key] = easyocr.Reader(
                 self.languages,
@@ -103,7 +131,7 @@ class EasyOCREngine(OCREngine):
             logger.info("EasyOCR reader ready in %s mode", mode)
 
     @property
-    def reader(self) -> easyocr.Reader:
+    def reader(self):
         self._ensure_reader()
         return EasyOCREngine._readers[self._reader_key]
 
@@ -164,7 +192,7 @@ class EasyOCREngine(OCREngine):
                 return self._empty_result(start_time)
 
             # Convert PIL Image to numpy array
-            image_np = np.array(image)
+            image_np = np.array(self._limit_size(image))
 
             # Perform OCR
             results = reader.readtext(image_np)
