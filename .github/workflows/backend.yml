@@ -36,11 +36,10 @@ jobs:
           ruff check . --output-format github
           ruff format --check .
 
-  test:
-    name: Tests & Migrations
+  migrations:
+    name: Migrations
     runs-on: ubuntu-latest
-    # ~9 min on main, 13 min 44 s on a slow runner: 15 left no margin.
-    timeout-minutes: 25
+    timeout-minutes: 10
 
     services:
       postgres:
@@ -95,20 +94,6 @@ jobs:
           python -m alembic upgrade head
           python -m alembic check
 
-      - name: Run tests with coverage
-        run: |
-          cd backend
-          python -m pytest tests/ \
-            -v \
-            --tb=short \
-            --timeout=300 \
-            --junitxml=test-results.xml \
-            --cov=app \
-            --cov-report=xml:coverage.xml \
-            --cov-report=term-missing \
-            --cov-fail-under=70 \
-            -x
-
       - name: AuthZ benchmark gate (CSV vs SQL)
         run: |
           cd backend
@@ -131,6 +116,139 @@ jobs:
           else
             echo "No migration SQL generated — skipping squawk"
           fi
+
+  # The suite runs in 4 parts, balanced by the durations in backend/.test_durations
+  # (pytest-split). Each part has its own PostgreSQL and Redis: the conftest drops and
+  # recreates the schema around every test, so two parts cannot share a database.
+  # Refresh the durations after large test changes:
+  #   python -m pytest tests/ --store-durations
+  # A test missing from the file still runs; it is counted at the average duration.
+  tests:
+    name: Tests (part ${{ matrix.group }}/4)
+    runs-on: ubuntu-latest
+    # About 4 min of tests plus 1.5 min of setup per part.
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_ged
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d test_ged"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          grep -E '^(torch|torchvision|torchaudio)==' requirements.txt \
+            | xargs pip install --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Run tests (part ${{ matrix.group }}/4)
+        # The 70 % threshold applies to the merged coverage (job "Coverage"), not to a part.
+        env:
+          COVERAGE_FILE: .coverage.${{ matrix.group }}
+        run: |
+          cd backend
+          python -m pytest tests/ \
+            --splits 4 \
+            --group ${{ matrix.group }} \
+            --splitting-algorithm least_duration \
+            -v \
+            --tb=short \
+            --timeout=300 \
+            --junitxml=test-results-${{ matrix.group }}.xml \
+            --cov=app \
+            --cov-report= \
+            --cov-fail-under=0 \
+            -x
+
+      - name: Upload part results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: backend-part-${{ matrix.group }}
+          path: |
+            backend/test-results-${{ matrix.group }}.xml
+            backend/.coverage.${{ matrix.group }}
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
+  coverage:
+    name: Coverage (merged)
+    needs: tests
+    # Also after a failed part: the merged test report shows every failure.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install tools
+        # Same coverage.py as the parts (pulled by the pinned pytest-cov).
+        run: pip install "$(grep -E '^pytest-cov==' backend/requirements.txt)" junitparser==5.0.3
+
+      - name: Download part results
+        uses: actions/download-artifact@v7
+        with:
+          pattern: backend-part-*
+          path: backend
+          merge-multiple: true
+
+      - name: Merge test results
+        run: |
+          cd backend
+          junitparser merge test-results-*.xml test-results.xml
+
+      - name: Combine coverage and apply the threshold
+        # fail_under (70) comes from backend/.coveragerc.
+        if: ${{ needs.tests.result == 'success' }}
+        run: |
+          cd backend
+          python -m coverage combine
+          python -m coverage xml -o coverage.xml
+          python -m coverage report
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
