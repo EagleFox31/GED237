@@ -1,5 +1,5 @@
 # backend/app/api/v1/endpoints/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, false, true
 from sqlalchemy.orm import selectinload
@@ -27,9 +27,16 @@ from app.schemas.user import (
     UserRead,
     UserUpdate,
     UserCreateResponse,
+    HierarchyTreeResponse,
 )
 from app.core.security import hash_password
 from app.services.email_service import send_account_created
+from app.services.hierarchy_tree import (
+    DEFAULT_DEPTH,
+    MAX_DEPTH,
+    TreeNode,
+    build_hierarchy_tree,
+)
 import secrets
 
 router = APIRouter()
@@ -728,3 +735,90 @@ async def get_hierarchy_down(
         .all()
     )
     return rows
+
+
+def _tree_to_dict(node: TreeNode) -> dict:
+    user = node.user
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "matricule": user.matricule,
+        "role_label": getattr(getattr(user, "role", None), "label", None),
+        "reports_count": node.reports_count,
+        "children": (
+            None
+            if node.children is None
+            else [_tree_to_dict(child) for child in node.children]
+        ),
+    }
+
+
+@router.get("/{user_id}/hierarchy-tree", response_model=HierarchyTreeResponse)
+async def get_hierarchy_tree(
+    user_id: UUID,
+    depth: int = Query(DEFAULT_DEPTH, ge=1, le=MAX_DEPTH),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Hierarchy below a user, ``depth`` levels at once (V1.2, item 11).
+
+    Rights, as in #285: without users:read, the caller sees themself and their
+    N-1 only; a root out of reach is a 404 (#247). With users:read, the whole
+    tenant. The cascade, the 200-node cap and the "not loaded yet" marker are
+    in app/services/hierarchy_tree.py.
+    """
+    tenant_id = current_user.tenant_id
+    root = (
+        await db.execute(
+            select(User)
+            .options(selectinload(User.role))
+            .filter(User.id == user_id, User.tenant_id == tenant_id)
+        )
+    ).scalar_one_or_none()
+    if not root:
+        raise HTTPException(status_code=404, detail="User not found")
+    await _authorize_hierarchy_read(current_user, root)
+    reads_all = await can_perform(
+        current_user, "users", "read", ctx_from_resource(root)
+    )
+
+    def can_expand(user: User) -> bool:
+        return reads_all or user.id == current_user.id
+
+    async def count_reports(ids):
+        rows = await db.execute(
+            select(User.reports_to_user_id, func.count(User.id))
+            .filter(User.tenant_id == tenant_id, User.reports_to_user_id.in_(ids))
+            .group_by(User.reports_to_user_id)
+        )
+        return {manager_id: count for manager_id, count in rows.all()}
+
+    async def load_reports(ids):
+        rows = (
+            (
+                await db.execute(
+                    select(User)
+                    .options(selectinload(User.role))
+                    .filter(
+                        User.tenant_id == tenant_id,
+                        User.reports_to_user_id.in_(ids),
+                    )
+                    .order_by(User.matricule)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        grouped: dict = {}
+        for user in rows:
+            grouped.setdefault(user.reports_to_user_id, []).append(user)
+        return grouped
+
+    tree = await build_hierarchy_tree(
+        root,
+        depth=depth,
+        can_expand=can_expand,
+        load_reports=load_reports,
+        count_reports=count_reports,
+    )
+    return {"root": _tree_to_dict(tree)}

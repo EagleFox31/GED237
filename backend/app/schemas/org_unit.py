@@ -59,3 +59,21 @@ class OrgUnitTreeNode(BaseModel):
 
 OrgUnitTree.model_rebuild()
 OrgUnitTreeNode.model_rebuild()
+
+
+class OrgUnitHead(BaseModel):
+    id: UUID
+    full_name: str
+
+
+class OrgUnitStaffTreeNode(OrgUnitTreeNode):
+    """Node of /org-units/tree (V1.2, item 12): the shared node plus its staff.
+    ``users_count``: active members attached to this unit, sub-units not added up.
+    ``head``: deduced, ``None`` when ambiguous (app/services/org_unit_staff.py)."""
+
+    head: Optional[OrgUnitHead] = None
+    users_count: int = 0
+    children: List["OrgUnitStaffTreeNode"] = Field(default_factory=list)
+
+
+OrgUnitStaffTreeNode.model_rebuild()

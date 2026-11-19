@@ -18,10 +18,11 @@ from app.services.unit_admin_scope import unit_admin_scope_ids
 from app.models.user import User
 from app.models.org_unit import OrgUnit, OrgUnitType
 from app.models.document import Document
+from app.services.org_unit_staff import Member, UnitStaff, staff_by_unit
 from app.schemas.org_unit import (
     OrgUnitCreate,
     OrgUnitRead,
-    OrgUnitTreeNode,
+    OrgUnitStaffTreeNode,
     OrgUnitUpdate,
 )
 
@@ -78,7 +79,11 @@ async def create_org_unit(
     return db_org_unit
 
 
-@router.get("/tree", response_model=List[OrgUnitTreeNode])
+def _head_payload(head: Optional[Member]) -> Optional[dict]:
+    return {"id": str(head.id), "full_name": head.full_name} if head else None
+
+
+@router.get("/tree", response_model=List[OrgUnitStaffTreeNode])
 async def get_org_units_tree(
     tenant_id: Optional[UUID] = None,
     current_user: User = Depends(get_current_user),
@@ -112,6 +117,31 @@ async def get_org_units_tree(
         allowed = {str(i) for i in unit_ids}
         units = [u for u in units if str(u.id) in allowed]
 
+    # Head and headcount per unit (V1.2, item 12): one light query, rule in org_unit_staff.
+    staff = staff_by_unit(
+        Member(
+            id=row.id,
+            full_name=row.full_name,
+            org_unit_id=row.org_unit_id,
+            reports_to_user_id=row.reports_to_user_id,
+        )
+        for row in (
+            await db.execute(
+                select(
+                    User.id,
+                    User.full_name.label("full_name"),
+                    User.org_unit_id,
+                    User.reports_to_user_id,
+                ).where(
+                    User.tenant_id == effective_tenant,
+                    User.is_active.is_(True),
+                    User.org_unit_id.in_([u.id for u in units]),
+                )
+            )
+        ).all()
+    )
+    no_staff = UnitStaff(users_count=0, head=None)
+
     nodes = {
         str(u.id): {
             "id": str(u.id),
@@ -119,6 +149,8 @@ async def get_org_units_tree(
             "code": u.code,
             "level": u.level,
             "parent_id": str(u.parent_id) if u.parent_id else None,
+            "users_count": staff.get(u.id, no_staff).users_count,
+            "head": _head_payload(staff.get(u.id, no_staff).head),
             "children": [],
         }
         for u in units
