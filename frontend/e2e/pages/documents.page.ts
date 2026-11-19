@@ -27,7 +27,7 @@ export class DocumentsPage {
     this.heading = page.getByRole('heading', { name: /explorateur.*ged/i });
     this.uploadButton = page.getByRole('button', { name: /nouveau document/i });
 
-    this.searchInput = page.getByPlaceholder(/rechercher par nom/i);
+    this.searchInput = page.getByPlaceholder(/rechercher par titre/i);
     this.categoryFilter = page.locator('select').nth(0);
     this.statusFilter = page.locator('select').nth(1);
 
@@ -81,6 +81,11 @@ export class DocumentsPage {
 
   async searchDocuments(query: string) {
     await this.searchInput.fill(query);
+  }
+
+  /** Title of a document card (h4). */
+  documentHeading(title: string): Locator {
+    return this.page.getByRole('heading', { level: 4, name: title });
   }
 
   async filterByCategory(category: string) {
@@ -220,13 +225,14 @@ export class DraftWorkspacePage {
     this.emptyState = page.getByText('Aucun document en cours');
     this.loadingText = page.getByText('Chargement de vos brouillons...');
 
-    // Upload modal
-    this.uploadModal = page.locator('.fixed.inset-0').filter({ hasText: 'Nouveau Document' });
-    this.titleInput = page.locator('input[name="title"]');
-    this.categorySelect = page.locator('select[name="category"]');
-    this.tagsInput = page.locator('input[name="tags"]');
-    this.fileInput = page.locator('input[name="file"]');
-    this.createButton = this.uploadModal.getByRole('button', { name: /créer le document|envoyer/i });
+    // Upload modal : la modale standard (UploadDocumentModal), la même que sur la page Documents.
+    const modal = new UploadDocumentModalPage(page);
+    this.uploadModal = modal.modal;
+    this.titleInput = modal.titleInput;
+    this.categorySelect = modal.categorySelect;
+    this.tagsInput = modal.tagsInput;
+    this.fileInput = modal.fileInput;
+    this.createButton = modal.submitButton;
     this.closeModalButton = page.locator('.fixed.inset-0 button:has(span.material-symbols-outlined:text("close"))');
 
     // Submit workflow modal
@@ -250,11 +256,18 @@ export class DraftWorkspacePage {
     await expect(this.uploadModal).toBeVisible();
   }
 
+  /**
+   * Remplit la modale d'import standard : le fichier d'abord (le titre se préremplit au dépôt),
+   * puis « Juste le ranger » (aucun circuit déclenché), le titre voulu et les mots-clés.
+   * La catégorie n'est choisie que si elle existe dans la liste du serveur.
+   */
   async fillUploadForm(title: string, category: string, tags: string, file: string | FilePayload) {
-    await this.titleInput.fill(title);
-    await this.categorySelect.selectOption(category);
-    await this.tagsInput.fill(tags);
     await this.fileInput.setInputFiles(file);
+    await this.uploadModal.getByRole('button', { name: /juste le ranger/i }).click();
+    await this.titleInput.fill(title);
+    const hasCategory = (await this.categorySelect.locator('option', { hasText: category }).count()) > 0;
+    if (hasCategory) await this.categorySelect.selectOption({ label: category });
+    await this.tagsInput.fill(tags);
   }
 
   async submitUpload() {
