@@ -49,7 +49,7 @@ const PlatformDashboard: React.FC = () => {
             key={i}
             type="button"
             onClick={() => navigate(stat.to)}
-            className="glass p-6 rounded-[2.5rem] bg-white/40 border border-white hover:shadow-2xl hover:bg-white/70 hover:-translate-y-0.5 transition-all group overflow-hidden relative text-left focus:outline-none focus:ring-2 focus:ring-rdpc-blue/40"
+            className="glass p-6 rounded-[2.5rem] bg-white/40 border border-white hover:shadow-2xl hover:bg-white/70 hover:-translate-y-0.5 transition-all group overflow-hidden relative text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue"
           >
             <div className="flex justify-between items-start">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
