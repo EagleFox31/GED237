@@ -41,7 +41,7 @@ python scripts/seed_db.py
 ### 1.2 Login + OTP valide (Super Admin)
 | Etape | Action | Resultat attendu |
 |-------|--------|-------------------|
-| 1 | Saisir institution="MINFI", matricule="SUPER001", password="Admin@2025" | - |
+| 1 | Saisir institution="MINFI", matricule="SUPER001", password = mot de passe de démo, voir le jeu de démo | - |
 | 2 | Cliquer "Connexion" | Ecran OTP affiche, session_token recu |
 | 3 | Saisir l'OTP recu (visible en dev dans la reponse) | - |
 | 4 | Cliquer "Verifier" | Redirection vers Dashboard, tokens stockes en sessionStorage |
@@ -50,7 +50,7 @@ python scripts/seed_db.py
 ### 1.3 Login Tenant Admin
 | Etape | Action | Resultat attendu |
 |-------|--------|-------------------|
-| 1 | Saisir matricule="MINFI001", password="Minfi@2025" | - |
+| 1 | Saisir matricule="MINFI001", password = mot de passe de démo, voir le jeu de démo | - |
 | 2 | Completer le flow OTP | Dashboard Tenant Admin affiche |
 | 3 | Le menu lateral montre les options Tenant (Org, Users, etc.) | Menu specifique au role |
 

@@ -15,6 +15,16 @@ export const TEST_USERS = {
   auditor:      { institution: 'Ministère des Finances (MINFI)', matricule: 'AUDIT001', password: 'Audit@2025', demoLabel: 'Auditeur' },
 } as const;
 
+/** Second demo ministry (seed_db.py): a collaborator outside MINFI, for cross-tenant checks. */
+export const OTHER_TENANT_COLLABORATOR = {
+  institution: 'Ministère de l’Enseignement Supérieur (MINESUP)',
+  matricule: 'MINESUP001',
+  password: 'Sup@2025',
+};
+
+/** Password given to accounts created during a test; it meets the password policy. */
+export const NEW_ACCOUNT_PASSWORD = 'Verrou@2025';
+
 export type UserRole = keyof typeof TEST_USERS;
 
 type SessionDump = Record<string, string>;

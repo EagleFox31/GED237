@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures/auth.fixture';
+import { test, expect, NEW_ACCOUNT_PASSWORD } from '../fixtures/auth.fixture';
 
 /**
  * SC-ADM-USERS / SC-ADM-QUOTAS / SC-ADM-WORKFLOWS — Configuration ministère
@@ -44,7 +44,7 @@ test.describe.serial('Feature: Configuration ministère (tenant_admin)', () => {
 
     const passwordField = page.locator('input[type="password"], input[name*="password"]').first();
     if (await passwordField.isVisible().catch(() => false)) {
-      await passwordField.fill('Test@2025');
+      await passwordField.fill(NEW_ACCOUNT_PASSWORD);
     }
 
     const submitBtn = page.getByRole('button', { name: /enregistrer|créer|confirmer/i }).last();

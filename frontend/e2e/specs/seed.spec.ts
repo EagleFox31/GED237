@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { SEED } from '../data/seed';
+import { TEST_USERS } from '../fixtures/auth.fixture';
 
 /**
  * Checks, through the API, that the E2E stack holds the data of e2e/data/seed-manifest.json
@@ -8,7 +9,7 @@ import { SEED } from '../data/seed';
  */
 
 const API_URL = process.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-const PASSWORDS: Record<string, string> = { MINFI001: 'Minfi@2025', MGR001: 'Mgr@2025' };
+const PASSWORDS: Record<string, string> = { MINFI001: TEST_USERS.tenant_admin.password, MGR001: TEST_USERS.manager.password };
 
 async function login(request: APIRequestContext, matricule: string): Promise<Record<string, string>> {
   const res = await request.post(`${API_URL}/auth/login`, {
