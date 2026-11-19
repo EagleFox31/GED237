@@ -4,7 +4,34 @@
 - **Rôle** : transforme `plan-recette-20-23-11.md` (calendrier, critères § 2, tri § 3, heure PO § 4) en liste cochable, avec pour chaque ligne la commande, la preuve à archiver et la mémoire requise. Elle n'ajoute aucun critère : en cas d'écart, le plan fait foi. Le plan de l'innovateur (#104 : restauration, HTTPS, `deroule-demo-https.md` § 4, `releve-coupure-19-11.md`) y est repris tel quel ; tant que #104 n'est pas fusionnée, ses lignes sont marquées **(#104)**.
 - **Convention** : `[ ]` à faire, `[x]` fait avec preuve nommée, `[~]` partiel (écart noté), `[-]` sans objet (raison). Anomalie = `REC-nn` (plan § 3). Une ligne n'est cochée qu'avec sa preuve archivée dans `gestion-projet/recette/`.
 
-## ★ Points critiques du score : à jouer en premier (ven 20, juste après 1.0 à 1.2)
+## ☾ Soirée et nuit du 19 au 20/11 : ordre de passage (O, 19/11, 16:40)
+
+Les sessions ne dorment pas : ce qui était prévu le ven 20 (§ 1 et § 2) se joue dès ce soir. **Le 20/11 au matin sert seulement à rejouer ce qui a échoué.** Les § 3 et § 4 gardent leurs dates (restauration le 21 à 09:00, heure PO, C6 jusqu'au 21).
+
+**Règles de la nuit** (elles remplacent la première ligne du § 5 pour cette nuit) :
+- Un créneau Docker par session, jamais deux charges dans la même session.
+- Moins de 2 Go libres : aucune charge ne démarre, et chacune se met en pause après sa commande en cours. Les lignes marquées 5 Go exigent 5 Go libres. Sous 1 Go, le § 5 s'applique.
+- Pas de Docker pendant le compactage, de 18:00 à environ 18:45.
+- Aucune fusion de 18:00 jusqu'à la décision de coupe. Ensuite, seules #441, #450 et #442 sont fusionnées (DEC-2026-013). Les autres PR V1.1 restent en brouillon jusqu'au 24/11.
+- Les heures sont indicatives : chaque étape part sur le message de fin de la précédente, pas à l'heure. Un KO part tout de suite à O, en `REC-nn`.
+- Les fichiers gardent leur nom prévu (`mesures-2026-11-20/`, `https-2026-11-20.txt`…) ; l'heure réelle est écrite dedans.
+
+| Vers | Qui | Ligne |
+|---|---|---|
+| 18:00 | Q, O | Lecture C6 (0.2, sans Docker) ; SHA de `main` noté (0.5) ; gel des fusions |
+| 18:05 | O, PO | Décision de coupe ; si oui, O crée `release/v1.0.0` sur ce SHA |
+| 18:45 | Q | Docker revenu : 5 Go libres (0.1), puis **`prove_tls` seul** (1.5, 1.6, 1.7, 1.9), puis message « prove_tls fini » |
+| 19:15 | I | Rejeu `ged-replay` sur le SHA de la coupe (port 18080, sans TLS ; `down -v` à la fin) |
+| 19:15 | Q, O | Preuve de #441 (`q-real-441-keyboard`), fusion par O ; puis #450, puis #442, chacune prouvée sur le `main` laissé par la précédente |
+| 21:00 | Q | Pile de recette sur `main` à jour : 1.0, 1.1, 1.2, 1.2 bis ; SHA noté en tête du rapport du run 1 |
+| 21:30 | Q | **★ C.22** puis **★ C.24** (ci-dessous) |
+| 23:00 | Q | 1.8, 1.10, puis 2.1 (run 1 uat puis smoke), 2.2, 2.6 (compteurs, avant tout geste manuel), 2.5, 2.8 bis, 2.9 |
+| après 2.6 | F, B | 2.7 et 2.8, à la main sur la pile de Q (pas de charge Docker en plus) |
+| nuit | Q | 2.3 (8 parcours en HTTPS), puis 2.4 si le poste de secours est disponible |
+| en continu | O | 2.10 : chaque `REC-nn` classé dès qu'il arrive |
+| 20/11, 08:00 | Q | Rejeu des seules lignes en KO ou `[~]` |
+
+## ★ Points critiques du score : à jouer en premier (soir du 19/11, juste après 1.0 à 1.2)
 
 Sans l'item 8 (essai du 19/11 à 16:01 non tenu), la coupe se fait à **30,5/32, sans marge** (O, 19/11). Si l'item 22 ou l'item 24 tombe à `partiel`, le score passe à 30/32, sous le seuil de 95 %. Ces deux lignes se jouent donc avant tout le reste, sur la pile de recette (`main`, jeu D1). Tout échec est signalé à O dans l'heure, en `REC-nn`, avant tout correctif.
 
@@ -24,7 +51,7 @@ Sans l'item 8 (essai du 19/11 à 16:01 non tenu), la coupe se fait à **30,5/32,
 | 0.5 | `main` figé : `git rev-parse origin/main` noté ; toute PR ultérieure est un `fix/rec-nn-*` | O | SHA dans l'en-tête du rapport run 1 |
 | 0.6 | Rejeu manuel #105/#107 sur pile vierge fait (item 31 → `fait`) | Q | message à I avec commandes, messages, durées |
 
-## 1. Vendredi 20 — matin (Q)
+## 1. Soir du 19/11 (Q), ex-vendredi 20 matin : ordre au § ☾
 
 | # | Ligne | Commande / geste | Preuve | Mém. |
 |---|---|---|---|---|
@@ -41,7 +68,7 @@ Sans l'item 8 (essai du 19/11 à 16:01 non tenu), la coupe se fait à **30,5/32,
 | 1.9 | Polices : woff2 servis en 200 avec bon type MIME ; aucun contenu mixte sur :8443 (#116) | `curl -sI` des 3 fichiers ; console navigateur | `https-2026-11-20.txt` | — |
 | 1.10 | **Étape 8 de la démo, à la main** (le test automatique est reporté en V1.1) : document validé par visa ; `tenant_admin` le cherche dans la barre de recherche de l'en-tête, clique « Ouvrir <titre> » → l'URL devient `/documents?open=<id>` et la fiche s'ouvre ; « Archiver » puis « Oui, archiver » → badge « Archivé » ; fermer la fiche retire `?open=` | navigateur sur :8443 (après 1.5) ; statut contrôlé par `GET /api/v1/documents/<id>` = `archived` | capture recadrée de la fiche + statut dans `https-2026-11-20.txt` | — |
 
-## 2. Vendredi 20 — après-midi
+## 2. Nuit du 19 au 20/11, ex-vendredi 20 après-midi : ordre au § ☾
 
 | # | Ligne | Qui | Commande / geste | Preuve |
 |---|---|---|---|---|
