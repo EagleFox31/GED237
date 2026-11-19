@@ -76,4 +76,16 @@ Tant que la question 2 n'a pas de réponse positive et que la protection n'est p
   - En clair : les deux points fragiles deviennent solides, mais aucun point n'est gagné. La perte d'un seul demi-point ramène toujours le score sous le seuil.
 - **Chaîne des migrations** : aucune de ces six PR n'apporte de migration. La base de données de la release reste à `a7c8d9e0f1b2`. Une seule précaution : #445 (qui a une migration) part de la branche de #429. Elle est donc re-ciblée sur `main` avant la fusion de #429, et sa migration ne change pas.
 - **Nouvelle lecture C6** : la pile de démo est relancée sur le SHA final. Il faut ensuite au moins 6 relevés verts consécutifs, soit au moins 30 min, puisque la sonde relève toutes les 5 min.
-- **Les deux questions du § 5** sont reposées avec le SHA final : `__________`. Lecture C6 sur ce SHA : ____ relevés verts consécutifs → ☐ tenue ☐ non tenue.
+- **Les deux questions du § 5** sont reposées avec le SHA final : `d96c1e679c0ff470de4bce30f296dc3fe82cc59e` (`d96c1e67`, les six PR fusionnées, une seule tête de migration `a7c8d9e0f1b2`). Lecture C6 sur ce SHA : ____ relevés verts consécutifs → ☐ tenue ☐ non tenue.
+
+## 7. Lecture pour la question de coupe (à présenter après la C6 sur `d96c1e67`)
+
+- **Score** : **30,5/32** si la C6 est tenue sur `d96c1e67` ; sinon 30/32 et pas de coupe. La marge reste de 0,1 point : aucun demi-point ne peut être perdu.
+- **Écart trouvé à la recette (C.22, point 4)** : les décisions du circuit (viser, valider, rejeter) n'apparaissent pas dans le journal d'audit. B corrige.
+  - **Item 22** : pas d'effet. Selon la checklist, seuls les points 1 à 3 déclassent l'item. Il reste « fait » si Q confirme que les points 1 à 3 sont verts sur `d96c1e67`.
+  - **Item 11, « historique des actions »** : c'est là qu'est le risque. Il est noté « fait » sur les actions des documents (#80, #98, scénario SC-AUD-01). Un examinateur qui valide un document puis ouvre le journal n'y verra rien. S'il conteste, l'item 11 tombe à « partiel » et le score à 30/32, sous le seuil. **C'est un nouveau point fragile, à annoncer au PO.**
+- **Deux façons de traiter cet écart** (décision du PO) :
+  - **A. Couper sur `d96c1e67`** et annoncer l'écart comme connu. Le correctif de B passe ensuite par une PR vers la release, puis une recopie vers `main` (runbook § 6). Il faut pour cela que la protection de `release/**` (question 2) soit en place. La C6 obtenue reste valable, et la coupe a lieu dès que la C6 est lue.
+  - **B. Attendre le correctif de B dans `main`** avant de couper. Cela demande la preuve de Q, la fusion et une nouvelle C6 sur le nouveau SHA, soit environ 1 à 1,5 h-s de plus, plus la durée du correctif. Les deux points fragiles connus (items 11 et 22) sont alors solides au moment de la coupe.
+  - **Recommandation : A.** Le score est le même, et l'écart est corrigé dans la release elle-même, par le chemin prévu pour les correctifs. B ne gagne aucun point et décale la coupe d'une nouvelle C6.
+- **À confirmer par Q avant la question** : C.22 points 1 à 3 verts, et le résultat de C.24 (contrôle responsive à 375, 768 et 1280 px). Sans le rapport de C.24, l'item 24 reste « fait » par déduction.
