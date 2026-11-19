@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
+import { downloadName } from '../lib/downloadName';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -116,6 +117,30 @@ const Documents: React.FC = () => {
     setSearchParams(nextParams, { replace: true });
   };
 
+  const hasActiveFilters = Boolean(filterCategory || filterStatus || searchQuery);
+  const resetFilters = () => {
+    setFilterCategory('');
+    setFilterStatus('');
+    if (searchQuery) setSearchQuery('');
+  };
+
+  const handleQuickDownload = async (e: React.MouseEvent, doc: Document) => {
+    e.stopPropagation();
+    try {
+      const blob = await api.getDocumentContentBlob(doc.id, 'attachment');
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = downloadName(doc);
+      window.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    } catch {
+      /* erreur déjà publiée par apiCallBlob */
+    }
+  };
+
   const filteredDocs = docs.filter((doc) => !filterCategory || doc.document_category_id === filterCategory);
 
   const getTypeStyle = (fileType: string | null) => {
@@ -193,6 +218,15 @@ const Documents: React.FC = () => {
               <option value="validated">Validé</option>
               <option value="archived">Archivé</option>
             </select>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="px-4 py-3 rounded-2xl border border-slate-200 bg-white text-xs font-black uppercase tracking-widest text-slate-600 hover:border-rdpc-blue hover:text-rdpc-blue transition-colors whitespace-nowrap"
+              >
+                Réinitialiser les filtres
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -239,7 +273,18 @@ const Documents: React.FC = () => {
                 <span className="material-symbols-outlined text-sm">schedule</span>
                 {formatDate(doc.updated_at)}
               </div>
-              <span className="text-[10px] font-black text-slate-400">{formatFileSize(doc.file_size)}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-slate-400">{formatFileSize(doc.file_size)}</span>
+                <button
+                  type="button"
+                  onClick={(e) => { void handleQuickDownload(e, doc); }}
+                  aria-label={`Télécharger ${doc.title}`}
+                  title="Télécharger"
+                  className="p-1.5 rounded-xl text-slate-400 hover:bg-blue-50 hover:text-rdpc-blue transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">download</span>
+                </button>
+              </div>
             </div>
           </div>
         ))}
