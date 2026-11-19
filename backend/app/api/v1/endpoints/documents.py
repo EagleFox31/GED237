@@ -1234,19 +1234,29 @@ async def list_workspace_documents(
     return result.scalars().all()
 
 
-@router.get("/tree")
+# GET /documents/tree has no screen and duplicates GET /spaces/tree (#279): deprecated
+# since V1.1 (RFC 9745 header, decision of 2026-11-17), removed once no client calls it.
+TREE_DEPRECATION = "@1794873600"
+TREE_SUCCESSOR = '</api/v1/spaces/tree>; rel="successor-version"'
+
+
+@router.get("/tree", deprecated=True)
 async def get_org_unit_tree(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Returns the hierarchy of organization units for the current tenant.
-    """
-    from app.models.org_unit import OrgUnit
+    """Deprecated: use GET /spaces/tree."""
+    response.headers["Deprecation"] = TREE_DEPRECATION
+    response.headers["Link"] = TREE_SUCCESSOR
+    return await build_org_unit_tree(db, current_user.tenant_id)
 
+
+async def build_org_unit_tree(db: AsyncSession, tenant_id: UUID) -> list[dict]:
+    """Active organization units of the tenant, as a tree of nested dicts."""
     query = (
         select(OrgUnit)
-        .where(OrgUnit.tenant_id == current_user.tenant_id, OrgUnit.is_active.is_(True))
+        .where(OrgUnit.tenant_id == tenant_id, OrgUnit.is_active.is_(True))
         .order_by(OrgUnit.level, OrgUnit.name)
     )
 
