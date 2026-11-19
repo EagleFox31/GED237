@@ -44,7 +44,6 @@ export interface Document {
   lock_expires_at?: string | null;
   // Corbeille (#181)
   deleted_at?: string | null;
-  deleted_by?: string | null;
   deleted_by_name?: string | null;
 }
 

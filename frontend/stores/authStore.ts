@@ -14,8 +14,6 @@ export interface UserProfile {
   email?: string;
   tenantId?: string;
   orgUnitId?: string;
-  /** Identifiant du compte côté API (`id` porte le modèle de rôle). Absent d'un profil stocké avant #274. */
-  userId?: string;
   mustChangePassword?: boolean;
   /** UUID du compte (`id` ci-dessus est la clé de profil). Absent d'un profil stocké avant son ajout. */
   userId?: string;
@@ -94,7 +92,6 @@ const normalizeBackendUser = (user: BackendUser): UserProfile => {
     email: user.email || undefined,
     tenantId: user.tenant_id,
     orgUnitId: user.org_unit_id || undefined,
-    userId: user.id,
     mustChangePassword: user.must_change_password || false,
     userId: user.id,
   };
@@ -123,7 +120,6 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       email: candidate.email?.toString(),
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
-      userId: candidate.userId?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
       userId: candidate.userId?.toString(),
     };
@@ -144,7 +140,6 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       email: candidate.email?.toString(),
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
-      userId: candidate.userId?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
       userId: candidate.userId?.toString(),
     };
