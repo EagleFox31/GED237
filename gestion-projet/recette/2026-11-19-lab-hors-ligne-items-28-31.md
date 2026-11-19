@@ -1,6 +1,6 @@
 # Lab hors ligne : installation sans Internet (item 28) et rejeu du manuel (item 31)
 
-- **Quand** : 19/11, de 09:24 à __FIN__ (heure de l'hôte), session CI/QA.
+- **Quand** : 19/11, de 09:24 à 10:15 (heure de l'hôte), session CI/QA.
 - **Code et images** : `main` à `103ce48b2ef1f42980d181f3414d3f76a8fb988e` (annexe A1 du protocole).
 - **Manuel rejoué** : `DOCS/exploitation/installation.md` de la PR #470, tête `925f00953083808a7a50deadff8be66af18095bb` (base `main` 103ce48b), avec `REF=103ce48b`.
 - **Résultat** : item 28 **OK avec le correctif de `scripts/images_import.sh` de cette PR** (avec le script de `main`, échec à la vérification de l'import sur une cible `overlay2`). La pile démarre sans réseau, `/health` répond 200 avec la version `103ce48b`. Item 31 rejoué de bout en bout, sauf ce qui est listé au § 6.
@@ -153,6 +153,7 @@ Sauvegarde et restauration (§ 7), toujours sans réseau :
 | 09:46, après les essais containerd | 14,1 Go | 8,3 Go | 92,7 / 863,0 Go | |
 | 09:56, pile démarrée dans le dind | 13,8 Go | 9,1 Go | 92,6 / 863,0 Go | dind 1,2 Go de mémoire sur 5 Go |
 | 10:02, après sauvegarde, restauration et `down` | 18,4 Go | 9,6 Go | 92,6 / 863,0 Go | `/var/lib/docker` du dind : 3,7 Go ; C: remonte à cause d'une autre activité de l'hôte |
+| 10:14, après le nettoyage | 14,3 Go | 9,9 Go | 71,6 / 884,0 Go | |
 
 Le vhdx grossit de la place que le dind écrit (environ 3,4 Go pour les images chargées) et ne rétrécit pas. Cette place reste libre à l'intérieur de la VM après le nettoyage, et Docker la réutilise.
 
@@ -192,4 +193,13 @@ Vérifié sans écart : `REF` et `git archive` du § 9 de #470, le nom du dossie
 
 ## 8. Nettoyage
 
-__NETTOYAGE__
+À 10:14, tout ce que le lab avait créé est retiré :
+
+- le conteneur `qlab-target` et le volume `qlab-target-docker` ;
+- les images `qlab-api`, `qlab-seed`, `qlab-worker`, `qlab-migrate`, `qlab-frontend` et `qlab-host:27.5.1`, supprimées une à une par leur nom ;
+- les fichiers de la clé simulée et du support du `.env`, supprimés nommément ;
+- le `.env` du worktree, puis le worktree lui-même, avec `git worktree remove`.
+
+`nginx:alpine`, `redis:7-alpine` et `postgres:15-alpine` restent sur l'hôte : ce sont des tags partagés, que le pull a mis à jour. Les conteneurs `edossier*`, `cfao-*`, `deploy-*` et `roadmapmentor-*` n'ont pas été touchés ; 17 d'entre eux tournent toujours. Il n'y a eu ni `prune` ni compactage du vhdx.
+
+Après le nettoyage, le disque interne de la VM passe de 92,6 à 71,6 Go utilisés. Le C: libre (14,3 Go) bouge avec l'activité des autres sessions de l'hôte.
