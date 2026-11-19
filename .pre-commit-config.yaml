@@ -24,6 +24,13 @@ repos:
         language: python
         files: ^\.github/
         pass_filenames: false
+      # Added lines must not match the local forbidden-pattern list (kept outside the repo;
+      # no list = no-op, so CI and other machines are unaffected).
+      - id: forbidden-words
+        name: no forbidden words in added lines
+        entry: scripts/check-forbidden-words.sh
+        language: script
+        exclude: ^scripts/check-forbidden-words\.sh$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
