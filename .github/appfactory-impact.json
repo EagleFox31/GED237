@@ -20,6 +20,16 @@
       "paths": [".github/**", "scripts/**", ".pre-commit-config.yaml", ".gitattributes"],
       "gates": ["workflow-lint"]
     },
+    "scripts": {
+      "paths": [
+        "scripts/*.sh",
+        "ops/**/*.sh",
+        "backend/scripts/*.sh",
+        ".github/workflows/scripts.yml",
+        ".github/workflows/ci.yml"
+      ],
+      "gates": ["scripts"]
+    },
     "backend": {
       "paths": ["backend/**", "backend/**/.*", "docker-compose.yml"],
       "gates": ["backend", "sast", "e2e"],

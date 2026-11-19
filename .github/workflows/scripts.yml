@@ -1,0 +1,29 @@
+name: Scripts CI
+
+# Shell scripts (scripts/, ops/, backend/scripts/): syntax of each one, then the offline test of
+# tag_preflight.sh (fake gh, no network, no secret). Called by ci.yml only when one of them,
+# this file or ci.yml changes (surface "scripts" of .github/appfactory-impact.json).
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    name: Shell syntax and tag preflight test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Syntax of every shell script (bash -n)
+        run: |
+          rc=0
+          shopt -s globstar nullglob
+          for f in scripts/*.sh ops/**/*.sh backend/scripts/*.sh; do
+            bash -n "$f" || { echo "::error file=$f::bash -n failed"; rc=1; }
+          done
+          exit "$rc"
+      - name: tag_preflight.sh offline test
+        run: bash scripts/test_tag_preflight.sh

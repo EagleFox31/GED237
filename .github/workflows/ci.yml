@@ -136,6 +136,13 @@ jobs:
       - name: CI reuse decision
         run: bash scripts/test_ci_reuse_validated_tree.sh
 
+  # Shell scripts: bash -n on scripts/, ops/ and backend/scripts/, then the offline tag_preflight.sh test (#157).
+  scripts:
+    name: Scripts
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'scripts') }}
+    uses: ./.github/workflows/scripts.yml
+
   # Same script as the pre-commit hook: no case collisions, UTF-16, NUL, control characters or U+FFFD.
   tracked-files:
     name: Tracked files (case, UTF-8)
@@ -154,7 +161,7 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [impact, reuse, backend, frontend, security, workflows, tracked-files]
+    needs: [impact, reuse, backend, frontend, security, workflows, scripts, tracked-files]
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
