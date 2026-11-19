@@ -39,30 +39,32 @@ export const authzApi = {
             'Récupération des droits impossible',
         ),
 
-    // 409 : politiques non modifiables sur cette installation (AUTHZ_BACKEND=csv) ; l'écran l'affiche lui-même.
+    // La grille des droits (RightsGridTab) affiche elle-même ces refus (409 = réglage par fichier) : pas de toast global en double.
     getAuthzPolicies: (): Promise<any[]> =>
-        apiCall<any[]>('/authz/policies', {}, 'Récupération des politiques impossible', {
-            handledStatuses: [409],
+        apiCall<any[]>('/authz/policies', {}, 'Récupération des droits impossible', {
+            handledStatuses: [403, 409, 503],
         }),
 
     addAuthzPolicy: (policy: AuthzPolicy): Promise<any> =>
         apiCall<any>(
             '/authz/policies',
             { method: 'POST', body: JSON.stringify({ ptype: 'p', ...policy }) },
-            'Ajout de la politique impossible',
+            'Ajout du droit impossible',
+            { handledStatuses: [403, 409, 422, 429, 503] },
         ),
 
     deleteAuthzPolicy: (policy: AuthzPolicy): Promise<any> =>
         apiCall<any>(
             '/authz/policies',
             { method: 'DELETE', body: JSON.stringify({ ptype: 'p', ...policy }) },
-            'Suppression de la politique impossible',
+            'Retrait du droit impossible',
+            { handledStatuses: [403, 409, 422, 429, 503] },
         ),
 
-    // Même garde que /authz/policies côté API (409 en csv), chargé en parallèle : l'écran l'affiche lui-même.
+    // 409 en csv : sert à savoir si la grille est modifiable ; l'écran l'affiche lui-même.
     getAuthzRoles: (): Promise<any[]> =>
         apiCall<any[]>('/authz/roles', {}, 'Récupération des rôles impossible', {
-            handledStatuses: [409],
+            handledStatuses: [403, 409, 503],
         }),
 
     getAuthzMetrics: (filters: AuthzMetricsFilters = {}): Promise<any> => {

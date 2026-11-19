@@ -12,6 +12,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { api } from '../../../../services/api';
 import { useAuthStore } from '../../../../stores/authStore';
+import { ROLE_HUMAN_LABEL } from '../../../../lib/roleLabels';
 
 interface AgentsListTabProps {
   initialAgentId?: string;
@@ -65,19 +66,6 @@ const EMPTY_FORM: AgentFormState = {
   org_unit_id: '',
   reports_to_user_id: '',
   phone: '',
-};
-
-// Libellés humains pour les codes de rôles seedés (tableau de référence
-// stable, n'a pas vocation à varier — duplique l'info backend qui pourrait
-// être exposée via /assignable-roles plus tard).
-const ROLE_HUMAN_LABEL: Record<string, string> = {
-  super_admin: 'Super-administrateur',
-  tenant_admin: 'Admin Ministère',
-  unit_admin: 'Admin du service',
-  manager: 'Responsable',
-  collab: 'Collaborateur',
-  reader: 'Lecteur',
-  auditor: 'Auditeur',
 };
 
 const formatDate = (iso?: string | null) => {
