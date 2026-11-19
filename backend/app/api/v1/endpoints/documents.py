@@ -68,6 +68,7 @@ from app.models.tenant import Tenant
 from app.services.ingest_watch import read_last_run, status_for_tenant
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
+from app.services.ocr.base import is_low_confidence
 from app.services import trash_service
 from app.services.storage.factory import get_storage_service
 from app.workers.tasks import process_document_ocr
@@ -1700,12 +1701,17 @@ async def get_document_ocr(
             status_code=403, detail="Not enough privileges to access this document"
         )
 
+    extra = document.extra_data or {}
     ocr_status = "not_processed"
     ocr_confidence = None
+    ocr_error = None
     if document.ocr_content:
         ocr_status = "completed"
-        if document.extra_data and "ocr_confidence" in document.extra_data:
-            ocr_confidence = document.extra_data["ocr_confidence"]
+        ocr_confidence = extra.get("ocr_confidence")
+    elif extra.get("ocr_status") == "failed":
+        # Written by the worker (#276); documents read before that stay "processing".
+        ocr_status = "failed"
+        ocr_error = extra.get("ocr_error")
     else:
         ocr_source_type = document.mime_type or document.file_type
         if ocr_source_type and (
@@ -1718,6 +1724,8 @@ async def get_document_ocr(
         ocr_content=document.ocr_content,
         ocr_confidence=ocr_confidence,
         ocr_status=ocr_status,
+        ocr_error=ocr_error,
+        low_confidence=is_low_confidence(ocr_confidence),
     )
 
 

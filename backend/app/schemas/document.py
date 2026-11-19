@@ -83,7 +83,12 @@ class DocumentOCRContent(BaseModel):
     document_id: UUID
     ocr_content: Optional[str] = None
     ocr_confidence: Optional[float] = None
+    # not_processed | processing | completed | failed (#276)
     ocr_status: str = "not_processed"
+    # failed only: file_not_found | unsupported_format | no_text | engine_error
+    ocr_error: Optional[str] = None
+    # completed only: confidence under services/ocr/base.LOW_CONFIDENCE_THRESHOLD
+    low_confidence: Optional[bool] = None
 
     class Config:
         from_attributes = True
