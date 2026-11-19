@@ -1,4 +1,5 @@
-from typing import Dict, Any
+from typing import Any, Dict, Optional, Sequence
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -23,21 +24,33 @@ class DashboardFacade:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_tenant_metrics(self, tenant_id: str) -> Dict[str, Any]:
+    async def get_tenant_metrics(
+        self, tenant_id: str, org_unit_ids: Optional[Sequence[UUID]] = None
+    ) -> Dict[str, Any]:
         """
         Get KPIs for a specific tenant (ministry).
+        With ``org_unit_ids`` the figures are limited to those units (an empty list
+        gives zeros): users, documents, workflows, duplicates refused by their members
+        and imports targeting them.
         Documents in the recycle bin are left out, as in get_manager_metrics:
         they are no longer among the institution files (#218, #256).
         """
         # 1. User Statistics
-        stmt_users = select(func.count(User.id)).where(User.tenant_id == tenant_id)
+        scoped = org_unit_ids is not None
+        unit_ids = list(org_unit_ids or [])
+        user_filters = [User.tenant_id == tenant_id]
+        doc_filters = [Document.tenant_id == tenant_id, Document.deleted_at.is_(None)]
+        if scoped:
+            user_filters.append(User.org_unit_id.in_(unit_ids))
+            doc_filters.append(Document.org_unit_id.in_(unit_ids))
+        stmt_users = select(func.count(User.id)).where(*user_filters)
         users_count = await self.db.scalar(stmt_users) or 0
 
         # 2. Document & Storage Statistics
         stmt_docs = select(
             func.count(Document.id).label("total_docs"),
             func.sum(Document.file_size).label("total_storage_bytes"),
-        ).where(Document.tenant_id == tenant_id, Document.deleted_at.is_(None))
+        ).where(*doc_filters)
 
         doc_res = (await self.db.execute(stmt_docs)).first()
         docs_count = doc_res.total_docs if doc_res else 0
@@ -61,28 +74,39 @@ class DashboardFacade:
                 .label("rejected"),
             )
             .join(Document, Document.id == WorkflowStep.document_id)
-            .where(Document.tenant_id == tenant_id, Document.deleted_at.is_(None))
+            .where(*doc_filters)
         )
 
         wf_res = (await self.db.execute(stmt_workflows)).first()
 
         # 4. Duplicates refused since the origin: upload/new version (audited as dup_detected, 409 to the
         # user) and committed imports (ImportJob.duplicate_files, not audited: no double count).
-        refused_upload = (
-            await self.db.scalar(
-                select(func.count(AuditLog.id)).where(
-                    AuditLog.tenant_id == tenant_id,
-                    AuditLog.table_name == "documents",
-                    AuditLog.action == "dup_detected",
+        audit_filters = [
+            AuditLog.tenant_id == tenant_id,
+            AuditLog.table_name == "documents",
+            AuditLog.action == "dup_detected",
+        ]
+        import_filters = [
+            ImportJob.tenant_id == tenant_id,
+            ImportJob.status.in_(COMMITTED_IMPORT_STATUSES),
+        ]
+        if scoped:
+            audit_filters.append(
+                AuditLog.user_id.in_(
+                    select(User.id).where(
+                        User.tenant_id == tenant_id, User.org_unit_id.in_(unit_ids)
+                    )
                 )
             )
+            import_filters.append(ImportJob.target_org_unit_id.in_(unit_ids))
+        refused_upload = (
+            await self.db.scalar(select(func.count(AuditLog.id)).where(*audit_filters))
             or 0
         )
         refused_import = (
             await self.db.scalar(
                 select(func.coalesce(func.sum(ImportJob.duplicate_files), 0)).where(
-                    ImportJob.tenant_id == tenant_id,
-                    ImportJob.status.in_(COMMITTED_IMPORT_STATUSES),
+                    *import_filters
                 )
             )
             or 0
