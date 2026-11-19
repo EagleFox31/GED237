@@ -487,13 +487,16 @@ async def test_local_storage_patterns(monkeypatch, tmp_path):
     relative, checksum = await service.save_file_with_checksum(
         AsyncUpload("one.txt", payload), "tenant/docs"
     )
-    assert relative == "tenant/docs/one.txt"
+    assert relative.startswith("tenant/docs/") and relative.endswith("_one.txt")
     assert checksum == hashlib.sha256(payload).hexdigest()
     assert service.get_file_content(relative) == payload
-    assert service.get_full_path(relative).endswith("tenant/docs/one.txt")
+    assert service.get_full_path(relative).endswith(relative)
 
     saved = await service.save_file(AsyncUpload("two.txt", b"two"), "tenant/docs")
-    assert saved == "tenant/docs/two.txt"
+    assert saved.startswith("tenant/docs/") and saved.endswith("_two.txt")
+    other = await service.save_file(AsyncUpload("two.txt", b"2"), "tenant/docs")
+    assert other != saved  # same name, own file
+    assert service.get_file_content(saved) == b"two"
 
     renamed = service.rename_file(saved, "renamed.txt")
     assert renamed == "tenant/docs/renamed.txt"
