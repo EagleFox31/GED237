@@ -598,21 +598,6 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
-
-### LESSON-2026-073 — Un rôle d'unité avec `manage` agit sur toute l'institution : Casbin ne connaît pas l'arbre
-
-- **Date :** 2026-11-17
-- **Catégorie :** authz
-- **Statut :** test-added
-- **Liens :** #215, `app/services/unit_admin_scope.py` (`assert_unit_admin_in_tree`, `assert_unit_admin_object_in_tree`, `unit_admin_scope_ids`), `policy.csv` (classification_reviews, workflows)
-
-**Contexte** — `policy.csv` donne à `unit_admin` `classification_reviews, manage` et `workflows, manage`. Le matcher accepte `p.act == "manage"` pour toute action.
-**Échec / near miss** — Casbin vérifie le tenant, pas l'unité : un unit_admin pouvait lister et trancher les revues, valider, réassigner et lire les circuits de toute l'institution. #195 avait borné les lectures, pas ces écritures. Trouvé en revue (#215), sans incident signalé.
-**Cause racine** — Le périmètre « son unité et ses sous-unités » vit dans le code (#195), alors que le droit vient de la politique. Chaque nouvelle route sous `manage` hérite de la portée tenant si elle n'appelle pas la règle d'arbre.
-**Résolution** — Une seule règle pour les rôles bornés : celle de `unit_admin_scope` (contrôles fermés par défaut, `unit_admin_scope_ids` pour les listes), partagée avec #202 ; pas de seconde copie ailleurs. Ressource hors arbre : 404 ; cible hors arbre : 403. Un acteur explicitement assigné garde son droit.
-**Prévention** — `tests/api/test_unit_admin_tree_writes.py` et `test_unit_admin_write_scope.py` : un unit_admin d'une autre branche reçoit 404, une cible hors arbre 403, un parent n'est jamais atteint depuis une sous-unité ; tenant_admin et super_admin gardent toute l'institution. Sans les gardes, 9 tests sur 14 échouent.
-**Leçon généralisée** — Un droit de politique (`manage`) dit *quoi*, pas *où*. Toute route ouverte à un rôle borné doit passer par la règle de périmètre, et son test doit inclure un acteur du même rôle dans une autre branche.
-
 ### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
 
 - **Date :** 2026-11-17
@@ -897,3 +882,46 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
 **Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
 **Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
+
+### LESSON-2026-067 — Rendu React dans `e2e/unit` : le runner Playwright transforme le JSX, 2 tests rouges sur main
+
+- **Date :** 2026-11-19
+- **Catégorie :** testing
+- **Statut :** resolved (garde-fou `frontend/e2e/unit/unit-folder-guard.spec.ts`)
+- **Liens :** 2d20a028, `frontend/e2e/unit/search-highlight.spec.ts`, `frontend/e2e/specs/uat/search-excerpt.spec.ts`, LESSON-2026-066
+
+**Contexte** — 2d20a028 a ajouté dans `e2e/unit/search-highlight.spec.ts` deux tests qui rendaient `HighlightedExcerpt` avec `renderToStaticMarkup`.
+**Échec / near miss** — Les deux tests échouent sur main : le runner Playwright transforme le JSX des `.tsx` importés en objets `{__pw_type:'jsx'}` (format des tests de composants), que `react-dom/server` ne sait pas rendre.
+**Cause racine** — `e2e/unit` est exécuté par le runner Playwright, pas par un outil de rendu React : seul du code TypeScript pur y fonctionne.
+**Résolution** — `e2e/unit` garde les tests des fonctions pures (`parseHighlight`, `hasHighlightMatch`). Le rendu (HTML échappé, extrait sans mot trouvé, marqueur douteux) est vérifié dans le navigateur par `e2e/specs/uat/search-excerpt.spec.ts`, avec une réponse de `GET /search` simulée. Le composant n'est pas modifié.
+**Prévention** — `e2e/unit/unit-folder-guard.spec.ts` (exécuté par `npm run test:unit`) échoue si un spec de `e2e/unit` importe `react-dom` ou un module `.tsx`. Un second test vérifie que le garde-fou repère bien ces imports.
+**Leçon généralisée** — Un dossier de tests « purs » n'est pur que si un contrôle automatique le garantit : une convention seule ne suffit pas.
+
+### LESSON-2026-068 — Heredoc non protégé : une commande citée dans une note de passation a été exécutée (push involontaire)
+
+- **Date :** 2026-11-19
+- **Catégorie :** process / git
+- **Statut :** resolved (règle de session : heredoc toujours protégé)
+- **Liens :** PR #184 (`feat/post-rc1-undo-ui`, bb1de95d puis 3f5ae410), `PASSATION-dev-frontend.md`
+
+**Contexte** — Une entrée de `PASSATION-dev-frontend.md` est ajoutée par `cat >> fichier <<EOF … EOF` pour y insérer l'heure réelle. Le texte décrit l'étape suivante : « commit, puis `git push origin wip-184:feat/post-rc1-undo-ui` ».
+**Échec / near miss** — Avec un délimiteur non protégé, bash exécute les substitutions du texte. La commande entre accents graves a été lancée à 08:09:37 : `feat/post-rc1-undo-ui` (PR #184, brouillon) a été poussée avec 2 tests e2e encore rouges, et la note a gardé un trou à la place de la commande. Corrigé 3 minutes plus tard (3f5ae410, sans force). Ni main ni une PR en file n'ont été touchées.
+**Cause racine** — `<<EOF` interprète `` `…` ``, `$(…)` et `$VAR` ; la mise en forme Markdown d'une commande (accents graves) devient une exécution.
+**Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
+**Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
+**Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
+
+
+### LESSON-2026-073 — Un rôle d'unité avec `manage` agit sur toute l'institution : Casbin ne connaît pas l'arbre
+
+- **Date :** 2026-11-17
+- **Catégorie :** authz
+- **Statut :** test-added
+- **Liens :** #215, `app/services/reports_scope.py` (`in_actor_unit_tree`, `unit_tree_filter`), `policy.csv` (classification_reviews, workflows)
+
+**Contexte** — `policy.csv` donne à `unit_admin` `classification_reviews, manage` et `workflows, manage`. Le matcher accepte `p.act == "manage"` pour toute action.
+**Échec / near miss** — Casbin vérifie le tenant, pas l'unité : un unit_admin pouvait lister et trancher les revues, valider, réassigner et lire les circuits de toute l'institution. #195 avait borné les lectures, pas ces écritures. Trouvé en revue (#215), sans incident signalé.
+**Cause racine** — Le périmètre « son unité et ses sous-unités » vit dans le code (#195), alors que le droit vient de la politique. Chaque nouvelle route sous `manage` hérite de la portée tenant si elle n'appelle pas la règle d'arbre.
+**Résolution** — Une seule règle pour les rôles bornés : `in_actor_unit_tree` (contrôle unitaire, fermé par défaut) et `unit_tree_filter` (filtre SQL). Ressource hors arbre : 404 ; cible hors arbre : 403. Un acteur explicitement assigné garde son droit.
+**Prévention** — `tests/api/test_unit_admin_write_scope.py` : un unit_admin d'une autre branche reçoit 404, une cible hors arbre 403, un parent n'est jamais atteint depuis une sous-unité ; tenant_admin et super_admin gardent toute l'institution. Sans les gardes, 9 tests sur 14 échouent.
+**Leçon généralisée** — Un droit de politique (`manage`) dit *quoi*, pas *où*. Toute route ouverte à un rôle borné doit passer par la règle de périmètre, et son test doit inclure un acteur du même rôle dans une autre branche.
