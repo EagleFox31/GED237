@@ -1,4 +1,4 @@
-import { test, expect, apiAs } from '../../fixtures/uat.fixture';
+import { test, expect, apiAs, TEST_USERS } from '../../fixtures/uat.fixture';
 import type { APIRequestContext } from '@playwright/test';
 import { SEED } from '../../data/seed';
 
@@ -70,7 +70,7 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
     test('SC-V11-02 - Given des regles, When export puis import (dry_run, apply, rejeu), Then 0 ecriture au rejeu ; le lecteur recoit 403', async ({ request }) => {
       // Unique per run: a replay on a non-empty database creates its own rule (created = 1).
       const CODE = `e2e_v11_transfer_${Date.now().toString(36)}`;
-      const admin = await token(request, { matricule: 'MINFI001', password: 'Minfi@2025' });
+      const admin = await token(request, { matricule: 'MINFI001', password: TEST_USERS.tenant_admin.password });
       const exported = async () => {
         const res = await request.get(`${RULES}/export`, { headers: admin });
         expect(res.status(), 'export').toBe(200);
@@ -108,13 +108,13 @@ test.describe('Feature: Lots V1.1 (SC-V11-01..05)', () => {
       expect(replay.skipped).toBe(1);
       expect((await exported()).rules).toHaveLength(after.rules.length);
 
-      const reader = await token(request, { matricule: 'READ001', password: 'Read@2025' });
+      const reader = await token(request, { matricule: 'READ001', password: TEST_USERS.reader.password });
       const denied = await request.post(`${RULES}/import`, { headers: reader, data: { format: base.format, version: 1, rules: [] } });
       expect(denied.status(), 'lecteur : import interdit').toBe(403);
     });
 
     test('SC-V11-02b - Given les regles du seed (codes bruts), When export puis reimport du fichier complet, Then 0 ecriture et le re-export est accepte', async ({ request }) => {
-      const admin = await token(request, { matricule: 'MINFI001', password: 'Minfi@2025' });
+      const admin = await token(request, { matricule: 'MINFI001', password: TEST_USERS.tenant_admin.password });
       const exp = await request.get(RULES + '/export', { headers: admin });
       expect(exp.status(), 'export').toBe(200);
       const file = await exp.json();

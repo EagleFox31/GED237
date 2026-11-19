@@ -35,7 +35,7 @@ Scénario joué avec `backend/scripts/test-in-docker.sh` (`MIGRATION_DB=mig_role
 ## Preuves
 
 - Scénario migration (Docker, `MIGRATION_DB=mig_roles`, 2026-11-09) : 1. base vierge → `upgrade head` : `auditor,collaborator,manager,reader,super_admin,tenant_admin,unit_admin`, contrainte `ck_roles_code_lowercase` présente ; 2. second `upgrade head` : aucune révision exécutée ; 3. `downgrade e1f2a3b4c5d6` puis injection `COLLABORATOR`, `LEGACY_ROLE` et un utilisateur sur `COLLABORATOR` ; 4. `upgrade head` : `auditor,collaborator,legacy_role,manager,reader,super_admin,tenant_admin,unit_admin`, l'utilisateur pointe `collaborator` ; 5. `INSERT ... ('XYZ', ...)` refusé par `ck_roles_code_lowercase`.
-- Scénario seed (Docker, `MIGRATION_DB=mig_seed`, 2026-11-09) : base vierge → `upgrade head` : 7 rôles, 7 types, 0 tenant ; `seed_db.py` : 7 rôles, 11 types, 3 tenants, 8 utilisateurs, 6 documents ; second `seed_db.py` : `[SKIP] Demo tenant MINFI already present`, compteurs identiques, identifiants des rôles inchangés (`super_admin:1 … auditor:7`) ; `POST /auth/login` `MINFI` / `MGR001` / `Mgr@2025` → 200 (`session_token`, `otp`).
+- Scénario seed (Docker, `MIGRATION_DB=mig_seed`, 2026-11-09) : base vierge → `upgrade head` : 7 rôles, 7 types, 0 tenant ; `seed_db.py` : 7 rôles, 11 types, 3 tenants, 8 utilisateurs, 6 documents ; second `seed_db.py` : `[SKIP] Demo tenant MINFI already present`, compteurs identiques, identifiants des rôles inchangés (`super_admin:1 … auditor:7`) ; `POST /auth/login` `MINFI` / `MGR001` / (mot de passe de démo, voir le jeu de démo) → 200 (`session_token`, `otp`).
 - Suite ciblée (`tests/api/test_authz*.py`) : à consigner.
 
 ## Hors périmètre, à suivre

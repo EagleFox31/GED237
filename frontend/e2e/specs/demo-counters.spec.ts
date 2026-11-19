@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { TEST_USERS } from '../fixtures/auth.fixture';
 import { DEMO, DEMO_MANIFEST_FILE, DEMO_P8_TITLES, type Counters } from '../data/demo';
 
 /**
@@ -12,7 +13,7 @@ const AWAITING_D1 = false;
 const C2_THRESHOLD = 0.95;
 
 const API_URL = process.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-const PASSWORD = process.env.DEMO_ADMIN_PASSWORD || 'Minfi@2025';
+const PASSWORD = process.env.DEMO_ADMIN_PASSWORD || TEST_USERS.tenant_admin.password;
 const MATRICULE = process.env.DEMO_ADMIN_MATRICULE || 'MINFI001';
 
 interface Doc {

@@ -1,5 +1,6 @@
 import { test, expect, TEST_USERS, API_URL } from '../../fixtures/uat.fixture';
 import { LoginPage } from '../../pages/login.page';
+import { NEW_ACCOUNT_PASSWORD, OTHER_TENANT_COLLABORATOR } from '../../fixtures/auth.fixture';
 import type { Page } from '@playwright/test';
 
 /**
@@ -50,7 +51,7 @@ test.describe('SC-AUTH-01 — Se connecter (2FA)', () => {
     const admin = TEST_USERS.tenant_admin;
 
     await lp.goto();
-    await lp.fillCredentials(admin.institution, admin.matricule, 'Mauvais@2025');
+    await lp.fillCredentials(admin.institution, admin.matricule, `${admin.password}-faux`);
     await lp.submitLogin();
 
     await lp.expectErrorVisible('Vérifiez vos identifiants');
@@ -89,7 +90,7 @@ test.describe('SC-AUTH-01 — Se connecter (2FA)', () => {
   }) => {
     const institution = TEST_USERS.tenant_admin.institution;
     const matricule = `VERROU-${runId}`.toUpperCase();
-    const password = 'Verrou@2025';
+    const password = NEW_ACCOUNT_PASSWORD;
     const { tenant_id } = await adminApi.me();
     await adminApi.createUser({ matricule, password, roleCode: 'reader', tenantId: tenant_id });
 
@@ -198,7 +199,7 @@ test.describe('SC-AUTH-02 — Prolonger une session active', () => {
     await loginAs('collaborator');
     await expireOn(page);
     // MINESUP001 est aussi collaborateur : même profil de rôle, compte et ministère différents.
-    await relog(page, { institution: 'Ministère de l’Enseignement Supérieur (MINESUP)', matricule: 'MINESUP001', password: 'Sup@2025' });
+    await relog(page, OTHER_TENANT_COLLABORATOR);
     await expect(page).not.toHaveURL(/\/audit/);
     await new LoginPage(page).expectDashboardVisible();
   });

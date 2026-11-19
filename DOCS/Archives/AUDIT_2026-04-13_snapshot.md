@@ -183,7 +183,7 @@ Fichiers :
 Constat :
 
 - les mots de passe démo côté frontend sont `admin123`, `minfi123`, `user123`, etc.
-- la seed backend crée `Admin@2025`, `Minfi@2025`, `User@2025`, etc.
+- la seed backend crée les comptes de démo (mot de passe de démo, voir le jeu de démo)
 
 Impact :
 
