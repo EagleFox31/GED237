@@ -775,6 +775,20 @@ première requête utilisateur.
 **Prévention** — Contrôle de présence dans le Dockerfile (`ls | grep -i latin`) ; essai réel avec `--network none` ; test unitaire de l'absence de modèle (moteur indisponible, aucun accès réseau).
 **Leçon généralisée** — Pour toute bibliothèque qui télécharge ses modèles, forcer l'usage réel au build et prouver l'absence de réseau à l'exécution. Mesurer la mémoire par le pic du conteneur (`memory.peak`) et régler la taille d'entrée en conséquence : 2000 px donnait 755 à 895 Mo, 1600 px 609 à 695 Mo, 1800 px 626 Mo (défaut retenu après le banc de Q : rappel -0,64 point par rapport à 2000).
 
+### LESSON-2026-060 — Tâche OCR acquittée à la réception : un worker tué emportait le travail, le document restait « en traitement »
+
+- **Date :** 2026-11-20
+- **Catégorie :** reliability / worker
+- **Statut :** prevention-added
+- **Liens :** `backend/app/workers/tasks.py`, `backend/app/workers/celery_app.py`, `backend/app/services/ocr_recovery.py`, `backend/tests/services/test_ocr_robustness.py`
+
+**Contexte** — Le worker a un seul processus dans 2 Go ; l'OCR peut dépasser la mémoire et le processus est tué (SIGKILL). L'état « en traitement » se déduit de l'absence de texte OCR sur une image ou un PDF.
+**Échec / near miss** — Par défaut Celery acquitte la tâche avant de l'exécuter : si le processus meurt, le message a disparu et rien ne relance le document, qui reste « en traitement » sans fin. Les erreurs ordinaires étaient avalées sans nouvelle tentative.
+**Cause racine** — Aucune garantie de livraison côté tâche (`acks_late` absent), pas de nouvelle tentative bornée, et aucun balayage des documents restés sans texte.
+**Résolution** — `acks_late` et `reject_on_worker_lost` sur la tâche ; nouvelle tentative bornée avec délai doublé (`OCR_TASK_MAX_RETRIES`, `OCR_TASK_RETRY_BACKOFF_SECONDS`) ; balayage beat (`OCR_STUCK_MINUTES`, `OCR_STUCK_MAX_REQUEUES`, `OCR_STUCK_SWEEP_INTERVAL_SECONDS`) qui renvoie les documents sans texte après N minutes, au plus M fois (une page blanche ne doit pas boucler). Le seuil d'ancienneté est calculé par l'horloge de la base, car `created_at` est un timestamp sans fuseau.
+**Prévention** — `test_ocr_robustness.py` : options de la tâche, délais, arrêt après le maximum, balayage (cas à relancer, cas à laisser : trop récent, texte présent, corbeille, type sans OCR, plafond atteint, relance récente, balayage coupé).
+**Leçon généralisée** — Une tâche longue sur un worker à mémoire limitée doit être acquittée après coup, relancée de façon bornée, et doublée d'un balayage de l'état dérivé ; toute relance automatique a un plafond.
+
 ### LESSON-2026-061 — PR de base entrée dans la file alors que trois PR la ciblaient encore
 
 - **Date :** 2026-11-18
