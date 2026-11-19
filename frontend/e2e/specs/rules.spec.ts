@@ -35,18 +35,18 @@ test.describe('Feature: Moteur de règles IFTTT', () => {
    *
    *   GIVEN  des règles existent pour le tenant
    *   WHEN   la page se charge
-   *   THEN   les cartes de règles s'affichent avec nom et trigger_type
-   *   AND    la première règle est sélectionnée par défaut
+   *   THEN   les cartes de règles s'affichent, aucune n'est sélectionnée (aide à droite)
+   *   AND    un clic sur la première affiche son détail
    */
   test('Given règles en base, When chargement, Then cartes affichées', async ({ page }) => {
     const rulesPage = new RulesPage(page);
     await rulesPage.goto();
-    await rulesPage.expectLoaded();
 
     const count = await rulesPage.getRuleCount();
     if (count > 0) {
       await rulesPage.expectAtLeastOneRule();
-      // Première règle sélectionnée → éditeur visible
+      await expect(rulesPage.noSelectionText).toBeVisible();
+      await rulesPage.selectFirstRule();
       await rulesPage.expectEditorVisible();
     } else {
       await rulesPage.expectNoRules();
@@ -54,36 +54,29 @@ test.describe('Feature: Moteur de règles IFTTT', () => {
   });
 
   /**
-   * SCENARIO 3: L'éditeur visuel affiche trigger, conditions et actions
+   * SCENARIO 3: Le détail affiche le code, les critères de ciblage et le circuit
    *
    *   GIVEN  une règle est sélectionnée
-   *   WHEN   l'éditeur visuel se charge
-   *   THEN   le bloc DÉCLENCHEUR affiche le trigger_type
-   *   AND    le bloc CONDITIONS affiche les conditions de la règle
-   *   AND    le bloc ACTIONS affiche les actions de la règle
+   *   WHEN   son détail s'affiche
+   *   THEN   le code de la règle est visible
+   *   AND    les critères « Type de document » et « Unité Organisationnelle » sont affichés
+   *   AND    le circuit déclenché est nommé
    */
-  test('Given règle sélectionnée, When éditeur, Then trigger + conditions + actions', async ({ page }) => {
+  test('Given règle sélectionnée, When détail, Then code + critères + circuit', async ({ page }) => {
     const rulesPage = new RulesPage(page);
     await rulesPage.goto();
-    await rulesPage.expectLoaded();
 
     const count = await rulesPage.getRuleCount();
     if (count === 0) {
       test.skip();
       return;
     }
+    await rulesPage.selectFirstRule();
 
     // THEN
     await rulesPage.expectEditorVisible();
-
-    // Trigger type affiché
-    const triggerType = await rulesPage.getTriggerType();
-    expect(triggerType.length).toBeGreaterThan(0);
-
-    // Conditions et actions comptées
-    const condCount = await rulesPage.getConditionCount();
-    const actionCount = await rulesPage.getActionCount();
-    expect(condCount + actionCount).toBeGreaterThanOrEqual(0); // Peut être 0 si pas de conditions
+    expect(await rulesPage.getCriteriaCount()).toBe(2);
+    expect((await rulesPage.getAppliedCircuit()).trim().length).toBeGreaterThan(0);
   });
 
   /**
@@ -96,19 +89,23 @@ test.describe('Feature: Moteur de règles IFTTT', () => {
   test('Given 2+ règles, When clic deuxième, Then éditeur mis à jour', async ({ page }) => {
     const rulesPage = new RulesPage(page);
     await rulesPage.goto();
-    await rulesPage.expectLoaded();
 
     const count = await rulesPage.getRuleCount();
     if (count < 2) {
       test.skip();
       return;
     }
+    await rulesPage.selectFirstRule();
+    await rulesPage.expectEditorVisible();
+    // textContent, not innerText: the card title is uppercased by CSS.
+    const secondName = ((await rulesPage.ruleCards.nth(1).locator('h3').textContent()) ?? '').trim();
 
     // WHEN
     await rulesPage.ruleCards.nth(1).click();
 
-    // THEN — l'éditeur est toujours visible avec des données
+    // THEN — le détail affiche la deuxième règle
     await rulesPage.expectEditorVisible();
+    await expect(page.getByRole('heading', { level: 2, name: secondName, exact: true })).toBeVisible();
   });
 
   /**
@@ -116,13 +113,12 @@ test.describe('Feature: Moteur de règles IFTTT', () => {
    *
    *   GIVEN  aucune règle n'existe pour le tenant
    *   WHEN   la page se charge
-   *   THEN   "Aucune règle définie" s'affiche
-   *   AND    le message "Sélectionnez une règle" est visible
+   *   THEN   "Aucune règle pour l'instant" s'affiche
+   *   AND    le panneau « Qu'est-ce qu'une règle d'aiguillage ? » est visible
    */
   test('Given aucune règle, When chargement, Then état vide', async ({ page }) => {
     const rulesPage = new RulesPage(page);
     await rulesPage.goto();
-    await rulesPage.expectLoaded();
 
     const count = await rulesPage.getRuleCount();
     if (count === 0) {
@@ -143,7 +139,7 @@ test.describe('Feature: Création de règle', () => {
    *
    *   GIVEN  un tenant_admin sur la page Rules
    *   WHEN   il clique "Nouvelle Règle"
-   *   THEN   le modal s'ouvre avec nom, condition OCR (mot-clé), action (tag)
+   *   THEN   le modal s'ouvre avec le nom (code déduit), les types ciblés et le circuit
    */
   test('Given page rules, When clic nouvelle règle, Then modal affiché', async ({ page }) => {
     const rulesPage = new RulesPage(page);
@@ -155,8 +151,8 @@ test.describe('Feature: Création de règle', () => {
 
     // THEN
     await expect(rulesPage.ruleNameInput).toBeVisible();
-    await expect(rulesPage.ruleCodeInput).toBeVisible();
-    await expect(rulesPage.categorySelect).toBeVisible();
+    await expect(rulesPage.ruleCodeHint).toBeVisible();
+    await expect(rulesPage.categoryButtons.first()).toBeVisible();
     await expect(rulesPage.templateSelect).toBeVisible();
     await expect(rulesPage.submitRuleButton).toBeVisible();
   });
@@ -189,7 +185,7 @@ test.describe('Feature: Création de règle', () => {
 
     // AND
     await rulesPage.expectLoaded();
-    await expect(page.getByText(ruleName)).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h3', { hasText: ruleName })).toBeVisible({ timeout: 10_000 });
   });
 });
 

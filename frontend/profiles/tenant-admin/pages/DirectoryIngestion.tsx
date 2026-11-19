@@ -561,7 +561,7 @@ const DirectoryIngestion: React.FC = () => {
 
   const getItemCategoryName = (item: ImportJobItem) => {
     if (item.detected_document_category_id) {
-      return categoriesById.get(item.detected_document_category_id) || 'Categorie selectionnee';
+      return categoriesById.get(item.detected_document_category_id) || 'Catégorie sélectionnée';
     }
     return 'Aucune categorie';
   };

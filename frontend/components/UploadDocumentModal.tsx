@@ -2,7 +2,19 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
+import {
+  fileTooLargeMessage, formatFileSize, nextTitle, unreadableFormatNotice, uploadErrorMessage,
+} from '../lib/uploadFeedback';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
+import { MAX_UPLOAD_MB } from '../constants';
+import { resolvePreviewStrategy } from './preview/PreviewStrategyRegistry';
+
+/** Avertissement de format pour le fichier choisi (aperçu : mêmes règles que la fenêtre de détail). */
+function formatNoticeFor(f: File): string | null {
+  const mime = f.type.toLowerCase();
+  const canPreview = resolvePreviewStrategy({ mime, filename: f.name }).id !== 'unsupported';
+  return unreadableFormatNotice(mime, canPreview);
+}
 
 interface UploadDocumentModalProps {
   onClose: () => void;
@@ -12,6 +24,7 @@ interface UploadDocumentModalProps {
 const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSuccess }) => {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [titleEditedByHand, setTitleEditedByHand] = useState(false);
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
@@ -28,11 +41,18 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
 
   const handleFile = (f: File | null) => {
     if (!f) return;
-    setFile(f);
-    // Pré-remplir le titre avec le nom de fichier (sans extension)
-    if (!title) {
-      setTitle(f.name.replace(/\.[^/.]+$/, ''));
+    // Refus immédiat : inutile de remplir le formulaire puis d'attendre l'échec de l'envoi.
+    const tooLarge = fileTooLargeMessage(f.size, MAX_UPLOAD_MB);
+    if (tooLarge) {
+      setFile(null);
+      setError(tooLarge);
+      // Permet de rechoisir le même fichier (sinon onChange ne se redéclenche pas).
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
+    setFile(f);
+    // Le titre suit le fichier, sauf s'il a été saisi à la main.
+    setTitle(nextTitle(title, titleEditedByHand, f.name));
     setError(null);
   };
 
@@ -41,7 +61,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped) handleFile(dropped);
-  }, [title]);
+  }, [title, titleEditedByHand]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,13 +91,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
       const doc = await api.uploadDocument(formData) as Document;
       onSuccess(doc);
     } catch (err: any) {
-      if (err?.status === 409) {
-        setError('Un fichier identique existe déjà dans votre espace. Vérifiez vos doublons avant de réessayer.');
-      } else if (err?.status === 400) {
-        setError('Données invalides. Vérifiez le titre et la catégorie.');
-      } else {
-        setError("L'envoi a échoué. Vérifiez votre connexion et réessayez.");
-      }
+      setError(uploadErrorMessage(err?.status, err?.userMessage ?? err?.message));
     } finally {
       setIsLoading(false);
     }
@@ -135,12 +149,16 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             {file ? (
               <div className="text-center">
                 <p className="font-bold text-slate-700 text-sm">{file.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{(file.size / 1024).toFixed(0)} KB</p>
+                <p className="text-xs text-slate-500 mt-0.5">{formatFileSize(file.size)}</p>
+                {formatNoticeFor(file) && (
+                  <p data-testid="upload-format-notice" className="text-xs font-medium text-amber-800 mt-1">{formatNoticeFor(file)}</p>
+                )}
               </div>
             ) : (
               <div className="text-center">
                 <p className="font-bold text-slate-500 text-sm">Glissez un fichier ici</p>
                 <p className="text-xs text-slate-400 mt-0.5">ou cliquez pour sélectionner</p>
+                <p data-testid="upload-limits" className="text-xs text-slate-500 mt-1">PDF, images, Word, Excel · {MAX_UPLOAD_MB} Mo max</p>
               </div>
             )}
           </div>
@@ -200,7 +218,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setTitleEditedByHand(e.target.value !== ''); }}
               placeholder="Nom du document..."
               maxLength={200}
               className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
