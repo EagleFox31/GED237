@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     AUTH_LOGIN_RATE_LIMIT: str = "5/minute"
     AUTH_OTP_RATE_LIMIT: str = "5/minute"
     AUTH_REFRESH_RATE_LIMIT: str = "10/minute"
+    # Notifications WebSocket tickets, keyed by user (one per socket opening,
+    # reconnections included).
+    AUTH_WS_TICKET_RATE_LIMIT: str = "30/minute"
     # Account lock: after this many wrong OTP codes the account is refused (423) for
     # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
     AUTH_OTP_MAX_FAILURES: int = 3
@@ -91,6 +94,12 @@ class Settings(BaseSettings):
     INGEST_WATCH_PROTECTED_DIRS_STR: str = Field(
         default="", alias="INGEST_WATCH_PROTECTED_DIRS"
     )
+    # Trash retention: trashed documents older than this are purged for good by the
+    # worker. 0 (default) disables the automatic purge and its beat entry.
+    TRASH_RETENTION_DAYS: int = Field(default=0, ge=0, le=36500)
+    TRASH_PURGE_INTERVAL_SECONDS: int = Field(default=3600, ge=60)
+    # Documents purged per transaction (automatic purge) and per bulk-purge call.
+    TRASH_PURGE_BATCH: int = Field(default=200, ge=1, le=1000)
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
     # Celery

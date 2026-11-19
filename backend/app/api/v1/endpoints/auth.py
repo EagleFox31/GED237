@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.errors.domain import AccountLockedError
 from app.core.exceptions import AuthenticationError, NotFoundError
-from app.core.rate_limit import limiter
+from app.core.rate_limit import limiter, rate_limit_by_user_or_ip
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
@@ -20,7 +20,9 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import AuthService
 from app.core.dependencies import get_current_user
-from app.core.security import hash_password, verify_password
+from app.core.redis import get_redis
+from app.services.ws_ticket import WS_TICKET_TTL_SECONDS, issue_ws_ticket
+from app.core.security import decode_token, hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import ChangePasswordRequest
 
@@ -153,6 +155,36 @@ async def change_password(
     current_user.must_change_password = False
     await db.commit()
     return None
+
+
+@router.post("/ws-ticket")
+@limiter.limit(
+    lambda: settings.AUTH_WS_TICKET_RATE_LIMIT, key_func=rate_limit_by_user_or_ip
+)
+async def create_ws_ticket(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: User = Depends(get_current_user),
+):
+    """Single-use ticket (valid ~30 s) to open the notifications WebSocket.
+
+    Only an access token gets one (a refresh token is refused), as the socket
+    required before tickets; a token revoked by logout is refused upstream.
+    Limited per user: one ticket per socket opening is enough."""
+    payload = decode_token(credentials.credentials) or {}
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    ticket = await issue_ws_ticket(
+        await get_redis(),
+        user_id=str(current_user.id),
+        tenant_id=str(current_user.tenant_id),
+        session_id=str(payload.get("sid") or ""),
+    )
+    return {"ticket": ticket, "expires_in": WS_TICKET_TTL_SECONDS}
 
 
 @router.post("/logout", response_model=LogoutResponse)
