@@ -13,6 +13,7 @@ from fastapi import (
     status,
 )
 
+from app.core.authz import can_perform
 from app.core.config import settings
 from app.core.rate_limit import limiter, rate_limit_by_user_or_ip
 from app.core.dependencies import get_current_user
@@ -284,3 +285,36 @@ async def get_authz_metrics_health(
         dropped_count=get_authz_metrics_dropped_count(),
         degraded=is_authz_metrics_redis_degraded(),
     )
+
+
+MAX_PERMISSION_CHECKS = 20
+
+
+@router.get("/me/permissions", response_model=dict[str, bool])
+async def my_permissions(
+    checks: str = Query(
+        ...,
+        min_length=1,
+        description="resource:action pairs separated by commas, e.g. documents:purge",
+    ),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, bool]:
+    """Tell the interface which actions the current user may perform.
+
+    Evaluated by the same authorizer as the routes, without resource context
+    (``*_own`` actions still depend on the document). Unknown pairs are false.
+    Display hint only: every route keeps checking on its own.
+    """
+    pairs = list(dict.fromkeys(p.strip() for p in checks.split(",") if p.strip()))
+    if not pairs or len(pairs) > MAX_PERMISSION_CHECKS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Entre 1 et {MAX_PERMISSION_CHECKS} paires ressource:action.",
+        )
+    resources, actions = get_allowed_resources(), get_allowed_actions()
+    result: dict[str, bool] = {}
+    for pair in pairs:
+        resource, _, action = pair.partition(":")
+        known = resource in resources and action in actions
+        result[pair] = known and await can_perform(current_user, resource, action)
+    return result
