@@ -8,6 +8,7 @@
 // d'authentification côté client.
 
 import { isSafeInternalPath } from './safePath';
+import { accountKeyOf } from './accountKey';
 
 const APP_BASE_PATH = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 
@@ -27,6 +28,35 @@ export const redirectToLogin = (): void => {
 };
 
 const DESTINATION_KEY = 'post_login_destination';
+// Hors AUTH_STORAGE_KEYS : survit au nettoyage de la session pour être lu par l'écran de connexion.
+const SESSION_EXPIRED_KEY = 'post_login_session_expired';
+
+/** Marque une session refusée par le serveur : l'écran de connexion l'annoncera une fois. */
+export const markSessionExpired = (): void => {
+    try {
+        sessionStorage.setItem(SESSION_EXPIRED_KEY, '1');
+    } catch {
+        // Stockage indisponible : la redirection a lieu, sans message.
+    }
+};
+
+/** Lecture sans effet de bord (sûre dans un initialiseur React). */
+export const isSessionExpiredNoticePending = (): boolean => {
+    try {
+        return sessionStorage.getItem(SESSION_EXPIRED_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+
+/** Retire le marqueur une fois le message affiché : il n'apparaît qu'une fois. */
+export const clearSessionExpiredNotice = (): void => {
+    try {
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+    } catch {
+        // Rien à faire.
+    }
+};
 
 /**
  * Mémorise la page en cours quand la session expire, pour y revenir après la
@@ -38,22 +68,22 @@ const rememberDestination = (): void => {
         const { pathname, search, hash } = window.location;
         const inApp = APP_BASE_PATH && pathname.startsWith(APP_BASE_PATH) ? pathname.slice(APP_BASE_PATH.length) : pathname;
         if (!isSafeInternalPath(inApp) || inApp === '/login' || inApp === '/') return;
-        const profile = JSON.parse(sessionStorage.getItem('user_profile') || 'null');
-        if (!profile?.id) return;
-        sessionStorage.setItem(DESTINATION_KEY, JSON.stringify({ path: `${inApp}${search}${hash}`, userId: profile.id }));
+        const accountKey = accountKeyOf(JSON.parse(sessionStorage.getItem('user_profile') || 'null'));
+        if (!accountKey) return;
+        sessionStorage.setItem(DESTINATION_KEY, JSON.stringify({ path: `${inApp}${search}${hash}`, userId: accountKey }));
     } catch {
         // Stockage indisponible : on retombe sur la page d'accueil du profil.
     }
 };
 
 /** Retourne la page mémorisée (une seule fois) si elle appartient à cet utilisateur. */
-export const takePostLoginDestination = (userId: string | undefined): string | null => {
+export const takePostLoginDestination = (accountKey: string | undefined): string | null => {
     try {
         const raw = sessionStorage.getItem(DESTINATION_KEY);
         sessionStorage.removeItem(DESTINATION_KEY);
-        if (!raw || !userId) return null;
+        if (!raw || !accountKey) return null;
         const saved = JSON.parse(raw) as { path?: string; userId?: string };
-        return saved.userId === userId && isSafeInternalPath(saved.path) ? saved.path : null;
+        return saved.userId === accountKey && isSafeInternalPath(saved.path) ? saved.path : null;
     } catch {
         return null;
     }
@@ -70,6 +100,8 @@ export const persistAuthTokens = (accessToken: string, refreshToken: string): vo
     sessionStorage.setItem('access_token', accessToken);
     sessionStorage.setItem('refresh_token', refreshToken);
     sessionStorage.setItem('token', accessToken);
+    // Session de nouveau valide : pas de message « expirée » périmé à la prochaine déconnexion.
+    clearSessionExpiredNotice();
 };
 
 /** En-têtes HTTP (Authorization + Content-Type, sauf multipart). */

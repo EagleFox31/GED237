@@ -43,6 +43,7 @@ _SENSITIVE_ACTIONS = frozenset(
         "manage",
         "assign",
         "resolve_review",
+        "archive",
     }
 )
 
@@ -163,7 +164,7 @@ def _audit_deny(
 
     Niveaux :
     - WARNING  : tentatives cross-tenant et refus sur actions sensibles
-                 (delete, manage, assign, resolve_review) — incidents à surveiller
+                 (delete, manage, assign, resolve_review, archive) — incidents à surveiller
     - INFO     : refus RBAC standard (rôle insuffisant) — bruit normal en prod
     """
     uid = getattr(user, "id", "?")

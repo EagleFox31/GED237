@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../services/api';
 import { PolicyRule, AuthzMetricPoint, AuthzHealthResponse } from '../../../types';
+import { ApiError } from '../../../lib/errors';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 
 type TabId = 'policies' | 'metrics' | 'health';
+
+/** 409 de GET /authz/policies : installation en mode fichier (AUTHZ_BACKEND=csv). */
+const POLICIES_READ_ONLY = 'Les droits ne sont pas modifiables sur cette installation.';
+const POLICIES_LOAD_FAILED = 'Chargement des droits impossible. Réessayez plus tard.';
 
 // ─── Policies Tab ──────────────────────────────────────────
 
@@ -13,6 +19,7 @@ const PoliciesTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newPolicy, setNewPolicy] = useState({ v0: '', v1: '', v2: '' });
+  const [pendingDelete, setPendingDelete] = useState<PolicyRule | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -24,8 +31,9 @@ const PoliciesTab: React.FC = () => {
       ]);
       setPolicies(policiesData);
       setRoles(rolesData);
-    } catch (err: any) {
-      setError(err.message || 'Erreur de chargement');
+    } catch (err: unknown) {
+      // Jamais le texte du serveur : le message dépend du seul code HTTP.
+      setError(err instanceof ApiError && err.status === 409 ? POLICIES_READ_ONLY : POLICIES_LOAD_FAILED);
     } finally {
       setIsLoading(false);
     }
@@ -40,26 +48,38 @@ const PoliciesTab: React.FC = () => {
       setNewPolicy({ v0: '', v1: '', v2: '' });
       setShowAdd(false);
       fetchData();
-    } catch (err: any) {
-      alert(err.message || 'Erreur lors de l\'ajout');
+    } catch {
+      // L'erreur est publiée au bus global par buildApiError.
     }
   };
 
   const handleDelete = async (policy: PolicyRule) => {
-    if (!confirm(`Supprimer la policy ${policy.v0} → ${policy.v1} → ${policy.v2} ?`)) return;
+    setPendingDelete(null);
     try {
       await api.deleteAuthzPolicy(policy);
       fetchData();
-    } catch (err: any) {
-      alert(err.message || 'Erreur lors de la suppression');
+    } catch {
+      // L'erreur est publiée au bus global par buildApiError.
     }
   };
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cam-red"></div></div>;
-  if (error) return <div className="text-center py-20 text-red-500 font-bold">{error}</div>;
+  if (error) {
+    const tone = error === POLICIES_READ_ONLY ? 'text-slate-500' : 'text-red-500';
+    return <div role="status" className={`text-center py-20 font-bold ${tone}`}>{error}</div>;
+  }
 
   return (
     <div className="space-y-6">
+      <ConfirmationModal
+        open={pendingDelete !== null}
+        icon="delete"
+        title="Supprimer ce droit ?"
+        message={pendingDelete ? `${pendingDelete.v0} → ${pendingDelete.v1} → ${pendingDelete.v2}` : ''}
+        confirmLabel="Supprimer"
+        onConfirm={() => pendingDelete && handleDelete(pendingDelete)}
+        onCancel={() => setPendingDelete(null)}
+      />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{policies.length} policies</span>
@@ -94,7 +114,7 @@ const PoliciesTab: React.FC = () => {
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Annuler</button>
-            <button type="button" onClick={handleAdd} className="px-5 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase hover:scale-105 transition-transform">Creer</button>
+            <button type="button" onClick={handleAdd} className="px-5 py-2 bg-cam-red text-white rounded-xl text-xs font-black uppercase hover:scale-105 transition-transform">Créer</button>
           </div>
         </div>
       )}
@@ -116,7 +136,7 @@ const PoliciesTab: React.FC = () => {
                 <td className="px-6 py-3 text-sm font-medium text-slate-600">{p.v1}</td>
                 <td className="px-6 py-3"><span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-md uppercase">{p.v2}</span></td>
                 <td className="px-6 py-3">
-                  <button type="button" onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-600 transition-colors">
+                  <button type="button" onClick={() => setPendingDelete(p)} className="text-red-400 hover:text-red-600 transition-colors">
                     <span className="material-symbols-outlined text-lg">delete</span>
                   </button>
                 </td>
@@ -136,6 +156,7 @@ const MetricsTab: React.FC = () => {
   const [topDenies, setTopDenies] = useState<AuthzMetricPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterDecision, setFilterDecision] = useState<string>('');
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -159,7 +180,7 @@ const MetricsTab: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleReset = async () => {
-    if (!confirm('Remettre les compteurs de metriques a zero ?')) return;
+    setConfirmReset(false);
     try {
       await api.resetAuthzMetrics();
       fetchData();
@@ -172,6 +193,15 @@ const MetricsTab: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      <ConfirmationModal
+        open={confirmReset}
+        icon="restart_alt"
+        title="Remettre les compteurs à zéro ?"
+        message="Les compteurs de décisions actuels seront effacés."
+        confirmLabel="Remettre à zéro"
+        onConfirm={handleReset}
+        onCancel={() => setConfirmReset(false)}
+      />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <select value={filterDecision} onChange={e => setFilterDecision(e.target.value)} className="px-4 py-3 bg-slate-50 border-none rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 outline-none cursor-pointer">
@@ -180,7 +210,7 @@ const MetricsTab: React.FC = () => {
             <option value="deny">Deny</option>
           </select>
         </div>
-        <button type="button" onClick={handleReset} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-transform">
+        <button type="button" onClick={() => setConfirmReset(true)} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-transform">
           <span className="material-symbols-outlined text-sm">restart_alt</span>
           Reset Compteurs
         </button>
@@ -274,7 +304,7 @@ const HealthTab: React.FC = () => {
         <span className={`material-symbols-outlined text-4xl ${health.degraded ? 'text-red-500' : 'text-green-500'}`}>
           {health.degraded ? 'error' : 'check_circle'}
         </span>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Etat</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">État</p>
         <p className={`text-2xl font-black uppercase ${health.degraded ? 'text-red-500' : 'text-green-600'}`}>
           {health.degraded ? 'Degrade' : 'Operationnel'}
         </p>

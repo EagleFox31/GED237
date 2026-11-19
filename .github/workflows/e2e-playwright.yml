@@ -1,0 +1,64 @@
+name: E2E Playwright (reusable)
+
+# One Playwright run on the self-contained e2e stack (docker-compose.e2e.yml): same steps as the
+# smoke job of ci.yml, parameterised by project selection, report name and time budget.
+# Memory is capped per service by docker-compose.e2e.yml (e2e 2g, api, postgres, redis).
+
+on:
+  workflow_call:
+    inputs:
+      playwright_args:
+        description: Playwright selection passed as E2E_ARGS (e.g. --project=uat).
+        required: true
+        type: string
+      report_name:
+        description: Name of the uploaded report artifact.
+        required: true
+        type: string
+      timeout_minutes:
+        description: Job time budget.
+        required: false
+        type: number
+        default: 30
+      retention_days:
+        description: Report artifact retention.
+        required: false
+        type: number
+        default: 14
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright (${{ inputs.playwright_args }})
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    steps:
+      - uses: actions/checkout@v7
+      # The runner image ships the browsers for one Playwright release: it must follow the lockfile.
+      - name: Playwright image matches the lockfile
+        run: |
+          want=$(jq -r '.packages["node_modules/@playwright/test"].version' frontend/package-lock.json)
+          if ! grep -q "mcr.microsoft.com/playwright:v${want}-" docker-compose.e2e.yml; then
+            echo "::error file=docker-compose.e2e.yml::Set the e2e image to mcr.microsoft.com/playwright:v${want}-noble (@playwright/test ${want} in frontend/package-lock.json)"
+            exit 1
+          fi
+      - name: Run suite
+        env:
+          E2E_ARGS: ${{ inputs.playwright_args }}
+        run: docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e
+      - name: API logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs --tail=200 api
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.report_name }}
+          path: frontend/e2e-out/
+          retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: ignore
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v --remove-orphans

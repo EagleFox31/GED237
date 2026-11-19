@@ -2,7 +2,8 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
-import { takePostLoginDestination } from './services';
+import { DEFAULT_ROUTE_BY_PROFILE, defaultRouteForProfile } from './lib/defaultRoute';
+import { takePostLoginDestination, accountKeyOf } from './services';
 import { pushClientOperationError } from './lib/errors';
 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,6 +12,8 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import Documents from './components/Documents';
+import TrashPage from './components/TrashPage';
+import DuplicatesPage from './components/DuplicatesPage';
 import WorkflowTasks from './components/WorkflowTasks';
 import LoginPage from './components/LoginPage';
 import ChangePassword from './components/ChangePassword';
@@ -62,6 +65,8 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/local-library': 'local_library',
   '/audit': 'audit_central',
   '/reports': 'reports',
+  '/trash': 'trash',
+  '/duplicates': 'duplicates',
 };
 
 const TAB_TO_ROUTE: Record<string, string> = {
@@ -84,20 +89,11 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'local_library': '/local-library',
   'audit_central': '/audit',
   'reports': '/reports',
+  'trash': '/trash',
+  'duplicates': '/duplicates',
 };
 
-const DEFAULT_ROUTE_BY_PROFILE: Record<string, string> = {
-  super: '/tenants',
-  tenant: '/dashboard',
-  unit: '/dashboard',
-  manager: '/tasks',
-  collab: '/dashboard',
-  reader: '/documents',
-  audit: '/audit',
-};
-
-export const defaultRouteForProfile = (profileId?: string): string =>
-  (profileId && DEFAULT_ROUTE_BY_PROFILE[profileId]) || '/dashboard';
+export { defaultRouteForProfile };
 
 type ProfileId = keyof typeof DEFAULT_ROUTE_BY_PROFILE;
 
@@ -116,9 +112,13 @@ export const ADMIN_ROUTES = {
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
 
+// Outils de rangement local : masqués au lecteur et au collaborateur dans le menu (Sidebar), refusés aussi par URL.
+export const LOCAL_TOOLS_PROFILES = ['super', 'tenant', 'unit', 'manager', 'audit'] as const satisfies ReadonlyArray<ProfileId>;
+export const LOCAL_TOOLS_DENIED_MESSAGE = "Cet outil n'est pas disponible pour votre profil.";
+
 // Rend la page seulement si le profil est autorisé ; sinon renvoie vers la page d'accueil du
 // profil (replace : Précédent ne ramène pas sur la route interdite) sans monter la page.
-const RequireProfile: React.FC<{ allow: ReadonlyArray<string>; children: React.ReactElement }> = ({ allow, children }) => {
+const RequireProfile: React.FC<{ allow: ReadonlyArray<string>; message?: string; children: React.ReactElement }> = ({ allow, message = ACCESS_DENIED_MESSAGE, children }) => {
   const navigate = useNavigate();
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const allowed = !!profileId && allow.includes(profileId);
@@ -128,12 +128,12 @@ const RequireProfile: React.FC<{ allow: ReadonlyArray<string>; children: React.R
     if (allowed || notified.current) return;
     notified.current = true;
     pushClientOperationError(null, {
-      fallbackDetail: ACCESS_DENIED_MESSAGE,
+      fallbackDetail: message,
       errorCode: 'ROUTE_FORBIDDEN',
       severity: 'warning',
     });
     navigate(defaultRouteForProfile(profileId), { replace: true });
-  }, [allowed, profileId, navigate]);
+  }, [allowed, profileId, navigate, message]);
 
   return allowed ? children : null;
 };
@@ -193,7 +193,7 @@ const AppLayout: React.FC = () => {
       return;
     }
     // Session expirée en cours de travail : retour à la page quittée (même compte uniquement).
-    if (resumedRef.current === undefined) resumedRef.current = takePostLoginDestination(userProfile?.id);
+    if (resumedRef.current === undefined) resumedRef.current = takePostLoginDestination(accountKeyOf(userProfile));
     const target = userProfile?.mustChangePassword
       ? '/change-password'
       : resumedRef.current ?? defaultRouteForProfile(userProfile?.id);
@@ -270,10 +270,12 @@ const AppLayout: React.FC = () => {
             <Route path="/classification-reviews" element={<ClassificationReviewPage />} />
             <Route path="/needs-review" element={<Navigate to="/classification-reviews" replace />} />
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />
-            <Route path="/ingestion" element={<DirectoryIngestion />} />
-            <Route path="/local-library" element={<LocalLibraryPage />} />
+            <Route path="/ingestion" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><DirectoryIngestion /></RequireProfile>} />
+            <Route path="/local-library" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><LocalLibraryPage /></RequireProfile>} />
             <Route path="/audit" element={<AuditLogs />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/trash" element={<TrashPage />} />
+            <Route path="/duplicates" element={<DuplicatesPage />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
