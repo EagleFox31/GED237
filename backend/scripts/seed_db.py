@@ -41,6 +41,66 @@ ORG_UNIT_TYPES = (
     {"code": "SERVICE", "label": "Service", "level": 4},
 )
 
+# Demo accounts added after the first demo release. They are reconciled by matricule on
+# every pass, also on a database seeded earlier (the MINFI guard returns before the user
+# block): a missing account is created, an existing one is never modified.
+# MINFI003: a second DAF agent, so that the head of service (MGR001) can name an absent
+# agent (MINFI002) and a stand-in in the same service (delegations, L4).
+EXTRA_DEMO_USERS = (
+    {
+        "tenant": "MINFI",
+        "org_unit": "MINFI-DAF",
+        "role": "collaborator",
+        "matricule": "MINFI003",
+        "email": "agent.daf@minfi.gov.cm",
+        "first_name": "Brice",
+        "last_name": "Mvondo",
+        "password": "User@2025",
+    },
+)
+
+
+async def ensure_extra_demo_users(db, role_ids) -> int:
+    """Create the ``EXTRA_DEMO_USERS`` that are missing; returns how many were created."""
+    created = 0
+    for row in EXTRA_DEMO_USERS:
+        tenant_id = await db.scalar(
+            select(Tenant.id).where(Tenant.short_name == row["tenant"])
+        )
+        org_unit_id = await db.scalar(
+            select(OrgUnit.id).where(
+                OrgUnit.tenant_id == tenant_id, OrgUnit.code == row["org_unit"]
+            )
+        )
+        if tenant_id is None or org_unit_id is None:
+            print(f"[SKIP] {row['matricule']}: {row['org_unit']} not found")
+            continue
+        exists = await db.scalar(
+            select(User.id).where(
+                (User.matricule == row["matricule"]) | (User.email == row["email"])
+            )
+        )
+        if exists is not None:
+            continue
+        db.add(
+            User(
+                id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                org_unit_id=org_unit_id,
+                role_id=role_ids[row["role"]],
+                matricule=row["matricule"],
+                email=row["email"],
+                first_name=row["first_name"],
+                last_name=row["last_name"],
+                password_hash=hash_password(row["password"]),
+                is_active=True,
+            )
+        )
+        created += 1
+    await db.flush()
+    print(f"[OK] {created} extra demo user(s) created")
+    return created
+
 
 async def upsert_by_code(db, model, rows):
     """Reconcile reference rows (roles, org unit types) by ``code``.
@@ -140,6 +200,7 @@ async def seed():
         # never duplicate tenants, units, users or documents.
         minfi = await db.execute(select(Tenant).where(Tenant.short_name == "MINFI"))
         if minfi.scalar_one_or_none() is not None:
+            await ensure_extra_demo_users(db, role_ids)
             await db.commit()
             print(
                 "[SKIP] Demo tenant MINFI already present; reference data reconciled only."
@@ -510,6 +571,7 @@ async def seed():
         await db.flush()
         print("[OK] 3 workflow steps created (doc2: in_review)")
 
+        await ensure_extra_demo_users(db, role_ids)
         await db.commit()
         print("\n=== Seed complete! ===")
         print()
@@ -520,6 +582,7 @@ async def seed():
         print("  Admin Unite  : UNIT001   / Unit@2025")
         print("  Manager      : MGR001    / Mgr@2025")
         print("  Collaborateur: MINFI002  / User@2025")
+        print("  Agent DAF    : MINFI003  / User@2025")
         print("  Lecteur      : READ001   / Read@2025")
         print("  Auditeur     : AUDIT001  / Audit@2025")
         print("  User MINESUP : MINESUP001/ Sup@2025")
