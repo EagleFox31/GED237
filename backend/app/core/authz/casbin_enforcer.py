@@ -344,6 +344,81 @@ async def bootstrap_sql_policies_from_csv(force: bool = False) -> int:
     return imported
 
 
+def _rule_key(rule: list[str]) -> tuple[str, ...]:
+    # Adapters may pad rules with empty trailing fields: compare without them.
+    return tuple(_compact_rule_values(list(rule)))
+
+
+def _rules_absent(source: list[list[str]], target: list[list[str]]) -> list[list[str]]:
+    present = {_rule_key(rule) for rule in target}
+    absent: list[list[str]] = []
+    for rule in source:
+        key = _rule_key(rule)
+        if key and key not in present:
+            present.add(key)
+            absent.append(list(key))
+    return absent
+
+
+async def csv_sql_policy_drift() -> dict[str, list[list[str]]]:
+    """
+    Compare policy.csv with the SQL policy store, read fresh from the database.
+    - missing_p / missing_g : rules of policy.csv absent from SQL
+    - sql_only_p / sql_only_g: rules only in SQL (added through the admin API,
+      or removed from policy.csv since) — reported, never touched
+    Read only.
+    """
+    sql_e = await _get_sql_enforcer()
+    csv_e = await _get_csv_enforcer()
+    await _maybe_await(sql_e.load_policy())
+    return {
+        "missing_p": _rules_absent(csv_e.get_policy(), sql_e.get_policy()),
+        "missing_g": _rules_absent(
+            csv_e.get_grouping_policy(), sql_e.get_grouping_policy()
+        ),
+        "sql_only_p": _rules_absent(sql_e.get_policy(), csv_e.get_policy()),
+        "sql_only_g": _rules_absent(
+            sql_e.get_grouping_policy(), csv_e.get_grouping_policy()
+        ),
+    }
+
+
+async def sync_sql_policies_from_csv(*, dry_run: bool = False) -> int:
+    """
+    Additive CSV -> SQL sync (#232): insert only the policy.csv rules absent from
+    SQL. Rules only in SQL are kept, nothing is deleted or overwritten. A
+    converged store gives zero writes and no policy version bump.
+
+    Limit: a policy.csv rule removed through the admin API is absent from SQL,
+    so it comes back. Run with dry_run=True first and review the list.
+    Returns the number of rules inserted (or that would be, with dry_run).
+    """
+    drift = await csv_sql_policy_drift()
+    missing_p, missing_g = drift["missing_p"], drift["missing_g"]
+    for rule in missing_p:
+        logger.info("[Casbin] Sync %s p %s", "plan" if dry_run else "add", rule)
+    for rule in missing_g:
+        logger.info("[Casbin] Sync %s g %s", "plan" if dry_run else "add", rule)
+    if dry_run or not (missing_p or missing_g):
+        return len(missing_p) + len(missing_g)
+
+    sql_e = await _get_sql_enforcer()
+    inserted = 0
+    for rule in missing_p:
+        if await _maybe_await(sql_e.add_policy(*rule)):
+            inserted += 1
+    for rule in missing_g:
+        if await _maybe_await(sql_e.add_grouping_policy(*rule)):
+            inserted += 1
+    # auto_save (on by default) already inserted each row. No save_policy():
+    # with this adapter it deletes and rewrites the whole table (#236).
+    if inserted:
+        global _policy_version_local
+        _policy_version_local = _bump_policy_version(sql_e)
+    logger.info("[Casbin] Sync CSV -> SQL done (%d rules inserted).", inserted)
+    return inserted
+
+
 def _load_csv_p_rows() -> list[list[str]]:
     rows: list[list[str]] = []
     with open(_POLICY_PATH, "r", encoding="utf-8") as f:
