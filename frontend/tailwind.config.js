@@ -20,7 +20,7 @@ export default {
         'cam-green': '#007A5E',
         'cam-red': '#CE1126',
         'cam-yellow': '#FCD116',
-        'cam-yellow-dark': '#A16207',
+        'cam-yellow-dark': '#854D0E',
         'rdpc-blue': '#0055A4',
       },
       borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', '2xl': '1rem', '3xl': '1.5rem', full: '9999px' },
