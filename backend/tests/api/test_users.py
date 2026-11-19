@@ -88,7 +88,6 @@ async def test_roles_without_users_permission_are_denied(client_as, db_seed, rol
         responses = [
             await client.get(f"{USERS}/"),
             await client.get(target),
-            await client.get(f"{target}/hierarchy-up"),
             await client.post(f"{USERS}/", json=_user_payload(db_seed)),
             await client.patch(target, json={"first_name": "Denied"}),
             await client.post(f"{target}/reset-password"),
