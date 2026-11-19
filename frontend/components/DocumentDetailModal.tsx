@@ -1,12 +1,14 @@
 // frontend/components/DocumentDetailModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Icons } from '../constants';
 import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, formatFileSize } from '../types';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
+import DocumentReservation from './DocumentReservation';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -50,9 +52,14 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [commentFor, setCommentFor] = useState<{ stepId: string; actionType: string; outcome: "rejected" | "returned" } | null>(null);
+  useEscapeToClose(onClose, !confirmArchive && commentFor === null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
 
+  const handleReservationChange = useCallback((updated: Document) => {
+    setDocument(updated);
+    onUpdated?.(updated);
+  }, [onUpdated]);
   // Même route que le visualiseur ; l'erreur éventuelle est déjà publiée par apiCallBlob.
   const handleDownload = async () => {
     try {
@@ -227,11 +234,14 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
+          <div className="flex items-center gap-3">
+          <DocumentReservation document={document} onChange={handleReservationChange} />
+          <button type="button" onClick={onClose} aria-label="Quitter la fiche" className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-slate-400">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
+          </div>
         </div>
 
         {/* Tabs */}

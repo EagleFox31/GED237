@@ -28,7 +28,7 @@ const DEFAULT_PROFILE: UserProfile = {
   name: 'Utilisateur',
 };
 
-const ROLE_PROFILE_MAP: Record<string, Omit<UserProfile, 'name' | 'backendRole' | 'backendRoleLabel' | 'matricule' | 'email' | 'tenantId' | 'orgUnitId'>> = {
+const ROLE_PROFILE_MAP: Record<string, Omit<UserProfile, 'name' | 'backendRole' | 'backendRoleLabel' | 'matricule' | 'email' | 'tenantId' | 'orgUnitId' | 'userId'>> = {
   SUPER_ADMIN: { id: 'super', label: 'Super Admin', role: 'Plateforme', icon: 'security_update_good', color: 'bg-cam-red' },
   TENANT_ADMIN: { id: 'tenant', label: 'Admin Institution', role: 'Organisation', icon: 'account_balance', color: 'bg-rdpc-blue' },
   UNIT_ADMIN: { id: 'unit', label: 'Admin Unité', role: 'Service', icon: 'domain', color: 'bg-blue-500' },
