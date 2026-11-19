@@ -14,6 +14,7 @@ from app.core.authz import (
     can_perform,
 )
 from app.core.tenant_guard import assert_org_unit_scope
+from app.services.unit_admin_scope import unit_admin_scope_ids
 from app.models.user import User
 from app.models.org_unit import OrgUnit, OrgUnitType
 from app.models.document import Document
@@ -105,6 +106,12 @@ async def get_org_units_tree(
         assert_org_unit_scope(current_user.org_unit_id, current_user)
         units = [u for u in units if str(u.id) == str(current_user.org_unit_id)]
 
+    unit_ids = None if is_super else await unit_admin_scope_ids(db, current_user)
+    if unit_ids is not None:
+        # unit_admin: own unit and sub-units; the own unit becomes the root.
+        allowed = {str(i) for i in unit_ids}
+        units = [u for u in units if str(u.id) in allowed]
+
     nodes = {
         str(u.id): {
             "id": str(u.id),
@@ -116,6 +123,11 @@ async def get_org_units_tree(
         }
         for u in units
     }
+
+    if unit_ids is not None and current_user.org_unit_id:
+        root = nodes.get(str(current_user.org_unit_id))
+        if root:
+            root["parent_id"] = None
 
     tree = []
     for node in nodes.values():
@@ -156,6 +168,10 @@ async def read_org_units(
         assert_org_unit_scope(parent_id, current_user)
         query = query.filter(OrgUnit.parent_id == parent_id)
 
+    unit_ids = None if is_super else await unit_admin_scope_ids(db, current_user)
+    if unit_ids is not None:
+        query = query.filter(OrgUnit.id.in_(unit_ids))
+
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
 
@@ -182,6 +198,9 @@ async def read_org_unit(
         current_user, "org_units", "read", ctx_from_resource(org_unit)
     )
     assert_org_unit_scope(org_unit.id, current_user)
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if unit_ids is not None and org_unit.id not in unit_ids:
+        raise HTTPException(status_code=404, detail="OrgUnit not found")
     return org_unit
 
 
