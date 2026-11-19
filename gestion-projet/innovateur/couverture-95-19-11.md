@@ -72,7 +72,7 @@ Pour passer de 28 à 30,5, il faut **tous** les points ci-dessous (aucune marge)
 | 28 | +1 | essai d'installation sans Internet réussi le 25/11 (vaut preuve, réponse 15 du PO) | oui, Q, 25/11 | non chiffré (plan-v1.1 : lot 12 VPS ≈ 1,75 h-s, B 0,25 / Q 1,5, + #288 phase 1 B 0,75 / Q 0,25) |
 | 27 | +0,5 | `prove_tls` passé (passage 2, 20/11) | oui, Q | non chiffré |
 | 31 | +0,5 | rejeu du manuel sans écart (issue #273, 25/11) | oui, Q | non chiffré |
-| 29 | +0,5 | C6 tenue à 18:00 aujourd'hui (≥ 6 relevés verts consécutifs) → `partiel` ; `fait` impossible dans cette version | oui, Q (sonde jusqu'au 19 18:00) | non chiffré ; **risque** : trou de nuit et arrêt de Docker ce matin |
+| 29 | +0,5 | ≥ 6 relevés verts consécutifs entre le 17 matin et le 19 soir (ligne 0.2 ; précisé le 19/11 à 14:00 : la série n’a pas à finir à 18:00) → `partiel` ; `fait` impossible dans cette version | oui, Q (sonde jusqu'au 19 18:00) | non chiffré ; **risque** : trou de nuit et arrêt de Docker ce matin |
 | 8 | +1 | essai sur 100 000 documents | **non** : hors périmètre V1.1, « mesure de décembre » (#270, plan-v1.1 § hypothèses 6) | non chiffré |
 
 Lecture : si C6 tombe à `absent`, le meilleur cas est 30/32 = 93,75 %. Le seul levier restant serait alors l'item 8, qui n'est pas planifié.

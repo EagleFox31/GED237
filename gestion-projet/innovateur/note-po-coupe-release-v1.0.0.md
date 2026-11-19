@@ -6,7 +6,8 @@ Préparée par l'innovateur le 19/11 à partir de `couverture-95-19-11.md`, de D
 
 - Score au 19/11, 13:21 : **30/32**, avec `main` = cffb7a4b (#199 fusionnée, item 19 prouvé). Depuis, #492 (menu « Doublons » masqué selon le droit) est fusionnée : `main` = 9cbe452e, score inchangé.
 - Le seuil est **30,5/32** (95 %, méthode du 10/11 : 32 items à poids égal, `fait` = 1, `partiel` = 0,5).
-- **Il manque un demi-point : l'item 29 (disponibilité ≥ 99 %).** La lecture C6 de 18:00 le donne à `partiel` si elle compte au moins 6 relevés verts consécutifs. Dans ce cas : **30,5/32, soit 95,3 %**. Sans aucune marge.
+- **Il manque un demi-point : l'item 29 (disponibilité ≥ 99 %).** Il passe à `partiel` si la sonde C6 compte au moins 6 relevés verts consécutifs entre le 17 matin et le 19 soir (checklist, ligne 0.2) : les 17 et 18 sont à 100 %, Q le confirme sur `c6.tsv` avant 18:00. Dans ce cas : **30,5/32, soit 95,3 %**, sans aucune marge.
+- **Relevés en échec le 19, cités tels quels** : 9 relevés de 12:58 à 13:46 (pile de démo arrêtée sur commande, relancée avec l'accord du PO) ; 2 relevés à 06:45Z et 06:50Z (panne Docker) ; un trou sans relevé de 03:29Z à 06:45Z. La ligne 3.7 (« 10/10 relevés matin/soir, 17 au 21 ») court jusqu'au 21 : l'item 29 ne sera donc jamais `fait` dans la 1.0.
 - **Deux cas pour le score** : **30,5/32 avec C6 seule** (seuil atteint) ; **31,5/32 avec C6 et l'item 8** (marge d'un demi-point sur le seuil). L'item 8 n'est pas nécessaire à la coupe : il ne la conditionne pas.
 
 ## 2. Ce qui est prouvé
