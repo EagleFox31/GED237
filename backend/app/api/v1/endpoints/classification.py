@@ -1002,6 +1002,7 @@ async def simulate_classification(
         filename=payload.filename,
         mime_type=payload.mime_type,
         content=payload.content_sample,
+        include_inactive=payload.include_inactive,
     )
 
     return ClassificationSimulationResponse(
@@ -1013,6 +1014,7 @@ async def simulate_classification(
         rule_code=resolution.rule.code if resolution.rule else None,
         rule_name=resolution.rule.name if resolution.rule else None,
         rule_priority=resolution.rule.priority if resolution.rule else None,
+        rule_is_active=resolution.rule.is_active if resolution.rule else None,
         message=resolution.message,
         logical_space_path=resolution.logical_space_path,
         classification_scope=resolution.target_scope,
