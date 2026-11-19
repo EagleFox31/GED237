@@ -15,6 +15,8 @@ export interface UserProfile {
   tenantId?: string;
   orgUnitId?: string;
   mustChangePassword?: boolean;
+  /** Server-side account id (`id` above is the role profile, shared by every account of that role). */
+  userId?: string;
 }
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -91,6 +93,7 @@ const normalizeBackendUser = (user: BackendUser): UserProfile => {
     tenantId: user.tenant_id,
     orgUnitId: user.org_unit_id || undefined,
     mustChangePassword: user.must_change_password || false,
+    userId: user.id || undefined,
   };
 };
 
@@ -118,6 +121,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
+      userId: candidate.userId?.toString(),
     };
   }
 
@@ -137,6 +141,7 @@ const normalizeStoredProfile = (profile: unknown): UserProfile | null => {
       tenantId: candidate.tenantId?.toString() || candidate.tenant_id?.toString(),
       orgUnitId: candidate.orgUnitId?.toString() || candidate.org_unit_id?.toString(),
       mustChangePassword: Boolean(candidate.mustChangePassword ?? candidate.must_change_password ?? false),
+      userId: candidate.userId?.toString(),
     };
   }
 

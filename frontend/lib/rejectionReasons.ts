@@ -7,19 +7,33 @@ export const NEEDS_CORRECTION = ['rejected', 'returned'] as const;
 export const needsCorrection = (status: string | undefined | null): boolean =>
   (NEEDS_CORRECTION as readonly string[]).includes(status ?? '');
 
+interface CorrectableDoc {
+  id: string;
+  status?: string | null;
+  owner_id?: string | null;
+  last_rejection_reason?: string | null;
+}
+
+/** Only the owner can upload a corrected version and resubmit (the server answers 403 to anyone else). */
+export const canResubmit = (doc: CorrectableDoc, userId: string | undefined | null): boolean =>
+  needsCorrection(doc.status) && !!userId && doc.owner_id === userId;
+
 /**
- * The list endpoint does not carry the reason: read it from each sent-back document.
- * A failed read leaves that card without a reason instead of failing the whole page.
+ * Reasons for the cards the current user can fix. A reason already in the list item is used as is;
+ * otherwise the document is read once (the caller passes a silent read: a failure leaves that card
+ * without a reason, with no error message and no failed page).
  */
 export const loadRejectionReasons = async (
-  docs: ReadonlyArray<{ id: string; status?: string | null }>,
+  docs: ReadonlyArray<CorrectableDoc>,
+  userId: string | undefined | null,
   readOne: (id: string) => Promise<{ last_rejection_reason?: string | null }>,
 ): Promise<Record<string, string>> => {
-  const targets = docs.filter((d) => needsCorrection(d.status));
+  const targets = docs.filter((d) => canResubmit(d, userId));
   const entries = await Promise.all(
     targets.map(async (d) => {
       try {
-        const reason = (await readOne(d.id)).last_rejection_reason?.trim();
+        const listed = d.last_rejection_reason?.trim();
+        const reason = listed || (await readOne(d.id)).last_rejection_reason?.trim();
         return reason ? ([d.id, reason] as const) : null;
       } catch {
         return null;

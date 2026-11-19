@@ -4,7 +4,8 @@ import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
-import { loadRejectionReasons, needsCorrection } from '../../../lib/rejectionReasons';
+import { canResubmit, loadRejectionReasons, needsCorrection } from '../../../lib/rejectionReasons';
+import { useAuthStore } from '../../../stores/authStore';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -26,7 +27,8 @@ const DraftWorkspace: React.FC = () => {
   const [documentToSubmit, setDocumentToSubmit] = useState<string | null>(null);
   const [selectedValidator, setSelectedValidator] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
-  // Reason of the last rejection or return, per document id (read from each sent-back document).
+  const userId = useAuthStore((s) => s.userProfile?.userId);
+  // Reason of the last rejection or return, per document id (only for the documents I can fix).
   const [reasons, setReasons] = useState<Record<string, string>>({});
   // Corrected file, sent as a new version before resubmitting a sent-back document.
   const [correctedFile, setCorrectedFile] = useState<File | null>(null);
@@ -45,7 +47,7 @@ const DraftWorkspace: React.FC = () => {
       setDocuments(docsResp);
       setValidators(validatorsResp);
       // Cards show at once; reasons fill in when read.
-      void loadRejectionReasons(docsResp, api.getDocument).then(setReasons);
+      void loadRejectionReasons(docsResp, userId, (id) => api.getDocument(id, { silent: true })).then(setReasons);
     } catch (error) {
       console.error("Failed to fetch data", error);
     } finally {
@@ -143,7 +145,7 @@ const DraftWorkspace: React.FC = () => {
                 ))}
               </div>
 
-              {needsCorrection(doc.status) && (
+              {canResubmit(doc, userId) && (
                 <div className="mb-4 space-y-3">
                   {reasons[doc.id] && (
                     <p className="text-xs text-red-800 bg-red-50 border border-red-100 rounded-xl px-3 py-2 line-clamp-3" title={reasons[doc.id]} data-testid="rejection-reason">

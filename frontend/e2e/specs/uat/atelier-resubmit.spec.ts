@@ -1,4 +1,4 @@
-import type { Route } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.fixture';
 
 /**
@@ -22,11 +22,18 @@ const DRAFT = { ...REJECTED, id: 'd-1', title: 'Brouillon sans circuit', status:
 const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
+/** Id du compte connecté (les cartes « à corriger » ne concernent que ses propres documents). */
+const readMe = (page: Page) =>
+  page.evaluate(() => JSON.parse(sessionStorage.getItem('user_profile') ?? '{}').userId as string);
+
 test.describe('Mon Atelier : document rejeté', () => {
   test('ATL-01 — Given document rejeté, When Mon Atelier, Then motif visible, version corrigée puis resoumission', async ({ loginAs, page }) => {
     const calls: string[] = [];
 
-    await page.route(/\/api\/v1\/documents\/?(\?|$)/, (route) => json(route, [REJECTED, DRAFT]));
+    let me = '';
+    await page.route(/\/api\/v1\/documents\/?(\?|$)/, (route) =>
+      json(route, [{ ...REJECTED, owner_id: me }, { ...DRAFT, owner_id: me }]),
+    );
     await page.route(/\/api\/v1\/documents\/r-1\/?(\?|$)/, (route) =>
       json(route, { ...REJECTED, last_rejection_reason: REASON }),
     );
@@ -41,6 +48,8 @@ test.describe('Mon Atelier : document rejeté', () => {
     });
 
     await loginAs('collaborator');
+    me = await readMe(page);
+    await page.reload();
     await expect(page.getByText('Mon Atelier')).toBeVisible({ timeout: 10_000 });
 
     const card = page.getByTestId('draft-card').filter({ hasText: REJECTED.title });
@@ -64,5 +73,33 @@ test.describe('Mon Atelier : document rejeté', () => {
     // La version corrigée part avant la nouvelle soumission.
     expect(calls[0]).toBe('POST versions');
     expect(calls[1]).toMatch(/^POST steps .*"assigned_to":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"/);
+  });
+
+  test('ATL-02 — Given document rejeté d un collègue et motif illisible, When Mon Atelier, Then ni bouton ni lecture, et aucune erreur affichée', async ({ loginAs, page }) => {
+    const reads: string[] = [];
+    let me = '';
+    const MINE = { ...REJECTED, id: 'r-2', title: 'Ma note refusée' };
+    const COLLEAGUE = { ...REJECTED, id: 'r-3', title: 'Note refusée d un collègue', owner_id: 'autre-agent' };
+    await page.route(/\/api\/v1\/documents\/?(\?|$)/, (route) => json(route, [{ ...MINE, owner_id: me }, COLLEAGUE]));
+    await page.route(/\/api\/v1\/documents\/r-[23]\/?(\?|$)/, (route) => {
+      reads.push(route.request().url().replace(/.*\/documents\//, ''));
+      return json(route, { detail: 'Accès refusé au document.' }, 403);
+    });
+    await page.route(/\/api\/v1\/workflows\/validators/, (route) => json(route, [VALIDATOR]));
+
+    await loginAs('collaborator');
+    me = await readMe(page);
+    await page.reload();
+
+    const mine = page.getByTestId('draft-card').filter({ hasText: MINE.title });
+    await expect(mine.getByRole('button', { name: 'Corriger et resoumettre' })).toBeVisible({ timeout: 10_000 });
+    await expect.poll(() => reads).toEqual(['r-2']);
+    // Lecture en échec : la carte reste sans motif, sans message d'erreur.
+    await expect(mine.getByTestId('rejection-reason')).toHaveCount(0);
+    await expect(page.getByText('Accès refusé au document.')).toHaveCount(0);
+    // Document d'un collègue : il ne peut pas le corriger, donc ni bouton ni lecture (pas de 403).
+    const theirs = page.getByTestId('draft-card').filter({ hasText: COLLEAGUE.title });
+    await expect(theirs).toBeVisible();
+    await expect(theirs.getByRole('button', { name: 'Corriger et resoumettre' })).toHaveCount(0);
   });
 });
