@@ -1,6 +1,8 @@
-"""DELETE /documents/{id} (suppression définitive) : ``delete`` ou ``delete_own`` seulement.
+"""DELETE /documents/{id} : ``delete`` ou ``delete_own`` seulement.
 
-Un manager n'a que ``trash_own`` : corbeille oui, suppression définitive non (403).
+Depuis #152, DELETE met à la corbeille (tracé) ; la suppression définitive passe par la
+purge. Les droits restent ceux de #345. Un manager n'a que ``trash_own`` : il passe par
+POST /trash, et DELETE lui répond 403.
 """
 
 import uuid
@@ -125,9 +127,13 @@ async def test_tenant_admin_trashes_a_document_in_review(
 async def test_tenant_admin_delete_is_unchanged(client_as, db_session, db_seed):
     document_id = await _document(db_session, db_seed, status="validated")
 
+    # An existing user: the move to the trash is audited (FK to users). A validated
+    # document is outside delete_own, so only the admin's ``delete`` right lets it through.
     async with client_as(
-        "tenant_admin", tenant_id=db_seed["tenant_id"], id=uuid.uuid4()
+        "tenant_admin", tenant_id=db_seed["tenant_id"], id=db_seed["user_id"]
     ) as client:
         response = await client.delete(f"{DOCUMENTS}/{document_id}")
 
     assert response.status_code == 204
+    document = await db_session.get(Document, document_id, populate_existing=True)
+    assert document is not None and document.deleted_at is not None
