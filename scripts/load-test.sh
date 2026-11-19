@@ -63,6 +63,14 @@ case "${1:-}" in
     measure calib-1 calib-1lot 1
     measure calib-4 calib-4lots 4
     ;;
+  tune)  # tune <label> <seed>: same shape as calib-4 (2 000 files, 4 batches), fresh folder and seed
+    [ -n "${2:-}" ] && [ -n "${3:-}" ] || { echo "usage: tune <label> <seed>"; exit 2; }
+    echo "setting: api ${LOAD_API_CPUS:-1.25} cpu, worker ${LOAD_WORKER_CPUS:-1.25} cpu, concurrency ${LOAD_WORKER_CONCURRENCY:-2}" \
+      | tee "$out_dir/$2-setting.txt"
+    stack_up
+    corpus "tune-$2" 2000 1-4 4 "$3"
+    measure "tune-$2" "$2" 4
+    ;;
   witness)
     stack_up
     corpus witness 1000 70 1 1070
