@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 
-import { test, expect, apiAs, type UatApi } from '../../fixtures/uat.fixture';
+import { test, expect, apiAs } from '../../fixtures/uat.fixture';
+import { validatedDocument } from '../../fixtures/validatedDocument';
 
 /**
  * Archivage (#228) : seuls les profils qui ont `documents archive` (tenant_admin, super_admin via
@@ -8,15 +9,6 @@ import { test, expect, apiAs, type UatApi } from '../../fixtures/uat.fixture';
  * Le document validé est préparé par l'API : son auteur ouvre un circuit d'un visa, le valideur l'accepte.
  * Le Manager ne voit que les documents de son unité : son cas part d'un document de collaborateur.
  */
-async function validatedDocument(owner: UatApi, validator: UatApi, runId: string, title: string) {
-  const doc = await owner.uploadDocument(`archive-${runId}-${title.length}.txt`, title, `Archiver ${title}`);
-  const [step] = await owner.submitForVisa(doc.id, (await validator.me()).id, 'Visa archivage');
-  const { current_version_id: versionId } = await owner.getDocument(doc.id);
-  if (!step || !versionId) throw new Error(`circuit ou version absent pour ${title}`);
-  await validator.acceptVisa(step.id, versionId);
-  await expect.poll(async () => (await owner.getDocument(doc.id)).status).toBe('validated');
-  return doc;
-}
 
 const openDocument = async (page: Page, runId: string, title: string) => {
   await page.goto(`documents?q=${encodeURIComponent(runId)}`);

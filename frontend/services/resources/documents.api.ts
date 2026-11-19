@@ -109,18 +109,22 @@ export const documentsApi = {
     getDocumentContentBlob: (
         id: string,
         disposition: 'inline' | 'attachment' = 'inline',
+        options?: ApiCallOptions,
     ): Promise<Blob> =>
         apiCallBlob(
             `/documents/${id}/content?disposition=${disposition}`,
             {},
             'Téléchargement du contenu impossible',
+            options,
         ),
 
-    updateDocument: (id: string, data: Partial<Document>): Promise<Document> =>
+    // options.silent: a caller that shows its own summary (bulk actions) silences the global toast.
+    updateDocument: (id: string, data: Partial<Document>, options?: ApiCallOptions): Promise<Document> =>
         apiCall<Document>(
             `/documents/${id}`,
             { method: 'PATCH', body: JSON.stringify(data) },
             'Mise à jour du document impossible',
+            options,
         ),
 
     /** Met le document à la corbeille (rien n'est supprimé définitivement ici). */

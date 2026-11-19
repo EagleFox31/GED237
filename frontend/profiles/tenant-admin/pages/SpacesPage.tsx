@@ -11,6 +11,18 @@ import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { useAuthStore } from '../../../stores/authStore';
 import { canArchiveDocument } from '../../../lib/documentArchive';
 import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { downloadName } from '../../../lib/downloadName';
+import {
+  applyExplorerSelection,
+  formatBulkSummaryMessage,
+  formatSelectionCount,
+  runBulkExplorerAction,
+  selectAllExplorerIds,
+} from '../../../lib/explorerSelection';
+
+// Bulk actions report one summary: no global toast per document, network errors included.
+const BULK_QUIET = { silent: true } as const;
+const formatDocumentCount = (n: number) => `${n} document${n > 1 ? 's' : ''}`;
 
 interface UserNode {
   id: string;
@@ -130,6 +142,10 @@ type ContextMenuState =
   | { kind: 'folder'; x: number; y: number; unitId: string; path: string }
   | { kind: 'background'; x: number; y: number };
 
+// Roles that only read their own unit (backend ORG_UNIT_READ_ROLES): the institution root
+// answers 403 to them, so the explorer opens on their unit.
+const OWN_UNIT_ROLES = new Set(['manager', 'reader']);
+
 const MENU_ITEM =
   'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none';
 
@@ -225,7 +241,11 @@ const SpacesPage: React.FC = () => {
         setTreeData(treeResp);
         if (treeResp.length > 0) {
           const flattened = flattenUnits(treeResp);
-          setSelectedUnitId(flattened[0]?.id || '');
+          const profile = useAuthStore.getState().userProfile;
+          const ownUnit = OWN_UNIT_ROLES.has(profile?.backendRole ?? '')
+            ? flattened.find((unit) => unit.id === profile?.orgUnitId)
+            : undefined;
+          setSelectedUnitId((ownUnit ?? flattened[0])?.id || '');
         }
 
         const [usersResult, domainsResult, activitiesResult] = await Promise.allSettled([
@@ -441,6 +461,95 @@ const SpacesPage: React.FC = () => {
     0
   );
 
+  const sortedDocuments = useMemo(
+    () =>
+      visibleDocuments
+        .slice()
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+    [visibleDocuments],
+  );
+
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkSummary, setBulkSummary] = useState<string | null>(null);
+  const [confirmBulkArchive, setConfirmBulkArchive] = useState(false);
+
+  useEffect(() => {
+    setSelectedDocIds([]);
+    setSelectionAnchorId(null);
+    setBulkSummary(null);
+  }, [selectedUnitId]);
+
+  const handleDocumentSelect = (event: React.MouseEvent, docId: string) => {
+    const next = applyExplorerSelection({
+      currentIds: selectedDocIds,
+      orderedIds: sortedDocuments.map((d) => d.id),
+      anchorId: selectionAnchorId,
+      targetId: docId,
+      ctrlKey: event.ctrlKey || event.metaKey,
+      shiftKey: event.shiftKey,
+    });
+    setSelectedDocIds(next.selectedIds);
+    setSelectionAnchorId(next.anchorId);
+    setBulkSummary(null);
+  };
+
+  const selectedDocuments = useMemo(() => {
+    const selectedSet = new Set(selectedDocIds);
+    return sortedDocuments.filter((doc) => selectedSet.has(doc.id));
+  }, [selectedDocIds, sortedDocuments]);
+  // Same rule as the document sheet: offered when the profile may archive at least one selected document.
+  const canBulkArchive = selectedDocuments.some((doc) => canArchiveDocument(profileId, doc.status));
+
+  const handleBulkDownload = async () => {
+    if (selectedDocuments.length === 0 || bulkProcessing) return;
+    setBulkProcessing(true);
+    setBulkSummary(null);
+    try {
+      const summary = await runBulkExplorerAction(
+        selectedDocuments,
+        (doc) => doc.title,
+        async (doc) => {
+          const blob = await api.getDocumentContentBlob(doc.id, 'attachment', BULK_QUIET);
+          const url = URL.createObjectURL(blob);
+          const link = window.document.createElement('a');
+          link.href = url;
+          link.download = downloadName(doc);
+          window.document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1_000);
+        },
+      );
+      setBulkSummary(formatBulkSummaryMessage('téléchargé', summary));
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    setConfirmBulkArchive(false);
+    if (!canBulkArchive || selectedDocuments.length === 0 || bulkProcessing) return;
+    setBulkProcessing(true);
+    setBulkSummary(null);
+    try {
+      const summary = await runBulkExplorerAction(
+        selectedDocuments,
+        (doc) => doc.title,
+        async (doc) => {
+          const updated = await api.updateDocument(doc.id, { status: 'archived' }, BULK_QUIET);
+          setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, ...updated } : d)));
+        },
+        // Documents the rule refuses are skipped with their status as the reason.
+        (doc) => (canArchiveDocument(profileId, doc.status) ? null : getStatusLabel(doc.status).toLowerCase()),
+      );
+      setBulkSummary(formatBulkSummaryMessage('archivé', summary));
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   // Total du dossier : le serveur compte tous les documents filtrés, la page n'en
   // charge que SPACES_PAGE_SIZE (#256). Les documents de sous-services masqués sur
   // la page sont retirés quand tout est chargé. Paginé avec des sous-services, on ne
@@ -526,6 +635,22 @@ const SpacesPage: React.FC = () => {
         search.focus();
         search.select();
       }
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
+      const region = itemsRegionRef.current;
+      if (!region || (!region.contains(event.target as Node) && event.target !== region)) return;
+      if (sortedDocuments.length === 0) return;
+      event.preventDefault();
+      const next = selectAllExplorerIds(sortedDocuments.map((d) => d.id));
+      setSelectedDocIds(next.selectedIds);
+      setSelectionAnchorId(next.anchorId);
+      setBulkSummary(null);
+      return;
+    }
+    if (event.key === 'Escape' && selectedDocIds.length > 0 && !previewDocument && !contextMenu) {
+      setSelectedDocIds([]);
+      setSelectionAnchorId(null);
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -948,12 +1073,61 @@ const SpacesPage: React.FC = () => {
                 </div>
               )}
 
+              {!error && !documentsLoading && (selectedDocIds.length > 0 || bulkSummary) && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {selectedDocIds.length > 0 && (
+                      <span role="status" className="text-xs font-black uppercase tracking-widest text-rdpc-blue">
+                        {formatSelectionCount(selectedDocIds.length)}
+                      </span>
+                    )}
+                    {bulkSummary && (
+                      <span role="status" data-testid="explorer-bulk-summary" className="text-xs font-semibold text-slate-700">
+                        {bulkSummary}
+                      </span>
+                    )}
+                  </div>
+                  {selectedDocIds.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={bulkProcessing}
+                        onClick={() => { void handleBulkDownload(); }}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-rdpc-blue hover:text-rdpc-blue disabled:opacity-50"
+                      >
+                        Télécharger la sélection
+                      </button>
+                      {canBulkArchive && (
+                        <button
+                          type="button"
+                          disabled={bulkProcessing}
+                          onClick={() => setConfirmBulkArchive(true)}
+                          className="rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                        >
+                          Archiver la sélection
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={bulkProcessing}
+                        onClick={() => {
+                          setSelectedDocIds([]);
+                          setSelectionAnchorId(null);
+                          setBulkSummary(null);
+                        }}
+                        className="rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 disabled:opacity-50"
+                      >
+                        Désélectionner
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {!error && !documentsLoading && visibleDocuments.length > 0 && viewMode === 'icons' && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                  {visibleDocuments
-                    .slice()
-                    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                    .map((doc) => {
+                  {sortedDocuments.map((doc) => {
+                      const isSelected = selectedDocIds.includes(doc.id);
                       const isTitleTruncated = doc.title.length > 26;
                       // Chemin du service de rattachement du doc — affiché en
                       // mode recherche pour donner le contexte de l'origine.
@@ -983,11 +1157,19 @@ const SpacesPage: React.FC = () => {
                         >
                           <button
                             type="button"
-                            onClick={() => openPreview(doc)}
+                            onClick={(event) => {
+                              if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                                event.preventDefault();
+                                handleDocumentSelect(event, doc.id);
+                              } else {
+                                openPreview(doc);
+                              }
+                            }}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
+                            aria-pressed={isSelected}
                             data-explorer-item
-                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
+                            className={`group w-full rounded-[1.5rem] border px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${isSelected ? 'border-rdpc-blue bg-blue-50/70 ring-2 ring-rdpc-blue/40' : 'border-slate-200 bg-white'} ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span
@@ -1038,18 +1220,18 @@ const SpacesPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {visibleDocuments
-                        .slice()
-                        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                        .map((doc) => {
+                      {sortedDocuments.map((doc) => {
                           const targetUnitName = getTargetLabel(doc);
+                          const isSelected = selectedDocIds.includes(doc.id);
                           return (
                             <tr
                               key={doc.id}
+                              onClick={(event) => handleDocumentSelect(event, doc.id)}
                               onDoubleClick={() => openPreview(doc)}
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                               tabIndex={0}
                               data-explorer-item
+                              aria-selected={isSelected}
                               aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && event.target === event.currentTarget) {
@@ -1057,7 +1239,7 @@ const SpacesPage: React.FC = () => {
                                   openPreview(doc);
                                 }
                               }}
-                              className="align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue"
+                              className={`align-top outline-none transition-colors hover:bg-slate-50 focus-visible:bg-blue-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rdpc-blue ${isSelected ? 'bg-blue-50/70 ring-2 ring-inset ring-rdpc-blue/40' : ''}`}
                             >
                               <td className="px-6 py-5">
                                 <div className="space-y-2">
@@ -1398,6 +1580,16 @@ const SpacesPage: React.FC = () => {
           setDocumentToClassify(null);
           loadDocuments();
         }}
+      />
+
+      <ConfirmationModal
+        open={confirmBulkArchive}
+        title={`Archiver ${formatDocumentCount(selectedDocuments.length)} ?`}
+        message="Seuls les documents validés ou signés seront archivés. Ils ne pourront plus être effacés de la corbeille."
+        icon="inventory_2"
+        confirmLabel="Oui, archiver"
+        onConfirm={() => { void handleBulkArchive(); }}
+        onCancel={() => setConfirmBulkArchive(false)}
       />
     </div>
   );
