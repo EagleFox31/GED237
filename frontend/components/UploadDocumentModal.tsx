@@ -2,6 +2,9 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Document } from '../types';
 import { api } from '../services/api';
+import {
+  fileTooLargeMessage, formatFileSize, nextTitle, unreadableFormatNotice, uploadErrorMessage,
+} from '../lib/uploadFeedback';
 import { categoriesApi, DocumentCategory } from '../services/categories.api';
 import { pushApiError } from '../lib/errors';
 import {
@@ -13,6 +16,15 @@ import {
   DUPLICATE_DOCUMENT_MESSAGE,
   type UploadProcessingMode,
 } from '../lib/uploadSeries';
+import { MAX_UPLOAD_MB } from '../constants';
+import { resolvePreviewStrategy } from './preview/PreviewStrategyRegistry';
+
+/** Avertissement de format pour le fichier choisi (aperçu : mêmes règles que la fenêtre de détail). */
+function formatNoticeFor(f: File): string | null {
+  const mime = f.type.toLowerCase();
+  const canPreview = resolvePreviewStrategy({ mime, filename: f.name }).id !== 'unsupported';
+  return unreadableFormatNotice(mime, canPreview);
+}
 
 export interface UploadSuccessOptions {
   keepOpen?: boolean;
@@ -27,6 +39,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
   const initialPrefs = useMemo(() => readUploadPreferences(), []);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [titleEditedByHand, setTitleEditedByHand] = useState(false);
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
@@ -63,26 +76,30 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
     writeUploadPreferences({ category: nextCategory, processingMode });
   };
 
-  const handleFile = useCallback((f: File | null, currentTitle: string) => {
+  const handleFile = (f: File | null) => {
     if (!f) return;
-    setFile(f);
-    // Pré-remplir le titre avec le nom de fichier (sans extension)
-    if (!currentTitle) {
-      setTitle(f.name.replace(/\.[^/.]+$/, ''));
+    // Refus immédiat : inutile de remplir le formulaire puis d'attendre l'échec de l'envoi.
+    const tooLarge = fileTooLargeMessage(f.size, MAX_UPLOAD_MB);
+    if (tooLarge) {
+      setFile(null);
+      setError(tooLarge);
+      // Permet de rechoisir le même fichier (sinon onChange ne se redéclenche pas).
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
+    setFile(f);
+    // Le titre suit le fichier, sauf s'il a été saisi à la main.
+    setTitle(nextTitle(title, titleEditedByHand, f.name));
     setError(null);
     setStatusMessage(null);
-  }, []);
+  };
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const dropped = e.dataTransfer.files[0];
-      if (dropped) handleFile(dropped, title);
-    },
-    [handleFile, title],
-  );
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) handleFile(dropped);
+  }, [title, titleEditedByHand]);
 
   const submitUpload = async (keepOpen: boolean) => {
     setError(null);
@@ -126,6 +143,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
         });
         setFile(nextState.file);
         setTitle(nextState.title);
+        setTitleEditedByHand(false);
         setCategory(nextState.category);
         setProcessingMode(nextState.processingMode);
         setTags(nextState.tags);
@@ -138,14 +156,9 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
       }
       onSuccess(doc, { keepOpen });
     } catch (err: unknown) {
-      const status = (err as { status?: number })?.status;
-      if (status === 409) {
-        setError(DUPLICATE_DOCUMENT_MESSAGE);
-      } else if (status === 400) {
-        setError('Données invalides. Vérifiez le titre et la catégorie.');
-      } else {
-        setError("L'envoi a échoué. Vérifiez votre connexion et réessayez.");
-      }
+      const { status, userMessage, message } = (err ?? {}) as { status?: number; userMessage?: string; message?: string };
+      // Doublon : message de la série (le fichier reste sélectionné) ; le reste suit le message commun.
+      setError(status === 409 ? DUPLICATE_DOCUMENT_MESSAGE : uploadErrorMessage(status, userMessage ?? message));
     } finally {
       setIsLoading(false);
     }
@@ -212,7 +225,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
               ref={fileInputRef}
               type="file"
               className="hidden"
-              onChange={(e) => handleFile(e.target.files?.[0] || null, title)}
+              onChange={(e) => handleFile(e.target.files?.[0] || null)}
             />
             <span className={`material-symbols-outlined text-4xl ${file ? 'text-green-500' : 'text-slate-300'}`}>
               {file ? 'check_circle' : 'upload_file'}
@@ -220,12 +233,16 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             {file ? (
               <div className="text-center">
                 <p className="font-bold text-slate-700 text-sm">{file.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{(file.size / 1024).toFixed(0)} KB</p>
+                <p className="text-xs text-slate-500 mt-0.5">{formatFileSize(file.size)}</p>
+                {formatNoticeFor(file) && (
+                  <p data-testid="upload-format-notice" className="text-xs font-medium text-amber-800 mt-1">{formatNoticeFor(file)}</p>
+                )}
               </div>
             ) : (
               <div className="text-center">
                 <p className="font-bold text-slate-500 text-sm">Glissez un fichier ici</p>
                 <p className="text-xs text-slate-400 mt-0.5">ou cliquez pour sélectionner</p>
+                <p data-testid="upload-limits" className="text-xs text-slate-500 mt-1">PDF, images, Word, Excel · {MAX_UPLOAD_MB} Mo max</p>
               </div>
             )}
           </div>
@@ -285,7 +302,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setTitleEditedByHand(e.target.value !== ''); }}
               placeholder="Nom du document..."
               maxLength={200}
               className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
