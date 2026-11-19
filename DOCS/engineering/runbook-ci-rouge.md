@@ -43,4 +43,4 @@ Sur un push vers `main`, le job « Reuse validated tree » compare l'arbre du co
 
 ## E2E smoke bloquant (à partir du 21/11)
 
-Le job « E2E smoke (Playwright) » fait partie des `needs` de « CI Gate » : rouge ou annulé, il bloque ; sauté, la PR ne touche aucune surface e2e (backend, frontend, `docker-compose.e2e.yml`). Rejeu local : `docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e`, puis `down -v`. Rapport : artefact `e2e-smoke-report`.
+Le job « E2E smoke (Playwright) » fait partie des `needs` de « CI Gate » : rouge ou annulé, il bloque ; sauté, la PR ne touche aucune surface e2e (`backend/`, `frontend/`, `docker-compose.yml`, `docker-compose.e2e.yml`) ou, sur `main`, l'arbre était déjà validé (« Reuse validated tree »). Rejeu local : `docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e`, puis `down -v`. Rapport : artefact `e2e-smoke-report`.

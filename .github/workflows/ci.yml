@@ -150,7 +150,8 @@ jobs:
   # Stage 2 — Gate (single required status check)
   # ──────────────────────────────────────────────
   # e2e is blocking since 2026-11-21 (end of the DEC-2026-002 waiver): a skipped job means the
-  # change touches no e2e surface; a failed or cancelled one fails the gate.
+  # change touches no e2e surface or the tree was already validated (reuse); a failed or cancelled
+  # one fails the gate.
   gate:
     name: CI Gate
     if: always()
