@@ -2,14 +2,19 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../../services/api';
-import { ApiError } from '../../../lib/errors';
-import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { useWorkflowInbox } from '../../../hooks/useWorkflowInbox';
 import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
 
 const PendingAssignmentsInbox: React.FC = () => {
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Même file que l'onglet « Sans validateur » de Tâches & Validations (#153).
+  const inbox = useWorkflowInbox('unassigned', { pageSize: 200 });
+  const assignments: any[] = inbox.items;
+  const loading = inbox.loading && assignments.length === 0;
+  // Échec de chargement : évite le faux « Aucune étape orpheline » (erreur HTTP déjà au bus global).
+  const loadFailed = inbox.failed && assignments.length === 0;
+  const fetchAssignments = () => {
+    inbox.reload();
+  };
   // Recherche pilotée par l'URL (`?q=`) via la barre globale du Header.
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('q') || '';
@@ -25,24 +30,8 @@ const PendingAssignmentsInbox: React.FC = () => {
   const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
-    fetchAssignments();
     fetchUsers();
   }, []);
-
-  const fetchAssignments = async () => {
-    try {
-      setLoading(true);
-      setLoadFailed(false);
-      const data = await api.getPendingAssignments();
-      setAssignments(data);
-    } catch (e) {
-      // Erreur HTTP déjà au bus global ; l'état d'échec évite le faux « Aucune étape orpheline ».
-      setLoadFailed(true);
-      if (!(e instanceof ApiError)) pushClientOperationError(e, { fallbackDetail: 'Chargement des étapes impossible.' });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchUsers = async () => {
     try {
@@ -59,7 +48,7 @@ const PendingAssignmentsInbox: React.FC = () => {
     try {
       setAssigning(true);
       await api.assignPendingStep(selectedAssignment.id, selectedUserId);
-      setAssignments(assignments.filter(a => a.id !== selectedAssignment.id));
+      inbox.remove(selectedAssignment.id);
       setSelectedAssignment(null);
       setSelectedUserId('');
     } catch (e) {
@@ -152,6 +141,16 @@ const PendingAssignmentsInbox: React.FC = () => {
                 )}
               </div>
             ))
+          )}
+          {inbox.hasMore && (
+            <button
+              type="button"
+              onClick={() => inbox.loadMore()}
+              disabled={inbox.loading}
+              className="w-full rounded-2xl border-2 border-slate-200 bg-white py-3 text-xs font-bold text-slate-700 hover:border-rdpc-blue hover:text-rdpc-blue disabled:opacity-50"
+            >
+              Voir plus
+            </button>
           )}
         </div>
 
