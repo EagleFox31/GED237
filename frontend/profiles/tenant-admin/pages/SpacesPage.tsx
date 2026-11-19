@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
 import type { Document } from '../../../types';
@@ -7,7 +7,7 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
-import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 
 interface UserNode {
   id: string;
@@ -354,6 +354,20 @@ const SpacesPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUnitId, recursive, debouncedQuery, domainFilter, activityFilter, yearFilter, classificationFilter, statusFilter, page]);
 
+  // Mesuré avant l'affichage : un menu ouvert près du bas de l'écran remonte au lieu de déborder.
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!contextMenu || !menu) {
+      setMenuPosition(null);
+      return;
+    }
+    const { width, height } = menu.getBoundingClientRect();
+    setMenuPosition(
+      clampToViewport({ x: contextMenu.x, y: contextMenu.y }, { width, height }, { width: window.innerWidth, height: window.innerHeight })
+    );
+  }, [contextMenu]);
+
   useEffect(() => {
     if (!contextMenu) {
       return;
@@ -570,6 +584,16 @@ const SpacesPage: React.FC = () => {
       y: event.clientY,
       document,
     });
+  };
+
+  const handleTrash = async (doc: Document) => {
+    setContextMenu(null);
+    try {
+      await api.deleteDocument(doc.id);
+      loadDocuments();
+    } catch {
+      /* message déjà affiché par le bus global */
+    }
   };
 
   const handleCopyPath = async (path: string) => {
@@ -1127,9 +1151,10 @@ const SpacesPage: React.FC = () => {
         <div
           ref={menuRef}
           role="menu"
+          tabIndex={-1}
           aria-label="Actions"
           className="fixed z-50 min-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={menuPosition ?? { top: contextMenu.y, left: contextMenu.x }}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
@@ -1147,14 +1172,14 @@ const SpacesPage: React.FC = () => {
           {contextMenu.kind === 'document' && (
             <>
               <button type="button" role="menuitem" onClick={() => openPreview(contextMenu.document)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">preview</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">preview</span>
                 Ouvrir
               </button>
               {(!contextMenu.document.classification_status
                 || contextMenu.document.classification_status === 'pending'
                 || contextMenu.document.classification_status === 'needs_review') && (
                 <button type="button" role="menuitem" onClick={() => openClassification(contextMenu.document)} className={MENU_ITEM}>
-                  <span className="material-symbols-outlined text-base text-slate-400">rule</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">rule</span>
                   Classer
                 </button>
               )}
@@ -1164,19 +1189,28 @@ const SpacesPage: React.FC = () => {
                 onClick={() => handleCopyPath(contextMenu.document.logical_space_path || '')}
                 className={MENU_ITEM}
               >
-                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleTrash(contextMenu.document)}
+                className={MENU_ITEM}
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">delete</span>
+                Mettre à la corbeille
               </button>
             </>
           )}
           {contextMenu.kind === 'folder' && (
             <>
               <button type="button" role="menuitem" onClick={() => openFolder(contextMenu.unitId)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">folder_open</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">folder_open</span>
                 Ouvrir
               </button>
               <button type="button" role="menuitem" onClick={() => handleCopyPath(contextMenu.path)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin
               </button>
             </>
@@ -1191,7 +1225,7 @@ const SpacesPage: React.FC = () => {
               }}
               className={MENU_ITEM}
             >
-              <span className="material-symbols-outlined text-base text-slate-400">refresh</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">refresh</span>
               Actualiser
             </button>
           )}
