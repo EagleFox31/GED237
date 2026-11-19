@@ -210,12 +210,12 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
             <div>
               <h2 className="text-xl font-bold text-slate-800 tracking-tight">{document.title}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{getFileTypeLabel(document.mime_type || document.file_type)}</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{getFileTypeLabel(document.mime_type || document.file_type)}</span>
                 <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  document.status === 'validated' || document.status === 'signed' ? 'bg-green-100 text-green-600' :
-                  document.status === 'in_review' ? 'bg-blue-100 text-blue-600' :
-                  document.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'
+                  document.status === 'validated' || document.status === 'signed' ? 'bg-green-100 text-green-800' :
+                  document.status === 'in_review' ? 'bg-blue-100 text-blue-800' :
+                  document.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-600'
                 }`}>{getStatusLabel(document.status)}</span>
                 {document.processing_mode === 'archive' && (
                   <>
@@ -247,7 +247,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${
-                activeTab === tab.id ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                activeTab === tab.id ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -266,39 +266,39 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Métadonnées Officielles</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-slate-400 font-medium">Propriétaire</p>
+                      <p className="text-slate-500 font-medium">Propriétaire</p>
                       <p className="font-bold text-slate-700">{document.owner_name || 'Non renseigné'}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 font-medium">Date de création</p>
+                      <p className="text-slate-500 font-medium">Date de création</p>
                       <p className="font-bold text-slate-700">{formatDate(document.created_at)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 font-medium">Type de document</p>
+                      <p className="text-slate-500 font-medium">Type de document</p>
                       <p className="font-bold text-slate-700">{getFileTypeLabel(document.mime_type || document.file_type)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 font-medium">Taille</p>
+                      <p className="text-slate-500 font-medium">Taille</p>
                       <p className="font-bold text-slate-700">{formatFileSize(document.file_size)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 font-medium">Catégorie</p>
+                      <p className="text-slate-500 font-medium">Catégorie</p>
                       <p className="font-bold text-slate-700">{document.category_name || '—'}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400 font-medium">Version</p>
+                      <p className="text-slate-500 font-medium">Version</p>
                       <p className="font-bold text-slate-700">V{document.current_version_number || '—'}</p>
                     </div>
                   </div>
                   {document.tags && document.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-2">
                       {document.tags.map((tag, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">#{tag}</span>
+                        <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">#{tag}</span>
                       ))}
                     </div>
                   )}
                 </div>
-                <div className="p-6 bg-blue-600 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+                <div className="p-6 bg-blue-800 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
                   <h3 className="text-lg font-bold mb-2">Actions rapides</h3>
                   <div className="grid grid-cols-1 gap-3">
                     <button type="button" onClick={handleDownload} data-testid="document-download" className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
@@ -343,7 +343,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 </div>
               )}
               {!stepsLoading && steps.length === 0 && processingMode !== 'archive' && (
-                <div className="text-center py-10 text-slate-400 font-bold">Aucune étape de workflow définie.</div>
+                <div className="text-center py-10 text-slate-500 font-bold">Aucune étape de workflow définie.</div>
               )}
               {!stepsLoading && steps.length > 0 && (
                 <div className="relative space-y-12 before:absolute before:inset-0 before:left-7 before:h-full before:w-0.5 before:bg-slate-200">
@@ -353,7 +353,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                         step.status === 'completed' ? 'bg-green-500 text-white' :
                         step.status === 'current' ? 'bg-blue-600 text-white animate-pulse' :
                         step.status === 'rejected' ? 'bg-red-500 text-white' :
-                        'bg-white text-slate-300 border border-slate-200'
+                        'bg-white text-slate-500 border border-slate-200'
                       }`}>
                         {step.status === 'completed' ? <Icons.CheckCircle className="w-8 h-8" /> :
                          step.status === 'current' ? <Icons.Clock className="w-8 h-8" /> :
@@ -366,9 +366,9 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-bold text-slate-800">{step.label}</h4>
-                            <p className="text-xs text-slate-400 mt-1">Étape {step.step_order}</p>
+                            <p className="text-xs text-slate-500 mt-1">Étape {step.step_order}</p>
                           </div>
-                          {step.completed_at && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(step.completed_at)}</span>}
+                          {step.completed_at && <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{formatDate(step.completed_at)}</span>}
                         </div>
                         {step.comment && (
                           <div className="mt-4 p-3 bg-slate-50 rounded-xl border-l-4 border-blue-400">
@@ -385,10 +385,10 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-xs font-bold text-slate-700">{action.actor_name || 'Inconnu'}</span>
                                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
-                                  <span className="text-[9px] text-slate-400 uppercase tracking-wider">{getActionLabel(action.action_type)}</span>
+                                  <span className="text-[9px] text-slate-500 uppercase tracking-wider">{getActionLabel(action.action_type)}</span>
                                 </div>
                                 {action.comment && <p className="text-xs italic text-slate-500 mt-1">"{action.comment}"</p>}
-                                <p className="text-[10px] text-slate-300 mt-1">{new Date(action.performed_at).toLocaleString('fr-FR')}</p>
+                                <p className="text-[10px] text-slate-500 mt-1">{new Date(action.performed_at).toLocaleString('fr-FR')}</p>
                               </div>
                             </div>
                           );
@@ -416,7 +416,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 </div>
               )}
               {!versionsLoading && versions.length === 0 && (
-                <div className="text-center py-10 text-slate-400 font-bold">Aucun historique disponible.</div>
+                <div className="text-center py-10 text-slate-500 font-bold">Aucun historique disponible.</div>
               )}
               {!versionsLoading && versions.map((v) => (
                 <div key={v.id} className={`glass p-5 rounded-3xl border flex items-center justify-between transition-all ${
@@ -424,16 +424,16 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 }`}>
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${
-                      v.is_current ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-100 text-slate-400'
+                      v.is_current ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-100 text-slate-600'
                     }`}>
                       V{v.version_number}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="font-bold text-slate-800">Version {v.version_number}</h4>
-                        {v.is_current && <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">Actuelle</span>}
+                        {v.is_current && <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">Actuelle</span>}
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5">Mis en ligne le {formatDate(v.uploaded_at)} par <span className="text-slate-600 font-semibold">{v.uploaded_by_name || 'Système'}</span></p>
+                      <p className="text-xs text-slate-500 mt-0.5">Mis en ligne le {formatDate(v.uploaded_at)} par <span className="text-slate-600 font-semibold">{v.uploaded_by_name || 'Système'}</span></p>
                       {v.change_note && <p className="text-xs italic text-slate-500 mt-2 p-2 bg-white/50 rounded-lg">"{v.change_note}"</p>}
                     </div>
                   </div>
