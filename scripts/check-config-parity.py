@@ -9,7 +9,10 @@ Checks (static, nothing is imported):
 - each `Settings` field of backend/app/core/config.py is in the root `.env.example` and in
   the `environment` block of the `api` or `worker` service;
 - each `import.meta.env.VITE_*` read by the frontend is in the root `.env.example`, is an
-  `ARG` of frontend/Dockerfile and a `build.args` entry of the `frontend` service.
+  `ARG` of frontend/Dockerfile and a `build.args` entry of the `frontend` service;
+- the nginx `client_max_body_size` stays at least 1 MB above every upload cap declared
+  (Settings default, both `.env.example`, `${MAX_UPLOAD_SIZE_MB:-N}` defaults of the compose
+  file): otherwise nginx cuts the upload with its own 413 page before the API can answer.
 
 Deliberate gaps go in scripts/config-parity-exceptions.txt, one line each:
 `NAME | scope | reason`, scope = env-example, compose or all. A line without a reason,
@@ -31,6 +34,8 @@ ENV_EXAMPLE = Path(".env.example")
 FRONT_DOCKERFILE = Path("frontend/Dockerfile")
 FRONTEND = Path("frontend")
 EXCEPTIONS = Path("scripts/config-parity-exceptions.txt")
+BACKEND_ENV_EXAMPLE = Path("backend/.env.example")
+NGINX_LOCATIONS = Path("nginx/app-locations.conf")
 
 SCOPES = {"env-example", "compose", "all"}
 BACKEND_SERVICES = ("api", "worker")
@@ -38,6 +43,12 @@ VITE_READ = re.compile(r"import\.meta\.env\.(VITE_[A-Z0-9_]+)")
 ENV_LINE = re.compile(r"^#?\s*([A-Z][A-Z0-9_]*)=", re.MULTILINE)
 ARG_LINE = re.compile(r"^\s*ARG\s+([A-Z][A-Z0-9_]*)", re.MULTILINE)
 SKIP_DIRS = {"node_modules", "dist", "e2e", "test-results", "playwright-report"}
+
+MIB = 1024 * 1024
+NGINX_BODY_SIZE = re.compile(r"^\s*client_max_body_size\s+(\d+)([kKmMgG]?)\s*;", re.MULTILINE)
+NGINX_UNITS = {"": 1, "k": 1024, "m": MIB, "g": 1024 * MIB}
+ENV_UPLOAD_MB = re.compile(r"^MAX_UPLOAD_SIZE_MB=(\d+)\s*$", re.MULTILINE)
+COMPOSE_UPLOAD_MB = re.compile(r"\$\{MAX_UPLOAD_SIZE_MB:-(\d+)\}")
 
 
 def settings_variables(path: Path) -> list[str]:
@@ -114,6 +125,72 @@ def frontend_variables(root: Path) -> list[str]:
     return sorted(found)
 
 
+def _constant_product(node: ast.expr) -> int | None:
+    """Value of `100 * 1024 * 1024`-style expressions; None for anything else."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, int):
+        return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+        left, right = _constant_product(node.left), _constant_product(node.right)
+        if left is not None and right is not None:
+            return left * right
+    return None
+
+
+def settings_upload_default(path: Path) -> int | None:
+    """Default of Settings.MAX_UPLOAD_SIZE in bytes, when it is a constant product."""
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "MAX_UPLOAD_SIZE"
+            and node.value is not None
+        ):
+            return _constant_product(node.value)
+    return None
+
+
+def upload_cap_errors(root: Path) -> list[str]:
+    """nginx must let through every upload the API accepts, plus the multipart envelope."""
+    nginx = root / NGINX_LOCATIONS
+    if not nginx.exists():
+        return [
+            f"{NGINX_LOCATIONS}: file not found, so the upload cap cannot be checked "
+            f"(restore it, or update NGINX_LOCATIONS in scripts/check-config-parity.py)"
+        ]
+    sizes = NGINX_BODY_SIZE.findall(nginx.read_text(encoding="utf-8"))
+    if not sizes:
+        return [f"{NGINX_LOCATIONS}: no `client_max_body_size` directive found"]
+    nginx_bytes = min(int(value) * NGINX_UNITS[unit.lower()] for value, unit in sizes)
+
+    caps: list[tuple[str, int]] = []
+    default = settings_upload_default(root / CONFIG)
+    if default is not None:
+        caps.append((f"{CONFIG} (MAX_UPLOAD_SIZE default)", default))
+    for rel in (ENV_EXAMPLE, BACKEND_ENV_EXAMPLE):
+        if (root / rel).exists():
+            text = (root / rel).read_text(encoding="utf-8")
+            caps += [(f"{rel} (MAX_UPLOAD_SIZE_MB)", int(mb) * MIB) for mb in ENV_UPLOAD_MB.findall(text)]
+    compose = (root / COMPOSE).read_text(encoding="utf-8")
+    caps += [
+        (f"{COMPOSE} (${{MAX_UPLOAD_SIZE_MB:-{mb}}})", int(mb) * MIB)
+        for mb in COMPOSE_UPLOAD_MB.findall(compose)
+    ]
+    if not caps:
+        return [
+            "MAX_UPLOAD_SIZE_MB: no upload cap declared in the config, the .env.example files "
+            f"or {COMPOSE}, so {NGINX_LOCATIONS} cannot be checked"
+        ]
+
+    source, cap = max(caps, key=lambda item: item[1])
+    if nginx_bytes >= cap + MIB:
+        return []
+    return [
+        f"{NGINX_LOCATIONS}: client_max_body_size is {nginx_bytes // MIB} MB but {source} "
+        f"allows {cap // MIB} MB: set it to at least {cap // MIB + 1}M, or nginx answers 413 "
+        f"before the API"
+    ]
+
+
 def read_exceptions(path: Path) -> tuple[dict[tuple[str, str], str], list[str]]:
     exceptions: dict[tuple[str, str], str] = {}
     errors = []
@@ -175,6 +252,8 @@ def check(root: Path) -> list[str]:
                 f"{name}: read by the frontend, needs `ARG {name}` in {FRONT_DOCKERFILE} "
                 f"and `{name}` under build.args of the frontend service in {COMPOSE}"
             )
+
+    errors += upload_cap_errors(root)
 
     for key in sorted(set(exceptions) - used):
         errors.append(

@@ -1,12 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { canOpenAdminRoute } from '../lib/adminRoutes';
 import { notificationTarget } from '../lib/notificationTarget';
 
 import { api } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import { TenantMetrics } from '../types';
 import { HelpHint } from './HelpHint';
-
 
 type StatTone = 'blue' | 'red' | 'green' | 'slate';
 // Classes écrites en entier : Tailwind (compilé) ne génère pas une classe construite par concaténation.
@@ -21,6 +22,9 @@ const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const profileId = useAuthStore((s) => s.userProfile?.id);
+  // Tuile « Utilisateurs » en lien seulement pour les profils admis sur /users (même table que la garde des routes).
+  const canOpenUsers = canOpenAdminRoute('/users', profileId);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,7 +70,7 @@ const Dashboard: React.FC = () => {
       {/* Stats Cards - From API */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {[
-          { label: 'Utilisateurs', value: isLoading ? '...' : metrics?.users?.total ?? 0, trend: 'Actifs', color: 'blue', icon: 'group', to: '/users' },
+          { label: 'Utilisateurs', value: isLoading ? '...' : metrics?.users?.total ?? 0, trend: 'Actifs', color: 'blue', icon: 'group', to: canOpenUsers ? '/users' : undefined },
           { label: 'Documents', value: isLoading ? '...' : metrics?.documents?.total ?? 0, trend: 'Enregistrés', color: 'slate', icon: 'description', to: '/documents' },
           { label: 'Stockage Utilisé', value: isLoading ? '...' : `${metrics?.documents?.storage_used_mb ?? 0} MB`, trend: 'Sur Quota', color: 'green', icon: 'cloud' },
           { label: 'Visa en Attente', value: isLoading ? '...' : metrics?.workflows?.pending ?? 0, trend: (metrics?.workflows?.rejected ?? 0) > 0 ? `${metrics!.workflows.rejected} rejetés` : 'À Jour', color: (metrics?.workflows?.rejected ?? 0) > 0 ? 'red' : 'green', icon: 'draw', to: '/tasks' },

@@ -56,7 +56,10 @@ const NeedsReviewInbox: React.FC = () => {
 
   useEffect(() => {
     fetchDocuments();
-    api.getOrgUnits().then(setOrgUnits).catch(console.error);
+    api.getOrgUnits().then(setOrgUnits).catch((err) => {
+      // Les erreurs HTTP sont déjà sur le bus (apiCall) ; seules les autres sont signalées ici.
+      if (!(err instanceof ApiError)) pushClientOperationError(err, { fallbackDetail: 'Chargement des services impossible.' });
+    });
   }, []);
 
   const fetchDocuments = async () => {

@@ -22,7 +22,10 @@ FILES = (
     parity.ENV_EXAMPLE,
     parity.FRONT_DOCKERFILE,
     parity.EXCEPTIONS,
+    parity.BACKEND_ENV_EXAMPLE,
+    parity.NGINX_LOCATIONS,
 )
+MINI_ENV = "SECRET_KEY=change-me\n# WATCH=[]\nVITE_X=\nMAX_UPLOAD_SIZE_MB=10\n"
 
 MINI_CONFIG = """
 from pydantic import Field
@@ -63,10 +66,11 @@ class CheckConfigParity(unittest.TestCase):
     def mini_repo(self, exceptions=""):
         self.write(parity.CONFIG, MINI_CONFIG)
         self.write(parity.COMPOSE, MINI_COMPOSE)
-        self.write(parity.ENV_EXAMPLE, "SECRET_KEY=change-me\n# WATCH=[]\nVITE_X=\n")
+        self.write(parity.ENV_EXAMPLE, MINI_ENV)
         self.write(parity.FRONT_DOCKERFILE, "FROM node\nARG VITE_X\n")
         self.write("frontend/src/main.ts", "const x = import.meta.env.VITE_X;\n")
         self.write(parity.EXCEPTIONS, exceptions)
+        self.write(parity.NGINX_LOCATIONS, "location /api/ {\n    client_max_body_size 11M;\n}\n")
 
     def copy_repo(self):
         for rel in FILES:
@@ -109,7 +113,7 @@ class CheckConfigParity(unittest.TestCase):
 
     def test_alias_is_the_checked_name(self):
         self.mini_repo()
-        self.write(parity.ENV_EXAMPLE, "SECRET_KEY=change-me\nVITE_X=\n")
+        self.write(parity.ENV_EXAMPLE, MINI_ENV.replace("# WATCH=[]\n", ""))
         errors = parity.check(self.root)
         self.assertEqual(len(errors), 1, errors)
         self.assertTrue(errors[0].startswith("WATCH:"), errors)
@@ -142,6 +146,62 @@ class CheckConfigParity(unittest.TestCase):
         errors = parity.check(self.root)
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("matches no gap any more", errors[0])
+
+    # Upload cap: nginx must stay at least 1 MB above every declared MAX_UPLOAD_SIZE_MB.
+
+    def replace_in(self, rel, old, new):
+        path = self.root / rel
+        text = path.read_text(encoding="utf-8")
+        self.assertIn(old, text)
+        path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+    def assert_single_upload_error(self, *fragments):
+        errors = parity.check(self.root)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertTrue(errors[0].startswith(str(parity.NGINX_LOCATIONS)), errors)
+        for fragment in fragments:
+            self.assertIn(fragment, errors[0])
+
+    def test_settings_default_is_read_from_the_code(self):
+        self.assertEqual(parity.settings_upload_default(REPO / parity.CONFIG), 100 * parity.MIB)
+
+    def test_nginx_at_1m_fails_naming_the_file_and_the_fix(self):
+        """Named negative case: the production regression that made nginx answer 413."""
+        self.copy_repo()
+        self.replace_in(parity.NGINX_LOCATIONS, "client_max_body_size 101M;", "client_max_body_size 1M;")
+        self.assert_single_upload_error("is 1 MB", "at least 101M")
+
+    def test_nginx_equal_to_the_cap_fails_without_envelope_margin(self):
+        self.mini_repo()
+        self.replace_in(parity.NGINX_LOCATIONS, "11M", "10M")
+        self.assert_single_upload_error("at least 11M")
+
+    def test_nginx_in_gigabytes_passes(self):
+        self.mini_repo()
+        self.replace_in(parity.NGINX_LOCATIONS, "11M", "1G")
+        self.assertEqual(parity.check(self.root), [])
+
+    def test_missing_nginx_file_gives_a_clear_message(self):
+        self.mini_repo()
+        (self.root / parity.NGINX_LOCATIONS).unlink()
+        self.assert_single_upload_error("file not found")
+
+    def test_compose_default_above_nginx_fails(self):
+        self.copy_repo()
+        self.replace_in(parity.COMPOSE, "${MAX_UPLOAD_SIZE_MB:-100}", "${MAX_UPLOAD_SIZE_MB:-200}")
+        self.assert_single_upload_error("docker-compose.yml", "allows 200 MB")
+
+    def test_backend_env_example_above_nginx_fails(self):
+        self.copy_repo()
+        self.replace_in(parity.BACKEND_ENV_EXAMPLE, "MAX_UPLOAD_SIZE_MB=100", "MAX_UPLOAD_SIZE_MB=150")
+        self.assert_single_upload_error("backend/.env.example", "allows 150 MB")
+
+    def test_no_declared_cap_fails(self):
+        self.mini_repo()
+        self.write(parity.ENV_EXAMPLE, MINI_ENV.replace("MAX_UPLOAD_SIZE_MB=10\n", ""))
+        errors = parity.check(self.root)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("no upload cap declared", errors[0])
 
 
 if __name__ == "__main__":

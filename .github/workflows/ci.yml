@@ -138,7 +138,7 @@ jobs:
 
   # Same script as the pre-commit hook: every setting read by api/worker/frontend reaches its container.
   config-parity:
-    name: Config parity (code, compose, .env.example)
+    name: Config parity (code, compose, .env.example, nginx upload cap)
     needs: impact
     if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'config-parity') }}
     runs-on: ubuntu-latest

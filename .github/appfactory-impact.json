@@ -35,6 +35,8 @@
         "backend/app/core/config.py",
         "docker-compose.yml",
         ".env.example",
+        "backend/.env.example",
+        "nginx/**",
         "frontend/Dockerfile",
         "frontend/**/*.ts",
         "frontend/**/*.tsx",

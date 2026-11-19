@@ -26,7 +26,7 @@ export const auditApi = {
 
     /**
      * Export CSV du journal (Excel FR : BOM, séparateur « ; »). `table_name` et `action` peuvent
-     * être répétés ; dates AAAA-MM-JJ. 422 au-delà de 50 000 lignes : le message du serveur
+     * être répétés ; dates AAAA-MM-JJ. 422 au-delà du plafond (AUDIT_EXPORT_MAX_ROWS côté serveur) : le message du serveur
      * est affiché par le bus d'erreurs global.
      */
     exportAuditLogs: async (
