@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { TENANT_ADMIN_MENU } from '../profiles/tenant-admin/menuConfig';
 import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
+import { useCan } from '../hooks/useCan';
 import { Logo } from './Logo';
 import { APP_VERSION } from '../constants';
 
@@ -18,6 +19,12 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, open = false, onClose }) => {
   const [tenantLabel, setTenantLabel] = useState<string>('');
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  // Doublons : résoudre un groupe met des copies à la corbeille. Sans l'un de ces droits
+  // (lecteur, auditeur), l'écran n'offre rien à faire : l'entrée est masquée.
+  const { 'documents:delete': canDelete, 'documents:trash_own': canTrashOwn } = useCan(
+    'documents:delete',
+    'documents:trash_own',
+  );
 
   useEffect(() => {
     if (!userProfile?.tenantId) return;
@@ -106,6 +113,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
             : []),
           { id: 'trash', label: 'Corbeille', icon: 'delete' },
+          ...(canDelete || canTrashOwn
+            ? [{ id: 'duplicates', label: 'Doublons', icon: 'content_copy' }]
+            : []),
         ].map(item => (
           <button
             key={item.id}
