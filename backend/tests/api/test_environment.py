@@ -94,7 +94,7 @@ def test_production_refuses_to_start_without_a_channel_that_sends_the_code():
 
 @pytest.mark.parametrize("missing", [{"EMAIL_ENABLED": False}, {"RESEND_API_KEY": ""}])
 def test_production_refuses_to_start_when_the_email_cannot_leave(missing):
-    with pytest.raises(RuntimeError, match="EMAIL_ENABLED=true and RESEND_API_KEY"):
+    with pytest.raises(RuntimeError, match="nobody could sign in"):
         refuse_unsafe_production(_settings(**missing))
 
 

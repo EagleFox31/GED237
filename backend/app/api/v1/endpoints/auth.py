@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.errors.domain import (
     AccountLockedError,
     OtpDeliveryError,
+    OtpResendQuotaError,
     OtpResendTooSoonError,
 )
 from app.core.exceptions import AuthenticationError, NotFoundError
@@ -89,7 +90,12 @@ async def resend_otp(
             db=db, session_token=payload.session_token, request=request
         )
         return LoginResponse(**result)
-    except (AccountLockedError, OtpDeliveryError, OtpResendTooSoonError):
+    except (
+        AccountLockedError,
+        OtpDeliveryError,
+        OtpResendQuotaError,
+        OtpResendTooSoonError,
+    ):
         raise
     except AuthenticationError as exc:
         raise HTTPException(

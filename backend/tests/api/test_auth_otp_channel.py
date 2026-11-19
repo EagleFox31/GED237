@@ -1,6 +1,8 @@
 """Second-factor code: delivery channel, hashed storage and POST /auth/resend-otp."""
 
+import logging
 import re
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -10,12 +12,18 @@ from pydantic import ValidationError
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.config import OTP_CHANNEL_NAMES, Settings, settings
+from app.core.config import (
+    OTP_CHANNEL_NAMES,
+    OTP_SILENT_CHANNELS,
+    Settings,
+    refuse_unsafe_production,
+    settings,
+)
 from app.core.rate_limit import limiter
 from app.core.redis import get_redis
 from app.models.user import User
 from app.services import auth_service as auth_module
-from app.services import otp_delivery
+from app.services import email_service, otp_delivery
 
 LOGIN = "/api/v1/auth/login"
 VERIFY = "/api/v1/auth/verify-otp"
@@ -31,7 +39,7 @@ SEEDED_EMAIL = "test@testministry.gov.cm"
 
 async def _clear_keys() -> None:
     redis = await get_redis()
-    for pattern in ("lock:*", "otp_fail:*", "otp_resend:*"):
+    for pattern in ("lock:*", "otp_fail:*", "otp_resend:*", "otp_resend_count:*"):
         async for key in redis.scan_iter(match=pattern):
             await redis.delete(key)
 
@@ -45,6 +53,8 @@ async def otp_env(monkeypatch):
     monkeypatch.setattr(settings, "AUTH_LOCKOUT_SECONDS", 900)
     monkeypatch.setattr(settings, "AUTH_OTP_CHANNEL", "dev_response")
     monkeypatch.setattr(settings, "AUTH_OTP_RESEND_COOLDOWN_SECONDS", 30)
+    monkeypatch.setattr(settings, "AUTH_OTP_RESEND_MAX_PER_WINDOW", 3)
+    monkeypatch.setattr(settings, "AUTH_OTP_RESEND_WINDOW_SECONDS", 900)
     limiter.reset()
     await _clear_keys()
     yield
@@ -121,6 +131,31 @@ def test_default_channel_sends_nothing_and_unknown_channels_are_refused():
     assert otp_delivery.get_channel("email").echoes_code is False
     with pytest.raises(ValidationError):
         Settings(AUTH_OTP_CHANNEL="pigeon")
+
+
+@pytest.mark.parametrize("channel", OTP_CHANNEL_NAMES)
+def test_production_refuses_to_start_on_a_channel_that_sends_no_code(channel):
+    # Checked against each channel's own ``sends``: a channel added later that
+    # sends nothing must be refused in production too.
+    # E-mail configured: only the channel itself is under test here.
+    production = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="k" * 40,
+        AUTH_OTP_CHANNEL=channel,
+        EMAIL_ENABLED=True,
+        RESEND_API_KEY="k",
+    )
+    assert (channel in OTP_SILENT_CHANNELS) is not otp_delivery.get_channel(
+        channel
+    ).sends
+    if otp_delivery.get_channel(channel).sends:
+        refuse_unsafe_production(production)
+    else:
+        with pytest.raises(RuntimeError, match="nobody could sign in"):
+            refuse_unsafe_production(production)
+    refuse_unsafe_production(
+        Settings(ENVIRONMENT="development", AUTH_OTP_CHANNEL=channel)
+    )
 
 
 def test_stored_value_is_bound_to_the_session_and_old_plain_values_still_match():
@@ -334,3 +369,53 @@ async def test_a_failed_resend_keeps_the_previous_code_and_allows_a_retry(
     # The refused sending does not start a new delay.
     assert await redis.exists(f"otp_resend:{token}") == 0
     assert (await _verify(async_client, token, first_code)).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a_provider_that_does_not_answer_gives_503_not_a_hanging_login(
+    admin_client: AsyncClient, db_seed, outbox, monkeypatch
+):
+    def stuck_send_email(to: str, subject: str, html: str) -> bool:
+        time.sleep(1)
+        return True
+
+    monkeypatch.setattr(otp_delivery.email_service, "send_email", stuck_send_email)
+    monkeypatch.setattr(settings, "EMAIL_SEND_TIMEOUT_SECONDS", 0.05)
+
+    response = await admin_client.post(LOGIN, json=CREDENTIALS)
+
+    assert response.status_code == 503, response.text
+    assert response.json()["error_code"] == "OTP_DELIVERY_FAILED"
+
+
+def test_email_logs_never_carry_the_address(monkeypatch, caplog):
+    monkeypatch.setattr(settings, "EMAIL_ENABLED", False)
+    caplog.set_level(logging.INFO, logger="app.services.email_service")
+
+    assert email_service.send_email("awa.ndi@minfi.cm", "Objet", "<p>x</p>") is False
+
+    assert "a***@minfi.cm" in caplog.text
+    assert "awa.ndi" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_resends_are_capped_per_account_whatever_the_session(
+    async_client: AsyncClient, db_seed, monkeypatch
+):
+    monkeypatch.setattr(settings, "AUTH_OTP_RESEND_COOLDOWN_SECONDS", 0)
+    token = (await _login(async_client))["session_token"]
+
+    statuses = [
+        (await async_client.post(RESEND, json={"session_token": token})).status_code
+        for _ in range(3)
+    ]
+    refused = await async_client.post(RESEND, json={"session_token": token})
+    # A new login session of the same account gets no extra code.
+    other = (await _login(async_client))["session_token"]
+    again = await async_client.post(RESEND, json={"session_token": other})
+
+    assert statuses == [200, 200, 200]
+    assert refused.status_code == 429, refused.text
+    assert refused.json()["error_code"] == "OTP_RESEND_QUOTA"
+    assert 0 < refused.json()["retry_after"] <= 900
+    assert again.status_code == 429

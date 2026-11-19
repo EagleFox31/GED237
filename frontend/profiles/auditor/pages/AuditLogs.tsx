@@ -273,7 +273,7 @@ const AuditLogs: React.FC = () => {
       cell: (log) => (
         <div>
           <p className="text-sm font-medium leading-relaxed text-slate-600">
-            {log.detail || 'Action tracee automatiquement par le systeme.'}
+            {log.detail || 'Action tracée automatiquement par le système.'}
           </p>
           {(log.ip_address || log.user_agent) && (
             <p className="mt-2 text-[11px] font-medium text-slate-400">
@@ -319,7 +319,7 @@ const AuditLogs: React.FC = () => {
             label="Aide sur l'export du journal"
             tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
           >
-            L'export s'arrête à 50 000 lignes. Au-delà, réduisez la période ou ajoutez un filtre avant de recommencer.
+            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
           </HelpHint>
           <button
             type="button"
@@ -330,7 +330,7 @@ const AuditLogs: React.FC = () => {
                 ? 'Rien à exporter'
                 : exportBlocked
                   ? 'Choisissez un seul utilisateur pour exporter.'
-                  : 'Télécharger le journal (fichier Excel)'
+                  : 'Télécharger le journal (fichier CSV)'
             }
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-700 hover:text-rdpc-blue disabled:opacity-50"
           >
