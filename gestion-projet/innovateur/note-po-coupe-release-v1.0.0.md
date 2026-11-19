@@ -4,7 +4,7 @@ Préparée par l'innovateur le 19/11 à partir de `couverture-95-19-11.md`, de D
 
 ## 1. Où on en est
 
-- Score au 19/11, 13:21 : **30/32**, avec `main` = cffb7a4b (#199 fusionnée, item 19 prouvé).
+- Score au 19/11, 13:21 : **30/32**, avec `main` = cffb7a4b (#199 fusionnée, item 19 prouvé). Depuis, #492 (menu « Doublons » masqué selon le droit) est fusionnée : `main` = 9cbe452e, score inchangé.
 - Le seuil est **30,5/32** (95 %, méthode du 10/11 : 32 items à poids égal, `fait` = 1, `partiel` = 0,5).
 - **Il manque un demi-point : l'item 29 (disponibilité ≥ 99 %).** La lecture C6 de 18:00 le donne à `partiel` si elle compte au moins 6 relevés verts consécutifs. Dans ce cas : **30,5/32, soit 95,3 %**. Sans aucune marge.
 
