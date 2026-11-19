@@ -10,19 +10,24 @@ import shutil
 import mimetypes
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, List, Dict, Any, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.models.document_version import DocumentVersion
+from app.models.ingest_run import IngestRun, IngestRunFile
 from app.core.config import settings
-from app.core.errors.domain import IngestPathForbiddenError
+from app.core.errors.domain import (
+    IngestPathForbiddenError,
+    IngestRunInProgressError,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -64,9 +69,15 @@ class IngestionReport:
         self.details: List[Dict[str, Any]] = []
         # Files already in the GED (same SHA-256 in the tenant): counted in skipped.
         self.duplicates: List[Dict[str, str]] = []
+        # Tracked imports only: the run, and the files a previous request already
+        # recorded (counted in skipped, neither hashed nor audited again).
+        self.run_id: Optional[str] = None
+        self.already_done: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "run_id": self.run_id,
+            "already_done": self.already_done,
             "total_found": self.total_found,
             "imported": self.imported,
             "skipped": self.skipped,
@@ -76,6 +87,17 @@ class IngestionReport:
             "duplicate_count": len(self.duplicates),
             "duplicates": self.duplicates,
         }
+
+
+# A tracked file in one of these states is in the GED: a resumed run skips it.
+DONE_STATUSES = ("imported", "duplicate")
+# A run that ended with failed files stays "partial": the same request retries
+# those files only. "completed" means every file is in the GED.
+RESUMABLE_STATUSES = ("running", "partial")
+# A "running" run with a heartbeat this recent is live: the same request is
+# refused (409). Older, it was cut and the request resumes it. Each file bumps
+# the heartbeat; one file (hash, copy, version) stays well under this.
+RUN_ALIVE_WINDOW = timedelta(minutes=5)
 
 
 def _goes_through_ocr(mime_type: str) -> bool:
@@ -120,9 +142,14 @@ class DirectoryIngestionService:
         processing_mode: str = "process",
         exclude_dirs: Iterable[str] = (),
         settle_seconds: int = 0,
+        track: bool = False,
     ) -> IngestionReport:
         """
         Scan source_dir and import all supported files.
+
+        With ``track``, each file's outcome is recorded with its document (see
+        ``app.models.ingest_run``): the same request after an interruption resumes
+        the unfinished run and retries only the files not yet in the GED.
 
         Args:
             source_dir: Absolute path to the directory to scan.
@@ -168,7 +195,24 @@ class DirectoryIngestionService:
         ged_full_dir = os.path.join(self.storage_base, str(ged_dir))
         os.makedirs(ged_full_dir, exist_ok=True)
 
+        run_id, done, failed = None, set(), 0
+        if track:
+            run_id, done = await self._open_run(
+                source_dir=source_dir,
+                tenant_id=tenant_id,
+                org_unit_id=org_unit_id,
+                owner_id=owner_id,
+                recursive=recursive,
+                document_category_id=document_category_id,
+                processing_mode=processing_mode,
+                total_found=report.total_found,
+            )
+            report.run_id = str(run_id)
+
         for file_path in files:
+            if file_path in done:
+                report.already_done += 1
+                continue
             try:
                 result = await self._ingest_single_file(
                     file_path=file_path,
@@ -178,6 +222,7 @@ class DirectoryIngestionService:
                     owner_id=owner_id,
                     document_category_id=document_category_id,
                     processing_mode=processing_mode,
+                    run_id=run_id,
                 )
                 if "duplicate_of" in result:
                     report.duplicates.append(result)
@@ -189,9 +234,166 @@ class DirectoryIngestionService:
                 await self.db.rollback()
                 logger.error(f"[Ingestion] Failed to ingest {file_path}: {e}")
                 report.errors.append({"file": file_path, "error": str(e)})
+                failed += 1
+                if run_id is not None:
+                    await self._record_error(run_id, file_path, str(e))
 
+        if run_id is not None:
+            await self.db.execute(
+                update(IngestRun)
+                .where(IngestRun.id == run_id)
+                .values(
+                    status="partial" if failed else "completed",
+                    finished_at=func.now(),
+                )
+            )
+            await self.db.commit()
         report.skipped = report.total_found - report.imported - len(report.errors)
         return report
+
+    # ── Resumable runs (tracked imports) ──────────────────────────────
+
+    @staticmethod
+    def _run_lock_key(*params) -> str:
+        """Advisory-lock key of one import (same request, same key)."""
+        return "ingest-run:" + ":".join(str(p) for p in params)
+
+    async def _open_run(
+        self,
+        *,
+        source_dir: str,
+        tenant_id: UUID,
+        org_unit_id: UUID,
+        owner_id: UUID,
+        recursive: bool,
+        document_category_id: Optional[UUID],
+        processing_mode: str,
+        total_found: int,
+    ) -> tuple[UUID, set[str]]:
+        """The unfinished run with the same parameters, or a new one, and the
+        source paths it already brought into the GED (imported or duplicate).
+
+        Raises ``IngestRunInProgressError`` while another request runs the same
+        import: the lock serialises the opening, the heartbeat tells a live run
+        from one that was cut."""
+        key = self._run_lock_key(
+            tenant_id,
+            owner_id,
+            org_unit_id,
+            source_dir,
+            recursive,
+            processing_mode,
+            document_category_id,
+        )
+        locked = await self.db.scalar(
+            select(func.pg_try_advisory_xact_lock(func.hashtext(key)))
+        )
+        if not locked:
+            await self.db.rollback()
+            raise IngestRunInProgressError(technical_detail=f"lock busy: {key}")
+        run = (
+            await self.db.execute(
+                select(IngestRun)
+                .where(
+                    IngestRun.tenant_id == tenant_id,
+                    IngestRun.owner_id == owner_id,
+                    IngestRun.org_unit_id == org_unit_id,
+                    IngestRun.source_dir == source_dir,
+                    IngestRun.recursive.is_(recursive),
+                    IngestRun.processing_mode == processing_mode,
+                    IngestRun.document_category_id.is_not_distinct_from(
+                        document_category_id
+                    ),
+                    IngestRun.status.in_(RESUMABLE_STATUSES),
+                )
+                .order_by(IngestRun.started_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if run is None:
+            run = IngestRun(
+                tenant_id=tenant_id,
+                owner_id=owner_id,
+                org_unit_id=org_unit_id,
+                source_dir=source_dir,
+                recursive=recursive,
+                processing_mode=processing_mode,
+                document_category_id=document_category_id,
+                status="running",
+                total_found=total_found,
+                attempts=1,
+            )
+            self.db.add(run)
+            await self.db.flush()
+            done: set[str] = set()
+        else:
+            if run.status == "running" and await self.db.scalar(
+                select(IngestRun.heartbeat_at > func.now() - RUN_ALIVE_WINDOW).where(
+                    IngestRun.id == run.id
+                )
+            ):
+                alive_id = run.id  # read before the rollback expires it
+                await self.db.rollback()
+                raise IngestRunInProgressError(technical_detail=f"run {alive_id} alive")
+            run.attempts = (run.attempts or 1) + 1
+            run.heartbeat_at = func.now()
+            run.status, run.finished_at = "running", None
+            run.total_found = total_found
+            done = set(
+                (
+                    await self.db.execute(
+                        select(IngestRunFile.source_path).where(
+                            IngestRunFile.run_id == run.id,
+                            IngestRunFile.status.in_(DONE_STATUSES),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        run_id = run.id
+        await self.db.commit()
+        return run_id, done
+
+    async def _record_error(self, run_id: UUID, source_path: str, error: str) -> None:
+        """Keep the failure for the report; never stops the import."""
+        try:
+            await self._record(run_id, source_path, "error", error=error)
+            await self.db.commit()
+        except Exception:  # noqa: BLE001 - the file stays retried on resume
+            await self.db.rollback()
+            logger.exception(
+                "[Ingestion] could not record the failure of %s", source_path
+            )
+
+    async def _record(
+        self,
+        run_id: UUID,
+        source_path: str,
+        status: str,
+        *,
+        document_id: Optional[UUID] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        """Upsert the file's line; the caller commits it with the document."""
+        values = {
+            "status": status,
+            "document_id": document_id,
+            "error": error[:500] if error else None,
+        }
+        await self.db.execute(
+            pg_insert(IngestRunFile)
+            .values(run_id=run_id, source_path=source_path, **values)
+            .on_conflict_do_update(
+                constraint="uq_ingest_run_files_path",
+                set_={**values, "updated_at": func.now()},
+            )
+        )
+        await self.db.execute(
+            update(IngestRun)
+            .where(IngestRun.id == run_id)
+            .values(heartbeat_at=func.now())
+        )
 
     # ── Allowed roots (INGEST_ALLOWED_ROOTS) ──────────────────────────
 
@@ -317,9 +519,11 @@ class DirectoryIngestionService:
         owner_id: UUID,
         document_category_id: Optional[UUID],
         processing_mode: str = "process",
+        run_id: Optional[UUID] = None,
     ) -> Dict[str, Any]:
         """
         Import a single file: copy to storage, create Document, run rules, queue OCR.
+        With ``run_id``, the file's line is committed in the same transaction.
         """
         filename = os.path.basename(file_path)
         file_size = os.path.getsize(file_path)
@@ -354,6 +558,10 @@ class DirectoryIngestionService:
                     },
                 )
             )
+            if run_id is not None:
+                await self._record(
+                    run_id, file_path, "duplicate", document_id=duplicate.document_id
+                )
             await self.db.commit()
             return {
                 "duplicate_of": str(duplicate.document_id),
@@ -428,6 +636,8 @@ class DirectoryIngestionService:
         self.db.add(version)
         await self.db.flush()
         document.current_version_id = version.id
+        if run_id is not None:
+            await self._record(run_id, file_path, "imported", document_id=document.id)
         await self.db.commit()
         await self.db.refresh(document)
 
