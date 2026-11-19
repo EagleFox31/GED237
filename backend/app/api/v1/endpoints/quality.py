@@ -45,7 +45,11 @@ async def get_quality_summary(
     """Counts per indicator; same right and scope as the report screens."""
     await authorize_or_403(current_user, "analytics.tenant", "read")
     scope = await resolve_report_scope(
-        current_user, tenant_id=tenant_id, org_unit_id=org_unit_id, recursive=recursive
+        current_user,
+        db,
+        tenant_id=tenant_id,
+        org_unit_id=org_unit_id,
+        recursive=recursive,
     )
     filters = scope_filters(
         scope,
@@ -79,7 +83,11 @@ async def list_quality_documents(
     await authorize_or_403(current_user, "analytics.tenant", "read")
     await authorize_or_403(current_user, "documents", "read")
     scope = await resolve_report_scope(
-        current_user, tenant_id=tenant_id, org_unit_id=org_unit_id, recursive=recursive
+        current_user,
+        db,
+        tenant_id=tenant_id,
+        org_unit_id=org_unit_id,
+        recursive=recursive,
     )
     filters = scope_filters(
         scope,
