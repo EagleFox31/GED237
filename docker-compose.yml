@@ -143,6 +143,8 @@ services:
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
       DEBUG: "false"
+      # Audit CSV export cap (rows); above it the API answers 422.
+      AUDIT_EXPORT_MAX_ROWS: ${AUDIT_EXPORT_MAX_ROWS:-50000}
       # Demo room: ~10 logins/OTP in 13 min from one NAT address (parcours-demo.md §0).
       AUTH_LOGIN_RATE_LIMIT: "30/minute"
       AUTH_OTP_RATE_LIMIT: "30/minute"

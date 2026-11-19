@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403
@@ -67,7 +68,6 @@ ACTION_LABELS = {
 
 # Cameroon time (UTC+1, no daylight saving). created_at is stored naive in UTC.
 LOCAL_TZ = timezone(timedelta(hours=1), "WAT")
-EXPORT_MAX_ROWS = 50_000
 _EXPORT_BATCH = 2_000
 EXPORT_COLUMNS = (
     "Date",
@@ -306,10 +306,14 @@ async def export_audit_logs(
         until=snapshot,
     )
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
-    if total > EXPORT_MAX_ROWS:
+    max_rows = settings.AUDIT_EXPORT_MAX_ROWS
+    if total > max_rows:
         raise HTTPException(
             status_code=422,
-            detail=f"Plus de {EXPORT_MAX_ROWS} lignes : affinez la periode ou les filtres.",
+            detail=(
+                f"{total} lignes correspondent, l'export est limité à {max_rows} : "
+                "affinez la période ou les filtres."
+            ),
         )
 
     # Rows are read in batches; the CSV is built before the response so the DB session

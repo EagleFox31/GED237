@@ -180,6 +180,9 @@ class Settings(BaseSettings):
     # task is killed, so the primary engine's text is kept as is.
     OCR_FALLBACK_ENABLED: bool = False
 
+    # Audit CSV export: refused above this many rows (the CSV is built in memory).
+    AUDIT_EXPORT_MAX_ROWS: int = Field(default=50_000, ge=1)
+
     # Startup check that the database is at the Alembic head
     # fail : refuse to start (default) ; warn : log only ; off : skip
     SCHEMA_CHECK_MODE: str = "fail"
