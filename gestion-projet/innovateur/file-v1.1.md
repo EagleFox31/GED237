@@ -23,7 +23,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
 ORDER_V0="464 152 181 171 199 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 429 437 449 448 454 438 466 465 444 440 455 439 442 419 447 434 424 428 443"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 439 442 419 447 434 424 428 443"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -38,7 +38,7 @@ ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 35
 ORDER_V6="335 312 189 166 451 452"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # Hors file V1.1 (chemin V1.0, voir plus haut). #385 : bancs de mesure OCR, hors file par son titre. #313 : V1.2, empilée sur #295 (§ 3). Dependabot, branches feat/v12-* et étiquette v1.2 : exclues par règle. Contrôle : verif-file.sh
-HORS_FILE="104 121 408 409 412 415 385 313 460 461"
+HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472"
 ```
 
 Écarts avec `plan-fusion-v1.1.md` (validés par O le 18/11) :
@@ -117,7 +117,7 @@ DEP[284]="372 370"; DEP[290]="284"; DEP[338]="290"
 DEP[404]="370 372"; DEP[355]="372 404"
 DEP[296]="263"; DEP[347]="221"; DEP[342]="297"; DEP[294]="238"
 DEP[351]="388"; DEP[344]="383"; DEP[398]="377"; DEP[400]="401"
-DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155"; DEP[283]="152"
+DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155"; DEP[468]="435"; DEP[283]="152"
 ```
 
 Les contraintes « après X » du plan qui servent seulement à éviter un conflit de fichier (#407 après #293 et #362, #362 après #390, #354 après #351…) ne sont pas dans DEP : l'ORDER les respecte déjà.
