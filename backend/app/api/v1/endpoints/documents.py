@@ -406,6 +406,21 @@ async def _can_trash_document(
     return await can_perform(user, "documents", "trash_own", ctx)
 
 
+async def _can_move_to_trash(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    Mise à la corbeille : admins (``delete``) toujours ; propriétaire (``trash_own``)
+    seulement tant que le document est modifiable (OWNER_MUTABLE_STATUSES), jamais
+    pendant une validation — même règle que la suppression par le propriétaire.
+    """
+    if not await _can_trash_document(user, document, db):
+        return False
+    if document.status in OWNER_MUTABLE_STATUSES:
+        return True
+    return await can_perform(user, "documents", "delete", ctx_from_resource(document))
+
+
 async def _can_manage_lock(
     user: User, document: Document, db: Optional[AsyncSession] = None
 ) -> bool:
@@ -1762,7 +1777,7 @@ async def trash_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_trash_document(current_user, document, db):
+    if not await _can_move_to_trash(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     await _ensure_not_locked_for_write(document, current_user)
     if document.deleted_at is not None:
