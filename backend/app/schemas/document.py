@@ -70,8 +70,15 @@ class DocumentRead(DocumentBase):
     updated_at: datetime
     owner_name: Optional[str] = None
     current_version_number: Optional[str] = None
-    # Corbeille : qui a retiré le document (restauration réservée à l'admin si ce n'est pas soi).
+    # Edit lock (#274): set while someone edits; lock_expires_at in the past means free.
+    locked_by_user_id: Optional[UUID] = None
+    locked_by_name: Optional[str] = None
+    locked_at: Optional[datetime] = None
+    lock_expires_at: Optional[datetime] = None
+    # Trash (#181): set while the document is in the trash.
+    deleted_at: Optional[datetime] = None
     deleted_by: Optional[UUID] = None
+    deleted_by_name: Optional[str] = None
 
     class Config:
         from_attributes = True
