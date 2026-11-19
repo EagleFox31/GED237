@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
+import { ApiError } from '../../../lib/errors';
+import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
 interface NeedsReviewDocument {
   id: string;
@@ -62,10 +64,12 @@ const NeedsReviewInbox: React.FC = () => {
     try {
       const docs = await api.getNeedsReviewDocuments();
       setDocuments(docs);
-      if (docs.length > 0 && !selectedDoc) handleSelectDoc(docs[0]);
-      else if (docs.length === 0) setSelectedDoc(null);
+      // Premier de la file restante : après une résolution, c'est le dossier suivant.
+      if (docs.length > 0) handleSelectDoc(docs[0]);
+      else setSelectedDoc(null);
     } catch (err) {
-      console.error(err);
+      // Les erreurs HTTP sont déjà au bus global ; reste le cas local.
+      if (!(err instanceof ApiError)) pushClientOperationError(err, { fallbackDetail: 'Chargement de la bannette impossible.' });
     } finally {
       setLoadingDocs(false);
     }
@@ -100,6 +104,7 @@ const NeedsReviewInbox: React.FC = () => {
         mark_as_resolved: true,
       });
       showToast({ tone: 'success', message: 'Document traité et classé avec succès.' });
+      setSelectedDoc(null);
       fetchDocuments();
     } catch (err) {
       console.error(err);

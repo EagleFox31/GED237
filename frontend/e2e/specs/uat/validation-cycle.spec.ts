@@ -1,37 +1,53 @@
-import { test, expect } from '../../fixtures/auth.fixture';
-import { SEED } from '../../data/seed';
+import type { Page } from '@playwright/test';
+import { test, expect, apiAs } from '../../fixtures/uat.fixture';
 
 /**
  * P8 - Cycle de validation, version réelle (SC-VAL-01..03, SC-VAL-04 réduit).
  * Remplace validation.spec.ts / workflow.spec.ts (défensifs, tout en skip) ; matrice-recette.md lignes SC-VAL.
  *
- * Données : les 3 tâches `E2E-VAL-*` du manager MGR001 (seed-manifest.json, circuit E2E-WF-VALID).
- * Les tâches sont consommées : une pile fraîche (reset e2e) est nécessaire à chaque run.
+ * Données : chaque passage crée ses 3 tâches (le collaborateur MINFI002 dépose 3 documents uniques et les soumet
+ * au visa du manager MGR001). Les tâches E2E-VAL-* du seed ne sont plus consommées : seed.spec et les autres specs
+ * les retrouvent intactes, quel que soit l'ordre de lancement, et la spec se rejoue sans remise à zéro.
  *
  * SC-VAL-04 est réduit (écart 17, « Retourner pour correction » -> V1.1) : le rédacteur voit le statut Rejeté
  * de son document ; SC-VAL-04b vérifie le motif dans le détail du document (/documents, onglet Circuit de Validation).
  */
 
-const task = (code: string) => {
-  const doc = SEED.documents.find((d) => d.code === code);
-  if (!doc) throw new Error(`${code} is not in seed-manifest.json`);
-  return doc.title;
-};
-const TO_APPROVE = task('E2E-VAL-VISA');
-const TO_REJECT = task('E2E-VAL-REJET');
 const REASON = 'Merci de préciser la référence budgétaire';
 
 test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
   test.slow(); // several logins and API round trips per test
 
-  const card = (page: import('@playwright/test').Page, title: string) =>
-    page.locator('.grid > div').filter({ hasText: title });
+  // Titles of this run's tasks, set in beforeAll (a retry of the serial group gets new ones).
+  let TO_APPROVE = '';
+  let TO_REJECT = '';
+  let TO_RETURN = '';
+
+  test.beforeAll(async ({ playwright }, testInfo) => {
+    const request = await playwright.request.newContext();
+    try {
+      const owner = await apiAs(request, 'collaborator');
+      const managerId = (await (await apiAs(request, 'manager')).me()).id;
+      const run = `${Date.now().toString(36)}${testInfo.workerIndex}${testInfo.retry}`;
+      let n = 0;
+      const submit = async (kind: string): Promise<string> => {
+        const title = `[E2E ${run}] Bordereau ${kind}`;
+        const doc = await owner.uploadDocument(`val-${run}-${n++}.txt`, title, `Cycle de validation ${title}`);
+        await owner.submitForVisa(doc.id, managerId, 'Visa du manager');
+        return title;
+      };
+      TO_APPROVE = await submit('à viser');
+      TO_REJECT = await submit('à rejeter');
+      TO_RETURN = await submit('à retourner');
+    } finally {
+      await request.dispose();
+    }
+  });
+
+  const card = (page: Page, title: string) => page.locator('.grid > div').filter({ hasText: title });
 
   // The manager session from beforeEach would hide the login form: drop it before changing user.
-  const switchTo = async (
-    page: import('@playwright/test').Page,
-    loginAs: (role: 'collaborator') => Promise<void>,
-  ) => {
+  const switchTo = async (page: Page, loginAs: (role: 'collaborator') => Promise<void>) => {
     await page.context().clearCookies();
     await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
     await loginAs('collaborator');
@@ -43,8 +59,8 @@ test.describe.serial('Feature: Cycle de validation (SC-VAL-01..04)', () => {
   });
 
   test('SC-VAL-01 - Given manager, When /tasks, Then les 3 tâches du circuit sont en pile', async ({ page }) => {
-    for (const code of ['E2E-VAL-VISA', 'E2E-VAL-REJET', 'E2E-VAL-RETOUR']) {
-      await expect(card(page, task(code))).toBeVisible();
+    for (const title of [TO_APPROVE, TO_REJECT, TO_RETURN]) {
+      await expect(card(page, title)).toBeVisible();
     }
   });
 
