@@ -882,3 +882,17 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
 **Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
 **Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
+
+### LESSON-2026-067 — Rendu React dans `e2e/unit` : le runner Playwright transforme le JSX, 2 tests rouges sur main
+
+- **Date :** 2026-11-19
+- **Catégorie :** testing
+- **Statut :** resolved (garde-fou `frontend/e2e/unit/unit-folder-guard.spec.ts`)
+- **Liens :** 2d20a028, `frontend/e2e/unit/search-highlight.spec.ts`, `frontend/e2e/specs/uat/search-excerpt.spec.ts`, LESSON-2026-066
+
+**Contexte** — 2d20a028 a ajouté dans `e2e/unit/search-highlight.spec.ts` deux tests qui rendaient `HighlightedExcerpt` avec `renderToStaticMarkup`.
+**Échec / near miss** — Les deux tests échouent sur main : le runner Playwright transforme le JSX des `.tsx` importés en objets `{__pw_type:'jsx'}` (format des tests de composants), que `react-dom/server` ne sait pas rendre.
+**Cause racine** — `e2e/unit` est exécuté par le runner Playwright, pas par un outil de rendu React : seul du code TypeScript pur y fonctionne.
+**Résolution** — `e2e/unit` garde les tests des fonctions pures (`parseHighlight`, `hasHighlightMatch`). Le rendu (HTML échappé, extrait sans mot trouvé, marqueur douteux) est vérifié dans le navigateur par `e2e/specs/uat/search-excerpt.spec.ts`, avec une réponse de `GET /search` simulée. Le composant n'est pas modifié.
+**Prévention** — `e2e/unit/unit-folder-guard.spec.ts` (exécuté par `npm run test:unit`) échoue si un spec de `e2e/unit` importe `react-dom` ou un module `.tsx`. Un second test vérifie que le garde-fou repère bien ces imports.
+**Leçon généralisée** — Un dossier de tests « purs » n'est pur que si un contrôle automatique le garantit : une convention seule ne suffit pas.
