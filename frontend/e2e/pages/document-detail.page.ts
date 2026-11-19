@@ -19,6 +19,11 @@ export class DocumentDetailModal {
   readonly infoTab: Locator;
   readonly workflowTab: Locator;
   readonly historyTab: Locator;
+  /** Bloc « Texte reconnu » de « Détails & Aperçu » (#276), replié par défaut. */
+  readonly recognizedTextToggle: Locator;
+  /** Texte reconnu, présent seulement quand la lecture a abouti. */
+  readonly recognizedText: Locator;
+  readonly copyTextButton: Locator;
 
   // Info tab content
   readonly metadataSection: Locator;
@@ -54,6 +59,9 @@ export class DocumentDetailModal {
     this.infoTab = page.getByRole('button', { name: /détails.*aperçu/i });
     this.workflowTab = page.getByRole('button', { name: /circuit de validation/i });
     this.historyTab = page.getByRole('button', { name: /historique des versions/i });
+    this.recognizedTextToggle = page.getByRole('button', { name: 'Texte reconnu', exact: true });
+    this.recognizedText = page.getByLabel('Texte reconnu', { exact: true });
+    this.copyTextButton = page.getByRole('button', { name: 'Copier', exact: true });
 
     // Info content
     this.metadataSection = page.getByText('Métadonnées Officielles');
@@ -133,6 +141,18 @@ export class DocumentDetailModal {
     await expect(
       this.page.getByText(/aucun historique disponible/i).or(this.page.getByRole('heading', { name: /^Version \d+$/ })).first(),
     ).toBeVisible({ timeout: 10_000 });
+  }
+
+  /** Unfolds « Texte reconnu » (the text is only fetched then) and returns the API answer it rendered. */
+  async expandRecognizedText(documentId: string): Promise<{ ocr_status: string; ocr_content: string | null }> {
+    await expect(this.recognizedTextToggle).toHaveAttribute('aria-expanded', 'false');
+    const response = this.page.waitForResponse(
+      (r) => r.url().includes(`/documents/${documentId}/ocr`) && r.request().method() === 'GET',
+    );
+    await this.recognizedTextToggle.click();
+    const answer = await response;
+    expect(answer.status()).toBe(200);
+    return answer.json();
   }
 
   // --- Info tab assertions ---
