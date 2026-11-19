@@ -313,6 +313,9 @@ export interface PendingWorkflowTask extends WorkflowStep {
   created_at: string;
   document?: WorkflowDocumentSummary | null;
   assignment_error?: string | null;
+  /** Qui a soumis le document (audit de soumission, à défaut le propriétaire). */
+  submitted_by?: string | null;
+  submitted_by_name?: string | null;
 }
 
 /** Entrée de GET /workflows/validators : valideurs proposables au rédacteur. */
