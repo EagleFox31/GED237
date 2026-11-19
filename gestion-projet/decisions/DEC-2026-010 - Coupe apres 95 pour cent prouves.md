@@ -39,6 +39,12 @@ Le PO a demandé le 19/11 d'avancer 28 et 31 « au maximum ». Les deux items se
 
 Rien d'autre ne bloque. #248, #267 et #268 (VPS) ne sont pas requis. Les scripts de preuve sont sur `main`.
 
+**État au 19/11 dans la matinée (O)** :
+- Le PO accepte que le lab sans réseau de Q sur cette machine (Docker-in-Docker, images de `main` 103ce48b) vaille preuve de l'item 28. Il n'y a pas de deuxième machine avant le 25.
+- #470 rend le manuel valable pour « un tag ou un SHA ».
+- Le lab a trouvé un échec bloquant : `images_import.sh` échoue sur un poste cible en overlay2, car les identifiants d'image diffèrent de ceux du magasin containerd. Q prépare le correctif en PR. L'item 28 ne compte qu'après la fusion de ce correctif et un rejeu jusqu'à `/health`.
+- Item 19 : #171 a deux bloquants relevés par Q, chez B en priorité. La règle de la corbeille est contournée dans `/duplicates/resolve`, et la visibilité pour `unit_admin` est à revoir.
+
 ## 3. Recette sur `main` : un état du jour
 
 Chaque matin, O retient le dernier commit de `main` dont la CI est verte. La pile de recette est construite et migrée sur ce commit (`alembic upgrade head`). Le SHA est noté dans le journal de recette, et chaque constat des testeurs le cite. Aucune branche n'est créée et aucune fusion n'est bloquée. Détail et risques : `plan-fusion-v1.1.md` § 1 quater.
@@ -63,7 +69,16 @@ Instruction de l'option b (19/11) :
 - **Coût.** Environ 3 h-s, plus 20 min à 2 h de machine.
 - **Écarts à #166 à faire valider par le PO** : la taille des fichiers et le classement par le worker.
 
-Recommandation de l'innovateur : **b si C6 échoue ce soir, a sinon**. Dans les deux cas, la passe des items 28 et 31 (§ 2 bis) vient d'abord : elle rapporte +1,5 pour 2,5 h-s. O présente les options au PO après le relevé de 18:00. Décision du PO : `‹a / b / c›`, le `‹date›`.
+**Décision du PO (19/11, via O) : option b, aujourd'hui.** Ses termes : « Oui, petits PDF ». Le test porte sur 100 000 PDF texte de 1 à 4 Ko, et le chrono s'arrête quand tout est importé et classé.
+- « Classé » s'entend comme « passé par le classement » : le texte est extrait, puis les règles sont appliquées. Un document qui ne correspond à aucune règle reste `pending` par construction.
+- Critère d'arrêt retenu : le nombre de documents avec un moteur d'extraction, plus les échecs, égale le nombre importé, et la file du worker est vide. La répartition classified, pending et needs_review est publiée. Tout échec compte comme une perte.
+- Plafond de 2 h 30. Porteur : aide-api. L'essai complet a lieu après le démontage du lab de Q.
+
+Écart produit relevé pendant l'instruction et confirmé par B : `ingest-directory` ne classe jamais les DOCX, XLSX, TXT ni CSV (ils restent `pending`). Signalé à O pour qu'il ouvre une issue et désigne un porteur.
+
+**Lab à plusieurs postes en réseau (PO, 19/11) : « Après les preuves ».** Il se fait une fois les items 28, 8 et 29 traités, ce soir ou demain matin. Il ne rapporte aucun point au barème et renforce les preuves des items 16, 27 et 28.
+
+Recommandation de l'innovateur, avant la décision : **b si C6 échoue ce soir, a sinon**. Dans les deux cas, la passe des items 28 et 31 (§ 2 bis) vient d'abord : elle rapporte +1,5 pour 2,5 h-s. O présente les options au PO après le relevé de 18:00. Décision du PO : `‹a / b / c›`, le `‹date›`.
 
 ## 5. Réversibilité
 
