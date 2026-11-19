@@ -1,4 +1,4 @@
-import type { Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { test, expect, apiAs } from '../fixtures/uat.fixture';
 
 /**
@@ -11,6 +11,11 @@ const DETAIL_TAB = /Détails & Aperçu/;
 // Attend l'élément (chargement des listes) avant de conclure qu'il n'y a rien à cliquer.
 const appears = (locator: Locator) =>
   locator.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true, () => false);
+
+// Le menu attend la réponse des droits avant d'afficher « Doublons » : à guetter avant la connexion,
+// sinon l'absence de l'entrée serait constatée trop tôt.
+const menuRights = (page: Page) =>
+  page.waitForResponse((r) => r.url().includes('/authz/me/permissions') && r.url().includes('trash_own'));
 
 test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () => {
   let nativeDialogs: string[] = [];
@@ -44,10 +49,13 @@ test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () 
     // Échoue (HTTP 403/404) si le lecteur ne peut pas lire le document créé.
     await readerApi.getDocument(created.id);
 
+    const rights = menuRights(page);
     await loginAs('reader');
     await expect(page.getByText('Ma Bibliothèque')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: /Ranger \/ Importer/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Bibliothèque locale/ })).toHaveCount(0);
+    await rights;
+    await expect(page.getByRole('button', { name: /^Doublons$/ })).toHaveCount(0);
 
     const card = page.getByRole('button', { name: /^Ouvrir / }).first();
     await expect(card).toBeVisible({ timeout: 10_000 });
@@ -55,11 +63,21 @@ test.describe('Accueils par rôle : commandes actives, sans dialogue natif', () 
     await expect(page.getByText(DETAIL_TAB).first()).toBeVisible();
   });
 
+  test('auditeur : pas d’entrée Doublons (aucune copie à mettre à la corbeille)', async ({ loginAs, page }) => {
+    const rights = menuRights(page);
+    await loginAs('auditor');
+    await rights;
+    await expect(page.getByRole('button', { name: /^Corbeille$/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /^Doublons$/ })).toHaveCount(0);
+  });
+
   test('collaborateur : carte cliquable, import via la modale commune, pas de Ranger', async ({ loginAs, page }) => {
     await loginAs('collaborator');
     await expect(page.getByText('Mon Atelier')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: /Ranger \/ Importer/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Bibliothèque locale/ })).toHaveCount(0);
+    // Le collaborateur peut mettre ses propres copies à la corbeille : il garde l'entrée Doublons.
+    await expect(page.getByRole('button', { name: /^Doublons$/ })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: /Nouveau Document/ }).click();
     await expect(page.getByRole('heading', { name: 'Nouveau Document' })).toBeVisible();

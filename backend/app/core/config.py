@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     # AUTH_LOCKOUT_SECONDS, password not even checked. Counted per user in Redis.
     AUTH_OTP_MAX_FAILURES: int = 3
     AUTH_LOCKOUT_SECONDS: int = 900
+    # Development only. True: the OTP comes back in the login response and the screen
+    # fills it in. False (demo in front of an audience): the code is only written to
+    # the API log, for the presenter (gestion-projet/innovateur/parcours-demo.md).
+    LOGIN_DEMO_HINTS: bool = True
     # True only when the API is reachable exclusively through a reverse proxy
     # that sets X-Forwarded-For (nginx/nginx.conf). Otherwise the header is
     # client-controlled and ignored.
@@ -87,6 +91,12 @@ class Settings(BaseSettings):
     INGEST_WATCH_PROTECTED_DIRS_STR: str = Field(
         default="", alias="INGEST_WATCH_PROTECTED_DIRS"
     )
+    # Trash retention: trashed documents older than this are purged for good by the
+    # worker. 0 (default) disables the automatic purge and its beat entry.
+    TRASH_RETENTION_DAYS: int = Field(default=0, ge=0, le=36500)
+    TRASH_PURGE_INTERVAL_SECONDS: int = Field(default=3600, ge=60)
+    # Documents purged per transaction (automatic purge) and per bulk-purge call.
+    TRASH_PURGE_BATCH: int = Field(default=200, ge=1, le=1000)
     DEFAULT_TENANT_STORAGE_QUOTA_MB: int = 5120  # 5 GB default per tenant
 
     # Celery
@@ -139,18 +149,30 @@ class Settings(BaseSettings):
             raise ValueError("AUTHZ_METRICS_BACKEND must be one of: memory, redis")
         return value
 
-    # OCR engine tried first on photos and screenshots: tesseract (default, light) or
-    # easyocr (torch, ~1.3 GB per worker child). The other engine stays the fallback.
-    OCR_PRIMARY_ENGINE: str = "tesseract"
+    # OCR engine tried first on photos, screenshots and forms: rapidocr (default,
+    # PP-OCRv5 latin ONNX, peak ~610-700 MB at 1600 px, ~630 MB at 1800), tesseract, or easyocr (torch,
+    # ~1.3 GB per worker child). Tesseract stays the fallback of rapidocr; clean PDF
+    # scans always start with Tesseract.
+    OCR_PRIMARY_ENGINE: str = "rapidocr"
+    # Kill switch: false routes everything to Tesseract without a rebuild.
+    OCR_RAPIDOCR_ENABLED: bool = True
+    # Longest side sent to RapidOCR. 1800 keeps the process peak near 630 MB in a
+    # 2 GB worker (2000 px measured 755-895 MB; recall -0.64 pt vs 2000 at 1800).
+    OCR_RAPIDOCR_MAX_SIDE: int = 1800
+    OCR_RAPIDOCR_TIMEOUT_SECONDS: float = 60
+    # Models baked into the image at build time; never downloaded at runtime.
+    RAPIDOCR_MODEL_DIR: str = "/opt/rapidocr"
 
     @field_validator("OCR_PRIMARY_ENGINE", mode="before")
     @classmethod
     def validate_ocr_primary_engine(cls, v: Any) -> str:
         if v is None or str(v).strip() == "":
-            return "tesseract"
+            return "rapidocr"
         value = str(v).strip().lower()
-        if value not in {"tesseract", "easyocr"}:
-            raise ValueError("OCR_PRIMARY_ENGINE must be one of: tesseract, easyocr")
+        if value not in {"rapidocr", "tesseract", "easyocr"}:
+            raise ValueError(
+                "OCR_PRIMARY_ENGINE must be one of: rapidocr, tesseract, easyocr"
+            )
         return value
 
     # Second-chance engine when the first result is empty or low-confidence. Off by
