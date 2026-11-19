@@ -6,12 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.documents import (
-    ORG_UNIT_READ_ROLES,
-    TENANT_WIDE_READ_ROLES,
     _audit_document_action,
-    _can_trash_document,
+    _can_move_to_trash,
     _ensure_not_locked_for_write,
-    _role_code,
+    visible_document_scope,
 )
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -28,14 +26,8 @@ router = APIRouter()
 
 
 def _visible(user: User) -> list:
-    """Same visibility as GET /documents: tenant, own unit, or own documents."""
-    filters = [Document.tenant_id == user.tenant_id]
-    code = _role_code(user)
-    if code in TENANT_WIDE_READ_ROLES:
-        return filters
-    if code in ORG_UNIT_READ_ROLES and user.org_unit_id:
-        return [*filters, Document.org_unit_id == user.org_unit_id]
-    return [*filters, Document.owner_id == user.id]
+    """Same visibility as GET /documents (one rule, owned by documents.py)."""
+    return [Document.tenant_id == user.tenant_id, *visible_document_scope(user)]
 
 
 @router.get("", response_model=list[DuplicateGroup])
@@ -104,7 +96,8 @@ async def resolve_duplicate_group(
         found[i][0] for i in payload.trash_ids if found[i][0].deleted_at is None
     ]
     for document in to_trash:
-        if not await _can_trash_document(current_user, document):
+        # Same rule as /trash: an owner may not trash a copy under or after validation.
+        if not await _can_move_to_trash(current_user, document, db):
             raise HTTPException(status_code=403, detail="Privileges insuffisants")
         await _ensure_not_locked_for_write(document, current_user)
     busy = await in_validation(db, to_trash)

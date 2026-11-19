@@ -299,6 +299,94 @@ async def test_collaborator_only_sees_and_trashes_own_copies(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["in_review", "validated"])
+async def test_owner_cannot_trash_a_copy_under_or_after_validation(
+    client_as, db_session, db_seed, status
+):
+    """Same rule as POST /documents/{id}/trash (#464): trash_own only while the
+    owner may still edit the copy. 403, nothing trashed, no audit row."""
+    agent = User(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+        role_id=db_seed["role_id"],
+        matricule="AGENT02",
+        email="agent02@testministry.gov.cm",
+        first_name="Agent",
+        last_name="Deux",
+        password_hash="x",
+        is_active=True,
+    )
+    db_session.add(agent)
+    await db_session.commit()
+    keep = await _doc(db_session, db_seed, "k", SHA_A, day=1, owner_id=agent.id)
+    locked = await _doc(
+        db_session, db_seed, "v", SHA_A, day=2, owner_id=agent.id, status=status
+    )
+    async with client_as(
+        "collaborator",
+        id=agent.id,
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+    ) as client:
+        response = await client.post(
+            RESOLVE, json={"keep_id": str(keep.id), "trash_ids": [str(locked.id)]}
+        )
+    assert response.status_code == 403, response.text
+    assert not await _is_trashed(db_session, locked)
+    assert await _trash_audits(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_sees_and_resolves_copies_of_its_sub_units(
+    client_as, db_session, db_seed
+):
+    """The unit_admin reads its unit tree, as in GET /documents, not only its own
+    documents: copies owned by someone else in a sub-unit are listed and handled."""
+    from tests.api.test_unit_admin_read_scope import _unit
+
+    sub = await _unit(db_session, db_seed["tenant_id"], db_seed["org_unit_id"])
+    owner = User(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=sub,
+        role_id=db_seed["role_id"],
+        matricule="AGENT03",
+        email="agent03@testministry.gov.cm",
+        first_name="Agent",
+        last_name="Trois",
+        password_hash="x",
+        is_active=True,
+    )
+    db_session.add(owner)
+    await db_session.commit()
+    copies = [
+        await _doc(db_session, db_seed, f"s{n}", SHA_A, day=n, owner_id=owner.id)
+        for n in (1, 2)
+    ]
+    for document in copies:
+        document.org_unit_id = sub
+    await db_session.commit()
+    # The caller is the seeded account (the audit row references users.id); it
+    # owns none of the copies, so only the tree rule can show them.
+    async with client_as(
+        "unit_admin",
+        id=db_seed["user_id"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=db_seed["org_unit_id"],
+    ) as client:
+        listed = await client.get(DUPLICATES)
+        resolved = await client.post(
+            RESOLVE,
+            json={"keep_id": str(copies[0].id), "trash_ids": [str(copies[1].id)]},
+        )
+    [group] = listed.json()
+    assert [member["id"] for member in group["documents"]] == _ids(copies)
+    assert resolved.status_code == 200, resolved.text
+    assert await _is_trashed(db_session, copies[1])
+
+
+@pytest.mark.asyncio
 async def test_foreign_tenant_sees_nothing(client_as, groups):
     keep, *others = groups["a"]
     async with client_as("tenant_admin", tenant_id=uuid.uuid4()) as client:
