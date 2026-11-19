@@ -40,6 +40,23 @@ test.describe('Mémorisation du dernier valideur (DraftWorkspace)', () => {
     expect(readStoredValidator('t1:MINFI002', broken)).toBe('');
   });
 
+  test('ne lit ni n écrit rien sans compte identifié (clé vide, tenant ou matricule manquant)', () => {
+    const map = new Map<string, string>([['ged.draft.lastValidator.anon', 'val-anon']]);
+    const storage: KeyValueStorage = {
+      getItem: (key) => map.get(key) ?? null,
+      setItem: (key, value) => map.set(key, value),
+      removeItem: (key) => {
+        map.delete(key);
+      },
+    };
+    for (const accountKey of [undefined, '', '  ', ':MAT001', 'tenant-1:', ':']) {
+      writeStoredValidator('val-1', accountKey, storage);
+      writeStoredValidator('', accountKey, storage);
+      expect(readStoredValidator(accountKey, storage)).toBe('');
+    }
+    expect([...map.entries()]).toEqual([['ged.draft.lastValidator.anon', 'val-anon']]);
+  });
+
   test('sélectionne automatiquement un valideur unique, sinon reprend le valideur mémorisé s il existe encore', () => {
     expect(resolveInitialValidator([{ id: 'only-one' }], '')).toBe('only-one');
     expect(resolveInitialValidator([{ id: 'only-one' }], 'old-id')).toBe('only-one');

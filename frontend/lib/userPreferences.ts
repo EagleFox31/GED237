@@ -17,9 +17,15 @@ export function defaultLocalStorage(): KeyValueStorage | null {
   }
 }
 
-export function scopedStorageKey(baseKey: string, accountKey?: string): string {
+/**
+ * Clé de stockage propre au compte, ou `null` si le compte n'est pas identifié : clé vide,
+ * ou clé `tenant:matricule` à laquelle il manque une partie (« :MAT001 »). Sans compte
+ * identifié, rien n'est lu ni écrit : deux comptes ne doivent jamais partager une préférence.
+ */
+export function scopedStorageKey(baseKey: string, accountKey?: string): string | null {
   const clean = (accountKey ?? '').trim();
-  return clean ? `${baseKey}.${clean}` : `${baseKey}.anon`;
+  if (!clean || clean.split(':').some((part) => !part.trim())) return null;
+  return `${baseKey}.${clean}`;
 }
 
 export function readUserPreference(
@@ -28,8 +34,9 @@ export function readUserPreference(
   storage: KeyValueStorage | null = defaultLocalStorage(),
 ): string {
   try {
-    if (!storage) return '';
-    return (storage.getItem(scopedStorageKey(baseKey, accountKey)) || '').trim();
+    const key = scopedStorageKey(baseKey, accountKey);
+    if (!storage || !key) return '';
+    return (storage.getItem(key) || '').trim();
   } catch {
     return '';
   }
@@ -42,8 +49,8 @@ export function writeUserPreference(
   storage: KeyValueStorage | null = defaultLocalStorage(),
 ): void {
   try {
-    if (!storage) return;
     const key = scopedStorageKey(baseKey, accountKey);
+    if (!storage || !key) return;
     const trimmed = value.trim();
     if (trimmed) storage.setItem(key, trimmed);
     else storage.removeItem(key);
