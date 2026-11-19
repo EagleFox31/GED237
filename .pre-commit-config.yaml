@@ -24,6 +24,13 @@ repos:
         language: python
         files: ^\.github/
         pass_filenames: false
+      # Every setting of the code reaches the containers (lesson 065). Same script as the CI job.
+      - id: config-parity
+        name: settings, compose and .env.example agree
+        entry: python scripts/check-config-parity.py
+        language: python
+        files: ^(backend/app/core/config\.py|docker-compose\.yml|\.env\.example|frontend/|scripts/(check-config-parity\.py|config-parity-exceptions\.txt))
+        pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9

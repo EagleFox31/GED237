@@ -136,6 +136,20 @@ jobs:
       - name: CI reuse decision
         run: bash scripts/test_ci_reuse_validated_tree.sh
 
+  # Same script as the pre-commit hook: every setting read by api/worker/frontend reaches its container.
+  config-parity:
+    name: Config parity (code, compose, .env.example)
+    needs: impact
+    if: ${{ contains(fromJSON(needs.impact.outputs.gates), 'config-parity') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+      - name: Script self-test
+        run: python3 scripts/test_check_config_parity.py
+      - name: Check config parity
+        run: python3 scripts/check-config-parity.py
+
   # Same script as the pre-commit hook: no case collisions, UTF-16, NUL, control characters or U+FFFD.
   tracked-files:
     name: Tracked files (case, UTF-8)
@@ -154,7 +168,7 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [impact, reuse, backend, frontend, security, workflows, tracked-files]
+    needs: [impact, reuse, backend, frontend, security, workflows, config-parity, tracked-files]
     runs-on: ubuntu-latest
     timeout-minutes: 2
 

@@ -139,6 +139,10 @@ services:
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
       # Per-file upload cap; the frontend service reads the same variable.
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
+      # Account e-mails (off unless a key is set).
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
       ENVIRONMENT: development
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
@@ -227,6 +231,8 @@ services:
       target: development
       args:
         VITE_APP_VERSION: ${APP_VERSION:-dev}
+        VITE_MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
+        VITE_LOGIN_DEMO_HINTS: ${LOGIN_DEMO_HINTS:-true}
     container_name: edossier_frontend
     restart: unless-stopped
     mem_limit: 768m
