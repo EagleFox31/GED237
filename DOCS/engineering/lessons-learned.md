@@ -660,7 +660,7 @@ première requête utilisateur.
 **Prévention** — Test : sans modèle, `OCRStrategy()` se construit et le texte Tesseract est conservé ; essai en conteneur `--network none`.
 **Leçon généralisée** — Un composant facultatif ou de repli ne doit jamais faire échouer la construction de la chaîne ni dépendre du réseau à l'exécution : initialisation paresseuse, dépendances dans l'image, échec = dégradation journalisée. Tester une fois avec le réseau coupé.
 
-### LESSON-2026-054 — Générateur de jeu de test : un repli silencieux écrivait du texte sous une extension .pdf
+### LESSON-2026-074 — Générateur de jeu de test : un repli silencieux écrivait du texte sous une extension .pdf
 
 - **Date :** 2026-11-18
 - **Catégorie :** testing / data
