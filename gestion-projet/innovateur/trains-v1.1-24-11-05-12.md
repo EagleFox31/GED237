@@ -52,11 +52,34 @@ La PR des visas donnés (DEP=329) se place dans le premier train après TR-21 d�
 - **Avant TR-12** : #457, #456, puis #463. **TR-13** : #213, puis #261, #263, #221 ; #308, plus #315 (V1.2) avant #263.
 - **Avant TR-16** : #209 (base #180). **TR-17** : #212, #219. **TR-18** : #205.
 - **Avant TR-19** : #293, #295, plus #313 et #343 (V1.2). **TR-20** : #303, plus #333 et #352 (V1.2). **TR-21** : #401, fusionnée après #407. **TR-24** : #446.
-- **Hors tableau** : #429 n'est pas en brouillon. Les avis du PO du § 4 de la file (capacités post-rc1) restent requis avant leur train.
+- **Hors tableau** : #429 remise en brouillon par O (19/11). Les avis du PO du § 4 de la file (capacités post-rc1) restent requis avant leur train.
 
 ## PR sans relecture ni preuve de Q à ce jour (lecture automatique, à confirmer par Q)
 
 - **Aucun OK trouvé (28)** : 467, 405, 443, 493, 495, 262, 266, 309, 310, 169, 147, 162, 212, 172, 168, 170, 295, 297, 342, 294, 298, 344, 399, 484, 476, 335, 189, 166.
+### Les 28 sans OK, par risque : Q commence la nuit par le haut
+
+Le classement vient des fichiers modifiés de chaque PR (relevé `gh` du 19/11 vers 16:50), pas d'une relecture du code. À risque égal, Q prend d'abord le train le plus proche.
+
+| Risque | PR (train) | Ce qui est touché |
+|---|---|---|
+| 1. Migration | aucune | aucune des 28 ne touche `alembic/versions` |
+| 2. Droits | #168 (TR-18) | règles d'accès (`policy.csv`, `authz`) |
+| | #294 (TR-20) | grille des droits, `casbin_enforcer` |
+| | #266 (TR-14) | périmètre par unité : rapports, statistiques, recherche, imports (17 fichiers) |
+| | #262 (TR-09) | audit des modifications de documents |
+| | #162 (TR-16) | nouvel accès « qualité » et son périmètre |
+| | #399 (TR-24) | compteurs du tableau de bord du manager, périmètre |
+| 3. Sécurité | #212 (TR-17) | refus de démarrer en production, `auth_service`, compose |
+| | #172 (TR-17) | renvoi du code de connexion, routes d'authentification |
+| | #169 (TR-16) | jeton du WebSocket des notifications |
+| | #484 (TR-25) | diff actuel de 90 fichiers (dont `authz` et `security.py`), mesuré contre la branche de #441 ; à mesurer de nouveau après re-ciblage sur `main` |
+| 4. Serveur, sans droits | #170 (TR-19), #476 (TR-25), #147 (TR-16), #344 (TR-24), #495 (TR-09), #335 (TR-25) | file de validation, pagination des documents, sonde `/health/ready`, recherche dans l'audit, tests en `TRUNCATE` et CI, script de test |
+| 5. Écran seul | #297 (TR-20), #295 (TR-19), #298 (TR-20), #493 (TR-08), #405 (TR-02), #342 (TR-20), #309 (TR-15), #443 (TR-08), #310 (TR-15) | #297 en tête : actualisation du profil dans `authStore` (15 fichiers) |
+| 6. Docs et CI | #467 (TR-01), #189 (TR-26), #166 (TR-26) | #467 change la CI : avant TR-01 |
+
+#467 et #405 sont dans les trains du 24/11 : malgré leur faible risque, elles passent avant TR-01 et TR-02.
+
 - **OK du code seul ou réserve (23)** : 468, 429, 449, 448, 454, 466, 444, 494, 462, 302, 458, 296, 197, 303, 407, 396, 392, 398, 416, 446, 459, 451 (code) ; 502 (réserve).
 
 ## Capacité de Q
