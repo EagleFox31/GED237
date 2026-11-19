@@ -45,6 +45,7 @@ ACTION_LABELS = {
     "classification": "Tentative de classement",
     "needs_review": "Mise en attente pour arbitrage",
     "review_resolved": "Arbitrage de classement validé",
+    "reclassify": "Reclassement",
     "workflow_started": "Circuit déclenché",
     "workflow_step_completed": "Étape de workflow traitée",
     "workflow_approved": "Validation",
