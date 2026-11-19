@@ -102,7 +102,7 @@ Les cinq premiers comportements viennent du tri de l’audit du 19/11 (`innovate
 - **« Mes Documents » s'arrête à 100 lignes.** La recherche du bandeau ne filtre que la page affichée. Un document absent de cette page n'est pas perdu : le chercher avec « Recherche ».
 - **Pas de « Renvoyer le code ».** Si le code a expiré, recommencer la connexion.
 
-Le point suivant est un défaut V1.0, trouvé par Q et confirmé par B le 19/11. La PR de B est en cours, relue par Q. Le point reste annoncé aux testeurs **tant qu'elle n'est pas fusionnée**.
+Le point suivant est un défaut V1.0, trouvé par Q et confirmé par B le 19/11. La PR de B est en cours, relue par Q. Le point reste annoncé aux testeurs **tant qu'elle n'est pas fusionnée** (#485). À sa fusion : retirer ce point du § 6, puis rejouer un dossier importé pour confirmer qu'il apparaît dans la revue (Q).
 
 - **Écran de revue du classement incomplet.**
   - Il ne montre que les documents envoyés un par un, ou importés par CSV ou ZIP.
