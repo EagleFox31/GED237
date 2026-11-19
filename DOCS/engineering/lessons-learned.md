@@ -910,3 +910,18 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
 **Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
 **Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
+
+### LESSON-2026-074 — Générateur de jeu de test : un repli silencieux écrivait du texte sous une extension .pdf
+
+- **Date :** 2026-11-18
+- **Catégorie :** testing / data
+- **Statut :** prevention-added
+- **Liens :** `backend/scripts/test_real_export_v2.py` (`write_text_fallback`)
+
+**Contexte** — Le lot A de la mesure OCR (20 PDF) venait de `test_real_export_v2.py`, lancé dans un environnement sans reportlab.
+**Échec / near miss** — Les « PDF » faisaient 133 à 168 octets : du texte `[PDF fallback]` sans page, illisible (`pdfinfo` échoue). Découvert par Q en pleine mesure sur le VPS, avec perte de temps dans le créneau.
+**Cause racine** — Quand une bibliothèque de génération manquait, le script écrivait un fichier texte sous l'extension demandée, sans erreur ni avertissement.
+**Classification** — Défaut de données de test ; repli silencieux ; détecté tard.
+**Résolution** — `write_text_fallback` lève `RuntimeError` avec la liste des paquets à installer ; le repli n'existe plus que sur demande explicite (`ALLOW_TEXT_FALLBACK=1`).
+**Prévention** — Échec bruyant à la génération ; tout lot de mesure est contrôlé (taille, `pdfinfo`) avant d'être livré.
+**Leçon généralisée** — Un générateur de données ne produit jamais un faux artefact en silence : il échoue, ou le repli est choisi explicitement.
