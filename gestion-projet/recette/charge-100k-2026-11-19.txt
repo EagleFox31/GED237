@@ -1,0 +1,54 @@
+Essai complet de volume a 100 000 documents (item 8) - 19/11/2026
+==================================================================
+
+Banc : docker-compose.load.yml (projet ged-load), sonde backend/scripts/load_measure.py, tete b0d85906.
+Commande : LOAD_CONFIRM=yes bash scripts/load-test.sh full 4 (base ged-load videe avant l'essai).
+Enveloppe : 3 Go et 4 cpus au total (postgres 704m / 1 cpu, redis 128m / 0,25, api 1g, worker 1g,
+sonde 160m / 0,25).
+
+Reglage LIVRE PAR DEFAUT (installation standard) : api 1,25 cpu, worker 1,25 cpu, concurrence 2.
+Les reglages ajustes de l'etalonnage (worker 2 cpus, concurrence 3 ou 4) sont ecartes : le plafond est
+le CPU total de l'api et du worker, pas sa repartition (voir etalonnage-charge-2026-11-19.txt).
+
+Corpus : PETITS FICHIERS, 100 000 PDF texte de 1 a 4 Ko (250,2 Mo), extraction native sans OCR,
+10 lots de 10 000, 4 lots en parallele, graine 237 (sha256 9b782be6d8a0).
+Les chiffres ne valent pas pour des scans ni pour des fichiers lourds.
+
+Horaires : depart 12:30:09, fin 13:02:07.
+
+| Mesure                          | Resultat                                         |
+|---------------------------------|--------------------------------------------------|
+| Import HTTP                     | 100 000 / 100 000 en 1 205,6 s (82,9 fichiers/s) |
+| Lots                            | 10 / 10 en HTTP 200, 0 doublon, 0 erreur         |
+| Fin du worker                   | 1 828,2 s au total, 622,6 s apres la derniere requete |
+| Bout en bout                    | 54,7 fichiers/s, soit 30 min pour 100 000        |
+| Seuil vise                      | 20 min (84 fichiers/s) : NON atteint             |
+| Texte lu                        | 100 000 / 100 000, file restante 0, pertes 0     |
+| OOM / redemarrages              | aucun (api, worker, postgres, redis)             |
+| Charge observee a mi-course     | postgres ~100 % cpu, worker ~95 %, api ~72 %     |
+
+Lecture GET /documents/ a 100 000 (page de 100, mediane / max) :
+  liste                         : 42 / 98 ms, HTTP 200
+  recherche mot courant q=load  : 42 / 58 ms, HTTP 200
+  recherche reference exacte    : 377 / 392 ms, HTTP 200 (1 resultat)
+  X-Total-Count : non envoye (#476 non fusionnee a la date de l'essai).
+
+VERDICT ITEM 8 : NON PROUVE.
+Critere exact (Expression de besoin « Organisation & GED », section 5 NFR, ligne Performance) :
+  « recherche < 2 secondes ; traitement de 100k fichiers en < 20 minutes ».
+- Recherche < 2 s : TENU a 100 000 documents (pire mesure 392 ms, reference exacte).
+- Traitement de 100k fichiers < 20 min : NON TENU. Le traitement, texte lu compris, prend 30 min 28 s.
+  L'import HTTP seul prend 20 min 06 s, donc lui non plus ne passe pas sous le seuil.
+- Hors critere mais constate : 0 perte, 0 erreur, 0 OOM, liste sous 100 ms.
+Pour le prouver, il faut environ 1,5 fois plus de debit (84 fichiers/s contre 54,7). Changer le reglage
+dans les memes 4 cpus ne suffit pas : l'etalonnage l'a montre. Il faut une enveloppe cpu plus large,
+car postgres et le worker saturent. Exemple : postgres 2 cpus et worker 3 cpus. La VM Docker a 16 cpus.
+Il faut ensuite refaire l'essai. Ce n'est possible qu'avec l'accord d'O, car cela depasse le plafond
+de 4 cpus par charge.
+
+Lecture : l'import seul manque le seuil de 6 s ; le traitement en arriere-plan finit 10 min apres.
+L'etalonnage sur 2 000 fichiers projetait 67 min : le cout fixe d'un petit lot pesait sur la projection.
+Postgres sature son cpu pendant l'essai : c'est lui, avec le worker, qui borne le debit.
+
+Sorties brutes (non versionnees) : gestion-projet/recette/charge/charge-100k-2026-11-19{.txt,.json,-stats.txt}.
+Nettoyage fait apres l'essai : conteneurs, volumes, reseau et image ged-load supprimes nom par nom.
