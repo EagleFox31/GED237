@@ -3,8 +3,11 @@ import {
   clampToViewport,
   focusIndexAfterRemoval,
   isEditableTarget,
+  isRenameKey,
   isTrashKey,
   nextFocusIndex,
+  renamedTitle,
+  TITLE_MAX_LENGTH,
   trashConfirmMessage,
 } from '../../profiles/tenant-admin/pages/explorerKeys';
 
@@ -87,5 +90,24 @@ test.describe('Explorateur : Suppr met à la corbeille (#151)', () => {
     expect(focusIndexAfterRemoval(5, 5)).toBe(4);
     expect(focusIndexAfterRemoval(-1, 3)).toBe(0);
     expect(focusIndexAfterRemoval(0, 0)).toBe(-1);
+  });
+});
+
+test.describe('Explorateur : F2 renomme (#151)', () => {
+  const keys = { shiftKey: false, ctrlKey: false, altKey: false, metaKey: false };
+
+  test('F2 seul déclenche, avec un modificateur non', () => {
+    expect(isRenameKey({ key: 'F2', ...keys })).toBe(true);
+    expect(isRenameKey({ key: 'F2', ...keys, altKey: true })).toBe(false);
+    expect(isRenameKey({ key: 'F3', ...keys })).toBe(false);
+  });
+
+  test('titre envoyé seulement s’il change vraiment', () => {
+    expect(renamedTitle('  Note 2026  ', 'Note')).toBe('Note 2026');
+    expect(renamedTitle(null, 'Note')).toBeNull();
+    expect(renamedTitle('   ', 'Note')).toBeNull();
+    expect(renamedTitle(' Note ', 'Note')).toBeNull();
+    expect(renamedTitle('x'.repeat(TITLE_MAX_LENGTH + 1), 'Note')).toBeNull();
+    expect(renamedTitle('x'.repeat(TITLE_MAX_LENGTH), 'Note')).toHaveLength(TITLE_MAX_LENGTH);
   });
 });

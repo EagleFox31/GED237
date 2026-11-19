@@ -26,6 +26,28 @@ export const isTrashKey = (event: {
 export const trashConfirmMessage = (title: string): string =>
   `Mettre « ${title} » à la corbeille ? Vous pourrez le restaurer depuis la corbeille.`;
 
+/** F2 seul : renommer le document qui a le focus (#151). */
+export const isRenameKey = (event: {
+  key: string;
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}): boolean => event.key === 'F2' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey;
+
+/** Longueur maximale d'un titre (colonne `documents.title`, String(500)). */
+export const TITLE_MAX_LENGTH = 500;
+
+/**
+ * Nouveau titre à envoyer, ou null s'il n'y a rien à faire : saisie annulée, vide,
+ * identique à l'actuel ou trop longue (le serveur la refuserait).
+ */
+export const renamedTitle = (input: string | null, current: string): string | null => {
+  const title = input?.trim() ?? '';
+  if (!title || title === current.trim() || title.length > TITLE_MAX_LENGTH) return null;
+  return title;
+};
+
 /**
  * Élément qui reprend le focus après le retrait de l'élément `removedIndex` :
  * celui qui prend sa place, ou le dernier si c'était le dernier ; -1 s'il ne reste rien.

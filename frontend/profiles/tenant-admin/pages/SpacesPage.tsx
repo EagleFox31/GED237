@@ -13,8 +13,11 @@ import {
   focusIndexAfterRemoval,
   isArrowKey,
   isEditableTarget,
+  isRenameKey,
   isTrashKey,
   nextFocusIndex,
+  renamedTitle,
+  TITLE_MAX_LENGTH,
   trashConfirmMessage,
 } from './explorerKeys';
 
@@ -222,6 +225,15 @@ const SpacesPage: React.FC = () => {
   const removedFocusIndexRef = useRef<number | null>(null);
   // Mise à la corbeille par la touche Suppr, en attente de confirmation (une touche est vite pressée par erreur).
   const [trashByKey, setTrashByKey] = useState<{ doc: Document; item: HTMLElement; index: number } | null>(null);
+  const [renaming, setRenaming] = useState<{ doc: Document; item: HTMLElement | null } | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+  // Nom actuel prérempli et sélectionné, comme l'Explorateur Windows.
+  useEffect(() => {
+    if (!renaming) return;
+    renameInputRef.current?.focus();
+    renameInputRef.current?.select();
+  }, [renaming]);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -505,7 +517,7 @@ const SpacesPage: React.FC = () => {
   // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
   const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     // Confirmation ouverte : Entrée, Échap et Suppr appartiennent à la fenêtre, pas à la liste.
-    if (trashByKey || event.defaultPrevented || isEditableTarget(event.target)) return;
+    if (trashByKey || renaming || event.defaultPrevented || isEditableTarget(event.target)) return;
     if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
       const target = event.target as HTMLElement;
       const region = itemsRegionRef.current;
@@ -532,13 +544,17 @@ const SpacesPage: React.FC = () => {
       }
       return;
     }
-    if (isTrashKey(event)) {
-      // Seul un document qui a le focus est concerné ; le même chemin que « Mettre à la corbeille ».
+    if (isTrashKey(event) || isRenameKey(event)) {
+      // Seul un document qui a le focus est concerné ; mêmes chemins que le menu contextuel.
       const id = (event.target as HTMLElement).getAttribute('data-document-id');
       const doc = id ? visibleDocuments.find((d) => d.id === id) : undefined;
       if (!doc) return;
       event.preventDefault();
       const item = event.target as HTMLElement;
+      if (isRenameKey(event)) {
+        handleRename(doc, item);
+        return;
+      }
       const items = Array.from(
         itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
       );
@@ -648,6 +664,42 @@ const SpacesPage: React.FC = () => {
       removedFocusIndexRef.current = null;
       /* message déjà affiché par le bus global */
     }
+  };
+
+  // Renommer (F2 ou menu) : fenêtre avec le nom actuel sélectionné ; Entrée valide, Échap annule.
+  const handleRename = (doc: Document, item?: HTMLElement) => {
+    setContextMenu(null);
+    setRenameDraft(doc.title);
+    setRenaming({ doc, item: item ?? null });
+  };
+
+  // Le focus revient à l'élément renommé (retrouvé par son id quand on vient du menu).
+  const focusRenamedItem = (target: { doc: Document; item: HTMLElement | null }) => {
+    const item = target.item?.isConnected
+      ? target.item
+      : itemsRegionRef.current?.querySelector<HTMLElement>(`[data-document-id="${CSS.escape(target.doc.id)}"]`);
+    item?.focus({ preventScroll: true });
+  };
+
+  const cancelRename = () => {
+    const target = renaming;
+    setRenaming(null);
+    if (target) focusRenamedItem(target);
+  };
+
+  const confirmRename = async () => {
+    const target = renaming;
+    if (!target) return;
+    const title = renamedTitle(renameDraft, target.doc.title);
+    if (!title) return;
+    setRenaming(null);
+    try {
+      await api.renameDocument(target.doc.id, title);
+      loadDocuments();
+    } catch {
+      /* message choisi selon le code HTTP, affiché par le bus global */
+    }
+    focusRenamedItem(target);
   };
 
   const handleCopyPath = async (path: string) => {
@@ -1251,6 +1303,16 @@ const SpacesPage: React.FC = () => {
               <button
                 type="button"
                 role="menuitem"
+                onClick={() => handleRename(contextMenu.document)}
+                className={MENU_ITEM}
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">edit</span>
+                Renommer
+                <span className="ml-auto text-xs text-slate-400">F2</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
                 onClick={() => handleTrash(contextMenu.document)}
                 className={MENU_ITEM}
               >
@@ -1410,6 +1472,33 @@ const SpacesPage: React.FC = () => {
         onCancel={cancelTrashByKey}
         onConfirm={confirmTrashByKey}
       />
+      <ConfirmationModal
+        open={renaming !== null}
+        title="Renommer"
+        message={`${TITLE_MAX_LENGTH} caractères au plus.`}
+        confirmLabel="Renommer"
+        icon="edit"
+        confirmDisabled={!renaming || renamedTitle(renameDraft, renaming.doc.title) === null}
+        onCancel={cancelRename}
+        onConfirm={() => void confirmRename()}
+      >
+        <label className="mt-4 block text-xs font-bold text-slate-600">
+          Nouveau nom
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameDraft}
+            maxLength={TITLE_MAX_LENGTH}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              void confirmRename();
+            }}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue"
+          />
+        </label>
+      </ConfirmationModal>
     </div>
   );
 };
