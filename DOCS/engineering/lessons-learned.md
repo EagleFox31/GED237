@@ -897,3 +897,18 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Prévention** — `gestion-projet/innovateur/verif-file.sh` compare la file à `gh pr list --state open`. Il sort en **code 1**, avec le numéro et le titre, dès qu'une PR ouverte n'est ni dans ORDER, ni dans `HORS_FILE`, ni exclue par une règle écrite (Dependabot, `feat/v12-*`, étiquette `v1.2`). Il contrôle aussi les doublons et les DEP, et sa sortie en erreur a été vérifiée sur un faux DEP et sur une PR retirée. Il est lancé à chaque modification de la file (innovateur) et avant chaque lancement du script de file de fusion (orchestrateur).
 **Leçon généralisée** — Une liste tenue à la main qui doit couvrir un ensemble vivant (PR ouvertes, issues, migrations) a besoin d'un contrôle de complétude contre la source, qui échoue bruyamment. Un contrôle qui ne porte que sur la cohérence interne de la liste ne voit pas les absents.
 **Évolution de standard** — Pour tout inventaire dérivé (file, plan de migration, relevé de risques), prévoir un contrôle automatique « source ↔ inventaire » qui sort en code non nul. Candidat au registry (RAIDER, Idempotent / Durable).
+
+### LESSON-2026-072 — Numéro de LESSON pris par deux leçons différentes dans des PR ouvertes
+
+- **Date :** 2026-11-19
+- **Catégorie :** pilotage / documentation
+- **Statut :** prevention-added
+- **Liens :** `gestion-projet/innovateur/verif-file.sh` (contrôle 4), #433, #436, #460, #461
+
+**Contexte** — Inscription de #460 (correctif des tests `search-highlight`) dans la file V1.1, le 19/11 au matin.
+**Échec / near miss** — En simulant les fusions, une collision est apparue. LESSON-2026-067 était prise par #460 et #461 (rendu JSX dans `e2e/unit`) et par #433 (chemin cité sans vérification). LESSON-2026-068 était prise par #461 (heredoc) et par #436 (révision Alembic), puis par #445, #456 et #457, empilées sur #436. Le contrôle ajouté a trouvé ensuite deux collisions plus anciennes, que personne n'avait vues : 045 (deux leçons, onze PR) et 054 (#335 contre `main`). Rien n'était encore fusionné, donc aucun dommage.
+**Cause racine** — Chaque session prend « le numéro suivant » d'après sa propre branche ou d'après `main`. Elle ne voit pas les numéros pris par les autres PR ouvertes. Aucun contrôle ne comparait les LESSON entre les PR.
+**Résolution** — #460 et #461 gardent 067 et 068 sur `main`. #436 passe à 070 (aide-api), et ses PR empilées suivent par fusion. #433 passe à 071 (I). Les numéros pour 045 et 054 sont proposés à O.
+**Prévention** — `verif-file.sh` contrôle maintenant, en 4e point, les LESSON ajoutées par chaque PR ouverte (`git diff origin/main...origin/<branche>`). Il sort en erreur si un même numéro désigne une autre leçon sur `main` ou dans une autre PR. Le même titre est permis dans des PR empilées. Il faut lancer `git fetch origin` avant le contrôle.
+**Leçon généralisée** — Un identifiant séquentiel attribué en parallèle par plusieurs branches entre en collision dès que deux branches partent du même état. Il faut soit le vérifier contre toutes les branches ouvertes, soit l'attribuer à la fusion.
+**Évolution de standard** — Avant de prendre un numéro de LESSON ou de DEC, lancer `verif-file.sh` ou demander le numéro à O, qui tient la file.
