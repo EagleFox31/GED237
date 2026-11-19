@@ -896,3 +896,17 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — `e2e/unit` garde les tests des fonctions pures (`parseHighlight`, `hasHighlightMatch`). Le rendu (HTML échappé, extrait sans mot trouvé, marqueur douteux) est vérifié dans le navigateur par `e2e/specs/uat/search-excerpt.spec.ts`, avec une réponse de `GET /search` simulée. Le composant n'est pas modifié.
 **Prévention** — `e2e/unit/unit-folder-guard.spec.ts` (exécuté par `npm run test:unit`) échoue si un spec de `e2e/unit` importe `react-dom` ou un module `.tsx`. Un second test vérifie que le garde-fou repère bien ces imports.
 **Leçon généralisée** — Un dossier de tests « purs » n'est pur que si un contrôle automatique le garantit : une convention seule ne suffit pas.
+
+### LESSON-2026-068 — Heredoc non protégé : une commande citée dans une note de passation a été exécutée (push involontaire)
+
+- **Date :** 2026-11-19
+- **Catégorie :** process / git
+- **Statut :** resolved (règle de session : heredoc toujours protégé)
+- **Liens :** PR #184 (`feat/post-rc1-undo-ui`, bb1de95d puis 3f5ae410), `PASSATION-dev-frontend.md`
+
+**Contexte** — Une entrée de `PASSATION-dev-frontend.md` est ajoutée par `cat >> fichier <<EOF … EOF` pour y insérer l'heure réelle. Le texte décrit l'étape suivante : « commit, puis `git push origin wip-184:feat/post-rc1-undo-ui` ».
+**Échec / near miss** — Avec un délimiteur non protégé, bash exécute les substitutions du texte. La commande entre accents graves a été lancée à 08:09:37 : `feat/post-rc1-undo-ui` (PR #184, brouillon) a été poussée avec 2 tests e2e encore rouges, et la note a gardé un trou à la place de la commande. Corrigé 3 minutes plus tard (3f5ae410, sans force). Ni main ni une PR en file n'ont été touchées.
+**Cause racine** — `<<EOF` interprète `` `…` ``, `$(…)` et `$VAR` ; la mise en forme Markdown d'une commande (accents graves) devient une exécution.
+**Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
+**Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
+**Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
