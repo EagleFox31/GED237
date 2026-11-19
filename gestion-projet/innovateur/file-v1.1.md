@@ -53,11 +53,12 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # #487 (B, doublon à la restauration, partie serveur ; brouillon V1.1, base main, tête b713486c) : la restauration réussit toujours, la réponse ajoute identical_document {id, title} ou null, rien n'est désigné hors du périmètre de lecture. Décision du PO du 19/11, 11:40. La PR écran de F suit, empilée sur #199 (à re-cibler sur main avant la fusion de #199) : à placer après #487.
 # #488 (B, un 3e agent dans le service du jeu de démo, pour prouver la création et l'annulation d'une délégation avec #445 et #453 ; brouillon V1.1, base main, tête cbcfab77) : placée dans la vague 2 juste avant #445 et #453. #171 est fusionnée (main = d3f53564) : pour l'item 19 il reste #199.
 # #485 (écran de revue du classement, ticket #483) est fusionnée (main = 32c6552b) : le point « revue incomplète » est retiré du § 6 de la checklist. #393 est fermée, remplacée par #362 (déjà en vague 5).
+# #489 (Q, main ne reteste plus un arbre déjà validé ; OK de B) : HORS_FILE, fusion dès CI verte, hors trains (O, 19/11).
 # #484 (Q, contrastes AA, lot 8 point 4 : liste des documents, fiche, parapheur ; brouillon V1.1, tête b5aafabe) : empilée sur #441 (base feat/v11-a11y-keyboard), à re-cibler sur main avant la fusion de #441 ; vague 5 juste après #441, DEP[484]=441. Pas encore jouée au navigateur : ajoutée par O aux contre-tests du prochain lot d'audit.
 # Ticket #483 (défaut de l'écran de revue du classement, V1.0) : PR #485 de B (tête 79dd873c, relecture Q ; branche fix/review-sync-ingest-ocr, base main ; deux cas, plus un script de rattrapage lancé d'abord en plan, puis avec --apply, sans suppression), dans ORDER_V0 juste après #480 ; rattrapage ajouté à la checklist de recette (ligne 1.2 bis). #449 : tête 58d75f7b (brouillon V1.1). #199 a encore pour base feat/post-rc1-trash-ui (#181 fusionnée) : à re-cibler sur main avant sa fusion.
 # #471 (0ec2b5dd, brouillon V1.1, empilée sur #155 : à re-cibler sur main avant la fusion de #155) : OK sécurité de B, contrôle final de Q en cours ; reste en vague 4, après #155 et #479 (DEP). #181 fusionnée le 19/11 (main = 2174cfd3). Suites de sécurité d'aide-api (une PR à venir, base main : ticket WebSocket lié à la session, sockets fermés à la déconnexion, vérification de l'Origine) : après #479 et #471.
 # #476 (aide-api, n° 14 du tri de l'audit : total et page suivante dans « Mes Documents », V1.1, base main) : HORS_FILE (O, 19/11). Même fichier Documents.tsx que #440 : à rebaser après #440.
-HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 478 481"
+HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 478 481 489"
 ```
 
 Écarts avec `plan-fusion-v1.1.md` (validés par O le 18/11) :
