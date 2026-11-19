@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { clampToViewport, isEditableTarget, nextFocusIndex } from '../../profiles/tenant-admin/pages/explorerKeys';
+import {
+  clampToViewport,
+  focusIndexAfterRemoval,
+  isEditableTarget,
+  isTrashKey,
+  nextFocusIndex,
+  trashConfirmMessage,
+} from '../../profiles/tenant-admin/pages/explorerKeys';
 
 // Grille 3 colonnes (6 éléments) puis une seconde grille de 2 éléments plus bas.
 const grid = [
@@ -57,4 +64,28 @@ test.describe('Explorateur : menu contextuel dans la fenêtre', () => {
     expect(clampToViewport({ x: 1200, y: 100 }, menu, viewport)).toEqual({ top: 100, left: 1032 }));
   test('menu plus grand que la fenêtre : collé à la marge haute', () =>
     expect(clampToViewport({ x: 10, y: 400 }, { width: 240, height: 900 }, viewport)).toEqual({ top: 8, left: 10 }));
+});
+
+test.describe('Explorateur : Suppr met à la corbeille (#151)', () => {
+  const keys = { shiftKey: false, ctrlKey: false, altKey: false, metaKey: false };
+
+  test('Suppr seul déclenche, avec un modificateur non', () => {
+    expect(isTrashKey({ key: 'Delete', ...keys })).toBe(true);
+    expect(isTrashKey({ key: 'Delete', ...keys, shiftKey: true })).toBe(false);
+    expect(isTrashKey({ key: 'Delete', ...keys, ctrlKey: true })).toBe(false);
+    expect(isTrashKey({ key: 'Backspace', ...keys })).toBe(false);
+  });
+
+  test('question claire, restauration annoncée', () => {
+    expect(trashConfirmMessage('Note de service')).toBe(
+      'Mettre « Note de service » à la corbeille ? Vous pourrez le restaurer depuis la corbeille.'
+    );
+  });
+
+  test('le focus passe au voisin, au dernier en fin de liste, nulle part si vide', () => {
+    expect(focusIndexAfterRemoval(2, 5)).toBe(2);
+    expect(focusIndexAfterRemoval(5, 5)).toBe(4);
+    expect(focusIndexAfterRemoval(-1, 3)).toBe(0);
+    expect(focusIndexAfterRemoval(0, 0)).toBe(-1);
+  });
 });

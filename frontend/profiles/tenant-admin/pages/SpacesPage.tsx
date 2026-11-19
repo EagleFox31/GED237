@@ -7,7 +7,16 @@ import { ClassificationSlideOver } from '../../../components/ClassificationSlide
 import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
-import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
+import {
+  clampToViewport,
+  focusIndexAfterRemoval,
+  isArrowKey,
+  isEditableTarget,
+  isTrashKey,
+  nextFocusIndex,
+  trashConfirmMessage,
+} from './explorerKeys';
 
 interface UserNode {
   id: string;
@@ -209,6 +218,10 @@ const SpacesPage: React.FC = () => {
   const previewReturnFocusRef = useRef<HTMLElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuReturnFocusRef = useRef<HTMLElement | null>(null);
+  // Position de l'élément mis à la corbeille au clavier : son voisin reprend le focus après rechargement.
+  const removedFocusIndexRef = useRef<number | null>(null);
+  // Mise à la corbeille par la touche Suppr, en attente de confirmation (une touche est vite pressée par erreur).
+  const [trashByKey, setTrashByKey] = useState<{ doc: Document; item: HTMLElement; index: number } | null>(null);
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -368,6 +381,18 @@ const SpacesPage: React.FC = () => {
     );
   }, [contextMenu]);
 
+  // Après une mise à la corbeille au clavier, le focus ne doit pas se perdre avec l'élément retiré.
+  useLayoutEffect(() => {
+    const removedIndex = removedFocusIndexRef.current;
+    if (removedIndex === null) return;
+    removedFocusIndexRef.current = null;
+    const items = Array.from(
+      itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
+    );
+    const next = items[focusIndexAfterRemoval(removedIndex, items.length)] ?? itemsRegionRef.current;
+    next?.focus();
+  }, [documents]);
+
   useEffect(() => {
     if (!contextMenu) {
       return;
@@ -479,7 +504,8 @@ const SpacesPage: React.FC = () => {
 
   // Réflexes clavier façon Explorateur Windows, actifs seulement quand le focus est dans la carte.
   const handleExplorerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || isEditableTarget(event.target)) return;
+    // Confirmation ouverte : Entrée, Échap et Suppr appartiennent à la fenêtre, pas à la liste.
+    if (trashByKey || event.defaultPrevented || isEditableTarget(event.target)) return;
     if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
       const target = event.target as HTMLElement;
       const region = itemsRegionRef.current;
@@ -504,6 +530,19 @@ const SpacesPage: React.FC = () => {
         search.focus();
         search.select();
       }
+      return;
+    }
+    if (isTrashKey(event)) {
+      // Seul un document qui a le focus est concerné ; le même chemin que « Mettre à la corbeille ».
+      const id = (event.target as HTMLElement).getAttribute('data-document-id');
+      const doc = id ? visibleDocuments.find((d) => d.id === id) : undefined;
+      if (!doc) return;
+      event.preventDefault();
+      const item = event.target as HTMLElement;
+      const items = Array.from(
+        itemsRegionRef.current?.querySelectorAll<HTMLElement>('[data-explorer-item]') ?? []
+      );
+      setTrashByKey({ doc, item, index: items.indexOf(item) });
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -586,12 +625,27 @@ const SpacesPage: React.FC = () => {
     });
   };
 
+  const confirmTrashByKey = () => {
+    if (!trashByKey) return;
+    removedFocusIndexRef.current = trashByKey.index;
+    setTrashByKey(null);
+    handleTrash(trashByKey.doc).catch(() => undefined);
+  };
+
+  // Annuler (bouton ou Échap) rend le focus à l'élément de la liste.
+  const cancelTrashByKey = () => {
+    const item = trashByKey?.item;
+    setTrashByKey(null);
+    if (item?.isConnected) item.focus({ preventScroll: true });
+  };
+
   const handleTrash = async (doc: Document) => {
     setContextMenu(null);
     try {
       await api.deleteDocument(doc.id);
       loadDocuments();
     } catch {
+      removedFocusIndexRef.current = null;
       /* message déjà affiché par le bus global */
     }
   };
@@ -964,6 +1018,7 @@ const SpacesPage: React.FC = () => {
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                             data-explorer-item
+                            data-document-id={doc.id}
                             className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
@@ -1027,6 +1082,7 @@ const SpacesPage: React.FC = () => {
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
                               tabIndex={0}
                               data-explorer-item
+                              data-document-id={doc.id}
                               aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' && event.target === event.currentTarget) {
@@ -1344,6 +1400,15 @@ const SpacesPage: React.FC = () => {
           setDocumentToClassify(null);
           loadDocuments();
         }}
+      />
+      <ConfirmationModal
+        open={trashByKey !== null}
+        title="Mettre à la corbeille ?"
+        message={trashByKey ? trashConfirmMessage(trashByKey.doc.title) : ''}
+        confirmLabel="Mettre à la corbeille"
+        icon="delete"
+        onCancel={cancelTrashByKey}
+        onConfirm={confirmTrashByKey}
       />
     </div>
   );
