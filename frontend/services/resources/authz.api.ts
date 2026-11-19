@@ -28,6 +28,9 @@ export interface AuthzMetricsFilters {
 
 // ── API ─────────────────────────────────────────────────────────────────────
 
+/** Clé « ressource:action », ex. `documents:purge`. */
+export type PermissionKey = `${string}:${string}`;
+
 export const authzApi = {
     // Périmètres réglables (contrat 9.5) : les refus sont affichés par l'écran, pas par le bus global.
     getAccessScopes: async (): Promise<AccessScopeRow[]> =>
@@ -47,7 +50,15 @@ export const authzApi = {
             ),
         ])[0],
 
-    // La grille des droits (RightsGridTab) affiche elle-même ces refus : pas de toast global en double.
+    /** Droits de l'utilisateur courant, évalués par le serveur (1 à 20 paires). */
+    getMyPermissions: (checks: PermissionKey[]): Promise<Record<string, boolean>> =>
+        apiCall<Record<string, boolean>>(
+            `/authz/me/permissions?checks=${encodeURIComponent(checks.join(','))}`,
+            {},
+            'Récupération des droits impossible',
+        ),
+
+    // La grille des droits (RightsGridTab) affiche elle-même ces refus (409 = réglage par fichier) : pas de toast global en double.
     getAuthzPolicies: (): Promise<any[]> =>
         apiCall<any[]>('/authz/policies', {}, 'Récupération des droits impossible', {
             handledStatuses: [403, 409, 503],
