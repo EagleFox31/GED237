@@ -1,12 +1,13 @@
-"""Write scope of unit_admin (#215): classification reviews and workflows.
+"""unit_admin stays inside its unit tree on the routes that #195 left institution-wide.
 
-policy.csv gives unit_admin ``classification_reviews, manage`` and
-``workflows, manage``, which Casbin applies to the whole institution. The code
-bounds them to the unit_admin's unit and the units below it, as #195 does for
-reads: a resource outside the tree answers 404, a target outside it 403.
-The institution-wide roles keep the whole institution.
+Tree, in the seeded institution: A (seeded unit) > A1 > A2, and B beside A.
+Covered: GET /analytics/tenant, workflow reads, the import target unit and
+``_can_commit_job``, the classification review queue, the classification rules
+(read and write). tenant_admin must keep the whole institution on every one.
 
-Tree (see test_unit_admin_read_scope): A (seeded unit) > A1 > A2, and B beside A.
+``test_unit_admin_crawl`` is the preventive control of LESSON-2026-055: every route
+that takes a unit or a document of another unit must answer a unit_admin of A1 with
+403/404 for B, and never with a body that carries B's data.
 """
 
 import uuid
@@ -14,484 +15,443 @@ from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
+from fastapi import HTTPException
 
-from app.core.config import settings
-from app.models.classification_activity import ClassificationActivity
-from app.models.classification_domain import ClassificationDomain
+from app.api.v1.endpoints.imports import (
+    _can_commit_job,
+    _resolve_target_org_unit_id,
+)
 from app.models.classification_review import ClassificationReview
+from app.models.classification_rule import ClassificationRule
 from app.models.document import Document
 from app.models.import_job import ImportJob
-from app.models.import_job_item import ImportJobItem
 from app.models.org_unit import OrgUnit
 from app.models.tenant import Tenant
-from app.models.user import User
 from app.models.workflow import WorkflowStep
 from app.services.classification_review_service import ClassificationReviewService
-from app.services.reports_scope import in_actor_unit_tree
-from tests.api.test_unit_admin_read_scope import tree  # noqa: F401  (fixture)
 
+ANALYTICS = "/api/v1/analytics/tenant"
 REVIEWS = "/api/v1/classification-reviews"
-WORKFLOWS = "/api/v1/workflows"
-DOCUMENTS = "/api/v1/documents"
-RESOLVED = {"mark_as_resolved": True}
+RULES = "/api/v1/classification-rules/rules"
+WORKFLOW_STEPS = "/api/v1/workflows/document/{}/steps"
 
 
-@pytest.fixture(autouse=True)
-def _storage(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, "STORAGE_PATH", str(tmp_path / "storage"))
+async def _unit(db, tenant_id, parent=None) -> uuid.UUID:
+    unit_id = uuid.uuid4()
+    db.add(
+        OrgUnit(
+            id=unit_id,
+            tenant_id=tenant_id,
+            parent_id=parent,
+            code=f"OU-{str(unit_id)[:8]}",
+            name=f"Service {str(unit_id)[:8]}",
+            level=2 if parent else 1,
+            is_active=True,
+        )
+    )
+    await db.flush()
+    return unit_id
 
 
 @pytest_asyncio.fixture
-async def scoped(db_session, db_seed, tree):  # noqa: F811
-    """Open reviews in A1 and B, a domain to resolve them, steps to assign."""
+async def tree(db_session, db_seed):
     tenant_id = db_seed["tenant_id"]
-    units, ids = tree["units"], tree["ids"]
-    domain = ClassificationDomain(
-        id=uuid.uuid4(), tenant_id=tenant_id, code="marches", name="Marches"
-    )
-    activity = ClassificationActivity(
-        id=uuid.uuid4(),
-        tenant_id=tenant_id,
-        domain_id=domain.id,
-        code="reparation",
-        name="Reparation",
-    )
-    db_session.add_all([domain, activity])
-    reviews = {}
-    service = ClassificationReviewService(db_session)
+    units = {"a": db_seed["org_unit_id"]}
+    units["a1"] = await _unit(db_session, tenant_id, units["a"])
+    units["a2"] = await _unit(db_session, tenant_id, units["a1"])
+    units["b"] = await _unit(db_session, tenant_id)
+
+    ids = {}
     for key in ("a1", "b"):
-        document = await db_session.get(Document, ids[key])
-        document.classification_status = "needs_review"
-        document.status = "returned"
-        review = await service.ensure_open_review_for_document(document=document)
-        await db_session.flush()
-        reviews[f"doc_{key}"] = review.id
-
-    async def item_review(key, unit, created_by):
-        job = ImportJob(
-            tenant_id=tenant_id, created_by_id=created_by, target_org_unit_id=unit
+        document = Document(
+            id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            org_unit_id=units[key],
+            owner_id=db_seed["user_id"],
+            document_category_id=db_seed["category_id"],
+            title=f"Dossier {key}",
+            file_path=f"x/{key}.pdf",
         )
-        db_session.add(job)
+        db_session.add(document)
         await db_session.flush()
-        item = ImportJobItem(
-            import_job_id=job.id,
-            original_filename="note.pdf",
-            source_relative_path="note.pdf",
-        )
-        db_session.add(item)
-        await db_session.flush()
-        review = ClassificationReview(tenant_id=tenant_id, import_job_item_id=item.id)
-        db_session.add(review)
-        await db_session.flush()
-        reviews[key] = review.id
-
-    await item_review("job_a1", units["a1"], tree["collaborator"])
-    await item_review("job_b", units["b"], tree["collaborator"])
-    # A batch the unit_admin of A sent to B: its own, so it stays visible.
-    await item_review("job_own", units["b"], db_seed["user_id"])
-
-    steps = {}
-    for key in ("a1", "b"):
-        step = (
-            await db_session.execute(
-                select(WorkflowStep).where(WorkflowStep.document_id == ids[key])
-            )
-        ).scalar_one()
-        steps[key] = step.id
         db_session.add(
             WorkflowStep(
                 id=uuid.uuid4(),
-                document_id=ids[key],
-                step_order=2,
-                label="Visa final",
-                status="pending_assignment",
+                document_id=document.id,
+                step_order=1,
+                label="Visa",
+                status="current",
+            )
+        )
+        review = ClassificationReview(
+            tenant_id=tenant_id, document_id=document.id, review_status="open"
+        )
+        db_session.add(review)
+        await db_session.flush()
+        ids[f"doc_{key}"] = document.id
+        ids[f"review_{key}"] = review.id
+
+    for key, unit in (("rule_a1", "a1"), ("rule_b", "b"), ("rule_all", None)):
+        db_session.add(
+            ClassificationRule(
+                tenant_id=tenant_id,
+                code=key.upper(),
+                name=key,
+                source_scope="service",
+                source_org_unit_id=units[unit] if unit else None,
+                target_scope="service",
             )
         )
     await db_session.commit()
-    pending = {
-        key: (
-            await db_session.execute(
-                select(WorkflowStep.id).where(
-                    WorkflowStep.document_id == ids[key],
-                    WorkflowStep.status == "pending_assignment",
-                )
-            )
-        ).scalar_one()
-        for key in ("a1", "b")
-    }
-    return {
-        **tree,
-        "reviews": reviews,
-        "steps": steps,
-        "pending": pending,
-        "domain": domain.id,
-        "activity": activity.id,
-    }
+    return {"units": units, "ids": ids}
 
 
-def _as(client_as, db_seed, scoped, role, unit, **extra):
-    return client_as(
-        role,
-        tenant_id=db_seed["tenant_id"],
-        org_unit_id=scoped["units"][unit],
-        **extra,
-    )
-
-
-def _resolve_body(scoped, target_unit):
-    return {
-        "classification_domain_id": str(scoped["domain"]),
-        "classification_activity_id": str(scoped["activity"]),
-        "classification_year": 2026,
-        "classification_scope": "service",
-        "classification_target_org_unit_id": str(scoped["units"][target_unit]),
-        "relaunch_workflow": False,
-    }
-
-
-def _review_keys(scoped, rows) -> set[str]:
-    by_id = {str(v): k for k, v in scoped["reviews"].items()}
-    return {by_id[row["id"]] for row in rows}
+def _caller(db_seed, tree, unit="a1"):
+    return {"tenant_id": db_seed["tenant_id"], "org_unit_id": tree["units"][unit]}
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "role,unit,own,expected",
-    [
-        ("unit_admin", "a", True, {"doc_a1", "job_a1", "job_own"}),
-        ("unit_admin", "b", False, {"doc_b", "job_b", "job_own"}),
-        ("tenant_admin", "a", False, {"doc_a1", "doc_b", "job_a1", "job_b", "job_own"}),
-        ("super_admin", "a", False, {"doc_a1", "doc_b", "job_a1", "job_b", "job_own"}),
-    ],
-)
-async def test_the_review_list_follows_the_unit_tree(
-    client_as, db_seed, scoped, role, unit, own, expected
+async def test_analytics_tenant_is_computed_on_the_unit_tree(client_as, db_seed, tree):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        scoped = await client.get(ANALYTICS)
+    async with client_as("tenant_admin", **_caller(db_seed, tree)) as client:
+        wide = await client.get(ANALYTICS)
+
+    assert scoped.status_code == 200
+    assert scoped.json()["documents"]["total"] == 1  # A1 only, not B
+    assert wide.status_code == 200
+    assert wide.json()["documents"]["total"] == 2  # tenant_admin unchanged
+    assert scoped.json()["users"]["total"] < wide.json()["users"]["total"]
+
+
+@pytest.mark.asyncio
+async def test_analytics_tenant_unit_admin_without_unit_sees_nothing(
+    client_as, db_seed, tree
 ):
-    extra = {"id": db_seed["user_id"]} if own else {}
-    async with _as(client_as, db_seed, scoped, role, unit, **extra) as client:
-        response = await client.get(REVIEWS)
-    assert response.status_code == 200, response.text
-    assert _review_keys(scoped, response.json()) == expected
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_resolves_only_reviews_and_targets_of_its_tree(
-    client_as, db_seed, scoped
-):
-    reviews = scoped["reviews"]
-    me = {"id": db_seed["user_id"]}  # successful resolutions are audited
-    async with _as(client_as, db_seed, scoped, "unit_admin", "a", **me) as client:
-        other_branch = await client.post(
-            f"{REVIEWS}/{reviews['doc_b']}/resolve", json=_resolve_body(scoped, "a")
-        )
-        target_outside = await client.post(
-            f"{REVIEWS}/{reviews['doc_a1']}/resolve", json=_resolve_body(scoped, "b")
-        )
-        inside = await client.post(
-            f"{REVIEWS}/{reviews['doc_a1']}/resolve", json=_resolve_body(scoped, "a2")
-        )
-    assert other_branch.status_code == 404
-    assert target_outside.status_code == 403
-    assert inside.status_code == 200, inside.text
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_of_another_branch_gets_404_on_a_review(
-    client_as, db_seed, scoped
-):
-    """Counter-test: the unit_admin of B does not reach a review of A1."""
-    async with _as(client_as, db_seed, scoped, "unit_admin", "b") as client:
-        response = await client.post(
-            f"{REVIEWS}/{scoped['reviews']['doc_a1']}/resolve",
-            json=_resolve_body(scoped, "b"),
-        )
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_a_tenant_admin_still_resolves_any_review(client_as, db_seed, scoped):
-    async with _as(
-        client_as, db_seed, scoped, "tenant_admin", "a", id=db_seed["user_id"]
-    ) as client:
-        response = await client.post(
-            f"{REVIEWS}/{scoped['reviews']['doc_b']}/resolve",
-            json=_resolve_body(scoped, "b"),
-        )
-    assert response.status_code == 200, response.text
-
-
-@pytest.mark.asyncio
-async def test_legacy_resolve_review_is_bounded_to_the_tree(
-    client_as, db_seed, scoped, db_session
-):
-    ids, units = scoped["ids"], scoped["units"]
-    # The legacy route serves returned documents that are not under review.
-    for key in ("a1", "b"):
-        document = await db_session.get(Document, ids[key])
-        document.classification_status = "classified"
-    await db_session.commit()
-
-    me = {"id": db_seed["user_id"]}  # successful resolutions are audited
-    async with _as(client_as, db_seed, scoped, "unit_admin", "a", **me) as client:
-        other_branch = await client.post(
-            f"{DOCUMENTS}/{ids['b']}/resolve-review", json=RESOLVED
-        )
-        target_outside = await client.post(
-            f"{DOCUMENTS}/{ids['a1']}/resolve-review",
-            json={**RESOLVED, "target_folder_id": str(units["b"])},
-        )
-        inside = await client.post(
-            f"{DOCUMENTS}/{ids['a1']}/resolve-review", json=RESOLVED
-        )
-    async with _as(client_as, db_seed, scoped, "unit_admin", "b") as client:
-        counter = await client.post(
-            f"{DOCUMENTS}/{ids['a1']}/resolve-review", json=RESOLVED
-        )
-    async with _as(client_as, db_seed, scoped, "tenant_admin", "a", **me) as client:
-        wide = await client.post(
-            f"{DOCUMENTS}/{ids['b']}/resolve-review", json=RESOLVED
-        )
-
-    assert other_branch.status_code == 404
-    assert target_outside.status_code == 403
-    assert inside.status_code == 200, inside.text
-    assert counter.status_code == 404
-    assert wide.status_code == 200, wide.text
-
-
-def _action():
-    return {
-        "action_type": "visa",
-        "outcome": "accepted",
-        "document_version_id": str(uuid.uuid4()),
-    }
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_validates_only_steps_of_its_tree(
-    client_as, db_seed, scoped, db_session
-):
-    steps, pending = scoped["steps"], scoped["pending"]
-    async with _as(client_as, db_seed, scoped, "unit_admin", "a") as client:
-        outside = await client.post(
-            f"{WORKFLOWS}/step/{steps['b']}/actions", json=_action()
-        )
-        # Not current either: the state must not leak before the tree check.
-        outside_pending = await client.post(
-            f"{WORKFLOWS}/step/{pending['b']}/actions", json=_action()
-        )
-        inside = await client.post(
-            f"{WORKFLOWS}/step/{steps['a1']}/actions", json=_action()
-        )
-    async with _as(client_as, db_seed, scoped, "unit_admin", "b") as client:
-        counter = await client.post(
-            f"{WORKFLOWS}/step/{steps['a1']}/actions", json=_action()
-        )
-    # manager has no workflows/manage and no tree bound: unchanged answer.
-    async with _as(client_as, db_seed, scoped, "manager", "b") as client:
-        manager = await client.post(
-            f"{WORKFLOWS}/step/{steps['b']}/actions", json=_action()
-        )
-    assert outside.status_code == 404, outside.text
-    assert outside_pending.status_code == 404, outside_pending.text
-    assert counter.status_code == 404, counter.text
-    assert manager.status_code == 403
-    assert manager.json()["detail"] == "You are not assigned to this step"
-    # Past the rights check: refused further on, on the (random) version.
-    assert inside.status_code == 400, inside.text
-
-    # An explicit assignment still wins over the tree.
-    step = await db_session.get(WorkflowStep, steps["b"])
-    step.assigned_to = db_seed["user_id"]
-    await db_session.commit()
-    async with _as(
-        client_as, db_seed, scoped, "unit_admin", "a", id=db_seed["user_id"]
-    ) as client:
-        assigned = await client.post(
-            f"{WORKFLOWS}/step/{steps['b']}/actions", json=_action()
-        )
-    assert assigned.status_code == 400, assigned.text
-
-    async with _as(client_as, db_seed, scoped, "tenant_admin", "a") as client:
-        wide = await client.post(
-            f"{WORKFLOWS}/step/{steps['a1']}/actions", json=_action()
-        )
-    assert wide.status_code == 400, wide.text
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "role,unit,expected",
-    [
-        ("unit_admin", "a", {"a1"}),
-        ("unit_admin", "b", {"b"}),
-        ("tenant_admin", "a", {"a1", "b"}),
-    ],
-)
-async def test_pending_assignments_follow_the_unit_tree(
-    client_as, db_seed, scoped, role, unit, expected
-):
-    async with _as(client_as, db_seed, scoped, role, unit) as client:
-        response = await client.get(f"{WORKFLOWS}/pending-assignments")
-    assert response.status_code == 200, response.text
-    by_id = {str(v): k for k, v in scoped["pending"].items()}
-    assert {by_id[row["id"]] for row in response.json()} == expected
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_cannot_assign_or_read_steps_outside_its_tree(
-    client_as, db_seed, scoped
-):
-    ids, pending = scoped["ids"], scoped["pending"]
-    body = {"assigned_to": str(db_seed["user_id"])}
-    async with _as(client_as, db_seed, scoped, "unit_admin", "a") as client:
-        assign = await client.post(
-            f"{WORKFLOWS}/steps/{pending['b']}/assign", json=body
-        )
-        steps = await client.get(f"{WORKFLOWS}/document/{ids['b']}/steps")
-        history = await client.get(f"{WORKFLOWS}/document/{ids['b']}/actions")
-        create = await client.post(
-            f"{WORKFLOWS}/document/{ids['b']}/steps",
-            json=[{"document_id": str(ids["b"]), "step_order": 1, "label": "Visa"}],
-        )
-        own_tree = await client.get(f"{WORKFLOWS}/document/{ids['a1']}/steps")
-    async with _as(client_as, db_seed, scoped, "unit_admin", "a1") as client:
-        parent = await client.get(f"{WORKFLOWS}/document/{ids['a']}/steps")
-
-    assert assign.status_code == 404
-    assert steps.status_code == 404
-    assert history.status_code == 404
-    assert create.status_code == 404
-    assert own_tree.status_code == 200, own_tree.text
-    # The tree goes down, never up.
-    assert parent.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_the_tree_check_fails_closed_for_a_unit_admin(db_session, db_seed):
-    unit_admin = SimpleNamespace(
-        role=SimpleNamespace(code="unit_admin"), org_unit_id=None
-    )
-    unit = db_seed["org_unit_id"]
-    assert not await in_actor_unit_tree(db_session, unit_admin, unit)
-    unit_admin.org_unit_id = unit
-    assert not await in_actor_unit_tree(db_session, unit_admin, None)
-    assert not await in_actor_unit_tree(None, unit_admin, unit)
-    assert await in_actor_unit_tree(db_session, unit_admin, unit)
-
-    other = SimpleNamespace(role=SimpleNamespace(code="tenant_admin"), org_unit_id=None)
-    assert await in_actor_unit_tree(None, other, None)
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_starts_a_workflow_only_in_its_tree(
-    client_as, db_seed, scoped
-):
-    ids = scoped["ids"]
-    async with _as(client_as, db_seed, scoped, "unit_admin", "a") as client:
-        outside = await client.post(f"{DOCUMENTS}/{ids['b']}/start-workflow")
-        inside = await client.post(f"{DOCUMENTS}/{ids['a1']}/start-workflow")
-    async with _as(client_as, db_seed, scoped, "unit_admin", "b") as client:
-        counter = await client.post(f"{DOCUMENTS}/{ids['a1']}/start-workflow")
-    async with _as(client_as, db_seed, scoped, "tenant_admin", "a") as client:
-        wide = await client.post(f"{DOCUMENTS}/{ids['b']}/start-workflow")
-
-    assert outside.status_code == 404, outside.text
-    assert counter.status_code == 404, counter.text
-    # Past the tree check: these documents are not archives, hence 400.
-    assert inside.status_code == 400, inside.text
-    assert wide.status_code == 400, wide.text
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_assigns_anyone_of_the_institution(
-    client_as, db_session, db_seed, scoped
-):
-    """Decided by O (#215): a step of the tree may go to a person of another
-    unit (validation by another service), never to another institution."""
-    other_tenant = uuid.uuid4()
-    stranger = uuid.uuid4()
-    seeded = await db_session.get(User, db_seed["user_id"])
-    db_session.add(
-        Tenant(
-            id=other_tenant,
-            name="Autre institution",
-            short_name="AUTRE",
-            domain=f"autre-{other_tenant}.gov.cm",
-            is_active=True,
-        )
-    )
-    await db_session.flush()
-    db_session.add(
-        User(
-            id=stranger,
-            tenant_id=other_tenant,
-            role_id=seeded.role_id,
-            matricule=f"EXT-{stranger.hex[:8]}",
-            email=f"{stranger.hex[:8]}@example.test",
-            first_name="Agent",
-            last_name="Externe",
-            password_hash="unused",
-            is_active=True,
-        )
-    )
-    await db_session.commit()
-
-    url = f"{WORKFLOWS}/steps/{scoped['pending']['a1']}/assign"
-    async with _as(
-        client_as, db_seed, scoped, "unit_admin", "a", id=db_seed["user_id"]
-    ) as client:
-        foreign = await client.post(url, json={"assigned_to": str(stranger)})
-        other_unit = await client.post(
-            url, json={"assigned_to": str(scoped["collaborator"])}
-        )
-    assert foreign.status_code == 400, foreign.text
-    assert other_unit.status_code == 200, other_unit.text
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_defines_steps_in_its_tree(client_as, db_seed, scoped):
-    ids = scoped["ids"]
-    async with _as(
-        client_as, db_seed, scoped, "unit_admin", "a", id=db_seed["user_id"]
-    ) as client:
-        response = await client.post(
-            f"{WORKFLOWS}/document/{ids['a2']}/steps",
-            json=[{"document_id": str(ids["a2"]), "step_order": 3, "label": "Visa"}],
-        )
-    # Past the tree and rights checks: refused only because the fixture
-    # document already runs a workflow.
-    assert response.status_code == 409, response.text
-    assert "active workflow" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_a_unit_admin_without_a_unit_sees_nothing(client_as, db_seed, scoped):
     async with client_as(
         "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=None
     ) as client:
-        reviews = await client.get(REVIEWS)
-        pending = await client.get(f"{WORKFLOWS}/pending-assignments")
-        step = await client.post(
-            f"{WORKFLOWS}/step/{scoped['steps']['a1']}/actions", json=_action()
+        response = await client.get(ANALYTICS)
+
+    assert response.status_code == 200
+    assert response.json()["documents"]["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_workflow_steps_of_another_unit_are_refused(client_as, db_seed, tree):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        inside = await client.get(WORKFLOW_STEPS.format(tree["ids"]["doc_a1"]))
+        outside = await client.get(WORKFLOW_STEPS.format(tree["ids"]["doc_b"]))
+    async with client_as("tenant_admin", **_caller(db_seed, tree)) as client:
+        wide = await client.get(WORKFLOW_STEPS.format(tree["ids"]["doc_b"]))
+
+    assert inside.status_code == 200
+    assert outside.status_code in (403, 404)
+    assert wide.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_import_target_unit_must_be_in_the_tree(db_session, db_seed, tree):
+    def user(role):
+        return SimpleNamespace(
+            id=uuid.uuid4(),
+            tenant_id=db_seed["tenant_id"],
+            org_unit_id=tree["units"]["a1"],
+            role=SimpleNamespace(code=role),
         )
-    assert (reviews.status_code, reviews.json()) == (200, [])
-    assert (pending.status_code, pending.json()) == (200, [])
-    assert step.status_code == 404, step.text
+
+    resolved = await _resolve_target_org_unit_id(
+        db_session,
+        current_user=user("unit_admin"),
+        target_org_unit_id=tree["units"]["a2"],
+    )
+    assert resolved == tree["units"]["a2"]
+
+    with pytest.raises(HTTPException) as refused:
+        await _resolve_target_org_unit_id(
+            db_session,
+            current_user=user("unit_admin"),
+            target_org_unit_id=tree["units"]["b"],
+        )
+    assert refused.value.status_code == 403
+
+    unchanged = await _resolve_target_org_unit_id(
+        db_session,
+        current_user=user("tenant_admin"),
+        target_org_unit_id=tree["units"]["b"],
+    )
+    assert unchanged == tree["units"]["b"]
+
+
+@pytest.mark.asyncio
+async def test_commit_is_limited_to_batches_of_the_tree(db_session, db_seed, tree):
+    def job(unit):
+        return ImportJob(
+            tenant_id=db_seed["tenant_id"],
+            created_by_id=uuid.uuid4(),  # someone else
+            target_org_unit_id=tree["units"][unit],
+        )
+
+    def user(role):
+        return SimpleNamespace(
+            id=uuid.uuid4(),
+            tenant_id=db_seed["tenant_id"],
+            org_unit_id=tree["units"]["a1"],
+            role=SimpleNamespace(code=role),
+        )
+
+    assert await _can_commit_job(db_session, user("unit_admin"), job("a2")) is True
+    assert await _can_commit_job(db_session, user("unit_admin"), job("b")) is False
+    assert await _can_commit_job(db_session, user("tenant_admin"), job("b")) is True
+
+
+@pytest.mark.asyncio
+async def test_review_queue_is_limited_to_the_tree(client_as, db_seed, tree):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        scoped = (await client.get(REVIEWS)).json()
+    async with client_as("tenant_admin", **_caller(db_seed, tree)) as client:
+        wide = (await client.get(REVIEWS)).json()
+
+    assert {str(r["id"]) for r in scoped} == {str(tree["ids"]["review_a1"])}
+    assert {str(r["id"]) for r in wide} == {
+        str(tree["ids"]["review_a1"]),
+        str(tree["ids"]["review_b"]),
+    }
+
+
+@pytest.mark.asyncio
+async def test_resolving_a_review_of_another_unit_is_a_404(db_session, db_seed, tree):
+    service = ClassificationReviewService(db_session)
+    in_tree = [tree["units"]["a1"], tree["units"]["a2"]]
+
+    review = await service._get_review_or_404(
+        review_id=tree["ids"]["review_a1"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_ids=in_tree,
+    )
+    assert review.id == tree["ids"]["review_a1"]
+    with pytest.raises(HTTPException) as refused:
+        await service._get_review_or_404(
+            review_id=tree["ids"]["review_b"],
+            tenant_id=db_seed["tenant_id"],
+            org_unit_ids=in_tree,
+        )
+    assert refused.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_rules_are_limited_to_the_tree(client_as, db_seed, tree):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        scoped = {r["code"] for r in (await client.get(RULES)).json()}
+    async with client_as("tenant_admin", **_caller(db_seed, tree)) as client:
+        wide = {r["code"] for r in (await client.get(RULES)).json()}
+
+    # Institution-wide rules stay readable; the rule aimed at B is hidden.
+    assert scoped == {"RULE_A1", "RULE_ALL"}
+    assert wide == {"RULE_A1", "RULE_B", "RULE_ALL"}
+
+
+@pytest.mark.asyncio
+async def test_rules_cannot_be_written_outside_the_tree(client_as, db_seed, tree):
+    body = {
+        "code": "NEW",
+        "name": "Nouvelle",
+        "source_scope": "service",
+        "target_scope": "service",
+    }
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        elsewhere = await client.post(
+            RULES, json={**body, "source_org_unit_id": str(tree["units"]["b"])}
+        )
+        institution_wide = await client.post(RULES, json=body)
+        rules = {r["code"]: r["id"] for r in (await client.get(RULES)).json()}
+        patch_global = await client.patch(
+            f"{RULES}/{rules['RULE_ALL']}", json={"name": "x"}
+        )
+        delete_global = await client.delete(f"{RULES}/{rules['RULE_ALL']}")
+        export = await client.get(f"{RULES}/export")
+
+    assert elsewhere.status_code == 403
+    assert institution_wide.status_code == 403
+    assert patch_global.status_code == 403
+    assert delete_global.status_code == 403
+    assert export.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_tenant_admin_still_writes_institution_wide_rules(
+    client_as, db_seed, tree
+):
+    async with client_as("tenant_admin", **_caller(db_seed, tree)) as client:
+        rules = {r["code"]: r["id"] for r in (await client.get(RULES)).json()}
+        patched = await client.patch(
+            f"{RULES}/{rules['RULE_ALL']}", json={"name": "Renommee"}
+        )
+
+    assert patched.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_crawl(client_as, db_seed, tree):
+    """Every route naming a document, review or rule of unit B is closed to A1."""
+    ids = tree["ids"]
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        rules = {r["code"]: r["id"] for r in (await client.get(RULES)).json()}
+        assert "RULE_B" not in rules
+        calls = [
+            await client.get(WORKFLOW_STEPS.format(ids["doc_b"])),
+            await client.get(f"/api/v1/workflows/document/{ids['doc_b']}/actions"),
+        ]
+        leaked = (await client.get(REVIEWS)).text + (await client.get(ANALYTICS)).text
+
+    assert all(call.status_code in (403, 404) for call in calls)
+    assert str(ids["doc_b"]) not in leaked
+    assert str(ids["review_b"]) not in leaked
+
+
+@pytest.mark.asyncio
+async def test_legacy_needs_review_queue_accepts_a_unit_scope(
+    db_session, db_seed, tree
+):
+    """Guard in advance: the route is tenant_admin only, the service is ready if that changes."""
+    service = ClassificationReviewService(db_session)
+    for doc in ("doc_a1", "doc_b"):
+        document = await db_session.get(Document, tree["ids"][doc])
+        document.classification_status = "needs_review"
+    await db_session.commit()
+
+    scoped = await service.list_legacy_needs_review_documents(
+        tenant_id=db_seed["tenant_id"],
+        org_unit_ids=[tree["units"]["a1"], tree["units"]["a2"]],
+    )
+    wide = await service.list_legacy_needs_review_documents(
+        tenant_id=db_seed["tenant_id"]
+    )
+
+    assert {d.id for d in scoped} == {tree["ids"]["doc_a1"]}
+    assert {tree["ids"]["doc_a1"], tree["ids"]["doc_b"]} <= {d.id for d in wide}
+
+
+# --- workflow writes by id (O/Q review of #358) ------------------------------
+
+
+@pytest_asyncio.fixture
+async def pending(db_session, tree):
+    """One step waiting for an assignee in A1 and one in B."""
+    steps = {}
+    for key in ("a1", "b"):
+        step = WorkflowStep(
+            id=uuid.uuid4(),
+            document_id=tree["ids"][f"doc_{key}"],
+            step_order=2,
+            label=f"A assigner {key}",
+            status="pending_assignment",
+        )
+        db_session.add(step)
+        steps[key] = step.id
+    await db_session.commit()
+    return steps
+
+
+@pytest.mark.asyncio
+async def test_start_workflow_on_a_document_of_another_unit_is_a_404(
+    client_as, db_seed, tree
+):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            f"/api/v1/documents/{tree['ids']['doc_b']}/start-workflow"
+        )
+        inside = await client.post(
+            f"/api/v1/documents/{tree['ids']['doc_a1']}/start-workflow"
+        )
+    assert outside.status_code == 404
+    assert inside.status_code != 404
+
+
+@pytest.mark.asyncio
+async def test_defining_steps_on_a_document_of_another_unit_is_a_404(
+    client_as, db_seed, tree
+):
+    doc = str(tree["ids"]["doc_b"])
+    body = [{"document_id": doc, "step_order": 1, "label": "Visa"}]
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            WORKFLOW_STEPS.format(tree["ids"]["doc_b"]), json=body
+        )
+    assert outside.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_assigning_a_step_of_another_unit_is_a_404(
+    client_as, db_seed, tree, pending
+):
+    body = {"assigned_to": str(db_seed["user_id"])}
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            f"/api/v1/workflows/steps/{pending['b']}/assign", json=body
+        )
+        inside = await client.post(
+            f"/api/v1/workflows/steps/{pending['a1']}/assign", json=body
+        )
+    assert outside.status_code == 404
+    assert inside.status_code != 404
+
+
+@pytest.mark.asyncio
+async def test_pending_assignments_list_is_limited_to_the_tree(
+    client_as, db_seed, tree, pending
+):
+    url = "/api/v1/workflows/pending-assignments"
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        scoped = await client.get(url)
+    async with client_as("tenant_admin", **_caller(db_seed, tree)) as client:
+        wide = await client.get(url)
+
+    assert {s["id"] for s in scoped.json()} == {str(pending["a1"])}
+    assert {s["id"] for s in wide.json()} == {str(pending["a1"]), str(pending["b"])}
+
+
+@pytest.mark.asyncio
+async def test_resolving_a_manual_review_of_another_unit_is_a_404(
+    client_as, db_seed, tree
+):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        outside = await client.post(
+            f"/api/v1/documents/{tree['ids']['doc_b']}/resolve-review",
+            json={"mark_as_resolved": True},
+        )
+    assert outside.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_rule_target_unit_cannot_be_moved_out_of_the_tree(
+    client_as, db_seed, tree
+):
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
+        rules = {r["code"]: r["id"] for r in (await client.get(RULES)).json()}
+        moved = await client.patch(
+            f"{RULES}/{rules['RULE_A1']}",
+            json={"target_org_unit_id": str(tree["units"]["b"])},
+        )
+        kept = await client.patch(
+            f"{RULES}/{rules['RULE_A1']}",
+            json={"target_org_unit_id": str(tree["units"]["a2"])},
+        )
+    assert moved.status_code == 403
+    assert kept.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_legacy_resolve_review_target_must_be_a_unit_of_the_tenant(
-    client_as, db_seed, scoped, db_session
+    client_as, db_seed, tree, db_session
 ):
     """#242: the tree check lets every unit through for the institution-wide
     roles, so the target is also checked against the caller's tenant."""
-    ids, units = scoped["ids"], scoped["units"]
-    for key in ("a1", "b"):
+    ids, units = tree["ids"], tree["units"]
+    for key in ("doc_a1", "doc_b"):
         returned = await db_session.get(Document, ids[key])
+        returned.status = "returned"
         returned.classification_status = "classified"
-    document = await db_session.get(Document, ids["b"])
     other_tenant, foreign_unit, closed_unit = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     db_session.add(
         Tenant(
@@ -519,13 +479,14 @@ async def test_legacy_resolve_review_target_must_be_a_unit_of_the_tenant(
         )
     await db_session.commit()
 
-    url = f"{DOCUMENTS}/{ids['b']}/resolve-review"
-    async with _as(
-        client_as, db_seed, scoped, "tenant_admin", "a", id=db_seed["user_id"]
+    resolved = {"mark_as_resolved": True}
+    url = f"/api/v1/documents/{ids['doc_b']}/resolve-review"
+    async with client_as(
+        "tenant_admin", id=db_seed["user_id"], **_caller(db_seed, tree, "a")
     ) as client:
         refused = {
             name: await client.post(
-                url, json={**RESOLVED, "target_folder_id": str(target)}
+                url, json={**resolved, "target_folder_id": str(target)}
             )
             for name, target in (
                 ("foreign", foreign_unit),
@@ -534,12 +495,12 @@ async def test_legacy_resolve_review_target_must_be_a_unit_of_the_tenant(
             )
         }
         own = await client.post(
-            url, json={**RESOLVED, "target_folder_id": str(units["a1"])}
+            url, json={**resolved, "target_folder_id": str(units["a1"])}
         )
-    async with _as(client_as, db_seed, scoped, "unit_admin", "a") as client:
+    async with client_as("unit_admin", **_caller(db_seed, tree)) as client:
         bounded = await client.post(
-            f"{DOCUMENTS}/{ids['a1']}/resolve-review",
-            json={**RESOLVED, "target_folder_id": str(foreign_unit)},
+            f"/api/v1/documents/{ids['doc_a1']}/resolve-review",
+            json={**resolved, "target_folder_id": str(foreign_unit)},
         )
 
     assert {
@@ -547,6 +508,7 @@ async def test_legacy_resolve_review_target_must_be_a_unit_of_the_tenant(
         for name, response in refused.items()
     } == {name: (422, "Target folder not found") for name in refused}
     assert own.status_code == 200, own.text
+    document = await db_session.get(Document, ids["doc_b"])
     await db_session.refresh(document)
     assert document.org_unit_id == units["a1"]
     assert bounded.status_code == 403, bounded.text

@@ -35,10 +35,10 @@ interface FlatUnitNode extends SpaceTreeNode {
 }
 
 const CLASSIFICATION_STATUS_LABELS: Record<string, string> = {
-  classified: 'Classe automatiquement',
-  needs_review: 'A verifier',
+  classified: 'Classé automatiquement',
+  needs_review: 'À vérifier',
   pending: 'En attente de classement',
-  rejected: 'Rejete',
+  rejected: 'Rejeté',
 };
 
 const CLASSIFICATION_STATUS_BADGES: Record<string, string> = {
@@ -141,7 +141,9 @@ const SpacesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recursive, setRecursive] = useState(false);
+  // Coché par défaut : un service de tête (Cabinet) n'a souvent aucun document
+  // en propre, la page s'ouvrirait sur « 0 document ».
+  const [recursive, setRecursive] = useState(true);
   // La recherche par texte est portée par l'URL (`?q=`) — la barre de
   // recherche globale (Header) écrit dedans.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -338,7 +340,7 @@ const SpacesPage: React.FC = () => {
         const message =
           e instanceof Error && e.message
             ? e.message
-            : "Impossible de charger les documents du service selectionne.";
+            : "Impossible de charger les documents du service sélectionné.";
         setError(message);
       } finally {
         setDocumentsLoading(false);
@@ -398,7 +400,8 @@ const SpacesPage: React.FC = () => {
     // En mode recherche : on lève la contrainte de portée (le tenant entier
     // visible) — l'utilisateur veut voir tous les matches, pas seulement
     // ceux strictement rattachés au service courant.
-    if (isSearchMode) return filteredDocuments;
+    // Sous-services inclus : la case demande justement leurs documents.
+    if (isSearchMode || recursive) return filteredDocuments;
     if (!selectedUnitId) {
       return filteredDocuments;
     }
@@ -411,12 +414,24 @@ const SpacesPage: React.FC = () => {
       const targetOrgUnitId = doc.classification_target_org_unit_id || doc.org_unit_id;
       return targetOrgUnitId === selectedUnitId;
     });
-  }, [childUnits.length, filteredDocuments, isSearchMode, selectedUnitId]);
+  }, [childUnits.length, filteredDocuments, isSearchMode, recursive, selectedUnitId]);
 
   const hiddenDescendantDocumentsCount = Math.max(
     filteredDocuments.length - visibleDocuments.length,
     0
   );
+
+  // Total du dossier : le serveur compte tous les documents filtrés, la page n'en
+  // charge que SPACES_PAGE_SIZE (#256). Les documents de sous-services masqués sur
+  // la page sont retirés quand tout est chargé. Paginé avec des sous-services, on ne
+  // connaît que la page : on affiche le total serveur, sous-services compris.
+  const isPaginated = totalDocuments > documents.length;
+  // Les documents de sous-services peuvent tous être sur les pages suivantes : on
+  // se fie à l'existence de sous-services, pas au nombre masqué sur cette page.
+  const countIncludesSubServices = isPaginated && childUnits.length > 0 && !isSearchMode;
+  const folderDocumentCount = countIncludesSubServices
+    ? totalDocuments
+    : Math.max(totalDocuments - hiddenDescendantDocumentsCount, visibleDocuments.length);
 
   const reviewCount = useMemo(
     () =>
@@ -637,9 +652,14 @@ const SpacesPage: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-500">
-                <span>{visibleDocuments.length} document{visibleDocuments.length > 1 ? 's' : ''}</span>
+                <span>
+                  {folderDocumentCount} document{folderDocumentCount > 1 ? 's' : ''}
+                  {countIncludesSubServices ? ' (sous-services compris)' : ''}
+                </span>
                 <span>·</span>
-                <span>{reviewCount} à revoir</span>
+                <span>
+                  {reviewCount} à revoir{isPaginated ? ' sur cette page' : ''}
+                </span>
                 <button
                   type="button"
                   onClick={() => loadDocuments()}
@@ -964,9 +984,9 @@ const SpacesPage: React.FC = () => {
                       <tr>
                         <th className="px-6 py-4">Document</th>
                         <th className="px-6 py-4">Classement</th>
-                        <th className="px-6 py-4">Cible metier</th>
+                        <th className="px-6 py-4">Cible métier</th>
                         <th className="px-6 py-4">Taille</th>
-                        <th className="px-6 py-4">Mise a jour</th>
+                        <th className="px-6 py-4">Mise à jour</th>
                         <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -996,7 +1016,7 @@ const SpacesPage: React.FC = () => {
                                 <div className="space-y-2">
                                   <p className="text-sm font-bold text-slate-800">{doc.title}</p>
                                   <div className="flex flex-wrap gap-2 text-[11px] font-medium text-slate-500">
-                                    <span className="rounded-full bg-slate-100 px-3 py-1">{doc.category_name || 'Non classe'}</span>
+                                    <span className="rounded-full bg-slate-100 px-3 py-1">{doc.category_name || 'Non classé'}</span>
                                     <span className="rounded-full bg-slate-100 px-3 py-1">{getFileTypeLabel(doc.mime_type || doc.file_type)}</span>
                                     <span className="rounded-full bg-slate-100 px-3 py-1">{getStatusLabel(doc.status)}</span>
                                   </div>
@@ -1008,12 +1028,12 @@ const SpacesPage: React.FC = () => {
                                     {getClassificationStatusLabel(doc.classification_status)}
                                   </span>
                                   <p className="text-sm font-semibold text-slate-700">
-                                    {doc.logical_space_path || 'Chemin logique non encore determine'}
+                                    {doc.logical_space_path || 'Chemin logique pas encore déterminé'}
                                   </p>
                                   <p className="text-xs font-medium text-slate-500">
                                     {[doc.classification_domain_name, doc.classification_activity_name, doc.classification_year]
                                       .filter(Boolean)
-                                      .join(' / ') || 'Classement metier incomplet'}
+                                      .join(' / ') || 'Classement métier incomplet'}
                                   </p>
                                 </div>
                               </td>
@@ -1243,7 +1263,7 @@ const SpacesPage: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Classement</p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {previewDocument.logical_space_path || 'Chemin logique non encore determine'}
+                      {previewDocument.logical_space_path || 'Chemin logique pas encore déterminé'}
                     </p>
                   </div>
                 </div>

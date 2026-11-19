@@ -14,80 +14,98 @@
       {
         "code": "DEMO-DOM-RH",
         "name": "Gestion du personnel",
+        "description": "Dossiers des agents : carrière, paie, formation et congés.",
         "activities": [
           {
             "code": "DEMO-ACT-RH-CONTRATS",
-            "name": "Contrats et actes de carrière"
+            "name": "Contrats et actes de carrière",
+            "description": "Contrats, arrêtés de nomination et d'avancement."
           },
           {
             "code": "DEMO-ACT-RH-PAIE",
-            "name": "Paie et bulletins"
+            "name": "Paie et bulletins",
+            "description": "Bulletins de paie et éléments de salaire."
           },
           {
             "code": "DEMO-ACT-RH-FORMATION",
-            "name": "Formation"
+            "name": "Formation",
+            "description": "Plans de formation, séminaires et ateliers."
           },
           {
             "code": "DEMO-ACT-RH-CONGES",
-            "name": "Congés et absences"
+            "name": "Congés et absences",
+            "description": "Demandes et décisions de congé ou d'absence."
           }
         ]
       },
       {
         "code": "DEMO-DOM-FIN",
         "name": "Finances et comptabilité",
+        "description": "Dépenses, factures, marchés et rapports financiers.",
         "activities": [
           {
             "code": "DEMO-ACT-FIN-FACTURES",
-            "name": "Factures fournisseurs"
+            "name": "Factures fournisseurs",
+            "description": "Factures, devis et proformas des fournisseurs."
           },
           {
             "code": "DEMO-ACT-FIN-ENGAGEMENTS",
-            "name": "Engagements et mandats"
+            "name": "Engagements et mandats",
+            "description": "Engagements de dépense, mandats et bons de commande."
           },
           {
             "code": "DEMO-ACT-FIN-MARCHES",
-            "name": "Marchés publics"
+            "name": "Marchés publics",
+            "description": "Appels d'offres, dossiers de marché et PV d'ouverture."
           },
           {
             "code": "DEMO-ACT-FIN-RAPPORTS",
-            "name": "Rapports financiers"
+            "name": "Rapports financiers",
+            "description": "Bilans et états financiers périodiques."
           }
         ]
       },
       {
         "code": "DEMO-DOM-SI",
         "name": "Systèmes d'information",
+        "description": "Matériel, logiciels, maintenance et incidents informatiques.",
         "activities": [
           {
             "code": "DEMO-ACT-SI-MAINTENANCE",
-            "name": "Contrats de maintenance"
+            "name": "Contrats de maintenance",
+            "description": "Contrats de maintenance du matériel et des logiciels."
           },
           {
             "code": "DEMO-ACT-SI-INCIDENTS",
-            "name": "Incidents et interventions"
+            "name": "Incidents et interventions",
+            "description": "Tickets, pannes et interventions techniques."
           },
           {
             "code": "DEMO-ACT-SI-LICENCES",
-            "name": "Licences et équipements"
+            "name": "Licences et équipements",
+            "description": "Licences logicielles et inventaire du matériel."
           },
           {
             "code": "DEMO-ACT-SI-PROCEDURES",
-            "name": "Procédures"
+            "name": "Procédures",
+            "description": "Procédures et modes opératoires informatiques."
           }
         ]
       },
       {
         "code": "DEMO-DOM-COURRIER",
         "name": "Courrier et notes de service",
+        "description": "Courrier reçu et notes de service internes.",
         "activities": [
           {
             "code": "DEMO-ACT-COURRIER-ENTRANT",
-            "name": "Courrier entrant"
+            "name": "Courrier entrant",
+            "description": "Lettres et correspondances reçues."
           },
           {
             "code": "DEMO-ACT-COURRIER-NOTES",
-            "name": "Notes internes"
+            "name": "Notes internes",
+            "description": "Notes de service et communications internes."
           }
         ]
       }
@@ -100,6 +118,7 @@
     {
       "code": "demo_rule_01",
       "name": "Bulletins de paie",
+      "description": "Classe les bulletins de paie et fiches de salaire dans « Paie et bulletins », au service DRH.",
       "priority": 1,
       "isActive": true,
       "filenamePattern": "bulletin;paie;salaire",
@@ -114,6 +133,7 @@
     {
       "code": "demo_rule_02",
       "name": "Maintenance DSI",
+      "description": "Classe les contrats de maintenance envoyés par la DSI dans « Contrats de maintenance ».",
       "priority": 2,
       "isActive": true,
       "filenamePattern": "maintenance;contrat",
@@ -130,6 +150,7 @@
     {
       "code": "demo_rule_03",
       "name": "Contrats et actes",
+      "description": "Classe les contrats et arrêtés de nomination ou d'avancement de la DRH dans « Contrats et actes de carrière ».",
       "priority": 3,
       "isActive": true,
       "filenamePattern": "contrat;cdi;cdd;arrete;nomination;avancement",
@@ -146,6 +167,7 @@
     {
       "code": "demo_rule_04",
       "name": "Formation",
+      "description": "Classe les documents de formation, séminaires et ateliers de la DRH dans « Formation ».",
       "priority": 4,
       "isActive": true,
       "filenamePattern": "formation;seminaire;atelier",
@@ -162,6 +184,7 @@
     {
       "code": "demo_rule_05",
       "name": "Factures",
+      "description": "Classe les factures, devis et proformas dans « Factures fournisseurs », au service DAF.",
       "priority": 5,
       "isActive": true,
       "filenamePattern": "facture;devis;proforma",
@@ -176,6 +199,7 @@
     {
       "code": "demo_rule_06",
       "name": "Engagements",
+      "description": "Classe les mandats, engagements et bons de commande dans « Engagements et mandats », au service DAF.",
       "priority": 6,
       "isActive": true,
       "filenamePattern": "mandat;engagement;ordonnancement;bon de commande",
@@ -190,6 +214,7 @@
     {
       "code": "demo_rule_07",
       "name": "Marchés",
+      "description": "Classe les marchés, appels d'offres et PV d'ouverture dans « Marchés publics », au service DAF.",
       "priority": 7,
       "isActive": true,
       "filenamePattern": "marche;appel d offres;dao;pv ouverture",
@@ -204,6 +229,7 @@
     {
       "code": "demo_rule_08",
       "name": "Incidents",
+      "description": "Classe les incidents, tickets et interventions dans « Incidents et interventions », au service DSI.",
       "priority": 8,
       "isActive": true,
       "filenamePattern": "incident;ticket;intervention;panne",
@@ -218,6 +244,7 @@
     {
       "code": "demo_rule_09",
       "name": "Courrier entrant",
+      "description": "Classe les courriers, lettres et notes dans « Courrier entrant », dans le service qui les importe.",
       "priority": 9,
       "isActive": true,
       "filenamePattern": "courrier;lettre;correspondance;note",
@@ -232,6 +259,7 @@
     {
       "code": "demo_rule_10",
       "name": "Rapports financiers",
+      "description": "Désactivée : classerait les rapports et bilans dans « Rapports financiers », au service DAF.",
       "priority": 10,
       "isActive": false,
       "filenamePattern": "rapport;bilan;etat financier",
