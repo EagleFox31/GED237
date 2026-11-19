@@ -65,6 +65,24 @@ async def update_document_ocr(
                     "Classification after OCR failed for document %s", document_id
                 )
 
+            # The review screen lists review rows, not statuses: open one for a document
+            # still « à vérifier », close the one opened on upload if the rules classified it.
+            from app.services.classification_review_service import (
+                ClassificationReviewService,
+            )
+
+            try:
+                await session.refresh(document)
+                await ClassificationReviewService(
+                    session
+                ).sync_review_with_document_status(document=document)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                logger.exception(
+                    "Review sync after OCR failed for document %s", document_id
+                )
+
 
 @celery_app.task(name="app.workers.tasks.process_document_ocr")
 def process_document_ocr(document_id: str, file_path: str, file_type: str):

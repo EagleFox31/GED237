@@ -55,8 +55,8 @@ p, tenant_admin, documents, create
 p, tenant_admin, documents, read
 p, tenant_admin, documents, update
 p, tenant_admin, documents, delete
-# Purge définitive et vidage de la corbeille de sa propre institution (routes bornées au tenant)
-p, tenant_admin, documents, purge
+# Pas de purge : la suppression définitive est réservée au super_admin (documents manage),
+# qui vise l'institution par ?tenant_id= (décision PO, V1.1).
 # Archiver un document validé ou signé, voir la file « à reclasser » (#228).
 # Pas manage : il permettrait aussi de passer outre les verrous.
 p, tenant_admin, documents, archive

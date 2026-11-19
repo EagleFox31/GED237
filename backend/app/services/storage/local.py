@@ -6,7 +6,7 @@ from typing import Tuple, Optional
 
 from app.core.config import settings
 from app.core.errors.domain import FileTooLargeError
-from app.services.storage.base import IStorageService
+from app.services.storage.base import IStorageService, unique_storage_name
 
 CHUNK_SIZE = 1 * 1024 * 1024  # 1 Mo — bon compromis perf/RAM pour une V1
 
@@ -43,7 +43,8 @@ class LocalStorageService(IStorageService):
         os.makedirs(target_dir, exist_ok=True)
 
         filename = file.filename
-        file_path = os.path.join(target_dir, filename)
+        stored_name = unique_storage_name(filename)
+        file_path = os.path.join(target_dir, stored_name)
 
         part_path = file_path + ".part"
 
@@ -70,7 +71,7 @@ class LocalStorageService(IStorageService):
                 os.remove(part_path)
             raise
 
-        relative_path = os.path.join(directory, filename).replace("\\", "/")
+        relative_path = os.path.join(directory, stored_name).replace("\\", "/")
         return relative_path, sha256.hexdigest()
 
     def get_full_path(self, relative_path: str) -> str:
