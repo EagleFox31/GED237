@@ -35,7 +35,7 @@ ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
 ORDER_V4="309 310 153 155 169 471 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
-ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 446 417 441 484 450 459"
+ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 399 416 446 417 441 484 450 459"
 # Vague 6 : outils et documentation (03 au 05/12, 18:00)
 ORDER_V6="335 312 189 166 451 452"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
@@ -51,6 +51,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # #486 (Q, nginx retrouve l'adresse de api après une sauvegarde ou une restauration ; brouillon V1.1, base main, tête 810b8ee6) : fin de la vague 1, après #443. Preuve de Q : 502 sur main, 200 en 24 s avec le correctif, sans relancer nginx (HTTP et HTTPS). Image nginx:1.30-alpine ; reprise d'environ 30 s documentée (installation.md § 9).
 # #487 (B, doublon à la restauration, partie serveur ; brouillon V1.1, base main, tête b713486c) : la restauration réussit toujours, la réponse ajoute identical_document {id, title} ou null, rien n'est désigné hors du périmètre de lecture. Décision du PO du 19/11, 11:40. La PR écran de F suit, empilée sur #199 (à re-cibler sur main avant la fusion de #199) : à placer après #487.
 # #488 (B, un 3e agent dans le service du jeu de démo, pour prouver la création et l'annulation d'une délégation avec #445 et #453 ; brouillon V1.1, base main, tête cbcfab77) : placée dans la vague 2 juste avant #445 et #453. #171 est fusionnée (main = d3f53564) : pour l'item 19 il reste #199.
+# #485 (écran de revue du classement, ticket #483) est fusionnée (main = 32c6552b) : le point « revue incomplète » est retiré du § 6 de la checklist. #393 est fermée, remplacée par #362 (déjà en vague 5).
 # #484 (Q, contrastes AA, lot 8 point 4 : liste des documents, fiche, parapheur ; brouillon V1.1, tête b5aafabe) : empilée sur #441 (base feat/v11-a11y-keyboard), à re-cibler sur main avant la fusion de #441 ; vague 5 juste après #441, DEP[484]=441. Pas encore jouée au navigateur : ajoutée par O aux contre-tests du prochain lot d'audit.
 # Ticket #483 (défaut de l'écran de revue du classement, V1.0) : PR #485 de B (tête 79dd873c, relecture Q ; branche fix/review-sync-ingest-ocr, base main ; deux cas, plus un script de rattrapage lancé d'abord en plan, puis avec --apply, sans suppression), dans ORDER_V0 juste après #480 ; rattrapage ajouté à la checklist de recette (ligne 1.2 bis). #449 : tête 58d75f7b (brouillon V1.1). #199 a encore pour base feat/post-rc1-trash-ui (#181 fusionnée) : à re-cibler sur main avant sa fusion.
 # #471 (0ec2b5dd, brouillon V1.1, empilée sur #155 : à re-cibler sur main avant la fusion de #155) : OK sécurité de B, contrôle final de Q en cours ; reste en vague 4, après #155 et #479 (DEP). #181 fusionnée le 19/11 (main = 2174cfd3). Suites de sécurité d'aide-api (une PR à venir, base main : ticket WebSocket lié à la session, sockets fermés à la déconnexion, vérification de l'Origine) : après #479 et #471.
@@ -62,7 +63,7 @@ HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 476 4
 - **Ajoutées** : ces PR étaient ouvertes mais absentes des vagues.
   - #394 et #405 (déblocage d'un compte, #135) : après #237, car elles touchent aussi `users.py`. #405 est empilée sur #394.
   - #398 : la partie écran de #377, juste après #377.
-  - #393, #399, #416 et #417 en fin de vague 5. #416 et #417 sont les deux XS du Lot 6 (lignes 57 quinquies et 57 sexies du plan).
+  - #399, #416 et #417 en fin de vague 5. #416 et #417 sont les deux XS du Lot 6 (lignes 57 quinquies et 57 sexies du plan).
   - #361 : en vague 3, après #221.
   - #431 (57 L14-1) et #435 (export de l’audit pour plusieurs acteurs) en fin de vague 1 ; #435 passe en vague 3 si elle n’est pas corrigée et recontrôlée par (G) le 24/11 au matin. #436 (57 L10-3, deux migrations) en fin de vague 2, après la chaîne OCR ; 57 L10-3 bis (`pg_trgm`) la suit (O, 18/11 au soir).
   - PR ouvertes le 18/11 au soir (O). En fin de vague 1 :

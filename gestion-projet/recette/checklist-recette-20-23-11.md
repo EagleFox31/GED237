@@ -22,7 +22,7 @@
 | 1.0 | Pile de recette vérifiée debout après le redémarrage de la veille (Docker passé de 12 à 16 Go à 18:15, arrêt de tous les conteneurs) | `docker compose ps` (tous les services `running`/`healthy`), `/health` en 200, connexion d'un compte de démo | état de la pile et durée du redémarrage | — |
 | 1.1 | Pile neuve depuis `main` : `git clone` propre, `docker compose up -d --build`, attendre `/health` 200 | manuel d'installation `DOCS/exploitation/installation.md` | durées notées | 5 Go |
 | 1.2 | Jeu D1 : `e2e_reset.sh demo` | `sh backend/scripts/e2e_reset.sh demo` (voir `DOCS/exploitation/donnees-demo.md`) | compteurs | — |
-| 1.2 bis | **Seulement si #485 est fusionnée** (ticket #483) : rattrapage des revues de classement pour les documents déjà en base. Se joue après chaque `alembic upgrade head` ou restauration (1.3, 3.9) | `docker compose exec api python scripts/sync_classification_reviews.py` (plan, sans écriture) ; même commande avec `--apply` ; un second `--apply` ne trouve plus rien à faire | sortie des trois passes | — |
+| 1.2 bis | **#485 fusionnée, `main` = 32c6552b** (ticket #483) : rattrapage des revues de classement pour les documents déjà en base. Se joue après chaque `alembic upgrade head` ou restauration (1.3, 3.9) | `docker compose exec api python scripts/sync_classification_reviews.py` (plan, sans écriture) ; même commande avec `--apply` ; un second `--apply` ne trouve plus rien à faire | sortie des trois passes | — |
 | 1.3 | **Restauration n° 2** sur le poste de secours **(#104)** — **déplacée au 21/11, 09:00–10:00** (repli le 22, même créneau), voir 3.9 | `bash ops/backup.sh` ; `bash ops/restore.sh backups/ged237-<horodatage> --wipe` ; `alembic current` ; `/health` (version attendue) | `restauration-2026-11-21.txt` | 5 Go |
 | 1.4 | Procédure « Retour arrière » des notes rc.1 jouée par la ligne 1.3 **(#104)** | mêmes commandes | mention dans 1.3 | — |
 | 1.5 | **HTTPS** : mkcert (`DOCS/exploitation/https-local.md`), puis `sh scripts/prove_tls.sh` vert (`OK: HTTPS …`, code 0) | idem | sortie datée `recette/https-2026-11-20.txt` | 5 Go |
@@ -104,10 +104,3 @@ Les cinq premiers comportements viennent du tri de l’audit du 19/11 (`innovate
 - **« Mes Documents » s'arrête à 100 lignes.** La recherche du bandeau ne filtre que la page affichée. Un document absent de cette page n'est pas perdu : le chercher avec « Recherche ».
 - **Pas de « Renvoyer le code ».** Si le code a expiré, recommencer la connexion.
 - **Restaurer un document peut recréer un doublon.** La restauration depuis la corbeille ne vérifie pas les doublons. Le document se retrouve dans la vue « Doublons ». Ne pas le noter en KO (décision du PO, 19/11, 11:40).
-
-Le point suivant est un défaut V1.0, trouvé par Q et confirmé par B le 19/11. La PR de B est en cours, relue par Q. Le point reste annoncé aux testeurs **tant qu'elle n'est pas fusionnée** (#485). À sa fusion : retirer ce point du § 6, puis rejouer un dossier importé pour confirmer qu'il apparaît dans la revue (Q).
-
-- **Écran de revue du classement incomplet.**
-  - Il ne montre que les documents envoyés un par un, ou importés par CSV ou ZIP.
-  - Un document importé par dossier, ou resté « à vérifier » après la lecture automatique, n'y apparaît pas. Le retrouver dans « Mes Documents » ou avec « Recherche ».
-  - À l'inverse, si la lecture automatique a déjà classé un document, sa ligne peut rester affichée dans la revue, et « Résoudre » répond par une erreur. Ne pas le noter en KO : le classement du document est bon.
