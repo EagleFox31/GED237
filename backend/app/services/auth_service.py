@@ -257,6 +257,18 @@ class AuthService:
             lock_seconds=lock_seconds,
         )
 
+    @staticmethod
+    async def clear_lock(redis, user_id) -> bool:
+        """Lift an account lock and its wrong-code counter. True if a lock was lifted.
+
+        Same keys as _record_otp_failure: the next login starts from zero failures.
+        Without a lock, the counter of an ongoing login is left as it is.
+        """
+        if not await redis.delete(f"lock:{user_id}"):
+            return False
+        await redis.delete(f"otp_fail:{user_id}")
+        return True
+
     async def _record_otp_failure(
         self,
         db: AsyncSession,

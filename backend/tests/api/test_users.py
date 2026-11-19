@@ -63,6 +63,7 @@ async def _add_user(db_session, tenant_id, org_unit_id, matricule, **fields):
         ("post", "/{id}/reset-password"),
         ("post", "/{id}/toggle-active"),
         ("post", "/{id}/disable-mfa"),
+        ("post", "/{id}/unlock"),
         ("get", "/{id}/hierarchy-up"),
         ("get", "/{id}/hierarchy-down"),
     ],
@@ -92,6 +93,7 @@ async def test_roles_without_users_permission_are_denied(client_as, db_seed, rol
             await client.post(f"{USERS}/", json=_user_payload(db_seed)),
             await client.patch(target, json={"first_name": "Denied"}),
             await client.post(f"{target}/reset-password"),
+            await client.post(f"{target}/unlock"),
         ]
     assert [r.status_code for r in responses] == [403] * len(responses)
 
@@ -113,6 +115,7 @@ async def test_unit_admin_reads_users_but_cannot_change_them(client_as, db_seed)
             await client.post(f"{target}/reset-password"),
             await client.post(f"{target}/toggle-active"),
             await client.post(f"{target}/disable-mfa"),
+            await client.post(f"{target}/unlock"),
         ]
     assert [r.status_code for r in denied] == [403] * len(denied)
 
@@ -129,6 +132,7 @@ async def test_tenant_admin_cannot_reach_users_of_another_tenant(client_as, db_s
             await client.post(f"{target}/reset-password"),
             await client.post(f"{target}/toggle-active"),
             await client.post(f"{target}/disable-mfa"),
+            await client.post(f"{target}/unlock"),
             await client.get(f"{target}/hierarchy-up"),
             await client.get(f"{target}/hierarchy-down"),
         ]

@@ -14,6 +14,7 @@ from app.api.v1.endpoints.audit import ACTION_LABELS, TABLE_LABELS
 
 ACCENTED_LABELS = {
     "account_locked": "Compte verrouillé",
+    "account_unlocked": "Compte débloqué",
     "create": "Création",
     "upload": "Dépôt de document",
     "login_failed": "Connexion refusée",

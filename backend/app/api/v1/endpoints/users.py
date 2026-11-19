@@ -1,5 +1,5 @@
 # backend/app/api/v1/endpoints/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, false, true
 from sqlalchemy.orm import selectinload
@@ -28,7 +28,10 @@ from app.schemas.user import (
     UserUpdate,
     UserCreateResponse,
 )
+from app.core.redis import get_redis
 from app.core.security import hash_password
+from app.services.audit_trail import audit_entry
+from app.services.auth_service import AuthService
 from app.services.email_service import send_account_created
 import secrets
 
@@ -632,6 +635,55 @@ async def disable_user_mfa(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.post("/{user_id}/unlock", response_model=dict)
+async def unlock_user(
+    user_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lift the lock set after too many wrong codes (423 ACCOUNT_LOCKED) before it expires.
+
+    Same scope and rights as the other account actions (users update). Idempotent: an
+    account that is not locked answers ``unlocked: false`` and writes nothing.
+    """
+    query = select(User).filter(
+        User.id == user_id,
+        User.tenant_id == current_user.tenant_id,
+        _unit_scope(current_user),
+    )
+    user = (await db.execute(query)).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await authorize_or_403(current_user, "users", "update", ctx_from_resource(user))
+    assert_org_unit_scope(user.org_unit_id, current_user)
+
+    redis = await get_redis()
+    if not await redis.exists(f"lock:{user.id}"):
+        return {"unlocked": False, "message": "Ce compte n'est pas verrouillé."}
+
+    # Audited first: if the write fails, the account stays locked rather than
+    # unlocked without a trace.
+    db.add(
+        audit_entry(
+            tenant_id=user.tenant_id,
+            user_id=current_user.id,
+            table_name="users",
+            record_id=user.id,
+            action="account_unlocked",
+            details={"matricule": user.matricule},
+            request=request,
+        )
+    )
+    await db.commit()
+    await AuthService.clear_lock(redis, user.id)
+    return {
+        "unlocked": True,
+        "message": "Compte débloqué : l'agent peut se reconnecter.",
+    }
 
 
 @router.get("/{user_id}/hierarchy-up", response_model=List[UserRead])

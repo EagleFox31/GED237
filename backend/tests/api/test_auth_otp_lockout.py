@@ -5,12 +5,14 @@ import uuid
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.core.redis import get_redis
 from app.core.security import hash_password
+from app.models.audit import AuditLog
 from app.models.user import User
 
 LOGIN = "/api/v1/auth/login"
@@ -191,3 +193,67 @@ async def test_every_wrong_code_is_audited_including_the_locking_one(
         f["new_data"]["reason"] == "code de verification incorrect" for f in failed
     )
     assert step1["otp"] not in str(failed)
+
+
+@pytest.mark.asyncio
+async def test_admin_unlocks_a_locked_account_once_and_it_is_audited(
+    async_client: AsyncClient, client_as, test_engine, db_seed
+):
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    admin_id = uuid.uuid4()
+    async with session_factory() as session:
+        session.add(
+            User(
+                id=admin_id,
+                tenant_id=db_seed["tenant_id"],
+                org_unit_id=db_seed["org_unit_id"],
+                role_id=db_seed["role_id"],
+                matricule="ADMUNLOCK",
+                email="adm.unlock@testministry.gov.cm",
+                first_name="Admin",
+                last_name="Debloque",
+                password_hash=hash_password("adminpassword123"),
+                is_active=True,
+            )
+        )
+        await session.commit()
+    await _wrong_otps(async_client, await _login(async_client), 3)
+    _assert_locked(await async_client.post(LOGIN, json=CREDENTIALS))
+
+    target = f"/api/v1/users/{db_seed['user_id']}/unlock"
+    async with client_as(
+        "tenant_admin", tenant_id=db_seed["tenant_id"], id=admin_id
+    ) as admin:
+        first = await admin.post(target)
+        second = await admin.post(target)
+        journal = (
+            await admin.get("/api/v1/audit/logs", params={"action": "account_unlocked"})
+        ).json()
+
+    assert first.status_code == 200, first.text
+    assert first.json()["unlocked"] is True
+    assert second.json()["unlocked"] is False
+    redis = await get_redis()
+    assert (
+        await redis.exists(
+            f"lock:{db_seed['user_id']}", f"otp_fail:{db_seed['user_id']}"
+        )
+        == 0
+    )
+    await _login(async_client)
+    async with session_factory() as session:
+        rows = (
+            (
+                await session.execute(
+                    select(AuditLog).where(AuditLog.action == "account_unlocked")
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert len(rows) == 1
+    assert rows[0].user_id == admin_id
+    assert rows[0].record_id == db_seed["user_id"]
+    assert [entry["action_label"] for entry in journal] == ["Compte débloqué"]
