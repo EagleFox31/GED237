@@ -1,12 +1,22 @@
 // frontend/profiles/tenant-admin/pages/PendingAssignmentsInbox.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api } from '../../../services/api';
+import { api, accountKeyOf } from '../../../services';
+import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
+import { useAuthStore } from '../../../stores/authStore';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
-import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentButton';
+import {
+  filterAssignableUsers,
+  pickNextAssignment,
+  readStoredActorId,
+  resolveInitialActorId,
+  writeStoredActorId,
+} from '../../../lib/pendingAssignments';
 
 const PendingAssignmentsInbox: React.FC = () => {
+  const userProfile = useAuthStore((s) => s.userProfile);
+  const accountKey = accountKeyOf(userProfile);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -20,6 +30,7 @@ const PendingAssignmentsInbox: React.FC = () => {
     setSearchParams(nextParams, { replace: true });
   };
   const [users, setUsers] = useState<any[]>([]);
+  const [userFilter, setUserFilter] = useState('');
   const [selectedAssignment, setSelectedAssignment] = useState<any | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [assigning, setAssigning] = useState(false);
@@ -48,10 +59,28 @@ const PendingAssignmentsInbox: React.FC = () => {
     try {
       const data = await api.getUsers();
       setUsers(data);
+      setSelectedUserId((current) => current || resolveInitialActorId(data, readStoredActorId(accountKey)));
     } catch (e) {
-      console.error(e);
+      if (!(e instanceof ApiError)) {
+        pushClientOperationError(e, { fallbackDetail: 'Impossible de charger la liste des acteurs.' });
+      }
     }
   };
+
+  const filtered = useMemo(
+    () =>
+      assignments.filter(
+        (a) =>
+          a.document?.title?.toLowerCase().includes(search.toLowerCase()) ||
+          a.label.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [assignments, search],
+  );
+
+  const visibleUsers = useMemo(
+    () => filterAssignableUsers(users, userFilter),
+    [users, userFilter],
+  );
 
   const assignStep = async () => {
     if (!selectedAssignment || !selectedUserId) return;
@@ -59,21 +88,18 @@ const PendingAssignmentsInbox: React.FC = () => {
     try {
       setAssigning(true);
       await api.assignPendingStep(selectedAssignment.id, selectedUserId);
-      setAssignments(assignments.filter(a => a.id !== selectedAssignment.id));
-      setSelectedAssignment(null);
-      setSelectedUserId('');
+      writeStoredActorId(selectedUserId, accountKey);
+      const nextItem = pickNextAssignment(filtered, selectedAssignment.id);
+      setAssignments((prev) => prev.filter((a) => a.id !== selectedAssignment.id));
+      setSelectedAssignment(nextItem);
     } catch (e) {
-      // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
-      console.error(e);
+      if (!(e instanceof ApiError)) {
+        pushClientOperationError(e, { fallbackDetail: "Impossible d'assigner cette étape." });
+      }
     } finally {
       setAssigning(false);
     }
   };
-
-  const filtered = assignments.filter(a =>
-    a.document?.title?.toLowerCase().includes(search.toLowerCase()) ||
-    a.label.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="p-8 pb-32">
@@ -162,14 +188,23 @@ const PendingAssignmentsInbox: React.FC = () => {
 
                <div className="space-y-6">
                  <div>
-                    <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Acteur Manuel</label>
+                    <label htmlFor="actor-filter" className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Acteur Manuel</label>
+                    <input
+                      id="actor-filter"
+                      type="search"
+                      value={userFilter}
+                      onChange={(e) => setUserFilter(e.target.value)}
+                      placeholder="Filtrer les acteurs par nom ou rôle..."
+                      className="w-full mb-3 bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-700 font-medium focus:outline-none focus:border-rdpc-blue transition-colors"
+                    />
                     <select
+                      aria-label="Acteur Manuel"
                       value={selectedUserId}
                       onChange={(e) => setSelectedUserId(e.target.value)}
                       className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-slate-700 font-medium italic focus:outline-none focus:border-rdpc-blue transition-colors"
                     >
                       <option value="">-- Sélectionner un utilisateur --</option>
-                      {users.map(u => (
+                      {visibleUsers.map(u => (
                          <option key={u.id} value={u.id}>{u.full_name} ({u.role_label})</option>
                       ))}
                     </select>

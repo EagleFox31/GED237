@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import { triggerDetailDecision, type TaskDecisionActions } from '../lib/taskDecisionFromDetail';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -19,11 +20,13 @@ interface DocumentDetailModalProps {
   onClose: () => void;
   /** Appelé après une modification (ex. archivage) pour rafraîchir la liste appelante. */
   onUpdated?: (document: Document) => void;
+  /** Actions rapides de décision affichées uniquement depuis le parapheur ou WorkflowTasks. */
+  taskDecision?: TaskDecisionActions;
   /** Fourni par la liste appelante : affiche « Mettre à la corbeille » et rafraîchit après succès. */
   onTrashed?: () => void;
 }
 
-const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated, onTrashed }) => {
+const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated, taskDecision, onTrashed }) => {
   const [document, setDocument] = useState<Document>(initialDocument);
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
@@ -227,11 +230,35 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-slate-400">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {taskDecision && (
+              <>
+                <button
+                  type="button"
+                  disabled={taskDecision.disabled}
+                  data-testid="detail-decision-reject"
+                  onClick={() => triggerDetailDecision('reject', taskDecision, onClose, document.current_version_id)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                >
+                  Rejeter
+                </button>
+                <button
+                  type="button"
+                  disabled={taskDecision.disabled}
+                  data-testid="detail-decision-approve"
+                  onClick={() => triggerDetailDecision('approve', taskDecision, onClose, document.current_version_id)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-rdpc-blue text-white hover:bg-blue-800 shadow-sm transition-colors disabled:opacity-50"
+                >
+                  {taskDecision.approveLabel}
+                </button>
+              </>
+            )}
+            <button type="button" onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-slate-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}

@@ -1,9 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../../../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { api, accountKeyOf } from '../../../services';
 import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { useAuthStore } from '../../../stores/authStore';
+import {
+  countDraftStatuses,
+  filterDraftDocuments,
+  readDraftStatusFilter,
+  readStoredValidator,
+  resolveInitialValidator,
+  writeDraftStatusFilter,
+  writeStoredValidator,
+  type DraftStatusFilter,
+} from '../../../lib/draftWorkspace';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -13,6 +25,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const DraftWorkspace: React.FC = () => {
+  const userProfile = useAuthStore((s) => s.userProfile);
+  const accountKey = accountKeyOf(userProfile);
   const [documents, setDocuments] = useState<any[]>([]);
   const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +38,16 @@ const DraftWorkspace: React.FC = () => {
   const [documentToSubmit, setDocumentToSubmit] = useState<string | null>(null);
   const [selectedValidator, setSelectedValidator] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusFilter = readDraftStatusFilter(searchParams);
+  const setStatusFilter = (next: DraftStatusFilter) => {
+    setSearchParams((prev) => writeDraftStatusFilter(prev, next), { replace: true });
+  };
+  const statusCounts = useMemo(() => countDraftStatuses(documents), [documents]);
+  const visibleDocuments = useMemo(
+    () => filterDraftDocuments(documents, statusFilter),
+    [documents, statusFilter],
+  );
 
   useEffect(() => {
     fetchData();
@@ -39,7 +63,7 @@ const DraftWorkspace: React.FC = () => {
       setDocuments(docsResp);
       setValidators(validatorsResp);
     } catch (error) {
-      console.error("Failed to fetch data", error);
+      pushClientOperationError(error, { fallbackDetail: 'Impossible de charger vos documents.' });
     } finally {
       setLoading(false);
     }
@@ -47,6 +71,7 @@ const DraftWorkspace: React.FC = () => {
 
   const openSubmitModal = (id: string) => {
     setDocumentToSubmit(id);
+    setSelectedValidator(resolveInitialValidator(validators, readStoredValidator(accountKey)));
     setShowSubmitModal(true);
   };
 
@@ -69,9 +94,9 @@ const DraftWorkspace: React.FC = () => {
       ];
 
       await api.createWorkflowSteps(documentToSubmit, steps);
+      writeStoredValidator(selectedValidator, accountKey);
       setShowSubmitModal(false);
       setDocumentToSubmit(null);
-      setSelectedValidator('');
       fetchData();
     } catch (e) {
       // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
@@ -100,17 +125,45 @@ const DraftWorkspace: React.FC = () => {
         </button>
       </div>
 
+      {/* Filtres rapides */}
+      <div className="flex flex-wrap items-center gap-2 shrink-0" role="group" aria-label="Filtrer par statut">
+        {(
+          [
+            { id: 'draft', label: 'Brouillons', count: statusCounts.draft },
+            { id: 'rejected', label: 'Rejetés', count: statusCounts.rejected },
+            { id: 'all', label: 'Tous', count: statusCounts.all },
+          ] as Array<{ id: DraftStatusFilter; label: string; count: number }>
+        ).map((chip) => {
+          const active = statusFilter === chip.id;
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => setStatusFilter(chip.id)}
+              aria-pressed={active}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue/40 ${
+                active
+                  ? 'bg-rdpc-blue text-white shadow-md shadow-blue-100'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-rdpc-blue/40 hover:text-rdpc-blue'
+              }`}
+            >
+              {chip.label} ({chip.count})
+            </button>
+          );
+        })}
+      </div>
+
       {/* Grid des documents */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-y-auto p-1">
         {loading ? (
           <p className="text-slate-400 font-bold italic">Chargement de vos brouillons...</p>
-        ) : documents.length === 0 ? (
+        ) : visibleDocuments.length === 0 ? (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-[3rem]">
             <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">draft</span>
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Aucun document en cours</p>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Aucun document dans cette vue</p>
           </div>
         ) : (
-          documents.map((doc) => (
+          visibleDocuments.map((doc) => (
             <div key={doc.id} onClick={() => setSelectedDoc(doc as Document)} className="glass p-6 rounded-[2rem] bg-white border-white hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden" data-testid="draft-card">
               <span className="material-symbols-outlined text-slate-200 group-hover:text-cam-green mb-4 transition-colors text-4xl">description</span>
               <h4 className="font-black text-slate-800 leading-tight mb-2 group-hover:text-cam-green transition-colors line-clamp-2 min-h-[3rem]"><button type="button" onClick={(e) => { e.stopPropagation(); setSelectedDoc(doc as Document); }} className="text-left" aria-label={`Ouvrir ${doc.title}`}>{doc.title}</button></h4>

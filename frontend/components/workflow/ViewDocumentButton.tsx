@@ -7,13 +7,24 @@ import DocumentDetailModal from '../DocumentDetailModal';
 interface ViewDocumentButtonProps {
   documentId: string;
   className?: string;
+  approveLabel?: string;
+  onApprove?: (detailVersionId?: string | null) => void;
+  onReject?: (detailVersionId?: string | null) => void;
+  decisionDisabled?: boolean;
 }
 
 /**
  * « Voir le document » : ouvre la fiche (aperçu, historique) avant de décider, pour ne pas valider à l'aveugle.
  * Les erreurs HTTP de lecture passent par le bus global.
  */
-export const ViewDocumentButton: React.FC<ViewDocumentButtonProps> = ({ documentId, className }) => {
+export const ViewDocumentButton: React.FC<ViewDocumentButtonProps> = ({
+  documentId,
+  className,
+  approveLabel,
+  onApprove,
+  onReject,
+  decisionDisabled,
+}) => {
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,6 +38,16 @@ export const ViewDocumentButton: React.FC<ViewDocumentButtonProps> = ({ document
       setLoading(false);
     }
   };
+
+  const taskDecision =
+    onApprove && onReject
+      ? {
+          approveLabel: approveLabel || 'Valider',
+          onApprove,
+          onReject,
+          disabled: decisionDisabled,
+        }
+      : undefined;
 
   return (
     <>
@@ -45,7 +66,13 @@ export const ViewDocumentButton: React.FC<ViewDocumentButtonProps> = ({ document
         <span className="material-symbols-outlined text-sm" aria-hidden="true">visibility</span>
         {loading ? 'Ouverture…' : 'Voir le document'}
       </button>
-      {document && <DocumentDetailModal document={document} onClose={() => setDocument(null)} />}
+      {document && (
+        <DocumentDetailModal
+          document={document}
+          onClose={() => setDocument(null)}
+          taskDecision={taskDecision}
+        />
+      )}
     </>
   );
 };

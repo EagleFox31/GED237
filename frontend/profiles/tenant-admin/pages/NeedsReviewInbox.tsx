@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../../services/api';
+import { api, accountKeyOf } from '../../../services';
+import { useAuthStore } from '../../../stores/authStore';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import {
+  readStoredDestination,
+  resolveInitialDestination,
+  writeStoredDestination,
+} from '../../../lib/needsReviewDestination';
 
 interface NeedsReviewDocument {
   id: string;
@@ -38,6 +44,8 @@ const ACTION_LABELS: Record<string, { label: string; icon: string; color: string
 };
 
 const NeedsReviewInbox: React.FC = () => {
+  const userProfile = useAuthStore((s) => s.userProfile);
+  const accountKey = accountKeyOf(userProfile);
   const [documents, setDocuments] = useState<NeedsReviewDocument[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<NeedsReviewDocument | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -56,7 +64,17 @@ const NeedsReviewInbox: React.FC = () => {
 
   useEffect(() => {
     fetchDocuments();
-    api.getOrgUnits().then(setOrgUnits).catch(console.error);
+    api
+      .getOrgUnits()
+      .then((units) => {
+        setOrgUnits(units);
+        setTargetFolderId((current) => current || resolveInitialDestination(units, readStoredDestination(accountKey)));
+      })
+      .catch((err) => {
+        if (!(err instanceof ApiError)) {
+          pushClientOperationError(err, { fallbackDetail: 'Impossible de charger les services.' });
+        }
+      });
   }, []);
 
   const fetchDocuments = async () => {
@@ -77,7 +95,6 @@ const NeedsReviewInbox: React.FC = () => {
 
   const handleSelectDoc = async (doc: NeedsReviewDocument) => {
     setSelectedDoc(doc);
-    setTargetFolderId('');
     setResolverComment('');
     setNewFilename('');
     setAuditLogs([]);
@@ -87,7 +104,9 @@ const NeedsReviewInbox: React.FC = () => {
       setAuditLogs(logs);
       setSuggestedRule(doc.suggested_rule || null);
     } catch (err) {
-      console.error(err);
+      if (!(err instanceof ApiError)) {
+        pushClientOperationError(err, { fallbackDetail: "Impossible de charger l'historique du document." });
+      }
     } finally {
       setLoadingLogs(false);
     }
@@ -103,11 +122,16 @@ const NeedsReviewInbox: React.FC = () => {
         new_filename: newFilename || undefined,
         mark_as_resolved: true,
       });
+      if (targetFolderId) {
+        writeStoredDestination(targetFolderId, accountKey);
+      }
       showToast({ tone: 'success', message: 'Document traité et classé avec succès.' });
       setSelectedDoc(null);
       fetchDocuments();
     } catch (err) {
-      console.error(err);
+      if (!(err instanceof ApiError)) {
+        pushClientOperationError(err, { fallbackDetail: 'Erreur lors du traitement. Veuillez réessayer.' });
+      }
       showToast({ tone: 'error', message: 'Erreur lors du traitement. Veuillez réessayer.' });
     } finally {
       setResolving(false);
