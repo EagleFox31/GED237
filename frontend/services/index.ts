@@ -59,6 +59,7 @@ export { reportsApi }          from './resources/reports.api';
 export { searchApi }           from './resources/search.api';
 export { healthApi }           from './resources/health.api';
 export { usageApi }            from './resources/usage.api';
+export { duplicatesApi }       from './resources/duplicates.api';
 
 // Re-exports http/ pour les rares cas où un hook/composant a besoin du
 // transport directement (ex: categories.api.ts, stores d'auth).

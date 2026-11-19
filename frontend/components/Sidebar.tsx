@@ -109,6 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
             : []),
           { id: 'trash', label: 'Corbeille', icon: 'delete' },
+          { id: 'duplicates', label: 'Doublons', icon: 'content_copy' },
         ].map(item => (
           <button
             key={item.id}
