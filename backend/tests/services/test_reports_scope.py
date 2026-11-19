@@ -73,10 +73,13 @@ async def test_non_super_cannot_change_tenant(as_super):
     assert scope.tenant_id == TENANT
 
 
+@pytest.mark.parametrize("role", ["tenant_admin", "auditor"])
 @pytest.mark.parametrize("recursive", [False, True])
-async def test_admin_keeps_requested_unit_and_recursion(as_super, recursive):
+async def test_institution_wide_role_keeps_requested_unit_and_recursion(
+    as_super, role, recursive
+):
     scope = await resolve_report_scope(
-        _user("admin"), db=None, org_unit_id=OTHER_UNIT, recursive=recursive
+        _user(role), db=None, org_unit_id=OTHER_UNIT, recursive=recursive
     )
     assert scope == ReportScope(TENANT, OTHER_UNIT, recursive)
 
@@ -109,7 +112,10 @@ async def test_scoped_role_without_own_unit_is_refused(as_super):
     assert exc.value.detail == "Portée organisationnelle invalide."
 
 
-async def test_user_without_role_is_not_restricted(as_super):
+async def test_user_without_role_is_refused_without_a_unit(as_super):
+    """Fail-closed (main): no role is no institution-wide reach."""
     user = SimpleNamespace(tenant_id=TENANT, org_unit_id=None, role=None)
-    scope = await resolve_report_scope(user, db=None, org_unit_id=OTHER_UNIT)
-    assert scope == ReportScope(TENANT, OTHER_UNIT, False)
+    with pytest.raises(HTTPException) as exc:
+        await resolve_report_scope(user, db=None, org_unit_id=OTHER_UNIT)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "Portée organisationnelle invalide."
