@@ -17,7 +17,9 @@ Consigne du PO : « travaillons plus vite ». Aucune session n'attend sans rien 
 | **Q** | veille ; attend #453 et le contrat DELETE de #181 | 1. **Avancer les preuves des 95 %** si rien ne bloque : `prove_tls` (item 27, prévu le 20/11), rejeu du manuel sans écart (item 31, issue #273, prévu le 25/11). Sinon, dire à I ce qui bloque. 2. Garde-fou des leçons LEC-3 (DEC-2026-009), en PR brouillon dès maintenant. 3. Réparation du hook pre-commit (0,5 h-s), empilée sur #433. 4. 57 septdecies, contrastes (S). | 1 : oui ; 2 à 4 : non |
 | **F** | passe Docker `453f 181m` | 1. **#308 : LESSON-2026-045 → 073** (dernière collision de la file ; même titre que dans #241, par fusion, sans rebase). 2. Corps de PR et commits locaux de #453 et #181, prêts pour le signal. | non |
 | **B** | #438 (fusion de main), puis tsc et unit sur l'essai 435×445 | 1. #197 : préparer le rattachement à `60e40a686375` dans une branche locale, à pousser dès que #457 est fusionnée. 2. Contrat DELETE de #181 pour F (cohérence #152/#263) : réponse écrite, sans Docker. | 1 : non |
-| **aide-api** | 57 L7-3, filtres date et auteur sur GET /documents | 1. 57 L12-3 (demandeur et date d'envoi sur `/tasks`), empilée sur #438. 2. 57 L7-2, PDF officiel côté serveur, après L7-3 et #435. 3. 57 L13-4, WebSocket, après #155. | selon créneau |
+| **aide-api** | 57 L7-3, filtres date et auteur sur GET /documents | 1. 57 L12-3 (demandeur et date d'envoi sur `/tasks`), empilée sur #438. 2. 57 L7-2, PDF officiel côté serveur, empilée sur #435, sans attendre sa fusion. 3. 57 L13-4, WebSocket, après #155. | selon créneau |
+
+**Mise à jour du 19/11, 09:15 (accord d'O)** : aide-api cède son créneau Docker à Q pour `prove_tls` aujourd'hui, puis le récupère. Pendant ce temps, aide-api avance L7-2 sans Docker. Ouvertes depuis 09:00 : #465 (L7-3), #466 (L12-3), #467 (LEC-3 de Q).
 | **I** | file, charges, DEC | 1. PR des leçons (LEC-1, LEC-2, DEC-2026-009), en brouillon. 2. Inscrire L7-3 dès qu'elle a un numéro. | non |
 
 ## Leviers pour les 95 % (proposés à O, pas décidés)

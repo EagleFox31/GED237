@@ -24,7 +24,7 @@ Au 19/11 sur `main`, le score est de 27,5/32 (85,9 %). Les 5 conditions ci-desso
 |---|---|---|---|---|---|
 | 19. Détection des doublons | +0,5 | #152, #181, #171 et #199 fusionnées, puis reportées dans la candidate | B, F, Q, O | 19 au 20/11 | moyen : 2 PR en conflit avec `main` ; ≈ 4,25 h-s |
 | 29. Disponibilité ≥ 99 % | +0,5 (`partiel` au mieux) | relevé C6 tenu à 18:00 (≥ 6 relevés verts consécutifs) | Q | 19/11, 18:00 | **élevé** : trou de nuit (03:29Z à 06:45Z), puis arrêt de Docker ce matin |
-| 27. HTTPS | +0,5 | `prove_tls` réussi (passage 2) | Q | 20/11 | faible |
+| 27. HTTPS | +0,5 | `prove_tls` réussi (passage 2) | Q | 19/11, avancé du 20/11 : aide-api cède son créneau Docker (accord d'O) | faible |
 | 28. Déploiement sur site | +1 | installation sans Internet réussie (vaut preuve, réponse 15 du PO) | Q | 25/11 | moyen |
 | 31. Documentation | +0,5 | rejeu du manuel sans écart (issue #273) | Q | 25/11 | moyen |
 
