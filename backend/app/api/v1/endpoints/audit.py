@@ -25,38 +25,43 @@ TABLE_LABELS = {
     "workflows": "Workflows",
     "users": "Utilisateurs",
     "imports": "Imports",
-    "ged_rules": "Regles GED",
+    "ged_rules": "Règles GED",
     "local_organize_events": "Rangement local",
-    "user_local_arrangement_snapshots": "Bibliotheque locale (compte)",
-    "ingest_watch": "Dossiers surveilles",
+    "user_local_arrangement_snapshots": "Bibliothèque locale (compte)",
+    "ingest_watch": "Dossiers surveillés",
     "audit_logs": "Journal d'audit",
 }
 
 ACTION_LABELS = {
-    "account_locked": "Compte verrouille",
-    "create": "Creation",
+    "account_locked": "Compte verrouillé",
+    "create": "Création",
     "update": "Modification",
     "delete": "Suppression",
-    "upload": "Depot de document",
+    "upload": "Dépôt de document",
     "login": "Connexion",
-    "login_failed": "Connexion refusee",
-    "import_committed": "Import execute",
+    "login_failed": "Connexion refusée",
+    "import_committed": "Import exécuté",
     "content_viewed": "Consultation du document",
     "classification": "Tentative de classement",
     "needs_review": "Mise en attente pour arbitrage",
-    "review_resolved": "Arbitrage de classement valide",
-    "workflow_started": "Circuit declenche",
-    "workflow_step_completed": "Etape de workflow traitee",
+    "review_resolved": "Arbitrage de classement validé",
+    "workflow_started": "Circuit déclenché",
+    "workflow_step_completed": "Étape de workflow traitée",
     "workflow_approved": "Validation",
     "workflow_rejected": "Rejet",
     "workflow_returned": "Retour pour correction",
     "lock": "Verrouillage",
-    "unlock": "Deverrouillage",
+    "unlock": "Déverrouillage",
     "archive": "Archivage",
+    "document_trashed": "Mise à la corbeille",
+    "document_restored": "Restauration depuis la corbeille",
+    "document_purged": "Suppression définitive",
+    "version_uploaded": "Nouvelle version",
+    "workflow_started_a_posteriori": "Circuit déclenché a posteriori",
     "local_organize": "Rangement local sur poste",
-    "local_snap_put": "Bibliotheque locale (sync)",
+    "local_snap_put": "Bibliothèque locale (sync)",
     "watch_ingested": "Import automatique d'un dossier",
-    "dup_detected": "Doublon refuse",
+    "dup_detected": "Doublon refusé",
     "exported": "Export du journal",
     "report_generated": "Rapport officiel émis",
     "report_reprinted": "Rapport officiel réimprimé",
@@ -125,7 +130,7 @@ def _extract_detail(log: AuditLog) -> str:
             value = payload.get(key)
             if value:
                 return str(value)
-    return "Action tracee automatiquement par le systeme."
+    return "Action tracée automatiquement par le système."
 
 
 def _serialize_audit_log(

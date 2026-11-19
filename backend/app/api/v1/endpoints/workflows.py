@@ -2,8 +2,8 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -12,6 +12,12 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import authorize_or_403, can_perform, ctx_from_resource
 from app.core.tenant_guard import assert_same_tenant, assert_org_unit_scope
+from app.services.unit_admin_scope import (
+    assert_unit_admin_in_tree,
+    assert_unit_admin_object_in_tree,
+    unit_admin_scope_ids,
+)
+from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.workflow import WorkflowStep, WorkflowAction
 from app.models.role import Role
@@ -20,6 +26,7 @@ from app.schemas.workflow import (
     WorkflowStepCreate,
     WorkflowStepRead,
     WorkflowStepWithDocument,
+    WorkflowCounters,
     DocumentSummary,
     ValidatorRead,
     WorkflowActionCreate,
@@ -27,6 +34,7 @@ from app.schemas.workflow import (
     AssignStepAdminRequest,
 )
 from app.core.events.dispatcher import dispatcher
+from app.services.audit_trail import audit_entry
 from app.services.workflow_service import (
     SubmitWorkflowActionUseCase,
     WorkflowActionPolicy,
@@ -34,7 +42,8 @@ from app.services.workflow_service import (
 
 router = APIRouter()
 
-WORKFLOW_SOURCE_STATUSES = {"draft", "rejected"}
+# A returned document is corrected by its author, then submitted again.
+WORKFLOW_SOURCE_STATUSES = {"draft", "rejected", "returned"}
 
 # Roles whose holders can be designated as validators of a workflow step
 # (policy: ``workflows resolve_review`` plus tenant-wide ``manage``).
@@ -42,6 +51,15 @@ VALIDATOR_ROLE_CODES = ("manager", "tenant_admin")
 
 # Alias pour distinguer l'owner du document du current_user dans les jointures
 OwnerUser = aliased(User, name="owner_user")
+
+
+def _pending_assignee_clause(user: User) -> ColumnElement[bool]:
+    """Steps that ``user`` must act on: the single place deciding "my tasks".
+
+    Today the assignee only. Delegation (a stand-in acting for a holder)
+    extends this clause, so /pending and the task counters follow it.
+    """
+    return WorkflowStep.assigned_to == user.id
 
 
 @router.get("/stats")
@@ -157,11 +175,14 @@ def _validate_step_order(
     return sorted_steps
 
 
-async def _authorize_workflow_read(user: User, document: Document) -> None:
+async def _authorize_workflow_read(
+    user: User, document: Document, db: AsyncSession
+) -> None:
     ctx = ctx_from_resource(document)
     if await can_perform(user, "workflows", "read", ctx):
         # Managers/readers are tenant-scoped in Casbin, but must stay in their org-unit perimeter.
         assert_org_unit_scope(document.org_unit_id, user)
+        await assert_unit_admin_in_tree(db, document.org_unit_id, user)
         return
     await authorize_or_403(user, "workflows", "read_own", ctx)
 
@@ -174,11 +195,13 @@ async def _authorize_workflow_read(user: User, document: Document) -> None:
 async def create_workflow_steps(
     document_id: UUID,
     steps_in: List[WorkflowStepCreate],
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Define a validation workflow for a document."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
     # Propriétaire (update_own) ou admin (manage) peut soumettre
     is_owner = document.owner_id == current_user.id
     action = "update_own" if is_owner else "manage"
@@ -188,7 +211,7 @@ async def create_workflow_steps(
     if document.status not in WORKFLOW_SOURCE_STATUSES:
         raise HTTPException(
             status_code=409,
-            detail="Workflows can only be started from draft or rejected documents",
+            detail="Workflows can only be started from draft, rejected or returned documents",
         )
 
     existing_steps = await db.execute(
@@ -220,6 +243,19 @@ async def create_workflow_steps(
 
     document.status = "in_review"
     db.add(document)
+    # Who submitted: the validator's task list shows it (the author may differ
+    # from the owner, e.g. a secretary submitting on behalf of the service).
+    db.add(
+        audit_entry(
+            tenant_id=document.tenant_id,
+            user_id=current_user.id,
+            table_name="documents",
+            record_id=document.id,
+            action="workflow_started",
+            details={"steps": len(created_steps)},
+            request=request,
+        )
+    )
     await db.commit()
 
     for step in created_steps:
@@ -246,7 +282,7 @@ async def get_workflow_steps(
 ):
     """Get all workflow steps for a document in the current tenant."""
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
     result = await db.execute(
         select(WorkflowStep)
         .where(WorkflowStep.document_id == document_id)
@@ -273,21 +309,24 @@ async def get_pending_tasks(
         .join(Document, Document.id == WorkflowStep.document_id)
         .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
         .where(
-            WorkflowStep.assigned_to == current_user.id,
+            _pending_assignee_clause(current_user),
             WorkflowStep.status == "current",
             Document.tenant_id == current_user.tenant_id,
         )
+        # Oldest task first: it has waited the longest.
+        .order_by(WorkflowStep.created_at, WorkflowStep.id)
     )
     rows = result.all()
+    submitters = await _submitters_by_document(
+        db, current_user.tenant_id, [doc.id for _, doc, _ in rows]
+    )
 
     enriched: List[WorkflowStepWithDocument] = []
     for step, doc, owner in rows:
-        if owner and (owner.first_name or owner.last_name):
-            owner_name = f"{owner.first_name or ''} {owner.last_name or ''}".strip()
-        elif owner:
-            owner_name = owner.matricule
-        else:
-            owner_name = None
+        owner_name = _display_name(owner)
+        # Submission audit first; documents submitted before it existed fall
+        # back to their owner.
+        submitter = submitters.get(doc.id)
 
         doc_summary = DocumentSummary(
             id=doc.id,
@@ -301,9 +340,94 @@ async def get_pending_tasks(
         )
         step_data = WorkflowStepWithDocument.model_validate(step)
         step_data.document = doc_summary
+        if submitter is not None:
+            step_data.submitted_by, step_data.submitted_by_name = submitter
+        else:
+            step_data.submitted_by, step_data.submitted_by_name = (
+                doc.owner_id,
+                owner_name,
+            )
         enriched.append(step_data)
 
     return enriched
+
+
+@router.get("/my-counters", response_model=WorkflowCounters)
+async def get_my_workflow_counters(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Badges of the current user: own documents to fix, and tasks to act on.
+
+    ``tasks`` uses the same clause as /pending, so the badge and the list
+    always agree.
+    """
+    if not await can_perform(current_user, "workflows", "read"):
+        await authorize_or_403(current_user, "workflows", "read_own")
+
+    by_status = dict(
+        (
+            await db.execute(
+                select(Document.status, func.count())
+                .where(
+                    Document.tenant_id == current_user.tenant_id,
+                    Document.owner_id == current_user.id,
+                    Document.deleted_at.is_(None),
+                    Document.status.in_(("rejected", "returned")),
+                )
+                .group_by(Document.status)
+            )
+        ).all()
+    )
+    tasks = await db.scalar(
+        select(func.count())
+        .select_from(WorkflowStep)
+        .join(Document, Document.id == WorkflowStep.document_id)
+        .where(
+            _pending_assignee_clause(current_user),
+            WorkflowStep.status == "current",
+            Document.tenant_id == current_user.tenant_id,
+        )
+    )
+    return WorkflowCounters(
+        rejected=by_status.get("rejected", 0),
+        returned=by_status.get("returned", 0),
+        tasks=tasks or 0,
+    )
+
+
+SUBMISSION_AUDIT_ACTIONS = ("workflow_started", "workflow_started_a_posteriori")
+
+
+def _display_name(user: Optional[User]) -> Optional[str]:
+    if user is None:
+        return None
+    if user.first_name or user.last_name:
+        return f"{user.first_name or ''} {user.last_name or ''}".strip()
+    return user.matricule
+
+
+async def _submitters_by_document(
+    db: AsyncSession, tenant_id: UUID, document_ids: List[UUID]
+) -> dict[UUID, tuple[UUID, Optional[str]]]:
+    """Last submitter of each document, from the audit trail, in one query."""
+    if not document_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(AuditLog.record_id, User)
+            .join(User, User.id == AuditLog.user_id)
+            .where(
+                AuditLog.tenant_id == tenant_id,
+                AuditLog.table_name == "documents",
+                AuditLog.action.in_(SUBMISSION_AUDIT_ACTIONS),
+                AuditLog.record_id.in_(document_ids),
+            )
+            .order_by(AuditLog.record_id, AuditLog.created_at.desc())
+            .distinct(AuditLog.record_id)
+        )
+    ).all()
+    return {record_id: (user.id, _display_name(user)) for record_id, user in rows}
 
 
 @router.get("/validators", response_model=List[ValidatorRead])
@@ -339,6 +463,7 @@ async def list_validators(
 async def submit_workflow_action(
     step_id: UUID,
     action_req: WorkflowActionCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -349,7 +474,7 @@ async def submit_workflow_action(
     use_case = SubmitWorkflowActionUseCase(policy=policy)
 
     action_trace = await use_case.execute(
-        step_id=step_id, action=action_req, actor=current_user, db=db
+        step_id=step_id, action=action_req, actor=current_user, db=db, request=request
     )
 
     # Enrichir la réponse avec le nom de l'acteur
@@ -371,7 +496,7 @@ async def get_document_action_history(
     """Récupérer l'historique complet des actions métier posées sur un document."""
     # Vérifier que le document appartient au tenant
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await _authorize_workflow_read(current_user, document)
+    await _authorize_workflow_read(current_user, document, db)
 
     # Récupérer toutes les actions via les steps du document
     result = await db.execute(
@@ -406,10 +531,11 @@ async def get_pending_assignments(
     Seulement pour les administrateurs du tenant.
     """
     await authorize_or_403(current_user, "workflows", "manage")
+    unit_ids = await unit_admin_scope_ids(db, current_user)
 
     from app.models.routing_audit import DocumentRoutingDecision
 
-    result = await db.execute(
+    query = (
         select(WorkflowStep, Document, OwnerUser, DocumentRoutingDecision)
         .join(Document, Document.id == WorkflowStep.document_id)
         .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
@@ -423,6 +549,9 @@ async def get_pending_assignments(
             Document.tenant_id == current_user.tenant_id,
         )
     )
+    if unit_ids is not None:
+        query = query.where(Document.org_unit_id.in_(unit_ids))
+    result = await db.execute(query)
     rows = result.all()
 
     enriched: List[WorkflowStepWithDocument] = []
@@ -491,6 +620,7 @@ async def assign_step_admin(
     if document is None:
         raise HTTPException(status_code=404, detail="Document introuvable.")
     assert_same_tenant(document.tenant_id, current_user)
+    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
 
     # Validate assignee exists
     user_result = await db.execute(

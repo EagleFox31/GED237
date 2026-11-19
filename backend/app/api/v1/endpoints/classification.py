@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.authz import authorize_or_403
 from app.core.database import get_db
+from app.services.unit_admin_scope import is_unit_admin, unit_admin_scope_ids
 from app.core.dependencies import get_current_user
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
@@ -82,7 +83,7 @@ async def _get_activity_or_404(
     activity = result.scalar_one_or_none()
     if not activity:
         raise HTTPException(
-            status_code=404, detail="Activite de classement introuvable."
+            status_code=404, detail="Activité de classement introuvable."
         )
     return activity
 
@@ -102,7 +103,7 @@ async def _validate_optional_refs(
         )
         if result.scalar_one_or_none() is None:
             raise HTTPException(
-                status_code=400, detail="Categorie documentaire invalide."
+                status_code=400, detail="Catégorie documentaire invalide."
             )
     if payload.source_org_unit_id:
         result = await db.execute(
@@ -112,7 +113,7 @@ async def _validate_optional_refs(
             )
         )
         if result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=400, detail="Unite source invalide.")
+            raise HTTPException(status_code=400, detail="Unité source invalide.")
     if payload.target_org_unit_id:
         result = await db.execute(
             select(OrgUnit.id).where(
@@ -121,7 +122,7 @@ async def _validate_optional_refs(
             )
         )
         if result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=400, detail="Unite cible invalide.")
+            raise HTTPException(status_code=400, detail="Unité cible invalide.")
     if payload.source_user_id:
         result = await db.execute(
             select(User.id).where(
@@ -152,7 +153,7 @@ async def _validate_optional_refs(
             )
         )
         if result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=400, detail="Template workflow invalide.")
+            raise HTTPException(status_code=400, detail="Modèle de circuit invalide.")
 
     # Multi-sélection : valider que tous les IDs appartiennent au tenant.
     # On filtre les invalides plutôt que de tout rejeter ? Non — au create/update
@@ -170,7 +171,7 @@ async def _validate_optional_refs(
         if missing:
             raise HTTPException(
                 status_code=400,
-                detail="Categorie(s) documentaire(s) invalide(s).",
+                detail="Catégorie(s) documentaire(s) invalide(s).",
             )
     if payload.source_org_unit_ids:
         result = await db.execute(
@@ -228,7 +229,7 @@ async def _ensure_domain_code_unique(
         stmt = stmt.where(ClassificationDomain.id != exclude_domain_id)
     result = await db.execute(stmt)
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Code de domaine deja utilise.")
+        raise HTTPException(status_code=400, detail="Code de domaine déjà utilisé.")
 
 
 async def _ensure_activity_code_unique(
@@ -249,7 +250,7 @@ async def _ensure_activity_code_unique(
     result = await db.execute(stmt)
     if result.scalar_one_or_none():
         raise HTTPException(
-            status_code=400, detail="Code d'activite deja utilise dans ce domaine."
+            status_code=400, detail="Code d'activité déjà utilisé dans ce domaine."
         )
 
 
@@ -268,7 +269,7 @@ async def _ensure_rule_code_unique(
         stmt = stmt.where(ClassificationRule.id != exclude_rule_id)
     result = await db.execute(stmt)
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Code de regle deja utilise.")
+        raise HTTPException(status_code=400, detail="Code de règle déjà utilisé.")
 
 
 async def _validate_rule_payload(
@@ -307,13 +308,13 @@ async def _validate_rule_payload(
     if year_min is not None and year_max is not None and year_min > year_max:
         raise HTTPException(
             status_code=400,
-            detail="L'annee minimale doit etre inferieure ou egale a l'annee maximale.",
+            detail="L'année minimale doit être inférieure ou égale à l'année maximale.",
         )
 
     if activity_id and not domain_id:
         raise HTTPException(
             status_code=400,
-            detail="Une activite de classement requiert un domaine de classement.",
+            detail="Une activité de classement requiert un domaine de classement.",
         )
 
     if activity_id and domain_id:
@@ -323,30 +324,30 @@ async def _validate_rule_payload(
         if activity.domain_id != domain_id:
             raise HTTPException(
                 status_code=400,
-                detail="L'activite choisie n'appartient pas au domaine selectionne.",
+                detail="L'activité choisie n'appartient pas au domaine sélectionné.",
             )
 
     if target_scope != "person" and target_user_id is not None:
         raise HTTPException(
             status_code=400,
-            detail="Un utilisateur cible n'est autorise que pour un scope de type personne.",
+            detail="Un utilisateur cible n'est autorisé que pour une portée de type personne.",
         )
 
     if year_strategy == "fixed":
         if fixed_year is None:
             raise HTTPException(
                 status_code=400,
-                detail="L'annee fixe est obligatoire lorsque la strategie d'annee est 'fixed'.",
+                detail="L'année fixe est obligatoire lorsque la stratégie d'année est « année fixe ».",
             )
         if fixed_year < 1900 or fixed_year > 2100:
             raise HTTPException(
                 status_code=400,
-                detail="L'annee fixe doit etre comprise entre 1900 et 2100.",
+                detail="L'année fixe doit être comprise entre 1900 et 2100.",
             )
     elif fixed_year is not None:
         raise HTTPException(
             status_code=400,
-            detail="fixed_year ne peut etre renseigne que si year_strategy vaut 'fixed'.",
+            detail="L'année fixe ne peut être renseignée que pour la stratégie « année fixe ».",
         )
 
     if source_org_unit_excluded_ids and not source_org_unit_ids:
@@ -407,7 +408,7 @@ async def _validate_simulation_context(
         )
         if result.scalar_one_or_none() is None:
             raise HTTPException(
-                status_code=400, detail="Categorie documentaire invalide."
+                status_code=400, detail="Catégorie documentaire invalide."
             )
 
     if payload.source_org_unit_id:
@@ -418,7 +419,7 @@ async def _validate_simulation_context(
             )
         )
         if result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=400, detail="Unite source invalide.")
+            raise HTTPException(status_code=400, detail="Unité source invalide.")
 
     if payload.source_user_id:
         result = await db.execute(
@@ -629,6 +630,47 @@ async def delete_classification_activity(
     return None
 
 
+def _rule_unit_ids(rule_or_payload) -> set:
+    """Units a rule is aimed at (single unit and unit list); empty = institution-wide."""
+    ids = {
+        str(i) for i in (getattr(rule_or_payload, "source_org_unit_ids", None) or [])
+    }
+    single = getattr(rule_or_payload, "source_org_unit_id", None)
+    if single:
+        ids.add(str(single))
+    target = getattr(rule_or_payload, "target_org_unit_id", None)
+    if target:
+        ids.add(str(target))
+    return ids
+
+
+def _rule_in_scope(rule_or_payload, unit_ids) -> bool:
+    """Read: institution-wide rules stay visible, others must sit inside the tree."""
+    if unit_ids is None:
+        return True
+    return _rule_unit_ids(rule_or_payload) <= {str(i) for i in unit_ids}
+
+
+def _assert_rule_writable(rule_or_payload, unit_ids) -> None:
+    """A unit administrator writes only rules aimed at units of its own tree."""
+    if unit_ids is None:
+        return
+    ids = _rule_unit_ids(rule_or_payload)
+    if not ids or not ids <= {str(i) for i in unit_ids}:
+        raise HTTPException(
+            status_code=403,
+            detail="Cette règle sort du périmètre de votre unité.",
+        )
+
+
+def _forbid_unit_admin(user: User) -> None:
+    if is_unit_admin(user):
+        raise HTTPException(
+            status_code=403,
+            detail="Réservé à l'administrateur de l'institution.",
+        )
+
+
 @router.get("/rules", response_model=list[ClassificationRuleRead])
 async def list_classification_rules(
     current_user: User = Depends(get_current_user),
@@ -642,7 +684,8 @@ async def list_classification_rules(
             ClassificationRule.priority.asc(), ClassificationRule.created_at.asc()
         )
     )
-    return result.scalars().all()
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    return [r for r in result.scalars().all() if _rule_in_scope(r, unit_ids)]
 
 
 @router.get("/rules/export")
@@ -652,6 +695,7 @@ async def export_classification_rules(
 ):
     """All rules of the tenant, active or not, with references written as codes (portable file)."""
     await authorize_or_403(current_user, "classification_rules", "read")
+    _forbid_unit_admin(current_user)
     tenant_id = current_user.tenant_id
     rules = (
         (
@@ -714,6 +758,7 @@ async def import_classification_rules(
     twice writes nothing the second time.
     """
     await authorize_or_403(current_user, "classification_rules", "create")
+    _forbid_unit_admin(current_user)
     if mode == "upsert":
         await authorize_or_403(current_user, "classification_rules", "update")
     if (
@@ -753,7 +798,7 @@ async def import_classification_rules(
     for raw in payload.rules:
         code = _normalize_code(str(raw.get("code") or ""))
         if code in seen:
-            record(code, "reject", "code present plusieurs fois dans le fichier")
+            record(code, "reject", "code présent plusieurs fois dans le fichier")
             continue
         seen.add(code)
         try:
@@ -778,7 +823,7 @@ async def import_classification_rules(
             record(
                 code,
                 "reject",
-                f"plusieurs regles existantes correspondent a ce code ({codes}) : "
+                f"plusieurs règles existantes correspondent à ce code ({codes}) : "
                 "renommez-en une avant d'importer",
             )
             continue
@@ -791,7 +836,7 @@ async def import_classification_rules(
         if all(getattr(current, field) == value for field, value in values.items()):
             record(current.code, "skip", "identique")
         elif mode == "create_only":
-            record(current.code, "skip", "existe deja")
+            record(current.code, "skip", "existe déjà")
         else:
             record(current.code, "update")
             planned.append(("update", current, values))
@@ -823,8 +868,10 @@ async def get_classification_rule(
         )
     )
     rule = result.scalar_one_or_none()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Regle de classement introuvable.")
+    if not rule or not _rule_in_scope(
+        rule, await unit_admin_scope_ids(db, current_user)
+    ):
+        raise HTTPException(status_code=404, detail="Règle de classement introuvable.")
     return rule
 
 
@@ -839,6 +886,7 @@ async def create_classification_rule(
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "classification_rules", "create")
+    _assert_rule_writable(payload, await unit_admin_scope_ids(db, current_user))
     code = _normalize_code(payload.code)
     await _ensure_rule_code_unique(db, tenant_id=current_user.tenant_id, code=code)
     await _validate_rule_payload(
@@ -874,8 +922,18 @@ async def update_classification_rule(
         )
     )
     rule = result.scalar_one_or_none()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Regle de classement introuvable.")
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if not rule or not _rule_in_scope(rule, unit_ids):
+        raise HTTPException(status_code=404, detail="Règle de classement introuvable.")
+    _assert_rule_writable(rule, unit_ids)
+    if unit_ids is not None:
+        touched = payload.model_dump(exclude_unset=True)
+        if (
+            "source_org_unit_id" in touched
+            or "source_org_unit_ids" in touched
+            or touched.get("target_org_unit_id")
+        ):
+            _assert_rule_writable(payload, unit_ids)
     update_data = _rule_column_values(payload, exclude_unset=True)
     if "code" in update_data and update_data["code"]:
         update_data["code"] = _normalize_code(update_data["code"])
@@ -914,8 +972,10 @@ async def delete_classification_rule(
         )
     )
     rule = result.scalar_one_or_none()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Regle de classement introuvable.")
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if not rule or not _rule_in_scope(rule, unit_ids):
+        raise HTTPException(status_code=404, detail="Règle de classement introuvable.")
+    _assert_rule_writable(rule, unit_ids)
     await db.delete(rule)
     await db.commit()
     return None
