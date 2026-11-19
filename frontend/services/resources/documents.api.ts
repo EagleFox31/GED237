@@ -126,8 +126,9 @@ export const documentsApi = {
         return { items, total: Number.isInteger(total) && total >= 0 ? total : items.length };
     },
 
-    getDocument: (id: string): Promise<Document> =>
-        apiCall<Document>(`/documents/${id}`, {}, 'Lecture du document impossible'),
+    // `silent` : lecture de complément (motif de rejet d'une carte), aucune erreur affichée.
+    getDocument: (id: string, options: ApiCallOptions = {}): Promise<Document> =>
+        apiCall<Document>(`/documents/${id}`, {}, 'Lecture du document impossible', options),
 
     /**
      * Récupère le contenu binaire d'un document avec authentification (JWT).
@@ -197,6 +198,19 @@ export const documentsApi = {
 
     getDocumentVersions: (id: string): Promise<any[]> =>
         apiCall<any[]>(`/documents/${id}/versions`, {}, 'Récupération des versions impossible'),
+
+    /** Corrected file of a returned or rejected document (409 if identical to an existing version). */
+    uploadDocumentVersion: (id: string, file: File, changeNote?: string, options: ApiCallOptions = {}): Promise<unknown> => {
+        const form = new FormData();
+        form.append('file', file);
+        if (changeNote?.trim()) form.append('change_note', changeNote.trim());
+        return apiCall<unknown>(
+            `/documents/${id}/versions`,
+            { method: 'POST', body: form },
+            'Envoi de la version corrigée impossible',
+            options,
+        );
+    },
 
     // ── Stats ─────────────────────────────────────────────────────────────
 
