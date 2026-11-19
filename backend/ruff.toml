@@ -5,3 +5,5 @@
 # These entry points set sys.path / environment before importing the app.
 "tests/conftest.py" = ["E402"]
 "scripts/*.py" = ["E402"]
+# Bancs de mesure ponctuels (hors application) : écriture compacte tolérée.
+"scripts/bench_ocr/*.py" = ["E4", "E7"]

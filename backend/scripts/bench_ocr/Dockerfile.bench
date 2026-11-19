@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+# OCR-0 benchmark image (gestion-projet/innovateur/protocole-ocr-0.md). Not used by the application.
+# Derived from the already built API image, so Tesseract, EasyOCR and torch are the production ones.
+#   docker build -f Dockerfile.bench --build-arg BASE_IMAGE=<api image> -t ged237-bench-ocr0 .   (from this folder)
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RAPIDOCR_VERSION=3.10.0
+ARG ONNXRUNTIME_VERSION=1.31.1
+ARG JIWER_VERSION=4.0.0
+RUN pip install --no-cache-dir "rapidocr==${RAPIDOCR_VERSION}" "onnxruntime==${ONNXRUNTIME_VERSION}" \
+      "jiwer==${JIWER_VERSION}"
+
+# tessdata_best in its own folder (passed with --tessdata-dir), so the default tessdata stays T-fast.
+ARG TESSDATA_BEST_REF=main
+RUN mkdir -p /opt/tessdata_best && python - <<EOF
+import urllib.request
+for lang in ("fra", "eng"):
+    urllib.request.urlretrieve(
+        f"https://github.com/tesseract-ocr/tessdata_best/raw/${TESSDATA_BEST_REF}/{lang}.traineddata",
+        f"/opt/tessdata_best/{lang}.traineddata",
+    )
+EOF
+
+# Models are downloaded at build time: the measured start-up time must not include the network.
+COPY bench_ocr_0.py /app/scripts/bench_ocr_0.py
+RUN python -I -c "import sys; sys.path.insert(0, '/app/scripts'); import bench_ocr_0 as b; b.load_engine('easyocr'); b.load_engine('rapidocr')"
