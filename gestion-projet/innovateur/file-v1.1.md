@@ -9,7 +9,7 @@
 - **Exclus de ORDER** : les branches `feat/v12-*` sauf #370, l’étiquette `v1.2` sauf #281 et #298 (revenues en V1.1, O, 18/11), et Dependabot (#111, #112, #141, #402, puis les versions majeures #113, #110, #29, #30, revenues en V1.1) : Dependabot passe en vague 6 hors ORDER, une à une (`plan-fusion` lignes 58 et 58 bis).
 - **Hors file V1.1** : #104, #121, #408, #409, #412 et #415 suivent le chemin V1.0. Si l'une d'elles n'est pas fusionnée le 19, elle passe en tête de la vague 0, juste après #389 (`plan-fusion` § 7).
 - **Capacités post-rc1 (§ 6)** : elles sont placées selon la recommandation du plan. Sans réponse du PO le 23/11, on applique cette recommandation (§ 4 ci-dessous).
-- **Fusion par trains (PO, 19/11, 12:35 ; `DEC-2026-011`)** : à partir du 24/11, O monte des trains de PR prêtes, testés une fois ensemble ; procédure et ordre dans `procedure-trains-fusion.md`. L'ordre de ORDER reste l'ordre de fusion à l'intérieur d'un train.
+- **Fusion par trains (PO, 19/11, 12:27 ; `DEC-2026-011`)** : à partir du 24/11, O monte des trains de PR prêtes, testés une fois ensemble ; procédure et ordre dans `procedure-trains-fusion.md`. L'ordre de ORDER reste l'ordre de fusion à l'intérieur d'un train.
 
 ## 1. ORDER
 
@@ -36,7 +36,7 @@ ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
 ORDER_V4="309 310 153 155 169 471 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
-ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 399 416 446 417 441 484 450 459"
+ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 399 416 446 417 441 484 450 459 476"
 # Vague 6 : outils et documentation (03 au 05/12, 18:00)
 ORDER_V6="335 312 189 166 451 452"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
@@ -57,7 +57,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # Ticket #483 (défaut de l'écran de revue du classement, V1.0) : PR #485 de B (tête 79dd873c, relecture Q ; branche fix/review-sync-ingest-ocr, base main ; deux cas, plus un script de rattrapage lancé d'abord en plan, puis avec --apply, sans suppression), dans ORDER_V0 juste après #480 ; rattrapage ajouté à la checklist de recette (ligne 1.2 bis). #449 : tête 58d75f7b (brouillon V1.1). #199 a encore pour base feat/post-rc1-trash-ui (#181 fusionnée) : à re-cibler sur main avant sa fusion.
 # #471 (0ec2b5dd, brouillon V1.1, empilée sur #155 : à re-cibler sur main avant la fusion de #155) : OK sécurité de B, contrôle final de Q en cours ; reste en vague 4, après #155 et #479 (DEP). #181 fusionnée le 19/11 (main = 2174cfd3). Suites de sécurité d'aide-api (une PR à venir, base main : ticket WebSocket lié à la session, sockets fermés à la déconnexion, vérification de l'Origine) : après #479 et #471.
 # #476 (aide-api, n° 14 du tri de l'audit : total et page suivante dans « Mes Documents », V1.1, base main) : HORS_FILE (O, 19/11). Même fichier Documents.tsx que #440 : à rebaser après #440.
-HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 476 478 481"
+HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 478 481"
 ```
 
 Écarts avec `plan-fusion-v1.1.md` (validés par O le 18/11) :

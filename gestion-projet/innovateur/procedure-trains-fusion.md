@@ -1,6 +1,6 @@
 # Fusion par « trains » : procédure et ordre pour le 24/11 (V1.1)
 
-Décisions du PO du 19/11, 12:35 (via O) : voir `DEC-2026-011`. Préparé par l'innovateur le 19/11. L'ordre des trains est une **proposition** : O la valide et la change.
+Décisions du PO du 19/11, 12:27 (via O) : voir `DEC-2026-011`. Préparé par l'innovateur le 19/11. L'ordre des trains est une **proposition** : O la valide et la change.
 
 ## Procédure (O monte et fusionne ; Q et B vérifient)
 
@@ -10,9 +10,9 @@ Décisions du PO du 19/11, 12:35 (via O) : voir `DEC-2026-011`. Préparé par l'
 4. **Assemblage** : `git merge --no-ff` des PR dans l'ordre de la ligne du tableau. Les conflits sur les fichiers « additifs » (liste plus bas) sont résolus par O sur la branche du train ; tout autre conflit sort la PR du train, et l'auteur la remet à jour sur `main`.
 5. **Test unique** : la suite complète tourne **une fois**, sur la tête du train. La règle « branche à jour » reste vraie : le train part de `main` à jour, et un train ne se monte que sur le `main` du moment.
 6. **Train rouge** : O retire la PR fautive (en cas de doute, il relance sans la dernière PR montée, puis sans la suivante), recrée la branche et relance. La PR retirée repasse dans un train suivant, après correction de son auteur.
-7. **Fusion** : `main` reçoit la tête **exacte** testée (avancée rapide ou fusion sans squash : un squash ou un rebase empêche GitHub de marquer les PR fusionnées). Le mode de poussée dépend de la protection de `main` : à confirmer par O et Q avant le 24.
+7. **Fusion** : le train entre dans `main` par une **PR ordinaire** (branche du train vers `main`), fusionnée par `gh pr merge --merge`, jamais par push direct (O, 19/11, 12:50) ; la protection de `main` ne change pas. Pas de squash ni de rebase : GitHub ne marquerait pas les PR du train comme fusionnées. `main` reçoit ainsi la tête **exacte** testée.
 8. **Contrôle « fusionnée »** : pour chaque PR du train, `gh pr view N --json state,mergedAt -q '.state'` doit répondre `MERGED`, et `git merge-base --is-ancestor <tête notée> origin/main` doit réussir. Une PR encore ouverte après la fusion n'est fermée à la main qu'après ce contrôle, avec un renvoi vers le commit du train.
-9. **Tests non refaits sur `main`** (2e décision) : si l'empreinte de contenu de la tête de `main` est celle du train déjà testé (`git rev-parse <tête>^{tree}`), la CI de `main` ne rejoue pas la suite. Q prépare la PR, B la relit.
+9. **Tests non refaits sur `main`** (2e décision) : si l'empreinte de contenu de la tête de `main` est celle du train déjà testé (`git rev-parse <tête>^{tree}`), la CI de `main` ne rejoue pas la suite. Q prépare la PR, B la relit. **Tant que #489 (Q, OK de B) n'est pas fusionnée, un train passe toujours en complet sur `main`.** Une fois #489 fusionnée, la dispense vaut pour une PR au contenu identique à celui déjà validé; le cas d'un train est à vérifier par Q.
 10. **Trace** : O note dans la file le numéro du train, les PR retirées et le SHA de `main` après chaque train (file-v1.1.md, passation).
 
 ## Fichiers « additifs » : conflit toléré, résolu à l'assemblage
@@ -54,7 +54,7 @@ Décisions du PO du 19/11, 12:35 (via O) : voir `DEC-2026-011`. Préparé par l'
 
 **24 trains pour 146 PR.** Sur la fenêtre du 24/11 au 05/12 (DEC-2026-008), cela fait environ 2 trains par jour ouvré. La vague 4 (TR-13 à TR-17) est la plus longue, à cause de la chaîne #197 → #180 → #193 → #186 → #165 → #192 sur `documents.py`.
 
-**#476** (tri n° 14, HORS_FILE aujourd'hui) : si O l'inscrit dans la file, la placer **en fin de TR-23**, après #441, #484 et #450. Elle est en conflit simulé avec #487, #471, #459, #440, #401, #371, #361, #351, #296, #168 et #165, tous placés plus tôt. Avec #484, git ne signale aucun conflit, mais les deux modifient le pied de liste de `Documents.tsx` : à relire à la main, l'ordre #484 puis #476 convient.
+**#476** (tri n° 14, inscrite dans ORDER_V5 par O le 19/11) : placée **en fin de TR-23**, après #441, #484 et #450. Elle est en conflit simulé avec #487, #471, #459, #440, #401, #371, #361, #351, #296, #168 et #165, tous placés plus tôt. Avec #484, git ne signale aucun conflit, mais les deux modifient le pied de liste de `Documents.tsx` : à relire à la main, l'ordre #484 puis #476 convient.
 
 ## Conflits simulés entre deux PR (base `main`, tête du 19/11)
 
