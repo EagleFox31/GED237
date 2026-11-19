@@ -52,7 +52,7 @@ test('BULK-01 — Given 3 tâches, When j en vise 3 et l une échoue, Then une c
   const dialog = page.getByRole('dialog', { name: 'Viser 3 tâches ?' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByTestId('bulk-confirm-list').locator('li')).toHaveCount(3);
-  pending = [TASKS[1]];
+  pending = TASKS.slice(1, 2);
   await dialog.getByRole('button', { name: 'Viser' }).click();
 
   await expect(page.getByTestId('bulk-outcome').getByRole('status')).toHaveText('2 tâches visées.');
