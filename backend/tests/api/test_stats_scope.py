@@ -64,7 +64,7 @@ async def other_unit(db_session, db_seed):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role", ["tenant_admin", "unit_admin", "auditor"])
+@pytest.mark.parametrize("role", ["tenant_admin", "auditor"])
 async def test_institution_roles_keep_tenant_wide_counters(
     client_as, db_seed, other_unit, role
 ):
@@ -77,6 +77,23 @@ async def test_institution_roles_keep_tenant_wide_counters(
     assert (documents["total"], documents["trashed"]) == (5, 1)
     assert set(documents) == {"tenant_id", "total", "trashed", "by_status"}
     assert workflows.json()["active_workflow_steps"] == 6
+    assert analytics.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_counts_its_tree_and_keeps_tenant_analytics(
+    client_as, db_seed, other_unit
+):
+    """#195: the other unit is beside the seeded one, not below it. The
+    institution figures stay open to unit_admin (its dashboard; follow-up)."""
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
+    ) as client:
+        documents = (await client.get(DOCUMENT_STATS)).json()
+        workflows = (await client.get(WORKFLOW_STATS)).json()
+        analytics = await client.get(TENANT_ANALYTICS)
+    assert (documents["total"], documents["trashed"]) == (2, 1)
+    assert workflows["active_workflow_steps"] == 3
     assert analytics.status_code == 200
 
 
