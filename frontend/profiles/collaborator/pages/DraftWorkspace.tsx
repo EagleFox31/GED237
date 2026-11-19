@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
-import type { Document, WorkflowValidator } from '../../../types';
+import type { Document } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
-import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
-import { pushSuccess } from '../../../lib/successNotice';
+import { SubmitForValidationDialog } from '../../../components/workflow/SubmitForValidationDialog';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
@@ -15,16 +14,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 const DraftWorkspace: React.FC = () => {
   const [documents, setDocuments] = useState<any[]>([]);
-  const [validators, setValidators] = useState<WorkflowValidator[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
-
-  // State for the submission modal
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  // Brouillon dont la fenêtre de soumission est ouverte (null : fermée).
   const [documentToSubmit, setDocumentToSubmit] = useState<string | null>(null);
-  const [selectedValidator, setSelectedValidator] = useState<string>('');
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -32,54 +26,11 @@ const DraftWorkspace: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // Valideurs proposables (managers et administrateurs du tenant) ; liste vide si l'appel échoue.
-      const [docsResp, validatorsResp] = await Promise.all([
-        api.getDocuments(),
-        api.getWorkflowValidators().catch(() => [] as WorkflowValidator[])
-      ]);
-      setDocuments(docsResp);
-      setValidators(validatorsResp);
+      setDocuments(await api.getDocuments());
     } catch (error) {
       console.error("Failed to fetch data", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const openSubmitModal = (id: string) => {
-    setDocumentToSubmit(id);
-    setShowSubmitModal(true);
-  };
-
-  const submitWorkflow = async () => {
-    if (!documentToSubmit || !selectedValidator) {
-      pushClientOperationError(null, { fallbackDetail: "Veuillez sélectionner un valideur.", severity: "warning" });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // Create a 1-step workflow
-      const steps = [
-        {
-          document_id: documentToSubmit,
-          step_order: 1,
-          label: "Validation Manager",
-          assigned_to: selectedValidator
-        }
-      ];
-
-      await api.createWorkflowSteps(documentToSubmit, steps);
-      pushSuccess('Document envoyé pour validation.');
-      setShowSubmitModal(false);
-      setDocumentToSubmit(null);
-      setSelectedValidator('');
-      fetchData();
-    } catch (e) {
-      // L'erreur HTTP est déjà publiée par le client (bus global) : pas de second message.
-      console.error(e);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -130,14 +81,14 @@ const DraftWorkspace: React.FC = () => {
 
                 {doc.status === 'draft' ? (
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      openSubmitModal(doc.id);
+                      setDocumentToSubmit(doc.id);
                     }}
-                    disabled={submitting}
-                    className="px-3 py-1 bg-rdpc-blue text-white rounded-lg text-[9px] font-bold uppercase tracking-wide hover:bg-blue-800 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 bg-rdpc-blue text-white rounded-lg text-[9px] font-bold uppercase tracking-wide hover:bg-blue-800 transition-colors shadow-lg shadow-blue-200"
                   >
-                    {submitting ? 'Soumission...' : 'Soumettre'}
+                    Soumettre
                   </button>
                 ) : (
                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${doc.status === 'rejected' ? 'bg-red-50 text-red-700' :
@@ -165,53 +116,15 @@ const DraftWorkspace: React.FC = () => {
 
       {selectedDoc && <DocumentDetailModal document={selectedDoc} onClose={() => setSelectedDoc(null)} />}
 
-      {/* Modal Workflow Submit */}
-      {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative">
-            <button
-              onClick={() => {
-                setShowSubmitModal(false);
-                setDocumentToSubmit(null);
-              }}
-              className="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Circuit de Validation</h3>
-            <p className="text-sm text-slate-500 font-medium mb-8">Choisissez la personne qui doit valider ce document.</p>
-
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Valideur (Manager/Directeur)</label>
-                <select
-                  value={selectedValidator}
-                  onChange={(e) => setSelectedValidator(e.target.value)}
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none focus:border-cam-yellow/50 appearance-none"
-                >
-                  <option value="" disabled>-- Sélectionner un manager --</option>
-                  {validators.map(validator => (
-                    <option key={validator.id} value={validator.id}>
-                      {validator.full_name}
-                    </option>
-                  ))}
-                </select>
-                {!loading && validators.length === 0 && (
-                  <p className="ml-1 text-xs text-slate-400">Aucun valideur disponible. Contactez votre administrateur.</p>
-                )}
-              </div>
-
-              <button
-                onClick={submitWorkflow}
-                disabled={submitting || !selectedValidator}
-                className="w-full py-4 bg-cam-yellow text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-yellow-200 hover:bg-yellow-600 hover:scale-[1.02] transition-all disabled:opacity-70 disabled:hover:scale-100"
-              >
-                {submitting ? 'Envoi en cours...' : 'Soumettre au visa'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {documentToSubmit && (
+        <SubmitForValidationDialog
+          documentId={documentToSubmit}
+          onClose={() => setDocumentToSubmit(null)}
+          onSubmitted={() => {
+            setDocumentToSubmit(null);
+            fetchData();
+          }}
+        />
       )}
 
     </div>
