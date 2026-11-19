@@ -8,6 +8,12 @@ import { DocumentPreview } from '../../../components/preview';
 import { Tooltip } from '../../../components/ui/Tooltip';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { UndoToast } from '../../../components/ui/UndoToast';
+import { useUndoableAction } from '../../../hooks/useUndoableAction';
+import { canUndoMove, moveToUnitPatch, placementOf, restorePlacementPatch } from '../../../lib/undo/placement';
+
+/** Type MIME interne du glisser-déposer d'un document vers un dossier. */
+const DOCUMENT_DRAG_TYPE = 'application/x-ged-document-id';
 
 interface UserNode {
   id: string;
@@ -347,6 +353,10 @@ const SpacesPage: React.FC = () => {
       }
     };
 
+  // Les annulations arrivent jusqu'à 10 s plus tard : on recharge avec l'état courant, pas celui du moment de l'action.
+  const loadDocumentsRef = useRef(loadDocuments);
+  loadDocumentsRef.current = loadDocuments;
+
   useEffect(() => {
     loadDocuments();
     // searchQuery participe à la dep : on recharge si l'utilisateur active
@@ -507,6 +517,15 @@ const SpacesPage: React.FC = () => {
       return;
     }
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === 'Delete') {
+      const id = (event.target as HTMLElement).closest('[data-document-id]')?.getAttribute('data-document-id');
+      const doc = documents.find((d) => d.id === id);
+      if (doc) {
+        event.preventDefault();
+        handleTrash(doc);
+      }
+      return;
+    }
     if (event.key === 'Backspace') {
       if (parentUnit) {
         event.preventDefault();
@@ -586,15 +605,70 @@ const SpacesPage: React.FC = () => {
     });
   };
 
+  // Ctrl+Z ne vise pas la page quand l'aperçu ou un menu est ouvert par-dessus.
+  const undo = useUndoableAction(undefined, !previewDocument && !contextMenu);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
   const handleTrash = async (doc: Document) => {
     setContextMenu(null);
     try {
       await api.deleteDocument(doc.id);
-      loadDocuments();
     } catch {
-      /* message déjà affiché par le bus global */
+      return; /* message déjà affiché par le bus global */
     }
+    loadDocumentsRef.current();
+    undo.propose(`« ${doc.title} » mis à la corbeille`, async () => {
+      await api.restoreDocument(doc.id);
+      loadDocumentsRef.current();
+    });
   };
+
+  // Glisser un document sur un dossier = le ranger dans cette unité.
+  const handleMoveToUnit = async (documentId: string, unitId: string) => {
+    const doc = documents.find((d) => d.id === documentId);
+    if (!doc) return;
+    const patch = moveToUnitPatch(doc, unitId);
+    if (!patch) return;
+    const before = placementOf(doc);
+    try {
+      await api.updateDocument(doc.id, patch);
+    } catch {
+      return; /* bus global */
+    }
+    loadDocumentsRef.current();
+    const message = `« ${doc.title} » déplacé vers ${unitsById.get(unitId)?.name ?? 'le dossier'}`;
+    undo.propose(
+      message,
+      canUndoMove(before, patch)
+        ? async () => {
+            await api.updateDocument(doc.id, restorePlacementPatch(before));
+            loadDocumentsRef.current();
+          }
+        : undefined
+    );
+  };
+
+  const startDocumentDrag = (event: React.DragEvent, doc: Document) => {
+    event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
+  const folderDropProps = (unitId: string) => ({
+    onDragOver: (event: React.DragEvent) => {
+      if (!event.dataTransfer.types.includes(DOCUMENT_DRAG_TYPE)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      if (dropTargetId !== unitId) setDropTargetId(unitId);
+    },
+    onDragLeave: () => setDropTargetId((current) => (current === unitId ? null : current)),
+    onDrop: (event: React.DragEvent) => {
+      const documentId = event.dataTransfer.getData(DOCUMENT_DRAG_TYPE);
+      setDropTargetId(null);
+      if (!documentId) return;
+      event.preventDefault();
+      handleMoveToUnit(documentId, unitId);
+    },
+  });
 
   const handleCopyPath = async (path: string) => {
     if (!path) return;
@@ -882,8 +956,9 @@ const SpacesPage: React.FC = () => {
                             onClick={() => openFolder(child.id)}
                             onDoubleClick={() => openFolder(child.id)}
                             onContextMenu={(event) => handleFolderContextMenu(event, child.id)}
+                            {...folderDropProps(child.id)}
                             data-explorer-item
-                            className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50 ${EXPLORER_ITEM_FOCUS}`}
+                            className={`group w-full rounded-[1.5rem] border bg-white px-5 py-5 text-left transition-all hover:-translate-y-0.5 hover:border-rdpc-blue hover:bg-blue-50 ${dropTargetId === child.id ? 'border-rdpc-blue bg-blue-50 ring-2 ring-rdpc-blue' : 'border-slate-200'} ${EXPLORER_ITEM_FOCUS}`}
                           >
                             <div className="flex items-start gap-4">
                               <span className="material-symbols-outlined text-4xl text-amber-500">folder</span>
@@ -962,6 +1037,9 @@ const SpacesPage: React.FC = () => {
                             type="button"
                             onClick={() => openPreview(doc)}
                             onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
+                            draggable
+                            onDragStart={(event) => startDocumentDrag(event, doc)}
+                            data-document-id={doc.id}
                             aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
                             data-explorer-item
                             className={`group w-full rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-rdpc-blue ${EXPLORER_ITEM_FOCUS}`}
@@ -1025,6 +1103,9 @@ const SpacesPage: React.FC = () => {
                               key={doc.id}
                               onDoubleClick={() => openPreview(doc)}
                               onContextMenu={(event) => handleDocumentContextMenu(event, doc)}
+                              draggable
+                              onDragStart={(event) => startDocumentDrag(event, doc)}
+                              data-document-id={doc.id}
                               tabIndex={0}
                               data-explorer-item
                               aria-label={`${doc.title} — ${getClassificationStatusLabel(doc.classification_status)}`}
@@ -1146,6 +1227,8 @@ const SpacesPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <UndoToast offer={undo.offer} onUndo={() => undo.runUndo()} onDismiss={undo.dismiss} />
 
       {contextMenu && (
         <div
