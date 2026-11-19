@@ -2,6 +2,7 @@
 users' files come from, plus the hostile cases the bounds exist for."""
 
 import io
+import mimetypes
 import random
 import zipfile
 
@@ -12,6 +13,7 @@ from docx import Document as WordDocument
 from app.services.extraction import (
     DOCX_MIME_TYPE,
     XLSX_MIME_TYPE,
+    guess_mime_type,
     has_text_reader,
 )
 from app.services.extraction import office
@@ -374,3 +376,22 @@ def test_external_entity_is_not_resolved(tmp_path):
 )
 def test_has_text_reader(mime, expected):
     assert has_text_reader(mime) is expected
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("/data/ingest/Note.DOCX", DOCX_MIME_TYPE),
+        ("devis.xlsx", XLSX_MIME_TYPE),
+        ("scan.pdf", "application/pdf"),
+        ("liste.csv", "text/csv"),
+        ("sans_extension", "application/octet-stream"),
+    ],
+)
+def test_guess_mime_type_without_system_table(path, expected):
+    # Slim images ship no mime.types: Word and Excel must still be recognised.
+    mimetypes.init(files=[])
+    try:
+        assert guess_mime_type(path) == expected
+    finally:
+        mimetypes.init()

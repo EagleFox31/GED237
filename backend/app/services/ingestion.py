@@ -7,7 +7,6 @@ Scans a local directory, imports files into the GED, and triggers classification
 import hashlib
 import os
 import shutil
-import mimetypes
 import logging
 import time
 from datetime import datetime, timezone
@@ -20,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
-from app.services.extraction import has_text_reader
+from app.services.extraction import guess_mime_type, has_text_reader
 from app.models.document_version import DocumentVersion
 from app.core.config import settings
 from app.core.errors.domain import IngestPathForbiddenError
@@ -319,7 +318,7 @@ class DirectoryIngestionService:
         """
         filename = os.path.basename(file_path)
         file_size = os.path.getsize(file_path)
-        mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+        mime_type = guess_mime_type(file_path)
 
         # 0. Same content already in the tenant: not imported again (rescan, copy).
         checksum = _sha256_of(file_path)
