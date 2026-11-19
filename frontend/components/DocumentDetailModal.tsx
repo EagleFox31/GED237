@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import { notifyTasksChanged } from '../lib/taskCount';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
@@ -130,6 +131,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         document_version_id: document.current_version_id,
         comment: comment || undefined
       });
+      notifyTasksChanged();
       await loadWorkflowSteps();
       // Le statut du document change après un visa ou un rejet : on le relit pour l'affichage et la liste.
       try {
