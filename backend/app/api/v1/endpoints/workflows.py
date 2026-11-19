@@ -3,7 +3,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -47,6 +47,15 @@ VALIDATOR_ROLE_CODES = ("manager", "tenant_admin")
 
 # Alias pour distinguer l'owner du document du current_user dans les jointures
 OwnerUser = aliased(User, name="owner_user")
+
+
+def _pending_assignee_clause(user: User) -> ColumnElement[bool]:
+    """Steps that ``user`` must act on: the single place deciding "my tasks".
+
+    Today the assignee only. Delegation (a stand-in acting for a holder)
+    extends this clause, so /pending and the task counters follow it.
+    """
+    return WorkflowStep.assigned_to == user.id
 
 
 @router.get("/stats")
@@ -282,7 +291,7 @@ async def get_pending_tasks(
         .join(Document, Document.id == WorkflowStep.document_id)
         .join(OwnerUser, OwnerUser.id == Document.owner_id, isouter=True)
         .where(
-            WorkflowStep.assigned_to == current_user.id,
+            _pending_assignee_clause(current_user),
             WorkflowStep.status == "current",
             Document.tenant_id == current_user.tenant_id,
         )
