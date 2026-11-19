@@ -76,6 +76,16 @@ helper() {
     -e OWNER="$(id -u):$(id -g)" "$@"
 }
 
+# L'image utilitaire doit être présente avant toute écriture : sans réseau, `docker run`
+# ne peut pas la télécharger, et l'opération s'arrêterait à mi-chemin (dossier de
+# sauvegarde sans MANIFEST, ou cible déjà vidée). En ligne, elle est téléchargée ici.
+require_helper_image() {
+  docker image inspect "$HELPER_IMAGE" >/dev/null 2>&1 && return 0
+  log "image utilitaire absente : $HELPER_IMAGE, téléchargement"
+  docker pull -q "$HELPER_IMAGE" >/dev/null 2>&1 ||
+    die "image utilitaire $HELPER_IMAGE absente et impossible à télécharger (hors ligne ?). Rien n'a été modifié. Mettre dans .env BACKUP_HELPER_IMAGE=${PROJECT:-<projet>}-api (image de la pile, qui a tar, gzip et sha256sum), puis relancer."
+}
+
 # api et worker arrêtés pendant l'opération (cohérence base/stockage) ; seuls ceux qui
 # tournaient sont redémarrés. Hors compose, la cible est supposée inactive.
 STOPPED_SERVICES=""
@@ -103,9 +113,52 @@ restart_services() {
       STOPPED_SERVICES=""
       return 1
     fi
+    case " $STOPPED_SERVICES " in
+      *" api "*) STOPPED_SERVICES=""; restart_proxies || return 1 ;;
+    esac
     STOPPED_SERVICES=""
   fi
   return 0
+}
+
+# api relancé change souvent d'adresse IP ; nginx garde celle lue à son démarrage et
+# répond 502. On relance donc les proxys qui tournent, puis on vérifie /health à travers
+# chacun d'eux, depuis son conteneur (ports et certificats de l'hôte sans importance).
+PROXY_SERVICES="${BACKUP_PROXY_SERVICES:-nginx nginx-tls}"
+# Vérifié avant toute écriture : 0 ou une valeur non entière ne ferait aucun essai.
+require_health_tries() {
+  local v="${BACKUP_HEALTH_TRIES:-30}"
+  case "$v" in
+    *[!0-9]*) ;;
+    *[1-9]*) return 0 ;;
+  esac
+  die "BACKUP_HEALTH_TRIES=$v : nombre entier d'essais de /health attendu, au moins 1 (30 par défaut). Rien n'a été modifié."
+}
+restart_proxies() {
+  local running proxies="" svc url i tries="${BACKUP_HEALTH_TRIES:-30}"
+  running="$(docker compose ps --status running --services 2>/dev/null || true)"
+  for svc in $PROXY_SERVICES; do
+    printf '%s\n' "$running" | grep -qx -- "$svc" && proxies="$proxies $svc"
+  done
+  [ -n "$proxies" ] || return 0
+  log "relance du proxy :$proxies"
+  # shellcheck disable=SC2086
+  docker compose restart $proxies >/dev/null || { log "relance du proxy en échec :$proxies"; return 1; }
+  for svc in $proxies; do
+    url=http://127.0.0.1/health
+    [ "$svc" = nginx-tls ] && url=https://127.0.0.1/health
+    # Au moins un essai : « OK » n'est écrit qu'après une réponse réelle.
+    i=1
+    until docker compose exec -T "$svc" wget -q -O /dev/null --no-check-certificate "$url" >/dev/null 2>&1; do
+      if [ "$i" -ge "$tries" ]; then
+        log "/health ne répond pas à travers $svc : voir docker compose logs $svc api"
+        return 1
+      fi
+      i=$((i + 1))
+      sleep 1
+    done
+    log "/health OK à travers $svc"
+  done
 }
 
 human_size() { du -h "$1" | cut -f1; }

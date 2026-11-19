@@ -4,7 +4,7 @@ Search Engine - Abstract Interface (SRP: Define the search contract)
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 from enum import Enum
 
@@ -32,6 +32,8 @@ class SearchQuery:
     # Visibility scope decided by the caller from the user's role. ``None``
     # means "no restriction on that axis"; the tenant filter always applies.
     scope_org_unit_id: Optional[UUID] = None
+    # Several units at once (a unit and its sub-units), ids already resolved.
+    scope_org_unit_ids: Optional[List[UUID]] = None
     scope_owner_id: Optional[UUID] = None
     include_deleted: bool = False
     # Pagination

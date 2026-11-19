@@ -159,7 +159,7 @@ async def test_create_classification_rule_rejects_fixed_year_without_value(
     )
 
     assert response.status_code == 400
-    assert "annee fixe" in response.json()["detail"].lower()
+    assert "année fixe" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -212,7 +212,7 @@ async def test_update_classification_activity_rejects_duplicate_code_within_doma
     )
 
     assert response.status_code == 400
-    assert "code d'activite" in response.json()["detail"].lower()
+    assert "code d'activité" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -241,7 +241,7 @@ async def test_update_classification_rule_rejects_duplicate_code(
     )
 
     assert response.status_code == 400
-    assert "code de regle" in response.json()["detail"].lower()
+    assert "code de règle" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -260,4 +260,4 @@ async def test_simulate_classification_rejects_foreign_source_context(
     )
 
     assert response.status_code == 400
-    assert "unite source invalide" in response.json()["detail"].lower()
+    assert "unité source invalide" in response.json()["detail"].lower()
