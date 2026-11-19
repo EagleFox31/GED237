@@ -7,12 +7,10 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import { canArchiveDocument } from '../lib/documentArchive';
 
-// Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
-// super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
-export const CAN_ARCHIVE_DOCUMENT = new Set(['super', 'tenant']);
-// Statuts de départ acceptés par l'API (ARCHIVABLE_SOURCE_STATUSES) ; sinon 409.
-const ARCHIVABLE_STATUSES = new Set(['validated', 'signed']);
+// Ré-export conservé pour les imports existants.
+export { CAN_ARCHIVE_DOCUMENT } from '../lib/documentArchive';
 
 interface DocumentDetailModalProps {
   document: Document;
@@ -26,7 +24,7 @@ interface DocumentDetailModalProps {
 const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated, onTrashed }) => {
   const [document, setDocument] = useState<Document>(initialDocument);
   const profileId = useAuthStore((s) => s.userProfile?.id);
-  const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
+  const canArchive = canArchiveDocument(profileId, document.status);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [trashing, setTrashing] = useState(false);

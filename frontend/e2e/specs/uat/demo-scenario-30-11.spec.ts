@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 import { test, expect, apiAs, type UatApi } from '../../fixtures/uat.fixture';
 
 /**
@@ -12,7 +12,8 @@ import { test, expect, apiAs, type UatApi } from '../../fixtures/uat.fixture';
  * sur la pile de démo comme sur la pile UAT. Les compteurs exacts du jeu de démo (367 documents,
  * 16 classés / 12 à revoir / 2 doublons) restent contrôlés par demo-counters.spec.ts (projet `demo`).
  *
- * Ce qui échouerait aujourd'hui serait marqué `test.fixme` avec la PR attendue ; rien pour l'instant (#258 lève l'étape 8).
+ * Ce qui échouerait aujourd'hui serait marqué `test.fixme` avec la PR attendue ; rien pour l'instant.
+ * Étape 8 : archivage depuis l'aperçu de l'explorateur (écart 9) ; 8 bis garde le chemin par la recherche de l'en-tête (#258).
  * Lancement : `npx playwright test --project=uat specs/uat/demo-scenario-30-11.spec.ts`.
  */
 
@@ -182,15 +183,40 @@ test.describe('Démo 30/11 — le classement automatique, de bout en bout', () =
     await expect(page.getByRole('tabpanel')).toBeVisible();
   });
 
-  test('8. Archivage par la recherche de l\'en-tête : document validé → badge « Archivé »', async ({ page, loginAs, request, adminApi, runId }) => {
-    const title = `Démo archivage ${runId}`;
+  // Document validé par le manager, prêt à archiver.
+  const validatedDocument = async (request: APIRequestContext, adminApi: UatApi, title: string, file: string) => {
     const manager: UatApi = await apiAs(request, 'manager');
-    const doc = await adminApi.uploadDocument(`demo-arch-${runId}.txt`, title, `Archiver ${title}`);
+    const doc = await adminApi.uploadDocument(file, title, `Archiver ${title}`);
     const [step] = await adminApi.submitForVisa(doc.id, (await manager.me()).id, 'Visa démo');
     const { current_version_id: versionId } = await adminApi.getDocument(doc.id);
     if (!step || !versionId) throw new Error('circuit ou version absent');
     await manager.acceptVisa(step.id, versionId);
     await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('validated');
+    return doc;
+  };
+
+  test('8. Archivage depuis l\'explorateur : aperçu du document validé → « Archiver » → statut « Archivé »', async ({ page, loginAs, request, adminApi, runId }) => {
+    const title = `Démo archivage explorateur ${runId}`;
+    const doc = await validatedDocument(request, adminApi, title, `demo-arch-expl-${runId}.txt`);
+
+    await loginAs('tenant_admin');
+    await MAIN_MENU(page, /Explorateur documentaire/).click();
+    await expect(page).toHaveURL(/\/spaces/);
+    // Sur l'explorateur, la recherche de l'en-tête filtre les documents affichés, tous services confondus.
+    await page.locator('[data-global-search]').fill(title);
+    const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await page.getByRole('button', { name: new RegExp(`^${escaped} — `) }).first().click({ timeout: 15_000 });
+    await expect(page.getByText('Aperçu du document')).toBeVisible();
+    await page.getByRole('button', { name: 'Archiver', exact: true }).click();
+    await page.getByRole('button', { name: 'Oui, archiver', exact: true }).click();
+    await expect.poll(async () => (await adminApi.getDocument(doc.id)).status).toBe('archived');
+    await expect(page.getByTestId('preview-status')).toHaveText('Archivé');
+    await expect(page.getByRole('button', { name: 'Archiver', exact: true })).toHaveCount(0);
+  });
+
+  test('8 bis. Filet : archivage par le résultat de recherche de l\'en-tête (fiche « Mes documents »)', async ({ page, loginAs, request, adminApi, runId }) => {
+    const title = `Démo archivage ${runId}`;
+    const doc = await validatedDocument(request, adminApi, title, `demo-arch-${runId}.txt`);
 
     await loginAs('tenant_admin');
     // Contrat #258 : recherche dans l'en-tête, résultat « Ouvrir <titre> », fiche via /documents?open=<id>.
