@@ -41,7 +41,7 @@ test.describe('Soumettre depuis « Mes Documents »', () => {
     await loginAs('collaborator');
     me = await page.evaluate(() => JSON.parse(sessionStorage.getItem('user_profile') ?? '{}').userId as string);
     // Le directeur a été choisi lors d'une soumission précédente, dans ce navigateur.
-    await page.evaluate(([key, id]) => localStorage.setItem(key, id), [`ged237.lastValidator.${me}`, DIRECTEUR.id]);
+    await page.evaluate(({ key, id }) => localStorage.setItem(key, id), { key: `ged237.lastValidator.${me}`, id: DIRECTEUR.id });
     await page.goto('documents');
 
     await expect(page.getByRole('button', { name: 'Soumettre Brouillon d un collègue' })).toHaveCount(0);
