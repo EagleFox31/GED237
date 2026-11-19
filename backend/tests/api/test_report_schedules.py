@@ -9,6 +9,7 @@ from sqlalchemy import func, select, update
 
 from app.core.config import settings
 from app.models.notification import Notification
+from app.models.role import Role
 from app.models.report_issue import ReportIssue
 from app.models.report_schedule import ReportRun, ReportSchedule
 from app.models.tenant import Tenant
@@ -55,7 +56,14 @@ def test_closed_period(frequency, today, key, start, end):
     assert (period.key, period.date_from, period.date_to) == (key, start, end)
 
 
-async def _schedule(db_session, db_seed, *, kind="evolution", active=True):
+async def _schedule(
+    db_session, db_seed, *, kind="evolution", active=True, role="tenant_admin"
+):
+    # The seeded user is a collaborator, who gets no report (#188): the creator
+    # of a schedule is an administrator unless a test says otherwise.
+    await db_session.execute(
+        update(Role).where(Role.id == db_seed["role_id"]).values(code=role)
+    )
     schedule = ReportSchedule(
         id=uuid.uuid4(),
         tenant_id=db_seed["tenant_id"],
@@ -140,6 +148,18 @@ async def test_a_refusal_is_recorded_and_notified_once(db_session, db_seed):
 
 
 @pytest.mark.asyncio
+async def test_a_creator_who_lost_report_rights_gets_a_failed_run(db_session, db_seed):
+    await _schedule(db_session, db_seed, role="collaborator")
+
+    result = await run_due_schedules(db_session, now=NOW)
+
+    assert (len(result.issued), len(result.failed)) == (0, 1)
+    run = (await db_session.execute(select(ReportRun))).scalar_one()
+    assert run.status == "failed" and "profil" in run.error
+    assert await _count(db_session, ReportIssue) == 0
+
+
+@pytest.mark.asyncio
 async def test_an_inactive_creator_gets_no_copy(db_session, db_seed):
     await _schedule(db_session, db_seed, kind="document-activity")
     await db_session.execute(
@@ -171,6 +191,13 @@ async def test_disabled_server_refuses_schedules_and_runs_nothing(
 ):
     assert settings.SCHEDULED_REPORTS_ENABLED is False  # default
     assert "run-scheduled-reports" not in (celery_app.conf.beat_schedule or {})
+
+    # The client reads the switch cross-origin to hide the feature.
+    origin = settings.ALLOWED_ORIGINS[0]
+    listed = await admin_client.get(SCHEDULES, headers={"Origin": origin})
+    assert listed.headers["X-Scheduled-Reports-Enabled"] == "false"
+    exposed = listed.headers["access-control-expose-headers"]
+    assert "X-Scheduled-Reports-Enabled" in exposed
 
     refused = await admin_client.post(
         SCHEDULES,
@@ -205,6 +232,7 @@ async def test_create_list_and_stop_a_schedule(admin_client, db_session, enabled
 
     listed = await admin_client.get(SCHEDULES)
     assert [item["id"] for item in listed.json()] == [body["id"]]
+    assert listed.headers["X-Scheduled-Reports-Enabled"] == "true"
 
     stopped = await admin_client.delete(f"{SCHEDULES}/{body['id']}")
     assert stopped.status_code == 204

@@ -11,9 +11,10 @@ from app.core.config import settings
 from app.models.document import Document
 from app.models.notification import Notification
 from app.models.quality_alert import QualityAlertEvent, QualityAlertRule
+from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
-from app.services.quality_alerts import EVENT_TYPE, evaluate_rules
+from app.services.quality_alerts import EVENT_TYPE, _stop_refused, evaluate_rules
 from app.workers.celery_app import celery_app
 from app.workers.tasks import evaluate_quality_alerts
 
@@ -40,7 +41,19 @@ async def _document(db_session, db_seed, **overrides) -> Document:
     return document
 
 
-async def _rule(db_session, db_seed, **overrides) -> QualityAlertRule:
+async def _owner_role(db_session, db_seed, role: str = "tenant_admin") -> None:
+    """The seeded user is a collaborator, who gets no report (#188): the owner
+    of a rule is an administrator unless a test says otherwise."""
+    await db_session.execute(
+        update(Role).where(Role.id == db_seed["role_id"]).values(code=role)
+    )
+    await db_session.commit()
+
+
+async def _rule(
+    db_session, db_seed, *, role="tenant_admin", **overrides
+) -> QualityAlertRule:
+    await _owner_role(db_session, db_seed, role)
     fields = dict(
         id=uuid.uuid4(),
         tenant_id=db_seed["tenant_id"],
@@ -146,6 +159,39 @@ async def test_an_inactive_creator_is_refused_without_notification(db_session, d
 
 
 @pytest.mark.asyncio
+async def test_a_refused_rule_stops_and_closes_its_open_event(db_session, db_seed):
+    await _document(db_session, db_seed, classification_year=None)
+    rule_id = (await _rule(db_session, db_seed)).id
+    assert (await evaluate_rules(db_session)).opened == [str(rule_id)]
+    await db_session.execute(
+        update(User).where(User.id == db_seed["user_id"]).values(is_active=False)
+    )
+    await db_session.commit()
+
+    assert (await evaluate_rules(db_session)).refused == [str(rule_id)]
+    assert await _open_events(db_session, rule_id) == 0
+    assert (await db_session.get(QualityAlertRule, rule_id)).is_active is False
+    assert len(await _alert_messages(db_session)) == 1  # no end-of-alert message
+    assert (await evaluate_rules(db_session)).refused == []  # stopped for good
+
+
+@pytest.mark.asyncio
+async def test_a_rule_deleted_before_its_stop_is_left_alone(db_session, caplog):
+    with caplog.at_level(logging.ERROR):
+        await _stop_refused(db_session, uuid.uuid4())
+    assert "could not be stopped" not in caplog.text
+
+
+async def _open_events(db_session, rule_id) -> int:
+    return await db_session.scalar(
+        select(func.count(QualityAlertEvent.id)).where(
+            QualityAlertEvent.rule_id == rule_id,
+            QualityAlertEvent.cleared_at.is_(None),
+        )
+    )
+
+
+@pytest.mark.asyncio
 async def test_a_stopped_rule_is_ignored(db_session, db_seed):
     await _document(db_session, db_seed, classification_year=None)
     await _rule(db_session, db_seed, is_active=False)
@@ -158,6 +204,7 @@ async def test_create_list_and_stop_an_alert(
     admin_client, db_session, db_seed, monkeypatch
 ):
     monkeypatch.setattr(settings, "QUALITY_ALERTS_ENABLED", True)
+    await _owner_role(db_session, db_seed)  # admin_client acts as the seeded user
     await _document(db_session, db_seed, classification_year=None)
     created = await admin_client.post(
         ALERTS,
@@ -181,6 +228,8 @@ async def test_create_list_and_stop_an_alert(
 
     stopped = await admin_client.delete(f"{ALERTS}/{body['id']}")
     assert stopped.status_code == 204
+    db_session.expire_all()
+    assert await _open_events(db_session, uuid.UUID(body["id"])) == 0
     assert (await admin_client.get(ALERTS)).json() == []
     again = await admin_client.delete(f"{ALERTS}/{body['id']}")
     assert again.status_code == 204  # already stopped: no-op

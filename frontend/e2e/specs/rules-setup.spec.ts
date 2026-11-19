@@ -45,7 +45,8 @@ test.describe.serial('Feature: Règles de classement automatique (SC-ADM-05)', (
     test(`SC-ADM-05 — créer la règle "${rule.name}"`, async ({ page }) => {
       const rp = new RulesPage(page);
       await rp.goto();
-      await rp.expectLoaded();
+      // Open the list before looking for the rule, otherwise a rerun would create a duplicate.
+      await rp.getRuleCount();
 
       const existing = page.locator(`h3:has-text("${rule.name}")`);
       if (await existing.first().isVisible().catch(() => false)) {
@@ -66,7 +67,8 @@ test.describe.serial('Feature: Règles de classement automatique (SC-ADM-05)', (
   test('SC-ADM-05 — les 6 règles sont listées', async ({ page }) => {
     const rp = new RulesPage(page);
     await rp.goto();
-    await rp.expectLoaded();
+    // The page opens on the « Types de documents » tab.
+    await rp.getRuleCount();
 
     for (const rule of RULES) {
       await expect(page.locator(`h3:has-text("${rule.name}")`).first())
