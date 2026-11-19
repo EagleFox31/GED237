@@ -76,6 +76,7 @@ export const api = {
     // Documents
     uploadDocument: documentsApi.uploadDocument,
     getDocuments: documentsApi.getDocuments,
+    getDocumentsPage: documentsApi.getDocumentsPage,
     getDocument: documentsApi.getDocument,
     getDocumentContentBlob: documentsApi.getDocumentContentBlob,
     updateDocument: documentsApi.updateDocument,

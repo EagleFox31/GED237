@@ -1,5 +1,5 @@
 // frontend/components/Documents.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import DocumentDetailModal from './DocumentDetailModal';
@@ -16,13 +16,16 @@ import { onActivationKey } from '../lib/keyboardActivation';
 const CAN_CREATE_DOCUMENT = new Set(['super', 'tenant', 'manager', 'collab']);
 // Délai après la dernière frappe avant d'interroger le serveur.
 const SEARCH_DEBOUNCE_MS = 300;
-// Nombre de documents chargés (les plus récents) ; au-delà, passer par la recherche.
-const DOCUMENTS_LIMIT = 100;
+// Taille d'une page (les plus récents d'abord) ; « Afficher plus » charge la suivante.
+const DOCUMENTS_PAGE_SIZE = 100;
 
 const Documents: React.FC = () => {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [docs, setDocs] = useState<Document[]>([]);
+  // Nombre de documents du périmètre, filtres compris (en-tête X-Total-Count).
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const profileId = useAuthStore((s) => s.userProfile?.id);
@@ -59,23 +62,57 @@ const Documents: React.FC = () => {
     });
   }, []);
 
+  // Recherche, statut et catégorie sont filtrés par le serveur : le total compte tout le périmètre.
+  const listFilters = useMemo(
+    () => ({ q: serverQuery, status: filterStatus, categoryId: filterCategory }),
+    [serverQuery, filterStatus, filterCategory],
+  );
+
   // Seule la dernière requête met la liste à jour (frappe rapide, réponses dans le désordre).
   const latestRequestRef = useRef(0);
   const fetchDocuments = useCallback(async () => {
     latestRequestRef.current += 1;
     const request = latestRequestRef.current;
     setIsLoading(true);
+    // A "show more" still pending belongs to the previous list: its button must not stay locked.
+    setIsLoadingMore(false);
     setError(null);
     try {
-      const data = await api.getDocuments({ q: serverQuery, status: filterStatus, limit: DOCUMENTS_LIMIT });
-      if (request === latestRequestRef.current) setDocs(data);
+      const page = await api.getDocumentsPage({ ...listFilters, limit: DOCUMENTS_PAGE_SIZE });
+      if (request === latestRequestRef.current) {
+        setDocs(page.items);
+        setTotal(page.total);
+      }
     } catch (err) {
       console.error('Failed to fetch documents:', err);
       if (request === latestRequestRef.current) setError('Impossible de charger les documents.');
     } finally {
       if (request === latestRequestRef.current) setIsLoading(false);
     }
-  }, [serverQuery, filterStatus]);
+  }, [listFilters]);
+
+  const loadMore = async () => {
+    const request = latestRequestRef.current;
+    setIsLoadingMore(true);
+    try {
+      const page = await api.getDocumentsPage({ ...listFilters, skip: docs.length, limit: DOCUMENTS_PAGE_SIZE });
+      // Filtres changés entre-temps : la page appartient à l'ancienne liste.
+      if (request !== latestRequestRef.current) return;
+      setDocs((prev) => {
+        const known = new Set(prev.map((doc) => doc.id));
+        return [...prev, ...page.items.filter((doc) => !known.has(doc.id))];
+      });
+      setTotal(page.total);
+    } catch (err) {
+      if (request !== latestRequestRef.current) return;
+      pushClientOperationError(err, {
+        fallbackDetail: 'Impossible de charger la suite de la liste.',
+        errorCode: 'DOCUMENTS_NEXT_PAGE_FAILED',
+      });
+    } finally {
+      if (request === latestRequestRef.current) setIsLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     fetchDocuments();
@@ -116,8 +153,6 @@ const Documents: React.FC = () => {
     nextParams.delete('open');
     setSearchParams(nextParams, { replace: true });
   };
-
-  const filteredDocs = docs.filter((doc) => !filterCategory || doc.document_category_id === filterCategory);
 
   const getTypeStyle = (fileType: string | null) => {
     const label = getFileTypeLabel(fileType);
@@ -213,7 +248,7 @@ const Documents: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredDocs.map((doc) => (
+        {docs.map((doc) => (
           <div
             key={doc.id}
             role="button"
@@ -253,16 +288,24 @@ const Documents: React.FC = () => {
         ))}
       </div>
 
-      {/* Audit Footnote */}
-      {docs.length > 0 && (
-        <div className="flex items-center justify-center gap-4 py-8 opacity-40">
-          <div className="h-px w-20 bg-slate-300"></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">
-            {docs.length >= DOCUMENTS_LIMIT
-              ? `${DOCUMENTS_LIMIT} documents les plus récents • Utilisez la recherche pour les autres`
-              : 'Fin de la liste • Archivage Sécurisé AES-256'}
-          </span>
-          <div className="h-px w-20 bg-slate-300"></div>
+      {/* Bas de liste : combien sont affichés sur combien, et la suite s'il en reste. */}
+      {!isLoading && !error && docs.length > 0 && (
+        <div className="flex flex-col items-center gap-3 py-8" data-testid="documents-count">
+          <p className="text-sm font-bold text-slate-500">
+            {docs.length < total
+              ? `${docs.length} sur ${total} documents`
+              : `${total} document${total > 1 ? 's' : ''} • fin de la liste`}
+          </p>
+          {docs.length < total && (
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={isLoadingMore}
+              className="px-6 py-3 rounded-2xl bg-slate-100 text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-blue-50 hover:text-rdpc-blue disabled:opacity-50"
+            >
+              {isLoadingMore ? 'Chargement…' : 'Afficher plus'}
+            </button>
+          )}
         </div>
       )}
 
