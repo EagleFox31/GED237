@@ -15,6 +15,8 @@ from app.workers.celery_app import celery_app
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.core.config import settings
+from app.services.extraction import OFFICE_MIME_TYPES
+from app.services.extraction.office import extract_office_text
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +118,12 @@ def process_document_ocr(document_id: str, file_path: str, file_type: str):
             extracted_text = result.text
             confidence = result.confidence
             engine_used = result.engine_used
+
+        elif file_type in OFFICE_MIME_TYPES:
+            # Word and Excel: text read from the file; raises OfficeExtractionError, never returns ""
+            extracted_text = extract_office_text(full_path, file_type)
+            confidence = 1.0
+            engine_used = "office (native)"
 
         else:
             print(f"❌ Unsupported file type for OCR: {file_type}")

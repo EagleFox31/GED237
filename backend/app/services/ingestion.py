@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
+from app.services.extraction import has_text_reader
 from app.models.document_version import DocumentVersion
 from app.core.config import settings
 from app.core.errors.domain import IngestPathForbiddenError
@@ -424,9 +425,9 @@ class DirectoryIngestionService:
 
         # 3. Supprimé: Ancien pre-OCR rules (rule_runner)
 
-        # 4. Queue OCR for images and PDFs (lazy import to avoid Celery at module level)
+        # 4. Queue text reading for images, PDFs, Word and Excel files (lazy import to avoid Celery at module level)
         ocr_queued = False
-        if mime_type.startswith("image/") or mime_type == "application/pdf":
+        if has_text_reader(mime_type):
             try:
                 from app.workers.tasks import process_document_ocr
 

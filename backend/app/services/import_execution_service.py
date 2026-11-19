@@ -17,6 +17,7 @@ from app.models.import_job import ImportJob
 from app.models.import_job_item import ImportJobItem
 from app.models.user import User
 from app.services.classification_review_service import ClassificationReviewService
+from app.services.extraction import has_text_reader
 from app.services.storage.factory import get_storage_service
 
 
@@ -160,10 +161,7 @@ class ImportExecutionService:
                         }
                     )
 
-                if document.mime_type and (
-                    document.mime_type.startswith("image/")
-                    or document.mime_type == "application/pdf"
-                ):
+                if has_text_reader(document.mime_type):
                     summary.ocr_payloads.append(
                         (str(document.id), document.file_path, document.mime_type)
                     )

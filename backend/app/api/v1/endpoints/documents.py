@@ -68,6 +68,7 @@ from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.services.storage.factory import get_storage_service
 from app.workers.tasks import process_document_ocr
+from app.services.extraction import has_text_reader
 
 router = APIRouter()
 storage_service = get_storage_service()
@@ -853,9 +854,7 @@ async def upload_document(
     )
     db_document = result.scalar_one()
 
-    if file_mime_type and (
-        file_mime_type.startswith("image/") or file_mime_type == "application/pdf"
-    ):
+    if has_text_reader(file_mime_type):
         try:
             process_document_ocr.delay(str(db_document.id), file_path, file_mime_type)
         except Exception as exc:
