@@ -215,6 +215,12 @@ def test_production_refuses_the_app_without_its_own_key(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "a-production-secret-for-this-test-only")
     monkeypatch.setenv("AUTH_TOTP_ENABLED", "true")
     monkeypatch.setenv("TOTP_ENCRYPTION_KEYS", "")
+    # Production also needs a channel that sends the login code: give it one,
+    # so only the missing TOTP key is refused.
+    monkeypatch.setenv("AUTH_OTP_CHANNEL", "email")
+    monkeypatch.setenv("EMAIL_ENABLED", "true")
+    monkeypatch.setenv("EMAIL_TRANSPORT", "resend")
+    monkeypatch.setenv("RESEND_API_KEY", "k")
     get_settings.cache_clear()
     try:
         with pytest.raises(RuntimeError, match="TOTP_ENCRYPTION_KEYS"):
