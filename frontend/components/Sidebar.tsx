@@ -95,6 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
         {[
           { id: 'dashboard', label: 'Tableau de Bord', icon: 'dashboard' },
           { id: 'documents', label: 'Mes Documents', icon: 'description' },
+          { id: 'my_documents', label: 'Favoris & récents', icon: 'star' },
           { id: 'tasks', label: 'Tâches & Suivi', icon: 'notifications' },
           // Outils de rangement local : masqués pour reader et collab (miroir des rôles : ils lisent ou déposent
           // dans leurs brouillons, sans classer en masse). Les autres profils gardent ces entrées.

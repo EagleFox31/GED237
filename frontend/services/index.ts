@@ -41,6 +41,7 @@ import { usageApi }          from './resources/usage.api';
 
 export { authApi }             from './resources/auth.api';
 export { documentsApi }        from './resources/documents.api';
+export { myDocumentsApi }      from './resources/myDocuments.api';
 export { workflowsApi }        from './resources/workflows.api';
 export { orgUnitsApi }         from './resources/orgUnits.api';
 export { usersApi }            from './resources/users.api';

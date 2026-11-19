@@ -598,6 +598,7 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+
 ### LESSON-2026-043 — Drapeau transmis au seul worker : la route de l'API restait fermée
 
 - **Date :** 2026-11-17
@@ -617,6 +618,7 @@ première requête utilisateur.
 Contre-épreuves faites : retirer `RECENT_DOCUMENTS_TRACKING_ENABLED` du compose fait échouer la garde ; appliquée aux branches de #152 et #192, elle signale `TRASH_*` et `SCHEDULED_BACKUP_*`.
 **Limites connues** — `docker-compose.e2e.yml` n'est pas contrôlé (pile QA, réglages portés par ses scénarios). Un réglage lu par `getattr(settings, "NOM")` ou dans un module chargé par import dynamique échappe à la détection. Seuls les services `api` et `worker` sont contrôlés : `migrate`, `seed` ou un service de sauvegarde qui exécute le même code ne le sont pas.
 **Leçon généralisée** — Quand plusieurs processus partagent un code mais pas leur configuration, la liste de ce qu'ils doivent recevoir se déduit du code, pas d'une liste tenue à la main ; tout écart est soit corrigé, soit exempté par écrit. Une erreur répétée appelle un contrôle automatique plutôt qu'un point de relecture.
+
 ### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
 
 - **Date :** 2026-11-17
