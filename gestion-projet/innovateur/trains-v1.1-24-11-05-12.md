@@ -107,7 +107,7 @@ Règle : avant de fusionner une base, O passe ses filles sur `main`. Ensuite, ch
 
 **#184 et #301 sont déjà re-ciblées sur `main`** (O, 19/11). #301 est en conflit : aide-api le résout.
 
-**#194, #306, #320 et #322 sont en V1.2** (étiquette `v1.2` ou branche `feat/v12-*`), comme leurs bases #304 et #305. Elles ne sont donc dans aucun train V1.1. Leur seule contrainte V1.1 : #322 est re-ciblée avant TR-20, à la fusion de #298. Les mettre dans un train demande une décision du PO.
+**#194, #306, #320 et #322 sont en V1.2** (étiquette `v1.2` ou branche `feat/v12-*`), comme leurs bases #304 et #305. Elles ne sont donc dans aucun train V1.1. Leur seule contrainte V1.1 : #322 est re-ciblée avant TR-20, à la fusion de #298. Décision d'O (19/11, 17:15) : elles restent en V1.2 et hors trains (DEC-2026-011), sans sollicitation du PO.
 
 ## PR sans relecture ni preuve de Q à ce jour (lecture automatique, à confirmer par Q)
 
