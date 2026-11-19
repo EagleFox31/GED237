@@ -6,7 +6,7 @@ import { listSheets, readSheet, sheetHasTable } from '../xlsxReader';
 // Messages pour l'utilisateur : le détail technique de la bibliothèque n'est pas affiché.
 const BOOK_UNREADABLE = "Ce classeur ne peut pas être affiché. Téléchargez-le pour l'ouvrir.";
 const SHEET_UNREADABLE = "Cet onglet ne peut pas être affiché. Téléchargez le fichier pour l'ouvrir.";
-const SHEET_NO_TABLE = 'Cet onglet ne contient pas de tableau à afficher (graphique ou onglet vide).';
+const SHEET_NO_TABLE = 'Aucun tableau dans cet onglet.';
 
 const XLSX_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -59,16 +59,17 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     if (!loaded) return null;
     try {
       const sheet = readSheet(loaded.XLSX, loaded.data, loaded.names[activeIndex] ?? '');
-      if (!sheetHasTable(sheet)) return { html: '', notice: null, error: SHEET_NO_TABLE };
+      if (!sheetHasTable(sheet)) return { html: '', notice: null, error: null, empty: true };
       const shown = rowCount(sheet['!ref']);
       const total = rowCount((sheet['!fullref'] as string | undefined) ?? sheet['!ref']);
       return {
         html: loaded.XLSX.utils.sheet_to_html(sheet, { editable: false }),
         notice: truncatedRowsNotice(shown, total),
         error: null,
+        empty: false,
       };
     } catch {
-      return { html: '', notice: null, error: SHEET_UNREADABLE };
+      return { html: '', notice: null, error: SHEET_UNREADABLE, empty: false };
     }
   }, [loaded, activeIndex]);
 
@@ -121,6 +122,9 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
       )}
       {active.error ? (
         <p className="p-4 text-sm font-bold text-rose-700">{active.error}</p>
+      ) : active.empty ? (
+        // Onglet vide ou graphique : situation normale, pas une erreur.
+        <p data-testid="xlsx-empty-sheet" className="p-4 text-sm text-slate-500">{SHEET_NO_TABLE}</p>
       ) : (
         <div
           className="xlsx-preview flex-1 overflow-auto p-4 text-left text-xs text-slate-800"
