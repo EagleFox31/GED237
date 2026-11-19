@@ -52,7 +52,7 @@ export class RulesPage {
     // Rule detail: each block is the parent of its own heading
     this.ruleCode = page.getByText(/^Code:/);
     this.criteriaBlock = page.getByRole('heading', { name: /critères de ciblage/i }).locator('..');
-    this.circuitBlock = page.getByRole('heading', { name: /déclenchement du workflow/i }).locator('..');
+    this.circuitBlock = page.getByRole('heading', { name: /démarrage de la validation/i }).locator('..');
     this.noSelectionText = page.getByRole('heading', { name: /à quoi sert une règle automatique/i });
 
     // Create modal
