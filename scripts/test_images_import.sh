@@ -22,7 +22,9 @@ key() { local r="$1"; case "${r##*/}" in *:*) ;; *) r="$r:latest" ;; esac; print
 case "$1 $2" in
   "image inspect") f="$FIX/store/$(key "${!#}")"; [ -f "$f" ] && cat "$f" || exit 1 ;;
   "load ")
-    cat >/dev/null; echo load >>"$FIX/calls"; cp "$FIX/loaded/"* "$FIX/store/" ;;
+    cat >/dev/null; echo load >>"$FIX/calls"
+    [ -f "$FIX/load_fails" ] && { echo "Error: no space left on device" >&2; exit 1; }
+    cp "$FIX/loaded/"* "$FIX/store/" ;;
   *) exit 1 ;;
 esac
 FAKE
@@ -64,6 +66,9 @@ run 0 "overlay2, manifest à l'ancien format" "2 image(s) présentes" 1
 
 mk oci; store_overlay2; echo "sha256:$(printf 'c%.0s' {1..64})" >"$FIX/loaded/qlab-api_latest"
 run 1 "id inattendu après chargement" "id différent ou image absente : qlab-api" 1
+
+mk oci; store_overlay2; : >"$FIX/load_fails"
+run 1 "docker load en échec" "docker load a échoué" 1
 
 mk oci; store_overlay2; echo "corrompu" >>"$FIX/src/IMAGES.txt"
 run 1 "copie altérée" "sommes de contrôle invalides" 0

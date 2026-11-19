@@ -78,7 +78,8 @@ fi
 log "à charger : $(printf '%s' "$todo" | tr '\n' ' ')"
 
 t0=$SECONDS
-gzip -dc "$SRC/images.tar.gz" | docker load >&2
+gzip -dc "$SRC/images.tar.gz" | docker load >&2 ||
+  die "docker load a échoué (voir le message ci-dessus) : vérifier l'espace disque et que Docker tourne, puis relancer"
 
 todo="$(pending)"
 [ -z "$todo" ] || die "après docker load, id différent ou image absente : $(printf '%s' "$todo" | tr '\n' ' ')"
