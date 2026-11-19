@@ -24,3 +24,6 @@ ch;57 L13-2 vers B;B;1
 ch;57 L12-5 vers B;aide-api;-1,5
 ch;57 L12-5 vers B;B;1,5
 # Décision d’O (18/11 dans la nuit) : le dépassement de B (+0,55 h-s) est accepté, aucune ligne n’est rendue. Raison : B a livré L13-2 (#455) et L13-6 (#449) avant l’ouverture de sa fenêtre du 24/11, donc sa charge réelle dans la fenêtre est plus basse que le calcul.
+# Ordre du PO relayé et validé par O (19/11 matin) : aider B en parallèle. La suite de 57 L12-5 (#456 : fusion de #445, conflit audit.py, 3 points de Q) passe à aide-api ; B garde ce qu’il a déjà livré (0,5).
+ch;suite 57 L12-5 vers aide-api;B;-1
+ch;suite 57 L12-5 vers aide-api;aide-api;1

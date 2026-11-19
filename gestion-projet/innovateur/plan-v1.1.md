@@ -936,3 +936,13 @@ Plus aucun porteur au-dessus de sa capacité.
 B dépasse sa capacité de 0,55 h-s. La charge de l’équipe ne change pas, et aide-api garde 7,5 à 9,5 h-s de marge. C’est à O de trancher : accepter le dépassement, ou rendre à aide-api une autre ligne de B qui n’est pas encore commencée (57 L14-2, déjà ouverte en #439, ne compte pas).
 
 **Décision d’O (18/11 dans la nuit)** : le dépassement est accepté, aucune ligne n’est rendue. B a livré L13-2 (#455) et L13-6 (#449) avant l’ouverture de sa fenêtre du 24/11 : sa charge réelle dans la fenêtre est donc plus basse que le calcul. Le tableau ci-dessus est retenu.
+
+**Décision d’O (19/11 au matin, à la demande du PO)** : B est aidé en parallèle, plus en séquence. B garde #435 puis #449, et #263 après #449. aide-api prend la suite de #456 : fusion de #445, conflit `audit.py` et les 3 points de Q. Cela représente 1 h-s ; B garde les 0,5 h-s déjà livrés. L3 (Office) reprend chez aide-api après #456. Recalcul avec `charges.sh` :
+
+| | B | F | Q | aide-api | Équipe |
+|---|---|---|---|---|---|
+| **Charge** | 41,05 | 31,25 | 35,3 | 33,5 à 35,5 | 141,1 à 143,1 |
+| Capacité | 41,5 | 32 | 37,75 | 42 | 153,25 |
+| **Écart** | −0,45 | −0,75 | −2,45 | −8,5 à −6,5 | −12,15 à −10,15 |
+
+Plus personne ne dépasse sa capacité. La charge de l’équipe ne change pas.
