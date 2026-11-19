@@ -1,29 +1,31 @@
 # Réserve parallèle par session (consigne du PO, 19/11)
 
-Consigne du PO : « travaillons plus vite ». Aucune session n'attend sans rien faire. Pendant qu'un test, une passe Docker ou une relecture tourne, elle prend la tâche suivante de sa réserve. I rééquilibre dès qu'une session est surchargée ou libre, avec O en copie.
+Consigne du PO : « travaillons plus vite ». Aucune session ne doit attendre sans rien faire. Pendant qu'un test, une passe Docker ou une relecture tourne, elle prend la tâche suivante de sa réserve. Dès qu'une session est surchargée ou libre, I rééquilibre, avec O en copie.
 
 ## Règles
 
-1. On lance en arrière-plan tout test, toute passe Docker et toute CI de plus de 2 minutes, puis on prend aussitôt une tâche de réserve.
-2. Une tâche de réserve touche **d'autres fichiers** que la tâche en cours, et se fait **sans créneau Docker** quand le créneau de la session est pris (créneaux depuis le 19/11 au matin, décision du PO : F 1, B 1, aide-api 1, Q 1).
-6. Push : toujours avec une destination explicite (`git push origin "$b:$b"` ou `HEAD:refs/heads/X`). Le dépôt est réglé avec `push.default = nothing`, ce qui refuse les push nus, après deux incidents le 19/11 (LESSON-2026-075, #467).
-3. Une session sans tâche écrit tout de suite à I (« libre »). I lui envoie la suivante, avec O en copie, en partant de cette réserve, de `plan-fusion-v1.1.md` et de `charges-v1.1.csv`.
-4. Un retour attendu (validation de Q, signal d'O, contrat d'un pair) n'est pas une raison d'attendre : on passe à la réserve et on revient au retour quand il arrive.
-5. I met cette page à jour à chaque changement de charge, et au plus tard au point de 16:30.
+1. Tout test, toute passe Docker et toute CI de plus de 2 minutes se lance en arrière-plan. On prend aussitôt une tâche de réserve.
+2. Une tâche de réserve touche **d'autres fichiers** que la tâche en cours. Elle se fait **sans créneau Docker** quand le créneau de la session est pris. Créneaux décidés par le PO depuis le 19/11 au matin : F 1, B 1, aide-api 1, Q 1.
+3. Une session sans tâche écrit tout de suite à I : « libre ». I lui envoie la suivante, avec O en copie. Il la choisit dans cette réserve, dans `plan-fusion-v1.1.md` ou dans `charges-v1.1.csv`.
+4. On n'attend pas un retour (validation de Q, signal d'O, contrat d'un pair) : on passe à la réserve, et on revient à la tâche quand le retour arrive.
+5. Push : toujours vers une destination explicite (`git push origin "$b:$b"` ou `HEAD:refs/heads/X`).
+   - Le dépôt est réglé avec `push.default = nothing`, qui refuse les push nus.
+   - Ce réglage fait suite à deux incidents du 19/11 (LESSON-2026-075, #467).
+6. I met cette page à jour à chaque changement de charge, et au plus tard au point de 16:30.
 
-## Réserve au 19/11, 09:00
+## Réserve au 19/11, 10:00
+
+Cette mise à jour remplace celle de 09:00, conservée dans l'historique git. La priorité est **la coupe à 95 %** (DEC-2026-010). Sont donc prioritaires les preuves des items 19, 28, 29 et 31, puis l'item 8 en réserve.
 
 | Session | En cours | Réserve, dans l'ordre | Docker ? |
 |---|---|---|---|
-| **Q** | veille ; attend #453 et le contrat DELETE de #181 | 1. **Avancer les preuves des 95 %** si rien ne bloque : `prove_tls` (item 27, prévu le 20/11), rejeu du manuel sans écart (item 31, issue #273, prévu le 25/11). Sinon, dire à I ce qui bloque. 2. Garde-fou des leçons LEC-3 (DEC-2026-009), en PR brouillon dès maintenant. 3. Réparation du hook pre-commit (0,5 h-s), empilée sur #433. 4. 57 septdecies, contrastes (S). | 1 : oui ; 2 à 4 : non |
-| **F** | passe Docker `453f 181m` | 1. **#308 : LESSON-2026-045 → 073** (dernière collision de la file ; même titre que dans #241, par fusion, sans rebase). 2. Corps de PR et commits locaux de #453 et #181, prêts pour le signal. | non |
-| **B** | #438 (fusion de main), puis tsc et unit sur l'essai 435×445 | 1. #197 : préparer le rattachement à `60e40a686375` dans une branche locale, à pousser dès que #457 est fusionnée. 2. Contrat DELETE de #181 pour F (cohérence #152/#263) : réponse écrite, sans Docker. | 1 : non |
-| **aide-api** | 57 L7-3, filtres date et auteur sur GET /documents | 1. 57 L12-3 (demandeur et date d'envoi sur `/tasks`), empilée sur #438. 2. 57 L7-2, PDF officiel côté serveur, empilée sur #435, sans attendre sa fusion. 3. 57 L13-4, WebSocket, après #155. | selon créneau |
+| **Q** | Lab hors ligne (item 28) et correctif de `images_import.sh` (overlay2), en PR | 1. Relecture sécurité de #471 et #474, pendant les passes du lab. 2. Après la fusion du correctif : rejeu du manuel jusqu'à `/health`, qui prouve aussi l'item 31. 3. Relevé C6 à 18:00 (item 29). 4. Rejeu de #453 quand F l'a corrigée. | 1 : non ; 2 et 4 : oui |
+| **B** | #171 : code validé par Q sur efda93ef | 1. **PR de classement à l'import** en V1.0 : classement sur le nom, l'extension et la catégorie, pour les DOCX, XLSX, TXT et CSV, environ 1,5 h-s. Branche depuis `main`, après #171 et la route de #445. 2. #197 : rattachement à `60e40a686375` dès que #457 est fusionnée. | 1 : tests unitaires seulement |
+| **F** | PR de purge pour le super-administrateur (choix de l'institution sur la page corbeille) | 1. **#453** : liste des agents vide pour le chef de service. La route « agents de mon service » existe maintenant dans #445 (26cd5223). 2. Corps de PR et commits locaux de #181, prêts pour le passage de la paire. | 1 : oui, pour le rejeu |
+| **aide-api** | #473 (item 8) : générateur écrit, étalonnage sur 2 000 fichiers | 1. Suite sécurité : identifiant de session commun aux deux jetons, sans changement d'écran. 2. #471 et #474 : correctifs après la relecture de Q. 3. Essai complet de l'item 8, **après le démontage du lab de Q**. Il se lance en arrière-plan, avec un plafond de 2 h 30. | 3 : oui, créneau seul |
+| **I** | Tri de l'audit « Quotidien fonctionnaire », à livrer à O avant midi | 1. Inscrire dans la file, dès qu'elles ont un numéro, les PR images_import (Q), classement à l'import (B) et purge (F). 2. Préparer le point de 16:30. 3. Après 18:00, recompter le score dans `couverture-95-19-11.md`. 4. À la coupe : #104, DEC-2026-004, DEC-2026-009. | non |
 
-**Mise à jour du 19/11, 09:15 (accord d'O)** : aide-api cède son créneau Docker à Q pour `prove_tls` aujourd'hui, puis le récupère. Pendant ce temps, aide-api avance L7-2 sans Docker. Ouvertes depuis 09:00 : #465 (L7-3), #466 (L12-3), #467 (LEC-3 de Q).
-| **I** | file, charges, DEC | 1. PR des leçons (LEC-1, LEC-2, DEC-2026-009), en brouillon. 2. Inscrire L7-3 dès qu'elle a un numéro. | non |
+### Plages à protéger
 
-## Leviers pour les 95 % (proposés à O, pas décidés)
-
-- **Preuves de Q plus tôt** : les 4 preuves des items 27, 28, 29 et 31 sont le chemin critique. Les avancer avance la coupe.
-- **Paire doublons plus tôt dans la file** : #171 et #199, validées par Q, sont en vague 4 (30/11 au 02/12). Les placer juste derrière #181 en vague 2 ferait passer l'item 19 plus tôt. C'est un choix d'ordre de la file, pour O.
+- **Lab de Q (item 28)** : environ 7 Go de mémoire et 6 Go de disque. Pendant cette plage, l'essai complet de l'item 8 ne démarre pas.
+- **Lab à plusieurs postes** : après les preuves. La phase 2 (un seul Windows) attend la décision du PO, de la place sur C: (15 Go libres à 09:47) et une plage où le lab tourne seul.
