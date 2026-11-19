@@ -11,6 +11,17 @@ export function nextTitle(current: string, titleEditedByHand: boolean, fileName:
   return titleEditedByHand && current.trim() ? current : titleFromFileName(fileName);
 }
 
+/** Message affiché dans la fenêtre quand le poste est déjà hors ligne : rien n'est envoyé. */
+export const OFFLINE_UPLOAD_MESSAGE = 'Vous êtes hors ligne. Votre saisie est gardée : renvoyez dès le retour du réseau.';
+
+/**
+ * Échec d'envoi déjà annoncé par le bandeau global : coupure réseau (pas de réponse du
+ * serveur). La fenêtre n'ajoute pas un second message (audit UX lot 6, point 4).
+ */
+export function isAnnouncedNetworkFailure(err: unknown): boolean {
+  return (err as { errorCode?: string } | null)?.errorCode === 'NETWORK_UNREACHABLE';
+}
+
 /**
  * Message d'échec d'envoi. Pour un 413, le détail du serveur porte la limite réelle
  * (« … dépasse la taille maximale autorisée (X Mo) ») : on le reprend tel quel, sinon

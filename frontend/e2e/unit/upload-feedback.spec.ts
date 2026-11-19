@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
-  fileTooLargeMessage, formatFileSize, maxUploadMb, nextTitle, titleFromFileName,
+  fileTooLargeMessage, formatFileSize, isAnnouncedNetworkFailure, maxUploadMb, nextTitle, titleFromFileName,
   unreadableFormatNotice, uploadErrorMessage,
 } from '../../lib/uploadFeedback';
 
@@ -54,5 +54,11 @@ test.describe('contrôles avant envoi', () => {
     expect(unreadableFormatNotice('application/vnd.openxmlformats-officedocument.wordprocessingml.document', true)).toBeNull();
     expect(unreadableFormatNotice('application/zip', false)).toMatch(/sans aperçu ni recherche/);
     expect(unreadableFormatNotice('', false)).toMatch(/sans aperçu/);
+  });
+  test('coupure réseau déjà annoncée par le bandeau global : pas de second message', () => {
+    expect(isAnnouncedNetworkFailure({ errorCode: 'NETWORK_UNREACHABLE', status: 0 })).toBe(true);
+    expect(isAnnouncedNetworkFailure({ errorCode: 'HTTP_413', status: 413 })).toBe(false);
+    expect(isAnnouncedNetworkFailure(new Error('boom'))).toBe(false);
+    expect(isAnnouncedNetworkFailure(null)).toBe(false);
   });
 });
