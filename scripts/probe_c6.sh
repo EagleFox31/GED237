@@ -18,6 +18,9 @@ PREFIX="${C6_PREFIX:-edossier_}"
 refuse() { echo "C6 refused: $1" >&2; exit 3; }
 
 if [ -n "${C6_EXPECT_SHA:-}" ]; then
+  case "$C6_EXPECT_SHA" in
+    *[!0-9a-f]* | ?????? | ????? | ???? | ??? | ?? | ?) refuse "C6_EXPECT_SHA must be at least 7 hex characters" ;;
+  esac
   SRC="${C6_SOURCE:-.}"
   API="${C6_API:-${PREFIX}api}"
   head=$(git -C "$SRC" rev-parse HEAD 2>/dev/null || true)
@@ -26,7 +29,8 @@ if [ -n "${C6_EXPECT_SHA:-}" ]; then
     *) refuse "source $SRC is at ${head:-no commit}, not $C6_EXPECT_SHA" ;;
   esac
   [ -z "$(git -C "$SRC" status --porcelain --untracked-files=no)" ] || refuse "source $SRC has local changes"
-  sum='find app alembic -type f -name "*.py" | LC_ALL=C sort | xargs sha256sum | sha256sum'
+  # Same digest on any host: Git Bash prints "hash *path", Linux "hash  path"; normalise, keep the hash only.
+  sum='find app alembic -type f -name "*.py" | LC_ALL=C sort | xargs sha256sum | sed "s/ [*]/  /" | sha256sum | cut -d" " -f1'
   want=$(cd "$SRC/backend" && sh -c "$sum")
   got=$(docker exec "$API" sh -c "cd /app && $sum" 2>/dev/null || true)
   [ -n "$got" ] && [ "$got" = "$want" ] || refuse "code served by $API differs from $C6_EXPECT_SHA (or $API is not running)"
