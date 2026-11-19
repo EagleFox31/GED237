@@ -40,7 +40,8 @@ ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 35
 ORDER_V6="335 312 189 166 451 452"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # Hors file V1.1 (chemin V1.0, voir plus haut). #385 : bancs de mesure OCR, hors file par son titre. #313 : V1.2, empilée sur #295 (§ 3). Dependabot, branches feat/v12-* et étiquette v1.2 : exclues par règle. Contrôle : verif-file.sh
-HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472"
+# #474 (jeton de type access exigé, aide-api, V1.0, base main) : HORS_FILE, à fusionner avant #155 et #471. #473 (mesure de l'item 8, 100 000 documents, aide-api, brouillon) : HORS_FILE.
+HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474"
 ```
 
 Écarts avec `plan-fusion-v1.1.md` (validés par O le 18/11) :
