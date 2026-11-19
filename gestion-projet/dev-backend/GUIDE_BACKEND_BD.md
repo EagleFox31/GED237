@@ -198,7 +198,11 @@ précédent ne doivent pas fuir (d'où `NullPool` + `bind_gedrules_listener_sess
 `tests/api/conftest.py`). Toute nouvelle session « hors `get_db` » doit être rebranchée de la même façon.
 https://pytest-asyncio.readthedocs.io/en/latest/concepts.html (2026-11-09)
 
-**5.2 Fixtures transactionnelles (optionnel, perf).** Alternative au drop/create par test :
+**5.2 Remise à zéro entre les tests.** `tests/conftest.py` crée le schéma une fois par session
+(`test_schema`), puis vide toutes les tables avant chaque test (`prepare_database` : un seul
+`TRUNCATE ... RESTART IDENTITY CASCADE`). Une table ajoutée à un modèle est vidée sans rien changer.
+Un test ne doit jamais modifier le schéma de la base de test (DDL) : le test suivant en hériterait.
+Alternative plus rapide encore, non retenue (le code commite lui-même) :
 connexion + `begin()` + `async_sessionmaker(bind=conn, join_transaction_mode="create_savepoint")`,
 rollback en teardown ; les `commit()` du code ne libèrent que des savepoints.
 https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#joining-a-session-into-an-external-transaction-such-as-for-test-suites (2026-11-09)

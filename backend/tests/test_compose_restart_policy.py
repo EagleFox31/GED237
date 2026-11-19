@@ -7,8 +7,11 @@ One-shot jobs (migrations, seed) must not restart.
 Read line by line on purpose: no YAML parser is a backend dependency.
 """
 
+import os
 import re
 from pathlib import Path
+
+import pytest
 
 COMPOSE = Path(__file__).resolve().parents[2] / "docker-compose.yml"
 ONE_SHOT_SERVICES = {"migrate", "seed"}
@@ -61,8 +64,19 @@ def test_parser_reads_services_and_policies():
     }
 
 
+def _compose_policies() -> dict[str, str | None]:
+    # A runner that mounts only backend/ has no docker-compose.yml: skip there.
+    # CI checks out the whole repository, so a missing file still fails it.
+    if not COMPOSE.is_file() and not os.environ.get("CI"):
+        pytest.skip(
+            f"{COMPOSE} is not mounted (backend/ only): "
+            "run from the repository root to check the restart policies"
+        )
+    return _restart_policies(COMPOSE.read_text(encoding="utf-8"))
+
+
 def test_long_running_services_restart_after_a_reboot():
-    policies = _restart_policies(COMPOSE.read_text(encoding="utf-8"))
+    policies = _compose_policies()
     assert ONE_SHOT_SERVICES <= set(
         policies
     ), "migrate or seed renamed: update this test"
@@ -77,7 +91,7 @@ def test_long_running_services_restart_after_a_reboot():
 
 
 def test_one_shot_jobs_do_not_restart():
-    policies = _restart_policies(COMPOSE.read_text(encoding="utf-8"))
+    policies = _compose_policies()
     assert {name: policies[name] for name in ONE_SHOT_SERVICES} == {
         name: "no" for name in ONE_SHOT_SERVICES
     }
