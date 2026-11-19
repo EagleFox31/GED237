@@ -9,6 +9,7 @@ import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
+import { decisionNotice, pushSuccess } from '../lib/successNotice';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -38,6 +39,7 @@ const WorkflowTasks: React.FC = () => {
     try {
       await api.decideWorkflowStep(task, decision, comment);
       setRejecting(null);
+      pushSuccess(decisionNotice(decision, task.expected_action_type));
       await fetchTasks();
     } catch (err) {
       // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (version absente).

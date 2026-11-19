@@ -8,6 +8,7 @@ import { pushClientOperationError } from './lib/errors';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import ErrorOverlay from './components/ErrorOverlay';
+import { SuccessNotices } from './components/SuccessNotices';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -298,6 +299,7 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       {isLoggedIn ? <AppLayout /> : <LoginPage onLogin={login} />}
+      <SuccessNotices />
       <ErrorOverlay />
     </ErrorBoundary>
   );

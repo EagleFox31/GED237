@@ -8,6 +8,7 @@ import { ViewDocumentButton } from '../../../components/workflow/ViewDocumentBut
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { ApiError } from '../../../lib/errors';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { decisionNotice, pushSuccess } from '../../../lib/successNotice';
 
 const ValidationHub: React.FC = () => {
   const [documents, setDocuments] = useState<PendingWorkflowTask[]>([]);
@@ -37,6 +38,7 @@ const ValidationHub: React.FC = () => {
       await api.decideWorkflowStep(task, decision, comment);
       setDocuments(prev => prev.filter(d => d.id !== task.id));
       setRejecting(null);
+      pushSuccess(decisionNotice(decision, task.expected_action_type));
     } catch (e) {
       // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (version absente).
       if (!(e instanceof ApiError)) {
