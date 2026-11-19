@@ -1,0 +1,43 @@
+# Lab W2, après installation : poste sans internet, lien vers GED dégradable.
+#   MSYS_NO_PATHCONV=1 docker compose -f scripts/lab/w2/compose.yml \
+#     -f scripts/lab/w2/compose.offline.yml --profile w2 up -d
+# W2 n'est plus que sur lab-int (réseau interne : pas de sortie). Un réseau interne ne publie
+# pas de ports : le relais (Toxiproxy) est branché sur les deux réseaux. Il expose à l'hôte la
+# visionneuse et le bureau à distance de W2, et offre à W2 le nom ged.lab.test vers la GED de
+# l'hôte (HTTPS 8443 du profil tls, HTTP 8080), seul chemin dégradé (scripts/lab/w2/link.sh).
+services:
+  w2:
+    ports: !reset []
+    networks:
+      - lab-int
+
+  relay:
+    profiles: ["w2"]
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    container_name: ged-lab-relay
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - ./toxiproxy.json:/config/toxiproxy.json:ro
+    extra_hosts:
+      - "ged-upstream:host-gateway"
+    networks:
+      lab-edge: {}
+      lab-int:
+        aliases:
+          - ged.lab.test
+    ports:
+      - "127.0.0.1:${LAB_W2_WEB_PORT:-8006}:8006"
+      - "127.0.0.1:${LAB_W2_RDP_PORT:-13389}:13389"
+      - "127.0.0.1:${LAB_RELAY_API_PORT:-8474}:8474"
+    mem_limit: 64m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+    restart: "no"
+
+networks:
+  lab-int:
+    internal: true
+  lab-edge: {}
