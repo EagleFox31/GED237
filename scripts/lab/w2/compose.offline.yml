@@ -1,6 +1,8 @@
 # Lab W2, après installation : poste sans internet, lien vers GED dégradable.
-#   MSYS_NO_PATHCONV=1 docker compose -f scripts/lab/w2/compose.yml \
-#     -f scripts/lab/w2/compose.offline.yml --profile w2 up -d
+#   scripts/lab/w2/offline_up.sh
+# Ne pas lancer cet overlay à la main : le script refuse si l'image n'a pas validé
+# l'installation (marqueur windows.boot). Sinon, elle efface Windows et tente un téléchargement
+# impossible hors ligne (LESSON-2026-082). Ne jamais retirer custom.iso avant ce marqueur.
 # W2 n'est plus que sur lab-int (réseau interne : pas de sortie). Un réseau interne ne publie
 # pas de ports : le relais (Toxiproxy) est branché sur les deux réseaux. Il expose à l'hôte la
 # visionneuse et le bureau à distance de W2, et offre à W2 le nom ged.lab.test vers la GED de

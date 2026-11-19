@@ -7,6 +7,7 @@
 #   cut    coupure franche : proxys désactivés (les connexions en cours tombent).
 #   status état actuel (lecture seule).
 # Variable : LAB_RELAY_API (défaut http://127.0.0.1:8474).
+# Sous Git Bash, lancer sans MSYS_NO_PATHCONV=1 : sinon curl ne peut pas écrire dans /dev/null.
 # Codes de sortie : 0 = état atteint, 1 = relais injoignable ou refus, 2 = usage.
 #
 # Idempotent : l'état voulu remplace l'état courant (toxiques nommés retirés puis reposés),
