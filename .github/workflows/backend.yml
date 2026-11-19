@@ -39,7 +39,8 @@ jobs:
   test:
     name: Tests & Migrations
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # ~9 min on main, 13 min 44 s on a slow runner: 15 left no margin.
+    timeout-minutes: 25
 
     services:
       postgres:
