@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as XLSX from 'xlsx';
 
 import { PREVIEW_MAX_ROWS } from '../../components/preview/previewLimits';
-import { listSheets, readSheet } from '../../components/preview/xlsxReader';
+import { listSheets, readSheet, sheetHasTable } from '../../components/preview/xlsxReader';
 
 /** Classeur : « Budget » (en-tête + 599 lignes) et « Résumé » (3 lignes). */
 function workbook(): ArrayBuffer {
@@ -45,5 +45,18 @@ test.describe('xlsxReader', () => {
     const sheet = readSheet(XLSX, workbook(), 'Budget');
     expect(sheet?.['!ref']).toBe(`A1:B${PREVIEW_MAX_ROWS}`);
     expect(sheet?.['!fullref']).toBe('A1:B600');
+  });
+});
+
+test.describe('onglet sans tableau', () => {
+  test('onglet vide ou graphique : pas de tableau ; onglet rempli : tableau', () => {
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([]), 'Vide');
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Total'], [5990]]), 'Rempli');
+    const data = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+    expect(sheetHasTable(readSheet(XLSX, data, 'Vide'))).toBe(false);
+    expect(sheetHasTable(readSheet(XLSX, data, 'Rempli'))).toBe(true);
+    expect(sheetHasTable({ '!type': 'chart', '!ref': 'A1:A1' })).toBe(false);
+    expect(sheetHasTable(null)).toBe(false);
   });
 });

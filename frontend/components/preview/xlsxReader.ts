@@ -16,3 +16,8 @@ export function readSheet(XLSX: XlsxModule, data: ArrayBuffer, name: string): Wo
   const book = XLSX.read(data, { type: 'array', sheets: name, sheetRows: PREVIEW_MAX_ROWS });
   return book.Sheets[name] ?? null;
 }
+
+/** Faux pour un onglet graphique (chartsheet) ou vide : il n'y a pas de tableau à afficher. */
+export function sheetHasTable(sheet: WorkSheet | null): sheet is WorkSheet {
+  return Boolean(sheet && sheet['!type'] !== 'chart' && sheet['!ref']);
+}

@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { PreviewRenderProps, PreviewStrategy } from '../types';
 import { rowCount, truncatedRowsNotice } from '../previewLimits';
-import { listSheets, readSheet } from '../xlsxReader';
+import { listSheets, readSheet, sheetHasTable } from '../xlsxReader';
+
+// Messages pour l'utilisateur : le détail technique de la bibliothèque n'est pas affiché.
+const BOOK_UNREADABLE = "Ce classeur ne peut pas être affiché. Téléchargez-le pour l'ouvrir.";
+const SHEET_UNREADABLE = "Cet onglet ne peut pas être affiché. Téléchargez le fichier pour l'ouvrir.";
+const SHEET_NO_TABLE = 'Cet onglet ne contient pas de tableau à afficher (graphique ou onglet vide).';
 
 const XLSX_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -36,11 +41,9 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
         if (cancelled) return;
         setLoaded({ XLSX, data, names });
         setActiveIndex(0);
-      } catch (err: unknown) {
+      } catch {
         if (cancelled) return;
-        const message = (err as { message?: string })?.message
-          || 'Conversion du classeur Excel impossible.';
-        setError(message);
+        setError(BOOK_UNREADABLE);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -56,7 +59,7 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     if (!loaded) return null;
     try {
       const sheet = readSheet(loaded.XLSX, loaded.data, loaded.names[activeIndex] ?? '');
-      if (!sheet) return { html: '', notice: null, error: null };
+      if (!sheetHasTable(sheet)) return { html: '', notice: null, error: SHEET_NO_TABLE };
       const shown = rowCount(sheet['!ref']);
       const total = rowCount((sheet['!fullref'] as string | undefined) ?? sheet['!ref']);
       return {
@@ -64,12 +67,8 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
         notice: truncatedRowsNotice(shown, total),
         error: null,
       };
-    } catch (err: unknown) {
-      return {
-        html: '',
-        notice: null,
-        error: (err as { message?: string })?.message || 'Onglet illisible.',
-      };
+    } catch {
+      return { html: '', notice: null, error: SHEET_UNREADABLE };
     }
   }, [loaded, activeIndex]);
 
@@ -86,7 +85,7 @@ const XlsxRenderer: React.FC<PreviewRenderProps> = ({ blob, filename }) => {
     return (
       <div className="rounded-3xl border border-rose-100 bg-white p-10 shadow-sm max-w-md">
         <span className="material-symbols-outlined mb-4 text-6xl text-rose-300">error</span>
-        <p className="text-sm font-bold text-rose-700">{error ?? 'Classeur illisible.'}</p>
+        <p className="text-sm font-bold text-rose-700">{error ?? BOOK_UNREADABLE}</p>
       </div>
     );
   }
