@@ -42,7 +42,8 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # Hors file V1.1 (chemin V1.0, voir plus haut). #385 : bancs de mesure OCR, hors file par son titre. #313 : V1.2, empilée sur #295 (§ 3). Dependabot, branches feat/v12-* et étiquette v1.2 : exclues par règle. Contrôle : verif-file.sh
 # #474 (jeton de type access exigé, aide-api, V1.0, base main) : HORS_FILE, à fusionner avant #155 et #471. #473 (mesure de l'item 8, 100 000 documents, aide-api, brouillon) : HORS_FILE.
 # #475 (Q, hooks pre-commit dans un conteneur, réparation du hook, empilée sur #433 docs/outils-pilotage) : HORS_FILE, suit #433. #152 fusionnée le 19/11 (main = 6162d867).
-HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475"
+# #476 (aide-api, n° 14 du tri de l'audit : total et page suivante dans « Mes Documents », V1.1, base main) : HORS_FILE (O, 19/11). Même fichier Documents.tsx que #440 : à rebaser après #440.
+HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 476"
 ```
 
 Écarts avec `plan-fusion-v1.1.md` (validés par O le 18/11) :

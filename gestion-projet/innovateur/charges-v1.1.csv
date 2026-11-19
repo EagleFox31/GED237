@@ -34,7 +34,8 @@ ch;#470 manuel tag ou SHA;aide-api;0,25
 ch;tri audit 19/11, n° 9, 20, 1, 8, 11, 17, 14;aide-api;3,5
 # Arbitrage d'O (19/11, 10:10) : n° 21 à Q ; n° 2 laissé chez aide-api en dernier, report après le 05/12 à trancher par le PO.
 ch;tri audit 19/11, n° 21 (textes trop petits);Q;1,5
-ch;tri audit 19/11, n° 2 (dépôt de plusieurs fichiers), à trancher PO;aide-api;2
+ch;tri audit 19/11, n° 2 (dépôt de plusieurs fichiers);aide-api;2
+# Décision du PO (19/11, 10:20, via O) : « pas besoin de retirer, il y a le temps ». Rien ne sort de la V1.1 ; le dépassement d'aide-api (+1 à +3 h-s) est accepté par le PO.
 # Efforts donnés par aide-api (19/11, 10:05) : #474 = 0,25 h-s, terminé ; suite sécurité (identifiant de session commun) = 0,5 h-s, dont 0,4 fait.
 ch;#474 jeton de type access;aide-api;0,25
 ch;suite sécurité identifiant de session;aide-api;0,5
