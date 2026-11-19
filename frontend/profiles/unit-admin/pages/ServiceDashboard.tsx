@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { TenantMetrics } from '../../../types';
 
@@ -36,18 +37,26 @@ const ServiceDashboard: React.FC = () => {
           <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 italic">Indicateurs du Service</h3>
           <div className="space-y-4">
             {[
-              { label: "Documents", count: isLoading ? '...' : metrics?.documents?.total ?? 0, icon: "description" },
-              { label: "Workflows en attente", count: isLoading ? '...' : metrics?.workflows?.pending ?? 0, icon: "pending_actions" },
+              { label: "Documents", count: isLoading ? '...' : metrics?.documents?.total ?? 0, icon: "description", to: "/documents" },
+              { label: "Workflows en attente", count: isLoading ? '...' : metrics?.workflows?.pending ?? 0, icon: "pending_actions", to: "/tasks" },
               { label: "Workflows complétés", count: isLoading ? '...' : metrics?.workflows?.completed ?? 0, icon: "task_alt" },
-            ].map((stat, i) => (
-              <div key={i} className="flex justify-between items-center p-4 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer group border border-transparent hover:border-slate-100">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-slate-400">{stat.icon}</span>
-                  <span className="text-sm font-black text-slate-700 group-hover:text-blue-600">{stat.label}</span>
-                </div>
-                <span className="text-lg font-black text-slate-800">{stat.count}</span>
-              </div>
-            ))}
+            ].map((stat: { label: string; count: string | number; icon: string; to?: string }, i) => {
+              // Seuls les indicateurs qui ont une liste existante sont cliquables (pas de nouvelle page).
+              const row = (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-slate-400">{stat.icon}</span>
+                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-600">{stat.label}</span>
+                  </div>
+                  <span className="text-lg font-black text-slate-800">{stat.count}</span>
+                </>
+              );
+              return stat.to ? (
+                <Link key={i} to={stat.to} className="flex justify-between items-center p-4 hover:bg-slate-50 rounded-2xl transition-colors group border border-transparent hover:border-slate-100">{row}</Link>
+              ) : (
+                <div key={i} className="flex justify-between items-center p-4 rounded-2xl border border-transparent">{row}</div>
+              );
+            })}
           </div>
         </div>
       </div>
