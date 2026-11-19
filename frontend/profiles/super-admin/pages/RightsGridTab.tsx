@@ -6,6 +6,7 @@ import { api } from '../../../services/api';
 import { ApiError } from '../../../lib/errors';
 import { useAuthStore } from '../../../stores/authStore';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import {
   actionLabel,
   applyChange,
@@ -67,14 +68,20 @@ const RightsGridTab: React.FC = () => {
   const grid = useMemo(() => gridFor(resource, policies, extraRoles), [resource, policies, extraRoles]);
   const editable = isSuper && readOnlyNote === null;
 
-  const toggle = async (role: string, action: string, grant: boolean) => {
+  // Un retrait s'applique tout de suite à tous les agents du rôle : on le fait confirmer.
+  const [removal, setRemoval] = useState<{ role: string; action: string } | null>(null);
+  const cancelRemoval = useCallback(() => setRemoval(null), []);
+
+  const toggle = (role: string, action: string, grant: boolean) => {
+    if (pending.has(policyKey(role, resource, action))) return;
+    if (grant) void saveRule(role, action, true);
+    else setRemoval({ role, action });
+  };
+
+  const saveRule = async (role: string, action: string, grant: boolean) => {
     const rule = { v0: role, v1: resource, v2: action };
     const key = policyKey(role, resource, action);
     if (pending.has(key)) return;
-    // Un retrait s'applique tout de suite à tous les agents du rôle : on le fait confirmer.
-    if (!grant && !window.confirm(`Retirer « ${actionLabel(action)} » à tous les agents du rôle ${roleLabel(role)} ?`)) {
-      return;
-    }
     setPending((prev) => new Set(prev).add(key));
     setChangeError(null);
     try {
@@ -169,7 +176,7 @@ const RightsGridTab: React.FC = () => {
                         checked={state !== 'none'}
                         disabled={!editable || state === 'implied' || pending.has(key)}
                         onChange={(e) => {
-                          toggle(role, action, e.target.checked).catch(() => undefined);
+                          toggle(role, action, e.target.checked);
                         }}
                         aria-label={`${roleLabel(role)} : ${actionLabel(action)}`}
                         title={state === 'implied' ? 'Compris dans « Tout gérer »' : undefined}
@@ -183,6 +190,18 @@ const RightsGridTab: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <ConfirmationModal
+        open={removal !== null}
+        title="Retirer ce droit ?"
+        message={removal ? `Retirer « ${actionLabel(removal.action)} » à tous les agents du rôle ${roleLabel(removal.role)} ?` : ''}
+        confirmLabel="Retirer"
+        icon="warning"
+        onCancel={cancelRemoval}
+        onConfirm={() => {
+          if (removal) void saveRule(removal.role, removal.action, false);
+          setRemoval(null);
+        }}
+      />
     </div>
   );
 };
