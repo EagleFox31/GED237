@@ -2,8 +2,8 @@
 
 Une page pour O. Relevé `gh` du 19/11 vers 16:35, à partir de `file-v1.1.md` (ORDER_V0 à V6, DEP, § 3). Règles de DEC-2026-011 : un train à la fois, testé une fois, puis fusionné par une PR ordinaire vers `main`. Cette page remplace la liste des trains de `procedure-trains-fusion.md`, dont la méthode reste valable.
 
-- **153 PR ouvertes** dans la file. Les 10 autres de la vague 0 sont déjà fusionnées : #464, #152, #181, #477, #482, #479, #171, #199, #480, #485.
-- **26 trains de 4 à 6 PR**, 3 par jour ouvré, du mar 24/11 au ven 04/12. Le sam 05/12 jusqu'à 18:00 reste libre pour un train rouge à rejouer.
+- **154 PR ouvertes** (dont #503, ajoutée le 19/11) dans la file. Les 10 autres de la vague 0 sont déjà fusionnées : #464, #152, #181, #477, #482, #479, #171, #199, #480, #485.
+- **27 trains de 4 à 6 PR**, 3 par jour ouvré (4 le 24/11, avec TR-03 bis), du mar 24/11 au ven 04/12. Le sam 05/12 jusqu'à 18:00 reste libre pour un train rouge à rejouer.
 - Dans un train, la base passe toujours avant sa pile. Une PR n'entre que si ses dépendances (DEP et branche de base) sont fusionnées avant ou plus tôt dans le même train.
 
 **Légende** : ✖ aucun OK de Q trouvé ; ◐ OK du code seul ou réserve, preuve à faire ; ↻ PR empilée, à re-cibler sur `main` avant la fusion de sa base ; ⛓ dépend d'une PR hors file. Le statut de Q vient d'une lecture automatique de `PASSATION-ci-qa.md` et de `PASSATION.md` : Q le confirme avant chaque train.
@@ -11,8 +11,9 @@ Une page pour O. Relevé `gh` du 19/11 vers 16:35, à partir de `file-v1.1.md` (
 | Jour | Train | Vague | PR, dans l'ordre de fusion |
 |---|---|---|---|
 | mar 24/11 | TR-01 | V0/1 | 389 403↻ 383 467✖ 222 227 |
-| mar 24/11 | TR-02 | V1 | 224 234 237 394 405✖↻ 240 |
-| mar 24/11 | TR-03 | V1 | 243 245 253 281 235 238↻ |
+| mar 24/11 | TR-02 | V1 | 224 234 237 394 405✖↻ |
+| mar 24/11 | TR-03 | V1 | 240 243 245 253 |
+| mar 24/11 | TR-03 bis | V1 | 281 235 238↻ 503↻ (PR de Q, e2e avec le moteur de droits sql) |
 | mer 25/11 | TR-04 | V1 | 248 267↻ 268↻ 433 431 435 |
 | mer 25/11 | TR-05 | V1 | 468◐↻ 429◐ 437 449◐↻ 448◐↻ 454◐↻ |
 | mer 25/11 | TR-06 | V1 | 438↻ 466◐↻ 465 444◐↻ 440 455↻ |
@@ -46,10 +47,10 @@ La PR des visas donnés (DEP=329) se place dans le premier train après TR-21 d�
   - **#471** (base : branche de #155) est re-ciblée sur `main` avant TR-15, qui fusionne #155.
   - **#484** (base : branche de #441) est re-ciblée avant la fusion de #441 (DEC-2026-013, avant le 24/11).
   - **#502** (base : branche de #438) est re-ciblée avant TR-06.
-- **Avant TR-01** : #403. **TR-02** : #405. **TR-03** : #238. **TR-04** : #267, #268, puis #468 et #449 (base #435).
+- **Avant TR-01** : #403. **TR-02** : #405. **TR-03 bis** : #238, puis #503 (base : branche de #238). **TR-04** : #267, #268, puis #468 et #449 (base #435).
 - **Avant TR-05** : #448, puis #454 ; #438 et #445 (base #429). **TR-06** : #466, #444, #455, #502.
 - **Avant TR-09** : #462 ; #262 ; #310 (base #262) ; #302 (base #301). **TR-10** : #311, #386, puis #387.
-- **Avant TR-12** : #457, #456, puis #463. **TR-13** : #213, puis #261, #263, #221 ; #308, plus #315 (V1.2) avant #263.
+- **Avant TR-12** : #457, #456, puis #463. **TR-13** : #213, puis #261, #263, #221 ; #308, plus #315 (V1.2, OK final de Q sur 9f322eaa) avant #263.
 - **Avant TR-16** : #209 (base #180). **TR-17** : #212, #219. **TR-18** : #205.
 - **Avant TR-19** : #293, #295, plus #313 et #343 (V1.2). **TR-20** : #303, plus #333 et #352 (V1.2). **TR-21** : #401, fusionnée après #407. **TR-24** : #446.
 - **Hors tableau** : #429 remise en brouillon par O (19/11). Les avis du PO du § 4 de la file (capacités post-rc1) restent requis avant leur train.

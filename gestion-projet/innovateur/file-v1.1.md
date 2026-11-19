@@ -26,7 +26,7 @@ Une ligne par vague. L'ordre à l'intérieur d'une ligne est l'ordre de fusion.
 # #467 (LEC-3, contrôle « Lessons register frozen », Q, brouillon) : fin de vague 0, avant toute PR qui ajoute une leçon (DEC-2026-009).
 ORDER_V0="464 152 181 477 482 479 171 199 480 485 389 403 383 467"
 # Vague 1 : petites PR sans migration (24 et 25/11) ; #433 (outils de pilotage, hook forbidden-words) en brouillon jusqu’à la coupe du 19/11, 18:00, puis relue par Q (O, 18/11)
-ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 502 439 419 447 434 424 428 443 486 487 493 494 495"
+ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 503 248 267 268 433 431 435 468 429 437 449 448 454 438 466 465 444 440 455 502 439 419 447 434 424 428 443 486 487 493 494 495"
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
@@ -129,7 +129,7 @@ DEP[436]="387"
 DEP[438]="429"; DEP[466]="438"; DEP[448]="437"; DEP[444]="438"; DEP[446]="416"; DEP[440]="438"; DEP[445]="429 436"
 # Ouvertes le 18/11 dans la nuit (O) : #449 empilée sur #435 et en conflit fonctionnel avec la garde /audit de #437 (Q) ; #450 empilée sur #441
 DEP[449]="435 437"; DEP[502]="438"; DEP[453]="445"; DEP[454]="448"; DEP[455]="438 440"; DEP[456]="445"; DEP[457]="445"; DEP[463]="457"
-DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"
+DEP[386]="384"; DEP[387]="386"; DEP[311]="284"; DEP[238]="235"; DEP[503]="238"
 DEP[267]="248"; DEP[268]="248 389"
 DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
 DEP[262]="179"; DEP[310]="262"; DEP[309]="179 262"
@@ -157,11 +157,11 @@ Les contraintes « après X » du plan qui servent seulement à éviter un confl
 |---|---|
 | #389 | #403 |
 | #394 | #405 |
-| #235 | #238 |
+| #235 | #238 ; puis, avant #238 : #503 (e2e avec le moteur de droits sql, Q, 7a5ffd1c) |
 | #248 | #267, #268 |
 | #384 | #386 ; puis, avant #386 : #387 |
 | #284 | #311 |
-| #241 | #213 ; puis, avant #213 : #221, #261, #263 ; puis, avant #263 : #308 et #315 (V1.2) |
+| #241 | #213 ; puis, avant #213 : #221, #261, #263 ; puis, avant #263 : #308 et #315 (V1.2, OK final de Q sur 9f322eaa) |
 | #179 | #262 ; puis, avant #262 : #310 |
 | #283 | #293 ; puis, avant #293 : #295 ; puis, avant #295 : #313 (V1.2) |
 | #285 | #343 (V1.2) |
