@@ -20,6 +20,8 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import AuthService
 from app.core.dependencies import get_current_user
+from app.core.redis import get_redis
+from app.services.ws_ticket import WS_TICKET_TTL_SECONDS, issue_ws_ticket
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import ChangePasswordRequest
@@ -153,6 +155,17 @@ async def change_password(
     current_user.must_change_password = False
     await db.commit()
     return None
+
+
+@router.post("/ws-ticket")
+async def create_ws_ticket(current_user: User = Depends(get_current_user)):
+    """Single-use ticket (valid ~30 s) to open the notifications WebSocket."""
+    ticket = await issue_ws_ticket(
+        await get_redis(),
+        user_id=str(current_user.id),
+        tenant_id=str(current_user.tenant_id),
+    )
+    return {"ticket": ticket, "expires_in": WS_TICKET_TTL_SECONDS}
 
 
 @router.post("/logout", response_model=LogoutResponse)

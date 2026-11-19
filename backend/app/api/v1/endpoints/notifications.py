@@ -20,13 +20,13 @@ router = APIRouter()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str):
+async def websocket_endpoint(websocket: WebSocket, ticket: str = ""):
     """
     WebSocket endpoint for real-time notifications.
-    Client passes ?token=... for authentication.
+    Client passes ?ticket=... (from POST /auth/ws-ticket, single use, ~30 s).
     """
-    # 1. Authenticate user from token
-    user = await get_current_user_ws(token)
+    # 1. Authenticate user from the ticket
+    user = await get_current_user_ws(ticket)
     if not user:
         await websocket.close(code=1008)
         return
