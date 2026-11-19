@@ -37,11 +37,7 @@ from app.services.workflow_service import (
     WorkflowActionPolicy,
 )
 
-# Re-exported: the task counters import the clause from this module.
-from app.services.workflow_assignee import (  # noqa: F401
-    _pending_assignee_clause,
-    pending_assignee_clause,
-)
+from app.services.workflow_assignee import pending_assignee_clause
 
 router = APIRouter()
 
