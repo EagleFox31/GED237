@@ -1,0 +1,28 @@
+Etalonnage du test de volume (item 8) - 19/11/2026
+==================================================
+
+Banc : docker-compose.load.yml (projet ged-load), sonde backend/scripts/load_measure.py.
+Enveloppe identique pour toutes les mesures : 3 Go et 4 cpus au total
+(postgres 704m / 1 cpu, redis 128m / 0,25, api 1g, worker 1g, sonde 160m / 0,25).
+Corpus : PDF texte de 1 a 4 Ko (petits fichiers), 2 000 fichiers, extraction native, sans OCR.
+Sorties brutes (non versionnees) : gestion-projet/recette/charge/<label>.txt, .json, -stats.txt.
+
+Reglage LIVRE PAR DEFAUT (installation standard) : api 1,25 cpu, worker 1,25 cpu, concurrence 2.
+C'est le reglage de l'essai complet a 100 000 et le seul dont le chiffre vaut pour l'installation.
+
+| Mesure       | Reglage                                   | Lots | Import HTTP | Bout en bout   | 100 000 | Worker au pic   | Pertes |
+|--------------|-------------------------------------------|------|-------------|----------------|---------|-----------------|--------|
+| calib-1lot   | LIVRE : api 1,25 / worker 1,25 / conc. 2  | 1    | 91,3 s      | 21,9 fichiers/s | 76 min  | ~240 Mo         | 0      |
+| calib-4lots  | LIVRE : api 1,25 / worker 1,25 / conc. 2  | 4    | 50,1 s      | 24,9 fichiers/s | 67 min  | 240 Mo, 100-123 % cpu | 0 |
+| tune-w2c3    | ajuste : api 0,5 / worker 2 / conc. 3     | 4    | 81,5 s      | 23,1 fichiers/s | 72 min  | 309 Mo          | 0      |
+| tune-w2c4    | ajuste : api 0,5 / worker 2 / conc. 4     | 4    | 77,6 s      | 24,2 fichiers/s | 69 min  | 383 Mo, 197 % cpu | 0    |
+
+2000/2000 avec texte, aucun OOM ni redemarrage dans les quatre mesures.
+
+Reglages ajustes ecartes. En retirant du CPU a l'api, le goulot passe du worker a l'import HTTP :
+l'import monte de 50 s a 78-82 s et le worker finit 5 s apres la derniere requete. Le plafond est le
+CPU total de l'api et du worker (environ 2,5 cpus), pas sa repartition. Pendant tune-w2c3, une passe
+e2e d'une autre session tournait sur la meme machine.
+
+Reproduire un reglage ajuste (fichier de charge seulement, le compose de l'application n'est pas touche) :
+  LOAD_API_CPUS=0.5 LOAD_WORKER_CPUS=2 LOAD_WORKER_CONCURRENCY=3 bash scripts/load-test.sh tune tune-w2c3 2003

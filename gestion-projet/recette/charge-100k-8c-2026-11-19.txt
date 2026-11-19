@@ -1,0 +1,57 @@
+Essai de charge 100 000 fichiers - item 8 - enveloppe 8 coeurs (2026-11-19)
+==========================================================================
+Suite de charge-100k-2026-11-19.txt (reglage livre, item 8 non prouve). Decision du PO : essai unique
+au-dela du plafond de 4 cpus par charge, personne d'autre sur Docker pendant l'essai.
+Branche feat/item8-load-dataset, tete 6ce454a1. Commande :
+  LOAD_PG_CPUS=2 LOAD_PG_MEM=1g LOAD_REDIS_CPUS=0.5 LOAD_API_CPUS=2 LOAD_API_MEM=1536m LOAD_API_WORKERS=2 \
+  LOAD_WORKER_CPUS=3 LOAD_WORKER_MEM=1536m LOAD_WORKER_CONCURRENCY=4 LOAD_CONFIRM=yes \
+  bash scripts/load-test.sh full 4 charge-100k-8c-2026-11-19
+Sorties brutes (non versionnees) : gestion-projet/recette/charge/charge-100k-8c-2026-11-19{.txt,.json,-stats.txt,-setting.txt}.
+
+Reglage mesure (limites verifiees par docker inspect au depart)
+- postgres 2 cpus 1 Go ; redis 0,5 cpu ; api 2 cpus 1,5 Go, 2 processus uvicorn ; worker 3 cpus 1,5 Go, concurrence 4.
+- Total 7,5 cpus. Reglage « livre » du premier essai : 1 processus uvicorn, concurrence 2, 4 cpus en tout.
+- Precision : le docker-compose.yml de main est un peu different. postgres 1 cpu ; api 1,5 cpu, 1 processus,
+  --reload ; worker 2 cpus, 2 Go, concurrence 1. Le premier essai en etait une approximation dans 4 cpus.
+  Avec la concurrence 1 de main, le worker serait encore moins rapide : le verdict NON PROUVE vaut a fortiori.
+
+Corpus : identique au premier essai (100 000 PDF texte de 1 a 4 Ko, 250,2 Mo, graine 237, sha256 9b782be6d8a0),
+10 lots de 10 000, 4 lots en parallele. Horaires : 13:18:49 -> 13:38:44.
+
+Resultats
+- Import HTTP : 100 000 en 1 059,2 s (94,4 fichiers/s) ; 10 lots en HTTP 200, 0 doublon, 0 erreur.
+  (premier essai : 1 205,6 s, 82,9 fichiers/s)
+- Fin du worker : 1 120,7 s au total, dont 61,5 s apres la derniere requete.
+  (premier essai : 1 828,2 s, dont 622,6 s apres l'import)
+- Debit de bout en bout : 89,2 fichiers/s, soit 18 min 41 s pour 100 000 (seuil 20 min = 84 fichiers/s).
+- Texte lu : 100 000 / 100 000, file restante 0, pertes 0. OOM 0, redemarrages 0.
+- Recherche apres import (page de 100, mediane / max) : liste 46 / 74 ms ; mot courant 29 / 43 ms ;
+  reference exacte 163 / 174 ms.
+- CPU moyen pendant l'essai (rapporte a la limite) : postgres 94 % / 200 % ; api 143 % / 200 % ;
+  worker 262 % / 300 % ; redis 6 % / 50 %.
+- Memoire maximale : api 587 Mo, postgres 557 Mo, worker 388 Mo (PDF texte : aucun moteur OCR charge), redis 20 Mo.
+
+VERDICT ITEM 8 : PROUVE POUR CE REGLAGE SEULEMENT.
+Critere exact (Expression de besoin « Organisation & GED », section 5 NFR, ligne Performance) :
+  « recherche < 2 secondes ; traitement de 100k fichiers en < 20 minutes ».
+- Recherche < 2 s : TENU (pire mesure 174 ms).
+- Traitement de 100k fichiers < 20 min : TENU, 18 min 41 s texte lu compris.
+- Le verdict ne vaut que pour le reglage ci-dessus (2 processus api, concurrence 4, 7,5 cpus). Avec
+  l'installation livree (1 processus, concurrence 2), le premier essai reste NON PROUVE (30 min 28 s).
+- Marge mince : 89,2 fichiers/s pour 84 requis (+6 %). L'api (143 % sur 200 %) et le worker (262 % sur 300 %)
+  sont les plus proches de leur limite ; postgres n'est plus le goulot.
+- Limite du corpus : petits PDF texte, sans OCR. Des scans chargent bien plus le worker ; ce resultat ne
+  dit rien du debit sur des scans.
+
+Ce qu'il faut changer dans l'installation livree (PR separee, hors Docker de charge)
+- docker-compose.yml : rendre reglables cpus et memoire de postgres, api et worker, le nombre de processus
+  uvicorn (API_WORKERS, avec API_RELOAD vide, car uvicorn ignore --workers sous --reload) et la concurrence
+  du worker (WORKER_CONCURRENCY). Valeurs par defaut = installation actuelle.
+- Compteurs de la limite de connexion dans Redis (RATE_LIMIT_STORAGE_URI=redis://redis:6379/3) des que
+  l'api a plusieurs processus, sinon chaque processus compte a part et la limite double.
+- .env.example racine : profil « gros volume » commente avec les valeurs de cet essai
+  (PG_CPUS=2, PG_MEM_LIMIT=1g, API_CPUS=2, API_MEM_LIMIT=1536m, API_RELOAD=, API_WORKERS=2,
+  WORKER_CPUS=3, WORKER_CONCURRENCY=4). Memoire du worker : 1,5 Go a suffi ici sans OCR ; sur des scans,
+  compter environ 800 Mo par processus avec rapidocr, soit WORKER_MEM_LIMIT=4g en concurrence 4.
+- Machine minimale pour ce profil : 8 coeurs et 12 Go de RAM (7,5 cpus de limites pour postgres, redis, api
+  et worker ; environ 7 Go de limites memoire avec un worker OCR a 4 Go, plus nginx, front et systeme).
