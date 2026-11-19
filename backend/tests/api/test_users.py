@@ -184,8 +184,9 @@ async def test_admin_cannot_reset_or_deactivate_own_account(client_as, db_seed):
 
 @pytest.mark.asyncio
 async def test_create_user_resolves_role_code_and_generates_password(
-    client_as, db_seed
+    client_as, db_session, db_seed
 ):
+    await _privileged_roles(db_session)  # the caller's role is checked (rc.1)
     async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as client:
         created = await client.post(
             f"{USERS}/",
@@ -223,6 +224,7 @@ async def test_create_user_resolves_role_code_and_generates_password(
 async def test_reports_to_rejects_unknown_foreign_self_and_cycles(
     client_as, db_session, db_seed
 ):
+    await _privileged_roles(db_session)  # the caller's role is checked (rc.1)
     other_tenant = Tenant(
         id=uuid.uuid4(),
         name="Other Ministry",
@@ -299,3 +301,98 @@ async def test_assignable_roles_exclude_super_admin(client_as, db_session, db_se
 
     assert response.status_code == 200
     assert [row["code"] for row in response.json()] == ["tenant_admin", "collaborator"]
+
+
+async def _privileged_roles(db_session):
+    """super_admin (1) and tenant_admin (2) next to the seeded role, plus reader."""
+    db_session.add_all(
+        [
+            Role(id=1, code="super_admin", label="Super Admin", hierarchy_level=1),
+            Role(id=2, code="tenant_admin", label="Admin", hierarchy_level=2),
+            Role(id=6, code="reader", label="Lecteur", hierarchy_level=6),
+        ]
+    )
+    await db_session.commit()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("by", ["role_id", "role_code"])
+async def test_a_tenant_admin_cannot_create_a_super_admin(
+    client_as, db_session, db_seed, by
+):
+    await _privileged_roles(db_session)
+    payload = _user_payload(db_seed, role_id=None)
+    payload[by] = 1 if by == "role_id" else "super_admin"
+    async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as client:
+        response = await client.post(f"{USERS}/", json=payload)
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "ROLE_GRANT_FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_a_tenant_admin_creates_a_lower_role_and_a_super_admin_any(
+    client_as, db_session, db_seed
+):
+    await _privileged_roles(db_session)
+    async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as client:
+        lower = await client.post(f"{USERS}/", json=_user_payload(db_seed, role_id=6))
+    async with client_as("super_admin", tenant_id=db_seed["tenant_id"]) as client:
+        top = await client.post(
+            f"{USERS}/",
+            json=_user_payload(
+                db_seed, role_id=1, matricule="SA001", email="sa@testministry.gov.cm"
+            ),
+        )
+    assert lower.status_code == 201, lower.text
+    assert top.status_code == 201, top.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("self_target", [False, True])
+async def test_a_tenant_admin_cannot_make_anyone_super_admin(
+    client_as, db_session, db_seed, self_target
+):
+    await _privileged_roles(db_session)
+    fields = {"tenant_id": db_seed["tenant_id"]}
+    if self_target:
+        fields["id"] = db_seed["user_id"]
+    async with client_as("tenant_admin", **fields) as client:
+        response = await client.patch(
+            f"{USERS}/{db_seed['user_id']}", json={"role_id": 1}
+        )
+    assert response.status_code == 403
+    assert response.json()["error_code"] == (
+        "OWN_ROLE_CHANGE_FORBIDDEN" if self_target else "ROLE_GRANT_FORBIDDEN"
+    )
+    user = await db_session.get(User, db_seed["user_id"])
+    await db_session.refresh(user)
+    assert user.role_id == db_seed["role_id"]
+
+
+@pytest.mark.asyncio
+async def test_role_changes_allowed_below_the_caller_and_by_a_super_admin(
+    client_as, db_session, db_seed
+):
+    await _privileged_roles(db_session)
+    url = f"{USERS}/{db_seed['user_id']}"
+    async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as client:
+        lower = await client.patch(url, json={"role_id": 6})
+    async with client_as("super_admin", tenant_id=db_seed["tenant_id"]) as client:
+        top = await client.patch(url, json={"role_id": 1})
+    assert lower.status_code == 200, lower.text
+    assert top.status_code == 200, top.text
+
+
+@pytest.mark.asyncio
+async def test_an_email_already_used_is_refused_on_update(
+    client_as, db_session, db_seed
+):
+    other = await _add_user(
+        db_session, db_seed["tenant_id"], db_seed["org_unit_id"], "OTHER01"
+    )
+    async with client_as("tenant_admin", tenant_id=db_seed["tenant_id"]) as client:
+        response = await client.patch(
+            f"{USERS}/{db_seed['user_id']}", json={"email": other.email}
+        )
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "USER_EMAIL_TAKEN"

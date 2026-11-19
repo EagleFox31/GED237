@@ -11,7 +11,6 @@ from app.models.user import User
 from app.schemas.workflow import WorkflowActionCreate
 from app.core.events.dispatcher import dispatcher
 from app.core.authz import can_perform, ctx_from_resource
-from app.services.reports_scope import in_actor_unit_tree
 
 
 class WorkflowActionPolicy:
@@ -28,11 +27,17 @@ class WorkflowActionPolicy:
         *,
         db: Optional[AsyncSession] = None,
     ):
-        # 0. A unit-bounded role (unit_admin) does not see a step outside its unit
-        # tree unless it is assigned to it (#215): answered like a missing step,
-        # before the state or the rights reveal anything about it.
-        if step.assigned_to != actor.id and not await in_actor_unit_tree(
-            db, actor, document.org_unit_id
+        # 0. Outside the actor's document perimeter (unit tree for unit_admin, #215;
+        # unit, own documents... for the other roles, #308), a step that is not
+        # assigned to the actor answers like a missing one, before the state or the
+        # rights reveal anything about it.
+        # Lazy import: the endpoints module imports this service (cycle).
+        from app.api.v1.endpoints.documents import _in_perimeter
+
+        if (
+            db is not None
+            and step.assigned_to != actor.id
+            and not await _in_perimeter(db, actor, document)
         ):
             raise HTTPException(status_code=404, detail="Workflow step not found")
 
