@@ -153,6 +153,8 @@ services:
       LOGIN_DEMO_HINTS: ${LOGIN_DEMO_HINTS:-true}
       # nginx is the only published entry point and sets X-Forwarded-For.
       TRUSTED_PROXY: "true"
+      # Live notifications: off (REST list only), local (one API instance) or redis.
+      NOTIFICATIONS_BROADCAST_MODE: ${NOTIFICATIONS_BROADCAST_MODE:-off}
       # Trash retention (same values in api and worker; 0 days = kept until purged by hand).
       TRASH_RETENTION_DAYS: ${TRASH_RETENTION_DAYS:-0}
       TRASH_PURGE_INTERVAL_SECONDS: ${TRASH_PURGE_INTERVAL_SECONDS:-3600}

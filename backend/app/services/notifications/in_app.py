@@ -1,8 +1,13 @@
+import logging
 from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.services.notifications import realtime
 from app.services.notifications.base import INotifier
 from app.models.notification import Notification
+
+logger = logging.getLogger(__name__)
 
 
 class InAppNotifier(INotifier):
@@ -35,9 +40,17 @@ class InAppNotifier(INotifier):
             session.add(notification)
             # The commit should ideally be handled by the caller, but if isolated:
             await session.commit()
-            return True
         except Exception as e:
             print(f"[InAppNotifier] Error saving notification: {e}")
             if session:
                 await session.rollback()
             return False
+
+        # After the commit only: a pushed notification always exists in the list.
+        if settings.NOTIFICATIONS_BROADCAST_MODE != "off":
+            try:
+                await session.refresh(notification)
+                await realtime.push_notification(notification)
+            except Exception:
+                logger.warning("Notification saved but not pushed", exc_info=True)
+        return True
