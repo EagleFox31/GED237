@@ -5,7 +5,8 @@ Consigne du PO : « travaillons plus vite ». Aucune session n'attend sans rien 
 ## Règles
 
 1. On lance en arrière-plan tout test, toute passe Docker et toute CI de plus de 2 minutes, puis on prend aussitôt une tâche de réserve.
-2. Une tâche de réserve touche **d'autres fichiers** que la tâche en cours, et se fait **sans créneau Docker** quand le créneau de la session est pris (créneaux du 19/11 : F 1, B 1, aide-api 1).
+2. Une tâche de réserve touche **d'autres fichiers** que la tâche en cours, et se fait **sans créneau Docker** quand le créneau de la session est pris (créneaux depuis le 19/11 au matin, décision du PO : F 1, B 1, aide-api 1, Q 1).
+6. Push : toujours avec une destination explicite (`git push origin "$b:$b"` ou `HEAD:refs/heads/X`). Le dépôt est réglé avec `push.default = nothing`, ce qui refuse les push nus, après deux incidents le 19/11 (LESSON-2026-075, #467).
 3. Une session sans tâche écrit tout de suite à I (« libre »). I lui envoie la suivante, avec O en copie, en partant de cette réserve, de `plan-fusion-v1.1.md` et de `charges-v1.1.csv`.
 4. Un retour attendu (validation de Q, signal d'O, contrat d'un pair) n'est pas une raison d'attendre : on passe à la réserve et on revient au retour quand il arrive.
 5. I met cette page à jour à chaque changement de charge, et au plus tard au point de 16:30.
