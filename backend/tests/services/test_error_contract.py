@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
 from app.core.errors.domain import (
@@ -15,6 +16,7 @@ from app.core.errors.domain import (
 )
 from app.core.errors.handlers import (
     app_error_handler,
+    http_exception_handler,
     legacy_edossier_handler,
     unhandled_exception_handler,
 )
@@ -108,3 +110,35 @@ async def test_legacy_and_unhandled_handlers_return_problem_details():
     assert body_of(crash)["error_code"] == "INTERNAL_ERROR"
     assert body_of(crash)["retryable"] is True
     assert SECRET not in crash.body.decode()
+
+
+@pytest.mark.asyncio
+async def test_http_exception_handler_keeps_the_exception_headers():
+    """WWW-Authenticate (401) and Allow (405) set on the exception reach the client."""
+    challenge = await http_exception_handler(
+        make_request(),
+        StarletteHTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ),
+    )
+    assert challenge.status_code == 401
+    assert challenge.headers["www-authenticate"] == "Bearer"
+    assert challenge.media_type == "application/problem+json"
+    assert body_of(challenge)["detail"] == "Invalid or expired token"
+
+    plain = await http_exception_handler(
+        make_request(), StarletteHTTPException(status_code=404, detail="Introuvable.")
+    )
+    assert "www-authenticate" not in plain.headers
+
+
+@pytest.mark.asyncio
+async def test_unauthenticated_routes_send_the_bearer_challenge(async_client):
+    """Through the app: an invalid token gets 401 with ``WWW-Authenticate: Bearer``."""
+    response = await async_client.get(
+        "/api/v1/users/me", headers={"Authorization": "Bearer not-a-token"}
+    )
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
