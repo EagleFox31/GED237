@@ -44,7 +44,9 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
     """Create a JWT refresh token"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    # jti: two refresh tokens issued in the same second must differ, or revoking one
+    # would revoke the other.
+    to_encode.update({"exp": expire, "type": "refresh", "jti": secrets.token_hex(16)})
     encoded_jwt = jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )

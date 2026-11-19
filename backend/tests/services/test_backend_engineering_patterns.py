@@ -759,14 +759,38 @@ async def test_auth_service_patterns(monkeypatch, fake_redis_factory):
             "tenant_id": str(tenant.id),
             "role": "collaborator",
             "matricule": "A001",
+            "exp": time.time() + 120,
         },
     )
-    refreshed = await service.refresh_access_token("refresh")
+    refresh_db = QueueDB(results=[FakeResult(scalar=user), FakeResult(scalar=role)])
+    refreshed = await service.refresh_access_token("refresh", refresh_db)
     assert refreshed["token_type"] == "bearer"
+    # Replayed within the reuse window: the pair already issued, not a new one.
+    assert (
+        await service.refresh_access_token(
+            "refresh", QueueDB(results=[FakeResult(scalar=user)])
+        )
+        == refreshed
+    )
+    # Window 0: strict single use, the second use is refused.
+    monkeypatch.setattr(module.settings, "REFRESH_REUSE_WINDOW_SECONDS", 0)
+    await service.refresh_access_token(
+        "strict", QueueDB(results=[FakeResult(scalar=user), FakeResult(scalar=role)])
+    )
+    with pytest.raises(AuthenticationError):
+        await service.refresh_access_token(
+            "strict",
+            QueueDB(results=[FakeResult(scalar=user), FakeResult(scalar=role)]),
+        )
+    # Deactivated account: the query filters is_active and returns nothing.
+    with pytest.raises(AuthenticationError):
+        await service.refresh_access_token(
+            "other-refresh", QueueDB(results=[FakeResult(scalar=None)])
+        )
 
     monkeypatch.setattr(module, "decode_token", lambda _token: {"type": "access"})
     with pytest.raises(AuthenticationError):
-        await service.refresh_access_token("bad-refresh")
+        await service.refresh_access_token("bad-refresh", QueueDB())
 
     monkeypatch.setattr(module, "decode_token", lambda _token: None)
     assert await service.logout("bad") == {"message": "Logged out successfully"}

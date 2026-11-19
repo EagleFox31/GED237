@@ -1,9 +1,12 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
+import hashlib
+import json
 import logging
 import re
 import secrets
+import time
 import unicodedata
 
 from fastapi import Request
@@ -297,10 +300,26 @@ class AuthService:
                 await db.commit()
         await self._raise_if_locked(redis, user_id)
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, str]:
+    @staticmethod
+    async def _revoke(redis, token: str, exp: Any) -> bool:
+        """Blacklist a token until it expires. False if it was already revoked or expired.
+
+        time.time(): datetime.utcnow().timestamp() is shifted by the local offset when
+        the server clock is not on UTC.
         """
-        Refresh access token using refresh token.
-        Returns a rotated refresh token so the frontend contract stays coherent.
+        remaining = int(exp - time.time()) if exp else 0
+        if remaining <= 0:
+            return False
+        # SET NX: of two concurrent uses of the same token, only one gets True.
+        return bool(await redis.set(f"blacklist:{token}", "1", ex=remaining, nx=True))
+
+    async def refresh_access_token(
+        self, refresh_token: str, db: AsyncSession
+    ) -> Dict[str, str]:
+        """
+        Rotate a refresh token: the old one is consumed, the account is re-read.
+        Refused (401) after logout, on reuse after REFRESH_REUSE_WINDOW_SECONDS,
+        or for a deactivated or moved account.
         """
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
@@ -311,27 +330,90 @@ class AuthService:
             if await redis.get(revoked_session_key(session_id)):
                 raise AuthenticationError("Invalid refresh token")
 
+        redis = await get_redis()
+        if await redis.get(f"blacklist:{refresh_token}"):
+            raise AuthenticationError("Invalid refresh token")
+
+        try:
+            user_id = UUID(str(payload.get("sub")))
+        except ValueError as exc:
+            raise AuthenticationError("Invalid refresh token") from exc
+        result = await db.execute(
+            select(User).where(User.id == user_id, User.is_active.is_(True))
+        )
+        user = result.scalar_one_or_none()
+        if user is None or str(user.tenant_id) != payload.get("tenant_id"):
+            raise AuthenticationError("Invalid refresh token")
+
+        window = settings.REFRESH_REUSE_WINDOW_SECONDS
+        digest = hashlib.sha256(refresh_token.encode()).hexdigest()
+        reuse_key, used_key = f"refresh_reuse:{digest}", f"refresh_used:{digest}"
+
+        # Parallel calls at access-token expiry all send the same refresh token:
+        # within the window they get back the pair already issued, never a new one.
+        if window > 0:
+            issued = await redis.get(reuse_key)
+            if issued:
+                return await self._reissued_pair(redis, issued)
+            if await redis.get(used_key):
+                raise AuthenticationError("Invalid refresh token")
+
+        result = await db.execute(select(Role).where(Role.id == user.role_id))
+        role = result.scalar_one()
+        # Role and matricule from the database: a changed role applies at the next refresh.
         token_data = {
-            "sub": payload["sub"],
-            "tenant_id": payload["tenant_id"],
-            "role": payload["role"],
-            "matricule": payload["matricule"],
+            "sub": str(user.id),
+            "tenant_id": str(user.tenant_id),
+            "role": role.code,
+            "matricule": user.matricule,
             # Tokens issued before sessions existed get one now, so a later logout revokes them.
             "sid": session_id or new_session_id(),
         }
-        new_access_token = create_access_token(token_data)
-        new_refresh_token = create_refresh_token(token_data)
-
-        return {
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
+        pair = {
+            "access_token": create_access_token(token_data),
+            "refresh_token": create_refresh_token(token_data),
             "token_type": "bearer",
         }
 
-    async def logout(self, access_token: str) -> Dict[str, str]:
+        if window <= 0:
+            if not await self._mark_used(redis, used_key, payload.get("exp")):
+                raise AuthenticationError("Invalid refresh token")
+            return pair
+
+        # SET NX stores the pair and elects the rotation in one step: a concurrent
+        # call that loses reads the winner's pair back.
+        if not await redis.set(reuse_key, json.dumps(pair), ex=window, nx=True):
+            issued = await redis.get(reuse_key)
+            if not issued:
+                raise AuthenticationError("Invalid refresh token")
+            return await self._reissued_pair(redis, issued)
+        # After the window, a replay finds this mark and is refused.
+        await self._mark_used(redis, used_key, payload.get("exp"))
+        return pair
+
+    @staticmethod
+    async def _mark_used(redis, key: str, exp: Any) -> bool:
+        """Mark a rotated refresh token until it expires; False if already marked."""
+        remaining = int(exp - time.time()) if exp else 0
+        if remaining <= 0:
+            return False
+        return bool(await redis.set(key, "1", ex=remaining, nx=True))
+
+    @staticmethod
+    async def _reissued_pair(redis, issued: Any) -> Dict[str, str]:
+        """The pair issued at the first rotation, unless a logout revoked it since."""
+        pair = json.loads(issued)
+        for token in (pair["refresh_token"], pair["access_token"]):
+            if await redis.get(f"blacklist:{token}"):
+                raise AuthenticationError("Invalid refresh token")
+        return pair
+
+    async def logout(
+        self, access_token: str, refresh_token: Optional[str] = None
+    ) -> Dict[str, str]:
         """
-        Logout user by blacklisting the access token in Redis.
-        The token is stored with its remaining TTL so it auto-expires.
+        Blacklist the access token and, when given, the refresh token of the same
+        account, each until its own expiry.
         Its login session is revoked too: the refresh token of that session (and any
         access token it issued) is refused until it would have expired anyway.
         """
@@ -339,16 +421,21 @@ class AuthService:
         if not payload:
             return {"message": "Logged out successfully"}
 
-        exp = payload.get("exp")
-        if exp:
-            remaining = int(exp - datetime.utcnow().timestamp())
-            if remaining > 0:
-                redis = await get_redis()
-                await redis.setex(f"blacklist:{access_token}", remaining, "1")
+        redis = await get_redis()
+        await self._revoke(redis, access_token, payload.get("exp"))
+
+        if refresh_token:
+            refresh_payload = decode_token(refresh_token)
+            # Same account only: a logout must not revoke somebody else's session.
+            if (
+                refresh_payload
+                and refresh_payload.get("type") == "refresh"
+                and refresh_payload.get("sub") == payload.get("sub")
+            ):
+                await self._revoke(redis, refresh_token, refresh_payload.get("exp"))
 
         session_id = payload.get("sid")
         if session_id:
-            redis = await get_redis()
             await redis.setex(
                 revoked_session_key(session_id),
                 settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
