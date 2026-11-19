@@ -5,8 +5,10 @@ import type { PendingWorkflowTask } from '../types';
 import { api } from '../services/api';
 import type { WorkflowDecision } from '../services/resources/workflows.api';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
+import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -84,10 +86,11 @@ const WorkflowTasks: React.FC = () => {
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white">
                   Étape {task.step_order}
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{task.status}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{workflowStepStatusLabel(task.status)}</span>
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
-              <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || task.document_id}</span></p>
+              <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span></p>
+              <div className="mt-2"><ViewDocumentButton documentId={task.document_id} /></div>
             </div>
 
             <div className="flex gap-3">
@@ -117,13 +120,6 @@ const WorkflowTasks: React.FC = () => {
         onCancel={() => setRejecting(null)}
       />
 
-      {/* Visual Workflow Chart */}
-      <div className="glass p-8 rounded-[2rem] border-white">
-        <h3 className="text-lg font-bold text-slate-800 mb-8">Efficacité du Service (Délai moyen de validation)</h3>
-        <div className="h-64 bg-slate-100/50 rounded-3xl flex items-center justify-center border border-dashed border-slate-200">
-            <p className="text-slate-400 font-bold italic">Graphique de performance analytique bientôt disponible</p>
-        </div>
-      </div>
     </div>
   );
 };
