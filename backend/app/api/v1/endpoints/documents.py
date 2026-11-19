@@ -944,11 +944,16 @@ async def list_trashed_documents(
     response: Response,
     skip: int = 0,
     limit: int = 100,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution whose trash is listed.",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    target_tenant = await trash_service.resolve_trash_tenant(current_user, tenant_id)
     query = select(Document).where(
-        Document.tenant_id == current_user.tenant_id, Document.deleted_at.is_not(None)
+        Document.tenant_id == target_tenant, Document.deleted_at.is_not(None)
     )
     query = query.where(*visible_document_scope(current_user))
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
@@ -1450,6 +1455,8 @@ async def delete_document(
     Permanent deletion goes through the trash purge (``documents purge``).
     """
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    # Rights of main's DELETE (delete / delete_own, #345) plus those of POST /trash:
+    # the screen trashes through DELETE, so an owner with trash_own alone is not refused.
     if not await _can_trash_via_delete(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
@@ -1869,14 +1876,17 @@ async def restore_document(
 async def purge_document(
     request: Request,
     document_id: UUID,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution of the document.",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await authorize_or_403(current_user, "documents", "purge")
 
-    document = await _get_document_or_404(
-        db, current_user.tenant_id, document_id, lock=True
-    )
+    target_tenant = await trash_service.resolve_trash_tenant(current_user, tenant_id)
+    document = await _get_document_or_404(db, target_tenant, document_id, lock=True)
     if document.deleted_at is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1909,10 +1919,17 @@ async def purge_document(
 async def empty_trash(
     request: Request,
     payload: Optional[TrashEmptyRequest] = None,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution whose trash is emptied.",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Purge trashed documents of the caller's institution, oldest first.
+    """Purge trashed documents of one institution, oldest first.
+
+    The caller's own institution, or the one named by ``tenant_id`` for a
+    platform administrator (the only role allowed to purge, V1.1).
 
     No filter: the whole trash, ``TRASH_PURGE_BATCH`` documents per call
     (``remaining`` tells whether to call again). Identifiers of another
@@ -1928,7 +1945,7 @@ async def empty_trash(
             days=payload.older_than_days
         )
     matching = trash_service.trashed_query(
-        current_user.tenant_id,
+        await trash_service.resolve_trash_tenant(current_user, tenant_id),
         document_ids=payload.document_ids,
         deleted_before=deleted_before,
     )

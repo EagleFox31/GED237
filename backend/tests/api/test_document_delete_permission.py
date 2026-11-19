@@ -1,7 +1,10 @@
-"""DELETE /documents/{id} met à la corbeille ; le définitif passe par /purge (``purge``).
+"""DELETE /documents/{id} met à la corbeille (tracé) ; le définitif passe par /purge,
+réservé au super_admin (``purge``, décision du PO du 18/11).
 
-Propriétaire (``delete_own`` / ``trash_own``) : seulement un document encore modifiable,
-jamais pendant une validation. Un manager propriétaire met à la corbeille mais ne purge pas (403).
+Droits de DELETE : ceux de #345 (``delete`` / ``delete_own``) plus ``trash_own``, comme
+POST /trash, car l'écran met à la corbeille par DELETE. Propriétaire : seulement un document
+encore modifiable, jamais pendant une validation. Propriétaire, unit_admin et tenant_admin :
+403 sur /purge.
 """
 
 import uuid
@@ -132,13 +135,33 @@ async def test_tenant_admin_trashes_a_document_in_review(
 async def test_tenant_admin_delete_is_unchanged(client_as, db_session, db_seed):
     document_id = await _document(db_session, db_seed, status="validated")
 
-    # Compte réel : la mise à la corbeille écrit une ligne d'audit (clé étrangère users).
+    # An existing user: the move to the trash is audited (FK to users). A validated
+    # document is outside delete_own, so only the admin's ``delete`` right lets it through.
     async with client_as(
         "tenant_admin", tenant_id=db_seed["tenant_id"], id=db_seed["user_id"]
     ) as client:
         response = await client.delete(f"{DOCUMENTS}/{document_id}")
 
     assert response.status_code == 204
+    document = await db_session.get(Document, document_id, populate_existing=True)
+    assert document is not None and document.deleted_at is not None
+
+
+@pytest.mark.parametrize("role", ["unit_admin", "tenant_admin"])
+@pytest.mark.asyncio
+async def test_admins_below_the_platform_cannot_purge(
+    client_as, db_session, db_seed, role
+):
+    """Purge réservée au super_admin : unit_admin et tenant_admin mettent à la corbeille, sans purger."""
+    document_id = await _document(db_session, db_seed)
+
+    async with client_as(role, **_owner(db_seed)) as client:
+        trashed = await client.delete(f"{DOCUMENTS}/{document_id}")
+        purged = await client.delete(f"{DOCUMENTS}/{document_id}/purge")
+
+    assert (trashed.status_code, purged.status_code) == (204, 403)
+    document = await db_session.get(Document, document_id, populate_existing=True)
+    assert document is not None and document.deleted_at is not None
 
 
 @pytest.mark.asyncio
