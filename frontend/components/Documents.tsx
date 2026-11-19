@@ -266,6 +266,7 @@ const Documents: React.FC = () => {
           document={selectedDoc}
           onClose={closeDetail}
           onUpdated={(updated) => setDocs((prev) => prev.map((doc) => (doc.id === updated.id ? { ...doc, ...updated } : doc)))}
+          onTrashed={() => setDocs((current) => current.filter((d) => d.id !== selectedDoc.id))}
         />
       )}
 
