@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.unit_admin_scope import unit_admin_scope_ids
 from app.core.authz import authorize_or_403
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -51,7 +52,10 @@ async def list_classification_reviews(
 ):
     await authorize_or_403(current_user, "classification_reviews", "read")
     service = ClassificationReviewService(db)
-    return await service.list_open_reviews(tenant_id=current_user.tenant_id)
+    return await service.list_open_reviews(
+        tenant_id=current_user.tenant_id,
+        org_unit_ids=await unit_admin_scope_ids(db, current_user),
+    )
 
 
 @router.post("/{review_id}/resolve", response_model=ClassificationReviewResolveResponse)
@@ -68,6 +72,7 @@ async def resolve_classification_review(
         review_id=review_id,
         payload=payload,
         current_user=current_user,
+        org_unit_ids=await unit_admin_scope_ids(db, current_user),
     )
     try:
         await db.commit()
