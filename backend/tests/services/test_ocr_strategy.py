@@ -294,6 +294,16 @@ def _pdf_strategy(monkeypatch, pages, tesseract_result):
 
     strategy.tesseract = _Tesseract()
 
+    class _NoFallback:
+        """Heavy fallback present but silent, as when OCR_FALLBACK_ENABLED is off."""
+
+        name = "easyocr"
+
+        def extract_from_pil_image(self, _image):
+            return _result("", 0.0, "easyocr")
+
+    strategy.easyocr = _NoFallback()
+
     class _Page:
         def __init__(self, text):
             self._text = text
