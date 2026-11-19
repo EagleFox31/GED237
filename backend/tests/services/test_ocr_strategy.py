@@ -33,6 +33,15 @@ def _result(text: str, confidence: float, engine: str = "fake") -> OCRResult:
     )
 
 
+class _NoFallback:
+    """Heavy fallback present but silent, as when OCR_FALLBACK_ENABLED is off."""
+
+    name = "easyocr"
+
+    def extract_from_pil_image(self, _image):
+        return _result("", 0.0, "easyocr")
+
+
 def test_fallback_is_used_when_primary_result_is_empty(monkeypatch):
     strategy = OCRStrategy.__new__(OCRStrategy)
     primary = FakeEngine(_result("", 0.0, "primary"))
@@ -293,15 +302,6 @@ def _pdf_strategy(monkeypatch, pages, tesseract_result):
             return tesseract_result
 
     strategy.tesseract = _Tesseract()
-
-    class _NoFallback:
-        """Heavy fallback present but silent, as when OCR_FALLBACK_ENABLED is off."""
-
-        name = "easyocr"
-
-        def extract_from_pil_image(self, _image):
-            return _result("", 0.0, "easyocr")
-
     strategy.easyocr = _NoFallback()
 
     class _Page:
@@ -416,6 +416,7 @@ def test_mixed_pdf_keeps_native_page_and_ocrs_the_image_only_page(
             return _result("Page scannée", 0.8, "Tesseract")
 
     strategy.tesseract = _Tesseract()
+    strategy.easyocr = _NoFallback()
     monkeypatch.setattr(
         "app.services.ocr.strategy.convert_from_path",
         lambda *_a, **_k: [Image.new("RGB", (10, 10)), Image.new("RGB", (10, 10))],
