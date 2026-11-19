@@ -27,3 +27,9 @@ ch;57 L12-5 vers B;B;1,5
 # Ordre du PO relayé et validé par O (19/11 matin) : aider B en parallèle. La suite de 57 L12-5 (#456 : fusion de #445, conflit audit.py, 3 points de Q) passe à aide-api ; B garde ce qu’il a déjà livré (0,5).
 ch;suite 57 L12-5 vers aide-api;B;-1
 ch;suite 57 L12-5 vers aide-api;aide-api;1
+# Hors plan, 19/11, pris sur les 7 h-s d'aide-api du 19 au 23/11 : item 8 (#473, environ 3 h-s, DEC-2026-010 § 4) et #470 (manuel « tag ou SHA », 0,25 h-s). #474 et la suite sécurité (identifiant de session commun) : effort à confirmer par aide-api, non compté ici.
+ch;item 8 #473;aide-api;3
+ch;#470 manuel tag ou SHA;aide-api;0,25
+# Arbitrage d'O (19/11 matin) : les 9 constats nouveaux du tri de l'audit « Quotidien fonctionnaire » vont à aide-api, relus par F, après l'item 8 et la suite sécurité. 6,5 h-s côté écran et 0,5 h-s côté serveur.
+ch;tri audit 19/11, n° 9, 20, 1, 8, 11, 17, 14;aide-api;3,5
+ch;tri audit 19/11, n° 2 et 21;aide-api;3,5
