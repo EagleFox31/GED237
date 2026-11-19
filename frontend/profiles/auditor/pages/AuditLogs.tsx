@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { DataTable, type Column, type SortState } from '../../../components/ui/DataTable';
 import { api } from '../../../services/api';
@@ -21,6 +21,14 @@ function getActorLabel(log: AuditLogEntry): string {
 
 function getObjectLabel(log: AuditLogEntry): string {
   return log.resource_label || `${log.table_label || log.table_name} ${log.record_id.slice(0, 8)}`;
+}
+
+export function getAuditDocumentRoute(
+  log: Pick<AuditLogEntry, 'table_name' | 'record_id'>,
+): string | null {
+  const recordId = (log.record_id ?? '').trim();
+  if (log.table_name !== 'documents' || !recordId) return null;
+  return `/documents?open=${encodeURIComponent(recordId)}`;
 }
 
 function getSortValue(log: AuditLogEntry, key: string): string | number {
@@ -56,6 +64,7 @@ function getActionBadgeClass(action: string): string {
 }
 
 const AuditLogs: React.FC = () => {
+  const navigate = useNavigate();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +89,7 @@ const AuditLogs: React.FC = () => {
     try {
       const data = await api.getAuditLogs({ limit: 200 });
       setLogs(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to fetch audit logs:', err);
+    } catch {
       setError('Impossible de charger le registre des actions.');
     } finally {
       setIsLoading(false);
@@ -227,14 +235,29 @@ const AuditLogs: React.FC = () => {
       header: 'Document / objet',
       width: '25%',
       sortable: true,
-      cell: (log) => (
-        <div>
-          <p className="text-sm font-bold text-slate-900">{getObjectLabel(log)}</p>
-          <p className="mt-1 text-xs font-medium text-slate-500">
-            Référence technique : {log.record_id.slice(0, 8)}
-          </p>
-        </div>
-      ),
+      cell: (log) => {
+        const docRoute = getAuditDocumentRoute(log);
+        const label = getObjectLabel(log);
+        return (
+          <div>
+            {docRoute ? (
+              <button
+                type="button"
+                onClick={() => navigate(docRoute)}
+                aria-label={`Ouvrir ${label}`}
+                className="text-left text-sm font-bold text-rdpc-blue underline decoration-dotted underline-offset-2 hover:text-blue-800"
+              >
+                {label}
+              </button>
+            ) : (
+              <p className="text-sm font-bold text-slate-900">{label}</p>
+            )}
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              Référence technique : {log.record_id.slice(0, 8)}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: 'action',

@@ -29,6 +29,12 @@ test.describe('Feature: Dashboards par rôle', () => {
     await loginAs('tenant_admin');
     await expect(page.getByText("Vue d'ensemble")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Doublons refusés')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Documents : .*, ouvrir la liste$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^En Attente de Visa : .*, ouvrir la liste$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Utilisateurs : .*, ouvrir la liste$/i })).toBeVisible();
+
+    await page.getByRole('button', { name: /^Documents : .*, ouvrir la liste$/i }).click();
+    await expect(page).toHaveURL(/\/documents$/);
   });
 
   /**
