@@ -77,7 +77,8 @@ async def test_collaborator_cannot_delete_someone_elses_document(
     ) as client:
         response = await client.delete(f"{DOCUMENTS}/{document_id}")
 
-    assert response.status_code == 403
+    # Someone else's document is outside its perimeter: 404 like a missing one (#247).
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

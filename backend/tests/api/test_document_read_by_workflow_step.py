@@ -86,7 +86,8 @@ async def test_unassigned_manager_outside_unit_is_refused(
 ):
     doc_id = await _document_with_step(db_session, db_seed, "current")
     async with client_as("manager", **_manager(db_seed, assigned=False)) as client:
-        assert (await client.get(f"{DOCUMENTS}/{doc_id}")).status_code == 403
+        # Outside its perimeter, the document answers like a missing one (#247).
+        assert (await client.get(f"{DOCUMENTS}/{doc_id}")).status_code == 404
         assert (await client.get(f"{DOCUMENTS}/{doc_id}/content")).status_code == 404
 
 

@@ -55,6 +55,7 @@ async def list_classification_reviews(
     return await service.list_open_reviews(
         tenant_id=current_user.tenant_id,
         org_unit_ids=await unit_admin_scope_ids(db, current_user),
+        owner_id=current_user.id,
     )
 
 

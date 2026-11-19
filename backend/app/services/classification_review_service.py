@@ -61,8 +61,15 @@ class ClassificationReviewService:
         self.storage_service = get_storage_service()
 
     @staticmethod
-    def _in_units(org_unit_ids):
-        """Reviews whose document, or whose import batch target, sits in the units."""
+    def _in_units(org_unit_ids, owner_id=None):
+        """Reviews whose document, or whose import batch target, sits in the units.
+
+        A batch the user created stays visible wherever it was sent (#215): the
+        import screens show it too.
+        """
+        batch_in_scope = ImportJob.target_org_unit_id.in_(org_unit_ids)
+        if owner_id is not None:
+            batch_in_scope = or_(batch_in_scope, ImportJob.created_by_id == owner_id)
         return or_(
             exists().where(
                 Document.id == ClassificationReview.document_id,
@@ -71,15 +78,15 @@ class ClassificationReviewService:
             exists().where(
                 ImportJobItem.id == ClassificationReview.import_job_item_id,
                 ImportJobItem.import_job_id == ImportJob.id,
-                ImportJob.target_org_unit_id.in_(org_unit_ids),
+                batch_in_scope,
             ),
         )
 
     async def list_open_reviews(
-        self, *, tenant_id: UUID, org_unit_ids=None
+        self, *, tenant_id: UUID, org_unit_ids=None, owner_id=None
     ) -> List[ClassificationReviewRead]:
         reviews = await self._load_open_reviews(
-            tenant_id=tenant_id, org_unit_ids=org_unit_ids
+            tenant_id=tenant_id, org_unit_ids=org_unit_ids, owner_id=owner_id
         )
         return [self._to_review_read(review) for review in reviews]
 
@@ -160,6 +167,7 @@ class ClassificationReviewService:
             tenant_id=current_user.tenant_id,
             for_update=True,
             org_unit_ids=org_unit_ids,
+            owner_id=current_user.id,
         )
         if review.review_status != "open":
             raise HTTPException(
@@ -182,6 +190,12 @@ class ClassificationReviewService:
             target_org_unit_id=payload.classification_target_org_unit_id,
             target_user_id=payload.classification_target_user_id,
         )
+        # A unit-bounded role files only inside its tree (#215).
+        if org_unit_ids is not None and target_org_unit.id not in org_unit_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Target org unit is outside your unit tree.",
+            )
 
         if review.import_job_item_id and review.document_id is None:
             return await self._resolve_import_item_review(
@@ -549,7 +563,7 @@ class ClassificationReviewService:
         )
 
     async def _load_open_reviews(
-        self, *, tenant_id: UUID, org_unit_ids=None
+        self, *, tenant_id: UUID, org_unit_ids=None, owner_id=None
     ) -> list[ClassificationReview]:
         stmt = (
             select(ClassificationReview)
@@ -580,7 +594,7 @@ class ClassificationReviewService:
             .order_by(ClassificationReview.updated_at.desc())
         )
         if org_unit_ids is not None:
-            stmt = stmt.where(self._in_units(org_unit_ids))
+            stmt = stmt.where(self._in_units(org_unit_ids, owner_id))
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -676,13 +690,14 @@ class ClassificationReviewService:
         tenant_id: UUID,
         for_update: bool = False,
         org_unit_ids=None,
+        owner_id=None,
     ) -> ClassificationReview:
         stmt = select(ClassificationReview).where(
             ClassificationReview.id == review_id,
             ClassificationReview.tenant_id == tenant_id,
         )
         if org_unit_ids is not None:
-            stmt = stmt.where(self._in_units(org_unit_ids))
+            stmt = stmt.where(self._in_units(org_unit_ids, owner_id))
         if for_update:
             stmt = stmt.with_for_update()
         result = await self.db.execute(stmt)

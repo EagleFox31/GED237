@@ -648,12 +648,15 @@ async def _in_perimeter(db: AsyncSession, user: User, document: Document) -> boo
     if role_code in ORG_UNIT_READ_ROLES:
         if user.org_unit_id and document.org_unit_id == user.org_unit_id:
             return True
+        if document.owner_id == user.id:
+            return True
     elif role_code in UNIT_TREE_READ_ROLES:
+        # The tree only: a document it owns outside the tree stays hidden.
         if await _in_unit_tree(db, user, document):
             return True
     elif await can_perform(user, "documents", "read", ctx_from_resource(document)):
         return True
-    if document.owner_id == user.id:
+    elif document.owner_id == user.id:
         return True
     return await _has_workflow_step_access(db, user, document)
 
