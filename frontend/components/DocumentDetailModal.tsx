@@ -19,14 +19,29 @@ interface DocumentDetailModalProps {
   onClose: () => void;
   /** Appelé après une modification (ex. archivage) pour rafraîchir la liste appelante. */
   onUpdated?: (document: Document) => void;
+  /** Fourni par la liste appelante : affiche « Mettre à la corbeille » et rafraîchit après succès. */
+  onTrashed?: () => void;
 }
 
-const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated }) => {
+const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated, onTrashed }) => {
   const [document, setDocument] = useState<Document>(initialDocument);
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [trashing, setTrashing] = useState(false);
+  const handleTrash = async () => {
+    setTrashing(true);
+    try {
+      await api.deleteDocument(document.id);
+      onTrashed?.();
+      onClose();
+    } catch {
+      /* message déjà affiché par le bus global */
+    } finally {
+      setTrashing(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState<'info' | 'workflow' | 'history'>('info');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [stepsLoading, setStepsLoading] = useState(false);
@@ -114,6 +129,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         comment: comment || undefined
       });
       await loadWorkflowSteps();
+      // Le statut du document change après un visa ou un rejet : on le relit pour l'affichage et la liste.
+      try {
+        const refreshed = await api.getDocument(document.id);
+        setDocument(refreshed);
+        onUpdated?.(refreshed);
+      } catch (refreshErr) {
+        // L'action a réussi ; l'erreur de relecture est déjà publiée par le client HTTP.
+        console.error('Refresh after action failed:', refreshErr);
+      }
     } catch (err) {
       console.error('Validation failed:', err);
       setActionError("L'action de workflow a échoué. Veuillez réessayer.");
@@ -241,7 +265,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-slate-400 font-medium">Propriétaire</p>
-                      <p className="font-bold text-slate-700">{document.owner_name || document.owner_id}</p>
+                      <p className="font-bold text-slate-700">{document.owner_name || 'Non renseigné'}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 font-medium">Date de création</p>
@@ -422,6 +446,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
 
         {/* Footer actions */}
         <div className="p-6 bg-slate-100/50 border-t border-slate-200/50 flex justify-end gap-3">
+          {onTrashed && (
+            <button
+              type="button"
+              onClick={() => handleTrash()}
+              disabled={trashing}
+              className="mr-auto inline-flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-600 hover:text-red-700 disabled:opacity-50 transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden>delete</span>
+              Mettre à la corbeille
+            </button>
+          )}
           {canArchive && (
             <button
               type="button"
