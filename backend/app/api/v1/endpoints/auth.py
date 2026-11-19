@@ -241,7 +241,8 @@ def _role_code(user: User):
     return user.role.code if user.role else None
 
 
-async def _audit_totp(db: AsyncSession, user: User, action: str, request: Request):
+async def _audit_totp(db: AsyncSession, user: User, request: Request, *, action: str):
+    # Keyword-only so test_audit_labels sees every action passed here.
     db.add(
         audit_entry(
             tenant_id=user.tenant_id,
@@ -314,7 +315,7 @@ async def totp_confirm(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Code incorrect"
         )
-    await _audit_totp(db, current_user, "totp_enrolled", request)
+    await _audit_totp(db, current_user, request, action="totp_enrolled")
     await otp_delivery.notify_totp_event(current_user, "enrolled")
     return None
 
@@ -397,6 +398,6 @@ async def totp_disable(
     if record is not None:
         await db.delete(record)
         await db.commit()
-        await _audit_totp(db, current_user, "totp_disabled", request)
+        await _audit_totp(db, current_user, request, action="totp_disabled")
         await otp_delivery.notify_totp_event(current_user, "disabled")
     return None

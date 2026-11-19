@@ -29,6 +29,7 @@ ACCENTED_LABELS = {
     "dup_detected": "Doublon refusé",
     "otp_send_failed": "Échec d'envoi du code",
     "totp_reset": "Application d'authentification réinitialisée",
+    "totp_disabled": "Application d'authentification désactivée",
 }
 
 ACCENTED_TABLES = {
