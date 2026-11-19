@@ -100,8 +100,8 @@ test.describe('Feature: Arbre organisationnel', () => {
 
     // THEN
     await expect(orgPage.staffTable).toBeVisible();
-    await expect(page.getByText('Agent')).toBeVisible();
-    await expect(page.getByText('Matricule')).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Agent', exact: true })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Matricule' })).toBeVisible();
 
     // AND
     await expect(orgPage.createUserButton).toBeVisible();
@@ -139,8 +139,8 @@ test.describe('Feature: Création d\'unité organisationnelle', () => {
    * SCENARIO 6: Ouverture du modal de création d'unité
    *
    *   GIVEN  un tenant_admin sur la page Organisation
-   *   WHEN   il clique "Nouvelle Structure"
-   *   THEN   le modal s'ouvre avec les champs Nom, Code, Parent ID, Description
+   *   WHEN   il clique "Nouveau service racine"
+   *   THEN   le modal s'ouvre avec les champs Nom du service et Code
    */
   test('Given page org, When clic nouvelle structure, Then modal affiché', async ({ page }) => {
     const orgPage = new OrganizationPage(page);
@@ -155,8 +155,6 @@ test.describe('Feature: Création d\'unité organisationnelle', () => {
     // THEN
     await expect(orgPage.orgNameInput).toBeVisible();
     await expect(orgPage.orgCodeInput).toBeVisible();
-    await expect(orgPage.orgParentInput).toBeVisible();
-    await expect(orgPage.orgDescriptionInput).toBeVisible();
     await expect(orgPage.orgSubmitButton).toBeVisible();
   });
 
@@ -180,7 +178,7 @@ test.describe('Feature: Création d\'unité organisationnelle', () => {
     await orgPage.openCreateOrgModal();
 
     // WHEN
-    await orgPage.fillOrgForm(orgName, orgCode, 'Unité créée par test E2E');
+    await orgPage.fillOrgForm(orgName, orgCode);
 
     // AND
     await orgPage.submitOrgForm();
@@ -201,12 +199,12 @@ test.describe('Feature: Création d\'utilisateur dans une unité', () => {
   });
 
   /**
-   * SCENARIO 8: Ouverture du modal de création utilisateur
+   * SCENARIO 8: « Créer un agent » ouvre le formulaire de l'annuaire
    *
    *   GIVEN  un tenant_admin sur l'onglet Personnel d'une unité
-   *   WHEN   il clique "Créer Utilisateur"
-   *   THEN   le modal s'ouvre avec les champs Email, Prénom, Nom, Mot de passe, Rôle
-   *   AND    le nom de l'unité est indiqué dans le header du modal
+   *   WHEN   il clique "Créer un agent"
+   *   THEN   il arrive sur /users avec le formulaire « Nouvel agent » ouvert
+   *   AND    les champs Matricule, Email, Prénom, Nom et Rôle sont visibles
    */
   test('Given onglet personnel, When clic créer utilisateur, Then modal affiché', async ({ page }) => {
     const orgPage = new OrganizationPage(page);
@@ -219,30 +217,27 @@ test.describe('Feature: Création d\'utilisateur dans une unité', () => {
     await orgPage.openCreateUserModal();
 
     // THEN
+    await expect(orgPage.userMatriculeInput).toBeVisible();
     await expect(orgPage.userEmailInput).toBeVisible();
     await expect(orgPage.userFirstNameInput).toBeVisible();
     await expect(orgPage.userLastNameInput).toBeVisible();
-    await expect(orgPage.userPasswordInput).toBeVisible();
     await expect(orgPage.userRoleSelect).toBeVisible();
-
-    // AND — le header montre "Pour: <nom unité>"
-    await expect(orgPage.userModal.getByText(/Pour:/)).toBeVisible();
   });
 
   /**
-   * SCENARIO 9: Création réussie d'un utilisateur
+   * SCENARIO 9: Création réussie d'un agent
    *
-   *   GIVEN  le modal de création utilisateur est ouvert
-   *   WHEN   l'admin remplit email, prénom, nom, mot de passe et rôle
+   *   GIVEN  le formulaire « Nouvel agent » est ouvert
+   *   WHEN   l'admin remplit matricule, email, prénom, nom et rôle
    *   AND    il soumet le formulaire
-   *   THEN   le modal se ferme
-   *   AND    le nouvel agent apparaît dans le tableau du personnel
+   *   THEN   le formulaire se ferme (mot de passe temporaire ou confirmation)
+   *   AND    le nouvel agent apparaît dans la liste
    */
   test('Given modal user ouvert, When remplir et soumettre, Then utilisateur créé', async ({ page }) => {
     const orgPage = new OrganizationPage(page);
     const timestamp = Date.now();
+    const matricule = `E2E${timestamp.toString().slice(-6)}`;
     const email = `test.e2e.${timestamp}@min.gov.cm`;
-    const firstName = 'Test';
     const lastName = `E2E${timestamp.toString().slice(-4)}`;
 
     // GIVEN
@@ -251,26 +246,31 @@ test.describe('Feature: Création d\'utilisateur dans une unité', () => {
     await orgPage.openCreateUserModal();
 
     // WHEN
-    await orgPage.fillUserForm(email, firstName, lastName, 'TestPass@2025', 'collaborator');
+    await orgPage.fillUserForm(matricule, email, 'Test', lastName);
 
     // AND
     await orgPage.submitUserForm();
 
     // THEN
     await orgPage.expectUserModalClosed();
+    const created = page.getByText('Agent créé.');
+    await expect(orgPage.tempPasswordDialog.or(created)).toBeVisible({ timeout: 10_000 });
+    if (await orgPage.tempPasswordDialog.isVisible()) {
+      await page.getByRole('button', { name: /j['’]ai noté le mot de passe/i }).click();
+    }
 
-    // AND — le tableau rafraîchi contient le nouvel agent
-    await expect(page.getByText(email)).toBeVisible({ timeout: 10_000 });
+    // AND — la liste rafraîchie contient le nouvel agent
+    await expect(page.getByText(lastName).first()).toBeVisible({ timeout: 10_000 });
   });
 
   /**
-   * SCENARIO 10: Le sélecteur de rôle propose les bons choix
+   * SCENARIO 10: Le sélecteur de rôle propose les rôles de l'installation
    *
-   *   GIVEN  le modal de création utilisateur est ouvert
+   *   GIVEN  le formulaire « Nouvel agent » est ouvert
    *   WHEN   l'admin ouvre le sélecteur de rôle
-   *   THEN   les options Collaborateur, Manager, Administrateur d'Unité, Lecteur sont disponibles
+   *   THEN   au moins un rôle est proposé après l'option vide
    */
-  test('Given modal user, When voir rôles, Then 4 options disponibles', async ({ page }) => {
+  test('Given modal user, When voir rôles, Then rôles proposés', async ({ page }) => {
     const orgPage = new OrganizationPage(page);
 
     // GIVEN
@@ -278,12 +278,9 @@ test.describe('Feature: Création d\'utilisateur dans une unité', () => {
     await orgPage.expectAtLeastOneNode();
     await orgPage.openCreateUserModal();
 
-    // WHEN/THEN
+    // WHEN/THEN — les rôles viennent de l'API (/roles), pas d'une liste figée
     const options = orgPage.userRoleSelect.locator('option');
-    await expect(options).toHaveCount(4);
-    await expect(options.nth(0)).toHaveText('Collaborateur');
-    await expect(options.nth(1)).toContainText('Manager');
-    await expect(options.nth(2)).toContainText("Administrateur d'Unité");
-    await expect(options.nth(3)).toHaveText('Lecteur Simple');
+    await expect(options.first()).toHaveText('Sélectionner un rôle');
+    await expect(options.nth(1)).toBeAttached();
   });
 });

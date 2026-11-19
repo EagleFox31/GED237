@@ -1,7 +1,7 @@
 # backend/app/api/v1/endpoints/users.py
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, false, true
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
@@ -17,6 +17,8 @@ from app.core.authz import (
 from app.core.errors.domain import AuthorizationError, ConflictError
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
+from app.services.reports_scope import unit_subtree_ids
+from app.services.unit_admin_scope import assert_unit_admin_in_tree
 from app.models.user import User
 from app.models.document import Document
 from app.models.tenant import Tenant
@@ -40,6 +42,17 @@ PLATFORM_TENANT_SHORT_NAME = "PLATFORM"
 
 def _role_code(user: User) -> str:
     return (getattr(getattr(user, "role", None), "code", "") or "").lower()
+
+
+def _unit_scope(actor: User):
+    """SQL condition on ``User``: a unit_admin only reaches users of their own unit and its
+    sub-units (404 elsewhere); every other role is unchanged (the tenant filter and the
+    authz checks still apply)."""
+    if _role_code(actor) != "unit_admin":
+        return true()
+    if actor.org_unit_id is None:
+        return false()
+    return User.org_unit_id.in_(unit_subtree_ids(actor.org_unit_id))
 
 
 async def _validate_reports_to(
@@ -133,6 +146,8 @@ async def create_user(
         AuthzContext(tenant_id=user_in.tenant_id),
     )
     assert_org_unit_scope(user_in.org_unit_id, current_user)
+    # unit_admin: the new account lands in own unit or below.
+    await assert_unit_admin_in_tree(db, user_in.org_unit_id, current_user)
 
     # Resolve role_code -> role_id when the client sent role_code instead of role_id.
     if user_in.role_id is None:
@@ -276,6 +291,8 @@ async def read_users(
     elif org_unit_id:
         assert_org_unit_scope(org_unit_id, current_user)
         query = query.filter(User.org_unit_id == org_unit_id)
+    # unit_admin : sa propre unité et ses sous-unités, y compris avec ``org_unit_id``.
+    query = query.filter(_unit_scope(current_user))
 
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
@@ -325,7 +342,11 @@ async def read_user(
             selectinload(User.role),
             selectinload(User.reports_to).selectinload(User.role),
         )
-        .filter(User.id == user_id, User.tenant_id == current_user.tenant_id)
+        .filter(
+            User.id == user_id,
+            User.tenant_id == current_user.tenant_id,
+            _unit_scope(current_user),
+        )
     )
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -350,7 +371,9 @@ async def update_user(
     Update a user.
     """
     query = select(User).filter(
-        User.id == user_id, User.tenant_id == current_user.tenant_id
+        User.id == user_id,
+        User.tenant_id == current_user.tenant_id,
+        _unit_scope(current_user),
     )
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -390,6 +413,8 @@ async def update_user(
 
     if "org_unit_id" in update_data:
         assert_org_unit_scope(update_data["org_unit_id"], current_user)
+        # unit_admin: a user can only be moved inside the tree.
+        await assert_unit_admin_in_tree(db, update_data["org_unit_id"], current_user)
 
     if "reports_to_user_id" in update_data:
         await _validate_reports_to(
@@ -492,7 +517,9 @@ async def delete_user(
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
     query = select(User).filter(
-        User.id == user_id, User.tenant_id == current_user.tenant_id
+        User.id == user_id,
+        User.tenant_id == current_user.tenant_id,
+        _unit_scope(current_user),
     )
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -563,7 +590,9 @@ async def reset_user_password(
         )
 
     query = select(User).filter(
-        User.id == user_id, User.tenant_id == current_user.tenant_id
+        User.id == user_id,
+        User.tenant_id == current_user.tenant_id,
+        _unit_scope(current_user),
     )
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -608,7 +637,11 @@ async def toggle_user_active(
     query = (
         select(User)
         .options(selectinload(User.role), selectinload(User.org_unit))
-        .filter(User.id == user_id, User.tenant_id == current_user.tenant_id)
+        .filter(
+            User.id == user_id,
+            User.tenant_id == current_user.tenant_id,
+            _unit_scope(current_user),
+        )
     )
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -640,7 +673,11 @@ async def disable_user_mfa(
     query = (
         select(User)
         .options(selectinload(User.role), selectinload(User.org_unit))
-        .filter(User.id == user_id, User.tenant_id == current_user.tenant_id)
+        .filter(
+            User.id == user_id,
+            User.tenant_id == current_user.tenant_id,
+            _unit_scope(current_user),
+        )
     )
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -667,7 +704,11 @@ async def get_hierarchy_up(
         await db.execute(
             select(User)
             .options(selectinload(User.role))
-            .filter(User.id == user_id, User.tenant_id == current_user.tenant_id)
+            .filter(
+                User.id == user_id,
+                User.tenant_id == current_user.tenant_id,
+                _unit_scope(current_user),
+            )
         )
     ).scalar_one_or_none()
     if not user:
@@ -686,7 +727,7 @@ async def get_hierarchy_up(
                     selectinload(User.role),
                     selectinload(User.reports_to).selectinload(User.role),
                 )
-                .filter(User.id == cur_id)
+                .filter(User.id == cur_id, _unit_scope(current_user))
             )
         ).scalar_one_or_none()
         if nxt is None:
@@ -706,7 +747,9 @@ async def get_hierarchy_down(
     user = (
         await db.execute(
             select(User).filter(
-                User.id == user_id, User.tenant_id == current_user.tenant_id
+                User.id == user_id,
+                User.tenant_id == current_user.tenant_id,
+                _unit_scope(current_user),
             )
         )
     ).scalar_one_or_none()
@@ -722,7 +765,7 @@ async def get_hierarchy_down(
                     selectinload(User.role),
                     selectinload(User.reports_to).selectinload(User.role),
                 )
-                .filter(User.reports_to_user_id == user_id)
+                .filter(User.reports_to_user_id == user_id, _unit_scope(current_user))
                 .order_by(User.matricule)
             )
         )
