@@ -35,7 +35,7 @@ ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
 ORDER_V4="309 310 153 155 169 471 147 197 162 180 154 212 172 193 219 186 165 192 209 205 168 182 190 170"
 # Vague 5 : fiche document, équipe, droits, confort (01 au 03/12)
-ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 446 417 441 450 459"
+ORDER_V5="283 293 295 285 297 342 294 303 347 298 362 407 401 400 391 396 392 351 354 371 373 366 367 377 398 395 359 344 353 393 399 416 446 417 441 484 450 459"
 # Vague 6 : outils et documentation (03 au 05/12, 18:00)
 ORDER_V6="335 312 189 166 451 452"
 ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
@@ -46,6 +46,7 @@ ORDER="$ORDER_V0 $ORDER_V1 $ORDER_V2 $ORDER_V3 $ORDER_V4 $ORDER_V5 $ORDER_V6"
 # #478 (montée starlette 1.10, fastapi 0.165, pydantic 2.9 ; remplace #113 ; brouillon) : HORS_FILE, en vague 6 avec Dependabot, une à une. #113 se ferme quand #478 fusionne. #481 (Python 3.13, remplace #110, aide-api, brouillon) : même traitement ; #110 se ferme quand #481 fusionne.
 # #480 (B, classement à l'import des fichiers que l'OCR ne lit pas, V1.0, base main, tête c6c13c7e) : dans ORDER_V0 après #199, sous réserve de l'OK de Q (O, 19/11). #479 (aide-api, la déconnexion révoque toute la session, V1.0, base main, relecture Q) : dans ORDER_V0 juste après #199 ; elle remonte juste après #477 si l'OK de Q et les tests d'aide-api sont là à ce moment ; toujours avant #471 (O, 19/11).
 # #482 (Q, ops/ : la sauvegarde s'arrête avant toute écriture si l'image d'aide manque ; après la relance d'api, nginx est relancé et /health vérifié ; base main, tête 0eb1eaca ; OK de B le 19/11, avec 2 remarques non bloquantes : COMPOSE_FILE de la pile TLS à documenter, valeur de BACKUP_HEALTH_TRIES non contrôlée) : juste après #477. Sa fusion donne le demi-point de l'item 31 (PO, 19/11).
+# #484 (Q, contrastes AA, lot 8 point 4 : liste des documents, fiche, parapheur ; brouillon V1.1, tête aa37fb80) : empilée sur #441 (base feat/v11-a11y-keyboard), à re-cibler sur main avant la fusion de #441 ; vague 5 juste après #441, DEP[484]=441. Pas encore jouée au navigateur : ajoutée par O aux contre-tests du prochain lot d'audit.
 # #476 (aide-api, n° 14 du tri de l'audit : total et page suivante dans « Mes Documents », V1.1, base main) : HORS_FILE (O, 19/11). Même fichier Documents.tsx que #440 : à rebaser après #440.
 HORS_FILE="104 121 408 409 412 415 385 313 460 461 469 470 472 473 474 475 476 478 481"
 ```
@@ -126,7 +127,7 @@ DEP[284]="372 370"; DEP[290]="284"; DEP[338]="290"
 DEP[404]="370 372"; DEP[355]="372 404"
 DEP[296]="263"; DEP[347]="221"; DEP[342]="297"; DEP[294]="238"
 DEP[351]="388"; DEP[344]="383"; DEP[398]="377"; DEP[400]="401"
-DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155 479"; DEP[468]="435"; DEP[283]="152"
+DEP[168]="152"; DEP[171]="152"; DEP[182]="181"; DEP[170]="190"; DEP[172]="154"; DEP[169]="155"; DEP[471]="155 479"; DEP[484]="441"; DEP[468]="435"; DEP[283]="152"
 ```
 
 Les contraintes « après X » du plan qui servent seulement à éviter un conflit de fichier (#407 après #293 et #362, #362 après #390, #354 après #351…) ne sont pas dans DEP : l'ORDER les respecte déjà.
