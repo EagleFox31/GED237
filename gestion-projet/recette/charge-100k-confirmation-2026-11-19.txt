@@ -1,0 +1,63 @@
+Essai de charge 100 000 fichiers - item 8 - confirmation du reglage #497 (2026-11-19, 16:00-16:30)
+=====================================================================================================
+But : confirmer avec les valeurs par defaut de #497 (tete 394f2070) le resultat de charge-100k-8c-2026-11-19.txt.
+Banc : branche feat/item8-load-dataset, tete f8997fed (9f05a9b1 + correctif redis ci-dessous).
+Les valeurs par defaut de docker-compose.load.yml sont celles de docker-compose.yml de #497. Le code backend
+du banc est le meme que celui de l'essai 8 coeurs (aucun changement sous backend/app depuis 6ce454a1).
+Commande, sans aucune variable LOAD_* :
+  LOAD_CONFIRM=yes bash scripts/load-test.sh full 4 charge-100k-confirmation-2026-11-19
+Sorties brutes (non versionnees) : gestion-projet/recette/charge/charge-100k-confirmation-2026-11-19{.txt,.json,-stats.txt,-setting.txt}.
+
+Incident de lancement (16:00)
+- Premier lancement refuse par Docker : redis avait mem_limit 192m mais memswap_limit 128m (9f05a9b1 avait
+  releve l'un sans l'autre). `docker compose config` ne le detecte pas, seul le demarrage echoue.
+- Corrige en f8997fed (memswap_limit 192m, comme docker-compose.yml). Stack supprimee, relance a 16:01.
+
+Reglage mesure (docker inspect au depart)
+- postgres 2 cpus 1 Go ; redis 0,5 cpu 192 Mo ; api 2 cpus 1,5 Go, 2 processus uvicorn ; worker 3 cpus 4 Go,
+  concurrence 4. Identique a l'essai 8 coeurs, sauf la memoire du worker (4 Go au lieu de 1,5 Go)
+  et les compteurs de limite de connexion dans Redis.
+
+Corpus : identique (100 000 PDF texte de 1 a 4 Ko, 250,2 Mo, sha256 9b782be6d8a0), 10 lots de 10 000, 4 en parallele.
+
+Resultats
+- Import HTTP : 100 000 en 1 387,2 s (72,1 fichiers/s) ; 10 lots en HTTP 200, 0 erreur.
+  Lots 1 a 8 (4 en parallele) : 538 a 563 s chacun ; lots 9 et 10 (2 en parallele) : 286 s chacun.
+  Le debit total reste ~70 fichiers/s que 4 ou 2 lots tournent : le plafond est cote import, pas cote client.
+- Fin du worker : 1 387,3 s, dont 0,1 s apres la derniere requete. Le worker suit l'import.
+- Debit de bout en bout : 72,1 fichiers/s, soit 23 min 07 s pour 100 000 (seuil 20 min = 84 fichiers/s).
+- Texte lu : 100 000 / 100 000, file restante 0, pertes 0. OOM 0, redemarrages 0.
+- Recherche apres import (page de 100, mediane / max) : liste 36 / 54 ms ; mot courant 37 / 53 ms ;
+  reference exacte 166 / 182 ms.
+- CPU moyen (rapporte a la limite) : api 93 % / 200 % ; postgres 70 % / 200 % ; worker 184 % / 300 % ;
+  redis 5 % / 50 %. Aucun conteneur n'est a sa limite.
+- Memoire maximale : api 571 Mo, postgres 523 Mo, worker 390 Mo, redis 9 Mo.
+- Machine hote pendant l'import : 66 % inactive (16 vCPU, charge 5,5).
+
+Place prise au pic (mesuree a 16:25, stack encore en place)
+- Base (pg_database_size) : 331 Mo. Journal pg_wal : 656 Mo. Total PostgreSQL ~1 Go.
+- Stockage des documents (/var/storage_data) : 413 Mo pour 250,2 Mo de fichiers (blocs de 4 Ko par fichier).
+- Corpus d'entree (/data/ingest) : 413 Mo, supprime avec la stack.
+- C: libre : 13 Go avant (16:00), minimum 12 Go pendant l'essai, 13 Go apres `down -v` (16:26).
+  La garde (arret a 4 Go libres) ne s'est pas declenchee.
+- Pour le guide d'installation : compter ~1,4 Go par tranche de 100 000 petits fichiers (base + WAL +
+  stockage), plus la taille reelle des fichiers au-dela de 4 Ko chacun.
+
+VERDICT ITEM 8 : NON PROUVE SUR CET ESSAI.
+Critere (Expression de besoin, section 5 NFR, Performance) : « recherche < 2 secondes ; traitement de 100k
+fichiers en < 20 minutes ».
+- Recherche < 2 s : TENU (pire mesure 182 ms).
+- 100k fichiers < 20 min : NON TENU, 23 min 07 s, texte lu compris.
+- Meme reglage, meme code, meme corpus que l'essai 8 coeurs de 13:18 (18 min 41 s, 94,4 fichiers/s).
+  L'ecart (-24 %) ne vient pas du worker ni d'une limite atteinte : l'api et postgres restent sous leur
+  limite CPU, et le debit ne change pas avec le nombre de lots en parallele. Deux essais, deux resultats :
+  la marge de 6 % du premier n'etait pas solide.
+- Ecart 94 -> 72 fichiers/s (meme code, meme reglage) : piste principale, le disque. C: est plein a 98 % et
+  le disque virtuel Docker ecrit chaque fichier puis le journal pg_wal (656 Mo) ; aucun CPU n'est a sa limite.
+  A confirmer en rejouant l'etalonnage 2 000 fichiers avec C: degage, avant tout nouvel essai complet.
+- Pour passer sous 20 min avec de la marge (100 fichiers/s ou plus), sans le coder maintenant : import en
+  parallele cote serveur (plusieurs fichiers par lot ecrits en meme temps, pas un par un) ; validation par
+  paquets (une transaction pour 100 a 500 fichiers au lieu d'une par fichier, moins de pg_wal) ; lots plus
+  petits et plus nombreux pour occuper les 2 processus api ; machine cible sur SSD avec 20 % de disque libre.
+
+Etat apres l'essai : stack ged-load et ses volumes supprimes (0 conteneur, 0 volume). edossier_* non touches.
