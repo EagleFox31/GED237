@@ -50,23 +50,29 @@ export function myOutgoingActive(mine: Delegation[], myUserId: string | undefine
   return mine.find((d) => d.status === 'active' && d.delegator.id === myUserId) ?? null;
 }
 
-/** Agent proposé dans le formulaire de remplacement (sous-ensemble de GET /users). */
+/**
+ * Agent proposé dans le formulaire de remplacement : GET /delegations/candidates (agents actifs
+ * d'un service), ou sous-ensemble de GET /users pour l'administrateur de l'institution.
+ */
 export interface DelegationCandidate {
   id: string;
   full_name: string;
   org_unit_id?: string | null;
-  /** Code du rôle (GET /users `role`). */
+  /** Code du rôle. */
   role?: string | null;
+  /** Peut valider, donc remplacer un absent (`workflows resolve_review`, évalué par le serveur). */
+  can_stand_in?: boolean;
 }
 
 /**
- * Miroir de policy.csv (`workflows, resolve_review`) : seuls ces rôles peuvent valider, donc
- * remplacer un absent. Le serveur refuse les autres (422 « Cet agent ne peut pas valider »).
+ * Profils qui choisissent l'absent dans toute l'institution (GET /users). Miroir de
+ * TENANT_WIDE_ROLES (delegation_service) et de `users read` ; les autres profils, dont le chef de
+ * service, passent par GET /delegations/candidates, limité à leur service.
  */
-const STAND_IN_ROLES: ReadonlyArray<string> = ['manager', 'collaborator'];
+const INSTITUTION_WIDE_PROFILES: ReadonlyArray<string> = ['tenant'];
 
-/** Rôle connu et sans droit de validation. Un rôle absent de la réponse n'exclut personne. */
-const cannotValidate = (u: DelegationCandidate) => Boolean(u.role) && !STAND_IN_ROLES.includes(String(u.role).toLowerCase());
+export const choosesAcrossInstitution = (profileId: string | undefined): boolean =>
+  Boolean(profileId) && INSTITUTION_WIDE_PROFILES.includes(String(profileId));
 
 /** Agents qu'on peut déclarer absents : rattachés à un service, jamais soi-même (refus du serveur). */
 export function absentCandidates(users: DelegationCandidate[], myUserId: string | undefined): DelegationCandidate[] {
@@ -74,19 +80,16 @@ export function absentCandidates(users: DelegationCandidate[], myUserId: string 
 }
 
 /**
- * Remplaçants possibles : même service que l'agent absent, capables de valider (règles du
- * serveur), ni lui ni soi-même.
+ * Remplaçants possibles parmi les candidats du service de l'absent : capables de valider selon le
+ * serveur (`can_stand_in`), ni l'absent ni soi-même.
  */
 export function standInCandidates(
-  users: DelegationCandidate[],
+  serviceCandidates: DelegationCandidate[],
   myUserId: string | undefined,
   absentId: string,
 ): DelegationCandidate[] {
-  const unit = users.find((u) => u.id === absentId)?.org_unit_id;
-  if (!unit) return [];
-  return users.filter(
-    (u) => u.id !== myUserId && u.id !== absentId && u.org_unit_id === unit && !cannotValidate(u),
-  );
+  if (!absentId) return [];
+  return serviceCandidates.filter((u) => u.id !== myUserId && u.id !== absentId && u.can_stand_in === true);
 }
 
 /** Date courte lisible (« 20/11/2026 18:00 »). */

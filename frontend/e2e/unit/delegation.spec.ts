@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { absentCandidates, myOutgoingActive, onBehalfOfName, standInCandidates, toAwareIso } from '../../lib/delegation';
+import { absentCandidates, choosesAcrossInstitution, myOutgoingActive, onBehalfOfName, standInCandidates, toAwareIso } from '../../lib/delegation';
 import type { Delegation } from '../../types';
 
 const ME = 'u-me';
@@ -57,7 +57,7 @@ test.describe('Délégation : règles d’affichage', () => {
     expect(myOutgoingActive([outgoing], undefined)).toBeNull();
   });
 
-  test('formulaire : absents sans soi-même, remplaçants du même service seulement', () => {
+  test('formulaire : absents sans soi-même ni agent hors service', () => {
     const users = [
       { id: ME, full_name: 'Moi', org_unit_id: 'ou-1' },
       { id: 'a', full_name: 'Absente', org_unit_id: 'ou-1' },
@@ -66,19 +66,26 @@ test.describe('Délégation : règles d’affichage', () => {
       { id: 'd', full_name: 'Sans service', org_unit_id: null },
     ];
     expect(absentCandidates(users, ME).map((u) => u.id)).toEqual(['a', 'b', 'c']);
-    expect(standInCandidates(users, ME, 'a').map((u) => u.id)).toEqual(['b']);
-    expect(standInCandidates(users, ME, 'c')).toEqual([]);
-    expect(standInCandidates(users, ME, '')).toEqual([]);
-    expect(standInCandidates(users, ME, 'd')).toEqual([]);
   });
 
-  test('formulaire : un agent qui ne peut pas valider n’est pas proposé comme remplaçant', () => {
-    const users = [
-      { id: 'a', full_name: 'Absente', org_unit_id: 'ou-1', role: 'collaborator' },
-      { id: 'm', full_name: 'Chef', org_unit_id: 'ou-1', role: 'manager' },
-      { id: 'r', full_name: 'Lecteur', org_unit_id: 'ou-1', role: 'reader' },
-      { id: 'x', full_name: 'Rôle inconnu', org_unit_id: 'ou-1' },
+  test('formulaire : remplaçants = candidats du service qui peuvent valider, ni l’absent ni soi-même', () => {
+    const service = [
+      { id: ME, full_name: 'Moi', org_unit_id: 'ou-1', can_stand_in: true },
+      { id: 'a', full_name: 'Absente', org_unit_id: 'ou-1', can_stand_in: true },
+      { id: 'm', full_name: 'Chef', org_unit_id: 'ou-1', can_stand_in: true },
+      { id: 'r', full_name: 'Lecteur', org_unit_id: 'ou-1', can_stand_in: false },
+      { id: 'x', full_name: 'Sans avis du serveur', org_unit_id: 'ou-1' },
     ];
-    expect(standInCandidates(users, ME, 'a').map((u) => u.id)).toEqual(['m', 'x']);
+    expect(standInCandidates(service, ME, 'a').map((u) => u.id)).toEqual(['m']);
+    expect(standInCandidates(service, ME, '')).toEqual([]);
+    expect(standInCandidates([], ME, 'a')).toEqual([]);
+  });
+
+  test('formulaire : seuls les profils de l’institution choisissent l’absent hors de leur service', () => {
+    expect(choosesAcrossInstitution('tenant')).toBe(true);
+    expect(choosesAcrossInstitution('super')).toBe(false);
+    expect(choosesAcrossInstitution('manager')).toBe(false);
+    expect(choosesAcrossInstitution('unit')).toBe(false);
+    expect(choosesAcrossInstitution(undefined)).toBe(false);
   });
 });

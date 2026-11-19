@@ -11,6 +11,7 @@ import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import {
   DELEGATION_STATUS_LABELS,
   absentCandidates,
+  choosesAcrossInstitution,
   formatDelegationDate,
   standInCandidates,
   toAwareIso,
@@ -45,7 +46,9 @@ const DelegationsPage: React.FC = () => {
   const [loadFailed, setLoadFailed] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('');
   const [users, setUsers] = useState<DelegationCandidate[]>([]);
+  const [serviceCandidates, setServiceCandidates] = useState<DelegationCandidate[]>([]);
   const myUserId = useAuthStore((s) => s.userProfile?.userId);
+  const profileId = useAuthStore((s) => s.userProfile?.id);
 
   const [delegatorId, setDelegatorId] = useState('');
   const [delegateId, setDelegateId] = useState('');
@@ -73,21 +76,38 @@ const DelegationsPage: React.FC = () => {
     load();
   }, [load]);
 
+  // Absents possibles : toute l'institution pour son administrateur (GET /users), sinon le service
+  // de l'appelant (GET /delegations/candidates) : le chef de service n'a pas `users read`.
   useEffect(() => {
-    api
-      .getUsers()
-      .then((data) => setUsers(data
+    const pool = choosesAcrossInstitution(profileId)
+      ? api.getUsers().then((data) => data
         .filter((u) => u.is_active !== false)
-        .map((u) => ({ id: u.id, full_name: u.full_name, org_unit_id: u.org_unit_id ?? null, role: u.role ?? null }))))
-      .catch(() => setUsers([]));
-  }, []);
+        .map((u) => ({ id: u.id, full_name: u.full_name, org_unit_id: u.org_unit_id ?? null, role: u.role ?? null })))
+      : api.getDelegationCandidates();
+    pool.then(setUsers).catch(() => setUsers([]));
+  }, [profileId]);
+
+  // Remplaçants : candidats du service de l'absent, avec `can_stand_in` évalué par le serveur.
+  const absentUnit = users.find((u) => u.id === delegatorId)?.org_unit_id ?? '';
+  useEffect(() => {
+    if (!absentUnit) {
+      setServiceCandidates([]);
+      return;
+    }
+    let stale = false;
+    api
+      .getDelegationCandidates(absentUnit)
+      .then((data) => { if (!stale) setServiceCandidates(data); })
+      .catch(() => { if (!stale) setServiceCandidates([]); });
+    return () => { stale = true; };
+  }, [absentUnit]);
 
   const absentOptions = absentCandidates(users, myUserId);
-  const standInOptions = standInCandidates(users, myUserId, delegatorId);
-  // Changer d'agent absent vide un remplaçant qui n'est plus de son service.
+  const standInOptions = standInCandidates(serviceCandidates, myUserId, delegatorId);
+  // Changer d'agent absent vide le remplaçant : la liste est relue pour son service.
   const chooseAbsent = (id: string) => {
     setDelegatorId(id);
-    if (!standInCandidates(users, myUserId, id).some((u) => u.id === delegateId)) setDelegateId('');
+    setDelegateId('');
   };
 
   const startIso = toAwareIso(startsAt);

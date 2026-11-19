@@ -192,6 +192,7 @@ export const api = {
     getAuditLogs: auditApi.getAuditLogs,
     exportAuditLogs: auditApi.exportAuditLogs,
     getDelegations: delegationsApi.getDelegations,
+    getDelegationCandidates: delegationsApi.getCandidates,
     getMyDelegations: delegationsApi.getMyDelegations,
     createDelegation: delegationsApi.createDelegation,
     revokeDelegation: delegationsApi.revokeDelegation,

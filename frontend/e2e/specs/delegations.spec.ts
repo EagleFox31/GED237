@@ -7,7 +7,9 @@ import { test, expect } from '../fixtures/auth.fixture';
  */
 
 const DENIED = 'Accès réservé aux administrateurs.';
-const DELEGATIONS_API = /\/api\/v1\/delegations(\/|\?|$)/;
+/** /delegations et /delegations/{id}/revoke, sans /delegations/candidates (simulée à part). */
+const DELEGATIONS_API = /\/api\/v1\/delegations(\/(?!candidates)|\?|$)/;
+const CANDIDATES_API = /\/api\/v1\/delegations\/candidates(\?|$)/;
 const USERS_API = /\/api\/v1\/users\/?(\?|$)/;
 const PENDING_API = /\/api\/v1\/workflows\/pending(\?|$)/;
 
@@ -17,6 +19,23 @@ const INTERIM = { id: '22222222-2222-4222-8222-222222222222', full_name: 'Paul I
 const ELSEWHERE = { id: '33333333-3333-4333-8333-333333333333', full_name: 'Zoé Autre service', org_unit_id: 'ou-2' };
 /** Lecteur du même service : ne peut pas valider, donc jamais proposé comme remplaçant. */
 const READER = { id: '44444444-4444-4444-8444-444444444444', full_name: 'Léa Lectrice', org_unit_id: 'ou-1', role: 'reader' };
+
+/** Réponse de GET /delegations/candidates pour le service ou-1 (`can_stand_in` évalué par le serveur). */
+const SERVICE_CANDIDATES = [
+  { ...ABSENT, role: 'collaborator', can_stand_in: false },
+  { ...INTERIM, role: 'manager', can_stand_in: true },
+  { ...READER, can_stand_in: false },
+];
+
+/** Simule GET /delegations/candidates et garde les URL appelées. */
+async function mockCandidates(page: Page, body: unknown[] = SERVICE_CANDIDATES): Promise<string[]> {
+  const calls: string[] = [];
+  await page.route(CANDIDATES_API, (route) => {
+    calls.push(route.request().url());
+    return json(route, body);
+  });
+  return calls;
+}
 
 const delegation = (over: Record<string, unknown> = {}) => ({
   id: 'd-1',
@@ -47,14 +66,16 @@ test.describe('Remplacements pendant une absence (L4)', () => {
     await expect(page.getByText(DENIED)).toBeVisible();
   });
 
-  test('DLG-02 — Given manager, When il crée un remplacement, Then dates avec fuseau envoyées et liste rechargée', async ({ loginAs, page }) => {
+  test('DLG-02 — Given chef de service, When il crée un remplacement, Then agents de son service sans GET /users, dates avec fuseau et liste rechargée', async ({ loginAs, page }) => {
     const created: Record<string, string>[] = [];
     let list = [delegation({ id: 'd-0', status: 'scheduled' })];
-    await page.route(USERS_API, (route) => json(route, [
-      ...[ABSENT, INTERIM].map((u) => ({ ...u, is_active: true })),
-      { ...ELSEWHERE, is_active: true },
-      { ...READER, is_active: true },
-    ]));
+    // Le chef de service n'a pas `users read` : l'écran ne doit jamais appeler GET /users.
+    const usersCalls: string[] = [];
+    await page.route(USERS_API, (route) => {
+      usersCalls.push(route.request().url());
+      return json(route, [], 403);
+    });
+    const candidateCalls = await mockCandidates(page);
     await page.route(DELEGATIONS_API, async (route) => {
       const request = route.request();
       if (request.method() === 'POST') {
@@ -72,9 +93,14 @@ test.describe('Remplacements pendant une absence (L4)', () => {
 
     const standIn = page.getByLabel('Remplacé par');
     await expect(standIn).toBeDisabled();
+    // Absents : les agents du service renvoyés par le serveur.
+    await expect(page.getByLabel('Agent absent').locator('option')).toHaveText(
+      ['Choisir…', ...SERVICE_CANDIDATES.map((u) => u.full_name)],
+    );
     await page.getByLabel('Agent absent').selectOption(ABSENT.id);
-    // Seuls les agents du même service qui peuvent valider, sans l'absente elle-même.
+    // Remplaçants : ceux qui peuvent valider (`can_stand_in`), sans l'absente elle-même.
     await expect(standIn.locator('option')).toHaveText(['Choisir…', INTERIM.full_name]);
+    expect(candidateCalls.some((url) => url.includes(`org_unit_id=${ABSENT.org_unit_id}`))).toBe(true);
     await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
 
     await standIn.selectOption(INTERIM.id);
@@ -88,11 +114,12 @@ test.describe('Remplacements pendant une absence (L4)', () => {
     expect(body).toMatchObject({ delegator_id: ABSENT.id, delegate_id: INTERIM.id });
     expect(body.starts_at).toMatch(/^2026-11-20T08:00:00[+-]\d{2}:\d{2}$/);
     expect(body.ends_at).toMatch(/^2026-11-27T08:00:00[+-]\d{2}:\d{2}$/);
+    expect(usersCalls).toEqual([]);
   });
 
   test('DLG-03 — Given chevauchement refusé (409), When enregistrer, Then le motif du serveur s’affiche', async ({ loginAs, page }) => {
     const detail = 'Awa Absente a déjà un remplaçant sur cette période.';
-    await page.route(USERS_API, (route) => json(route, [ABSENT, INTERIM]));
+    await mockCandidates(page);
     await page.route(DELEGATIONS_API, (route) =>
       route.request().method() === 'POST' ? json(route, { detail }, 409) : json(route, []),
     );
@@ -109,7 +136,9 @@ test.describe('Remplacements pendant une absence (L4)', () => {
 
   test('DLG-04 — Given remplacement en cours, When annuler puis confirmer, Then révocation demandée', async ({ loginAs, page }) => {
     const revoked: string[] = [];
-    await page.route(USERS_API, (route) => json(route, [ABSENT, INTERIM]));
+    // L'administrateur de l'institution choisit l'absent dans toute l'institution (GET /users).
+    await page.route(USERS_API, (route) => json(route, [ABSENT, INTERIM, ELSEWHERE].map((u) => ({ ...u, is_active: true }))));
+    await mockCandidates(page);
     await page.route(DELEGATIONS_API, (route) => {
       const url = route.request().url();
       if (route.request().method() === 'POST' && url.endsWith('/revoke')) {

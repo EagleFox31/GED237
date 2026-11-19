@@ -6,8 +6,20 @@
 
 import { apiCall } from '../http/client';
 import type { Delegation, DelegationCreate, DelegationStatus } from '../../types';
+import type { DelegationCandidate } from '../../lib/delegation';
 
 export const delegationsApi = {
+    /**
+     * Agents actifs d'un service, hors appelant (absent possible ; remplaçant si `can_stand_in`).
+     * Sans `orgUnitId` : le service de l'appelant. Un autre service est réservé à l'institution (403 sinon).
+     */
+    getCandidates: (orgUnitId?: string): Promise<DelegationCandidate[]> =>
+        apiCall<DelegationCandidate[]>(
+            `/delegations/candidates${orgUnitId ? `?org_unit_id=${encodeURIComponent(orgUnitId)}` : ''}`,
+            {},
+            'Récupération des agents du service impossible',
+        ),
+
     getDelegations: (
         params: { status?: DelegationStatus; delegator_id?: string; delegate_id?: string } = {},
     ): Promise<Delegation[]> => {
