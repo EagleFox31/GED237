@@ -149,12 +149,12 @@ jobs:
   # ──────────────────────────────────────────────
   # Stage 2 — Gate (single required status check)
   # ──────────────────────────────────────────────
-  # e2e is deliberately absent from `needs`: non-blocking until 2026-11-21 (RAIDER-D waiver,
-  # DEC-2026-002), then add it here to make the smoke suite blocking.
+  # e2e is blocking since 2026-11-21 (end of the DEC-2026-002 waiver): a skipped job means the
+  # change touches no e2e surface; a failed or cancelled one fails the gate.
   gate:
     name: CI Gate
     if: always()
-    needs: [impact, reuse, backend, frontend, security, workflows, tracked-files]
+    needs: [impact, reuse, backend, frontend, security, e2e, workflows, tracked-files]
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
