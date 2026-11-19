@@ -9,6 +9,7 @@
 // d'erreur entre le backend et le bus d'erreur frontend.
 
 import { ApiError, apiErrorFromResponse, apiErrorFromException, pushApiError } from '../../lib/errors';
+import { publicDetail } from '../../lib/errors/legacyDetail';
 
 export type { ApiError };
 
@@ -26,6 +27,9 @@ export const buildApiError = async (
     // Si le backend n'a pas renvoyé de detail lisible, utiliser le fallback métier.
     if (!apiErr.userMessage || apiErr.userMessage === 'Erreur.') {
         apiErr = new ApiError({ ...apiErr.raw, detail: fallback });
+    } else if (publicDetail(apiErr.userMessage) !== apiErr.userMessage) {
+        // Ancien message anglais du backend : remplacé par une phrase claire.
+        apiErr = new ApiError({ ...apiErr.raw, detail: publicDetail(apiErr.userMessage) });
     }
     // Les 401 sont gérés par fetchWithRefresh (refresh ou logout) :
     // pas de toast intermédiaire redondant. Les statuts « handled » sont
