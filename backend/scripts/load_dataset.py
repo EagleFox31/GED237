@@ -59,9 +59,9 @@ def plan(files: int, batches: int) -> list[int]:
 
 def parse_size(text: str) -> tuple[int, int]:
     """``"4"`` -> (4, 4); ``"1-4"`` -> (1, 4). Sizes in KB, >= 1."""
-    low, _, high = text.partition("-")
+    low, dash, high = text.partition("-")
     try:
-        size = (int(low), int(high or low))
+        size = (int(low), int(high if dash else low))
     except ValueError:
         raise ValueError(f"size must be N or MIN-MAX in KB, got {text!r}") from None
     if size[0] < 1 or size[1] < size[0]:
@@ -84,14 +84,19 @@ def document(index: int, seed: int, size_kb: tuple[int, int]) -> tuple[str, byte
     lines = [f"Service : {UNIT[folder]}", f"Reference : {reference}", f"Annee : {year}"]
     target = rng.randint(size_kb[0] * 1024, size_kb[1] * 1024)
     content = pdf_text(title, lines)
+    # Real cost of a line (text, operators, offsets) is measured after each round and padded by
+    # 5 %: rounds undershoot, so the final size passes the target by one line at most.
+    per_line = 2 * (LINE_CHARS + 30)
     while len(content) < target:
-        # Each line adds its text plus ~30 bytes of PDF operators: a few rounds at most.
-        for _ in range(max(1, (target - len(content)) // (LINE_CHARS + 30))):
+        count = max(1, (target - len(content)) // per_line)
+        before = len(content)
+        for _ in range(count):
             words: list[str] = []
             while sum(len(w) + 1 for w in words) < LINE_CHARS:
                 words.append(rng.choice(FILLER))
             lines.append(" ".join(words))
         content = pdf_text(title, lines)
+        per_line = max(1, int((len(content) - before) / count * 1.05) + 1)
     return name, content
 
 
