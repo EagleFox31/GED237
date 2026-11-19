@@ -85,6 +85,7 @@ export const api = {
     purgeDocument: documentsApi.purgeDocument,
     emptyTrash: documentsApi.emptyTrash,
     getDocumentVersions: documentsApi.getDocumentVersions,
+    uploadDocumentVersion: documentsApi.uploadDocumentVersion,
     getDocumentStats: documentsApi.getDocumentStats,
     getWorkspaceDocuments: documentsApi.getWorkspaceDocuments,
     getNeedsReviewDocuments: documentsApi.getNeedsReviewDocuments,
