@@ -36,4 +36,4 @@ def rate_limit_by_user_or_ip(request: Request) -> str:
     return client_ip(request)
 
 
-limiter = Limiter(key_func=client_ip)
+limiter = Limiter(key_func=client_ip, storage_uri=settings.RATE_LIMIT_STORAGE_URI)

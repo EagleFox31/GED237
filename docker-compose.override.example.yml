@@ -1,0 +1,10 @@
+# Development only: hot reload of the code. Copy to docker-compose.override.yml (read automatically by
+# `docker compose up`), and set API_RELOAD=--reload in .env. One api process: uvicorn ignores --workers
+# under --reload. The delivered stack (docker-compose.yml alone) carries the code in the image.
+services:
+  api:
+    volumes:
+      - ./backend/app:/app/app
+  worker:
+    volumes:
+      - ./backend/app:/app/app

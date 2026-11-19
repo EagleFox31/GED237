@@ -14,9 +14,11 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: edossier_postgres
-    mem_limit: 768m
-    memswap_limit: 768m
-    cpus: 1.0
+    # Capacity (postgres, api, worker): defaults = V1.0 setting, proven on 100k files (needs 8 cores, 12 GB;
+    # DOCS/exploitation/installation.md). Smaller machine: override in .env (see .env.example).
+    mem_limit: ${PG_MEM_LIMIT:-1g}
+    memswap_limit: ${PG_MEM_LIMIT:-1g}
+    cpus: ${PG_CPUS:-2.0}
     shm_size: 128m
     logging: *default-logging
     restart: unless-stopped
@@ -108,9 +110,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: edossier_api
-    mem_limit: 1g
-    memswap_limit: 1g
-    cpus: 1.5
+    mem_limit: ${API_MEM_LIMIT:-1536m}
+    memswap_limit: ${API_MEM_LIMIT:-1536m}
+    cpus: ${API_CPUS:-2.0}
     logging: *default-logging
     restart: unless-stopped
     healthcheck:
@@ -120,9 +122,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips="*"
+    # No code mount and no hot reload by default: the image carries the code (uvicorn ignores --workers under --reload).
+    # Development: API_RELOAD=--reload plus docker-compose.override.example.yml copied to docker-compose.override.yml.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 ${API_RELOAD:-} --workers ${API_WORKERS:-2} --proxy-headers --forwarded-allow-ips="*"
     volumes:
-      - ./backend/app:/app/app
       - storage_data:/var/storage_data
       # Directory import source, read-only: the only tree the API may ingest from.
       - ${INGEST_SOURCE_DIR:-./data/ingest}:/data/ingest:ro
@@ -146,6 +149,8 @@ services:
       # Demo room: ~10 logins/OTP in 13 min from one NAT address (parcours-demo.md §0).
       AUTH_LOGIN_RATE_LIMIT: "30/minute"
       AUTH_OTP_RATE_LIMIT: "30/minute"
+      # Login attempt counters shared by the api processes (db 3); memory:// would count per process.
+      RATE_LIMIT_STORAGE_URI: ${RATE_LIMIT_STORAGE_URI:-redis://redis:6379/3}
       # Not relaxed for the demo: the account lock must stay visible.
       AUTH_OTP_MAX_FAILURES: "3"
       AUTH_LOCKOUT_SECONDS: "900"
@@ -173,17 +178,16 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: edossier_worker
-    # OCR (EasyOCR/torch) is the heaviest consumer: each child loads its own reader
-    # (~1.3 GB), so two children exceed mem_limit. One child only.
+    # Each child loads its own OCR reader (~800 MB with rapidocr, ~1.3 GB with EasyOCR):
+    # WORKER_MEM_LIMIT grows with WORKER_CONCURRENCY (4 children x 800 MB = 4g).
     # -B: embedded beat for the watched folders (single worker: no second scheduler).
-    command: celery -A app.workers.celery_app worker -B --schedule=/tmp/celerybeat-schedule --loglevel=info --concurrency=1
-    mem_limit: 2g
-    memswap_limit: 2g
-    cpus: 2.0
+    command: celery -A app.workers.celery_app worker -B --schedule=/tmp/celerybeat-schedule --loglevel=info --concurrency=${WORKER_CONCURRENCY:-4}
+    mem_limit: ${WORKER_MEM_LIMIT:-4g}
+    memswap_limit: ${WORKER_MEM_LIMIT:-4g}
+    cpus: ${WORKER_CPUS:-3.0}
     logging: *default-logging
     restart: unless-stopped
     volumes:
-      - ./backend/app:/app/app
       - storage_data:/var/storage_data
       # Watched folders: read-write, processed files move to _traites/ and _erreurs/.
       - ${INGEST_SOURCE_DIR:-./data/ingest}:/data/ingest
