@@ -124,3 +124,29 @@ async def test_login_without_demo_hints_keeps_the_code_out_of_the_response(
         json={"session_token": step1["session_token"], "otp": code},
     )
     assert otp_resp.status_code == 200, otp_resp.text
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_is_refused_on_protected_routes(
+    async_client: AsyncClient, db_seed
+):
+    """Only an access token opens an HTTP route; the refresh token keeps its own use."""
+    tokens = await _full_login(async_client, db_seed)
+
+    refused = await async_client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {tokens['refresh_token']}"},
+    )
+    assert refused.status_code == 401
+
+    refreshed = await async_client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert refreshed.status_code == 200
+
+    for access in (tokens["access_token"], refreshed.json()["access_token"]):
+        me = await async_client.get(
+            "/api/v1/users/me", headers={"Authorization": f"Bearer {access}"}
+        )
+        assert me.status_code == 200
+        assert me.json()["matricule"] == "TEST001"
