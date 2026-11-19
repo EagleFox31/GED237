@@ -310,7 +310,7 @@ const TenantDetail: React.FC = () => {
             <StatCard icon="folder_open" label="Documents actifs" value={docStats?.total ?? '—'} color="text-violet-600" sub={docStats?.trashed ? `${docStats.trashed} en corbeille` : undefined} />
             <StatCard
               icon="flowchart"
-              label="Workflows actifs"
+              label="Circuits actifs"
               value={wfStats?.active_workflow_steps ?? '—'}
               color="text-amber-600"
               sub={wfStats?.completed_workflow_steps !== undefined ? `${wfStats.completed_workflow_steps} étapes complétées` : undefined}
@@ -394,7 +394,7 @@ const TenantDetail: React.FC = () => {
                 >
                   <span className="material-symbols-outlined text-xl text-rdpc-blue mt-0.5">flowchart</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-800">Configurer un workflow</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-800">Créer un circuit de validation</p>
                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Définir un circuit de validation type pour les documents (ex : note → chef service → directeur).</p>
                   </div>
                   <span className="material-symbols-outlined text-slate-300 group-hover:text-rdpc-blue transition-colors">arrow_forward</span>
@@ -434,7 +434,7 @@ const TenantDetail: React.FC = () => {
                   <span className="material-symbols-outlined text-xl text-emerald-600 mt-0.5">upload_file</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-black uppercase tracking-widest text-slate-800">Tester un dépôt de document</p>
-                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Valider la chaîne complète : upload → OCR → indexation → recherche.</p>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Vérifier le cycle complet : envoi → lecture du texte → recherche.</p>
                   </div>
                   <span className="material-symbols-outlined text-slate-300 group-hover:text-rdpc-blue transition-colors">arrow_forward</span>
                 </button>

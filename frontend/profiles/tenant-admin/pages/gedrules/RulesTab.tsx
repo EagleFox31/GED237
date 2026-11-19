@@ -368,7 +368,7 @@ const RulesTab: React.FC = () => {
                   </div>
 
                   <div className="p-6 rounded-[2rem] border-2 border-blue-100 bg-blue-50/50">
-                     <h4 className="text-[10px] uppercase font-black tracking-widest text-rdpc-blue mb-4">Déclenchement du workflow</h4>
+                     <h4 className="text-[10px] uppercase font-black tracking-widest text-rdpc-blue mb-4">Démarrage de la validation</h4>
                      <div className="flex items-center justify-between">
                         <div>
                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Modèle de circuit appliqué</p>
@@ -386,7 +386,7 @@ const RulesTab: React.FC = () => {
                    <span className="material-symbols-outlined">directions</span>
                  </div>
                  <div>
-                   <h2 className="text-xl font-black uppercase italic tracking-tighter text-slate-800 leading-tight">Qu'est-ce qu'une règle d'aiguillage ?</h2>
+                   <h2 className="text-xl font-black uppercase italic tracking-tighter text-slate-800 leading-tight">À quoi sert une règle automatique ?</h2>
                    <p className="text-xs italic text-slate-500 font-medium">Le système qui envoie automatiquement chaque document au bon circuit.</p>
                  </div>
                </div>

@@ -144,7 +144,7 @@ const Documents: React.FC = () => {
     <div className="p-8 space-y-6 animate-in slide-in-from-bottom duration-500">
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase">Explorateur <span className="text-rdpc-blue">GED</span></h2>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase">Mes <span className="text-rdpc-blue">documents</span></h2>
           {canCreate && (
           <button
             onClick={() => setIsUploadModalOpen(true)}
@@ -252,7 +252,7 @@ const Documents: React.FC = () => {
           <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">
             {docs.length >= DOCUMENTS_LIMIT
               ? `${DOCUMENTS_LIMIT} documents les plus récents • Utilisez la recherche pour les autres`
-              : 'Fin de la liste • Archivage Sécurisé AES-256'}
+              : 'Fin de la liste • Documents protégés'}
           </span>
           <div className="h-px w-20 bg-slate-300"></div>
         </div>

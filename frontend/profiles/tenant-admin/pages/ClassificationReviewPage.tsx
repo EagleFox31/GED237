@@ -156,12 +156,12 @@ const ClassificationReviewPage: React.FC = () => {
         if (failures.length > 0) {
           showToast({
             tone: 'error',
-            message: 'Certains référentiels n’ont pas pu être chargés. La revue reste disponible en mode dégradé.',
+            message: 'Certaines listes n’ont pas chargé. Vous pouvez quand même vérifier les documents.',
           });
         }
       } catch (error) {
         console.error('Failed to load classification review reference data', error);
-        showToast({ tone: 'error', message: 'Impossible de charger les référentiels de classement.' });
+        showToast({ tone: 'error', message: 'Impossible de charger les listes de classement.' });
       }
     };
 
@@ -331,7 +331,7 @@ const ClassificationReviewPage: React.FC = () => {
       showToast({
         tone: 'success',
         message: response.workflow_relaunched
-          ? 'Classement validé et workflow relancé.'
+          ? 'Classement enregistré et validation relancée.'
           : 'Classement validé avec succès.',
       });
       await loadReviews();
@@ -658,7 +658,7 @@ const ClassificationReviewPage: React.FC = () => {
                     className="mt-1 h-4 w-4 rounded border-slate-300 text-rdpc-blue focus:ring-rdpc-blue"
                   />
                   <div>
-                    <p className="text-sm font-bold text-slate-700">Relancer le workflow</p>
+                    <p className="text-sm font-bold text-slate-700">Relancer la validation</p>
                     <p className="mt-1 text-xs font-medium text-slate-400">
                       En circuit de validation, relancez le rangement automatique après correction du classement.
                     </p>

@@ -1,7 +1,7 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 
 /**
- * Page Object Model for the « Traitement des documents » page, « Règles d'aiguillage » tab
+ * Page Object Model for the « Traitement des documents » page, « Règles automatiques » tab
  * (profiles/tenant-admin/pages/gedrules/RulesTab.tsx).
  * Covers: rule list, rule detail (code, targeting criteria, circuit), create modal, toggle active.
  */
@@ -39,7 +39,7 @@ export class RulesPage {
     // Header
     this.heading = page.getByRole('heading', { name: /traitement des documents/i });
     this.subtitle = page.getByText(/comment les documents circulent/i);
-    this.rulesTabButton = page.getByRole('button', { name: /règles d['’]aiguillage/i });
+    this.rulesTabButton = page.getByRole('button', { name: /règles automatiques/i });
     // In the current UI, simulation is a tab, not a mode toggle button.
     this.simulationButton = page.getByRole('button', { name: /simulat/i });
     this.newRuleButton = page.getByRole('button', { name: /nouvelle règle/i });
@@ -53,7 +53,7 @@ export class RulesPage {
     this.ruleCode = page.getByText(/^Code:/);
     this.criteriaBlock = page.getByRole('heading', { name: /critères de ciblage/i }).locator('..');
     this.circuitBlock = page.getByRole('heading', { name: /déclenchement du workflow/i }).locator('..');
-    this.noSelectionText = page.getByRole('heading', { name: /qu['’]est-ce qu['’]une règle d['’]aiguillage/i });
+    this.noSelectionText = page.getByRole('heading', { name: /à quoi sert une règle automatique/i });
 
     // Create modal
     this.createModal = page

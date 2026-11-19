@@ -6,7 +6,7 @@ sans pile : le build est servi par `vite preview`, l'API est simulée dans le na
 | Écran | Route | Repère métier vérifié avant capture |
 |---|---|---|
 | Connexion | `/edossier/` | liste des institutions affichée, avec « Ministère des Finances (MINFI) » + titre « Connexion » |
-| Accueil tenant_admin | `/edossier/dashboard` | « Résumé Des Workflows » + titre « Vue D'Ensemble » |
+| Accueil tenant_admin | `/edossier/dashboard` | « Suivi des validations » + titre « Vue D'Ensemble » |
 | Plan de classement | `/edossier/classement` | domaine « Finances publiques » + titre « Plan de classement » |
 
 ## Garde (LESSON-2026-035)

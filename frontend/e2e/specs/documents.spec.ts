@@ -20,7 +20,7 @@ test.describe('Feature: Explorateur de documents', () => {
    *
    *   GIVEN  un utilisateur connecté en tant que tenant_admin
    *   WHEN   il accède à la page Documents
-   *   THEN   le titre "Explorateur GED" est visible
+   *   THEN   le titre "Mes documents" est visible
    *   AND    la barre de recherche et les filtres sont affichés
    */
   test('Given connecté, When page Documents, Then explorateur visible avec filtres', async ({ page }) => {
@@ -314,7 +314,7 @@ test.describe('Feature: Upload de document (Collaborateur)', () => {
   });
 });
 
-test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
+test.describe('Feature: Upload depuis « Mes documents » (Admin)', () => {
 
   test.beforeEach(async ({ loginAs }) => {
     await loginAs('tenant_admin');
@@ -323,7 +323,7 @@ test.describe('Feature: Upload depuis l\'Explorateur GED (Admin)', () => {
   /**
    * SCENARIO 11: Bouton "Nouveau Document" ouvre la modale d'upload
    *
-   *   GIVEN  un admin connecté sur l'Explorateur GED
+   *   GIVEN  un admin connecté sur « Mes documents »
    *   WHEN   il clique "Nouveau Document"
    *   THEN   la modale s'affiche : zone de dépôt, titre, catégorie, tags, desc
    *   AND    le bouton "Envoyer" est désactivé (aucun fichier sélectionné)

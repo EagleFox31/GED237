@@ -203,7 +203,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
                     Le ranger et lancer le traitement
                   </p>
                   <p className="text-xs text-slate-500 mt-1 leading-snug">
-                    Si une règle d'aiguillage correspond, le <span className="font-bold">circuit de validation démarre automatiquement.</span> Idéal pour pièces actives à valider.
+                    Si une règle existe pour ce type de fichier, il <span className="font-bold">part directement en validation.</span>
                   </p>
                 </div>
               </button>
@@ -249,7 +249,7 @@ const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClose, onSu
           {/* Tags */}
           <div className="space-y-1.5">
             <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-              Tags <span className="text-slate-300 font-medium normal-case">(séparés par des virgules)</span>
+              Mots-clés <span className="text-slate-300 font-medium normal-case">(séparés par des virgules)</span>
             </label>
             <input
               type="text"

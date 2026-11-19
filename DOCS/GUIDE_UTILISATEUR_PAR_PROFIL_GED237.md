@@ -49,7 +49,7 @@ Chaque profil ne voit que ce qui le concerne. C'est voulu : l'administrateur pr�
 - **Collaborateur** : vos propres documents seulement, dans « Mes Documents » comme dans la recherche.
 - **Responsable et Lecteur** : les documents de votre service.
 - **Admin Institution, Admin Service et Auditeur** : toute l'institution.
-- **Importer pour d'autres agents** (« Import en masse »), l'« Explorateur documentaire » et « Ma bannette » : réservés au Super Admin et à l'Admin Institution. Les autres profils demandent les imports en masse à leur administrateur.
+- **Importer pour d'autres agents** (« Import en masse »), l'« Explorateur documentaire » et « À traiter » : réservés au Super Admin et à l'Admin Institution. Les autres profils demandent les imports en masse à leur administrateur.
 
 ---
 
@@ -107,13 +107,13 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
 
 ### Vos 3 gestes
 
-1. **« Ma bannette »** : corrigez le rangement des documents que l'application n'a pas su ranger seule (domaine, activité, année, destination), puis cliquez sur « Classer et relancer ».
+1. **« À traiter »** : corrigez le rangement des documents que l'application n'a pas su ranger seule (domaine, activité, année, destination), puis cliquez sur « Classer et relancer ».
 2. **« À distribuer »** : pour chaque document sans destinataire, choisissez l'agent qui le traite.
 3. **« Tableau de bord »** : repérez les alertes du jour.
 
 ### Votre menu
 
-« Tableau de bord », « Ma bannette », « À distribuer », « Structure hiérarchique », « Explorateur documentaire », « Agents & Rôles », « Traitement des documents », « Plan de classement », « Import en masse », « Bibliothèque locale », « Audit & Traçabilité », « Rapports & Statistiques », « Paramètres ».
+« Tableau de bord », « À traiter », « À distribuer », « Structure hiérarchique », « Explorateur documentaire », « Agents & Rôles », « Traitement des documents », « Plan de classement », « Import en masse », « Bibliothèque locale », « Audit & Traçabilité », « Rapports & Statistiques », « Paramètres ».
 
 ### Mise en service (une seule fois, dans cet ordre)
 
@@ -126,7 +126,7 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
 
 ### Les autres pages
 
-- **« Explorateur documentaire »** : les documents rangés, par service. Un document marqué « À vérifier » se corrige dans « Ma bannette ».
+- **« Explorateur documentaire »** : les documents rangés, par service. Un document marqué « À vérifier » se corrige dans « À traiter ».
 - **« Audit & Traçabilité »** : le journal des actions. Voir [7. Auditeur](#7-auditeur).
 - **« Rapports & Statistiques »** : les chiffres de toute l'institution.
   - Onglets « Synthèse », « Activité documentaire », « Traitement & délais », « Services ».
@@ -138,12 +138,12 @@ Vous réglez le fonctionnement de votre institution. Vous traitez les cas que le
 
 ### Bon à savoir
 
-- « Ma bannette » et « À distribuer » ne traitent pas le même problème :
-  - « Ma bannette » : l'application ne sait pas **où ranger** le document ;
+- « À traiter » et « À distribuer » ne traitent pas le même problème :
+  - « À traiter » : l'application ne sait pas **où ranger** le document ;
   - « À distribuer » : elle ne sait pas **à qui le confier**.
 - Un document peut être bien rangé mais sans destinataire, ou l'inverse. Vérifiez les deux.
-- Traitez « Ma bannette » vite : un document mal rangé est difficile à retrouver.
-- **Archiver un document** (Admin Institution et Super Admin) : tapez son titre dans la barre de recherche du bandeau, choisissez « Ouvrir <titre> », cliquez sur « Archiver », puis sur « Oui, archiver ». Seul un document validé ou signé peut être archivé ; son badge passe à « Archivé ». Pour retrouver les documents archivés : page « Explorateur GED », menu « Statut : Tous », choix « Archivé ».
+- Traitez « À traiter » vite : un document mal rangé est difficile à retrouver.
+- **Archiver un document** (Admin Institution et Super Admin) : tapez son titre dans la barre de recherche du bandeau, choisissez « Ouvrir <titre> », cliquez sur « Archiver », puis sur « Oui, archiver ». Seul un document validé ou signé peut être archivé ; son badge passe à « Archivé ». Pour retrouver les documents archivés : page « Mes documents », menu « Statut : Tous », choix « Archivé ».
 
 ---
 
@@ -226,7 +226,7 @@ Vous déposez les documents et les envoyez en validation.
 
 Vous consultez les documents. Vous ne les modifiez pas.
 
-**À la connexion, vous arrivez sur « Mes Documents », dont la page s'appelle « Explorateur GED ».**
+**À la connexion, vous arrivez sur « Mes Documents ».**
 
 ### Vos 3 gestes
 
@@ -275,7 +275,7 @@ Vous vérifiez qui a fait quoi, et quand.
 
 ### « Mes Documents »
 
-La page s'appelle « Explorateur GED ». Elle liste les documents que vous pouvez voir.
+La page « Mes documents » liste les documents que vous pouvez voir.
 
 - Filtrez par catégorie (« Catégorie : Toutes ») ou par état (« Statut : Tous »). Pour chercher, utilisez la barre du haut.
 - « Nouveau Document » apparaît seulement pour le Super Admin, l'Admin Institution, le Responsable et le Collaborateur.

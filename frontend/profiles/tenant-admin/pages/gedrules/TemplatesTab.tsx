@@ -392,7 +392,7 @@ const TemplatesTab: React.FC = () => {
                  </div>
                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">3. Activer</div>
-                   <p className="text-xs text-slate-600 leading-snug">Le circuit devient sélectionnable dans l'onglet <span className="font-bold">Règles d'aiguillage</span> pour être déclenché automatiquement.</p>
+                   <p className="text-xs text-slate-600 leading-snug">Le circuit devient sélectionnable dans l'onglet <span className="font-bold">Règles automatiques</span> pour être déclenché automatiquement.</p>
                  </div>
                </div>
 
@@ -490,7 +490,7 @@ const TemplatesTab: React.FC = () => {
                     <h2 className="text-xl font-black text-slate-800 tracking-tighter italic uppercase leading-tight">
                         {newTemplate.id ? "Modifier le Circuit" : "Nouveau Circuit"}
                     </h2>
-                    <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Structure de Workflow</p>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Étapes de validation</p>
                  </div>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-slate-400 shadow-sm hover:text-red-500 transition-colors">

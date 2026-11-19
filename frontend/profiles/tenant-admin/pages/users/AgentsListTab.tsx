@@ -428,7 +428,7 @@ const AgentsListTab: React.FC<AgentsListTabProps> = ({ initialAgentId, initialAc
   const handleDisableMfa = (agent: Agent) => {
     setPendingConfirm({
       title: 'Réinitialiser la double authentification',
-      message: `Le secret 2FA actuel de « ${agent.full_name} » sera effacé. À sa prochaine connexion, l’agent devra reconfigurer son application d’authentification (Google Authenticator, etc.).`,
+      message: `La validation en deux étapes de « ${agent.full_name} » sera réinitialisée. À sa prochaine connexion, l’agent devra reconfigurer son application d’authentification (Google Authenticator, etc.).`,
       confirmLabel: 'Réinitialiser le 2FA',
       icon: 'smartphone',
       bullets: [
@@ -831,7 +831,7 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
             </div>
 
             <p className="text-[10px] italic text-slate-400 leading-relaxed">
-              Conforme aux normes <span className="font-bold not-italic">OWASP API 2023</span> (authentification & autorisation), <span className="font-bold not-italic">NIST SP 800-63B</span> (mots de passe) et <span className="font-bold not-italic">ISO 15489</span> (gestion documentaire — pas de suppression destructive).
+              Connexion protégée selon les standards de sécurité en vigueur. Un agent retiré n'efface aucun document.
             </p>
           </div>
         )}

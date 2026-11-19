@@ -999,7 +999,7 @@ const DirectoryIngestion: React.FC = () => {
     setProgress({
       stage: 'commit',
       label: 'Import final',
-      detail: `${importableCount} fichier(s) prêts vont être importés dans la GED.`,
+      detail: `${importableCount} fichier(s) prêt(s) vont être ajoutés.`,
     });
 
     try {

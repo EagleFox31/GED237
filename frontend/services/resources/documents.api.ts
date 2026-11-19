@@ -181,7 +181,7 @@ export const documentsApi = {
         apiCall<Document[]>(
             `/documents/workspace${orgUnitQuery(orgUnitId, recursive)}`,
             {},
-            'Récupération du workspace impossible',
+            'Impossible de charger vos brouillons.',
         ),
 
     // ── Needs Review & Classification Reviews ─────────────────────────────

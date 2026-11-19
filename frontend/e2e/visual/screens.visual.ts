@@ -33,7 +33,7 @@ test('accueil tenant_admin', async ({ page, unmocked }) => {
   await signInAsTenantAdmin(page);
   await page.goto('dashboard');
 
-  await expectScreen(page, page.getByText('Résumé Des Workflows'), unmocked);
+  await expectScreen(page, page.getByText('Suivi des validations'), unmocked);
   await expect(page.getByRole('heading', { name: "Vue D'Ensemble" })).toBeVisible();
   await expect(page).toHaveScreenshot('dashboard-tenant-admin.png', { fullPage: true });
 });
@@ -56,7 +56,7 @@ test.describe('la garde refuse', () => {
     await page.goto('dashboard');
 
     await expect(page.getByRole('heading', { name: ERROR_SCREEN_TITLE })).toBeVisible();
-    await expect(expectScreen(page, page.getByText('Résumé Des Workflows'), unmocked, 2_000)).rejects.toThrow(
+    await expect(expectScreen(page, page.getByText('Suivi des validations'), unmocked, 2_000)).rejects.toThrow(
       GUARD_MESSAGES.marker,
     );
   });
@@ -78,7 +78,7 @@ test.describe('la garde refuse', () => {
     await page.goto('dashboard');
 
     await expect.poll(() => unmocked).toContainEqual(expect.stringMatching(/^GET \/notifications\/?$/));
-    await expect(expectScreen(page, page.getByText('Résumé Des Workflows'), unmocked, 2_000)).rejects.toThrow(
+    await expect(expectScreen(page, page.getByText('Suivi des validations'), unmocked, 2_000)).rejects.toThrow(
       GUARD_MESSAGES.unmocked,
     );
   });

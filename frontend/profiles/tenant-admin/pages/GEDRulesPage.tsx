@@ -17,7 +17,7 @@ const GEDRulesPage: React.FC = () => {
             Traitement des documents
           </h1>
           <p className="text-slate-500 font-medium italic mt-2">
-            Définissez comment les documents circulent : types officiels, circuits de visa et de signature, règles d’aiguillage automatique.
+            Définissez comment les documents circulent : types officiels, circuits de visa et de signature, règles automatiques.
           </p>
         </div>
       </div>
@@ -42,7 +42,7 @@ const GEDRulesPage: React.FC = () => {
           onClick={() => setActiveTab('rules')}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${activeTab === 'rules' ? 'bg-rdpc-blue text-white' : 'bg-slate-100 text-slate-500'}`}>3</span>
-          Règles d'aiguillage
+          Règles automatiques
         </button>
         <button
            className={`pb-4 px-4 text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2.5 whitespace-nowrap ${activeTab === 'simulator' ? 'text-rdpc-blue border-b-4 border-rdpc-blue mb-[-2px]' : 'text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}

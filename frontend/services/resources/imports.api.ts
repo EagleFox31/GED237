@@ -48,7 +48,7 @@ export const importsApi = {
         return apiCall<ImportJobWithItems>(
             '/imports/analyze',
             { method: 'POST', body: formData },
-            'Analyse du batch impossible',
+            'Impossible d\'analyser ce lot de fichiers.',
         );
     },
 
@@ -56,18 +56,18 @@ export const importsApi = {
         apiCall<ImportCommitResponse>(
             `/imports/${jobId}/commit`,
             { method: 'POST' },
-            'Exécution du batch impossible',
+            'Impossible d\'importer ce lot de fichiers.',
         ),
 
     getImportJob: (jobId: string): Promise<ImportJob> =>
-        apiCall<ImportJob>(`/imports/${jobId}`, {}, 'Lecture du batch impossible'),
+        apiCall<ImportJob>(`/imports/${jobId}`, {}, 'Impossible de lire ce lot de fichiers.'),
 
     getImportJobItems: (jobId: string, status?: string): Promise<ImportJobItem[]> => {
         const qs = status ? `?status=${encodeURIComponent(status)}` : '';
         return apiCall<ImportJobItem[]>(
             `/imports/${jobId}/items${qs}`,
             {},
-            'Lecture des items du batch impossible',
+            'Impossible de lire les fichiers de ce lot.',
         );
     },
 };

@@ -34,16 +34,16 @@ export const tenantsApi = {
     },
 
     getTenants: (): Promise<any[]> =>
-        apiCall<any[]>('/tenants/', {}, 'Récupération des tenants impossible'),
+        apiCall<any[]>('/tenants/', {}, 'Impossible de charger les organisations.'),
 
     getTenant: (tenantId: string): Promise<any> =>
-        apiCall<any>(`/tenants/${tenantId}`, {}, 'Récupération du tenant impossible'),
+        apiCall<any>(`/tenants/${tenantId}`, {}, 'Impossible de charger cette organisation.'),
 
     createTenant: (payload: TenantPayload): Promise<any> =>
         apiCall<any>(
             '/tenants/',
             { method: 'POST', body: JSON.stringify(payload) },
-            'Création du tenant impossible',
+            'Impossible de créer l\'organisation.',
         ),
 
     updateTenant: (
@@ -53,6 +53,6 @@ export const tenantsApi = {
         apiCall<any>(
             `/tenants/${tenantId}`,
             { method: 'PATCH', body: JSON.stringify(payload) },
-            'Mise à jour du tenant impossible',
+            'Impossible de mettre à jour l\'organisation.',
         ),
 };

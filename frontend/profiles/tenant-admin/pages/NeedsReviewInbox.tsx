@@ -69,7 +69,7 @@ const NeedsReviewInbox: React.FC = () => {
       else setSelectedDoc(null);
     } catch (err) {
       // Les erreurs HTTP sont déjà au bus global ; reste le cas local.
-      if (!(err instanceof ApiError)) pushClientOperationError(err, { fallbackDetail: 'Chargement de la bannette impossible.' });
+      if (!(err instanceof ApiError)) pushClientOperationError(err, { fallbackDetail: 'Impossible de charger les documents à vérifier.' });
     } finally {
       setLoadingDocs(false);
     }
@@ -118,7 +118,7 @@ const NeedsReviewInbox: React.FC = () => {
     if (!suggestedRule) return;
     try {
       await api.createRoutingRule(suggestedRule);
-      showToast({ tone: 'success', message: 'Règle d\'aiguillage créée avec succès !' });
+      showToast({ tone: 'success', message: 'Règle automatique créée.' });
       setIsRuleModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -340,7 +340,7 @@ const NeedsReviewInbox: React.FC = () => {
                 {suggestedRule && (
                   <div className="pt-4 border-t border-slate-100">
                     <p className="text-[10px] text-slate-500 font-bold mb-2">
-                      Une règle d'aiguillage peut être créée pour automatiser ce type de classement à l'avenir :
+                      Une règle automatique peut être créée pour automatiser ce type de classement à l'avenir :
                     </p>
                     <button
                       onClick={() => setIsRuleModalOpen(true)}
@@ -377,7 +377,7 @@ const NeedsReviewInbox: React.FC = () => {
                 <span className="material-symbols-outlined">auto_awesome</span>
               </div>
               <div>
-                <h2 className="font-black text-slate-800 uppercase italic tracking-tighter">Nouvelle règle d'aiguillage</h2>
+                <h2 className="font-black text-slate-800 uppercase italic tracking-tighter">Nouvelle règle automatique</h2>
                 <p className="text-xs text-slate-500">Générée depuis ce document</p>
               </div>
             </div>

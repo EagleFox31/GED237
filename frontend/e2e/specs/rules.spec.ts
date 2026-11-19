@@ -114,7 +114,7 @@ test.describe('Feature: Moteur de règles IFTTT', () => {
    *   GIVEN  aucune règle n'existe pour le tenant
    *   WHEN   la page se charge
    *   THEN   "Aucune règle pour l'instant" s'affiche
-   *   AND    le panneau « Qu'est-ce qu'une règle d'aiguillage ? » est visible
+   *   AND    le panneau « À quoi sert une règle automatique ? » est visible
    */
   test('Given aucune règle, When chargement, Then état vide', async ({ page }) => {
     const rulesPage = new RulesPage(page);

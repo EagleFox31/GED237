@@ -113,7 +113,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-10 relative z-10">
             <div>
               <h3 className="text-xl font-black text-slate-800 tracking-tighter uppercase italic">Activité Documentaire</h3>
-              <p className="text-xs text-slate-400 font-medium mt-1">Résumé des métriques du tenant.</p>
+              <p className="text-xs text-slate-400 font-medium mt-1">Aperçu de votre organisation.</p>
             </div>
           </div>
           <div className="h-[320px] relative z-10">

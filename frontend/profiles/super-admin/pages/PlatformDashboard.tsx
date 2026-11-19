@@ -107,7 +107,7 @@ const PlatformDashboard: React.FC = () => {
           <div className="relative z-10">
             <h3 className="text-xl font-black italic uppercase tracking-tighter mb-8">Modules Activés</h3>
             <div className="space-y-6">
-              {['Moteur GED Core', 'Signature Électronique', 'IA OCR Intelligence', 'Workflows Avancés'].map((mod, i) => (
+              {['Gestion documentaire', 'Signature Électronique', 'Lecture automatique (OCR)', 'Circuits de validation'].map((mod, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-cam-yellow">check_circle</span>
                   <span className="text-xs font-bold uppercase tracking-widest">{mod}</span>
