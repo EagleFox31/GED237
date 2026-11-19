@@ -3,9 +3,26 @@
 // Domaine : gestion des utilisateurs (CRUD, liste plateforme).
 // SRP : change uniquement si le contrat /users/* évolue.
 
-import { apiCall, apiCallVoid } from '../http/client';
+import { apiCall, apiCallVoid, type ApiCallOptions } from '../http/client';
+import type { BackendUser } from './auth.api';
+import type { HierarchyPerson } from '../../lib/hierarchy';
+
+// 404 (hors périmètre, autre institution) : message affiché dans le bloc, pas dans le bandeau global.
+const HIERARCHY_OPTIONS = { handledStatuses: [404] } as const;
 
 export const usersApi = {
+    /** Profil de la personne connectée (nom, rôle à jour). */
+    getMe: (options: ApiCallOptions = {}): Promise<BackendUser> =>
+        apiCall<BackendUser>('/users/me', {}, 'Lecture du profil impossible', options),
+
+    /** Chefs de la personne, du N+1 au plus haut. */
+    getHierarchyUp: (id: string): Promise<HierarchyPerson[]> =>
+        apiCall<HierarchyPerson[]>(`/users/${id}/hierarchy-up`, {}, 'Lecture du rattachement impossible', HIERARCHY_OPTIONS),
+
+    /** Personnes qui lui rendent compte directement (un seul niveau). */
+    getHierarchyDown: (id: string): Promise<HierarchyPerson[]> =>
+        apiCall<HierarchyPerson[]>(`/users/${id}/hierarchy-down`, {}, 'Lecture du rattachement impossible', HIERARCHY_OPTIONS),
+
     getUsers: (): Promise<any[]> =>
         // Trailing slash : la route FastAPI est déclarée `/users/` ; sans le
         // slash le serveur répond 307 (redirect) → 2 round-trips au lieu d'un.
