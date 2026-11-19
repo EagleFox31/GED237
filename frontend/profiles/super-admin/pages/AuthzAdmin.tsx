@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../services/api';
 import { AuthzMetricPoint, AuthzHealthResponse } from '../../../types';
 import { useAuthStore } from '../../../stores/authStore';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import RightsGridTab from './RightsGridTab';
 
 type TabId = 'policies' | 'metrics' | 'health';
@@ -13,6 +14,7 @@ const MetricsTab: React.FC = () => {
   const [topDenies, setTopDenies] = useState<AuthzMetricPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterDecision, setFilterDecision] = useState<string>('');
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -36,7 +38,7 @@ const MetricsTab: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleReset = async () => {
-    if (!confirm('Remettre les compteurs de metriques a zero ?')) return;
+    setConfirmReset(false);
     try {
       await api.resetAuthzMetrics();
       fetchData();
@@ -49,6 +51,15 @@ const MetricsTab: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      <ConfirmationModal
+        open={confirmReset}
+        icon="restart_alt"
+        title="Remettre les compteurs à zéro ?"
+        message="Les compteurs de décisions actuels seront effacés."
+        confirmLabel="Remettre à zéro"
+        onConfirm={handleReset}
+        onCancel={() => setConfirmReset(false)}
+      />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <select value={filterDecision} onChange={e => setFilterDecision(e.target.value)} className="px-4 py-3 bg-slate-50 border-none rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 outline-none cursor-pointer">
@@ -57,7 +68,7 @@ const MetricsTab: React.FC = () => {
             <option value="deny">Deny</option>
           </select>
         </div>
-        <button type="button" onClick={handleReset} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-transform">
+        <button type="button" onClick={() => setConfirmReset(true)} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-transform">
           <span className="material-symbols-outlined text-sm">restart_alt</span>
           Reset Compteurs
         </button>

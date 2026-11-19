@@ -6,6 +6,8 @@ import { api } from '../../../services/api';
 import { ApiError } from '../../../lib/errors';
 import { useAuthStore } from '../../../stores/authStore';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
+import AccessScopesPanel from './AccessScopesPanel';
 import {
   actionLabel,
   applyChange,
@@ -33,6 +35,7 @@ const RightsGridTab: React.FC = () => {
   const [selected, setSelected] = useState('');
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [changeError, setChangeError] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<{ role: string; action: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -67,12 +70,13 @@ const RightsGridTab: React.FC = () => {
   const grid = useMemo(() => gridFor(resource, policies, extraRoles), [resource, policies, extraRoles]);
   const editable = isSuper && readOnlyNote === null;
 
-  const toggle = async (role: string, action: string, grant: boolean) => {
+  const toggle = async (role: string, action: string, grant: boolean, confirmed = false) => {
     const rule = { v0: role, v1: resource, v2: action };
     const key = policyKey(role, resource, action);
     if (pending.has(key)) return;
     // Un retrait s'applique tout de suite à tous les agents du rôle : on le fait confirmer.
-    if (!grant && !window.confirm(`Retirer « ${actionLabel(action)} » à tous les agents du rôle ${roleLabel(role)} ?`)) {
+    if (!grant && !confirmed) {
+      setRevokeTarget({ role, action });
       return;
     }
     setPending((prev) => new Set(prev).add(key));
@@ -183,6 +187,24 @@ const RightsGridTab: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <AccessScopesPanel />
+      <ConfirmationModal
+        open={revokeTarget !== null}
+        icon="lock"
+        title="Retirer ce droit ?"
+        message={
+          revokeTarget
+            ? `Retirer « ${actionLabel(revokeTarget.action)} » à tous les agents du rôle ${roleLabel(revokeTarget.role)} ?`
+            : ''
+        }
+        confirmLabel="Retirer"
+        onCancel={() => setRevokeTarget(null)}
+        onConfirm={() => {
+          const target = revokeTarget;
+          setRevokeTarget(null);
+          if (target) toggle(target.role, target.action, false, true).catch(() => undefined);
+        }}
+      />
     </div>
   );
 };
