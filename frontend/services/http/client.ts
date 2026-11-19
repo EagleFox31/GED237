@@ -16,7 +16,7 @@ import {
     isAuthEndpoint,
     markSessionExpired,
 } from './session';
-import { buildApiError, buildNetworkError } from './errorAdapter';
+import { buildApiError, buildNetworkError, type ApiErrorOptions } from './errorAdapter';
 import { refreshOutcome } from './refreshOutcome';
 
 /** Session refusée par le serveur : déconnexion, avec le message « session expirée » à l'écran de connexion. */
@@ -107,15 +107,14 @@ export const fetchWithRefresh = async (
  * @param fallback   Message métier affiché si le backend ne renvoie pas de
  *                   `detail` lisible (ex: "Lecture du document impossible")
  */
-export interface ApiCallOptions {
-    /** Statuts que l'appelant affiche lui-même : l'erreur est levée sans toast global. */
-    handledStatuses?: readonly number[];
+/** Statuts gérés par l'appelant et messages courts par code HTTP (voir errorAdapter). */
+export interface ApiCallOptions extends ApiErrorOptions {
     /** L'appelant affiche lui-même toute erreur (bilan d'une action groupée) : aucun toast, réseau compris. */
     silent?: boolean;
 }
 
-const quietStatuses = (options: ApiCallOptions, status: number): readonly number[] =>
-    options.silent ? [status] : options.handledStatuses ?? [];
+const errorOptions = (options: ApiCallOptions, status: number): ApiErrorOptions =>
+    options.silent ? { ...options, handledStatuses: [status] } : options;
 
 export const apiCall = async <T>(
     path: string,
@@ -131,7 +130,7 @@ export const apiCall = async <T>(
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     }, options.silent);
-    if (!response.ok) throw await buildApiError(response, fallback, quietStatuses(options, response.status));
+    if (!response.ok) throw await buildApiError(response, fallback, errorOptions(options, response.status));
     return response.json() as Promise<T>;
 };
 
@@ -143,6 +142,7 @@ export const apiCallVoid = async (
     path: string,
     init: RequestInit = {},
     fallback = 'Requête échouée',
+    options: ApiCallOptions = {},
 ): Promise<void> => {
     const isMultipart = init.body instanceof FormData;
     const response = await fetchWithRefresh(`${API_URL}${path}`, {
@@ -151,8 +151,8 @@ export const apiCallVoid = async (
             ...getHeaders(isMultipart),
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
-    });
-    if (!response.ok) throw await buildApiError(response, fallback);
+    }, options.silent);
+    if (!response.ok) throw await buildApiError(response, fallback, errorOptions(options, response.status));
 };
 
 /**
@@ -172,7 +172,7 @@ export const apiCallBlob = async (
             ...(init.headers as Record<string, string> | undefined ?? {}),
         },
     }, options.silent);
-    if (!response.ok) throw await buildApiError(response, fallback, quietStatuses(options, response.status));
+    if (!response.ok) throw await buildApiError(response, fallback, errorOptions(options, response.status));
     return response.blob();
 };
 
