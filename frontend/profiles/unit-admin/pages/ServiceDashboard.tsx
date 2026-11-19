@@ -1,8 +1,19 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { TenantMetrics } from '../../../types';
-import { serviceIndicators } from './serviceIndicators';
+import { serviceIndicators, type ServiceIndicator } from './serviceIndicators';
+
+const IndicatorRow: React.FC<{ stat: ServiceIndicator; isLoading: boolean }> = ({ stat, isLoading }) => (
+  <>
+    <div className="flex items-center gap-3">
+      <span className="material-symbols-outlined text-slate-400">{stat.icon}</span>
+      <span className="text-sm font-black text-slate-700 group-hover:text-blue-600">{stat.label}</span>
+    </div>
+    <span className="text-lg font-black text-slate-800">{isLoading ? '...' : stat.value}</span>
+  </>
+);
 
 const ServiceDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<TenantMetrics | null>(null);
@@ -57,12 +68,17 @@ const ServiceDashboard: React.FC = () => {
           ) : (
             <ul className="space-y-4" aria-label="Indicateurs du service" aria-busy={isLoading}>
               {(isLoading && !metrics ? serviceIndicators({} as TenantMetrics) : rows).map((stat) => (
-                <li key={stat.label} className="flex justify-between items-center p-4 rounded-2xl border border-transparent">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-slate-400">{stat.icon}</span>
-                    <span className="text-sm font-black text-slate-700">{stat.label}</span>
-                  </div>
-                  <span className="text-lg font-black text-slate-800">{isLoading ? '...' : stat.value}</span>
+                <li key={stat.label}>
+                  {/* Seuls les indicateurs qui ont une liste existante sont cliquables (pas de nouvelle page). */}
+                  {stat.to ? (
+                    <Link to={stat.to} className="flex justify-between items-center p-4 hover:bg-slate-50 rounded-2xl transition-colors group border border-transparent hover:border-slate-100">
+                      <IndicatorRow stat={stat} isLoading={isLoading} />
+                    </Link>
+                  ) : (
+                    <div className="flex justify-between items-center p-4 rounded-2xl border border-transparent">
+                      <IndicatorRow stat={stat} isLoading={isLoading} />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

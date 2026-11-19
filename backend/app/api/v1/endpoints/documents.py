@@ -30,6 +30,10 @@ from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
 from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
+from app.services.unit_admin_scope import (
+    assert_unit_admin_in_tree,
+    unit_admin_scope_ids,
+)
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
 from app.models.document import Document
@@ -37,6 +41,7 @@ from app.models.document_category import DocumentCategory
 from app.models.document_version import DocumentVersion
 from app.models.org_unit import OrgUnit
 from app.models.user import User
+from app.models.workflow import WorkflowStep
 from app.schemas.document import (
     ClassificationStatus,
     DirectoryIngestRequest,
@@ -48,6 +53,8 @@ from app.schemas.document import (
     DocumentUpdate,
     NeedsReviewDocument,
     ResolveReviewPayload,
+    TrashEmptyRequest,
+    TrashEmptyResponse,
 )
 from app.services.reports_scope import (
     INSTITUTION_WIDE_ROLES,
@@ -61,6 +68,7 @@ from app.models.tenant import Tenant
 from app.services.ingest_watch import read_last_run, status_for_tenant
 from app.services.ingestion import DirectoryIngestionService
 from app.services.classification_rule_engine import ClassificationRuleEngine
+from app.services import trash_service
 from app.services.storage.factory import get_storage_service
 from app.workers.tasks import process_document_ocr
 
@@ -128,6 +136,38 @@ def _escape_like(value: str) -> str:
     )
 
 
+def _apply_text_filter(query, text: str):
+    """Literal, case-insensitive match on title, tags, domain, activity or category name."""
+    pattern = f"%{_escape_like(text)}%"
+
+    def _match(column):
+        return column.ilike(pattern, escape=_LIKE_ESCAPE)
+
+    return (
+        query.outerjoin(
+            ClassificationDomain,
+            Document.classification_domain_id == ClassificationDomain.id,
+        )
+        .outerjoin(
+            ClassificationActivity,
+            Document.classification_activity_id == ClassificationActivity.id,
+        )
+        .outerjoin(
+            DocumentCategory,
+            Document.document_category_id == DocumentCategory.id,
+        )
+        .where(
+            or_(
+                _match(Document.title),
+                _match(func.array_to_string(Document.tags, " ")),
+                _match(ClassificationDomain.name),
+                _match(ClassificationActivity.name),
+                _match(DocumentCategory.name),
+            )
+        )
+    )
+
+
 class WorkspaceDocumentFilters:
     """Server-side filters for workspace/space document listings.
 
@@ -170,34 +210,7 @@ class WorkspaceDocumentFilters:
                 Document.classification_status == self.classification_status
             )
         if self.q:
-            pattern = f"%{_escape_like(self.q)}%"
-
-            def _match(column):
-                return column.ilike(pattern, escape=_LIKE_ESCAPE)
-
-            query = (
-                query.outerjoin(
-                    ClassificationDomain,
-                    Document.classification_domain_id == ClassificationDomain.id,
-                )
-                .outerjoin(
-                    ClassificationActivity,
-                    Document.classification_activity_id == ClassificationActivity.id,
-                )
-                .outerjoin(
-                    DocumentCategory,
-                    Document.document_category_id == DocumentCategory.id,
-                )
-                .where(
-                    or_(
-                        _match(Document.title),
-                        _match(func.array_to_string(Document.tags, " ")),
-                        _match(ClassificationDomain.name),
-                        _match(ClassificationActivity.name),
-                        _match(DocumentCategory.name),
-                    )
-                )
-            )
+            query = _apply_text_filter(query, self.q)
         return query
 
     def paginate(self, query):
@@ -261,62 +274,99 @@ async def _resolve_target_org_unit_id(
     return org_unit.id
 
 
-async def _within_unit_tree(db: AsyncSession, user: User, document: Document) -> bool:
-    """The document sits in the user's unit or in a unit below it (#202)."""
-    return bool(
-        user.org_unit_id
-        and document.org_unit_id
-        and await is_within_unit_tree(db, document.org_unit_id, user.org_unit_id)
-    )
+# Étapes de circuit qui ouvrent la lecture à leur assigné : en cours, ou déjà traitées.
+# Une étape pas encore atteinte (pending) ou annulée n'ouvre rien. La lecture reste ouverte
+# après completed/rejected/returned : voulu, le valideur doit pouvoir relire ce qu'il a visé.
+READ_GRANTING_STEP_STATUSES = ("current", "completed", "rejected", "returned")
 
 
-async def _in_reach(db: AsyncSession, user: User, document: Document) -> bool:
-    """unit_admin acts only in its unit tree; the other roles keep their Casbin answer."""
-    if _role_code(user) not in UNIT_TREE_READ_ROLES:
-        return True
-    return await _within_unit_tree(db, user, document)
-
-
-async def _ensure_unit_in_reach(db: AsyncSession, user: User, unit_id: UUID) -> None:
-    """unit_admin cannot send a document to a unit outside its tree (#202)."""
-    if _role_code(user) not in UNIT_TREE_READ_ROLES:
-        return
-    if not (
-        user.org_unit_id and await is_within_unit_tree(db, unit_id, user.org_unit_id)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Target unit is outside your own tree",
+async def _has_workflow_step_access(
+    db: AsyncSession, user: User, document: Document
+) -> bool:
+    """Lecture seule : l'utilisateur est assigné à une étape active (ou déjà traitée)
+    du circuit de ce document, quelle que soit son unité. N'ouvre ni écriture ni liste."""
+    row = await db.execute(
+        select(WorkflowStep.id)
+        .join(Document, Document.id == WorkflowStep.document_id)
+        .where(
+            WorkflowStep.document_id == document.id,
+            Document.tenant_id == user.tenant_id,
+            WorkflowStep.assigned_to == user.id,
+            WorkflowStep.status.in_(READ_GRANTING_STEP_STATUSES),
         )
+        .limit(1)
+    )
+    return row.first() is not None
 
 
-async def _can_read_document(db: AsyncSession, user: User, document: Document) -> bool:
+async def _in_unit_tree(
+    db: Optional[AsyncSession], user: User, document: Document
+) -> bool:
+    """Le document est dans l'unité de l'utilisateur ou une unité en dessous."""
+    if db is None or not user.org_unit_id or document.org_unit_id is None:
+        return False
+    return await is_within_unit_tree(db, document.org_unit_id, user.org_unit_id)
+
+
+async def _ensure_in_unit_tree(
+    db: Optional[AsyncSession], user: User, document: Document
+) -> None:
+    """unit_admin : hors de son sous-arbre, un document est traité comme inconnu (404)."""
+    if _role_code(user) in UNIT_TREE_READ_ROLES and not await _in_unit_tree(
+        db, user, document
+    ):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
+async def _can_read_document(
+    user: User,
+    document: Document,
+    db: Optional[AsyncSession] = None,
+    allow_step_access: bool = True,
+) -> bool:
     """
     Casbin valide le TYPE de permission (read / read_own).
-    La portée par unité reste ici (règle métier) : la même que GET /documents.
+    Le périmètre d'unité reste ici (règle métier) : manager/reader lisent leur unité,
+    unit_admin son sous-arbre (hors sous-arbre : 404).
+    Avec ``db``, une étape de circuit assignée ouvre la lecture (hors périmètre d'unité),
+    sauf si ``allow_step_access`` est faux (ex. journal d'audit : lecture seule du document,
+    pas de son historique).
     """
     ctx = ctx_from_resource(document)
+    step_db = db if allow_step_access else None
     if await can_perform(user, "documents", "read", ctx):
         role_code = _role_code(user)
         if role_code in ORG_UNIT_READ_ROLES:
-            return bool(user.org_unit_id and document.org_unit_id == user.org_unit_id)
+            if user.org_unit_id and document.org_unit_id == user.org_unit_id:
+                return True
+            return step_db is not None and await _has_workflow_step_access(
+                step_db, user, document
+            )
         if role_code in UNIT_TREE_READ_ROLES:
-            return await _within_unit_tree(db, user, document)
-        return True  # admin / auditor : accès tenant-wide
-    return await can_perform(user, "documents", "read_own", ctx)
+            if await _in_unit_tree(db, user, document) or (
+                step_db is not None
+                and await _has_workflow_step_access(step_db, user, document)
+            ):
+                return True
+            raise HTTPException(status_code=404, detail="Document not found")
+        return True  # rôles institution : accès tenant-wide
+    if await can_perform(user, "documents", "read_own", ctx):
+        return True
+    if step_db is None or str(document.tenant_id) != str(user.tenant_id):
+        return False
+    return await _has_workflow_step_access(step_db, user, document)
 
 
 async def _can_mutate_document(
-    db: AsyncSession, user: User, document: Document
+    user: User, document: Document, db: Optional[AsyncSession] = None
 ) -> bool:
     """
-    Casbin valide update / update_own.
+    Casbin valide update / update_own ; unit_admin reste dans son sous-arbre (404).
     OWNER_MUTABLE_STATUSES reste une règle métier (hors Casbin).
     """
+    await _ensure_in_unit_tree(db, user, document)
     ctx = ctx_from_resource(document)
-    if await can_perform(user, "documents", "update", ctx) and await _in_reach(
-        db, user, document
-    ):
+    if await can_perform(user, "documents", "update", ctx):
         return True
     return (
         await can_perform(user, "documents", "update_own", ctx)
@@ -324,32 +374,84 @@ async def _can_mutate_document(
     )
 
 
-async def _can_trash_document(db: AsyncSession, user: User, document: Document) -> bool:
+async def _can_delete_document(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
     """
-    Casbin valide delete (admins) ou trash_own (propriétaire).
+    Suppression DÉFINITIVE (fichiers et versions) : Casbin ``delete`` (admins) ou
+    ``delete_own`` (propriétaire) — jamais ``update``/``update_own``, qui ouvrent la
+    modification, ni ``trash_own``, qui n'ouvre que la corbeille. Pour le propriétaire,
+    seuls les statuts modifiables (OWNER_MUTABLE_STATUSES) restent supprimables.
+    unit_admin reste dans son sous-arbre (404).
     """
+    await _ensure_in_unit_tree(db, user, document)
     ctx = ctx_from_resource(document)
-    if await can_perform(user, "documents", "delete", ctx) and await _in_reach(
-        db, user, document
-    ):
+    if await can_perform(user, "documents", "delete", ctx):
+        return True
+    return (
+        await can_perform(user, "documents", "delete_own", ctx)
+        and document.status in OWNER_MUTABLE_STATUSES
+    )
+
+
+async def _can_trash_document(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    Casbin valide delete (admins) ou trash_own (propriétaire) ;
+    unit_admin reste dans son sous-arbre (404).
+    """
+    await _ensure_in_unit_tree(db, user, document)
+    ctx = ctx_from_resource(document)
+    if await can_perform(user, "documents", "delete", ctx):
         return True
     return await can_perform(user, "documents", "trash_own", ctx)
 
 
-async def _can_manage_lock(db: AsyncSession, user: User, document: Document) -> bool:
+async def _can_move_to_trash(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    Mise à la corbeille : admins (``delete``) toujours ; propriétaire (``trash_own``)
+    seulement tant que le document est modifiable (OWNER_MUTABLE_STATUSES), jamais
+    pendant une validation — même règle que la suppression par le propriétaire.
+    """
+    if not await _can_trash_document(user, document, db):
+        return False
+    if document.status in OWNER_MUTABLE_STATUSES:
+        return True
+    return await can_perform(user, "documents", "delete", ctx_from_resource(document))
+
+
+async def _can_trash_via_delete(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
+    """
+    DELETE /documents/{id} met à la corbeille (le définitif passe par /purge) :
+    règle de la corbeille (``_can_move_to_trash``), plus le propriétaire ``delete_own``
+    sur un document modifiable. ``update``/``update_own`` n'ouvrent pas la suppression.
+    """
+    if await _can_move_to_trash(user, document, db):
+        return True
+    return await _can_delete_document(user, document, db)
+
+
+async def _can_manage_lock(
+    user: User, document: Document, db: Optional[AsyncSession] = None
+) -> bool:
     """
     Décision métier explicite (GED237):
     - le verrou est une extension du droit d'édition du document ;
     - `update` => lock/unlock/refresh sur les documents accessibles ;
-    - `update_own` => lock/unlock/refresh sur ses propres documents.
+    - `update_own` => lock/unlock/refresh sur ses propres documents ;
+    - unit_admin : seulement dans son sous-arbre, comme l'édition (404).
 
     Ce choix est intentionnel: lock/unlock n'est pas traité comme un droit
     d'administration séparé à ce stade.
     """
+    await _ensure_in_unit_tree(db, user, document)
     ctx = ctx_from_resource(document)
-    if await can_perform(user, "documents", "update", ctx) and await _in_reach(
-        db, user, document
-    ):
+    if await can_perform(user, "documents", "update", ctx):
         return True
     return await can_perform(user, "documents", "update_own", ctx)
 
@@ -549,16 +651,54 @@ def _parse_next_version(versions: List[DocumentVersion]) -> str:
 
 
 async def _get_document_or_404(
-    db: AsyncSession, tenant_id: UUID, document_id: UUID
+    db: AsyncSession, tenant_id: UUID, document_id: UUID, *, lock: bool = False
 ) -> Document:
-    result = await db.execute(
+    """``lock``: hold the row until commit, so a concurrent purge is seen
+    (gone: 404) instead of failing later on a deleted row.
+
+    The lock is a query of its own on the id alone: locking the full read with
+    ``populate_existing`` re-read its relations too, and when the owner is the
+    caller it reset ``current_user`` and left its role unloaded (500
+    MissingGreenlet on restore by the owner, #152)."""
+    if lock:
+        locked = await db.scalar(
+            select(Document.id)
+            .where(Document.id == document_id, Document.tenant_id == tenant_id)
+            .with_for_update()
+        )
+        if locked is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+    query = (
         select(Document)
         .options(*_document_load_options())
         .where(Document.id == document_id, Document.tenant_id == tenant_id)
     )
+    result = await db.execute(query)
     document = result.scalar_one_or_none()
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
+    return document
+
+
+async def _get_document_in_reach_or_404(
+    db: AsyncSession,
+    user: User,
+    document_id: UUID,
+    *,
+    tenant_id: Optional[UUID] = None,
+    lock: bool = False,
+) -> Document:
+    """Load a document for a write, or 404.
+
+    A document outside a unit_admin's tree answers like a missing one, before
+    any right or state check reveals that it exists (#202). Reads keep
+    ``_get_document_or_404``: an assigned workflow step still opens them.
+    ``tenant_id`` (default: the caller's) and ``lock`` go to ``_get_document_or_404``.
+    """
+    document = await _get_document_or_404(
+        db, tenant_id or user.tenant_id, document_id, lock=lock
+    )
+    await _ensure_in_unit_tree(db, user, document)
     return document
 
 
@@ -798,6 +938,7 @@ async def list_documents(
     skip: int = 0,
     limit: int = 100,
     document_status: Optional[str] = Query(default=None, alias="status"),
+    q: Optional[str] = Query(default=None, max_length=120),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -808,30 +949,44 @@ async def list_documents(
 
     if document_status:
         query = query.where(Document.status == document_status)
+    # Search runs on the whole scope, not on the page the client already holds.
+    if q and q.strip():
+        query = _apply_text_filter(query, q.strip())
 
-    query = query.options(*_document_load_options())
+    # Stable order: the most recent documents first, so pages do not shift.
+    query = query.order_by(Document.created_at.desc(), Document.id).options(
+        *_document_load_options()
+    )
     result = await db.execute(query.offset(skip).limit(limit))
     return [_serialize_document(document) for document in result.scalars().all()]
 
 
 @router.get("/trash", response_model=List[DocumentRead])
 async def list_trashed_documents(
+    response: Response,
     skip: int = 0,
     limit: int = 100,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution whose trash is listed.",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    target_tenant = await trash_service.resolve_trash_tenant(current_user, tenant_id)
     query = select(Document).where(
-        Document.tenant_id == current_user.tenant_id, Document.deleted_at.is_not(None)
+        Document.tenant_id == target_tenant, Document.deleted_at.is_not(None)
     )
     query = query.where(*visible_document_scope(current_user))
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    response.headers[TOTAL_COUNT_HEADER] = str(total or 0)
     result = await db.execute(
         query.options(
             *_document_load_options(),
         )
-        .order_by(Document.deleted_at.desc())
-        .offset(skip)
-        .limit(limit)
+        .order_by(Document.deleted_at.desc(), Document.id.asc())
+        .offset(max(skip, 0))
+        .limit(min(max(limit, 1), WORKSPACE_PAGE_MAX))
     )
     return [_serialize_document(document) for document in result.scalars().all()]
 
@@ -857,10 +1012,13 @@ async def list_needs_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "review")
     service = ClassificationReviewService(db)
+    # Guard in advance: the review right is tenant_admin only today; if it is
+    # ever granted to unit_admin, the queue stays inside its unit tree.
     documents = await service.list_legacy_needs_review_documents(
-        tenant_id=current_user.tenant_id
+        tenant_id=current_user.tenant_id,
+        org_unit_ids=await unit_admin_scope_ids(db, current_user),
     )
     return documents[skip : skip + limit]
 
@@ -872,7 +1030,9 @@ async def get_document_audit_logs(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(db, current_user, document):
+    if not await _can_read_document(
+        current_user, document, db, allow_step_access=False
+    ):
         raise HTTPException(status_code=403, detail="Not enough privileges")
 
     query = (
@@ -900,7 +1060,7 @@ async def resolve_manual_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     await authorize_or_403(
         current_user, "workflows", "resolve_review", ctx_from_resource(document)
     )
@@ -930,6 +1090,8 @@ async def resolve_manual_review(
             raise HTTPException(
                 status_code=400, detail="target_folder_id must be a valid UUID"
             ) from exc
+        # A unit_admin cannot file the document outside its tree (#215).
+        await assert_unit_admin_in_tree(db, target_folder_uuid, current_user)
         document.org_unit_id = target_folder_uuid
         document.classification_target_org_unit_id = target_folder_uuid
 
@@ -1111,6 +1273,11 @@ async def get_org_unit_tree(
         .order_by(OrgUnit.level, OrgUnit.name)
     )
 
+    # unit_admin: its own unit and the units below it; its unit becomes the root.
+    unit_ids = await unit_admin_scope_ids(db, current_user)
+    if unit_ids is not None:
+        query = query.where(OrgUnit.id.in_(unit_ids))
+
     result = await db.execute(query)
     units = result.scalars().all()
 
@@ -1126,6 +1293,11 @@ async def get_org_unit_tree(
         }
         for u in units
     }
+
+    if unit_ids is not None and current_user.org_unit_id:
+        own = nodes.get(str(current_user.org_unit_id))
+        if own:
+            own["parent_id"] = None
 
     tree = []
     for unit_id, node in nodes.items():
@@ -1146,7 +1318,7 @@ async def get_document(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(db, current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
@@ -1160,7 +1332,7 @@ async def get_document_versions(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(db, current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
@@ -1224,7 +1396,7 @@ async def get_document_content(
         )
 
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(db, current_user, document):
+    if not await _can_read_document(current_user, document, db):
         # 404 plutôt que 403 : on évite de signaler l'existence d'une ressource
         # à un utilisateur non autorisé (anti-énumération).
         raise HTTPException(status_code=404, detail="Document not found")
@@ -1301,24 +1473,31 @@ async def delete_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(db, current_user, document):
+    """Move the document to the trash. Nothing is deleted for good here.
+
+    Permanent deletion goes through the trash purge (``documents purge``).
+    """
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    # Rights of main's DELETE (delete / delete_own, #345) plus those of POST /trash:
+    # the screen trashes through DELETE, so an owner with trash_own alone is not refused.
+    if not await _can_trash_via_delete(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to delete this document"
         )
     await _ensure_not_locked_for_write(document, current_user)
+    if document.deleted_at is not None:
+        return None
 
-    versions_result = await db.execute(
-        select(DocumentVersion).where(DocumentVersion.document_id == document.id)
+    document.deleted_at = datetime.now(timezone.utc)
+    document.deleted_by = current_user.id
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=document.id,
+            action="document_trashed",
+            details={"via": "delete"},
+        )
     )
-    versions = versions_result.scalars().all()
-    for version in versions:
-        if version.file_path:
-            storage_service.delete_file(version.file_path)
-    if document.file_path:
-        storage_service.delete_file(document.file_path)
-
-    await db.delete(document)
     await db.commit()
     return None
 
@@ -1330,8 +1509,8 @@ async def update_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(db, current_user, document):
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to update this document"
         )
@@ -1368,7 +1547,7 @@ async def update_document(
                 status_code=400,
                 detail="Document status transitions must go through workflow endpoints",
             )
-        await authorize_or_403(current_user, "documents", "manage")
+        await authorize_or_403(current_user, "documents", "archive")
         if document.status not in ARCHIVABLE_SOURCE_STATUSES:
             raise HTTPException(
                 status_code=409,
@@ -1447,6 +1626,10 @@ async def update_document(
                 )
             )
             target_user = target_user_result.scalar_one_or_none()
+            # Tree first: an unknown target and an out-of-tree one answer alike (#202).
+            await assert_unit_admin_in_tree(
+                db, target_user.org_unit_id if target_user else None, current_user
+            )
             if target_user is None or not target_user.org_unit_id:
                 raise HTTPException(
                     status_code=400,
@@ -1461,6 +1644,9 @@ async def update_document(
                 )
             requested_target_org_unit_id = target_user.org_unit_id
         elif requested_target_org_unit_id is not None:
+            await assert_unit_admin_in_tree(
+                db, requested_target_org_unit_id, current_user
+            )
             target_unit_result = await db.execute(
                 select(OrgUnit).where(
                     OrgUnit.id == requested_target_org_unit_id,
@@ -1508,9 +1694,6 @@ async def update_document(
                 classification_year=requested_year,
             )
 
-        if requested_target_org_unit_id is not None:
-            await _ensure_unit_in_reach(db, current_user, requested_target_org_unit_id)
-
         document.classification_domain_id = requested_domain_id
         document.classification_activity_id = requested_activity_id
         document.classification_year = requested_year
@@ -1542,7 +1725,7 @@ async def get_document_ocr(
     db: AsyncSession = Depends(get_db),
 ):
     document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_read_document(db, current_user, document):
+    if not await _can_read_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to access this document"
         )
@@ -1612,11 +1795,7 @@ async def start_workflow_a_posteriori(
     les règles d'aiguillage en vigueur.
     """
     await authorize_or_403(current_user, "documents", "update")
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _in_reach(db, current_user, document):
-        raise HTTPException(
-            status_code=403, detail="Not enough privileges to update this document"
-        )
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     await _ensure_not_locked_for_write(document, current_user)
 
     if document.processing_mode != "archive":
@@ -1670,8 +1849,8 @@ async def trash_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_trash_document(db, current_user, document):
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_move_to_trash(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     await _ensure_not_locked_for_write(document, current_user)
     if document.deleted_at is not None:
@@ -1694,11 +1873,22 @@ async def restore_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_trash_document(db, current_user, document):
+    document = await _get_document_in_reach_or_404(
+        db, current_user, document_id, lock=True
+    )
+    if not await _can_trash_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at is None:
         return {"message": "Document deja actif."}
+    # Décision PO : un retrait fait par un autre (un administrateur) ne se défait que par un
+    # administrateur (``delete``) ; le propriétaire ne restaure que ce qu'il a retiré lui-même.
+    if document.deleted_by not in (None, current_user.id) and not await can_perform(
+        current_user, "documents", "delete", ctx_from_resource(document)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Retiré par un administrateur. Demandez-lui de le restaurer.",
+        )
 
     document.deleted_at = None
     document.deleted_by = None
@@ -1713,31 +1903,103 @@ async def restore_document(
 
 @router.delete("/{document_id}/purge", status_code=status.HTTP_200_OK)
 async def purge_document(
+    request: Request,
     document_id: UUID,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution of the document.",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await authorize_or_403(current_user, "documents", "manage")
+    await authorize_or_403(current_user, "documents", "purge")
 
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    versions_result = await db.execute(
-        select(DocumentVersion).where(DocumentVersion.document_id == document.id)
+    target_tenant = await trash_service.resolve_trash_tenant(current_user, tenant_id)
+    document = await _get_document_in_reach_or_404(
+        db, current_user, document_id, tenant_id=target_tenant, lock=True
     )
-    versions = versions_result.scalars().all()
-    for version in versions:
-        if version.file_path:
-            storage_service.delete_file(version.file_path)
-    if document.file_path:
-        storage_service.delete_file(document.file_path)
+    if document.deleted_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "document_not_in_trash",
+                "message": "Placez d'abord le document dans la corbeille.",
+            },
+        )
+    if trash_service.is_protected(document):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "document_protected",
+                "message": "Un document signé ou archivé ne peut pas être supprimé "
+                "définitivement.",
+            },
+        )
+    await trash_service.purge_many(
+        db,
+        storage_service,
+        [document],
+        actor_id=current_user.id,
+        reason=trash_service.REASON_MANUAL,
+        request=request,
+    )
+    return {"message": "Document definitivement supprime."}
 
-    db.add(
-        _audit_document_action(
-            user=current_user, document_id=document.id, action="document_purged"
+
+@router.post("/trash/empty", response_model=TrashEmptyResponse)
+async def empty_trash(
+    request: Request,
+    payload: Optional[TrashEmptyRequest] = None,
+    tenant_id: Optional[UUID] = Query(
+        default=None,
+        description="Platform administrator only: institution whose trash is emptied.",
+    ),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Purge trashed documents of one institution, oldest first.
+
+    The caller's own institution, or the one named by ``tenant_id`` for a
+    platform administrator (the only role allowed to purge, V1.1).
+
+    No filter: the whole trash, ``TRASH_PURGE_BATCH`` documents per call
+    (``remaining`` tells whether to call again). Identifiers of another
+    institution, or of documents that are not in the trash, are ignored; a
+    signed or archived document is never purged nor counted.
+    """
+    await authorize_or_403(current_user, "documents", "purge")
+
+    payload = payload or TrashEmptyRequest()
+    deleted_before = None
+    if payload.older_than_days is not None:
+        deleted_before = datetime.now(timezone.utc) - timedelta(
+            days=payload.older_than_days
+        )
+    matching = trash_service.trashed_query(
+        await trash_service.resolve_trash_tenant(current_user, tenant_id),
+        document_ids=payload.document_ids,
+        deleted_before=deleted_before,
+    )
+    result = await db.execute(
+        matching.limit(settings.TRASH_PURGE_BATCH).with_for_update(
+            skip_locked=True, of=Document
         )
     )
-    await db.delete(document)
-    await db.commit()
-    return {"message": "Document definitivement supprime."}
+    details = {}
+    if payload.older_than_days is not None:
+        details["older_than_days"] = payload.older_than_days
+    purged = await trash_service.purge_many(
+        db,
+        storage_service,
+        result.scalars().all(),
+        actor_id=current_user.id,
+        reason=trash_service.REASON_BULK,
+        details=details,
+        request=request,
+    )
+    # Same filters as the purge: what one more call would still delete.
+    remaining = await trash_service.count_matching(db, matching)
+    return TrashEmptyResponse(purged=purged, remaining=remaining)
 
 
 @router.post("/{document_id}/versions", status_code=status.HTTP_201_CREATED)
@@ -1756,8 +2018,8 @@ async def upload_new_version(
     - identical to any previous version of the same document
     - identical to a version in another active document of the same tenant
     """
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_mutate_document(db, current_user, document):
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
         raise HTTPException(
@@ -1895,8 +2157,8 @@ async def lock_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_manage_lock(db, current_user, document):
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
         raise HTTPException(
@@ -1932,8 +2194,8 @@ async def unlock_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_manage_lock(db, current_user, document):
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     is_admin = await can_perform(
         current_user, "documents", "manage", ctx_from_resource(document)
@@ -1962,8 +2224,8 @@ async def refresh_lock(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    if not await _can_manage_lock(db, current_user, document):
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
+    if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if not document.locked_by_user_id or str(document.locked_by_user_id) != str(
         current_user.id

@@ -20,6 +20,14 @@ test.describe('Tableau de bord du service : indicateurs', () => {
     expect(rows.some((r) => /quota|%/i.test(r.label))).toBe(false);
   });
 
+  test('seuls documents et workflows en attente ouvrent une liste', () => {
+    const links = serviceIndicators(base).filter((r) => r.to).map((r) => [r.label, r.to]);
+    expect(links).toEqual([
+      ['Documents', '/documents'],
+      ['Workflows en attente', '/tasks'],
+    ]);
+  });
+
   test('doublons refusés seulement quand l’API les fournit', () => {
     const rows = serviceIndicators({ ...base, duplicates: { refused: 3, refused_upload: 2, refused_import: 1 } });
     expect(rows[rows.length - 1]).toEqual({ label: 'Doublons refusés', value: 3, icon: 'content_copy' });

@@ -1,4 +1,5 @@
 # backend/app/services/workflow_service.py
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,7 @@ from app.models.user import User
 from app.schemas.workflow import WorkflowActionCreate
 from app.core.events.dispatcher import dispatcher
 from app.core.authz import can_perform, ctx_from_resource
+from app.services.unit_admin_scope import assert_unit_admin_object_in_tree
 
 
 class WorkflowActionPolicy:
@@ -23,7 +25,15 @@ class WorkflowActionPolicy:
         document: Document,
         action: WorkflowActionCreate,
         actor: User,
+        *,
+        db: Optional[AsyncSession] = None,
     ):
+        # 0. A unit-bounded role (unit_admin) does not see a step outside its unit
+        # tree unless it is assigned to it (#215): answered like a missing step,
+        # before the state or the rights reveal anything about it.
+        if step.assigned_to != actor.id:
+            await assert_unit_admin_object_in_tree(db, document.org_unit_id, actor)
+
         # 1. Vérification de l'état du step
         if step.status != "current":
             raise HTTPException(
@@ -89,7 +99,7 @@ class SubmitWorkflowActionUseCase:
             raise HTTPException(status_code=404, detail="Document not found")
 
         # Execution de la Policy
-        await self.policy.check_can_perform_action(step, document, action, actor)
+        await self.policy.check_can_perform_action(step, document, action, actor, db=db)
 
         # Tracabilité explicite de l'acte (avec l'action.document_version_id explicite de la requête)
         action_trace = WorkflowAction(

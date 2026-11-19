@@ -6,11 +6,17 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import String, cast, select
+from sqlalchemy import String, cast, exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.authz import can_perform, ctx_from_resource
+from app.core.classification_reasons import (
+    DUPLICATE_IN_TENANT_MESSAGE,
+    REVIEW_AMBIGUOUS,
+    REVIEW_NO_RULE_DOCUMENT,
+    REVIEW_NO_RULE_IMPORT_ITEM,
+)
 from app.models.audit import AuditLog
 from app.models.classification_activity import ClassificationActivity
 from app.models.classification_domain import ClassificationDomain
@@ -34,6 +40,10 @@ from app.services.space_path_builder import SpacePathBuilder
 from app.services.storage.factory import get_storage_service
 
 
+REVIEWABLE_STATUSES = frozenset({"pending", "needs_review"})
+AUTO_CLASSIFIED_COMMENT = "Classé automatiquement après lecture du texte."
+
+
 @dataclass
 class ClassificationReviewResolutionOutcome:
     review: ClassificationReview
@@ -54,16 +64,42 @@ class ClassificationReviewService:
         self.path_builder = SpacePathBuilder(db)
         self.storage_service = get_storage_service()
 
+    @staticmethod
+    def _in_units(org_unit_ids, owner_id=None):
+        """Reviews whose document, or whose import batch target, sits in the units.
+
+        A batch the user created stays visible wherever it was sent (#215): the
+        import screens show it too.
+        """
+        batch_in_scope = ImportJob.target_org_unit_id.in_(org_unit_ids)
+        if owner_id is not None:
+            batch_in_scope = or_(batch_in_scope, ImportJob.created_by_id == owner_id)
+        return or_(
+            exists().where(
+                Document.id == ClassificationReview.document_id,
+                Document.org_unit_id.in_(org_unit_ids),
+            ),
+            exists().where(
+                ImportJobItem.id == ClassificationReview.import_job_item_id,
+                ImportJobItem.import_job_id == ImportJob.id,
+                batch_in_scope,
+            ),
+        )
+
     async def list_open_reviews(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, org_unit_ids=None, owner_id=None
     ) -> List[ClassificationReviewRead]:
-        reviews = await self._load_open_reviews(tenant_id=tenant_id)
+        reviews = await self._load_open_reviews(
+            tenant_id=tenant_id, org_unit_ids=org_unit_ids, owner_id=owner_id
+        )
         return [self._to_review_read(review) for review in reviews]
 
     async def list_legacy_needs_review_documents(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, org_unit_ids=None
     ) -> List[NeedsReviewDocument]:
-        documents = await self._load_reviewable_documents(tenant_id=tenant_id)
+        documents = await self._load_reviewable_documents(
+            tenant_id=tenant_id, org_unit_ids=org_unit_ids
+        )
         return [
             NeedsReviewDocument(
                 **DocumentRead.model_validate(document).model_dump(),
@@ -82,6 +118,91 @@ class ClassificationReviewService:
             document=document,
             arbitration_reason=arbitration_reason,
         )
+
+    async def sync_review_with_document_status(
+        self, *, document: Document
+    ) -> Optional[str]:
+        """Keep the review screen in line with the document's classification status.
+
+        The review screen lists ``classification_reviews`` rows, not document statuses:
+        a document waiting for a decision needs an open row, and a row left open on a
+        document the rules have since classified (OCR pass) can no longer be resolved.
+        Returns ``"opened"``, ``"cancelled"`` or ``None`` when nothing changed.
+        """
+        if document.deleted_at is not None:
+            return None
+        if document.classification_status in REVIEWABLE_STATUSES:
+            existing = await self._document_review(document)
+            if existing is not None and existing.review_status != "cancelled":
+                # Open: already listed. Resolved: a person decided, never reopened here.
+                return None
+            await self.ensure_open_review_for_document(document=document)
+            return "opened"
+        if document.classification_status == "classified":
+            existing = await self._document_review(document)
+            if existing is None or existing.review_status != "open":
+                return None
+            existing.review_status = "cancelled"
+            existing.resolved_by_id = None
+            existing.resolved_at = datetime.now(timezone.utc)
+            existing.resolution_comment = AUTO_CLASSIFIED_COMMENT
+            await self.db.flush()
+            return "cancelled"
+        return None
+
+    async def document_ids_out_of_sync(
+        self, *, tenant_id: Optional[UUID] = None
+    ) -> List[UUID]:
+        """Documents the rule above would change: the back-fill plan, read only."""
+        kept_review = exists().where(
+            ClassificationReview.document_id == Document.id,
+            ClassificationReview.review_status.in_(("open", "resolved")),
+        )
+        open_review = exists().where(
+            ClassificationReview.document_id == Document.id,
+            ClassificationReview.review_status == "open",
+        )
+        stmt = select(Document.id).where(
+            Document.deleted_at.is_(None),
+            or_(
+                Document.classification_status.in_(tuple(REVIEWABLE_STATUSES))
+                & ~kept_review,
+                (Document.classification_status == "classified") & open_review,
+            ),
+        )
+        if tenant_id is not None:
+            stmt = stmt.where(Document.tenant_id == tenant_id)
+        result = await self.db.execute(stmt.order_by(Document.created_at))
+        return list(result.scalars().all())
+
+    async def reconcile_document_reviews(
+        self, *, tenant_id: Optional[UUID] = None, batch_size: int = 200
+    ) -> dict[str, int]:
+        """Back-fill for documents left out of sync before this rule existed.
+
+        Idempotent: a second run finds nothing. Commits every ``batch_size`` documents.
+        """
+        counts = {"opened": 0, "cancelled": 0}
+        ids = await self.document_ids_out_of_sync(tenant_id=tenant_id)
+        for start in range(0, len(ids), batch_size):
+            for document_id in ids[start : start + batch_size]:
+                document = await self.db.get(Document, document_id)
+                outcome = await self.sync_review_with_document_status(document=document)
+                if outcome:
+                    counts[outcome] += 1
+            await self.db.commit()
+        return counts
+
+    async def _document_review(
+        self, document: Document
+    ) -> Optional[ClassificationReview]:
+        result = await self.db.execute(
+            select(ClassificationReview).where(
+                ClassificationReview.document_id == document.id,
+                ClassificationReview.tenant_id == document.tenant_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def ensure_open_review_for_import_item(
         self,
@@ -128,11 +249,14 @@ class ClassificationReviewService:
         review_id: UUID,
         payload: ClassificationReviewResolvePayload,
         current_user: User,
+        org_unit_ids=None,
     ) -> ClassificationReviewResolutionOutcome:
         review = await self._get_review_or_404(
             review_id=review_id,
             tenant_id=current_user.tenant_id,
             for_update=True,
+            org_unit_ids=org_unit_ids,
+            owner_id=current_user.id,
         )
         if review.review_status != "open":
             raise HTTPException(
@@ -155,6 +279,12 @@ class ClassificationReviewService:
             target_org_unit_id=payload.classification_target_org_unit_id,
             target_user_id=payload.classification_target_user_id,
         )
+        # A unit-bounded role files only inside its tree (#215).
+        if org_unit_ids is not None and target_org_unit.id not in org_unit_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Target org unit is outside your unit tree.",
+            )
 
         if review.import_job_item_id and review.document_id is None:
             return await self._resolve_import_item_review(
@@ -386,7 +516,7 @@ class ClassificationReviewService:
         ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Un fichier identique existe deja dans ce tenant.",
+                detail=DUPLICATE_IN_TENANT_MESSAGE,
             )
         if not self.storage_service.copy_file(
             item.staging_file_path, final_relative_path
@@ -522,9 +652,9 @@ class ClassificationReviewService:
         )
 
     async def _load_open_reviews(
-        self, *, tenant_id: UUID
+        self, *, tenant_id: UUID, org_unit_ids=None, owner_id=None
     ) -> list[ClassificationReview]:
-        result = await self.db.execute(
+        stmt = (
             select(ClassificationReview)
             .options(
                 selectinload(ClassificationReview.document).selectinload(
@@ -552,10 +682,15 @@ class ClassificationReviewService:
             )
             .order_by(ClassificationReview.updated_at.desc())
         )
+        if org_unit_ids is not None:
+            stmt = stmt.where(self._in_units(org_unit_ids, owner_id))
+        result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def _load_reviewable_documents(self, *, tenant_id: UUID) -> List[Document]:
-        result = await self.db.execute(
+    async def _load_reviewable_documents(
+        self, *, tenant_id: UUID, org_unit_ids=None
+    ) -> List[Document]:
+        stmt = (
             select(Document)
             .options(
                 selectinload(Document.document_category),
@@ -570,6 +705,9 @@ class ClassificationReviewService:
             )
             .order_by(Document.created_at.desc())
         )
+        if org_unit_ids is not None:
+            stmt = stmt.where(Document.org_unit_id.in_(org_unit_ids))
+        result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def _ensure_open_review_for_document(
@@ -631,8 +769,8 @@ class ClassificationReviewService:
             if sys_report and sys_report.get("arbitration_reason"):
                 return sys_report["arbitration_reason"]
         if document.classification_status == "needs_review":
-            return "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
-        return "Aucune regle deterministe n a permis de classer ce document."
+            return REVIEW_AMBIGUOUS
+        return REVIEW_NO_RULE_DOCUMENT
 
     async def _get_review_or_404(
         self,
@@ -640,11 +778,15 @@ class ClassificationReviewService:
         review_id: UUID,
         tenant_id: UUID,
         for_update: bool = False,
+        org_unit_ids=None,
+        owner_id=None,
     ) -> ClassificationReview:
         stmt = select(ClassificationReview).where(
             ClassificationReview.id == review_id,
             ClassificationReview.tenant_id == tenant_id,
         )
+        if org_unit_ids is not None:
+            stmt = stmt.where(self._in_units(org_unit_ids, owner_id))
         if for_update:
             stmt = stmt.with_for_update()
         result = await self.db.execute(stmt)
@@ -880,7 +1022,7 @@ class ClassificationReviewService:
                 status_code=status.HTTP_423_LOCKED,
                 detail={
                     "error": "document_locked",
-                    "message": "Ce document est verrouille par un autre utilisateur.",
+                    "message": "Ce document est verrouillé par un autre utilisateur.",
                     "locked_by": str(document.locked_by_user_id),
                     "lock_expires_at": document.lock_expires_at.isoformat(),
                 },
@@ -971,8 +1113,8 @@ class ClassificationReviewService:
         if item.error_message:
             return item.error_message
         if item.status == "needs_review":
-            return "Le moteur de classement a detecte une ambiguite ou une cible a verifier."
-        return "Aucune regle deterministe n a permis de classer ce fichier du batch."
+            return REVIEW_AMBIGUOUS
+        return REVIEW_NO_RULE_IMPORT_ITEM
 
     @staticmethod
     def _build_dispatch_payload(document: Document) -> dict:

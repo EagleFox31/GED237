@@ -7,13 +7,15 @@ export interface ServiceIndicator {
   label: string;
   value: number;
   icon: string;
+  /** Liste existante ouverte au clic ; absent : indicateur non cliquable. */
+  to?: string;
 }
 
 export const serviceIndicators = (metrics: TenantMetrics): ServiceIndicator[] => {
   const rows: ServiceIndicator[] = [
     { label: 'Agents', value: metrics.users?.total ?? 0, icon: 'group' },
-    { label: 'Documents', value: metrics.documents?.total ?? 0, icon: 'description' },
-    { label: 'Workflows en attente', value: metrics.workflows?.pending ?? 0, icon: 'pending_actions' },
+    { label: 'Documents', value: metrics.documents?.total ?? 0, icon: 'description', to: '/documents' },
+    { label: 'Workflows en attente', value: metrics.workflows?.pending ?? 0, icon: 'pending_actions', to: '/tasks' },
     { label: 'Workflows complétés', value: metrics.workflows?.completed ?? 0, icon: 'task_alt' },
   ];
   // Absent tant que l'API ne le fournit pas : on n'affiche pas un faux zéro.

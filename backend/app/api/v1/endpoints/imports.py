@@ -23,6 +23,7 @@ from app.services.audit_trail import audit_entry
 from app.core.dependencies import get_current_user
 from app.core.errors.domain import FileTooLargeError
 from app.core.tenant_guard import assert_org_unit_scope
+from app.services.unit_admin_scope import assert_unit_admin_in_tree
 from app.models.document_category import DocumentCategory
 from app.models.import_job import ImportJob
 from app.models.org_unit import OrgUnit
@@ -68,23 +69,6 @@ async def _validate_category_for_tenant(
         raise HTTPException(status_code=400, detail="Categorie documentaire invalide.")
 
 
-async def _assert_in_unit_tree(
-    db: AsyncSession, current_user: User, unit_id: UUID | None
-) -> None:
-    """unit_admin imports only for its unit and the units below it (#202)."""
-    if _role_code(current_user) not in UNIT_TREE_READ_ROLES:
-        return
-    if not (
-        unit_id
-        and current_user.org_unit_id
-        and await is_within_unit_tree(db, unit_id, current_user.org_unit_id)
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Cible hors de votre unite et de ses sous-unites.",
-        )
-
-
 async def _resolve_target_org_unit_id(
     db: AsyncSession,
     *,
@@ -94,7 +78,7 @@ async def _resolve_target_org_unit_id(
     if target_org_unit_id is None:
         return current_user.org_unit_id
     assert_org_unit_scope(target_org_unit_id, current_user)
-    await _assert_in_unit_tree(db, current_user, target_org_unit_id)
+    await assert_unit_admin_in_tree(db, target_org_unit_id, current_user)
     result = await db.execute(
         select(OrgUnit.id).where(
             OrgUnit.id == target_org_unit_id,
@@ -124,6 +108,10 @@ async def _resolve_target_user(
         )
     )
     target_user = result.scalar_one_or_none()
+    # Tree first: an unknown target and an out-of-tree one answer alike (#202).
+    await assert_unit_admin_in_tree(
+        db, target_user.org_unit_id if target_user else None, current_user
+    )
     if target_user is None:
         raise HTTPException(status_code=400, detail="Utilisateur cible invalide.")
     if _role_code(current_user) not in ADMIN_ROLES and str(target_user.id) != str(
@@ -135,7 +123,6 @@ async def _resolve_target_user(
         )
     if _role_code(current_user) in ORG_UNIT_READ_ROLES:
         assert_org_unit_scope(target_user.org_unit_id, current_user)
-    await _assert_in_unit_tree(db, current_user, target_user.org_unit_id)
     return target_user
 
 
@@ -187,8 +174,15 @@ async def _can_read_job(db: AsyncSession, user: User, job: ImportJob) -> bool:
     return await can_perform(user, "documents", "read_own", ctx)
 
 
-def _can_commit_job(user: User, job: ImportJob) -> bool:
+async def _can_commit_job(db: AsyncSession, user: User, job: ImportJob) -> bool:
     role_code = _role_code(user)
+    if role_code in UNIT_TREE_READ_ROLES:
+        # Its own batches, and those aimed at a unit of its tree.
+        return str(job.created_by_id) == str(user.id) or bool(
+            user.org_unit_id
+            and job.target_org_unit_id
+            and await is_within_unit_tree(db, job.target_org_unit_id, user.org_unit_id)
+        )
     if role_code in ADMIN_ROLES:
         return True
     return str(job.created_by_id) == str(user.id)
@@ -296,7 +290,7 @@ async def commit_import_job(
     job = await _get_job_for_update_or_404(db, job_id)
     if not await _can_read_job(db, current_user, job):
         raise HTTPException(status_code=403, detail="Acces refuse a ce batch d'import.")
-    if not _can_commit_job(current_user, job):
+    if not await _can_commit_job(db, current_user, job):
         raise HTTPException(
             status_code=403,
             detail="Seul le createur ou un admin peut executer ce batch.",
