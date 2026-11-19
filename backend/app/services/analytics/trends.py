@@ -78,14 +78,14 @@ async def compute_trends(
     performed_local = func.timezone(tz, WorkflowAction.performed_at)
     performed_week = func.date(func.date_trunc("week", performed_local))
 
-    async def visas(outcomes) -> List[int]:
+    async def visas(outcomes, where) -> List[int]:
         rows = await db.execute(
             select(performed_week.label("week"), func.count().label("total"))
             .select_from(WorkflowAction)
             .join(WorkflowStep, WorkflowStep.id == WorkflowAction.workflow_step_id)
             .join(Document, Document.id == WorkflowStep.document_id)
             .where(
-                and_(*filters),
+                and_(*where),
                 WorkflowAction.outcome.in_(outcomes),
                 performed_local >= start,
                 # A visa the author puts on their own document is not a review (PO
@@ -102,11 +102,22 @@ async def compute_trends(
         "weeks": [monday.isoformat() for monday in mondays],
         "series": {
             "documents_created": _fill(created_rows, mondays),
-            "visas_accepted": await visas(ACCEPTED),
-            "visas_rejected_or_returned": await visas(REJECTED_OR_RETURNED),
+            "visas_accepted": await visas(ACCEPTED, filters),
+            "visas_rejected_or_returned": await visas(REJECTED_OR_RETURNED, filters),
         },
     }
     if scope == "mine":
+        # Visas the user gave on colleagues' documents (DEC-2026-014): own documents
+        # are left out, so the two "mine" curves never count the same visa.
+        given = [
+            Document.tenant_id == tenant_id,
+            Document.deleted_at.is_(None),
+            WorkflowAction.performed_by == user_id,
+        ]
+        result["series"]["visas_given_accepted"] = await visas(ACCEPTED, given)
+        result["series"]["visas_given_rejected_or_returned"] = await visas(
+            REJECTED_OR_RETURNED, given
+        )
         counts = await db.execute(
             select(Document.status, func.count())
             .where(*filters, Document.status.in_(("draft", "in_review")))

@@ -301,3 +301,117 @@ async def test_a_visa_the_author_puts_on_their_own_document_is_not_counted(
     for body in (mine, tenant):
         assert body["series"]["visas_accepted"][-1] == 1
         assert body["series"]["visas_rejected_or_returned"][-1] == 0
+
+
+# --- Visas I gave (DEC-2026-014): scope=mine only ---------------------------
+
+GIVEN = ("visas_given_accepted", "visas_given_rejected_or_returned")
+
+
+async def _colleague_document(db_session, db_seed, created_at, tenant_id=None):
+    """A document of another agent, for the connected user to put a visa on."""
+    colleague = await _reviewer(db_session, db_seed)
+    return await _doc(
+        db_session,
+        tenant_id or db_seed["tenant_id"],
+        db_seed["org_unit_id"],
+        colleague,
+        created_at,
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_visa_given_on_a_colleague_document_counts(
+    auth_client, admin_client, db_session, db_seed
+):
+    now = datetime.now(timezone.utc)
+    document = await _colleague_document(db_session, db_seed, now.replace(tzinfo=None))
+    await _action(db_session, document, db_seed["user_id"], OutcomeType.accepted, now)
+    await _action(db_session, document, db_seed["user_id"], OutcomeType.returned, now)
+    await db_session.commit()
+
+    mine = (await auth_client.get(TRENDS, params={"scope": "mine"})).json()["series"]
+    assert mine["visas_given_accepted"][-1] == 1
+    assert mine["visas_given_rejected_or_returned"][-1] == 1
+    assert len(mine["visas_given_accepted"]) == 12
+    # Not the user's document: the "received" curves stay empty.
+    assert mine["visas_accepted"][-1] == 0
+    for scope in ("unit", "tenant"):
+        series = (await admin_client.get(TRENDS, params={"scope": scope})).json()[
+            "series"
+        ]
+        assert not set(GIVEN) & set(series)
+
+
+@pytest.mark.asyncio
+async def test_a_visa_on_my_own_document_counts_in_no_mine_curve(
+    auth_client, db_session, db_seed
+):
+    now = datetime.now(timezone.utc)
+    own = await _doc(
+        db_session,
+        db_seed["tenant_id"],
+        db_seed["org_unit_id"],
+        db_seed["user_id"],
+        now.replace(tzinfo=None),
+    )
+    await _action(db_session, own, db_seed["user_id"], OutcomeType.accepted, now)
+    await _action(db_session, own, db_seed["user_id"], OutcomeType.rejected, now)
+    await db_session.commit()
+
+    series = (await auth_client.get(TRENDS, params={"scope": "mine"})).json()["series"]
+    for name in (*GIVEN, "visas_accepted", "visas_rejected_or_returned"):
+        assert series[name] == [0] * 12, name
+
+
+@pytest.mark.asyncio
+async def test_a_visa_given_in_another_tenant_does_not_count(
+    auth_client, db_session, db_seed
+):
+    now = datetime.now(timezone.utc)
+    other_tenant = Tenant(id=uuid.uuid4(), name="Autre")
+    db_session.add(other_tenant)
+    await db_session.flush()
+    foreign = await _colleague_document(
+        db_session, db_seed, now.replace(tzinfo=None), tenant_id=other_tenant.id
+    )
+    await _action(db_session, foreign, db_seed["user_id"], OutcomeType.accepted, now)
+    await db_session.commit()
+
+    series = (await auth_client.get(TRENDS, params={"scope": "mine"})).json()["series"]
+    assert series["visas_given_accepted"] == [0] * 12
+
+
+@pytest.mark.asyncio
+async def test_a_visa_given_on_a_deleted_document_does_not_count(
+    auth_client, db_session, db_seed
+):
+    now = datetime.now(timezone.utc)
+    document = await _colleague_document(db_session, db_seed, now.replace(tzinfo=None))
+    await _action(db_session, document, db_seed["user_id"], OutcomeType.rejected, now)
+    document.deleted_at = now.replace(tzinfo=None)
+    await db_session.commit()
+
+    series = (await auth_client.get(TRENDS, params={"scope": "mine"})).json()["series"]
+    assert series["visas_given_rejected_or_returned"] == [0] * 12
+
+
+@pytest.mark.asyncio
+async def test_a_visa_given_on_sunday_2330_douala_falls_in_that_week(
+    auth_client, db_session, db_seed
+):
+    # Douala is UTC+1: Sunday 23:30 local is Sunday 22:30 UTC, still last week.
+    monday = week_starts(1)[0]
+    sunday_late = datetime(
+        monday.year, monday.month, monday.day, tzinfo=timezone.utc
+    ) - timedelta(hours=1, minutes=30)
+    document = await _colleague_document(
+        db_session, db_seed, sunday_late.replace(tzinfo=None)
+    )
+    await _action(
+        db_session, document, db_seed["user_id"], OutcomeType.accepted, sunday_late
+    )
+    await db_session.commit()
+
+    series = (await auth_client.get(TRENDS, params={"scope": "mine"})).json()["series"]
+    assert series["visas_given_accepted"][-2:] == [1, 0]
