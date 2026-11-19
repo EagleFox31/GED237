@@ -23,7 +23,7 @@ ORDER_V1="222 227 224 234 237 394 405 240 243 245 253 281 235 238 248 267 268 43
 # Fin de vague 1 : #447 (issue #413), #434 (issue #414) et #424 (pagination du journal d’audit, GO du PO le 18/11) (O, 18/11 au soir)
 # Vague 5, après 401 (et après 184) dès qu’elle a un numéro : suite de #211 (F, empilée sur #401 ; PO, 18/11)
 # Vague 2 : lecture des documents, OCR (25 et 26/11)
-ORDER_V2="152 181 184 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 453 456 458"
+ORDER_V2="152 181 184 462 301 179 262 302 372 370 284 311 384 386 387 388 404 355 290 338 426 436 445 457 453 456 458"
 # Vague 3 : périmètre et audit, lot 11 (26/11)
 ORDER_V3="241 213 261 263 308 296 266 221 361 282"
 # Vague 4 : capacités post-rc1, selon le PO (30/11 au 02/12)
@@ -70,7 +70,8 @@ HORS_FILE="104 121 408 409 412 415 385 313 460 461"
   - #458, L3 « texte des fichiers Word et Excel lu au dépôt » (aide-api, base `main`, e70353d9, sans migration). Elle passe en fin de vague 2, derrière les PR de recherche, sans `DEP`. Simulation `git merge-tree` du 19/11 : aucun conflit avec #426, #457, #436, #445 ni #404. Elle partage `documents.py` et `classification_review_service.py` avec #184, #168, #182, #241, #213, #261 et #263, mais ces PR sont déjà en conflit avec `main` sur ces deux fichiers : elles se mettent à jour à leur tour, comme prévu. La PR de départage du tri de `/search` (aide-api) sera empilée sur #457 quand elle sera ouverte.
   - #459, Lot 11 points 4 et 5 « aperçu Excel allégé et progression des gros PDF » (F, base `main`, d169cefe, interface seule). Elle passe en fin de vague 5, derrière #401, sans `DEP`. Simulation `git merge-tree` du 19/11 : aucun fichier commun avec #458 (serveur seul) ni avec #450. Nouveaux conflits, absents face à `main` : `documents.api.ts` avec #181, #302, #182, #296, #361 et #401, et `client.ts` avec #401. Toutes ces PR fusionnent avant elle, donc #459 seule se met à jour, en gardant les deux côtés (résolution chez F).
   - Hors file, vers `main` avant le gel de 17:15 (O, 19/11) : #460 (F, ec2e9ae4) répare les 2 tests `search-highlight` cassés depuis 2d20a028 ; #461 (F, 46d7ff15) ajoute LESSON-2026-068 (heredoc). **Après la fusion de #460**, #438, #445 et #446 fusionnent `main` : sur `search-highlight.spec.ts`, `searchHighlight.ts` et `HighlightedExcerpt.tsx`, on prend la version de `main` (leurs versions étaient identiques à `main` avant #460). Simulation `git merge-tree` : #438 et #446 sans conflit ; #445 en conflit sur `lessons-learned.md` seulement, on garde les deux ajouts, ceux de `main` d'abord. **Numéros de LESSON** : #460 et #461 prennent 067 et 068 sur `main`. Il faut donc renuméroter les doublons : LESSON-2026-068 de #436 (Alembic, reprise par #445, #456 et #457) et LESSON-2026-067 de #433 (I). Les nouveaux numéros sont proposés à O le 19/11.
-- **À ouvrir, hors des vagues tant que la PR n’existe pas** : la réparation du hook pre-commit (Q, 0,5 h-s), après #433 ; la PR de #418 (F), empilée sur #184 : elle passera juste derrière #184 en vague 2, avec `DEP[<n°>]="184"`, et il faudra la re-cibler sur `main` avant la fusion de #184 (O, 19/11 ; F débloque #184 d’abord).
+- **À ouvrir, hors des vagues tant que la PR n’existe pas** : la réparation du hook pre-commit (Q, 0,5 h-s), après #433.
+- **#462** (F, #418, sélection multiple dans l’explorateur, brouillon) : empilée sur #184 (base `feat/post-rc1-undo-ui`), inscrite juste derrière #184 en vague 2, `DEP[462]="184"`. À re-cibler sur `main` avant la fusion de #184 (O, 19/11 ; F débloque #184 d’abord). Simulation du 19/11 : aucun conflit avec sa base ; contre `main`, elle hérite des trois conflits de #184 (`documents.py`, `docker-compose.yml`, `client.ts`) et en ajoute un, `frontend/e2e/unit/explorer-keys.spec.ts`, à traiter par F à la mise à jour.
 - **« #152 après #401 » est levé** : c'était l'ordre de travail de B, pas une contrainte de fusion. **Mise à jour (O, 18/11)** : #152 seule passe en tête de la vague 2 (OK du PO, a47df85, OK de Q). Le reste du groupe corbeille (#181, #184, #168, #171, #190, #199, #301, #302) reste en vague 4 ; #181, empilée sur #152, est re-ciblée sur `main` avant la fusion de #152 (plan-fusion § 3).
 - **#155 et #169 restent en V1.1** (PO, 18/11 : « on repousse rien »).
 - **Choix par défaut d'O, en attendant F et B** :
@@ -99,7 +100,7 @@ DEP[267]="248"; DEP[268]="248 389"
 DEP[213]="241"; DEP[221]="213"; DEP[261]="213"; DEP[263]="213"; DEP[308]="263"
 DEP[262]="179"; DEP[310]="262"; DEP[309]="179 262"
 DEP[293]="283"; DEP[295]="293"; DEP[297]="285"; DEP[303]="294 293"
-DEP[181]="152"; DEP[184]="181"; DEP[301]="152 181"; DEP[302]="301 262"
+DEP[181]="152"; DEP[184]="181"; DEP[462]="184"; DEP[301]="152 181"; DEP[302]="301 262"
 DEP[190]="181 153"; DEP[199]="181 171"
 DEP[212]="154"; DEP[219]="193"; DEP[209]="180"; DEP[205]="165"
 # Chaîne alembic (une seule tête) : chaque auteur repose down_revision quand il fusionne main ; alembic heads = 1 tête vérifié avant chaque fusion (O, 18/11)
