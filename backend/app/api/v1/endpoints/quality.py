@@ -149,6 +149,7 @@ async def create_quality_alert(
         )
     scope = await resolve_report_scope(
         current_user,
+        db,
         tenant_id=payload.tenant_id,
         org_unit_id=payload.scope.org_unit_id,
         recursive=payload.scope.recursive,

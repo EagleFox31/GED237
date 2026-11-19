@@ -93,6 +93,7 @@ async def measure_rule(db: AsyncSession, rule: QualityAlertRule) -> Optional[flo
     try:
         scope = await resolve_report_scope(
             creator,
+            db,
             tenant_id=rule.tenant_id,
             org_unit_id=_uuid(scope_data.get("org_unit_id")),
             recursive=bool(scope_data.get("recursive")),
