@@ -74,11 +74,14 @@ const AuditLogs: React.FC = () => {
     'detail',
   ]);
 
+  // « Au nom de quelqu'un » : actions faites par un remplaçant, filtrées par le serveur (liste et export).
+  const [onBehalfOnly, setOnBehalfOnly] = useState(false);
+
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await api.getAuditLogs({ limit: 200 });
+      const data = await api.getAuditLogs({ limit: 200, on_behalf: onBehalfOnly });
       setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
@@ -86,7 +89,7 @@ const AuditLogs: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [onBehalfOnly]);
 
   useEffect(() => {
     fetchLogs();
@@ -143,6 +146,7 @@ const AuditLogs: React.FC = () => {
         table_name: tableValues,
         action: actionValues,
         user_id: exportUserId,
+        on_behalf: onBehalfOnly,
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -262,6 +266,11 @@ const AuditLogs: React.FC = () => {
           <p className="mt-1 text-xs font-medium text-slate-500">
             {log.user_matricule || log.user_id || 'Action système'}
           </p>
+          {log.on_behalf_of_name && (
+            <p className="mt-1 text-xs font-bold text-amber-700" data-testid="audit-on-behalf">
+              au nom de {log.on_behalf_of_name}
+            </p>
+          )}
         </div>
       ),
     },
@@ -315,11 +324,23 @@ const AuditLogs: React.FC = () => {
         </div>
         <div className="flex flex-col items-start gap-2 md:items-end">
           <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={onBehalfOnly}
+            onClick={() => setOnBehalfOnly((v) => !v)}
+            title="Voir seulement les actions faites par un remplaçant"
+            className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-black uppercase tracking-widest ${
+              onBehalfOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-700 hover:text-rdpc-blue'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base" aria-hidden="true">swap_horiz</span>
+            Au nom de quelqu'un
+          </button>
           <HelpHint
             label="Aide sur l'export du journal"
             tip="Téléchargez les lignes affichées, avec les filtres en cours, au format CSV (Excel)."
           >
-            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent) et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
+            L'écran affiche les 200 dernières actions ; l'export reprend le journal complet selon les filtres en cours (type, action, un seul agent, « Au nom de quelqu'un ») et s'arrête à 50 000 lignes. Au-delà, ajoutez un filtre avant de recommencer.
           </HelpHint>
           <button
             type="button"

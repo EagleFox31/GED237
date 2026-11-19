@@ -33,7 +33,8 @@ import { spacesApi }         from './resources/spaces.api';
 import { notificationsApi }  from './resources/notifications.api';
 import { authzApi }          from './resources/authz.api';
 import { auditApi }          from './resources/audit.api';
-import { analyticsApi }      from './resources/analytics.api';
+import { delegationsApi }    from './resources/delegations.api';
+import { analyticsApi }     from './resources/analytics.api';
 import { reportsApi }        from './resources/reports.api';
 import { searchApi }         from './resources/search.api';
 import { healthApi }         from './resources/health.api';
@@ -52,6 +53,7 @@ export { spacesApi }           from './resources/spaces.api';
 export { notificationsApi }    from './resources/notifications.api';
 export { authzApi }            from './resources/authz.api';
 export { auditApi }            from './resources/audit.api';
+export { delegationsApi }      from './resources/delegations.api';
 export { analyticsApi }        from './resources/analytics.api';
 export { reportsApi }          from './resources/reports.api';
 export { searchApi }           from './resources/search.api';
@@ -195,6 +197,11 @@ export const api = {
     // Audit
     getAuditLogs: auditApi.getAuditLogs,
     exportAuditLogs: auditApi.exportAuditLogs,
+    getDelegations: delegationsApi.getDelegations,
+    getDelegationCandidates: delegationsApi.getCandidates,
+    getMyDelegations: delegationsApi.getMyDelegations,
+    createDelegation: delegationsApi.createDelegation,
+    revokeDelegation: delegationsApi.revokeDelegation,
 
     // Analytics
     getTenantAnalytics: analyticsApi.getTenantAnalytics,

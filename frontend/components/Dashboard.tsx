@@ -150,7 +150,7 @@ const Dashboard: React.FC = () => {
               <div key={notif.id || i} role="link" tabIndex={0} onClick={() => navigate(notificationTarget(notif.meta_data))} onKeyDown={(e) => { if (e.key === 'Enter') navigate(notificationTarget(notif.meta_data)); }} className="flex gap-5 items-start group cursor-pointer hover:bg-slate-50/50 p-2 rounded-2xl transition-all">
                 <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
                   <span className="material-symbols-outlined text-rdpc-blue opacity-40 text-2xl font-bold">
-                    {notif.type === 'WORKFLOW_ASSIGNED' ? 'assignment' : notif.type === 'WORKFLOW_COMPLETED' ? 'task_alt' : 'notifications'}
+                    {notif.type === 'WORKFLOW_ASSIGNED' ? 'assignment' : notif.type === 'WORKFLOW_COMPLETED' ? 'task_alt' : String(notif.type).startsWith('DELEGATION_') ? 'swap_horiz' : 'notifications'}
                   </span>
                 </div>
                 <div className="flex-1 space-y-1">

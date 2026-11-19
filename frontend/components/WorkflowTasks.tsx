@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icons } from '../constants';
-import type { PendingWorkflowTask } from '../types';
+import type { Delegation, PendingWorkflowTask } from '../types';
 import { api } from '../services/api';
 import type { WorkflowDecision } from '../services/resources/workflows.api';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
@@ -9,6 +9,8 @@ import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
+import { formatDelegationDate, myOutgoingActive, onBehalfOfName } from '../lib/delegation';
+import { useAuthStore } from '../stores/authStore';
 
 const WorkflowTasks: React.FC = () => {
   const [tasks, setTasks] = useState<PendingWorkflowTask[]>([]);
@@ -33,6 +35,14 @@ const WorkflowTasks: React.FC = () => {
     fetchTasks();
   }, []);
 
+  // Remplacements (L4) : enrichissement seulement, la liste des tâches reste utilisable sans.
+  const myUserId = useAuthStore((s) => s.userProfile?.userId);
+  const [delegations, setDelegations] = useState<Delegation[]>([]);
+  useEffect(() => {
+    api.getMyDelegations().then(setDelegations).catch(() => setDelegations([]));
+  }, []);
+  const outgoing = myOutgoingActive(delegations, myUserId);
+
   const decide = async (task: PendingWorkflowTask, decision: WorkflowDecision, comment?: string) => {
     setProcessingId(task.id);
     try {
@@ -55,6 +65,13 @@ const WorkflowTasks: React.FC = () => {
         <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Tâches & Validations</h2>
         <p className="text-slate-500 mt-1">Gérez les circuits de signature et de validation sous votre responsabilité.</p>
       </div>
+
+      {outgoing && (
+        <p role="status" data-testid="delegation-outgoing" className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-50 text-amber-900 text-sm font-medium">
+          <span className="material-symbols-outlined text-base" aria-hidden="true">swap_horiz</span>
+          Vos tâches vont à {outgoing.delegate.full_name} jusqu’au {formatDelegationDate(outgoing.ends_at)}.
+        </p>
+      )}
 
       {isLoading && (
         <div className="flex items-center justify-center py-20">
@@ -87,6 +104,14 @@ const WorkflowTasks: React.FC = () => {
                   Étape {task.step_order}
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{workflowStepStatusLabel(task.status)}</span>
+                {(() => {
+                  const absent = onBehalfOfName(task.assigned_to, myUserId, delegations);
+                  return absent ? (
+                    <span data-testid="task-on-behalf" className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800">
+                      Au nom de {absent}
+                    </span>
+                  ) : null;
+                })()}
               </div>
               <h3 className="text-lg font-bold text-slate-800">{task.label}</h3>
               <p className="text-sm text-slate-500">Document : <span className="font-bold text-slate-700">{task.document?.title || 'Document sans titre'}</span></p>

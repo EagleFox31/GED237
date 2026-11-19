@@ -28,6 +28,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
       { id: 'trash', label: 'Corbeille', icon: 'delete', subItems: ['Documents supprimés'] },
       { id: 'duplicates', label: 'Doublons', icon: 'content_copy', subItems: ['Fichiers en double'] },
       { id: 'users', label: 'Agents & Rôles', icon: 'group', subItems: ['Liste des agents', 'Rôles & permissions', 'Groupes'] },
+      { id: 'delegations', label: 'Remplacements', icon: 'swap_horiz', subItems: ['Absences et intérims'] },
     ]
   },
   {

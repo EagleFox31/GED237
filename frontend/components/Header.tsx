@@ -239,6 +239,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
       { id: 'documents', label: 'Mes Documents', icon: 'folder_open' },
       { id: 'tasks', label: 'Tâches', icon: 'checklist' },
       ...(userProfile?.id === 'audit' ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }] : []),
+      ...(userProfile?.id === 'manager' ? [{ id: 'delegations', label: 'Remplacements', icon: 'swap_horiz' }] : []),
     ];
   };
 

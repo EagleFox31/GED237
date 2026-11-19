@@ -31,6 +31,7 @@ import ClassementPage from './profiles/tenant-admin/pages/ClassementPage';
 import UsersPage from './profiles/tenant-admin/pages/UsersPage';
 import ServiceDashboard from './profiles/unit-admin/pages/ServiceDashboard';
 import ValidationHub from './profiles/manager/pages/ValidationHub';
+import DelegationsPage from './profiles/manager/pages/DelegationsPage';
 import DraftWorkspace from './profiles/collaborator/pages/DraftWorkspace';
 import LibraryView from './profiles/reader/pages/LibraryView';
 import AuditLogs from './profiles/auditor/pages/AuditLogs';
@@ -65,6 +66,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/local-library': 'local_library',
   '/audit': 'audit_central',
   '/reports': 'reports',
+  '/delegations': 'delegations',
   '/trash': 'trash',
   '/duplicates': 'duplicates',
 };
@@ -89,6 +91,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'local_library': '/local-library',
   'audit_central': '/audit',
   'reports': '/reports',
+  'delegations': '/delegations',
   'trash': '/trash',
   'duplicates': '/duplicates',
 };
@@ -108,6 +111,8 @@ export const ADMIN_ROUTES = {
   '/rules': ['super', 'tenant'],
   '/classement': ['super', 'tenant'],
   '/users': ['super', 'tenant'],
+  // Remplacements (L4) : policy « delegations » = tenant_admin (tout) et manager (son service).
+  '/delegations': ['tenant', 'manager'],
 } as const satisfies Record<string, ReadonlyArray<ProfileId>>;
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
@@ -274,6 +279,7 @@ const AppLayout: React.FC = () => {
             <Route path="/local-library" element={<RequireProfile allow={LOCAL_TOOLS_PROFILES} message={LOCAL_TOOLS_DENIED_MESSAGE}><LocalLibraryPage /></RequireProfile>} />
             <Route path="/audit" element={<AuditLogs />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/delegations" element={guarded('/delegations', <DelegationsPage />)} />
             <Route path="/trash" element={<TrashPage />} />
             <Route path="/duplicates" element={<DuplicatesPage />} />
             <Route path="/change-password" element={<ChangePassword />} />

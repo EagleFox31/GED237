@@ -428,6 +428,42 @@ export interface AuditLogEntry {
   ip_address: string | null;
   user_agent: string | null;
   created_at: string;
+  /** Agent absent quand l'action est faite par son intérimaire (délégation L4). */
+  on_behalf_of?: string | null;
+  on_behalf_of_name?: string | null;
+}
+
+// ─── Délégation pendant une absence (L4) ─────────────────────
+
+export type DelegationStatus = 'scheduled' | 'active' | 'ended' | 'revoked';
+
+export interface DelegationUser {
+  id: string;
+  full_name: string;
+}
+
+export interface Delegation {
+  id: string;
+  org_unit_id: string;
+  /** Agent absent. */
+  delegator: DelegationUser;
+  /** Intérimaire. */
+  delegate: DelegationUser;
+  starts_at: string;
+  /** Fin exclue : la délégation s'arrête à cet instant. */
+  ends_at: string;
+  revoked_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  status: DelegationStatus;
+}
+
+export interface DelegationCreate {
+  delegator_id: string;
+  delegate_id: string;
+  /** ISO 8601 avec fuseau (sinon 422). */
+  starts_at: string;
+  ends_at: string;
 }
 
 // ─── Helper utilities ───────────────────────────────────────
