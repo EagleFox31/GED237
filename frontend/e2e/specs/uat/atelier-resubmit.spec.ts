@@ -148,7 +148,9 @@ test.describe('Mon Atelier : document rejeté', () => {
     });
     await page.getByLabel('Valideur').selectOption(VALIDATOR.id);
     const send = dialog.getByRole('button', { name: 'Renvoyer pour validation' });
-    await send.scrollIntoViewIfNeeded();
+    // Bas de fenêtre fixe : l'envoi est visible sans faire défiler, même sur un écran bas.
+    await expect(send).toBeInViewport();
+    await page.setViewportSize({ width: 1366, height: 480 });
     await expect(send).toBeInViewport();
     await send.click();
 

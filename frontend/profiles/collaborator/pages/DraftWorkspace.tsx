@@ -323,14 +323,17 @@ const DraftWorkspace: React.FC = () => {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={submitWorkflow}
-                disabled={submitting || !selectedValidator}
-                className={`w-full py-4 bg-cam-yellow text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-yellow-200 hover:bg-yellow-600 hover:scale-[1.02] transition-all disabled:opacity-70 disabled:hover:scale-100 ${FOCUS_RING}`}
-              >
-                {submitting ? 'Envoi en cours...' : resubmitting ? 'Renvoyer pour validation' : 'Soumettre au visa'}
-              </button>
+              {/* Bas de fenêtre fixe (même modèle que l'envoi de document) : l'envoi reste visible quand le motif est long. */}
+              <div data-testid="resubmit-actions" className="sticky bottom-0 z-10 -mx-6 sm:-mx-10 -mb-6 sm:-mb-10 px-6 sm:px-10 pt-4 pb-6 sm:pb-10 bg-white border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={submitWorkflow}
+                  disabled={submitting || !selectedValidator}
+                  className={`w-full py-4 bg-cam-yellow text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-yellow-200 hover:bg-yellow-600 hover:scale-[1.02] transition-all disabled:opacity-70 disabled:hover:scale-100 ${FOCUS_RING}`}
+                >
+                  {submitting ? 'Envoi en cours...' : resubmitting ? 'Renvoyer pour validation' : 'Soumettre au visa'}
+                </button>
+              </div>
             </div>
         </DialogFrame>
       )}
