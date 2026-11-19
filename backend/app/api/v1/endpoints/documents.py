@@ -1850,7 +1850,7 @@ async def restore_document(
     if not await _can_trash_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at is None:
-        return {"message": "Document deja actif."}
+        return {"message": "Document deja actif.", "identical_document": None}
     # Décision PO : un retrait fait par un autre (un administrateur) ne se défait que par un
     # administrateur (``delete``) ; le propriétaire ne restaure que ce qu'il a retiré lui-même.
     if document.deleted_by not in (None, current_user.id) and not await can_perform(
@@ -1861,15 +1861,52 @@ async def restore_document(
             detail="Retiré par un administrateur. Demandez-lui de le restaurer.",
         )
 
+    identical = await _identical_active_document(db, current_user, document)
     document.deleted_at = None
     document.deleted_by = None
     db.add(
         _audit_document_action(
-            user=current_user, document_id=document.id, action="document_restored"
+            user=current_user,
+            document_id=document.id,
+            action="document_restored",
+            details={"identical_document_id": identical["id"]} if identical else None,
         )
     )
     await db.commit()
-    return {"message": "Document restaure."}
+    # The restore never fails on a duplicate: the screen only warns, the user decides.
+    return {"message": "Document restaure.", "identical_document": identical}
+
+
+async def _identical_active_document(
+    db: AsyncSession, user: User, document: Document
+) -> Optional[dict]:
+    """Oldest active document, within what ``user`` can read, whose current file has the
+    same SHA-256 as ``document``'s current file. ``None`` when the fingerprint is unknown."""
+    if document.current_version_id is None:
+        return None
+    checksum = await db.scalar(
+        select(DocumentVersion.checksum_sha256).where(
+            DocumentVersion.id == document.current_version_id
+        )
+    )
+    if not checksum:
+        return None
+    match = (
+        await db.execute(
+            select(Document.id, Document.title)
+            .join(DocumentVersion, DocumentVersion.id == Document.current_version_id)
+            .where(
+                DocumentVersion.checksum_sha256 == checksum,
+                Document.tenant_id == document.tenant_id,
+                Document.deleted_at.is_(None),
+                Document.id != document.id,
+                *visible_document_scope(user),
+            )
+            .order_by(Document.created_at, Document.id)
+            .limit(1)
+        )
+    ).first()
+    return {"id": str(match.id), "title": match.title} if match else None
 
 
 @router.delete("/{document_id}/purge", status_code=status.HTTP_200_OK)
