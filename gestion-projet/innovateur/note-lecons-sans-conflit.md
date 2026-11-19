@@ -1,6 +1,6 @@
 # Leçons sans conflit de fusion : une leçon par fichier
 
-Demande d'O (19/11) : chaque leçon qui entre dans `main` met en conflit `DOCS/engineering/lessons-learned.md`
+Demande d’O (19/11), **recommandation retenue par O le 19/11** (application après la coupe, PR V1.1 en brouillon portée par I ; garde-fou CI par Q). Chaque leçon qui entre dans `main` met en conflit `DOCS/engineering/lessons-learned.md`
 avec toutes les PR qui ajoutent une leçon (#445, #457 et d'autres pendant la vague V1.1).
 Rien ne s'applique avant la coupe.
 
@@ -29,6 +29,11 @@ Rien ne s'applique avant la coupe.
   `grep -h '^### LESSON' DOCS/engineering/lessons/*.md`.
 - **Réutilisation** : c'est le principe des « fragments » de changelog (towncrier, changesets).
   On adopte le principe, pas l'outil : on n'a pas besoin de compiler les fragments.
+
+## Règle de numérotation (O, 19/11)
+
+- **On réserve un numéro en créant le fichier** `LESSON-AAAA-NNN.md`, avec le plus petit numéro libre sur `main` et dans les PR ouvertes.
+- **Le 4e contrôle de `verif-file.sh` arbitre** : s'il signale un numéro pris deux fois, la PR qui fusionne en second renomme son fichier.
 
 ## Limites et garde-fous
 
