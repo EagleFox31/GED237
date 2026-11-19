@@ -7,6 +7,7 @@ import type { WorkflowDecision } from '../services/resources/workflows.api';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { ViewDocumentButton } from './workflow/ViewDocumentButton';
 import { ApiError } from '../lib/errors';
+import { notifyTasksChanged } from '../lib/taskCount';
 import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { workflowStepStatusLabel } from '../lib/workflowStepStatus';
 import { TaskSubmissionLine } from './workflow/TaskSubmissionLine';
@@ -39,6 +40,7 @@ const WorkflowTasks: React.FC = () => {
     try {
       await api.decideWorkflowStep(task, decision, comment);
       setRejecting(null);
+      notifyTasksChanged();
       await fetchTasks();
     } catch (err) {
       // Les erreurs HTTP sont déjà affichées par le bus global ; reste le cas local (version absente).
