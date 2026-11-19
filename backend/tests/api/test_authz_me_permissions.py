@@ -10,7 +10,8 @@ URL = "/api/v1/authz/me/permissions"
     ("role", "purge", "manage"),
     [
         ("super_admin", True, True),
-        ("tenant_admin", True, False),
+        # Permanent deletion is reserved to the platform administrator (PO, V1.1).
+        ("tenant_admin", False, False),
         ("unit_admin", False, False),
         ("manager", False, False),
         ("collaborator", False, False),

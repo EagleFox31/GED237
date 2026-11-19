@@ -54,6 +54,23 @@ class ProtectedDocumentError(Exception):
     """A signed or archived document is never deleted for good."""
 
 
+async def resolve_trash_tenant(user: Any, tenant_id: Optional[UUID]) -> UUID:
+    """Institution whose trash a route reads or purges.
+
+    Same rule as ``resolve_report_scope``: only a platform administrator
+    (``tenants manage``) may name another institution with ``tenant_id``; for
+    anyone else the parameter is ignored. Without it, everyone stays on their
+    own institution (PLATFORM for a platform administrator, whose trash is
+    empty): no call ever reaches several institutions at once.
+    """
+    # Deferred: the worker imports this module for retention and never needs authz.
+    from app.core.authz import can_perform
+
+    if tenant_id is not None and await can_perform(user, "tenants", "manage"):
+        return tenant_id
+    return user.tenant_id
+
+
 def is_protected(document: Document) -> bool:
     return document.status in PROTECTED_STATUSES or document.archived_at is not None
 

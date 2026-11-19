@@ -17,6 +17,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
     items: [
       { id: 'dashboard', label: 'Tableau de bord', icon: 'dashboard', subItems: ['Vue générale', 'Alertes'] },
       { id: 'needs_review', label: 'Ma bannette', icon: 'inbox', subItems: ['Documents à revoir', 'En attente de ma signature'] },
+      { id: 'tasks', label: 'Tâches & Validations', icon: 'task_alt', subItems: ['Documents à valider ou rejeter'] },
       { id: 'pending_assignments', label: 'À distribuer', icon: 'assignment_ind', subItems: ['Documents sans destinataire'] },
     ]
   },
@@ -26,6 +27,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
       { id: 'org', label: 'Structure hiérarchique', icon: 'corporate_fare', subItems: ['Organigramme', 'Annuaire des services'] },
       { id: 'spaces', label: 'Explorateur documentaire', icon: 'folder_managed', subItems: ['Par service', 'Archives'] },
       { id: 'trash', label: 'Corbeille', icon: 'delete', subItems: ['Documents supprimés'] },
+      { id: 'duplicates', label: 'Doublons', icon: 'content_copy', subItems: ['Fichiers en double'] },
       { id: 'users', label: 'Agents & Rôles', icon: 'group', subItems: ['Liste des agents', 'Rôles & permissions', 'Groupes'] },
     ]
   },

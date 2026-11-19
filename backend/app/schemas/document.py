@@ -70,6 +70,11 @@ class DocumentRead(DocumentBase):
     updated_at: datetime
     owner_name: Optional[str] = None
     current_version_number: Optional[str] = None
+    # Corbeille : qui a retiré le document (restauration réservée à l'admin si ce n'est pas soi).
+    deleted_by: Optional[UUID] = None
+    # Detail only (GET /documents/{id}): comment of the last rejected or
+    # returned workflow step, so the author knows what to fix.
+    last_rejection_reason: Optional[str] = None
 
     class Config:
         from_attributes = True

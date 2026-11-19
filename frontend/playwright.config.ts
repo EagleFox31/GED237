@@ -32,18 +32,21 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/tenant_admin.storage.json',
       },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/, /demo-counters\.spec\.ts/],
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/, /demo-counters\.spec\.ts/],
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/],
+      // demo-counters appartient au projet `demo` (pile réinitialisée avec le jeu de démo).
+      testIgnore: [/auth\.setup\.ts/, /specs[\\/](uat|post-rc1)[\\/]/, /demo-counters\.spec\.ts/],
     },
     {
       name: 'authed-chromium',
@@ -87,9 +90,9 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      // Specs that change tenant-wide state (« Vider » purges the whole trash): alone, after seed and uat,
-      // so no other test sees the trash emptied. Not after `demo`: it needs the demo profile, absent from the nightly.
-      // Never on a demo stack (it would purge the demo trash for good): the spec skips itself when the e2e seed is absent.
+      // Specs around tenant-wide state (« Vider » acts on the whole trash; reserved to super_admin, so the spec
+      // checks the refusal): alone, after seed and uat, so a right granted by mistake would empty no other test's
+      // data. Not after `demo`: it needs the demo profile, absent from the nightly.
       name: 'uat-destructive',
       testMatch: /specs[\\/]uat[\\/]trash-empty\.spec\.ts/,
       fullyParallel: false,
