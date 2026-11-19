@@ -133,42 +133,48 @@ class OCRStrategy:
     def process_pdf_with_engine(self, pdf_path: str) -> tuple[str, float, str]:
         """Same as process_pdf, also naming the engine(s) that produced the text."""
         try:
-            # Try native text extraction first (fast).
-            text = ""
+            # Native text extraction first (fast), page by page: a PDF can mix text
+            # pages and scanned pages.
+            native: list[str] = []
             with open(pdf_path, "rb") as file:
                 reader = PdfReader(file)
                 for page in reader.pages:
-                    extracted = page.extract_text()
-                    if extracted:
-                        text += extracted + "\n"
+                    native.append((page.extract_text() or "").strip())
 
-            if text.strip():
+            missing = [n for n, t in enumerate(native) if not t]
+            if native and not missing:
                 print("PDF: Native text extraction successful")
-                return text, 0.95, NATIVE_PDF_ENGINE
+                return "\n".join(native) + "\n", 0.95, NATIVE_PDF_ENGINE
 
-            # No native text: render pages and OCR them.
-            print("PDF: No native text found. Running OCR on scanned pages.")
+            # Pages without native text: render and OCR them (all pages if none has text).
+            print("PDF: Running OCR on pages without native text.")
             pages = convert_from_path(pdf_path, dpi=200)
-            extracted_pages: list[str] = []
-            confidences: list[float] = []
-            engines: list[str] = []
+            if not native:
+                native = [""] * len(pages)
+                missing = list(range(len(pages)))
+            texts = list(native)
+            confidences = [0.95 for t in native if t]
+            engines: list[str] = [NATIVE_PDF_ENGINE] if any(native) else []
 
-            for page_number, page_image in enumerate(pages, start=1):
-                result = self.tesseract.extract_from_pil_image(page_image)
+            for index in missing:
+                if index >= len(pages):
+                    continue
+                result = self.tesseract.extract_from_pil_image(pages[index])
 
                 if self._should_use_fallback(result, self.easyocr):
-                    fallback_result = self.easyocr.extract_from_pil_image(page_image)
+                    fallback_result = self.easyocr.extract_from_pil_image(pages[index])
                     if self._prefer_fallback(result, fallback_result):
                         result = fallback_result
 
                 if result.text.strip():
-                    extracted_pages.append(result.text.strip())
+                    texts[index] = result.text.strip()
                     confidences.append(result.confidence)
                     if result.engine_used not in engines:
                         engines.append(result.engine_used)
                 else:
-                    print(f"PDF: No OCR text extracted from page {page_number}")
+                    print(f"PDF: No OCR text extracted from page {index + 1}")
 
+            extracted_pages = [t for t in texts if t]
             if not extracted_pages:
                 return "", 0.0, "none"
 

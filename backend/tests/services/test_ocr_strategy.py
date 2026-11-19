@@ -33,6 +33,15 @@ def _result(text: str, confidence: float, engine: str = "fake") -> OCRResult:
     )
 
 
+class _NoFallback:
+    """Heavy fallback present but silent, as when OCR_FALLBACK_ENABLED is off."""
+
+    name = "easyocr"
+
+    def extract_from_pil_image(self, _image):
+        return _result("", 0.0, "easyocr")
+
+
 def test_fallback_is_used_when_primary_result_is_empty(monkeypatch):
     strategy = OCRStrategy.__new__(OCRStrategy)
     primary = FakeEngine(_result("", 0.0, "primary"))
@@ -293,15 +302,6 @@ def _pdf_strategy(monkeypatch, pages, tesseract_result):
             return tesseract_result
 
     strategy.tesseract = _Tesseract()
-
-    class _NoFallback:
-        """Heavy fallback present but silent, as when OCR_FALLBACK_ENABLED is off."""
-
-        name = "easyocr"
-
-        def extract_from_pil_image(self, _image):
-            return _result("", 0.0, "easyocr")
-
     strategy.easyocr = _NoFallback()
 
     class _Page:
@@ -354,3 +354,78 @@ def test_pdf_without_any_text_reports_no_engine(monkeypatch, tmp_path):
     pdf.write_bytes(b"%PDF-1.4")
 
     assert strategy.process_pdf_with_engine(str(pdf)) == ("", 0.0, "none")
+
+
+def _mixed_pdf(path):
+    """2-page PDF built here: page 1 has native text, page 2 is an image only."""
+    import io
+
+    from pypdf import PdfReader as RealReader
+    from pypdf import PdfWriter
+
+    stream = b"BT /F1 24 Tf 72 700 Td (Page texte natif) Tj ET"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length "
+        + str(len(stream)).encode()
+        + b" >>\nstream\n"
+        + stream
+        + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    body = b"%PDF-1.4\n"
+    offsets = []
+    for number, obj in enumerate(objects, start=1):
+        offsets.append(len(body))
+        body += f"{number} 0 obj\n".encode() + obj + b"\nendobj\n"
+    xref = len(body)
+    body += f"xref\n0 {len(objects) + 1}\n".encode() + b"0000000000 65535 f \n"
+    for offset in offsets:
+        body += f"{offset:010d} 00000 n \n".encode()
+    body += (
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+        f"startxref\n{xref}\n%%EOF\n"
+    ).encode()
+
+    image_pdf = io.BytesIO()
+    Image.new("RGB", (200, 200), "white").save(image_pdf, format="PDF")
+    image_pdf.seek(0)
+
+    writer = PdfWriter()
+    writer.append(RealReader(io.BytesIO(body)))
+    writer.append(RealReader(image_pdf))
+    with open(path, "wb") as out:
+        writer.write(out)
+
+
+def test_mixed_pdf_keeps_native_page_and_ocrs_the_image_only_page(
+    monkeypatch, tmp_path
+):
+    pdf = tmp_path / "mixed.pdf"
+    _mixed_pdf(pdf)
+
+    strategy = OCRStrategy.__new__(OCRStrategy)
+    ocr_calls = []
+
+    class _Tesseract:
+        def extract_from_pil_image(self, _image):
+            ocr_calls.append(1)
+            return _result("Page scannée", 0.8, "Tesseract")
+
+    strategy.tesseract = _Tesseract()
+    strategy.easyocr = _NoFallback()
+    monkeypatch.setattr(
+        "app.services.ocr.strategy.convert_from_path",
+        lambda *_a, **_k: [Image.new("RGB", (10, 10)), Image.new("RGB", (10, 10))],
+    )
+
+    text, confidence, engine = strategy.process_pdf_with_engine(str(pdf))
+
+    assert "Page texte natif" in text and "Page scannée" in text
+    assert text.index("Page texte natif") < text.index("Page scannée")
+    assert len(ocr_calls) == 1  # only the image-only page is OCRed
+    assert engine == "pypdf (native) + Tesseract"
+    assert confidence == pytest.approx((0.95 + 0.8) / 2)
