@@ -612,6 +612,20 @@ première requête utilisateur.
 **Prévention** — Tests de non-régression en POST et en PATCH : tenant_admin vers super_admin refusé (sur lui-même et sur un agent), rôle inférieur et super_admin autorisés.
 **Leçon généralisée** — Un droit d'écriture sur une ressource ne couvre pas les champs qui portent eux-mêmes un privilège (rôle, institution, rattachement). Chaque champ de ce type a son contrôle de valeur et son test de refus.
 
+### LESSON-2026-045 — Verrou avec `populate_existing` : le propriétaire ne pouvait plus restaurer
+
+- **Date :** 2026-11-17
+- **Catégorie :** backend / testing
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_get_document_or_404`), `backend/tests/api/test_trash_purge.py` (`owner_client`)
+
+**Contexte** — #152 verrouille le document (`FOR UPDATE`) avant restauration ou purge, pour voir une purge concurrente.
+**Échec / near miss** — Recette : POST /documents/{id}/restore répondait 500 `MissingGreenlet` quand l'appelant était le propriétaire.
+**Cause racine** — Le verrou était posé sur la lecture complète avec `populate_existing=True`. Le chargement de `Document.owner` réécrivait alors le `current_user` de la même session et déchargeait `User.role` ; le contrôle de droits le relisait hors greenlet. Les tests ne l'ont pas vu : leur utilisateur est un faux objet hors session.
+**Résolution** — Verrou dans une requête à part, sur l'id seul ; puis lecture normale sans `populate_existing`.
+**Prévention** — `owner_client` lit l'appelant dans la session de la requête, comme en production ; le propriétaire restaure et purge son document. Le test échoue sur l'ancien code.
+**Leçon généralisée** — `populate_existing` réécrit tout objet déjà dans la session, y compris l'utilisateur courant. Verrouiller sur une requête minimale, et tester au moins un chemin avec un appelant réel tiré de la session de la requête.
+
 ### LESSON-2026-046 — Données e2e partagées consommées par une spec : la suite dépendait de l'ordre de lancement
 
 - **Date :** 2026-11-17
@@ -882,6 +896,34 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Les specs purs vivent dans `frontend/e2e/unit/` ; la config pointe `testDir` sur ce dossier, sans `testMatch`. Liste des tests exécutés identique avant/après (nombre et noms, preuve dans la PR).
 **Prévention** — Ajouter un spec pur = le créer dans `e2e/unit/`, sans toucher la config (commentaire en tête du fichier).
 **Leçon généralisée** — Une liste que chaque contributeur allonge ne doit pas tenir sur une ligne partagée : préférer une convention (dossier, suffixe) à un registre.
+
+### LESSON-2026-067 — Rendu React dans `e2e/unit` : le runner Playwright transforme le JSX, 2 tests rouges sur main
+
+- **Date :** 2026-11-19
+- **Catégorie :** testing
+- **Statut :** resolved (garde-fou `frontend/e2e/unit/unit-folder-guard.spec.ts`)
+- **Liens :** 2d20a028, `frontend/e2e/unit/search-highlight.spec.ts`, `frontend/e2e/specs/uat/search-excerpt.spec.ts`, LESSON-2026-066
+
+**Contexte** — 2d20a028 a ajouté dans `e2e/unit/search-highlight.spec.ts` deux tests qui rendaient `HighlightedExcerpt` avec `renderToStaticMarkup`.
+**Échec / near miss** — Les deux tests échouent sur main : le runner Playwright transforme le JSX des `.tsx` importés en objets `{__pw_type:'jsx'}` (format des tests de composants), que `react-dom/server` ne sait pas rendre.
+**Cause racine** — `e2e/unit` est exécuté par le runner Playwright, pas par un outil de rendu React : seul du code TypeScript pur y fonctionne.
+**Résolution** — `e2e/unit` garde les tests des fonctions pures (`parseHighlight`, `hasHighlightMatch`). Le rendu (HTML échappé, extrait sans mot trouvé, marqueur douteux) est vérifié dans le navigateur par `e2e/specs/uat/search-excerpt.spec.ts`, avec une réponse de `GET /search` simulée. Le composant n'est pas modifié.
+**Prévention** — `e2e/unit/unit-folder-guard.spec.ts` (exécuté par `npm run test:unit`) échoue si un spec de `e2e/unit` importe `react-dom` ou un module `.tsx`. Un second test vérifie que le garde-fou repère bien ces imports.
+**Leçon généralisée** — Un dossier de tests « purs » n'est pur que si un contrôle automatique le garantit : une convention seule ne suffit pas.
+
+### LESSON-2026-068 — Heredoc non protégé : une commande citée dans une note de passation a été exécutée (push involontaire)
+
+- **Date :** 2026-11-19
+- **Catégorie :** process / git
+- **Statut :** resolved (règle de session : heredoc toujours protégé)
+- **Liens :** PR #184 (`feat/post-rc1-undo-ui`, bb1de95d puis 3f5ae410), `PASSATION-dev-frontend.md`
+
+**Contexte** — Une entrée de `PASSATION-dev-frontend.md` est ajoutée par `cat >> fichier <<EOF … EOF` pour y insérer l'heure réelle. Le texte décrit l'étape suivante : « commit, puis `git push origin wip-184:feat/post-rc1-undo-ui` ».
+**Échec / near miss** — Avec un délimiteur non protégé, bash exécute les substitutions du texte. La commande entre accents graves a été lancée à 08:09:37 : `feat/post-rc1-undo-ui` (PR #184, brouillon) a été poussée avec 2 tests e2e encore rouges, et la note a gardé un trou à la place de la commande. Corrigé 3 minutes plus tard (3f5ae410, sans force). Ni main ni une PR en file n'ont été touchées.
+**Cause racine** — `<<EOF` interprète `` `…` ``, `$(…)` et `$VAR` ; la mise en forme Markdown d'une commande (accents graves) devient une exécution.
+**Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
+**Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
+**Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
 
 ### LESSON-2026-070 — Identifiant de révision Alembic choisi à la main : cycle dans le graphe
 
