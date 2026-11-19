@@ -70,6 +70,7 @@ export const gedrulesApi = {
         document_category_id: string;
         org_unit_id: string | null;
         owner_id?: string | null;
+        include_inactive?: boolean;
     }): Promise<any> =>
         apiCall<any>(
             '/gedrules/simulate',
