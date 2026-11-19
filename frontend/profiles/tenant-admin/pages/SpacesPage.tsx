@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
 import type { Document } from '../../../types';
@@ -10,7 +10,7 @@ import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { useAuthStore } from '../../../stores/authStore';
 import { canArchiveDocument } from '../../../lib/documentArchive';
-import { isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
+import { clampToViewport, isArrowKey, isEditableTarget, nextFocusIndex } from './explorerKeys';
 
 interface UserNode {
   id: string;
@@ -144,7 +144,9 @@ const SpacesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recursive, setRecursive] = useState(false);
+  // Coché par défaut : un service de tête (Cabinet) n'a souvent aucun document
+  // en propre, la page s'ouvrirait sur « 0 document ».
+  const [recursive, setRecursive] = useState(true);
   // La recherche par texte est portée par l'URL (`?q=`) — la barre de
   // recherche globale (Header) écrit dedans.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -358,6 +360,20 @@ const SpacesPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUnitId, recursive, debouncedQuery, domainFilter, activityFilter, yearFilter, classificationFilter, statusFilter, page]);
 
+  // Mesuré avant l'affichage : un menu ouvert près du bas de l'écran remonte au lieu de déborder.
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!contextMenu || !menu) {
+      setMenuPosition(null);
+      return;
+    }
+    const { width, height } = menu.getBoundingClientRect();
+    setMenuPosition(
+      clampToViewport({ x: contextMenu.x, y: contextMenu.y }, { width, height }, { width: window.innerWidth, height: window.innerHeight })
+    );
+  }, [contextMenu]);
+
   useEffect(() => {
     if (!contextMenu) {
       return;
@@ -404,7 +420,8 @@ const SpacesPage: React.FC = () => {
     // En mode recherche : on lève la contrainte de portée (le tenant entier
     // visible) — l'utilisateur veut voir tous les matches, pas seulement
     // ceux strictement rattachés au service courant.
-    if (isSearchMode) return filteredDocuments;
+    // Sous-services inclus : la case demande justement leurs documents.
+    if (isSearchMode || recursive) return filteredDocuments;
     if (!selectedUnitId) {
       return filteredDocuments;
     }
@@ -417,7 +434,7 @@ const SpacesPage: React.FC = () => {
       const targetOrgUnitId = doc.classification_target_org_unit_id || doc.org_unit_id;
       return targetOrgUnitId === selectedUnitId;
     });
-  }, [childUnits.length, filteredDocuments, isSearchMode, selectedUnitId]);
+  }, [childUnits.length, filteredDocuments, isSearchMode, recursive, selectedUnitId]);
 
   const hiddenDescendantDocumentsCount = Math.max(
     filteredDocuments.length - visibleDocuments.length,
@@ -590,6 +607,16 @@ const SpacesPage: React.FC = () => {
       y: event.clientY,
       document,
     });
+  };
+
+  const handleTrash = async (doc: Document) => {
+    setContextMenu(null);
+    try {
+      await api.deleteDocument(doc.id);
+      loadDocuments();
+    } catch {
+      /* message déjà affiché par le bus global */
+    }
   };
 
   const handleCopyPath = async (path: string) => {
@@ -1147,9 +1174,10 @@ const SpacesPage: React.FC = () => {
         <div
           ref={menuRef}
           role="menu"
+          tabIndex={-1}
           aria-label="Actions"
           className="fixed z-50 min-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={menuPosition ?? { top: contextMenu.y, left: contextMenu.x }}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
@@ -1167,14 +1195,14 @@ const SpacesPage: React.FC = () => {
           {contextMenu.kind === 'document' && (
             <>
               <button type="button" role="menuitem" onClick={() => openPreview(contextMenu.document)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">preview</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">preview</span>
                 Ouvrir
               </button>
               {(!contextMenu.document.classification_status
                 || contextMenu.document.classification_status === 'pending'
                 || contextMenu.document.classification_status === 'needs_review') && (
                 <button type="button" role="menuitem" onClick={() => openClassification(contextMenu.document)} className={MENU_ITEM}>
-                  <span className="material-symbols-outlined text-base text-slate-400">rule</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">rule</span>
                   Classer
                 </button>
               )}
@@ -1184,19 +1212,28 @@ const SpacesPage: React.FC = () => {
                 onClick={() => handleCopyPath(contextMenu.document.logical_space_path || '')}
                 className={MENU_ITEM}
               >
-                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin logique
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleTrash(contextMenu.document)}
+                className={MENU_ITEM}
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">delete</span>
+                Mettre à la corbeille
               </button>
             </>
           )}
           {contextMenu.kind === 'folder' && (
             <>
               <button type="button" role="menuitem" onClick={() => openFolder(contextMenu.unitId)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">folder_open</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">folder_open</span>
                 Ouvrir
               </button>
               <button type="button" role="menuitem" onClick={() => handleCopyPath(contextMenu.path)} className={MENU_ITEM}>
-                <span className="material-symbols-outlined text-base text-slate-400">content_copy</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">content_copy</span>
                 Copier le chemin
               </button>
             </>
@@ -1211,7 +1248,7 @@ const SpacesPage: React.FC = () => {
               }}
               className={MENU_ITEM}
             >
-              <span className="material-symbols-outlined text-base text-slate-400">refresh</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-slate-400">refresh</span>
               Actualiser
             </button>
           )}
