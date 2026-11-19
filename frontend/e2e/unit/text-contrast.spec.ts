@@ -81,3 +81,17 @@ test('no slate-300/400 text and no -600 badge left in these screens', () => {
     });
   }
 });
+
+test('no opacity on a line that carries text (it lowers the real contrast)', () => {
+  // Limit of this spec: it reads class strings only. A parent's opacity on another line, or a
+  // hover: state, is not seen; disabled: states are exempt from WCAG contrast.
+  for (const file of FILES) {
+    const source = readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), 'utf8');
+    source.split('\n').forEach((line, index) => {
+      if (/<svg|material-symbols|Icons\./.test(line)) return;
+      if (!/\btext-(slate|white|blue|red|green|yellow|amber)/.test(line)) return;
+      const withoutDisabled = line.replace(/disabled:opacity-\d+/g, '');
+      expect(withoutDisabled, `${file}:${index + 1}`).not.toMatch(/(^|[\s"'`])opacity-\d+\b/);
+    });
+  }
+});

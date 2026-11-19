@@ -255,7 +255,7 @@ const Documents: React.FC = () => {
 
       {/* Audit Footnote */}
       {docs.length > 0 && (
-        <div className="flex items-center justify-center gap-4 py-8 opacity-40">
+        <div className="flex items-center justify-center gap-4 py-8">
           <div className="h-px w-20 bg-slate-300"></div>
           <span className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-500">
             {docs.length >= DOCUMENTS_LIMIT
