@@ -49,13 +49,65 @@ Une page pour O. Relevé `gh` du 19/11 vers 16:35, à partir de `file-v1.1.md` (
   - **#502** (base : branche de #438) est re-ciblée avant TR-06.
 - **Avant TR-01** : #403. **TR-02** : #405. **TR-03 bis** : #238, puis #503 (base : branche de #238). **TR-04** : #267, #268, puis #468 et #449 (base #435).
 - **Avant TR-05** : #448, puis #454 ; #438 et #445 (base #429). **TR-06** : #466, #444, #455, #502.
-- **Dès maintenant** : #184 et #301, dont la base (`feat/post-rc1-trash-ui`, #181) est déjà fusionnée. Re-ciblage seul, sans fusion, donc compatible avec le gel (carte des piles d'aide-api, 19/11).
+- **Fait par O (19/11)** : #184 et #301, dont la base `feat/post-rc1-trash-ui` (#181) était déjà fusionnée, sont re-ciblées sur `main`. #301 est en conflit ; aide-api le résout.
 - **Avant TR-09** : #462 ; #262 ; #310 (base #262) ; #302 (base #301). **TR-10** : #311, #386, puis #387.
 - **Avant TR-12** : #457, #456, puis #463. **TR-13** : #213, puis #261, #263, #221 ; #308, plus #315 (V1.2, OK final de Q sur 9f322eaa) avant #263.
 - **Avant TR-16** : #209 (base #180). **TR-17** : #212, #219. **TR-18** : #205.
 - **Avant TR-19** : #293, #295, plus #313 et #343 (V1.2). **TR-20** : #303, plus #333 et #352 (V1.2). **TR-21** : #504 (base : branche de #329), re-ciblée sur `main` avant la fusion de #329 ; #401, fusionnée après #407. **TR-24** : #446.
 - **Hors tableau** : #429 remise en brouillon par O (19/11). Les avis du PO du § 4 de la file (capacités post-rc1) restent requis avant leur train.
 - **Contrôle croisé avec la carte des piles d'aide-api (19/11, 17:10)** : ses « absentes » sont bien placées. #184 et #301 sont dans TR-09 (numéros écrits sans #). #450 est hors file (DEC-2026-013). #194, #306, #320 et #322 sont en V1.2 (étiquette ou branche `feat/v12-*`), exclues par règle. Les piles à 3 niveaux (#308, #315, #463, #313) suivent l'ordre de re-ciblage ci-dessus, du bas de la pile vers le haut.
+
+## Re-ciblage base par base (carte des piles d'aide-api, 19/11, 17:10)
+
+Règle : avant de fusionner une base, O passe ses filles sur `main`. Ensuite, chaque fille fusionne `main` et passe une CI de PR complète. Selon la carte, 53 PR empilées sur 56 n'ont encore jamais eu de CI de PR.
+
+**#429 (TR-05) et ses 9 descendantes, du bas vers le haut :**
+1. Avant la fusion de #429 : re-cibler #438 et #445.
+2. Avant la fusion de #438 : re-cibler #444, #455, #466 et #502.
+3. Avant la fusion de #445 : re-cibler #456 et #457.
+4. Avant la fusion de #457 : re-cibler #463.
+
+| Base (train) | Filles à re-cibler avant sa fusion |
+|---|---|
+| #389 (TR-01) | #403 |
+| #394 (TR-02) | #405 |
+| #235 (TR-03 bis) | #238 ; puis, avant #238 : #503 |
+| #248 (TR-04) | #267, #268 |
+| #435 (TR-04) | #449, #468 |
+| #437 (TR-05) | #448 ; puis, avant #448 : #454 |
+| #184 (TR-09) | #462 |
+| #179 (TR-09) | #262 ; puis, avant #262 : #310 |
+| #301 (TR-09) | #302 |
+| #284 (TR-10) | #311 |
+| #384 (TR-10) | #386 ; puis, avant #386 : #387 |
+| #241 (TR-13) | #213 ; puis, avant #213 : #221, #261, #263 ; puis, avant #263 : #308 et #315 (V1.2) |
+| #155 (TR-15) | #471 |
+| #180 (TR-16) | #209 |
+| #154 (TR-17) | #212 |
+| #193 (TR-17) | #219 |
+| #165 (TR-18) | #205 |
+| #283 (TR-19) | #293 ; puis, avant #293 : #295 ; puis, avant #295 : #313 (V1.2) |
+| #285 (TR-19) | #343 (V1.2) |
+| #294 (TR-20) | #303 ; puis, avant #303 : #352 (V1.2) |
+| #297 (TR-20) | #333 (V1.2) |
+| #298 (TR-20) | #322 (V1.2) |
+| #329 (TR-21) | #504 |
+| #407 (TR-21) | #401 |
+| #416 (TR-24) | #446 |
+| #441 (ce soir, DEC-2026-013) | #450, #484 |
+| #433 (TR-04) | #475 (hors file) |
+| #183 (hors trains) | #194 (V1.2) |
+| #304 (V1.2) | #320 (V1.2) |
+| #305 (V1.2) | #306 (V1.2) |
+
+**Piles à 3 niveaux**, dans l'ordre de fusion :
+- `main` ← #241 ← #213 ← #263 ← #308, et ← #315 ;
+- `main` ← #283 ← #293 ← #295 ← #313 ;
+- `main` ← #429 ← #445 ← #457 ← #463.
+
+**#184 et #301 sont déjà re-ciblées sur `main`** (O, 19/11). #301 est en conflit : aide-api le résout.
+
+**#194, #306, #320 et #322 sont en V1.2** (étiquette `v1.2` ou branche `feat/v12-*`), comme leurs bases #304 et #305. Elles ne sont donc dans aucun train V1.1. Leur seule contrainte V1.1 : #322 est re-ciblée avant TR-20, à la fusion de #298. Les mettre dans un train demande une décision du PO.
 
 ## PR sans relecture ni preuve de Q à ce jour (lecture automatique, à confirmer par Q)
 
