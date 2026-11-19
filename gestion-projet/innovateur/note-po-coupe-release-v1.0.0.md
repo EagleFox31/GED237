@@ -26,6 +26,7 @@ Préparée par l'innovateur le 19/11 à partir de `couverture-95-19-11.md`, de D
   - Installation livrée (1 processus api, concurrence 2) : 30 min 28, critère non tenu.
   - Réglage musclé (2 processus api, concurrence 4, 7,5 cœurs, machine de 8 cœurs et 12 Go) : **18 min 41**, critère tenu avec 6 % de marge, 0 perte, 0 erreur, recherche de 29 à 174 ms.
   - L'item ne compte donc **que si** le PO accepte que ce réglage devienne celui de la 1.0 **et** que la PR « capacité » d'aide-api est fusionnée avant la coupe. Sinon il reste à 0, sans effet sur la coupe.
+  - **Décision du PO (19/11, vers 13:45, DEC-2026-012)** : le réglage puissant devient celui de la 1.0, avec 8 cœurs et 12 Go minimum écrits dans `DOCS/exploitation/installation.md`. Essai de confirmation à 16:00 avec le compose de la PR capacité ; PR fusionnée avant 17:30, sinon l'item 8 n'est pas compté. La coupe n'attend pas l'item 8.
 - **Items 28 et 31 prouvés sur une seule machine** : le lab de Q (Docker dans Docker, images de `main`). Le PO l'a accepté le 19/11 ; il n'y a pas de deuxième machine avant le 25/11.
 - **Item 24, interface responsive** : noté `fait` par déduction (rapport mobile vert non retrouvé).
 - **Lab à plusieurs postes** (W2 ce soir à 18:30) : ne rapporte aucun point. Il renforce les preuves des items 16, 27 et 28.
