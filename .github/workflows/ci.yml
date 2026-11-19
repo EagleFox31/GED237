@@ -40,7 +40,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      checks: read
+      actions: read
     outputs:
       skip: ${{ steps.decide.outputs.skip }}
       reason: ${{ steps.decide.outputs.reason }}
@@ -186,6 +186,9 @@ jobs:
               echo ""
               echo "Reason: $reason"
             } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ "$(echo "$NEEDS" | jq -r '.reuse.outputs.skip // ""')" == "false" ]]; then
+            echo "### Full run: $(echo "$NEEDS" | jq -r '.reuse.outputs.reason')" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           # Skipped means its gate was not required by this change; anything else but success fails.

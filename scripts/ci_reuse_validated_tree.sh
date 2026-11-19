@@ -6,15 +6,17 @@
 #   - the pushed commit is the merge commit of exactly one merged pull request;
 #   - that commit has the same git tree as the head commit that was merged
 #     (same content: nothing was added by the merge itself);
-#   - "CI Gate" concluded success on that head commit, reported by GitHub Actions.
+#   - the latest run of the CI workflow (pull_request event) on that head concluded success and its
+#     "CI Gate" job succeeded.
 # Any API error, missing value or doubt ends in skip=false (fail closed).
 #
 # Env: GITHUB_REPOSITORY, GITHUB_SHA, GITHUB_EVENT_NAME, GITHUB_REF, GH_TOKEN (read-only),
-#      GITHUB_OUTPUT (optional), REUSE_GATE_NAME (default "CI Gate").
+#      GITHUB_OUTPUT (optional), REUSE_GATE_NAME (default "CI Gate"), REUSE_WORKFLOW_PATH (default .github/workflows/ci.yml).
 # Needs: git, gh, jq.
 set -u
 
 GATE_NAME="${REUSE_GATE_NAME:-CI Gate}"
+WORKFLOW_PATH="${REUSE_WORKFLOW_PATH:-.github/workflows/ci.yml}"
 OUT="${GITHUB_OUTPUT:-/dev/stdout}"
 
 emit() { # $1 = true|false, $2 = reason
@@ -44,10 +46,18 @@ head_tree=$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${head}" --jq '.tree.
 [ -n "$head_tree" ] || full "no head tree"
 [ "$head_tree" = "$tree" ] || full "tree differs from the merged head"
 
-green=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${head}/check-runs?per_page=100" 2>/dev/null \
-  | jq --arg name "$GATE_NAME" \
-    '[.check_runs[] | select(.name == $name and .conclusion == "success" and .app.slug == "github-actions")] | length' 2>/dev/null) \
-  || full "check runs lookup failed"
-[ "${green:-0}" -ge 1 ] 2>/dev/null || full "\"${GATE_NAME}\" not green on the merged head"
+# The check must come from the CI workflow itself (another workflow could name a job "CI Gate"),
+# and only its LATEST run on that head counts (a green run followed by a red re-run is red).
+runs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${head}&event=pull_request&per_page=100" 2>/dev/null) \
+  || full "workflow runs lookup failed"
+run_id=$(echo "$runs" | jq -r --arg p "$WORKFLOW_PATH" --arg h "$head" \
+  '[.workflow_runs[] | select(.path == $p and .head_sha == $h)] | sort_by(.run_number) | last | select(. != null and .conclusion == "success") | .id' 2>/dev/null) \
+  || full "unreadable workflow runs"
+[ -n "$run_id" ] || full "latest ${WORKFLOW_PATH} run on the merged head is missing or not green"
+
+green=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" 2>/dev/null \
+  | jq --arg name "$GATE_NAME" '[.jobs[] | select(.name == $name and .conclusion == "success")] | length' 2>/dev/null) \
+  || full "jobs lookup failed"
+[ "${green:-0}" -ge 1 ] 2>/dev/null || full "\"${GATE_NAME}\" not green in the latest run on the merged head"
 
 emit true "same tree ${tree:0:12} as merged head ${head:0:12}, ${GATE_NAME} green"

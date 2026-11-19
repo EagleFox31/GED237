@@ -26,17 +26,24 @@ url=""; for a in "$@"; do case "$a" in repos/*) url="$a" ;; esac; done
 case "$url" in
   */pulls) cat "$FIX/pulls" ;;
   */git/commits/*) cat "$FIX/head_tree" ;;
-  */check-runs*) cat "$FIX/checks" ;;
+  */actions/runs/*/jobs*) cat "$FIX/jobs" ;;
+  */actions/runs?*) cat "$FIX/runs" ;;
   *) exit 1 ;;
 esac
 FAKE
 chmod +x "$T/bin/gh"
 
+run_json() { # id run_number conclusion [path] [head]
+  echo "{\"id\":$1,\"run_number\":$2,\"conclusion\":\"$3\",\"path\":\"${4:-.github/workflows/ci.yml}\",\"head_sha\":\"${5:-$HEAD_SHA}\"}"
+}
+runs() { echo "{\"workflow_runs\":[$(run_json "$@")]}" >"$T/fix/runs"; }
+jobs() { echo "{\"jobs\":[{\"name\":\"$1\",\"conclusion\":\"$2\"}]}" >"$T/fix/jobs"; }
+
 setup() { # green case
   rm -f "$T/fix/fail"
   echo "[{\"merged_at\":\"2026-11-19T10:00:00Z\",\"merge_commit_sha\":\"$MERGE_SHA\",\"head\":{\"sha\":\"$HEAD_SHA\"}}]" >"$T/fix/pulls"
   echo "$TREE" >"$T/fix/head_tree"
-  echo '{"check_runs":[{"name":"CI Gate","conclusion":"success","app":{"slug":"github-actions"}}]}' >"$T/fix/checks"
+  runs 7 5 success; jobs "CI Gate" success
   EVENT=push; REF=refs/heads/main
 }
 run() { # prints the skip value
@@ -55,12 +62,19 @@ setup; REF=refs/heads/develop; expect false "other branch"
 setup; echo '[]' >"$T/fix/pulls"; expect false "direct push (no pull request)"
 setup; sed -i 's/"merged_at":"[^"]*"/"merged_at":null/' "$T/fix/pulls"; expect false "pull request not merged"
 setup; echo "0000000000000000000000000000000000000000" >"$T/fix/head_tree"; expect false "tree differs"
-setup; echo '{"check_runs":[{"name":"CI Gate","conclusion":"failure","app":{"slug":"github-actions"}}]}' >"$T/fix/checks"; expect false "gate red"
-setup; echo '{"check_runs":[{"name":"CI Gate","conclusion":"success","app":{"slug":"someone-else"}}]}' >"$T/fix/checks"; expect false "gate from another app"
-setup; echo '{"check_runs":[]}' >"$T/fix/checks"; expect false "no gate at all"
 setup; echo "[{\"merged_at\":\"x\",\"merge_commit_sha\":\"$MERGE_SHA\",\"head\":{\"sha\":\"$MERGE_SHA\"}}]" >"$T/fix/pulls"; expect false "head is the pushed commit"
+setup; jobs "CI Gate" failure; expect false "gate job red"
+setup; jobs "Other" success; expect false "no CI Gate job in the run"
+setup; runs 7 5 failure; expect false "latest run red"
+setup; runs 7 5 success .github/workflows/other.yml; expect false "green run from another workflow"
+setup; runs 7 5 success .github/workflows/ci.yml 0000000000000000000000000000000000000000; expect false "run of another commit"
+setup; echo "{\"workflow_runs\":[$(run_json 7 5 success),$(run_json 8 6 failure)]}" >"$T/fix/runs"; expect false "green then red re-run: latest wins"
+setup; echo "{\"workflow_runs\":[$(run_json 8 6 failure),$(run_json 7 5 success)]}" >"$T/fix/runs"; expect false "order in the answer does not matter"
+setup; echo "{\"workflow_runs\":[$(run_json 7 5 failure),$(run_json 8 6 success)]}" >"$T/fix/runs"; expect true "red then green re-run: latest wins"
+setup; echo '{"workflow_runs":[]}' >"$T/fix/runs"; expect false "no run at all"
+setup; echo "not json" >"$T/fix/runs"; expect false "unreadable runs"
+setup; echo "not json" >"$T/fix/jobs"; expect false "unreadable jobs"
 setup; echo pulls >"$T/fix/fail"; expect false "pull lookup API error"
-setup; echo "not json" >"$T/fix/checks"; expect false "unreadable check runs"
 setup; echo "not json" >"$T/fix/pulls"; expect false "unreadable pull answer"
 
-echo "OK: ci_reuse_validated_tree (1 skip case, 13 full-pipeline cases)"
+echo "OK: ci_reuse_validated_tree (2 skip cases, 22 full-pipeline cases)"

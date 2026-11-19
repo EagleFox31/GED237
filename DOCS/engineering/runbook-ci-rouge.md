@@ -32,8 +32,9 @@ Toute panne plateforme ou CI instable > 15 min : entrée dans `lessons-learned.m
 
 ## CI sautée sur main (arbre déjà validé)
 
-Sur un push vers `main`, le job « Reuse validated tree » compare l'arbre du commit à celui de la tête de la PR fusionnée et vérifie que « CI Gate » était vert sur cette tête. Si tout concorde, backend, frontend et e2e sont sautés, « CI Gate » passe au vert et le résumé du run l'écrit (« CI reused, not re-run »). Secrets, SAST, lint des workflows et contrôle des fichiers tournent toujours.
+Sur un push vers `main`, le job « Reuse validated tree » compare l'arbre du commit à celui de la tête de la PR fusionnée et vérifie que le dernier run de `ci.yml` (événement pull_request) sur cette tête est vert et que son job « CI Gate » a réussi (un autre workflow ou un run relancé en échec ne suffit pas). Si tout concorde, backend, frontend et e2e sont sautés, « CI Gate » passe au vert et le résumé du run l'écrit (« CI reused, not re-run »). Secrets, SAST, lint des workflows et contrôle des fichiers tournent toujours.
 
-- Au moindre doute (push direct, plusieurs PR dans le commit, arbre différent, API en erreur, « CI Gate » absent ou rouge), la passe complète tourne, comme avant.
+- Au moindre doute (push direct, plusieurs PR dans le commit, arbre différent, API en erreur, dernier run absent ou rouge), la passe complète tourne, comme avant.
+- Quand la passe complète tourne sur main, le résumé du run écrit « Full run: <raison> ».
 - Pour forcer la passe complète sur main : lancer le workflow à la main (`workflow_dispatch`), qui exécute tout.
-- Décision : `scripts/ci_reuse_validated_tree.sh` ; test sans réseau : `scripts/test_ci_reuse_validated_tree.sh` (un cas qui saute, treize qui testent tout).
+- Décision : `scripts/ci_reuse_validated_tree.sh` ; test sans réseau : `scripts/test_ci_reuse_validated_tree.sh` (deux cas qui sautent, vingt-deux qui testent tout).
