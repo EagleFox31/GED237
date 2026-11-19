@@ -52,7 +52,9 @@
     { "code": "E2E-VAL-REJET", "title": "[E2E] Bordereau à rejeter", "owner": "MINFI002", "category": "E2E-CAT-WF" },
     { "code": "E2E-VAL-RETOUR", "title": "[E2E] Bordereau à retourner", "owner": "MINFI002", "category": "E2E-CAT-WF" },
     { "code": "E2E-TRASH", "title": "[E2E] Note en corbeille", "owner": "MINFI002", "category": "E2E-CAT-GEN", "trashed": true },
-    { "code": "E2E-MULTI-VERSION", "title": "[E2E] Rapport en deux versions", "owner": "MINFI002", "category": "E2E-CAT-GEN", "versions": 2 }
+    { "code": "E2E-MULTI-VERSION", "title": "[E2E] Rapport en deux versions", "owner": "MINFI002", "category": "E2E-CAT-GEN", "versions": 2 },
+    { "code": "E2E-OCR-FAILED", "title": "[E2E] Scan illisible", "owner": "MINFI002", "category": "E2E-CAT-GEN", "ocr": { "status": "failed", "error": "no_text" } },
+    { "code": "E2E-OCR-LOW", "title": "[E2E] Scan peu lisible", "owner": "MINFI002", "category": "E2E-CAT-GEN", "ocr": { "content": "Bordereau d’envoi, texte en partie lu", "confidence": 0.42 } }
   ],
   "expected": {
     "categories": ["E2E-CAT-GEN", "E2E-CAT-WF"],
@@ -65,6 +67,10 @@
       "MGR001": ["[E2E] Bordereau à viser", "[E2E] Bordereau à rejeter", "[E2E] Bordereau à retourner"]
     },
     "trash": ["[E2E] Note en corbeille"],
-    "versions": { "[E2E] Rapport en deux versions": 2 }
+    "versions": { "[E2E] Rapport en deux versions": 2 },
+    "ocr": {
+      "[E2E] Scan illisible": { "status": "failed", "error": "no_text", "lowConfidence": null },
+      "[E2E] Scan peu lisible": { "status": "completed", "error": null, "lowConfidence": true }
+    }
   }
 }

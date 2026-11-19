@@ -28,7 +28,7 @@ from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from starlette.datastructures import Headers, UploadFile
 
@@ -54,12 +54,55 @@ from app.services.classification_review_service import ClassificationReviewServi
 from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.services.gedrules_listeners import _run_routing
 from app.services.storage.factory import get_storage_service
+from app.workers.tasks import (
+    OCR_ENGINE_ERROR,
+    OCR_FILE_NOT_FOUND,
+    OCR_NO_TEXT,
+    OCR_UNSUPPORTED_FORMAT,
+)
 
 SUPPORTED_SCHEMA = 1
+
+# Failure codes the worker writes (#276): the seed uses the same contract, never its own codes.
+OCR_ERRORS = frozenset(
+    {OCR_FILE_NOT_FOUND, OCR_UNSUPPORTED_FORMAT, OCR_NO_TEXT, OCR_ENGINE_ERROR}
+)
 
 
 class ManifestError(ValueError):
     """The manifest references something the database does not hold."""
+
+
+def ocr_state(code: str, spec: dict | None) -> tuple[str | None, dict[str, Any]]:
+    """Text and extra_data of the reading state a manifest document declares (#284).
+
+    Same fields as the worker: a failure is ``extra_data`` ocr_status/ocr_error and no text;
+    a reading is ``ocr_content`` plus ``extra_data`` ocr_confidence. No ``ocr`` key: nothing.
+    """
+    if spec is None:
+        return None, {}
+    if not isinstance(spec, dict):
+        raise ManifestError(f"document {code}: ocr must be an object")
+    if "status" in spec:
+        error = spec.get("error")
+        if spec["status"] != "failed" or error not in OCR_ERRORS:
+            raise ManifestError(
+                f"document {code}: ocr status {spec['status']!r} / error {error!r}, "
+                f"expected status 'failed' and an error in {sorted(OCR_ERRORS)}"
+            )
+        return None, {"ocr_status": "failed", "ocr_error": error}
+    content, confidence = spec.get("content"), spec.get("confidence")
+    if not isinstance(content, str) or not content.strip():
+        raise ManifestError(f"document {code}: ocr content must be a non-empty text")
+    if (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not 0 <= confidence <= 1
+    ):
+        raise ManifestError(
+            f"document {code}: ocr confidence {confidence!r}, expected a number in [0, 1]"
+        )
+    return content, {"ocr_confidence": float(confidence)}
 
 
 class Seeder:
@@ -270,6 +313,9 @@ class Seeder:
     # ── documents ───────────────────────────────────────────────────────────
     async def documents(self, items: list[dict]) -> None:
         storage = get_storage_service()
+        # Every reading state is checked first: a bad manifest writes no file at all.
+        for item in items:
+            ocr_state(item["code"], item.get("ocr"))
         for item in items:
             code = item["code"]
             existing = (
@@ -300,6 +346,7 @@ class Seeder:
         category = await self.by_code(DocumentCategory, item["category"])
         directory = f"{self.tenant.id}/{owner.org_unit_id}"
         filename = f"{item['code'].lower()}.pdf"
+        ocr_content, ocr_extra = ocr_state(item["code"], item.get("ocr"))
 
         document = None
         for index in range(item.get("versions", 1)):
@@ -326,7 +373,11 @@ class Seeder:
                     org_unit_id=owner.org_unit_id,
                     status="draft",
                     processing_mode="process",
-                    extra_data={"e2e_seed": item["code"]},
+                    extra_data={"e2e_seed": item["code"], **ocr_extra},
+                    ocr_content=ocr_content,
+                    ocr_content_vector=(
+                        func.to_tsvector("french", ocr_content) if ocr_content else None
+                    ),
                 )
                 self.db.add(document)
                 await self.db.flush()

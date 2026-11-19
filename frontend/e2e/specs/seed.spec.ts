@@ -77,4 +77,19 @@ test.describe('E2E seed (seed-manifest.json)', () => {
       expect(versions, `versions of "${title}"`).toHaveLength(count);
     }
   });
+
+  test('reading states: one failure, one low confidence (#284)', async ({ request }) => {
+    const documents = await getJson<{ id: string; title: string }[]>(request, admin, '/documents/?limit=500');
+    for (const [title, want] of Object.entries(SEED.expected.ocr)) {
+      const document = documents.find((d) => d.title === title);
+      expect(document, `document "${title}"`).toBeTruthy();
+      const ocr = await getJson<{ ocr_status: string; ocr_error: string | null; low_confidence: boolean | null }>(
+        request, admin, `/documents/${document!.id}/ocr`,
+      );
+      expect(
+        { status: ocr.ocr_status, error: ocr.ocr_error, lowConfidence: ocr.low_confidence },
+        `reading state of "${title}"`,
+      ).toEqual(want);
+    }
+  });
 });
