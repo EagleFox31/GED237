@@ -52,9 +52,10 @@ async def test_a_trashed_document_leaves_the_tenant_dashboard(
 
     after = await _section(admin_client, url, "documents")
     assert after["total"] == before["total"] + 1
-    # A Decimal sum on PostgreSQL: the API sends it as a string.
-    assert float(after["storage_used_mb"]) == pytest.approx(
-        float(before["storage_used_mb"]) + 1.0, abs=0.01
+    # Numbers in JSON, not the string of a PostgreSQL numeric (#264).
+    assert isinstance(after["storage_used_mb"], (int, float))
+    assert after["storage_used_mb"] == pytest.approx(
+        before["storage_used_mb"] + 1.0, abs=0.01
     )
 
 
@@ -69,3 +70,19 @@ async def test_a_trashed_document_leaves_the_platform_count(
         await db_session.commit()
         after = await _section(client, url, "platform")
     assert after["total_documents"] == before["total_documents"]
+    assert isinstance(after["total_storage_gb"], (int, float))
+
+
+@pytest.mark.asyncio
+async def test_the_manager_dashboard_sends_its_storage_as_a_number(
+    client_as, db_session, db_seed
+):
+    """#264: the three dashboards share one storage sum."""
+    db_session.add(_document(db_seed, trashed=False))
+    await db_session.commit()
+    async with client_as(
+        "manager", tenant_id=db_seed["tenant_id"], org_unit_id=db_seed["org_unit_id"]
+    ) as client:
+        documents = await _section(client, "/api/v1/analytics/manager", "documents")
+    assert isinstance(documents["storage_used_mb"], (int, float))
+    assert documents["storage_used_mb"] >= 1.0
