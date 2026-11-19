@@ -137,7 +137,8 @@ class PostgresSearchEngine(ISearchEngine):
         count_result = await self.db.execute(count_stmt)
         total_count = count_result.scalar() or 0
 
-        # Sorting
+        # Sorting. Document.id breaks ties (same score, date or title): without it the
+        # order of tied rows is undefined, so offset pages could repeat or skip documents.
         if query.sort == SortOrder.RELEVANCE:
             stmt = stmt.order_by(desc("relevance"))
         elif query.sort == SortOrder.DATE_DESC:
@@ -146,6 +147,7 @@ class PostgresSearchEngine(ISearchEngine):
             stmt = stmt.order_by(asc(Document.created_at))
         elif query.sort == SortOrder.TITLE_ASC:
             stmt = stmt.order_by(asc(Document.title))
+        stmt = stmt.order_by(asc(Document.id))
 
         # Pagination
         stmt = stmt.offset(query.offset).limit(query.limit)
