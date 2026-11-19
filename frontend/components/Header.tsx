@@ -426,7 +426,7 @@ const Header: React.FC<HeaderProps> = ({ userProfile, layoutMode, activeTab, onT
             <button
               type="button"
               onClick={() => setShowUserMenu((v) => !v)}
-              className="flex items-center gap-3 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-rdpc-blue/40 rounded-xl"
+              className="flex items-center gap-3 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-rdpc-blue rounded-xl"
               aria-haspopup="menu"
               aria-expanded={showUserMenu}
             >
