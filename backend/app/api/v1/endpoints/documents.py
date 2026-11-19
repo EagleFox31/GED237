@@ -1,6 +1,8 @@
 # backend/app/api/v1/endpoints/documents.py
+import hashlib
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -575,6 +577,23 @@ def _serialize_audit_log(audit_log: AuditLog) -> Dict[str, Any]:
         if audit_log.created_at
         else None,
     }
+
+
+_RESTORED_SUFFIX = re.compile(r"(?:_restored_[0-9a-f]{8})+$")
+
+
+def _restored_copy_path(source_path: str) -> str:
+    """Path of a restored copy: the original name plus one fresh suffix.
+
+    Restoring an already restored version must not stack suffixes, or the name
+    grows past the filesystem limit (255 bytes) after enough restores.
+    """
+    directory, name = os.path.split(source_path)
+    stem, ext = os.path.splitext(name)
+    stem = _RESTORED_SUFFIX.sub("", stem)
+    return os.path.join(directory, f"{stem}_restored_{uuid4().hex[:8]}{ext}").replace(
+        "\\", "/"
+    )
 
 
 def _derive_file_type(
@@ -2307,28 +2326,33 @@ async def restore_document_version(
         )
 
     # A copy under a fresh name: purging one version never removes another's file.
-    directory, name = os.path.split(source.file_path)
-    stem, ext = os.path.splitext(name)
-    target_path = os.path.join(
-        directory, f"{stem}_restored_{uuid4().hex[:8]}{ext}"
-    ).replace("\\", "/")
+    target_path = _restored_copy_path(source.file_path)
+    missing = HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "error": "version_file_missing",
+            "message": "Le fichier de cette version est introuvable.",
+        },
+    )
     if not storage_service.copy_file(source.file_path, target_path):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error": "version_file_missing",
-                "message": "Le fichier de cette version est introuvable.",
-            },
-        )
+        raise missing
+    # Fingerprint and size of the bytes actually copied, not the source row's: on
+    # older data two versions may share one file_path, so the row can be wrong.
+    copied = storage_service.get_file_content(target_path)
+    if not copied and source.file_size:
+        storage_service.delete_file(target_path)
+        raise missing
+    checksum = hashlib.sha256(copied).hexdigest()
+    file_size = len(copied)
 
     new_version_num = _parse_next_version(versions)
     db_version = DocumentVersion(
         document_id=document.id,
         version_number=new_version_num,
         file_path=target_path,
-        file_size=source.file_size,
+        file_size=file_size,
         mime_type=source.mime_type,
-        checksum_sha256=source.checksum_sha256,
+        checksum_sha256=checksum,
         uploaded_by_id=current_user.id,
         uploaded_at=datetime.now(timezone.utc),
         change_note=f"Restauration de la version {source.version_number}",
@@ -2338,7 +2362,7 @@ async def restore_document_version(
 
     document.current_version_id = db_version.id
     document.file_path = target_path
-    document.file_size = source.file_size
+    document.file_size = file_size
     document.file_type = _derive_file_type(
         target_path, source.mime_type or "application/octet-stream"
     )
@@ -2352,7 +2376,7 @@ async def restore_document_version(
             details={
                 "restored_version": source.version_number,
                 "new_version": new_version_num,
-                "checksum_sha256": source.checksum_sha256,
+                "checksum_sha256": checksum,
             },
             request=request,
         )

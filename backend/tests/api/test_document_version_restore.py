@@ -4,6 +4,7 @@ Outside the caller's perimeter the document answers 404 like a missing one (#247
 """
 
 import asyncio
+import hashlib
 import io
 import os
 import uuid
@@ -373,3 +374,63 @@ async def test_a_failed_commit_leaves_no_copied_file(
     assert len(await _versions(db_session, document_id)) == 2
     document = await db_session.get(Document, uuid.UUID(document_id))
     assert document.current_version_id == v2.id
+
+
+def test_a_restored_name_never_stacks_suffixes():
+    stacked = "docs/2026/rapport" + "_restored_0123abcd" * 20 + ".txt"
+
+    copy = documents_endpoint._restored_copy_path(stacked)
+
+    assert copy.startswith("docs/2026/rapport_restored_")
+    assert copy.endswith(".txt")
+    assert copy.count("_restored_") == 1
+    assert copy != documents_endpoint._restored_copy_path(stacked)
+
+
+@pytest.mark.asyncio
+async def test_restoring_a_restored_version_again_keeps_a_short_name(
+    admin_client: AsyncClient, db_session, db_seed
+):
+    document_id = await _document_with_two_versions(admin_client, db_seed)
+    v1, v2 = await _versions(db_session, document_id)
+    original = max(len(os.path.basename(v.file_path)) for v in (v1, v2))
+    restore_from = v1.id
+    for _ in range(6):
+        resp = await admin_client.post(
+            f"{DOCUMENTS}/{document_id}/versions/{restore_from}/restore"
+        )
+        assert resp.status_code == 201, resp.text
+        db_session.expire_all()
+        versions = await _versions(db_session, document_id)
+        # The version before last: from the third round on, a restored copy whose
+        # own source was already restored.
+        restore_from = versions[-2].id
+
+    names = [os.path.basename(v.file_path) for v in versions[2:]]
+    assert len(names) == 6
+    assert all(name.count("_restored_") == 1 for name in names)
+    assert all(len(name) <= original + len("_restored_") + 8 for name in names)
+    assert len(set(names)) == 6
+
+
+@pytest.mark.asyncio
+async def test_restore_fingerprints_the_copied_bytes_not_the_source_row(
+    admin_client: AsyncClient, db_session, db_seed
+):
+    document_id = await _document_with_two_versions(admin_client, db_seed)
+    v1, v2 = await _versions(db_session, document_id)
+    v1_id, stale_checksum = v1.id, v1.checksum_sha256
+    # Older data: two versions sharing one file, which now holds the second's bytes.
+    v1.file_path = v2.file_path
+    await db_session.commit()
+
+    resp = await admin_client.post(
+        f"{DOCUMENTS}/{document_id}/versions/{v1_id}/restore"
+    )
+    assert resp.status_code == 201, resp.text
+
+    db_session.expire_all()
+    restored = (await _versions(db_session, document_id))[-1]
+    assert restored.checksum_sha256 == hashlib.sha256(b"version deux").hexdigest()
+    assert restored.checksum_sha256 != stale_checksum
+    assert restored.file_size == len(b"version deux")
