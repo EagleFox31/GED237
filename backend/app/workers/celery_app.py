@@ -29,35 +29,41 @@ celery_app.conf.update(
     task_default_queue="celery",
 )
 
-# Watched folders (lot 5): the worker runs beat (-B in docker-compose.yml). No folder
-# configured or interval 0: no schedule at all.
-if settings.INGEST_WATCH_FOLDERS and settings.INGEST_WATCH_INTERVAL_SECONDS > 0:
-    celery_app.conf.beat_schedule = {
-        "watch-ingest-folders": {
+
+def build_beat_schedule(cfg=settings) -> dict:
+    """Every periodic task of the worker (beat runs with -B in docker-compose.yml).
+
+    One entry per capability, each behind its own setting: a disabled capability
+    adds no entry, and an empty registry leaves ``beat_schedule`` untouched.
+    """
+    schedule: dict = {}
+    # Watched folders (lot 5). No folder configured or interval 0: no entry.
+    if cfg.INGEST_WATCH_FOLDERS and cfg.INGEST_WATCH_INTERVAL_SECONDS > 0:
+        schedule["watch-ingest-folders"] = {
             "task": "app.workers.tasks.watch_ingest_folders",
-            "schedule": float(settings.INGEST_WATCH_INTERVAL_SECONDS),
+            "schedule": float(cfg.INGEST_WATCH_INTERVAL_SECONDS),
         }
-    }
-
-# Scheduled official reports (post-rc1 lot 9): off unless SCHEDULED_REPORTS_ENABLED.
-if (
-    settings.SCHEDULED_REPORTS_ENABLED
-    and settings.SCHEDULED_REPORTS_INTERVAL_SECONDS > 0
-):
-    celery_app.conf.beat_schedule = {
-        **(celery_app.conf.beat_schedule or {}),
-        "run-scheduled-reports": {
+    # Scheduled official reports (post-rc1 lot 9): off unless SCHEDULED_REPORTS_ENABLED.
+    if cfg.SCHEDULED_REPORTS_ENABLED and cfg.SCHEDULED_REPORTS_INTERVAL_SECONDS > 0:
+        schedule["run-scheduled-reports"] = {
             "task": "app.workers.tasks.run_scheduled_reports",
-            "schedule": float(settings.SCHEDULED_REPORTS_INTERVAL_SECONDS),
-        },
-    }
-
-# Quality alerts (post-rc1 lot 9): off unless QUALITY_ALERTS_ENABLED.
-if settings.QUALITY_ALERTS_ENABLED and settings.QUALITY_ALERTS_INTERVAL_SECONDS > 0:
-    celery_app.conf.beat_schedule = {
-        **(celery_app.conf.beat_schedule or {}),
-        "evaluate-quality-alerts": {
+            "schedule": float(cfg.SCHEDULED_REPORTS_INTERVAL_SECONDS),
+        }
+    # Quality alerts (post-rc1 lot 9): off unless QUALITY_ALERTS_ENABLED.
+    if cfg.QUALITY_ALERTS_ENABLED and cfg.QUALITY_ALERTS_INTERVAL_SECONDS > 0:
+        schedule["evaluate-quality-alerts"] = {
             "task": "app.workers.tasks.evaluate_quality_alerts",
-            "schedule": float(settings.QUALITY_ALERTS_INTERVAL_SECONDS),
-        },
-    }
+            "schedule": float(cfg.QUALITY_ALERTS_INTERVAL_SECONDS),
+        }
+    # Trash retention. TRASH_RETENTION_DAYS=0: no entry.
+    if cfg.TRASH_RETENTION_DAYS > 0:
+        schedule["purge-expired-trash"] = {
+            "task": "app.workers.tasks.purge_expired_trash",
+            "schedule": float(cfg.TRASH_PURGE_INTERVAL_SECONDS),
+        }
+    return schedule
+
+
+_beat_schedule = build_beat_schedule()
+if _beat_schedule:
+    celery_app.conf.beat_schedule = _beat_schedule
