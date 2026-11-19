@@ -108,6 +108,10 @@ async def _resolve_target_user(
         )
     )
     target_user = result.scalar_one_or_none()
+    # Tree first: an unknown target and an out-of-tree one answer alike (#202).
+    await assert_unit_admin_in_tree(
+        db, target_user.org_unit_id if target_user else None, current_user
+    )
     if target_user is None:
         raise HTTPException(status_code=400, detail="Utilisateur cible invalide.")
     if _role_code(current_user) not in ADMIN_ROLES and str(target_user.id) != str(
@@ -119,7 +123,6 @@ async def _resolve_target_user(
         )
     if _role_code(current_user) in ORG_UNIT_READ_ROLES:
         assert_org_unit_scope(target_user.org_unit_id, current_user)
-    await assert_unit_admin_in_tree(db, target_user.org_unit_id, current_user)
     return target_user
 
 

@@ -32,7 +32,6 @@ from app.models.audit import AuditLog
 from app.services.audit_trail import audit_entry
 from app.services.unit_admin_scope import (
     assert_unit_admin_in_tree,
-    assert_unit_admin_object_in_tree,
     unit_admin_scope_ids,
 )
 from app.models.classification_activity import ClassificationActivity
@@ -681,6 +680,28 @@ async def _get_document_or_404(
     return document
 
 
+async def _get_document_in_reach_or_404(
+    db: AsyncSession,
+    user: User,
+    document_id: UUID,
+    *,
+    tenant_id: Optional[UUID] = None,
+    lock: bool = False,
+) -> Document:
+    """Load a document for a write, or 404.
+
+    A document outside a unit_admin's tree answers like a missing one, before
+    any right or state check reveals that it exists (#202). Reads keep
+    ``_get_document_or_404``: an assigned workflow step still opens them.
+    ``tenant_id`` (default: the caller's) and ``lock`` go to ``_get_document_or_404``.
+    """
+    document = await _get_document_or_404(
+        db, tenant_id or user.tenant_id, document_id, lock=lock
+    )
+    await _ensure_in_unit_tree(db, user, document)
+    return document
+
+
 @router.get("/stats")
 async def get_document_stats(
     tenant_id: Optional[UUID] = None,
@@ -1039,8 +1060,7 @@ async def resolve_manual_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     await authorize_or_403(
         current_user, "workflows", "resolve_review", ctx_from_resource(document)
     )
@@ -1457,7 +1477,7 @@ async def delete_document(
 
     Permanent deletion goes through the trash purge (``documents purge``).
     """
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     # Rights of main's DELETE (delete / delete_own, #345) plus those of POST /trash:
     # the screen trashes through DELETE, so an owner with trash_own alone is not refused.
     if not await _can_trash_via_delete(current_user, document, db):
@@ -1489,7 +1509,7 @@ async def update_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(
             status_code=403, detail="Not enough privileges to update this document"
@@ -1606,6 +1626,10 @@ async def update_document(
                 )
             )
             target_user = target_user_result.scalar_one_or_none()
+            # Tree first: an unknown target and an out-of-tree one answer alike (#202).
+            await assert_unit_admin_in_tree(
+                db, target_user.org_unit_id if target_user else None, current_user
+            )
             if target_user is None or not target_user.org_unit_id:
                 raise HTTPException(
                     status_code=400,
@@ -1620,6 +1644,9 @@ async def update_document(
                 )
             requested_target_org_unit_id = target_user.org_unit_id
         elif requested_target_org_unit_id is not None:
+            await assert_unit_admin_in_tree(
+                db, requested_target_org_unit_id, current_user
+            )
             target_unit_result = await db.execute(
                 select(OrgUnit).where(
                     OrgUnit.id == requested_target_org_unit_id,
@@ -1768,8 +1795,7 @@ async def start_workflow_a_posteriori(
     les règles d'aiguillage en vigueur.
     """
     await authorize_or_403(current_user, "documents", "update")
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
-    await assert_unit_admin_object_in_tree(db, document.org_unit_id, current_user)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     await _ensure_not_locked_for_write(document, current_user)
 
     if document.processing_mode != "archive":
@@ -1823,7 +1849,7 @@ async def trash_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_move_to_trash(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     await _ensure_not_locked_for_write(document, current_user)
@@ -1847,8 +1873,8 @@ async def restore_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(
-        db, current_user.tenant_id, document_id, lock=True
+    document = await _get_document_in_reach_or_404(
+        db, current_user, document_id, lock=True
     )
     if not await _can_trash_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
@@ -1889,7 +1915,9 @@ async def purge_document(
     await authorize_or_403(current_user, "documents", "purge")
 
     target_tenant = await trash_service.resolve_trash_tenant(current_user, tenant_id)
-    document = await _get_document_or_404(db, target_tenant, document_id, lock=True)
+    document = await _get_document_in_reach_or_404(
+        db, current_user, document_id, tenant_id=target_tenant, lock=True
+    )
     if document.deleted_at is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1990,7 +2018,7 @@ async def upload_new_version(
     - identical to any previous version of the same document
     - identical to a version in another active document of the same tenant
     """
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_mutate_document(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
@@ -2129,7 +2157,7 @@ async def lock_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if document.deleted_at:
@@ -2166,7 +2194,7 @@ async def unlock_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     is_admin = await can_perform(
@@ -2196,7 +2224,7 @@ async def refresh_lock(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    document = await _get_document_in_reach_or_404(db, current_user, document_id)
     if not await _can_manage_lock(current_user, document, db):
         raise HTTPException(status_code=403, detail="Privileges insuffisants")
     if not document.locked_by_user_id or str(document.locked_by_user_id) != str(

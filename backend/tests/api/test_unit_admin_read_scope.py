@@ -11,12 +11,18 @@ No row is written to org_unit_closure: the application never fills it, so the
 rule must hold on ``parent_id`` alone.
 """
 
+import io
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
+from sqlalchemy import func, select
 
+from app.api.v1.endpoints import imports
+from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.import_job import ImportJob
 from app.models.org_unit import OrgUnit
@@ -267,3 +273,300 @@ async def test_subtree_follows_parent_links(db_session, db_seed, tree):
     assert await is_within_unit_tree(db_session, units["a2"], units["a"])
     assert not await is_within_unit_tree(db_session, units["b"], units["a"])
     assert not await is_within_unit_tree(db_session, units["a"], units["a1"])
+
+
+# Read by id (#202): the same scope as the listings, on every route that opens
+# one document. Trashed documents are left out: these routes answer 404 for them.
+BY_ID = ("", "/versions", "/audit-logs")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role,unit,active", [m[:3] for m in MATRIX], ids=[f"{r}@{u}" for r, u, *_ in MATRIX]
+)
+async def test_reading_a_document_by_id_follows_the_listing_scope(
+    client_as, db_seed, tree, role, unit, active
+):
+    user = {"tenant_id": db_seed["tenant_id"], "org_unit_id": tree["units"][unit]}
+    if role == "collaborator":
+        user["id"] = tree["collaborator"]
+    # Out of a unit_admin's tree: 404 like a missing document (#202). The
+    # manager, reader and collaborator still answer 403 until #247.
+    refused = 404 if role == "unit_admin" else 403
+    readable = {suffix: set() for suffix in BY_ID}
+    async with client_as(role, **user) as client:
+        for key in WIDE:
+            for suffix in BY_ID:
+                response = await client.get(f"{DOCUMENTS}{tree['ids'][key]}{suffix}")
+                assert response.status_code in (200, refused), (
+                    key,
+                    suffix,
+                    response.text,
+                )
+                if response.status_code == 200:
+                    readable[suffix].add(key)
+
+    assert readable == {suffix: active for suffix in BY_ID}
+
+
+# Changes by id (#202): unit_admin changes only what it may read. The
+# institution-wide roles keep the whole institution.
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "role,unit,reach",
+    [
+        ("tenant_admin", "a", WIDE),
+        ("unit_admin", "a", {"a", "a1", "a2"}),
+        ("unit_admin", "a1", {"a1", "a2"}),
+        ("unit_admin", "b", {"b", "own"}),
+    ],
+    ids=["tenant_admin@a", "unit_admin@a", "unit_admin@a1", "unit_admin@b"],
+)
+async def test_changing_a_document_by_id_follows_the_listing_scope(
+    client_as, db_seed, tree, role, unit, reach
+):
+    ids = tree["ids"]
+    changed = {"patch": set(), "lock": set(), "trash": set(), "restore": set()}
+    workflow = {}
+    # The seeded account: a lock and an audit row reference users.id.
+    async with client_as(
+        role,
+        id=db_seed["user_id"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=tree["units"][unit],
+    ) as client:
+        for key in sorted(WIDE):
+            url = f"{DOCUMENTS}{ids[key]}"
+            # Before the trash: not an archived document, so 400 when allowed and
+            # 404 when out of reach.
+            workflow[key] = (await client.post(f"{url}/start-workflow")).status_code
+            calls = {
+                "patch": await client.patch(url, json={"title": f"Renomme {key}"}),
+                "lock": await client.post(f"{url}/lock"),
+                "trash": await client.post(f"{url}/trash"),
+            }
+            for name, response in calls.items():
+                assert response.status_code in (200, 404), (key, name, response.text)
+                if response.status_code == 200:
+                    changed[name].add(key)
+        for key in ("a1_trash", "b_trash"):
+            response = await client.post(f"{DOCUMENTS}{ids[key]}/restore")
+            assert response.status_code in (200, 404), (key, response.text)
+            if response.status_code == 200:
+                changed["restore"].add(key)
+
+    assert changed == {
+        "patch": reach,
+        "lock": reach,
+        "trash": reach,
+        "restore": {k for k in ("a1_trash", "b_trash") if k.split("_")[0] in reach},
+    }
+    assert workflow == {key: 400 if key in reach else 404 for key in WIDE}
+
+
+@pytest.mark.asyncio
+async def test_a_unit_admin_of_another_branch_reaches_nothing_of_it(
+    client_as, db_session, db_seed, tree
+):
+    """Counter-test (#202): the unit_admin of B, beside A, reaches nothing in A."""
+    units, ids = tree["units"], tree["ids"]
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["b"]
+    ) as client:
+        reads = {
+            key: (await client.get(f"{DOCUMENTS}{ids[key]}")).status_code
+            for key in ("a", "a1", "a2", "b")
+        }
+    assert reads == {"a": 404, "a1": 404, "a2": 404, "b": 200}
+
+    user = SimpleNamespace(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["b"],
+        role=SimpleNamespace(code="unit_admin"),
+    )
+    for outside in ("a", "a1", "a2"):
+        with pytest.raises(HTTPException) as refused:
+            await imports._resolve_target_org_unit_id(
+                db_session, current_user=user, target_org_unit_id=units[outside]
+            )
+        assert refused.value.status_code == 403
+    # Unknown or out of the tree: the same refusal, so no existence probe.
+    for target in (uuid.uuid4(), db_seed["user_id"]):
+        with pytest.raises(HTTPException) as refused:
+            await imports._resolve_target_user(
+                db_session, current_user=user, target_user_id=target
+            )
+        assert refused.value.status_code == 403
+    with pytest.raises(HTTPException) as refused:
+        await imports._resolve_target_org_unit_id(
+            db_session, current_user=user, target_org_unit_id=uuid.uuid4()
+        )
+    assert refused.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_cannot_send_a_document_out_of_its_tree(
+    client_as, db_seed, tree
+):
+    units, ids = tree["units"], tree["ids"]
+    async with client_as(
+        "unit_admin",
+        id=db_seed["user_id"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["a1"],
+    ) as client:
+        up = await client.patch(
+            f"{DOCUMENTS}{ids['a2']}",
+            json={"classification_target_org_unit_id": str(units["a"])},
+        )
+        to_someone_outside = await client.patch(
+            f"{DOCUMENTS}{ids['a2']}",
+            json={
+                "classification_scope": "person",
+                "classification_target_user_id": str(tree["collaborator"]),
+            },
+        )
+        # An unknown target answers like an out-of-tree one: no existence probe.
+        unknown_unit = await client.patch(
+            f"{DOCUMENTS}{ids['a2']}",
+            json={"classification_target_org_unit_id": str(uuid.uuid4())},
+        )
+        unknown_user = await client.patch(
+            f"{DOCUMENTS}{ids['a2']}",
+            json={
+                "classification_scope": "person",
+                "classification_target_user_id": str(uuid.uuid4()),
+            },
+        )
+        down = await client.patch(
+            f"{DOCUMENTS}{ids['a1']}",
+            json={"classification_target_org_unit_id": str(units["a2"])},
+        )
+
+    assert up.status_code == 403, up.text
+    assert to_someone_outside.status_code == 403, to_someone_outside.text
+    assert unknown_unit.json()["detail"] == up.json()["detail"]
+    assert (unknown_unit.status_code, unknown_user.status_code) == (403, 403)
+    assert unknown_user.json()["detail"] == to_someone_outside.json()["detail"]
+    assert down.status_code == 200, down.text
+    assert down.json()["org_unit_id"] == str(units["a2"])
+
+
+@pytest.mark.asyncio
+async def test_unit_admin_imports_only_into_its_tree(
+    client_as, db_session, db_seed, tree
+):
+    """Import on behalf of a unit or a person (#202).
+
+    The policy gives unit_admin no documents/create, so the import is refused at
+    the door. The target check below holds the tree rule if that ever changes.
+    """
+    units = tree["units"]
+    async with client_as(
+        "unit_admin", tenant_id=db_seed["tenant_id"], org_unit_id=units["a1"]
+    ) as client:
+        door = await client.post(
+            f"{IMPORTS}/analyze",
+            files=[("files", ("note.txt", io.BytesIO(b"alpha"), "text/plain"))],
+            data={"source_scope": "service", "target_org_unit_id": str(units["a2"])},
+        )
+    assert door.status_code == 403, door.text
+
+    user = SimpleNamespace(
+        id=uuid.uuid4(),
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["a1"],
+        role=SimpleNamespace(code="unit_admin"),
+    )
+    below = await imports._resolve_target_org_unit_id(
+        db_session, current_user=user, target_org_unit_id=units["a2"]
+    )
+    assert below == units["a2"]
+    for outside in (units["b"], units["a"]):
+        with pytest.raises(HTTPException) as refused:
+            await imports._resolve_target_org_unit_id(
+                db_session, current_user=user, target_org_unit_id=outside
+            )
+        assert refused.value.status_code == 403
+    with pytest.raises(HTTPException) as refused:
+        await imports._resolve_target_user(
+            db_session, current_user=user, target_user_id=tree["collaborator"]
+        )
+    assert refused.value.status_code == 403
+
+
+async def _every_route_by_id(client, document_id) -> dict:
+    """One call per route that opens a document by id, the destructive ones last."""
+    url = f"{DOCUMENTS}{document_id}"
+    pdf = {"file": ("v2.pdf", b"%PDF-1.4\n%%EOF\n", "application/pdf")}
+    calls = {
+        "read": lambda: client.get(url),
+        "versions": lambda: client.get(f"{url}/versions"),
+        "audit-logs": lambda: client.get(f"{url}/audit-logs"),
+        "ocr": lambda: client.get(f"{url}/ocr"),
+        "content": lambda: client.get(f"{url}/content"),
+        "patch": lambda: client.patch(url, json={"title": "Renomme"}),
+        "lock": lambda: client.post(f"{url}/lock"),
+        "refresh-lock": lambda: client.post(f"{url}/refresh-lock"),
+        "unlock": lambda: client.post(f"{url}/unlock"),
+        "new-version": lambda: client.post(f"{url}/versions", files=pdf),
+        "start-workflow": lambda: client.post(f"{url}/start-workflow"),
+        "resolve-review": lambda: client.post(
+            f"{url}/resolve-review", json={"mark_as_resolved": True}
+        ),
+        "trash": lambda: client.post(f"{url}/trash"),
+        "delete": lambda: client.delete(url),
+    }
+    codes = {}
+    for name, call in calls.items():
+        response = await call()
+        codes[name] = response.status_code
+        if response.status_code == 404:
+            # Tells a hidden document from a known one whose file is missing.
+            codes[name] = (404, response.json().get("detail"))
+    return codes
+
+
+@pytest.mark.asyncio
+async def test_every_route_by_id_hides_a_document_outside_the_tree(
+    client_as, db_session, db_seed, tree
+):
+    """#202: out of a unit_admin's tree, every route by id answers 404, before
+    any right or state check; inside the tree, none of them does."""
+    units, ids = tree["units"], tree["ids"]
+    async with client_as(
+        "unit_admin",
+        id=db_seed["user_id"],
+        tenant_id=db_seed["tenant_id"],
+        org_unit_id=units["a1"],
+    ) as client:
+        above = await _every_route_by_id(client, ids["a"])
+        inside = await _every_route_by_id(client, ids["a2"])
+
+    hidden = (404, "Document not found")
+    assert above == {name: hidden for name in above}
+    assert inside == {
+        "read": 200,
+        "versions": 200,
+        "audit-logs": 200,
+        "ocr": 200,
+        # No file in the test storage: 404 inside too, but only after the
+        # consultation is audited (checked below), so past the tree check.
+        "content": hidden,
+        "patch": 200,
+        "lock": 200,
+        "refresh-lock": 200,
+        "unlock": 200,
+        "new-version": 201,
+        "start-workflow": 400,
+        # Not a review any more: the route moved (#215), the document is reached.
+        "resolve-review": 410,
+        "trash": 200,
+        "delete": 204,
+    }
+    viewed = select(func.count()).where(
+        AuditLog.record_id.in_([ids["a"], ids["a2"]]),
+        AuditLog.action == "content_viewed",
+    )
+    assert (await db_session.execute(viewed)).scalar_one() == 1
