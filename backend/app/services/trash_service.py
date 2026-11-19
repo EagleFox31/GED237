@@ -44,6 +44,37 @@ class NotInTrashError(Exception):
     """Permanent deletion is only allowed for a document already in the trash."""
 
 
+# Never purged, by hand, in bulk or by retention: a signed or archived document
+# keeps its legal value in the trash, where it can only be restored.
+PROTECTED_STATUSES = ("signed", "archived")
+# The official register (report_issues) holds its own copies, no key to documents.
+
+
+class ProtectedDocumentError(Exception):
+    """A signed or archived document is never deleted for good."""
+
+
+async def resolve_trash_tenant(user: Any, tenant_id: Optional[UUID]) -> UUID:
+    """Institution whose trash a route reads or purges.
+
+    Same rule as ``resolve_report_scope``: only a platform administrator
+    (``tenants manage``) may name another institution with ``tenant_id``; for
+    anyone else the parameter is ignored. Without it, everyone stays on their
+    own institution (PLATFORM for a platform administrator, whose trash is
+    empty): no call ever reaches several institutions at once.
+    """
+    # Deferred: the worker imports this module for retention and never needs authz.
+    from app.core.authz import can_perform
+
+    if tenant_id is not None and await can_perform(user, "tenants", "manage"):
+        return tenant_id
+    return user.tenant_id
+
+
+def is_protected(document: Document) -> bool:
+    return document.status in PROTECTED_STATUSES or document.archived_at is not None
+
+
 def is_locked(document: Document, now: Optional[datetime] = None) -> bool:
     """True while an edit lock is active, whoever holds it."""
     now = now or datetime.now(timezone.utc)
@@ -58,6 +89,8 @@ def assert_purgeable(document: Document) -> None:
     """Single gate before any permanent deletion (a legal hold will plug in here)."""
     if document.deleted_at is None:
         raise NotInTrashError(str(document.id))
+    if is_protected(document):
+        raise ProtectedDocumentError(str(document.id))
 
 
 async def stage_purge(
@@ -154,8 +187,14 @@ def trashed_query(
     skip_edit_locked: bool = False,
     now: Optional[datetime] = None,
 ):
-    """Trashed documents, oldest first. ``tenant_id`` None: every tenant (worker only)."""
-    query = select(Document).where(Document.deleted_at.is_not(None))
+    """Purgeable trashed documents, oldest first: never a protected one.
+
+    ``tenant_id`` None: every tenant (worker only)."""
+    query = select(Document).where(
+        Document.deleted_at.is_not(None),
+        Document.status.not_in(PROTECTED_STATUSES),
+        Document.archived_at.is_(None),
+    )
     if tenant_id is not None:
         query = query.where(Document.tenant_id == tenant_id)
     if document_ids is not None:
@@ -174,11 +213,10 @@ def trashed_query(
     return query.order_by(Document.deleted_at.asc(), Document.id.asc())
 
 
-async def count_trashed(db: AsyncSession, tenant_id: UUID) -> int:
+async def count_matching(db: AsyncSession, query) -> int:
+    """Documents a :func:`trashed_query` still matches (``remaining`` of a bulk purge)."""
     result = await db.execute(
-        select(func.count())
-        .select_from(Document)
-        .where(Document.tenant_id == tenant_id, Document.deleted_at.is_not(None))
+        select(func.count()).select_from(query.order_by(None).subquery())
     )
     return int(result.scalar_one() or 0)
 
