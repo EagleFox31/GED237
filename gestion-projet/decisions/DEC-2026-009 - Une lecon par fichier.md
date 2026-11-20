@@ -11,7 +11,7 @@ Chaque leçon qui entre dans `main` met en conflit `DOCS/engineering/lessons-lea
 
 1. Toute leçon créée après la coupe va dans son propre fichier, `DOCS/engineering/lessons/LESSON-AAAA-NNN.md`, avec le modèle d'entrée actuel.
 2. `lessons-learned.md` est figé de 001 à 074. Il reste le point d'entrée et l'historique ; son en-tête renvoie vers `lessons/`. Aucune leçon existante n'est déplacée.
-3. **Numérotation** : on réserve un numéro en créant le fichier, avec le plus petit numéro libre sur `main` et dans les PR ouvertes. Le 4e contrôle de `verif-file.sh` arbitre ; en cas de doublon, la PR qui fusionne en second renomme son fichier.
+3. **Numérotation** : on réserve un numéro en créant le fichier. On prend le plus grand numéro déjà pris plus un, en comptant le registre et `lessons/`, sur `main` et dans les PR ouvertes (commande dans `lessons/README.md`). Le 4e contrôle de `verif-file.sh` arbitre ; en cas de doublon, la PR qui fusionne en second renomme son fichier.
 4. Pas de `merge=union` dans `.gitattributes`.
 5. Les PR V1.1 déjà ouvertes qui ajoutent une leçon dans `lessons-learned.md` (069 à 074) ne sont pas reprises.
 
@@ -19,7 +19,7 @@ Chaque leçon qui entre dans `main` met en conflit `DOCS/engineering/lessons-lea
 
 - `LESSON-2026-083` est entrée dans `lessons-learned.md` par #517, avant la mise en place du contrôle LEC-3. Elle reste où elle est : on ne déplace rien. Le contrôle ne juge que les rubriques ajoutées par une PR.
 - #467 (Q, brouillon) porte LEC-3 (`scripts/check-lessons-frozen.sh`, job « Lessons register frozen » de CI Gate) et crée les premiers fichiers `lessons/LESSON-2026-075` à `079`.
-- Le plus petit numéro libre est donc 080 tant que #467 est ouverte ; 083 est pris.
+- Au 20/11, le plus grand numéro pris est 085 (#458) : 084 va à #452, et la prochaine leçon prend 086.
 - `verif-file.sh` vit dans `gestion-projet/innovateur/`, apporté par #452 : LEC-2 est un commit de cette PR.
 
 ## Option écartée : `merge=union`
