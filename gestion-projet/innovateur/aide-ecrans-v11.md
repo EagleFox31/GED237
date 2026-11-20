@@ -1,6 +1,6 @@
 # Textes d'aide des écrans V1.1 — proposition pour F
 
-- **Pour** : F (infobulles et textes d'aide des PR #81, #84, #87, #88, #95), Q (vérifie le libellé affiché pendant la recette 20–23), O. Innovateur, 2026-11-10, non commité. Esprit `CLAUDE.md` « Copy utilisateur final » : court, plain français, pas de jargon interne (« référentiel », « manifeste », « OCR » seulement quand le mot est déjà à l'écran). Chaque écran : une **infobulle** (icône d'aide, une phrase) et, si besoin, un **texte d'aide** au clic (deux phrases au plus). Les chiffres cités sont ceux du code au 10/11 ; s'ils changent dans la PR, l'aide suit.
+- **Pour** : F (infobulles et textes d'aide des PR #81, #84, #87, #88, #95), Q (vérifie le libellé affiché pendant la recette 20–23), O. Innovateur, 2026-11-10, non commité. Esprit des règles du projet, « Copy utilisateur final » : court, plain français, pas de jargon interne (« référentiel », « manifeste », « OCR » seulement quand le mot est déjà à l'écran). Chaque écran : une **infobulle** (icône d'aide, une phrase) et, si besoin, un **texte d'aide** au clic (deux phrases au plus). Les chiffres cités sont ceux du code au 10/11 ; s'ils changent dans la PR, l'aide suit.
 
 | Écran | Infobulle (icône d'aide, 1 phrase) | Texte d'aide au clic (2 phrases max) | Messages d'état à vérifier |
 |---|---|---|---|
@@ -15,4 +15,4 @@ Deux règles transverses pour F :
 1. **Une phrase par infobulle**, sans point d'exclamation ni verbe à l'infinitif en tête de phrase quand un impératif suffit (« Téléchargez », pas « Permet de télécharger »).
 2. Les limites chiffrées (3 codes, 15 minutes, 50 000 lignes) apparaissent **dans l'aide, pas dans le libellé du bouton** ; le message d'erreur les répète au moment où l'utilisateur les rencontre.
 
-Sources : `innovateur/specs-v11-avant-gel/lot-1-kpi-doublons.md`, `lot-2-export-import-regles.md`, `lot-3-export-journal-verrou-otp.md`, `lot-4-criteres-contenu-date.md` ; relecture #92 du 10/11 (année lue dans le nom du fichier, « Contenu non encore extrait », correctif « année absente = échec explicite » demandé par O) ; `CLAUDE.md` § « Frontend UX — densité et aide ».
+Sources : `innovateur/specs-v11-avant-gel/lot-1-kpi-doublons.md`, `lot-2-export-import-regles.md`, `lot-3-export-journal-verrou-otp.md`, `lot-4-criteres-contenu-date.md` ; relecture #92 du 10/11 (année lue dans le nom du fichier, « Contenu non encore extrait », correctif « année absente = échec explicite » demandé par O) ; règles du projet, § « Frontend UX — densité et aide ».

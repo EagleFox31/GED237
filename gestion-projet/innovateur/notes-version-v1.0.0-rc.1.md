@@ -107,12 +107,22 @@ Limites hors `fixme` :
 - Reporté en V1.2 (décision du 17/11) : désigner un lecteur d'un autre service sans lancer de circuit ; alertes de qualité et onglet « Qualité » des rapports ; accès public en HTTPS sur un serveur distant.
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
-- Lots non fusionnés au 19/11 18:00 : relevé O reporté ici le 19 au soir ; phrases d'écart dans `plan-presentation.md` § 3.
+- Lots non fusionnés à la coupe du 19/11 (`release/v1.0.0` = `a1c15f61`) : aucune PR de la V1.1 n'est entrée. Ce qu'on peut voir à la démonstration et qui n'est pas livré :
+  - remplacement pendant une absence (#445, #453) ;
+  - recherche insensible aux accents (#436) ;
+  - mesure des 100 000 fichiers (#473, #497) ;
+  - lisibilité des badges de statut (#484) ;
+  - focus clavier à la connexion (#446) ;
+  - déblocage d'un compte par l'administrateur (#394, #405).
+
+  Environ 100 PR restent en brouillon pour la V1.1, qui commence le 24/11. Les phrases d'écart sont dans `plan-presentation.md` § 3.
 
 ### Écarts d'exploitation connus
 
 - **HTTPS (item CDC 27)** : l'accès chiffré `https://localhost:8443` utilise un certificat local (mkcert) installé sur le poste de démonstration ; aucun certificat public (pas de nom de domaine, démonstration sur place). Un autre poste affiche un avertissement tant que `mkcert -install` n'y a pas été lancé. Le HTTP sur le port 8080 reste disponible. Livré par #109 ; décision du PO du 16/11 : la démonstration se fait en HTTPS.
 - **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; la valeur retenue est celle des relevés du `c6.tsv` : **à renseigner le 19 au soir (≥ 6 relevés verts) puis le 21 (10 sur 10)**, sans arrondi.
+  - **19/11** : 7 relevés verts consécutifs, de 21:35:19Z à 22:05:27Z, sans échec ni trou. Ils portent sur une pile construite depuis le SHA de coupe `a1c15f61`, provenance vérifiée par le contenu. Les séries lues plus tôt dans la journée mesuraient la pile de démonstration du 16/11 (`7898387b`) : elles ne sont pas retenues.
+  - **21/11** : à renseigner.
 - **Déploiement sur serveur distant (item CDC 28)** : non livré dans la rc.1, décision du PO du 9/11 (démonstration sur place, mêmes conteneurs). La preuve d'installation retenue est l'essai d'installation sans Internet du 25/11. La mise en service sur le serveur distant vient en V1.1, avec un accès par VPN seulement (#288) ; l'accès public en HTTPS suit en V1.2.
 - **Volumétrie (item CDC 8)** : 420 documents mesurés ; les 100 000 fichiers du cahier des charges sont mesurés en décembre.
 
@@ -144,6 +154,19 @@ On ne « descend » pas les migrations à la main : deux migrations de réparati
 ---
 
 ## Suivi des fusions à reporter ici (à tenir jusqu'au 19/11 18:00)
+
+### Delta du gel à la coupe (`2f15b6e`, 17/11 → `a1c15f61`, 19/11)
+
+70 PR sont fusionnées sur `main` entre le gel et la coupe. Il n'y a pas de nouvelle migration : la tête reste `a7c8d9e0f1b2`. Les lignes des sections ci-dessus qui en dépendent sont à jour.
+
+- **Corbeille et doublons** : corbeille avec restauration et purge selon les droits (#152, #181) ; vue des doublons, qui garde un document et met les autres à la corbeille (#171, #199) ; entrée de menu cachée sans droit de corbeille (#492) ; suppression définitive réservée au droit correspondant (#345) ; un propriétaire ne peut pas mettre à la corbeille un document en cours de validation (#464).
+- **Circuit de validation** : motif de rejet, renvoi après correction, émetteur et compteurs (#438, #502) ; un seul critère pour les tâches de l'utilisateur (#429) ; nombre de tâches en attente sur le menu (#442) ; l'assigné lit le document hors de son service (#340) ; une ligne de journal par visa, validation ou rejet (#515).
+- **Droits** : l'administrateur d'unité est limité à son service et à ses sous-services (#203, #358, #360) ; jeton d'accès contrôlé par type (#474) ; session révoquée à la déconnexion (#479) ; plus de déconnexion sur une coupure réseau (#410) ; profils de démonstration masquables à la connexion (#422, #425).
+- **OCR et import** : Tesseract par défaut, RapidOCR pour les photos et formulaires, EasyOCR hors ligne et désactivé par défaut (#325, #350, #365, #368, #374) ; relance de l'OCR d'un document (#369) ; classement à l'import des fichiers que l'OCR ne lit pas (#480) ; un fichier stocké par envoi, noms longs tronqués (#319, #321) ; contrôle de la taille et du format avant l'envoi, extraits de recherche (#423, #460).
+- **Revue de classement** : passage au fichier suivant après une décision (#420) ; revue ouverte sur tous les chemins qui la demandent (#485).
+- **Écrans et accessibilité** : commandes sans action retirées ou branchées, dialogues maison au lieu des fenêtres natives, libellés relus (#314, #324, #334, #336, #337, #339, #341, #346, #348, #364, #390, #412, #427, #430, #432) ; accès clavier aux cartes, à la zone de dépôt et aux dialogues (#441) ; boutons Annuler et Envoyer visibles sur petit écran (#450) ; anneau de focus net (#499).
+- **Exploitation** : sauvegarde et restauration plus sûres (#482) ; import des images hors ligne (#477) ; résumé des relevés de disponibilité (#498) ; manuels d'installation et d'exploitation (#327, #328, #375, #408, #409).
+- **Recette et CI** : scénario de démonstration de bout en bout (#356, #363, #406) ; tests unitaires du frontend (#421) ; CI backend en 4 parties et sans double passage (#472, #489, #490) ; leçons (#317, #415, #461).
 
 Au 17/11 au soir (`main` 2f15b6e) : toutes les PR prévues avant le gel sont fusionnées, dont #99, #100 et #109 ; état de référence : `plans/releve-coupure-19-11.md`. Le tableau ci-dessous est l'état du 10/11, conservé pour mémoire.
 
