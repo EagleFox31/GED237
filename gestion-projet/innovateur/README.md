@@ -34,6 +34,7 @@ consultation et un niveau de preuve (`Vérifié` / `Documenté` / `Déduit` / `P
 | `instruction-decisions-14-11.md` | File 10 : D1–D6 du point du 14 : faits au 09/11, à vérifier le 13 au soir, options, recommandation en une phrase, effet sur la présentation ; synthèse à coller en § 2 |
 | `sources/anthropic-agents.md` | Sources primaires sur les équipes d'agents, harness, contexte |
 | `sources/github-agents-skills.md` | Dépôts GitHub d'agents, skills, outils : évaluation Adopt/Adapt/Learn/Build |
+| `images-backend.md` | Images backend 3,18 Go (20/11) : poids mesuré par couche et paquet, bandit + alembic = 5 Mo, torch/EasyOCR ≈ 1 Go (DEC-003 point 2), lots IMG-1..4, cible ≈ 1 Go |
 | `sources/ocr-leger.md` | Veille OCR CPU 2026-11-09 : comparatif, architecture légère (RapidOCR/PP-OCRv6 + OCRmyPDF, retrait EasyOCR), lots OCR-0..4 |
 | `sources/ged-normes.md` | Normes GED/archivage (ISO 15489, MoReq2010) et contexte Cameroun |
 
