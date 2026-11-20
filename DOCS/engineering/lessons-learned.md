@@ -6,6 +6,11 @@ On n'y consigne pas chaque faute de frappe : seulement les échecs ou near misse
 révèlent un angle mort, ont causé du retravail ou un risque réel, ou peuvent se reproduire.
 **Avant un travail proche d'un incident connu, chercher ici d'abord.**
 
+> **Registre figé (DEC-2026-009).** Ce fichier garde les leçons 001 à 068 et 083. Les numéros
+> 069 à 074 n'y entrent que par les PR ouvertes avant le gel. Toute nouvelle leçon va dans son propre fichier,
+> [`lessons/LESSON-AAAA-NNN.md`](lessons/README.md), avec le même modèle d'entrée.
+> Pour chercher une leçon, il faut fouiller les deux : `grep -rn "mot" DOCS/engineering/lessons-learned.md DOCS/engineering/lessons/`.
+
 Les notes de conception (patterns, arbitrages) restent dans [`tasks/lessons.md`](../../tasks/lessons.md).
 
 ## Classification
