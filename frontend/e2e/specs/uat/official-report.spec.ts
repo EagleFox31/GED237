@@ -141,4 +141,44 @@ test.describe('Copie officielle', () => {
     expect(deleted).toHaveLength(1);
     expect(deleted[0]).toMatch(/\/schedules\/sch-1$/);
   });
+
+  test('« Émettre » et « Programmés » gardent chacun leur choix ; pas de période cachée programmée', async ({ page, loginAs }) => {
+    const posted: Array<{ report: Record<string, unknown> }> = [];
+    await page.route(/\/api\/v1\/reports\/official\/schedules\/?(\?|$)/, async (route) => {
+      const request = route.request();
+      const headers = {
+        'X-Scheduled-Reports-Enabled': 'true',
+        'Access-Control-Expose-Headers': 'X-Scheduled-Reports-Enabled',
+      };
+      if (request.method() === 'GET') return route.fulfill({ status: 200, headers, json: [] });
+      if (request.method() !== 'POST') return route.fallback();
+      const body = request.postDataJSON() as { name: string; frequency: string; report: Record<string, unknown> };
+      posted.push(body);
+      return route.fulfill({
+        status: 201,
+        json: { id: 'sch-2', name: body.name, frequency: body.frequency, request: body.report, is_active: true, created_at: '2026-11-20T08:00:00Z' },
+      });
+    });
+    await loginAs('tenant_admin');
+    await page.goto('reports');
+    await page.getByRole('button', { name: 'Copie officielle', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Copie officielle' });
+
+    await dialog.getByLabel('Rapport').selectOption('evolution');
+    await dialog.getByRole('button', { name: 'Page web' }).click();
+    await dialog.getByLabel('Du').fill('2026-01-01');
+
+    await dialog.getByRole('tab', { name: 'Programmés' }).click();
+    await expect(dialog.getByRole('button', { name: 'Page web' })).toHaveAttribute('aria-pressed', 'false');
+    await dialog.getByLabel('Rapport').selectOption('evolution');
+    await dialog.getByLabel('Nom', { exact: true }).fill('Bilan');
+    await dialog.getByRole('button', { name: 'Programmer' }).click();
+    await expect(dialog.getByRole('status')).toHaveText('Programmé : Bilan');
+    expect(posted).toHaveLength(1);
+    expect(posted[0]?.report).toEqual({ kind: 'evolution', format: 'csv' });
+
+    await dialog.getByRole('tab', { name: 'Émettre' }).click();
+    await expect(dialog.getByRole('button', { name: 'Page web' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog.getByLabel('Du')).toHaveValue('2026-01-01');
+  });
 });

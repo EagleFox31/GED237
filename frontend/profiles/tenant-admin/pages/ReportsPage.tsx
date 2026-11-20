@@ -217,15 +217,6 @@ const ReportsPage: React.FC = () => {
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsOfficialOpen(true)}
-              title="Exemplaire numéroté, inscrit au registre"
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
-              Copie officielle
-            </button>
-            <button
-              type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
               title={UI_TOOLTIPS.reports.refresh}
@@ -233,6 +224,15 @@ const ReportsPage: React.FC = () => {
             >
               <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden>refresh</span>
               Actualiser
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsOfficialOpen(true)}
+              title={UI_TOOLTIPS.reports.officialCopy}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
+              Copie officielle
             </button>
             {!isUnitScope && (
               <>

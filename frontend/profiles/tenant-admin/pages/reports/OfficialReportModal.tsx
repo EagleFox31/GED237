@@ -52,6 +52,13 @@ const labelClass = 'mb-1 block text-xs font-bold text-slate-500';
 const tabId = (section: OfficialSection) => `official-tab-${section}`;
 const panelId = (section: OfficialSection) => `official-panel-${section}`;
 
+/** Onglets qui portent un choix de rapport. */
+type ChoiceTab = Extract<OfficialSection, 'issue' | 'schedules'>;
+interface ReportChoice {
+  kind: OfficialReportKind;
+  format: OfficialReportFormat;
+}
+
 interface OfficialReportModalProps {
   onClose: () => void;
   /** Rapport proposé à l'ouverture (onglet affiché). */
@@ -65,8 +72,11 @@ interface OfficialReportModalProps {
  */
 export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClose, defaultKind = 'evolution' }) => {
   const [section, setSection] = useState<OfficialSection>('issue');
-  const [kind, setKind] = useState<OfficialReportKind>(defaultKind);
-  const [format, setFormat] = useState<OfficialReportFormat>('csv');
+  // Chaque onglet garde son propre choix : régler « Émettre » ne change pas une programmation.
+  const [choices, setChoices] = useState<Record<ChoiceTab, ReportChoice>>(() => ({
+    issue: { kind: defaultKind, format: 'csv' },
+    schedules: { kind: defaultKind, format: 'csv' },
+  }));
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [busy, setBusy] = useState(false);
@@ -88,12 +98,20 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   const tabRefs = useRef<Partial<Record<OfficialSection, HTMLButtonElement | null>>>({});
   const sections = visibleSections(schedulingEnabled);
 
-  const request = (): OfficialReportRequest => ({
-    kind,
-    format,
-    ...(kind === 'evolution' && dateFrom ? { date_from: dateFrom } : {}),
-    ...(kind === 'evolution' && dateTo ? { date_to: dateTo } : {}),
-  });
+  // Les dates n'existent que sur « Émettre » : une programmation ne reprend jamais une période cachée.
+  const request = (tab: ChoiceTab): OfficialReportRequest => {
+    const { kind, format } = choices[tab];
+    const withDates = tab === 'issue' && kind === 'evolution';
+    return {
+      kind,
+      format,
+      ...(withDates && dateFrom ? { date_from: dateFrom } : {}),
+      ...(withDates && dateTo ? { date_to: dateTo } : {}),
+    };
+  };
+
+  const updateChoice = (tab: ChoiceTab, patch: Partial<ReportChoice>) =>
+    setChoices((current) => ({ ...current, [tab]: { ...current[tab], ...patch } }));
 
   const loadIssues = useCallback(async (append = false, skip = 0) => {
     // Seule la dernière demande compte : une réponse plus ancienne arrivée après est ignorée.
@@ -169,14 +187,14 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
       }
     });
 
-  const issue = () => run(async () => deliver(await officialReportsApi.issue(request()), 'Copie émise'));
+  const issue = () => run(async () => deliver(await officialReportsApi.issue(request('issue')), 'Copie émise'));
 
   const reprint = (item: OfficialReportIssue) =>
     run(async () => deliver(await officialReportsApi.reprint(item.id), 'Copie réimprimée'));
 
   const schedule = () =>
     run(async () => {
-      const created = await officialReportsApi.createSchedule(scheduleName.trim(), frequency, request());
+      const created = await officialReportsApi.createSchedule(scheduleName.trim(), frequency, request('schedules'));
       setSchedules((current) => [...current, created]);
       setScheduleName('');
       setNotice(`Programmé : ${created.name}`);
@@ -190,25 +208,31 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
       setNotice(`Arrêté : ${item.name}`);
     });
 
-  const reportChoice = (withDates: boolean) => (
+  const reportChoice = (tab: ChoiceTab) => {
+    const { kind, format } = choices[tab];
+    return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="block">
         <span className={labelClass}>Rapport</span>
-        <select className={fieldClass} value={kind} onChange={(e) => setKind(e.target.value as OfficialReportKind)}>
+        <select
+          className={fieldClass}
+          value={kind}
+          onChange={(e) => updateChoice(tab, { kind: e.target.value as OfficialReportKind })}
+        >
           {(Object.keys(KIND_LABELS) as OfficialReportKind[]).map((k) => (
             <option key={k} value={k}>{KIND_LABELS[k]}</option>
           ))}
         </select>
       </label>
       <div>
-        <span className={labelClass} id="official-format-label">Format</span>
-        <div role="group" aria-labelledby="official-format-label" className="flex gap-2">
+        <span className={labelClass} id={`official-format-label-${tab}`}>Format</span>
+        <div role="group" aria-labelledby={`official-format-label-${tab}`} className="flex gap-2">
           {FORMATS.map((f) => (
             <button
               key={f}
               type="button"
               aria-pressed={format === f}
-              onClick={() => setFormat(f)}
+              onClick={() => updateChoice(tab, { format: f })}
               className={`flex-1 rounded-2xl px-3 py-2 text-xs font-bold ${
                 format === f ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
@@ -218,7 +242,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
           ))}
         </div>
       </div>
-      {withDates && kind === 'evolution' && (
+      {tab === 'issue' && kind === 'evolution' && (
         <>
           <label className="block">
             <span className={labelClass}>Du</span>
@@ -243,7 +267,8 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
         </>
       )}
     </div>
-  );
+    );
+  };
 
   const registerText = registerMessage(registerLoad, issues.length);
 
@@ -310,7 +335,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
       >
         {section === 'issue' && (
           <div className="space-y-5">
-            {reportChoice(true)}
+            {reportChoice('issue')}
             <button
               type="button"
               onClick={() => issue()}
@@ -325,7 +350,12 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
 
         {section === 'register' && (
           registerText ? (
-            <p className="py-8 text-center text-sm text-slate-500">{registerText}</p>
+            <p className="flex items-center justify-center gap-2 py-8 text-center text-sm text-slate-500">
+              {registerLoad === 'loading' && (
+                <span className="material-symbols-outlined animate-spin text-[18px]" aria-hidden="true">progress_activity</span>
+              )}
+              {registerText}
+            </p>
           ) : (
             <>
               <ul aria-label="Registre" className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
@@ -419,7 +449,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
                 ))}
               </ul>
             )}
-            {reportChoice(false)}
+            {reportChoice('schedules')}
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className={labelClass}>Nom</span>

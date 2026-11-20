@@ -26,6 +26,7 @@ export const UI_TOOLTIPS = {
       "Recharge les indicateurs et les tableaux visibles pour refléter l'état documentaire le plus récent.",
     exportTable:
       "Exporte la vue visible au format Excel pour une reprise rapide hors de la plateforme.",
+    officialCopy: "Exemplaire numéroté, inscrit au registre.",
     generateReport:
       "Prépare un rapport plus structuré avec le type, le format et le niveau de détail de votre choix.",
     tabSynthese:
