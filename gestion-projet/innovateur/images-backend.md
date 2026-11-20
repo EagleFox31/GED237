@@ -69,5 +69,8 @@ Côté apt, la chaîne de compilation (gcc-14, cpp-14, libgcc-14-dev, binutils, 
 
 - **Une seule image pour quatre services** : toute cible séparée doit être reportée dans `docker-compose.yml`, le compose e2e et le compose VPS (garde-fou #268).
 - **PR ouvertes qui touchent `backend/Dockerfile` ou `requirements.txt`** : #481 (Python 3.13), #110 (Dependabot python 3.15-slim), #491, #478, #113 et #112 (Dependabot pip), ainsi que des PR V1.1 qui ajoutent une dépendance (#458, #468, #197 notamment). Le lot qui fusionne en second doit reprendre la liste. Il faut prévoir un rebase pour les PR concernées, sans les reprendre.
-- **OCR** : #384 (moteur PDF) et #284 (`ocr_failed`) touchent la stratégie OCR. IMG-1 retire le repli EasyOCR. Il faut vérifier qu'aucune des deux n'en dépend.
+- **OCR** : B a relu les diffs le 20/11. Ni #384 (moteur PDF) ni #284 (`ocr_failed`) ne dépend d'EasyOCR.
+  - Le test de #384 remplace `strategy.easyocr` par un faux repli, `_NoFallback`. Ce faux repli est à supprimer au ménage de IMG-1.
+  - Le test de #284 vérifie que torch et easyocr ne sont pas chargés dans l'API. IMG-1 rend cela vrai par construction.
+  - **À faire dans IMG-1** : retirer l'entrée `"EasyOCREngine": ".easyocr_engine"` de la table d'import différé de `ocr/__init__.py`. Sinon, accéder à ce nom lève une erreur d'import.
 - **Repli** : réversible en remettant les lignes. EasyOCR est déjà désactivé par défaut (`OCR_FALLBACK_ENABLED`, `strategy.py:51-58`), ce qui fait de IMG-1 la seconde étape du retrait prévu par DEC-2026-003.
