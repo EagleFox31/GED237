@@ -9,7 +9,8 @@
 # 3. Information : PR de ORDER ou de HORS_FILE qui ne sont plus ouvertes.
 # 4. Numéros de LESSON (LESSON-2026-072) : un numéro ajouté par une PR ouverte ne doit pas
 #    désigner une autre leçon (titre différent) sur main ni dans une autre PR ouverte. Le même
-#    titre dans plusieurs PR est permis (PR empilées). Lancer `git fetch origin` avant.
+#    titre dans plusieurs PR est permis (PR empilées). Couvre le registre figé et les fichiers
+#    DOCS/engineering/lessons/LESSON-*.md (DEC-2026-009). Lancer `git fetch origin` avant.
 # Code 0 si tout va bien, 1 sinon.
 set -euo pipefail
 
@@ -39,12 +40,24 @@ for k in "${!DEP[@]}"; do
 done
 
 lessons=DOCS/engineering/lessons-learned.md
+# DEC-2026-009 : depuis la coupe, une leçon par fichier, titre en 1re ligne « # LESSON-… — Titre ».
+lessons_dir=DOCS/engineering/lessons
 heading='s/^+\{0,1\}### \(LESSON-[0-9]*-[0-9]*\) — /\1 — /p'
+file_heading='1s/^# \(LESSON-[0-9]*-[0-9]*\) — /\1 — /p'
 declare -A les_titre=() les_prs=(); les_err=0
+# Lignes « LESSON-… — titre » des fichiers $2 (un par ligne) lus à la révision $1.
+file_lessons() {
+  local f
+  while IFS= read -r f; do
+    case $f in */LESSON-*.md) git show "$1:$f" 2>/dev/null | sed -n "$file_heading" ;; esac
+  done
+}
 while IFS= read -r l; do
   les_titre[${l%% *}]=${l#* — }; les_prs[${l%% *}]=main
-done < <(git show "origin/main:$lessons" 2>/dev/null | sed -n "$heading")
-# Enregistre les LESSON ajoutées par la PR $1 (branche $2) ; erreur si un numéro change de titre.
+done < <(git show "origin/main:$lessons" 2>/dev/null | sed -n "$heading"
+         git ls-tree --name-only "origin/main" "$lessons_dir/" 2>/dev/null | file_lessons origin/main)
+# Enregistre les LESSON ajoutées par la PR $1 (branche $2), dans le registre ou dans lessons/ ;
+# erreur si un numéro change de titre.
 check_lessons() {
   local id t l
   if ! git rev-parse -q --verify "origin/$2" >/dev/null; then
@@ -57,7 +70,9 @@ check_lessons() {
       echo "ERREUR LESSON : $id de #$1 désigne une autre leçon que dans ${les_prs[$id]}"
       les_err=$((les_err + 1)); status=1
     else les_prs[$id]+=" #$1"; fi
-  done < <(git diff "origin/main...origin/$2" -- "$lessons" 2>/dev/null | sed -n "$heading" | grep -v '^LESSON-[0-9-]* — $' || true)
+  done < <({ git diff "origin/main...origin/$2" -- "$lessons" 2>/dev/null | sed -n "$heading"
+             git diff --name-only --diff-filter=A "origin/main...origin/$2" -- "$lessons_dir/" 2>/dev/null |
+               file_lessons "origin/$2"; } | grep -v '^LESSON-[0-9-]* — $' || true)
 }
 
 declare -A hors=(); for n in $HORS_FILE; do hors[$n]=1; done
