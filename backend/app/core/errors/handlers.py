@@ -39,11 +39,16 @@ def _correlation_id() -> str | None:
     return get_request_id()
 
 
-def _problem_response(payload: dict[str, Any], status_code: int) -> JSONResponse:
+def _problem_response(
+    payload: dict[str, Any],
+    status_code: int,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content=payload,
         media_type=PROBLEM_JSON_MEDIA_TYPE,
+        headers=headers,
     )
 
 
@@ -177,7 +182,9 @@ async def http_exception_handler(
         correlation_id=cid,
         instance=str(request.url.path),
     )
-    return _problem_response(payload, exc.status_code)
+    # Headers set by the raiser are part of the response contract
+    # (WWW-Authenticate on a 401, RFC 9110 §15.5.2; Allow on a 405; Retry-After).
+    return _problem_response(payload, exc.status_code, getattr(exc, "headers", None))
 
 
 # ─────────────────────────────────────────────────────────────────────
