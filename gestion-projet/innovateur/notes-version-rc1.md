@@ -75,6 +75,8 @@ Ce qui change pour les agents et les responsables, en clair, et ce qu'on en dit 
 | Renommer ou reclasser un document ne laisse pas de trace dans le journal | Les autres actions sont tracées. | Corrigé en 1.1 |
 | Depuis la bannette « à revoir », l'administrateur peut choisir un dossier dont le serveur ne vérifie pas qu'il appartient à son institution | Le contrôle est ajouté côté serveur. | Corrigé en 1.1 |
 | Un manager ou un lecteur qui ouvre un document hors de son service voit « accès refusé » au lieu de « introuvable » | Le document n'est pas montré, mais le message confirme qu'il existe. | Corrigé en 1.1 |
+| Un ancien navigateur affiche une page blanche ou une fenêtre de dépôt coupée | Navigateurs pris en charge : Chrome 109 et plus, Firefox 115 et plus, Edge. | Message clair en 1.1 |
+| Sur un autre poste en HTTP, le bouton « Copier » ne fait rien | Le navigateur réserve la copie aux connexions chiffrées : copier l'adresse à la main, ou passer en HTTPS. | Corrigé en 1.1 |
 | Les droits par rôle ne se modifient pas à l'écran | Ils sont réglés à l'installation. | Affichés en 1.1, modifiables ensuite |
 | Les documents rangés avant cette version ne sont pas rerangés | Les nouvelles règles s'appliquent aux nouveaux documents. | — |
 | Un scan de mauvaise qualité est moins bien lu | La lecture du texte des scans est volontairement légère, pour tenir sur une machine modeste. | — |
