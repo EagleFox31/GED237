@@ -32,3 +32,30 @@ export const openNotificationsSocket = (
     return null;
   }
 };
+
+/**
+ * Corps de l'effet de `useNotifications`, hors React pour être testé sans navigateur.
+ * Sans jeton ou si l'ouverture échoue : rien à fermer, et aucun nouvel essai.
+ * Renvoie la fonction de nettoyage de l'effet.
+ */
+export const subscribeToNotifications = (
+  apiUrl: string,
+  pageHref: string,
+  token: string | null,
+  onNotification: (data: unknown) => void,
+  create?: (url: string) => WebSocket,
+): (() => void) | undefined => {
+  if (!token) return undefined;
+  const socket = openNotificationsSocket(apiUrl, pageHref, token, create);
+  if (!socket) return undefined;
+  socket.onopen = () => console.log('Notification WebSocket connected');
+  socket.onmessage = (event: MessageEvent) => {
+    try {
+      onNotification(JSON.parse(event.data));
+    } catch (err) {
+      console.error('Failed to parse WebSocket message', err);
+    }
+  };
+  socket.onclose = () => console.log('Notification WebSocket closed');
+  return () => socket.close();
+};
