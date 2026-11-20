@@ -1,6 +1,8 @@
 [
   {"name": "w2-web", "listen": "0.0.0.0:8006", "upstream": "w2:8006", "enabled": true},
   {"name": "w2-rdp", "listen": "0.0.0.0:13389", "upstream": "w2:3389", "enabled": true},
+  {"name": "c1-web", "listen": "0.0.0.0:3011", "upstream": "c1:3001", "enabled": true},
+  {"name": "c2-web", "listen": "0.0.0.0:3012", "upstream": "c2:3001", "enabled": true},
   {"name": "ged-https", "listen": "0.0.0.0:443", "upstream": "ged-upstream:8443", "enabled": true},
   {"name": "ged-http", "listen": "0.0.0.0:80", "upstream": "ged-upstream:8080", "enabled": true}
 ]

@@ -1,4 +1,5 @@
-# Lab multi-postes — poste W2 « agence régionale » (Windows 10 LTSC, français, AZERTY).
+# Lab multi-postes — poste W2 « agence régionale » (Windows 11 LTSC, AZERTY).
+# 11l plutôt que 10l : l'évaluation Windows 10 LTSC installée le 19/11 se déclarait déjà expirée.
 # Démarrage uniquement sur demande (profil w2) :
 #   scripts/lab/kvm_prereq.sh
 #   MSYS_NO_PATHCONV=1 docker compose -f scripts/lab/w2/compose.yml --profile w2 up -d
@@ -12,7 +13,7 @@ services:
     image: docker.io/dockurr/windows:6.06
     container_name: ged-lab-w2
     environment:
-      VERSION: "10l"
+      VERSION: "11l"
       LANGUAGE: "French"
       REGION: "fr-FR"
       KEYBOARD: "fr-FR"

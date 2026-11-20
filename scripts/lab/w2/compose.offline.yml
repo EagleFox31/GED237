@@ -25,12 +25,18 @@ services:
     networks:
       lab-edge: {}
       lab-int:
+        # Adresse fixe : le serveur de développement de la GED refuse le nom ged.lab.test
+        # (403, hôte non autorisé) mais accepte une adresse IP. Les postes utilisent donc
+        # http://<LAB_RELAY_IP>/edossier/ tant que ce nom n'est pas autorisé côté GED.
+        ipv4_address: ${LAB_RELAY_IP:-10.237.40.10}
         aliases:
           - ged.lab.test
     ports:
       - "127.0.0.1:${LAB_W2_WEB_PORT:-8006}:8006"
       - "127.0.0.1:${LAB_W2_RDP_PORT:-13389}:13389"
       - "127.0.0.1:${LAB_RELAY_API_PORT:-8474}:8474"
+      - "127.0.0.1:${LAB_C1_WEB_PORT:-3011}:3011"
+      - "127.0.0.1:${LAB_C2_WEB_PORT:-3012}:3012"
     mem_limit: 64m
     cpus: 0.5
     logging:
@@ -39,7 +45,39 @@ services:
         max-size: "1m"
     restart: "no"
 
+  # Postes C1 et C2 : un Chromium dans le navigateur de l'hôte (https://127.0.0.1:3011 et 3012,
+  # certificat auto-signé à accepter). Sur lab-int seulement : comme W2, ils n'ont pas
+  # internet et ne joignent la GED que par le relais, donc par le lien dégradable.
+  c1: &poste-chrome
+    profiles: ["w2"]
+    image: lscr.io/linuxserver/chromium:075b0b99-ls64
+    container_name: ged-lab-c1
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Africa/Douala"
+      LC_ALL: "fr_FR.UTF-8"
+      CHROME_CLI: "http://${LAB_RELAY_IP:-10.237.40.10}/edossier/"
+    shm_size: "1gb"
+    networks:
+      - lab-int
+    mem_limit: 1200m
+    cpus: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+    restart: "no"
+
+  c2:
+    <<: *poste-chrome
+    container_name: ged-lab-c2
+
 networks:
   lab-int:
     internal: true
+    ipam:
+      config:
+        # Réglable si ce sous-réseau croise un réseau existant (docker network create échoue alors).
+        - subnet: ${LAB_INT_SUBNET:-10.237.40.0/24}
   lab-edge: {}

@@ -28,3 +28,12 @@ ram_mb=$(to_mb "$ram"); limit_mb=$(to_mb "$limit")
 [ "$limit_mb" -ge $(( ram_mb + 256 )) ] || fail "mem_limit ($limit) < RAM_SIZE ($ram) + 256 Mo"
 
 echo "OK : RAM_SIZE $ram fixe (RAM_CHECK=N), mem_limit $limit"
+
+# Overlay hors ligne : chaque conteneur est plafonné, chaque image a une version figée, chaque
+# port n'écoute que sur l'hôte. (c2 hérite de c1 par ancre YAML : il ne déclare pas d'image.)
+OFF="$(dirname "$FILE")/compose.offline.yml"
+images=$(grep -cE '^ +image:' "$OFF"); limits=$(grep -cE '^ +mem_limit:' "$OFF")
+[ "$images" -eq "$limits" ] || fail "$images image(s) pour $limits mem_limit ($OFF)"
+! grep -E '^ +image:' "$OFF" "$FILE" | grep -Eq ':latest *$|image: *[^:]+$' || fail "image sans version figée"
+! grep -E '^ +- "[0-9$]' "$OFF" "$FILE" | grep -vq '127\.0\.0\.1:' || fail "port publié hors 127.0.0.1"
+echo "OK : overlay plafonné, versions figées, ports locaux"
