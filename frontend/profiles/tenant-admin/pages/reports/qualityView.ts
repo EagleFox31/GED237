@@ -51,7 +51,7 @@ export const alertFormProblem = (input: {
   if (!input.indicator) return 'Choisissez un indicateur.';
   const value = Number(input.threshold);
   if (input.measure === 'rate') {
-    return input.threshold.trim() && value > 0 && value <= 100 ? null : 'Seuil : un pourcentage entre 0 et 100.';
+    return input.threshold.trim() && value > 0 && value <= 100 ? null : 'Seuil : un pourcentage supérieur à 0, jusqu’à 100.';
   }
   return input.threshold.trim() && Number.isInteger(value) && value >= 1 ? null : 'Seuil : un nombre entier à partir de 1.';
 };

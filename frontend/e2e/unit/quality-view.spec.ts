@@ -47,8 +47,10 @@ test.describe('Onglet Qualité : règles d’affichage', () => {
     }
     expect(alertFormProblem({ ...ready, measure: 'rate', threshold: '12.5' })).toBeNull();
     expect(alertFormProblem({ ...ready, measure: 'rate', threshold: '100' })).toBeNull();
+    // Règle serveur ]0, 100] : 0,5 est accepté, d'où « supérieur à 0 » et non « entre 1 et 100 ».
+    expect(alertFormProblem({ ...ready, measure: 'rate', threshold: '0.5' })).toBeNull();
     for (const bad of ['', '0', '101']) {
-      expect(alertFormProblem({ ...ready, measure: 'rate', threshold: bad }), bad).toBe('Seuil : un pourcentage entre 0 et 100.');
+      expect(alertFormProblem({ ...ready, measure: 'rate', threshold: bad }), bad).toBe('Seuil : un pourcentage supérieur à 0, jusqu’à 100.');
     }
   });
 });
