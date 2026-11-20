@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+  alertFormProblem,
   alertsMessage,
   documentHref,
   documentsMessage,
@@ -34,5 +35,20 @@ test.describe('Onglet Qualité : règles d’affichage', () => {
     expect(thresholdText('Sans année', 50, 'rate')).toBe('Sans année : à partir de 50 %');
     expect(thresholdText('Sans catégorie', 1200, 'count')).toMatch(/^Sans catégorie : à partir de 1\s200 documents$/);
     expect(documentHref('a b/1')).toBe('/documents?open=a%20b%2F1');
+  });
+
+  test('formulaire d’alerte : le motif du refus est dit en clair', () => {
+    const ready = { name: 'Sans année', indicator: 'missing_year', measure: 'count' as const, threshold: '3' };
+    expect(alertFormProblem(ready)).toBeNull();
+    expect(alertFormProblem({ ...ready, name: '  ' })).toBe('Donnez un nom à l’alerte.');
+    expect(alertFormProblem({ ...ready, indicator: '' })).toBe('Choisissez un indicateur.');
+    for (const bad of ['', '0', '-2', '2.5']) {
+      expect(alertFormProblem({ ...ready, threshold: bad }), bad).toBe('Seuil : un nombre entier à partir de 1.');
+    }
+    expect(alertFormProblem({ ...ready, measure: 'rate', threshold: '12.5' })).toBeNull();
+    expect(alertFormProblem({ ...ready, measure: 'rate', threshold: '100' })).toBeNull();
+    for (const bad of ['', '0', '101']) {
+      expect(alertFormProblem({ ...ready, measure: 'rate', threshold: bad }), bad).toBe('Seuil : un pourcentage entre 0 et 100.');
+    }
   });
 });

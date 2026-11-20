@@ -14,6 +14,7 @@ import {
 } from '../../../../services/resources/quality.api';
 import { formatDate } from '../../../../types';
 import {
+  alertFormProblem,
   alertsMessage,
   documentHref,
   documentsMessage,
@@ -30,15 +31,20 @@ const card = 'rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm';
 interface ReportsQualityPanelProps {
   /** Incrémenté par « Actualiser » de la page. */
   refreshKey: number;
+  /** Affiché quand l'institution n'a encore aucun document. */
+  emptyMessage: string;
+  /** Lecture en cours (indicateurs ou alertes) ; stable (setState de la page). */
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 /**
  * Onglet Qualité des rapports (#162) : documents incomplets par indicateur, et alertes
  * quand un indicateur dépasse un seuil (#183). Le serveur limite le périmètre (service du Manager).
  */
-export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refreshKey }) => {
+export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refreshKey, emptyMessage, onLoadingChange }) => {
   const [summary, setSummary] = useState<QualitySummary | null>(null);
   const [summaryFailed, setSummaryFailed] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [selected, setSelected] = useState<QualityIndicatorKey | null>(null);
   const [docs, setDocs] = useState<{ items: QualityDocument[]; total: number; load: ListLoad }>({
     items: [],
@@ -52,11 +58,13 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
   useEffect(() => {
     let alive = true;
     setSummaryFailed(false);
+    setSummaryLoading(true);
     setAlertsLoad('loading');
     qualityApi
       .getQualitySummary()
       .then((data) => alive && setSummary(data))
-      .catch(() => alive && setSummaryFailed(true));
+      .catch(() => alive && setSummaryFailed(true))
+      .finally(() => alive && setSummaryLoading(false));
     qualityApi
       .listQualityAlerts()
       .then((data) => {
@@ -70,6 +78,13 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
       alive = false;
     };
   }, [refreshKey]);
+
+  const loading = summaryLoading || alertsLoad === 'loading';
+  useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
+  // Onglet quitté : la page ne doit pas garder « Actualiser » en rotation.
+  useEffect(() => () => onLoadingChange?.(false), [onLoadingChange]);
 
   const loadDocs = useCallback(async (indicator: QualityIndicatorKey, offset: number) => {
     const seq = ++docsSeq.current;
@@ -105,6 +120,27 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
   }
 
   const docsNotice = documentsMessage(docs.load, docs.items.length);
+  const alertsCard = (
+    <QualityAlertsCard
+      alerts={alerts}
+      load={alertsLoad}
+      indicators={summary.indicators.map(({ key, label }) => ({ key, label }))}
+      labelOf={labelOf}
+      onCreated={(alert) => setAlerts((list) => [...list, alert])}
+      onStopped={(id) => setAlerts((list) => list.filter((a) => a.id !== id))}
+    />
+  );
+
+  if (summary.total_documents === 0) {
+    return (
+      <div className="space-y-6">
+        <div className={card}>
+          <Empty icon="fact_check" msg={emptyMessage} />
+        </div>
+        {alertsCard}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -189,14 +225,7 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
         )}
       </div>
 
-      <QualityAlertsCard
-        alerts={alerts}
-        load={alertsLoad}
-        indicators={summary.indicators.map(({ key, label }) => ({ key, label }))}
-        labelOf={labelOf}
-        onCreated={(alert) => setAlerts((list) => [...list, alert])}
-        onStopped={(id) => setAlerts((list) => list.filter((a) => a.id !== id))}
-      />
+      {alertsCard}
     </div>
   );
 };
@@ -222,14 +251,14 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
   // Un seul envoi à la fois : un double clic sur « Créer » ou « Oui, arrêter » ne part qu'une fois.
   const [flight] = useState(createSingleFlight);
 
-  const value = Number(threshold);
-  const valid =
-    name.trim() !== '' && indicator !== '' && value > 0 && (measure === 'count' || value <= 100);
+  const problem = alertFormProblem({ name, indicator, measure, threshold });
+  // Le motif ne s'affiche qu'une fois la saisie commencée : un formulaire vierge ne gronde pas.
+  const started = name !== '' || indicator !== '' || threshold !== '';
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!valid) return; // valid implique un indicateur choisi (rétrécissement TS)
-    const input = { name: name.trim(), indicator, measure, threshold: value };
+    if (problem !== null || indicator === '') return; // indicator === '' : rétrécissement TS
+    const input = { name: name.trim(), indicator, measure, threshold: Number(threshold) };
     void flight
       .run(async () => {
         setSubmitting(true);
@@ -266,7 +295,8 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
   };
 
   const field =
-    'rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-rdpc-blue focus:outline-none';
+    'mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-rdpc-blue focus:outline-none';
+  const fieldLabel = 'text-[11px] font-bold text-slate-500';
   const notice = alertsMessage(load, alerts.length);
 
   return (
@@ -333,60 +363,78 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
         </ul>
       )}
 
-      <form onSubmit={submit} aria-label="Nouvelle alerte" className="flex flex-wrap items-end gap-3">
-        <input
-          aria-label="Nom de l'alerte"
-          placeholder="Nom"
-          maxLength={120}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={`${field} min-w-[10rem] flex-1`}
-        />
-        <select
-          aria-label="Indicateur"
-          value={indicator}
-          onChange={(e) => setIndicator(e.target.value as QualityIndicatorKey | '')}
-          className={field}
-        >
-          <option value="">Indicateur…</option>
-          {indicators.map((i) => (
-            <option key={i.key} value={i.key}>
-              {i.label}
-            </option>
-          ))}
-        </select>
-        <input
-          aria-label="Seuil"
-          type="number"
-          min={0}
-          max={measure === 'rate' ? 100 : undefined}
-          step="any"
-          placeholder="Seuil"
-          value={threshold}
-          onChange={(e) => setThreshold(e.target.value)}
-          className={`${field} w-24`}
-        />
-        <select
-          aria-label="Unité du seuil"
-          value={measure}
-          onChange={(e) => setMeasure(e.target.value as QualityAlertMeasure)}
-          className={field}
-        >
-          <option value="count">documents</option>
-          <option value="rate">%</option>
-        </select>
-        <button
-          type="submit"
-          disabled={!valid || submitting}
-          className="rounded-xl bg-rdpc-blue px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-black disabled:opacity-50"
-        >
-          Créer
-        </button>
-      </form>
-      {refused && (
-        <p role="alert" className="mt-3 text-sm font-bold text-amber-700">
+      {/* Refus du serveur (alertes coupées) : inutile de laisser remplir le formulaire. */}
+      {refused ? (
+        <p role="alert" className="text-sm font-bold text-amber-700">
           {refused}
         </p>
+      ) : (
+        <form onSubmit={submit} aria-label="Nouvelle alerte">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className={`${fieldLabel} min-w-[10rem] flex-1`}>
+              Nom
+              <input
+                aria-label="Nom de l'alerte"
+                maxLength={120}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={field}
+              />
+            </label>
+            <label className={fieldLabel}>
+              Indicateur
+              <select
+                aria-label="Indicateur"
+                value={indicator}
+                onChange={(e) => setIndicator(e.target.value as QualityIndicatorKey | '')}
+                className={field}
+              >
+                <option value="">Choisir…</option>
+                {indicators.map((i) => (
+                  <option key={i.key} value={i.key}>
+                    {i.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={`${fieldLabel} w-24`}>
+              Seuil
+              <input
+                aria-label="Seuil"
+                type="number"
+                min={measure === 'rate' ? 0.1 : 1}
+                max={measure === 'rate' ? 100 : undefined}
+                step={measure === 'rate' ? 'any' : 1}
+                value={threshold}
+                onChange={(e) => setThreshold(e.target.value)}
+                className={field}
+              />
+            </label>
+            <label className={fieldLabel}>
+              Unité
+              <select
+                aria-label="Unité du seuil"
+                value={measure}
+                onChange={(e) => setMeasure(e.target.value as QualityAlertMeasure)}
+                className={field}
+              >
+                <option value="count">documents</option>
+                <option value="rate">%</option>
+              </select>
+            </label>
+            <button
+              type="submit"
+              disabled={problem !== null || submitting}
+              aria-describedby={started && problem ? 'quality-alert-problem' : undefined}
+              className="rounded-xl bg-rdpc-blue px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-black disabled:opacity-50"
+            >
+              Créer
+            </button>
+          </div>
+          <p id="quality-alert-problem" aria-live="polite" className="mt-2 min-h-[1rem] text-xs font-medium text-slate-500">
+            {started ? problem : null}
+          </p>
+        </form>
       )}
     </div>
   );

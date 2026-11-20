@@ -4,6 +4,7 @@ import { Empty } from '../../../components/ui/Empty';
 import { useAuthStore } from '../../../stores/authStore';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { UI_TOOLTIPS } from '../../../content/uiTooltips';
+import { useDetailsDismiss } from '../../../lib/detailsDismiss';
 import { exportReportsRowsExcel, exportReportsSeriesCsv, generateReportsDocument } from './reports/reportsExport';
 import { ReportsDocumentPanel } from './reports/ReportsDocumentPanel';
 import { ReportsKpiGrid } from './reports/ReportsKpiGrid';
@@ -98,6 +99,9 @@ const ReportsPage: React.FC = () => {
   const closeOfficial = useCallback(() => setIsOfficialOpen(false), []);
   const outputsMenuRef = useRef<HTMLDetailsElement>(null);
   const outputsSummaryRef = useRef<HTMLElement>(null);
+  useDetailsDismiss(outputsMenuRef, outputsSummaryRef);
+  // Chargement propre à l'onglet Qualité, pour que « Actualiser » tourne aussi là.
+  const [isQualityLoading, setIsQualityLoading] = useState(false);
 
   const { filters, setViewMode } = useReportsFilters();
   const isUnitScope = useAuthStore((s) => s.userProfile?.id) === 'manager';
@@ -131,10 +135,10 @@ const ReportsPage: React.FC = () => {
     if (activeTab !== filters.viewMode) setViewMode(activeTab);
   }, [activeTab, filters.viewMode, setViewMode]);
   const activeMeta = TAB_META[activeTab];
-  const isRefreshing = isLoading || isEvolutionLoading;
   // La qualité a ses propres données : pas d'export de table ni de rapport généré depuis cet onglet.
   const reportView: ReportsViewMode = activeTab === 'qualite' ? 'synthese' : activeTab;
   const inQualityView = activeTab === 'qualite';
+  const isRefreshing = isLoading || isEvolutionLoading || (inQualityView && isQualityLoading);
 
   const currentRows = useMemo(
     () => (inQualityView ? [] : (viewModel.rowsByMode[reportView] ?? [])),
@@ -256,20 +260,15 @@ const ReportsPage: React.FC = () => {
               <summary
                 ref={outputsSummaryRef}
                 aria-label="Télécharger"
-                aria-haspopup="menu"
                 title="Télécharger"
                 className="list-none flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 transition-colors hover:bg-slate-50 [&::-webkit-details-marker]:hidden"
               >
                 <span className="material-symbols-outlined text-[18px]" aria-hidden="true">download</span>
               </summary>
-              <div
-                role="menu"
-                className="absolute right-0 top-full z-20 mt-1 min-w-[240px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-              >
+              <div className="absolute right-0 top-full z-20 mt-1 min-w-[240px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                 {canExportView && (
                   <button
                     type="button"
-                    role="menuitem"
                     title={UI_TOOLTIPS.reports.exportTable}
                     onClick={() => {
                       closeOutputsMenu();
@@ -283,7 +282,6 @@ const ReportsPage: React.FC = () => {
                 )}
                 <button
                   type="button"
-                  role="menuitem"
                   title={UI_TOOLTIPS.reports.officialCopy}
                   onClick={() => {
                     closeOutputsMenu();
@@ -362,7 +360,11 @@ const ReportsPage: React.FC = () => {
         >
           {/* Qualité a ses propres données : une panne des statistiques ne la masque pas. */}
           {inQualityView ? (
-            <ReportsQualityPanel refreshKey={qualityRefreshKey} />
+            <ReportsQualityPanel
+              refreshKey={qualityRefreshKey}
+              emptyMessage={TAB_META.qualite.empty}
+              onLoadingChange={setIsQualityLoading}
+            />
           ) : error ? (
             <div className="rounded-[2rem] border border-red-100 bg-red-50 px-6 py-10 text-center">
               <p className="text-base font-bold text-red-600">{error}</p>

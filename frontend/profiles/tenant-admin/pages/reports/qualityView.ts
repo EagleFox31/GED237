@@ -36,3 +36,22 @@ export const thresholdText = (label: string, threshold: number, measure: Quality
 
 /** Lien vers la fiche d'un document (même forme que la recherche de l'en-tête). */
 export const documentHref = (id: string): string => `/documents?open=${encodeURIComponent(id)}`;
+
+/**
+ * Ce qui empêche de créer l'alerte, en clair, ou `null` si le formulaire est prêt.
+ * Même règle que l'API (seuil > 0, 100 au plus en pourcentage) ; un nombre de documents est entier.
+ */
+export const alertFormProblem = (input: {
+  name: string;
+  indicator: string;
+  measure: QualityAlertMeasure;
+  threshold: string;
+}): string | null => {
+  if (!input.name.trim()) return 'Donnez un nom à l’alerte.';
+  if (!input.indicator) return 'Choisissez un indicateur.';
+  const value = Number(input.threshold);
+  if (input.measure === 'rate') {
+    return input.threshold.trim() && value > 0 && value <= 100 ? null : 'Seuil : un pourcentage entre 0 et 100.';
+  }
+  return input.threshold.trim() && Number.isInteger(value) && value >= 1 ? null : 'Seuil : un nombre entier à partir de 1.';
+};

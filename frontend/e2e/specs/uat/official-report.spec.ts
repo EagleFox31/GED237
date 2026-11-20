@@ -9,7 +9,7 @@ const outputsMenu = (page: Page) => page.locator('summary[aria-label="Téléchar
 
 const openOfficial = async (page: Page) => {
   await outputsMenu(page).click();
-  await page.getByRole('menuitem', { name: 'Copie officielle', exact: true }).click();
+  await page.getByRole('button', { name: 'Copie officielle', exact: true }).click();
 };
 
 /** Copie officielle numérotée, registre et réimpression (#161), programmation (#180). */

@@ -61,7 +61,10 @@ export interface QualityAlertInput {
     threshold: number;
 }
 
-/** Création refusée par le serveur (409 : alertes désactivées) ; le détail est affiché tel quel. */
+/** Seul refus attendu (409) : les alertes sont coupées sur ce serveur. Texte simple, pas le détail technique. */
+export const ALERTS_DISABLED_MESSAGE = 'Les alertes ne sont pas activées.';
+
+/** Création refusée par le serveur (409 : alertes désactivées). */
 export type QualityAlertCreateResult = { alert: QualityAlert } | { refused: string };
 
 export const qualityApi = {
@@ -93,8 +96,7 @@ export const qualityApi = {
         });
         // 409 attendu quand le serveur n'autorise pas les alertes : message affiché dans le formulaire, pas en toast.
         if (response.status === 409) {
-            const body = (await response.json().catch(() => null)) as { detail?: unknown } | null;
-            return { refused: typeof body?.detail === 'string' ? body.detail : 'Création d’alerte impossible.' };
+            return { refused: ALERTS_DISABLED_MESSAGE };
         }
         if (!response.ok) throw await buildApiError(response, 'Création de l’alerte impossible');
         return { alert: (await response.json()) as QualityAlert };
