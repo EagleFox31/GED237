@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Empty } from '../../../components/ui/Empty';
 import { useAuthStore } from '../../../stores/authStore';
@@ -7,6 +7,8 @@ import { UI_TOOLTIPS } from '../../../content/uiTooltips';
 import { exportReportsRowsExcel, exportReportsSeriesCsv, generateReportsDocument } from './reports/reportsExport';
 import { ReportsDocumentPanel } from './reports/ReportsDocumentPanel';
 import { ReportsKpiGrid } from './reports/ReportsKpiGrid';
+import { OfficialReportModal } from './reports/OfficialReportModal';
+import type { OfficialReportKind } from '../../../services/resources/officialReports.api';
 import { ReportGenerationModal, type ReportGenerationRequest } from './reports/ReportGenerationModal';
 import { ReportsServiceActivityPanel } from './reports/ReportsServiceActivityPanel';
 import { ReportsSummaryPanel } from './reports/ReportsSummaryPanel';
@@ -68,8 +70,19 @@ const TAB_HELP: Record<ReportsViewMode, string> = {
   services: UI_TOOLTIPS.reports.tabServices,
 };
 
+/** Rapport proposé pour la copie officielle selon l'onglet ouvert. */
+const OFFICIAL_KIND: Record<ReportsViewMode, OfficialReportKind> = {
+  synthese: 'evolution',
+  workflows: 'workflow-activity',
+  services: 'service-activity',
+  documents: 'document-activity',
+};
+
 const ReportsPage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isOfficialOpen, setIsOfficialOpen] = useState(false);
+  // Stable : le dialogue (DialogFrame) relance sa mise au point si onClose change.
+  const closeOfficial = useCallback(() => setIsOfficialOpen(false), []);
 
   const { filters, setViewMode } = useReportsFilters();
   const isUnitScope = useAuthStore((s) => s.userProfile?.id) === 'manager';
@@ -211,6 +224,15 @@ const ReportsPage: React.FC = () => {
             >
               <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden>refresh</span>
               Actualiser
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsOfficialOpen(true)}
+              title={UI_TOOLTIPS.reports.officialCopy}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
+              Copie officielle
             </button>
             {!isUnitScope && (
               <>
@@ -374,6 +396,9 @@ const ReportsPage: React.FC = () => {
         onClose={() => setIsReportModalOpen(false)}
         onGenerate={handleGenerateReport}
       />
+      {isOfficialOpen && (
+        <OfficialReportModal defaultKind={OFFICIAL_KIND[activeTab]} onClose={closeOfficial} />
+      )}
     </div>
   );
 };
