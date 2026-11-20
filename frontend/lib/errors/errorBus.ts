@@ -66,10 +66,14 @@ const chooseAutoDismissMs = (
   return DEFAULT_TOAST_MS;
 };
 
-const newId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
+// randomUUID manque avant Chrome 92 et hors HTTPS. La garde est un `if (typeof … === 'function')` :
+// c'est la forme que reconnaît compat/compat (un ternaire ne l'est pas).
+const newId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2);
+};
 
 export const useErrorBus = create<ErrorBusState>((set, get) => ({
   entries: [],
