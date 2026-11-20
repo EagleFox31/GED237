@@ -77,8 +77,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    # Filtered total of list endpoints, read cross-origin by the frontend.
-    expose_headers=["X-Total-Count"],
+    # Read cross-origin by the frontend: filtered total of list endpoints, and
+    # the file name of a download (API on another origin, e.g. the e2e stack).
+    expose_headers=["X-Total-Count", "Content-Disposition"],
 )
 
 # Include API Router
