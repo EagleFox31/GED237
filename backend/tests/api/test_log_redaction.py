@@ -67,6 +67,22 @@ async def test_access_log_of_a_200_stream_hides_the_token(
     assert FAKE_LINK not in logged
 
 
+def test_websocket_accept_line_hides_the_query_token(caplog):
+    """uvicorn.error logs the notifications WebSocket with its ?token= query."""
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
+    logging.getLogger("uvicorn.error").info(
+        '%s - "WebSocket %s" [accepted]',
+        ("127.0.0.1", 50000),
+        f"/api/v1/notifications/ws?token={FAKE_LINK}&lang=fr",
+    )
+
+    assert (
+        '"WebSocket /api/v1/notifications/ws?token=***&lang=fr" [accepted]'
+        in caplog.text
+    )
+    assert FAKE_LINK not in _all_logged_text(caplog)
+
+
 @pytest.mark.asyncio
 async def test_error_log_of_a_500_stream_hides_the_token(monkeypatch, caplog):
     def _boom(token):

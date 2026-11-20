@@ -10,8 +10,13 @@ import logging
 import re
 from typing import Any
 
-# Paths whose last segment is a credential. One pattern per secret-carrying route.
-_SECRET_PATH_SEGMENTS = (re.compile(r"(/documents/stream/)[^/?#\s\"']+"),)
+# URL parts that are credentials; group 1 is kept. One pattern per carrier:
+# the "Open" link token in its path, and the access token of the notifications
+# WebSocket in its query (uvicorn.error logs 'WebSocket <path?query> [accepted]').
+_SECRET_PATH_SEGMENTS = (
+    re.compile(r"(/documents/stream/)[^/?#\s\"']+"),
+    re.compile(r"([?&]token=)[^&#\s\"']+"),
+)
 REDACTED = "***"
 
 # Loggers that write request paths. uvicorn.access: one line per request;
