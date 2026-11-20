@@ -10,6 +10,7 @@ from app.api.v1.router import api_router
 from app.core.rate_limit import limiter
 from app.core.authz.casbin_enforcer import reload_enforcer
 from app.core.observability.request_id import set_request_id, reset_request_id
+from app.core.observability.log_redaction import install_log_redaction
 from app.core.errors import register_error_handlers
 from app.core.database import engine
 from app.core.schema_check import enforce_schema_at_head
@@ -20,6 +21,11 @@ from app.services.gedrules_listeners import register_gedrules_listeners
 
 logger = logging.getLogger(__name__)
 
+# "Open" link tokens travel in the URL path: never write them to the logs.
+# uvicorn sets up its loggers before importing the app; the lifespan installs
+# the filters again (idempotent) in case a logging config ran in between.
+install_log_redaction()
+
 # Register listeners globally
 register_all_listeners()
 register_gedrules_listeners()
@@ -29,6 +35,7 @@ register_gedrules_listeners()
 async def lifespan(app: FastAPI):
     # Startup actions
     logger.info("Starting up e-Dossier API...")
+    install_log_redaction()
     # Fail fast if the database has not been migrated to the code's revision.
     await enforce_schema_at_head(engine, settings.SCHEMA_CHECK_MODE)
     if settings.AUTHZ_BACKEND in {"sql", "shadow"}:
