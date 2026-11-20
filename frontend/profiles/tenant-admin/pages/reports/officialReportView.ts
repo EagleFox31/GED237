@@ -1,5 +1,7 @@
 // Règles d'affichage du modal « Copie officielle », sans React, testées par `npm run test:unit`.
 
+import type { OfficialReportFormat } from '../../../../services/resources/officialReports.api';
+
 export type OfficialSection = 'issue' | 'register' | 'schedules';
 
 export const SECTION_LABELS: Record<OfficialSection, string> = {
@@ -7,6 +9,16 @@ export const SECTION_LABELS: Record<OfficialSection, string> = {
   register: 'Registre',
   schedules: 'Programmés',
 };
+
+/** Formats en mots plutôt qu'en codes de fichier ; un format inconnu reste affiché en code. */
+export const FORMAT_LABELS: Record<OfficialReportFormat, string> = {
+  csv: 'Tableur (CSV)',
+  html: 'Page web',
+  pdf: 'PDF',
+};
+
+export const formatLabel = (format: string | null | undefined): string =>
+  !format ? '' : FORMAT_LABELS[format as OfficialReportFormat] ?? format.toUpperCase();
 
 /** « Programmés » n'apparaît que si le serveur exécute les rapports programmés. */
 export const visibleSections = (schedulingEnabled: boolean): OfficialSection[] =>

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   canClose,
+  formatLabel,
   nextSection,
   registerLoadFromError,
   registerMessage,
@@ -53,5 +54,13 @@ test.describe('Copie officielle : règles d’affichage', () => {
     expect(nextSection(all, 'issue', 'Enter')).toBeNull();
     expect(nextSection(visibleSections(false), 'register', 'ArrowRight')).toBe('issue');
     expect(nextSection(visibleSections(false), 'schedules', 'ArrowRight')).toBeNull();
+  });
+
+  test('formats en mots : tableur, page web, PDF ; inconnu en code', () => {
+    expect(formatLabel('csv')).toBe('Tableur (CSV)');
+    expect(formatLabel('html')).toBe('Page web');
+    expect(formatLabel('pdf')).toBe('PDF');
+    expect(formatLabel('xml')).toBe('XML');
+    expect(formatLabel(undefined)).toBe('');
   });
 });

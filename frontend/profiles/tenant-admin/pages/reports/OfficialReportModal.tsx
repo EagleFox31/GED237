@@ -11,11 +11,15 @@ import type {
   OfficialReportSchedule,
   ReportFrequency,
 } from '../../../../services/resources/officialReports.api';
+import { DialogFrame } from '../../../../components/ui/DialogFrame';
 import { InlineHelpButton } from '../../../../components/ui/InlineHelpButton';
+import { createSingleFlight } from '../../../../lib/singleFlight';
 import { downloadBlob } from './reportsExport';
 import {
+  FORMAT_LABELS,
   SECTION_LABELS,
   canClose,
+  formatLabel,
   nextSection,
   registerLoadFromError,
   registerMessage,
@@ -76,7 +80,10 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   const [scheduleName, setScheduleName] = useState('');
   const [frequency, setFrequency] = useState<ReportFrequency>('monthly');
 
-  const busyRef = useRef(false);
+  // « Arrêter » demande une confirmation sur la ligne même (pas de second dialogue empilé).
+  const [confirmStopId, setConfirmStopId] = useState<string | null>(null);
+
+  const [flight] = useState(createSingleFlight);
   const issuesSeq = useRef(0);
   const tabRefs = useRef<Partial<Record<OfficialSection, HTMLButtonElement | null>>>({});
   const sections = visibleSections(schedulingEnabled);
@@ -125,17 +132,10 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
     if (section === 'register') loadIssues();
   }, [section, loadIssues]);
 
+  // Stable tant que `onClose` l'est : DialogFrame relance sa mise au point à chaque changement.
   const requestClose = useCallback(() => {
-    if (canClose(busyRef.current)) onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') requestClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [requestClose]);
+    if (canClose(flight.busy)) onClose();
+  }, [flight, onClose]);
 
   const selectSection = (next: OfficialSection, focus = false) => {
     // Le numéro de la dernière copie reste affiché d'un onglet à l'autre.
@@ -155,19 +155,19 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
     setNotice(`${verb} : ${copy.number || copy.filename}`);
   };
 
-  const run = async (action: () => Promise<void>) => {
-    busyRef.current = true;
-    setBusy(true);
-    setNotice('');
-    try {
-      await action();
-    } catch {
-      /* erreur déjà affichée par le bus global (detail du serveur tel quel) */
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
-    }
-  };
+  // Une seule demande à la fois : un double clic n'émet pas deux copies numérotées.
+  const run = (action: () => Promise<void>) =>
+    flight.run(async () => {
+      setBusy(true);
+      setNotice('');
+      try {
+        await action();
+      } catch {
+        /* erreur déjà affichée par le bus global (detail du serveur tel quel) */
+      } finally {
+        setBusy(false);
+      }
+    });
 
   const issue = () => run(async () => deliver(await officialReportsApi.issue(request()), 'Copie émise'));
 
@@ -186,6 +186,8 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
     run(async () => {
       await officialReportsApi.stopSchedule(item.id);
       setSchedules((current) => current.filter((s) => s.id !== item.id));
+      setConfirmStopId(null);
+      setNotice(`Arrêté : ${item.name}`);
     });
 
   const reportChoice = (withDates: boolean) => (
@@ -207,11 +209,11 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
               type="button"
               aria-pressed={format === f}
               onClick={() => setFormat(f)}
-              className={`flex-1 rounded-2xl px-3 py-2 text-xs font-bold uppercase ${
+              className={`flex-1 rounded-2xl px-3 py-2 text-xs font-bold ${
                 format === f ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {f}
+              {FORMAT_LABELS[f]}
             </button>
           ))}
         </div>
@@ -220,11 +222,23 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
         <>
           <label className="block">
             <span className={labelClass}>Du</span>
-            <input type="date" className={fieldClass} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <input
+              type="date"
+              className={fieldClass}
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
           </label>
           <label className="block">
             <span className={labelClass}>Au</span>
-            <input type="date" className={fieldClass} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <input
+              type="date"
+              className={fieldClass}
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
           </label>
         </>
       )}
@@ -234,189 +248,211 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
   const registerText = registerMessage(registerLoad, issues.length);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4" role="presentation">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="official-report-title"
-        aria-busy={busy}
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <h2 id="official-report-title" className="text-2xl font-black tracking-tight text-slate-900">
-              Copie officielle
-            </h2>
-            <InlineHelpButton
-              label="Aide sur la copie officielle"
-              content="Un exemplaire numéroté du rapport, inscrit au registre. Vous pouvez le réimprimer à l’identique."
-            />
-          </div>
-          <button
-            type="button"
-            onClick={requestClose}
-            disabled={busy}
-            aria-label="Fermer"
-            title={busy ? 'Patientez, copie en cours' : undefined}
-            className="rounded-full border border-slate-200 p-2 text-slate-400 transition hover:text-slate-700 disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined" aria-hidden="true">close</span>
-          </button>
+    <DialogFrame
+      labelledBy="official-report-title"
+      onClose={requestClose}
+      className="flex max-w-2xl flex-col rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <h2 id="official-report-title" className="text-2xl font-black tracking-tight text-slate-900">
+            Copie officielle
+          </h2>
+          <InlineHelpButton
+            label="Aide sur la copie officielle"
+            content="Un exemplaire numéroté du rapport, inscrit au registre. Vous pouvez le réimprimer à l’identique."
+          />
         </div>
-
-        <div role="tablist" aria-label="Copie officielle" className="mt-5 flex gap-2">
-          {sections.map((s) => (
-            <button
-              key={s}
-              ref={(node) => {
-                tabRefs.current[s] = node;
-              }}
-              id={tabId(s)}
-              type="button"
-              role="tab"
-              aria-selected={section === s}
-              // Un seul panneau monté : seul l'onglet actif pointe vers lui.
-              aria-controls={section === s ? panelId(s) : undefined}
-              tabIndex={section === s ? 0 : -1}
-              onClick={() => selectSection(s)}
-              onKeyDown={onTabKeyDown}
-              className={`rounded-2xl px-4 py-2 text-xs font-bold ${
-                section === s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {SECTION_LABELS[s]}
-            </button>
-          ))}
-        </div>
-
-        <div
-          role="tabpanel"
-          id={panelId(section)}
-          aria-labelledby={tabId(section)}
-          tabIndex={0}
-          className="mt-5 min-h-0 flex-1 overflow-y-auto"
+        <button
+          type="button"
+          onClick={requestClose}
+          disabled={busy}
+          aria-label="Fermer"
+          title={busy ? 'Patientez, copie en cours' : undefined}
+          className="rounded-full border border-slate-200 p-2 text-slate-400 transition hover:text-slate-700 disabled:opacity-50"
         >
-          {section === 'issue' && (
-            <div className="space-y-5">
-              {reportChoice(true)}
-              <button
-                type="button"
-                onClick={() => issue()}
-                disabled={busy}
-                className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:bg-black disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
-                Émettre la copie
-              </button>
-            </div>
-          )}
+          <span className="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </div>
 
-          {section === 'register' && (
-            registerText ? (
-              <p className="py-8 text-center text-sm text-slate-500">{registerText}</p>
-            ) : (
-              <>
-                <ul aria-label="Registre" className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
-                  {issues.map((item) => (
-                    <li key={item.id} aria-label={item.number} className="flex items-center gap-3 px-4 py-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-800">{item.number}</p>
-                        <p className="truncate text-xs text-slate-500">
-                          {[KIND_LABELS[item.kind] ?? item.kind, item.format.toUpperCase(), formatDate(item.issued_at)].join(' · ')}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => reprint(item)}
-                        disabled={busy}
-                        aria-label={`Réimprimer ${item.number}`}
-                        title="Réimprimer"
-                        className="rounded-xl p-2 text-slate-500 hover:bg-blue-50 hover:text-rdpc-blue disabled:opacity-50"
-                      >
-                        <span className="material-symbols-outlined" aria-hidden="true">print</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {issues.length < issuesTotal && (
-                  <div className="mt-3 text-center">
+      <div role="tablist" aria-label="Copie officielle" className="mt-5 flex gap-2">
+        {sections.map((s) => (
+          <button
+            key={s}
+            ref={(node) => {
+              tabRefs.current[s] = node;
+            }}
+            id={tabId(s)}
+            type="button"
+            role="tab"
+            aria-selected={section === s}
+            // Un seul panneau monté : seul l'onglet actif pointe vers lui.
+            aria-controls={section === s ? panelId(s) : undefined}
+            tabIndex={section === s ? 0 : -1}
+            onClick={() => selectSection(s)}
+            onKeyDown={onTabKeyDown}
+            className={`rounded-2xl px-4 py-2 text-xs font-bold ${
+              section === s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {SECTION_LABELS[s]}
+          </button>
+        ))}
+      </div>
+
+      <div
+        role="tabpanel"
+        id={panelId(section)}
+        aria-labelledby={tabId(section)}
+        aria-busy={busy}
+        tabIndex={0}
+        className="mt-5 min-h-0 flex-1 overflow-y-auto"
+      >
+        {section === 'issue' && (
+          <div className="space-y-5">
+            {reportChoice(true)}
+            <button
+              type="button"
+              onClick={() => issue()}
+              disabled={busy}
+              className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:bg-black disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
+              Émettre la copie
+            </button>
+          </div>
+        )}
+
+        {section === 'register' && (
+          registerText ? (
+            <p className="py-8 text-center text-sm text-slate-500">{registerText}</p>
+          ) : (
+            <>
+              <ul aria-label="Registre" className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
+                {issues.map((item) => (
+                  <li key={item.id} aria-label={item.number} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-800">{item.number}</p>
+                      <p className="truncate text-xs text-slate-500">
+                        {[KIND_LABELS[item.kind] ?? item.kind, formatLabel(item.format), formatDate(item.issued_at)].join(' · ')}
+                      </p>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => loadIssues(true, issues.length)}
-                      disabled={registerLoad === 'loading'}
-                      className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-50"
+                      onClick={() => reprint(item)}
+                      disabled={busy}
+                      aria-label={`Réimprimer ${item.number}`}
+                      title="Réimprimer"
+                      className="rounded-xl p-2 text-slate-500 hover:bg-blue-50 hover:text-rdpc-blue disabled:opacity-50"
                     >
-                      Afficher plus
+                      <span className="material-symbols-outlined" aria-hidden="true">print</span>
                     </button>
-                  </div>
-                )}
-              </>
-            )
-          )}
+                  </li>
+                ))}
+              </ul>
+              {issues.length < issuesTotal && (
+                <div className="mt-3 text-center">
+                  <button
+                    type="button"
+                    onClick={() => loadIssues(true, issues.length)}
+                    disabled={registerLoad === 'loading'}
+                    className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    Afficher plus
+                  </button>
+                </div>
+              )}
+            </>
+          )
+        )}
 
-          {section === 'schedules' && schedulingEnabled && (
-            <div className="space-y-5">
-              {schedules.length > 0 && (
-                <ul aria-label="Rapports programmés" className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
-                  {schedules.map((item) => (
-                    <li key={item.id} aria-label={item.name} className="flex items-center gap-3 px-4 py-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-800">{item.name}</p>
-                        <p className="truncate text-xs text-slate-500">
-                          {[
-                            FREQUENCY_LABELS[item.frequency] ?? item.frequency,
-                            item.request.kind ? KIND_LABELS[item.request.kind] : null,
-                            item.request.format?.toUpperCase(),
-                          ].filter(Boolean).join(' · ')}
-                        </p>
+        {section === 'schedules' && schedulingEnabled && (
+          <div className="space-y-5">
+            {schedules.length > 0 && (
+              <ul aria-label="Rapports programmés" className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
+                {schedules.map((item) => (
+                  <li key={item.id} aria-label={item.name} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-800">{item.name}</p>
+                      <p className="truncate text-xs text-slate-500">
+                        {[
+                          FREQUENCY_LABELS[item.frequency] ?? item.frequency,
+                          item.request.kind ? KIND_LABELS[item.request.kind] : null,
+                          formatLabel(item.request.format),
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    {confirmStopId === item.id ? (
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs font-bold text-slate-600">Arrêter ce rapport ?</span>
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => stop(item)}
+                          disabled={busy}
+                          aria-label={`Confirmer l’arrêt de ${item.name}`}
+                          className="rounded-2xl bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          Oui, arrêter
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmStopId(null)}
+                          disabled={busy}
+                          className="rounded-2xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                        >
+                          Non
+                        </button>
                       </div>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => stop(item)}
+                        onClick={() => setConfirmStopId(item.id)}
                         disabled={busy}
+                        aria-label={`Arrêter ${item.name}`}
                         className="rounded-2xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                       >
                         Arrêter
                       </button>
-                    </li>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {reportChoice(false)}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className={labelClass}>Nom</span>
+                <input
+                  className={fieldClass}
+                  value={scheduleName}
+                  maxLength={120}
+                  onChange={(e) => setScheduleName(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className={labelClass}>Fréquence</span>
+                <select className={fieldClass} value={frequency} onChange={(e) => setFrequency(e.target.value as ReportFrequency)}>
+                  {(Object.keys(FREQUENCY_LABELS) as ReportFrequency[]).map((f) => (
+                    <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
                   ))}
-                </ul>
-              )}
-              {reportChoice(false)}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className={labelClass}>Nom</span>
-                  <input
-                    className={fieldClass}
-                    value={scheduleName}
-                    maxLength={120}
-                    onChange={(e) => setScheduleName(e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className={labelClass}>Fréquence</span>
-                  <select className={fieldClass} value={frequency} onChange={(e) => setFrequency(e.target.value as ReportFrequency)}>
-                    {(Object.keys(FREQUENCY_LABELS) as ReportFrequency[]).map((f) => (
-                      <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={() => schedule()}
-                disabled={busy || scheduleName.trim() === ''}
-                className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:bg-black disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">schedule</span>
-                Programmer
-              </button>
+                </select>
+              </label>
             </div>
-          )}
-        </div>
-
-        <p role="status" className="mt-4 min-h-[1.25rem] text-sm font-medium text-emerald-700">{notice}</p>
+            <button
+              type="button"
+              onClick={() => schedule()}
+              disabled={busy || scheduleName.trim() === ''}
+              className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:bg-black disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">schedule</span>
+              Programmer
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+
+      <p role="status" className="mt-4 min-h-[1.25rem] text-sm font-medium text-emerald-700">{notice}</p>
+    </DialogFrame>
   );
 };

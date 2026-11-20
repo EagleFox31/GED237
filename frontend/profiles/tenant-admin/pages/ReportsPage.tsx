@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Empty } from '../../../components/ui/Empty';
 import { useAuthStore } from '../../../stores/authStore';
@@ -81,6 +81,8 @@ const OFFICIAL_KIND: Record<ReportsViewMode, OfficialReportKind> = {
 const ReportsPage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isOfficialOpen, setIsOfficialOpen] = useState(false);
+  // Stable : le dialogue (DialogFrame) relance sa mise au point si onClose change.
+  const closeOfficial = useCallback(() => setIsOfficialOpen(false), []);
 
   const { filters, setViewMode } = useReportsFilters();
   const isUnitScope = useAuthStore((s) => s.userProfile?.id) === 'manager';
@@ -395,7 +397,7 @@ const ReportsPage: React.FC = () => {
         onGenerate={handleGenerateReport}
       />
       {isOfficialOpen && (
-        <OfficialReportModal defaultKind={OFFICIAL_KIND[activeTab]} onClose={() => setIsOfficialOpen(false)} />
+        <OfficialReportModal defaultKind={OFFICIAL_KIND[activeTab]} onClose={closeOfficial} />
       )}
     </div>
   );
