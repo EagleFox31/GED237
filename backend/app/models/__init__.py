@@ -27,6 +27,7 @@ from app.models.local_organize_event import LocalOrganizeEvent
 from app.models.user_local_arrangement_snapshot import UserLocalArrangementSnapshot
 from app.models.notification import Notification
 from app.models.document_category import DocumentCategory
+from app.models.ingestion_source import IngestionSource
 from app.models.casbin_rule import CasbinRule
 from app.models.authz_policy_version import AuthzPolicyVersion
 
@@ -60,6 +61,7 @@ __all__ = [
     "AssignmentScope",
     "DocumentRoutingDecision",
     "DocumentCategory",
+    "IngestionSource",
     "CasbinRule",
     "AuthzPolicyVersion",
 ]

@@ -32,6 +32,7 @@ p, super_admin, tenants, manage
 p, super_admin, users, manage
 p, super_admin, org_units, manage
 p, super_admin, categories, manage
+p, super_admin, ingestion_sources, manage
 p, super_admin, gedrules.templates, manage
 p, super_admin, gedrules.rules, manage
 p, super_admin, documents, manage
@@ -47,6 +48,7 @@ p, super_admin, audit_logs, read
 # TENANT ADMIN — gouvernance tenant
 # ─────────────────────────────────────────────────────────────────────────────
 p, tenant_admin, categories, manage
+p, tenant_admin, ingestion_sources, manage
 p, tenant_admin, gedrules.templates, manage
 p, tenant_admin, gedrules.rules, manage
 p, tenant_admin, users, manage

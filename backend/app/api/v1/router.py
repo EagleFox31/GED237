@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     auth,
     authz,
     categories,
+    ingestion_sources,
     classification,
     classification_reviews,
     documents,
@@ -38,6 +39,9 @@ api_router.include_router(imports.router, prefix="/imports", tags=["Imports"])
 api_router.include_router(workflows.router, prefix="/workflows", tags=["Workflows"])
 api_router.include_router(search.router, prefix="/search", tags=["Search"])
 api_router.include_router(categories.router, prefix="/categories", tags=["Categories"])
+api_router.include_router(
+    ingestion_sources.router, prefix="/ingestion/sources", tags=["Ingestion"]
+)
 api_router.include_router(
     notifications.router, prefix="/notifications", tags=["Notifications"]
 )
