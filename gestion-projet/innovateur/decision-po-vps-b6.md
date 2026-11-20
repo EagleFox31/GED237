@@ -12,7 +12,7 @@
 | Mesure | VPS OVH | Besoin GED237 (`docker-compose.yml`) |
 |---|---|---|
 | RAM | 3,8 Go total, **198 Mo libres**, 2,6 Go en cache, swap 2 Go utilisé à moitié | plafonds déclarés : postgres 768 Mo + redis 192 + migrate 512 + api 1 Go + **worker 2 Go** + frontend 768 + nginx 64 = **≈ 5,3 Go** |
-| Conteneurs | 13 déjà actifs (Précis prod, trigenys-sign, WAHA, loveink, casino, eli-bot, stack deploy-*) | 7 à ajouter |
+| Conteneurs | 13 déjà actifs, tous d'autres projets | 7 à ajouter |
 | Disque | 38 Go, **77 % occupé** (8,9 Go libres) | images (torch CPU ≈ 1,5 Go) + corpus 500 documents + sauvegardes |
 | HTTPS | Caddy en place, 5 sites, certificats automatiques | aucune config TLS dans le dépôt (`nginx.conf` sans TLS) |
 | Dossier `deployment/` cité par le RACI | absent du dépôt | à créer dans les deux options |

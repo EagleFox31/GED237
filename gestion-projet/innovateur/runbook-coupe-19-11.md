@@ -1,0 +1,368 @@
+# Runbook de la coupe du 19/11 : `release/v1.0.0`, ruleset, correctifs après la coupe
+
+- **Pour** : O, qui exécute toutes les écritures sur GitHub. Préparé par l'innovateur le 18/11, sur `main` 2f15b6e, en lecture seule : rien n'a été appliqué. **Mis à jour le 18/11 sur dabeeb2 : le § 8 (état réel et ordre du 19) fait foi pour les horaires.**
+- **Remplace** les § 3 et 4 de `deroule-coupe-19-11.md`. Les § 1 et 2 (push et fusion de #104) et les § 5 à 7 (tête alembic, DEC-2026-004, #179) restent valables.
+- **Sources** : `checklist-tag-rc1-24-11.md` (E1 à E5), `gestion-projet/releases/plan-tag-rc1.md`, ruleset 26190959 (lu le 18/11), dépôt `appfactory-project-automation` en e912a8a (`src/governance/policy.mjs`, `docs/repository-governance-quick-start.md`).
+- **Les commandes sont dans des blocs de code**, pas dans des tableaux : on peut les copier telles quelles, même depuis le fichier brut.
+
+## 0. Décisions
+
+- **Point de coupe : la fusion de #104** (décision O, corrigée le 17/11 au soir). Ce n'est pas #121.
+- **#121 va sur la release seulement.** Elle ne change que `frontend/package.json` (`0.0.0` → `1.0.0-rc.1`).
+  - Le 19, après la coupe, elle est reciblée sur `release/v1.0.0` (E1 ter).
+  - Le 24 au matin, elle est la dernière fusion avant le tag (E5).
+  - Elle n'est **pas** recopiée sur `main` : `main` garde `0.0.0`, et sa version sera posée à la release V1.1.
+- **Ruleset de `release/**` : Build, sur le modèle d'AppFactory.** Le Repository Governance d'AppFactory V1 ne gère qu'un seul ruleset, ciblé sur la branche par défaut : `policy.mjs` l. 175-184 rejette tout `target.include` autre que `~DEFAULT_BRANCH`. On reprend donc ses règles (ruleset 26190959) et son cycle « plan en lecture seule → apply → plan sans écriture », en commandes `gh api`. Évolution à proposer à AppFactory après le 30 : une cible configurable.
+- **Après la coupe, DEC-2026-004 passe en premier sur `main`** (I la pousse à 18:40, `deroule-coupe-19-11.md` § 6), avant #179 (§ 7). Elle ne va pas sur la release : c'est une décision pour la V1.1.
+
+## 1. Variables (une fois, dans le terminal d'O)
+
+```bash
+export MSYS_NO_PATHCONV=1 GODEBUG=
+REPO=EagleFox31/GED237 BR=release/v1.0.0 RS_NAME="Release branches"
+ci_gate() { gh pr view "$1" --json isDraft,mergeStateStatus,headRefOid,statusCheckRollup \
+  -q '"draft=\(.isDraft) etat=\(.mergeStateStatus) tete=\(.headRefOid[0:7])", (.statusCheckRollup[]|select(.name=="CI Gate")|"CI Gate \(.status) \(.conclusion)")'; }
+rs_id() { gh api repos/$REPO/rulesets -q ".[]|select(.name==\"$RS_NAME\")|.id"; }
+```
+
+## 2. Avant la coupe : contrôles (lecture seule)
+
+Tous les contrôles doivent passer. Sinon, on ne coupe pas.
+
+```bash
+git fetch -q origin
+M=$(gh pr view 104 --json mergeCommit -q .mergeCommit.oid); echo "$M"
+```
+1. `M` n'est pas vide (#104 est `MERGED`).
+
+```bash
+[ "$M" = "$(git rev-parse origin/main)" ] && echo OK-tete
+```
+2. Attendu : `OK-tete`. Si une autre fusion est passée entre-temps, on coupe quand même sur `$M`, jamais sur la tête de `main`.
+
+```bash
+gh pr view 121 --json state,baseRefName -q '"\(.state) \(.baseRefName)"'
+```
+3. Attendu : `OPEN main`. Si #121 est `MERGED` sur `main`, la version `1.0.0-rc.1` se retrouve sur `main` : arrêter et décider (§ 7).
+
+```bash
+git show origin/main:.github/workflows/ci.yml | grep -cE '^\s*branches:.*release/\*\*'
+```
+4. Attendu : `2` (#206). Un résultat inférieur veut dire que la CI ne tournera pas sur la release : ne pas couper.
+
+```bash
+git ls-remote --exit-code --heads origin "$BR"; echo "code=$?"
+rs_id
+```
+5. Attendu : `code=2` (la branche n'existe pas), et `rs_id` ne renvoie rien (pas encore de ruleset). Si l'un des deux existe déjà, c'est un nouveau passage : voir l'idempotence aux § 3 et 4.
+
+```bash
+gh run list -w ci.yml -c "$M" -L 1 --json status,conclusion -q '.[0]|"\(.status) \(.conclusion)"'
+```
+6. Attendu : `completed success`. Si le run est encore en cours, attendre. S'il est rouge, ne pas couper ; Q qualifie l'échec.
+
+## 3. Coupe de `release/v1.0.0` (écriture d'O)
+
+```bash
+gh api repos/$REPO/git/refs -f ref=refs/heads/$BR -f sha="$M" -q .ref
+```
+- **Attendu** : `refs/heads/release/v1.0.0`.
+- **Si `Reference already exists`** : lancer `gh api repos/$REPO/branches/$BR -q .commit.sha`.
+  - Le SHA vaut `$M` : rien à faire (no-op).
+  - Le SHA est différent et le ruleset n'existe pas encore : `gh api -X PATCH repos/$REPO/git/refs/heads/$BR -f sha="$M" -F force=true`.
+  - Le ruleset existe déjà : voir § 7.
+
+```bash
+[ "$(gh api repos/$REPO/branches/$BR -q .commit.sha)" = "$M" ] && echo OK-coupe
+gh run list -b "$BR" -w ci.yml -L 1 --json headSha,status -q '.[0]|"\(.headSha[0:7]) \(.status)"'
+```
+- **Attendu** : `OK-coupe`, puis un run de `ci.yml` sur `$BR`.
+- **Si aucun run n'apparaît après 2 min** : `gh workflow run ci.yml --ref "$BR"` lance toutes les gates (`workflow_dispatch`, `checklist-tag-rc1-24-11.md` § 4 bis).
+- **La branche d'abord, le ruleset ensuite** : tant que la règle `deletion` n'existe pas, une coupe ratée se corrige encore.
+
+## 4. Ruleset de `release/**` : plan, apply, plan
+
+Le JSON est à mettre hors dépôt, par exemple dans `$TMP/ruleset-release.json`. Ses règles sont celles du ruleset d'AppFactory (26190959) :
+- PR obligatoire, 0 approbation, fils de discussion résolus ;
+- CI Gate obligatoire, branche à jour (`strict`) ;
+- ni force-push ni suppression ;
+- aucun contournement (`bypass_actors` vide).
+
+Une seule différence avec AppFactory : `do_not_enforce_on_create: true`. Sans elle, la création d'une future branche `release/v1.1.0` serait bloquée par l'exigence de CI.
+
+```json
+{
+  "name": "Release branches",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/heads/release/**"], "exclude": [] } },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "pull_request", "parameters": {
+        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false, "require_last_push_approval": false,
+        "required_review_thread_resolution": true,
+        "allowed_merge_methods": ["merge", "squash", "rebase"] } },
+    { "type": "required_status_checks", "parameters": {
+        "strict_required_status_checks_policy": true, "do_not_enforce_on_create": true,
+        "required_status_checks": [ { "context": "CI Gate" } ] } }
+  ],
+  "bypass_actors": []
+}
+```
+
+### 4.1 Plan (lecture seule)
+
+```bash
+ID=$(rs_id); echo "id=${ID:-aucun}"
+[ -n "$ID" ] && gh api repos/$REPO/rulesets/$ID -q '.enforcement, .conditions.ref_name.include, [.rules[].type]'
+```
+- `id=aucun` : le plan est **CRÉER**.
+- Un id, avec `active`, `["refs/heads/release/**"]` et `["deletion","non_fast_forward","pull_request","required_status_checks"]` : le plan est **RIEN À FAIRE**.
+- Un id avec d'autres valeurs : le plan est **METTRE À JOUR** cet id. Ne jamais en créer un second : deux rulesets du même nom rendraient le prochain plan ambigu.
+
+### 4.2 Apply (écriture d'O)
+
+```bash
+# CRÉER
+gh api -X POST repos/$REPO/rulesets --input "$TMP/ruleset-release.json" -q .id
+# METTRE À JOUR
+gh api -X PUT repos/$REPO/rulesets/$ID --input "$TMP/ruleset-release.json" -q .id
+```
+En cas d'erreur 422 : lire le message, corriger le JSON, puis relancer le plan (4.1) avant tout nouvel apply. **Aucune fusion sur `$BR`** tant que 4.3 n'est pas vert.
+
+### 4.3 Plan de contrôle : il ne doit plus rien y avoir à faire
+
+```bash
+ID=$(rs_id); gh api repos/$REPO/rulesets/$ID -q '.enforcement, .conditions.ref_name.include, [.rules[].type]'
+gh api repos/$REPO/rules/branches/$BR -q '[.[].type]|unique'
+gh api repos/$REPO/rulesets/26190959 -q '.conditions.ref_name.include'
+```
+1. Les valeurs du ruleset sont celles de 4.1 : un nouveau passage du plan donne **RIEN À FAIRE**.
+2. Les règles réellement appliquées à `$BR` contiennent `deletion`, `non_fast_forward`, `pull_request` et `required_status_checks`. C'est la preuve en lecture seule : on ne tente pas de force-push pour vérifier.
+3. Le ruleset d'AppFactory vaut toujours `["~DEFAULT_BRANCH"]`. S'il a été modifié par erreur, le remettre tel quel ; ne jamais le supprimer.
+
+## 5. Juste après la coupe
+
+1. **`main` rouvre** : DEC-2026-004 d'abord (I, 18:40), puis #179 (B puis O), selon `deroule-coupe-19-11.md` § 6 et 7.
+2. **Reciblage vers la release** (E1 ter) : #121 et la PR des notes de B.
+   ```bash
+   gh pr edit 121 --base "$BR"
+   gh pr view 121 --json baseRefName -q .baseRefName
+   ```
+   Attendu : `release/v1.0.0`. La branche de #121 part de f89fce8 (16/11). Après le reciblage, son diff ne montre que `frontend/package.json`, mais elle sera `BEHIND` : la règle `strict` l'exige à jour. La file d'O la met à jour par `gh pr update-branch 121` une fois la PR reciblée, puis de nouveau le 24 au matin si un correctif est passé sur la release entre-temps. C'est une branche du dépôt, pas un fork : l'auteur n'a rien à faire. Il faut compter le temps d'une CI (1 à 11 min le 17/11) avant E5.
+3. **Le contrôle d'étanchéité, à chaque fusion sur `main`** : `gh api repos/$REPO/branches/$BR -q .commit.sha` ne bouge pas.
+
+## 6. Correctif après la coupe : PR vers la release, puis `cherry-pick -x` vers `main`
+
+C'est pour un constat de recette du 20 au 23/11 seulement (E3), avec l'accord d'O et **sans migration**.
+
+### 6.1 La PR vers la release (auteur du correctif)
+
+```bash
+git fetch -q origin && git switch -c fix/<constat>-rc1 origin/release/v1.0.0
+# ... correctif, tests en Docker, commit ...
+git push -u origin fix/<constat>-rc1
+gh pr create --base release/v1.0.0 --title "fix(...): ..." --body-file <scratchpad>/pr-<constat>.md
+```
+Le corps de la PR cite le constat de recette, contient la section « RAIDER review », et annonce : « Recopie vers `main` : PR à suivre, le même jour ».
+
+### 6.2 Contrôles avant la fusion (O)
+
+```bash
+ci_gate <n>
+gh pr view <n> --json baseRefName -q .baseRefName
+gh pr diff <n> --name-only | grep -c alembic/versions
+```
+Attendu : `CI Gate COMPLETED SUCCESS`, `release/v1.0.0`, puis `0`. Le périmètre du diff se limite au constat.
+
+### 6.3 Fusion (O)
+
+Fusionner en **squash**, pour qu'un seul commit soit recopié. Puis noter son SHA :
+
+```bash
+gh pr merge <n> --squash
+S=$(gh pr view <n> --json mergeCommit -q .mergeCommit.oid); echo "$S"
+```
+
+### 6.4 Recopie vers `main` (auteur, le même jour)
+
+```bash
+git fetch -q origin
+git log origin/main --oneline --grep "cherry picked from commit $S"     # vide attendu ; sinon déjà recopié, rien à faire
+git switch -c fix/<constat>-main origin/main
+git cherry-pick -x "$S"                 # si la PR a été fusionnée par merge et non par squash : git cherry-pick -x -m 1 "$S"
+git log -1 --format=%B | grep -c "cherry picked from commit $S"         # 1 attendu
+git push -u origin fix/<constat>-main
+gh pr create --base main --title "fix(...): ... (recopie de #<n>)" --body-file <scratchpad>/pr-<constat>-main.md
+```
+- **En cas de conflit** : `git cherry-pick --abort`, puis prévenir O. L'auteur résout ensuite en local (`git cherry-pick -x`, résolution, `git cherry-pick --continue`) et décrit la résolution dans la PR.
+- **Exception** : un correctif qui n'a de sens que sur la release (comme #121) n'est pas recopié. La PR vers la release le dit en une ligne.
+
+## 7. Retour arrière
+
+| Situation | Action (O) |
+|---|---|
+| Coupe sur le mauvais SHA, ruleset pas encore créé | `gh api -X PATCH repos/$REPO/git/refs/heads/$BR -f sha="$M" -F force=true`, puis le contrôle du § 3 |
+| Coupe sur le mauvais SHA, ruleset déjà actif | `gh api -X PUT repos/$REPO/rulesets/$ID -f enforcement=disabled`, correction comme ci-dessus, puis `-f enforcement=active` et le plan du § 4.3 |
+| Ruleset mal formé | `PUT` du JSON corrigé sur le même id (§ 4.2), jamais un second ruleset |
+| Ruleset qui bloque une fusion légitime | relire `ci_gate <n>` : la règle a raison tant que la CI n'est pas verte. Pas de contournement. Une désactivation se fait seulement sur décision d'O, et elle est consignée |
+| #121 fusionnée sur `main` avant la coupe | ne pas couper. Revert de #121 sur `main` par PR, puis on reprend au § 2 avec le nouveau `M` |
+| Correctif fusionné sur la release, qui crée une régression | PR de revert vers `$BR` (`git revert "$S"`, ou `-m 1` pour un merge), puis le même revert sur `main` si la recopie est déjà fusionnée |
+| Coupe à annuler entièrement, aucune fusion sur `$BR` | ruleset désactivé, puis `gh api -X DELETE repos/$REPO/git/refs/heads/$BR`. On revient au plan d'avant (tag sur `main`). Décision d'O seulement |
+
+Après une fusion sur `$BR`, la branche n'est plus supprimée : on corrige par des PR de revert.
+
+## 8. État réel du 18/11 (14:00, `main` dabeeb2) et ordre du 19
+
+**Cette section fait foi pour les horaires et l'ordre du 19.** Les § 1 à 7 restent valables pour les commandes. Relevé : `releve-prs-19-11.sh`, exécuté le 18/11 à 13:46. Son tableau META date d'avant la série V1.0 : l'inventaire complet vient de `gh pr list --state open` (118 PR).
+
+### 8.1 Classement des 118 PR ouvertes
+
+| Classe | PR | Responsable | État le 18/11 à 14:00 |
+|---|---|---|---|
+| V1.0 à fusionner avant 18:00 | #203 | I | **fusionnée le 18/11 à 14:28 (17498b5)**, CI corrigée par ef144da. Avant : à 14:10 : `main` fusionnée par B sans rebase (2a890d0), 139 tests verts en Docker dont `stats_scope`, une seule tête alembic ; en file depuis 13:53 ; **CI rouge** (`audit-logs` 200 au lieu de 403 sur l'accès par étape), B corrige ; 13 fichiers, aucune migration. #358, #241 et #266 reciblées sur `main` par O ; #360 et #361 restent sur la branche de #358 |
+| | #358 | B | **fusionnée le 18/11 à 14:49 (4fcd8d9)**. Avant : dans la file depuis 14:37 ; brouillon, base = branche de #203 ; 11 fichiers, aucune migration ; B corrige les 6 trous relevés par Q |
+| | #360 | B | **fusionnée le 18/11 à 15:07 (8ceae3b)**. Avant : brouillon, base = branche de #358, CLEAN ; 9 fichiers, aucune migration ; 25 tests verts en Docker |
+| | #104 (point de coupe) | I | brouillon, DIRTY sur le distant (7302e3c). En local (8eca6b0) : 56 commits d'avance, 70 de retard, et `merge-tree` ne montre aucun conflit avec `main` |
+| V1.0 conditionnelle | #368 (RapidOCR) | B | **fusionnée le 18/11 (9b32c30)** ; ouverte le 18/11 à 14:56 ; image ramenée à 1800 px (pic mesuré vers 630 Mo). Prise pour le 30/11 seulement si Q valide la lecture de la vraie photo de démo |
+| | #365 (repli EasyOCR coupé par défaut) | B | **fusionnée le 18/11 à 15:24** (d8c0531) ; étape 7 bis faite |
+| | #369 (relance de l'OCR d'un document, `DOCS/exploitation/relancer-ocr.md`) | B | **fusionnée le 18/11 à 16:07** (b724aef) ; procédure disponible sur `main`, la fiche UAT y renvoie (ligne « Lecture bloquée ») |
+| V1.2 | #370 (robustesse OCR : acquittement après coup, tentatives bornées, balayage) | B | brouillon, BEHIND ; c'est OCR-1 du plan V1.1, en tête de la V1.2 |
+| | #356 (e2e du scénario de démo) | F | brouillon, BEHIND ; tests seuls |
+| Release seulement (§ 0) | #121 | O | prête, BEHIND, CI verte ; jamais fusionnée sur `main` |
+| V1.1 / V1.2, brouillon, hors file | les 105 autres brouillons, dont #241, #266, #359, #361 et toute la série post-rc1 | auteurs | aucune fusion avant la coupe |
+| Dependabot | #29, #30, #110, #111, #112, #113, #141 | O | hors file (DEC-2026-001 : V1.2) |
+
+### 8.2 Ordre du 19 : heure au plus tard et critère de passage
+
+Les fusions passent une à une. Avec la règle `strict`, chaque PR demande une mise à jour de branche, une CI de 5 à 13 minutes, puis la fusion : 15 à 20 minutes en tout. **Avant de fusionner une PR qui sert de base, recibler d'abord sur `main` les PR empilées dessus.** Ne jamais supprimer une branche de base (`delete_branch_on_merge` est à `false`).
+
+| # | Étape | Qui | Cible | Au plus tard | Critère de passage | Sinon |
+|---|---|---|---|---|---|---|
+| 0 | Fusion de `main` dans #203 (merge, sans rebase) ; retrait de `TENANT_ANALYTICS_ROLES` ; alignement de `test_stats_scope` ; tests en Docker | B | — | **fait le 18/11** | 2a890d0 : 139 tests verts, une seule tête alembic | — |
+| 1 | Reciblage de #358, #241 et #266 sur `main` | O | **fait le 18/11** | avant la fusion de #203 | `baseRefName` = `main` pour les trois | ne pas fusionner #203 |
+| 2 | Fusion de #203 | O | **fait le 18/11 à 14:28** (17498b5) | 15:00 | `ci_gate 203` : `draft=false`, CI Gate `COMPLETED SUCCESS` ; relecture de Q | V1.1, avec #358 et #360 |
+| 3 | #358 prête (B), puis reciblage de #360 et #361 sur `main` (O) | B, puis O | 12:00 | avant la fusion de #358 | 6 trous corrigés, puis `gh pr ready 358` | — |
+| 4 | Fusion de #358 | O | **fait le 18/11 à 14:49** (4fcd8d9) | **15:30** | CI Gate vert, OK de Q | V1.1, avec #360. La fuite reste dans les limites connues (question 12 de la fiche jury) |
+| 5 | #360 prête, puis fusion | B, puis O | **fait le 18/11 à 15:07** (8ceae3b) | **16:00** | CI Gate vert, OK de Q | V1.1 |
+| 6 | #368 (RapidOCR) : décision. **Fait le 18/11 : fusionnée (9b32c30)** | O | — | **16:00** | étape 0 de `decision-vote-ocr.md` : PR prête, CI verte, OK de Q, Tesseract toujours moteur par défaut, aucune migration, trois tests de repli. Pour le 30/11, Q valide en plus la lecture de la vraie photo de démo (1800 px) | V1.1 (§ 4 de la note) |
+| 7 | Fusion de RapidOCR, si l'étape 6 passe | O | 16:30 | **17:00** | CI Gate vert | V1.1 |
+| 7 bis | **Fait le 18/11 à 15:24** (d8c0531). Correctif repli OCR (B, #365, ouverte à 14:40) : merge avant 17:15. Le repli EasyOCR fait tomber le worker par manque de mémoire ; Tesseract seul lit les 2 photos et les 9 mots (Q, 18/11) | B, puis O | 15:30 (PR) | **17:15** (fusion) | CI Gate vert, OK de Q | O décide : le défaut est noté dans les limites connues, et la démo garde Tesseract |
+| 7 ter | #375 (fiche d'astreinte), en file (#368 fusionnée le 18/11, 9b32c30) | O | après l'étape 7 | **17:15** | CI Gate vert | V1.1 ; sans effet sur la coupe |
+| 8 | #356 (tests e2e seuls) | F, puis O | 14:00 | **15:00** (décision d'O) | CI verte et passe de F OK | V1.1 ; sans effet sur la coupe |
+| 8 bis | #390 (`fix/v10-lot5-ux`, F) : corrections UX des audits Lot 5 et 5 bis, points a à e et g à j (f écarté : déjà masqué sur `main`). **#390 livrée le 18 (911b3c1), corrigée en 4be742b (import/order) et revalidée par Q, en file après #375 ; fusion le 18 ou le 19 avant 17:15** | F, Q, puis O | le 18 | **17:15** le 19 (fusion) | CI Gate vert, OK de Q | repli : seulement les points a à e |
+| 9 | **Gel des fusions sur `main`** : O note la tête de `main` | O | — | **17:15** | `git rev-parse --short origin/main`, transmis à I | — |
+| 10 | Essai à blanc de #104 | I | 17:30 | 17:45 | `deroule-coupe-19-11.md` § 1, ligne de 17:55 : fusion locale de `origin/main` sans conflit, sur la tête notée à 17:15 | conflit : prévenir O avec la liste des fichiers ; ne rien pousser |
+| 11 | Push unique de #104, puis `gh pr ready 104` | I | 18:00 | 18:05 | `deroule` § 1 | — |
+| 12 | Fusion de #104, **point de coupe** | O | 18:20 | **19:00** | `deroule` § 2 : CI Gate vert | à 19:00, O et le PO décident s'il faut couper sans les notes |
+| 13 | #121 reciblée sur la release, après la coupe | O | après le § 3 | 19:30 | `gh pr edit 121 --base "$BR"` | — |
+
+**« #121 en dernier »** désigne le reciblage de l'étape 13, pas une fusion sur `main`. Une fusion sur `main` avant la coupe bloquerait la coupe au contrôle 3 du § 2, et ferait passer `main` en `1.0.0-rc.1` (§ 0).
+
+Reciblage (O) :
+
+```bash
+for n in 358 241 266; do gh pr edit $n --repo $REPO --base main; done   # avant la fusion de #203
+for n in 360 361; do gh pr edit $n --repo $REPO --base main; done       # avant la fusion de #358
+for n in 358 241 266 360 361; do gh pr view $n --repo $REPO --json number,baseRefName -q '"#\(.number) \(.baseRefName)"'; done
+```
+
+### 8.3 Après 18:00 : commande ou responsable de chaque étape
+
+| Heure | Étape | Qui | Commande ou renvoi | Résultat attendu |
+|---|---|---|---|---|
+| 18:00 | Push de #104, puis `gh pr ready 104` | I | `deroule-coupe-19-11.md` § 1 | tête distante = tête locale |
+| 18:05 à 18:20 | Fusion de #104 | O | `deroule` § 2 | `M` = mergeCommit de #104 |
+| ≈ 18:25 | Contrôles avant la coupe | O | § 2, contrôles 1 à 6 | les 6 passent |
+| ≈ 18:30 | Création de `release/v1.0.0` sur `M` | O | § 3 | la branche existe, sur `M` |
+| ≈ 18:30 | Tête alembic de la release | Q | `deroule` § 5 | une seule ligne : `"a7c8d9e0f1b2"`. Vérifié sur dabeeb2 le 18/11 ; #203, #358 et #360 n'ajoutent aucune migration |
+| ≈ 18:35 | Ruleset `release/**` : plan, apply, plan | O | § 4.1, § 4.2, puis § 4.3 | le dernier plan n'a plus rien à faire ; le ruleset 26190959 vise toujours `~DEFAULT_BRANCH` |
+| ≈ 18:40 | Fermeture de #133 | O | bloc ci-dessous | issue CLOSED |
+| 18:40 | DEC-2026-004 sur `main` | I | `deroule` § 6. Branche `docs/dec-2026-004` : 143 commits de retard, aucun conflit. Faire `git merge origin/main` en local avant le push | PR ouverte vers `main`, fusionnée par O |
+| ≈ 18:45 | #121 reciblée sur la release | O | § 5 : `gh pr edit 121 --base "$BR"` | base = `release/v1.0.0` |
+| 18:45 à 19:10 | #179 | O | `deroule` § 7 | — |
+| 19:10 | Contrôle d'étanchéité | O | § 5 | — |
+
+Fermeture de #133. L'écart 2 de l'audit HTTPS est traité par la documentation seule (décision d'O), dans `deroule-demo-https.md` § 3, qui arrive avec #104 :
+
+```bash
+gh pr diff 104 --repo $REPO --name-only | grep -c deroule-demo-https   # doit afficher 1
+gh issue close 133 --repo $REPO --reason completed \
+  --comment "Écart 2 de l'audit HTTPS traité par la documentation : deroule-demo-https.md § 3, arrivé avec #104 ($M)."
+```
+
+### 8.4 Risques pour 18:00
+
+1. **#203, #358 et #360 : risque levé le 18/11.** #203 fusionnée à 14:28 (17498b5), après le correctif de B (ef144da : `audit-logs` reste hors de l'accès par étape) ; #358 à 14:49 (4fcd8d9) ; #360 à 15:07 (8ceae3b). Le périmètre de l'Admin Service est donc dans la rc.1. Historique : la CI de 2a890d0 est rouge : `audit-logs` renvoie 200 au lieu de 403 sur l'accès par étape. Les 139 tests verts en Docker ne couvraient pas ce cas. B corrige ; Q relit le correctif. #358 et #360 attendent #203. Objectif d'O atteint : les trois PR fusionnées le 18.
+2. **Fusions en série.** Les trois PR empilées sont passées. #365, #368 (9b32c30) et #369 sont fusionnées le 18/11. Restent peut-être #375 puis #390 (en file dans cet ordre), #356 ; #390 (F, Lot 5 UX, étape 8 bis), à 15 à 20 minutes chacune. Entre 16:00 et 17:15, la marge ne couvre qu'une seule relance de CI. #390, livrée le 18 et relue par Q le soir même, peut passer dès le 18 ; si elle glisse au 19 et bute contre le gel, O applique le repli (points a à e).
+3. **RapidOCR (#368)** : fusionnée le 18/11 (9b32c30). **RapidOCR est désormais le moteur par défaut** pour les photos, captures et formulaires (`OCR_PRIMARY_ENGINE="rapidocr"`, `config.py:146` et `docker-compose.yml:193`). Tesseract garde les scans, les PDF et le secours. O a confirmé le 18/11 que c'est voulu (critère du PO rempli) ; `decision-vote-ocr.md` et la checklist de démo sont alignées. **Repli** : `OCR_PRIMARY_ENGINE=tesseract` puis redémarrage du worker, sans changement de code ni reconstruction de l'image. Si Q ne valide pas la vraie photo de démo, la démo du 30/11 passe à `OCR_PRIMARY_ENGINE=tesseract`, sans changement de code ; le moteur de la démo est fixé le 20/11.
+4. **#356** (F, tests e2e seuls) : V1.0 si CI verte et passe de F OK avant le 19 à 15:00, sinon V1.1 (décision d'O). Sans effet sur la coupe.
+5. **#121** : confirmé par O, reciblée sur `release/v1.0.0` après la coupe ; jamais fusionnée sur `main` (contrôle 3 du § 2).
+6. **#104** a 70 commits de retard sur `main`. L'essai à blanc de 17:30 se fait sur la tête notée au gel de 17:15, et non plus sur `2f15b6e`.
+7. **Remise à zéro du jeu de démo sur la pile complète** (#363, `DOCS/exploitation/donnees-demo.md`) : rejouée le 18/11 par Q, en 26 s, 408 documents (contrôle « demo baseline matches expected »), montée de la pile en environ 2 min 30. Sur un poste où une autre pile tourne déjà, `docker-compose.yml` fixe les `container_name` `edossier_*` : `-p` seul ne suffit pas, il faut une copie du fichier sans `container_name`.
+
+## 9. Report du 19/11 (décision du PO à 18:03) : la pile qui entre avant la coupe
+
+**Cette section fait foi pour la nuit du 19 au 20/11.** Les §§ 1 à 7 restent valables pour les commandes de coupe et de ruleset, avec `M` = SHA final de `main` (et non plus `f890b3cb`). Relevé fait à 18:20 par `gh pr view`.
+
+### 9.1 Ordre, têtes et preuves
+
+| # | PR | Base aujourd'hui | Tête relevée | Dernière preuve de Q | Re-cibler sur `main` **avant** sa fusion | Preuve à faire |
+|---|---|---|---|---|---|---|
+| 1 | #441 clavier | `main` | f7022895 | OK du code sur 7819235f (18/11 22:28) | #450, #484 | relire le delta jusqu'à f7022895, puis contre-test |
+| 2 | #450 « Envoyer » visible | branche de #441 | 45668ba6 | OK du code sur 0638e016, contre-test navigateur 19/11 07:58 | — | après re-ciblage et mise à jour avec `main` : le diff doit tomber à environ 2 fichiers (aujourd'hui 89, mesuré contre la base empilée) |
+| 3 | #442 compteur du menu | `main` | f32715be, puis la tête de F après la mise à jour avec `main` | OK sur c294453d (18/11 22:00) | — | delta jusqu'à la nouvelle tête (voir la note ci-dessous) |
+| 4 | #429 clause « assigné » | `main` | **7ec66cc1** (19/11 soir ; avant : 81364027) | OK du code sur 81364027 (18/11 18:21) | **#438, #445⛁** | delta 81364027 → 7ec66cc1, puis mise à jour avec `main` |
+| 5 | #438 rejets | branche de #429 | **1e9f5c75** (avant : 348ee750) | OK sur 7467344c (19/11 07:49) | **#502, #444, #455, #466** | delta 7467344c → 1e9f5c75, après re-ciblage |
+| 6 | #502 corriger et renvoyer | branche de #438 | **71f84a1d** (avant : e04feeca) | **aucun OK** (réserve, `trains` § « Les 27 sans OK ») | — | relecture complète et contre-test sur 71f84a1d : c'est l'étape la plus longue |
+
+- **Têtes données par O (19/11, après 18:20)** pour #429, #438 et #502, confirmées par `gh pr view`. Il n'y a toujours aucune migration sur les nouvelles têtes (git diff contre `main`).
+- **#442 après #450** : F signale un conflit d'import trivial dans `DocumentDetailModal.tsx`. F fusionne `main` dans #442 juste après la fusion de #450. Q prouve ensuite cette nouvelle tête. Le § 9.4 ne change pas, car le delta reste petit.
+- **Brouillons** : O sort chacune des six PR du brouillon au moment de sa fusion, avec une note dans la PR (décision du PO du 19/11, 18:03).
+- Les PR re-ciblées sans être fusionnées (#484, #445, #444, #455, #466) restent dans leur train V1.1. Elles ne sont pas fusionnées cette nuit.
+- Après une fusion en squash, la fille re-ciblée garde les commits d'origine de sa mère. Son auteur fait une mise à jour avec `main`, et Q prouve la nouvelle tête. Pas de `update-branch` sur une PR en file.
+
+### 9.2 Migrations alembic
+
+- Aucune des six PR ne touche `backend/alembic/` (vérifié sur les fichiers de chaque PR, 19/11 18:20).
+- La tête de `main` reste `a7c8d9e0f1b2`. Le contrôle Q du § 8.3 (une seule ligne `"a7c8d9e0f1b2"`) vaut donc tel quel pour la release.
+- Croisement avec la chaîne : seulement **#445⛁** (0f6f64260460 → 7680f303299d), fille de #429. Elle est re-ciblée sur `main` avant la fusion de #429, sans être fusionnée. Sa `down_revision` ne change pas. L'ordre de `trains-v1.1-24-11-05-12.md` § « Migrations alembic » reste valable.
+
+### 9.3 Nouvelle lecture C6 (Q)
+
+1. La sixième fusion est faite : noter `M` = `git ls-remote origin refs/heads/main`.
+2. Relancer la pile de démo sur `M` (même procédure qu'au 19/11 après l'arrêt de 12:01Z).
+3. Laisser tourner la sonde. Critère : **au moins 6 relevés verts consécutifs sur `M`** (soit au moins 30 min). Un trou ou un échec remet le compte à zéro.
+4. Donner à O : `M`, l'heure du premier et du dernier relevé vert, et leur nombre. I remplit le § 6 de la note de 18:05.
+
+### 9.4 Durée, en heures de session
+
+| Étape | Q | Attente (CI, fusion) |
+|---|---|---|
+| #441 : delta + contre-test | 0,5 | 0,25 |
+| #450 : après re-ciblage et mise à jour | 0,5 | 0,25 |
+| #442 : delta | 0,25 | 0,25 |
+| #429 : mise à jour seule | 0,25 | 0,25 |
+| #438 : delta après re-ciblage | 0,5 | 0,25 |
+| #502 : relecture complète + contre-test | 1 | 0,25 |
+| Relance de la pile + C6 (≥ 6 relevés) | 0,25 | 0,5 |
+| **Total en série** | **3,25** | **2** |
+
+- **Environ 5,25 h-s** du premier contre-test à la question de coupe ; fourchette de 4,5 à 7 h-s. Q n'a qu'un créneau Docker : les preuves passent l'une après l'autre.
+- **Gain possible** : #442 et #429 ne dépendent pas de #441 et #450. Le contre-testeur peut prouver leurs têtes pendant la CI d'une autre fusion. Le total tombe alors vers 4,5 h-s.
+- **Risque principal** : #502, qui n'a aucun OK. Si Q trouve un blocage, l'auteur corrige et la boucle recommence. Il faut compter de 1 à 1,5 h-s de plus.
+- Le rejeu `ged-replay` prévu à 19:15 passe sur le SHA final, après la lecture C6, dans le **créneau d'aide-api** (décision d'O). I l'annonce à aide-api avant le lancement. En fin de run : `down -v`, puis suppression des images `ged-replay` par leur nom.
+
+### 9.5 Ajout du 19/11 au soir : #515 avant la coupe (option C du PO)
+
+- Les six PR du § 9.1 sont fusionnées, ce qui donne `d96c1e67`, avec une seule tête de migration `a7c8d9e0f1b2`.
+- **Étape 7 : #515** (`fix(audit)`, tête `b62925cf`, base `main`, 4 fichiers, +112/−1, sans migration). Elle est fusionnée après l'OK de Q, puis O la sort du brouillon avec une note dans la PR.
+- **Après la fusion** :
+  - `M` = la nouvelle tête de `main`, à relire avec `git ls-remote` ;
+  - nouvelle C6 sur `M` (§ 9.3) ;
+  - C.22 point 4 rejoué sur `M` : les trois décisions doivent apparaître dans le journal ;
+  - la tête alembic doit toujours être `a7c8d9e0f1b2`.
+- **Durée** : environ 1,25 h-s jusqu'à la question au PO (preuve de Q 0,25, fusion et CI 0,25, C6 0,5, C.22 point 4 0,25).
+- **Question 2** : le plan en lecture seule du § 4.1 dit **CRÉER**. Aucun ruleset ne vise `release/**`, aucune branche `release/*` n'existe, et le ruleset 26190959 n'a pas changé.

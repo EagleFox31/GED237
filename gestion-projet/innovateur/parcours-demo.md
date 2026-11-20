@@ -46,7 +46,7 @@ Correspondance avec la liste de DEC-002 (AUTH-01/02/03, RED-01, VAL-01, ADM-01, 
 ### P1 — Connexion, code OTP, déconnexion
 
 - **Rôle** : `collab@minfi` (rédacteur DAF).
-- **Étapes** : 1) ouvrir `/login` ; 2) saisir e-mail + mot de passe → « Se connecter » ; 3) écran OTP : saisir le code (renvoyé dans la réponse en `development`, sinon lu dans Redis) ; 4) arrivée sur le tableau de bord du profil rédacteur ; 5) rafraîchir la page : session conservée ; 6) menu utilisateur → « Déconnexion » ; 7) retour sur `/login`, le jeton n'ouvre plus `/documents` (blacklist Redis).
+- **Étapes** : 1) ouvrir `/login` ; 2) saisir e-mail + mot de passe → « Se connecter » ; 3) écran OTP : saisir le code (renvoyé dans la réponse en `development`, sinon lu dans Redis). **Démo publique** : `LOGIN_DEMO_HINTS=false` (PR #422, 405d498). Le code OTP n'est plus renvoyé au navigateur ; il est écrit en clair dans le journal de l'API, en développement seulement (`docker compose logs -f api | grep "Code OTP"`). Ce terminal reste sur un écran non projeté. Jamais en production ; 4) arrivée sur le tableau de bord du profil rédacteur ; 5) rafraîchir la page : session conservée ; 6) menu utilisateur → « Déconnexion » ; 7) retour sur `/login`, le jeton n'ouvre plus `/documents` (blacklist Redis).
 - **Résultat observable** : nom et rôle affichés dans l'en-tête ; après déconnexion, redirection vers le login ; variante : code OTP faux → message d'erreur, pas de session.
 - **UAT** : SC-AUTH-01 (connexion 2FA), SC-AUTH-02 (OTP erroné), SC-AUTH-03 (déconnexion/blacklist).
 - **Spec** : `auth.spec.ts` à **réutiliser** (`Vérifié` : sans mock) ; ajouter le cas OTP erroné et la vérification post-logout.
