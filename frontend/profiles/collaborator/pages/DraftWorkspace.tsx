@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useId } from 'react';
 import { api } from '../../../services/api';
 import type { Document, WorkflowValidator } from '../../../types';
 import DocumentDetailModal from '../../../components/DocumentDetailModal';
 import UploadDocumentModal from '../../../components/UploadDocumentModal';
+import { DialogFrame } from '../../../components/ui/DialogFrame';
+import { MAX_UPLOAD_MB } from '../../../constants';
 import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import {
+  canResubmit, IDENTICAL_VERSION_MESSAGE, LONG_REASON_CHARS, loadRejectionReasons, needsCorrection,
+} from '../../../lib/rejectionReasons';
+import { useAuthStore } from '../../../stores/authStore';
+
+const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-rdpc-blue';
 
 const STATUS_LABELS: Record<string, string> = {
   in_review: 'En Validation',
   rejected: 'Rejeté',
+  returned: 'À corriger',
   validated: 'Validé',
   signed: 'Signé',
 };
@@ -24,6 +33,17 @@ const DraftWorkspace: React.FC = () => {
   const [documentToSubmit, setDocumentToSubmit] = useState<string | null>(null);
   const [selectedValidator, setSelectedValidator] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const userId = useAuthStore((s) => s.userProfile?.userId);
+  // Reason of the last rejection or return, per document id (only for the documents I can fix).
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  // Corrected file, sent as a new version before resubmitting a sent-back document.
+  const [correctedFile, setCorrectedFile] = useState<File | null>(null);
+  const [versionError, setVersionError] = useState<string | null>(null);
+  // Card whose long reason is unfolded (button: works with keyboard and touch, unlike a title tooltip).
+  const [openReason, setOpenReason] = useState<string | null>(null);
+  const titleId = useId();
+  const hintId = useId();
+  const validatorFieldId = useId();
 
   useEffect(() => {
     fetchData();
@@ -38,6 +58,8 @@ const DraftWorkspace: React.FC = () => {
       ]);
       setDocuments(docsResp);
       setValidators(validatorsResp);
+      // Cards show at once; reasons fill in when read.
+      void loadRejectionReasons(docsResp, userId, (id) => api.getDocument(id, { silent: true })).then(setReasons);
     } catch (error) {
       console.error("Failed to fetch data", error);
     } finally {
@@ -47,8 +69,21 @@ const DraftWorkspace: React.FC = () => {
 
   const openSubmitModal = (id: string) => {
     setDocumentToSubmit(id);
+    setCorrectedFile(null);
+    setVersionError(null);
     setShowSubmitModal(true);
   };
+
+  // Stable: the dialog focus effect re-runs when its close callback changes.
+  const closeSubmitModal = useCallback(() => {
+    setShowSubmitModal(false);
+    setDocumentToSubmit(null);
+    setCorrectedFile(null);
+    setVersionError(null);
+  }, []);
+
+  const docToSubmit = documents.find((d) => d.id === documentToSubmit);
+  const resubmitting = needsCorrection(docToSubmit?.status);
 
   const submitWorkflow = async () => {
     if (!documentToSubmit || !selectedValidator) {
@@ -57,7 +92,24 @@ const DraftWorkspace: React.FC = () => {
     }
 
     setSubmitting(true);
+    setVersionError(null);
     try {
+      if (resubmitting && correctedFile) {
+        try {
+          await api.uploadDocumentVersion(
+            documentToSubmit, correctedFile, 'Version corrigée avant nouvelle soumission', { handledStatuses: [409] },
+          );
+        } catch (err) {
+          // Same file as an existing version: say so in the dialog and let the user pick the right one.
+          if ((err as { status?: number })?.status === 409) {
+            setVersionError(IDENTICAL_VERSION_MESSAGE);
+            return;
+          }
+          throw err;
+        }
+        // Uploaded: a retry after a failed submission must not send the same file again (409).
+        setCorrectedFile(null);
+      }
       // Create a 1-step workflow
       const steps = [
         {
@@ -69,8 +121,7 @@ const DraftWorkspace: React.FC = () => {
       ];
 
       await api.createWorkflowSteps(documentToSubmit, steps);
-      setShowSubmitModal(false);
-      setDocumentToSubmit(null);
+      closeSubmitModal();
       setSelectedValidator('');
       fetchData();
     } catch (e) {
@@ -121,6 +172,47 @@ const DraftWorkspace: React.FC = () => {
                 ))}
               </div>
 
+              {canResubmit(doc, userId) && (
+                <div className="mb-4 space-y-3">
+                  {reasons[doc.id] && (
+                    <div className="text-xs text-red-800 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                      <p
+                        id={`reason-${doc.id}`}
+                        className={`break-words whitespace-pre-line ${openReason === doc.id ? '' : 'line-clamp-3'}`}
+                        data-testid="rejection-reason"
+                      >
+                        <span className="font-bold">Motif : </span>{reasons[doc.id]}
+                      </p>
+                      {reasons[doc.id]!.length > LONG_REASON_CHARS && (
+                        <button
+                          type="button"
+                          aria-expanded={openReason === doc.id}
+                          aria-controls={`reason-${doc.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenReason((cur) => (cur === doc.id ? null : doc.id));
+                          }}
+                          className={`mt-1 font-bold underline rounded ${FOCUS_RING}`}
+                        >
+                          {openReason === doc.id ? 'Réduire' : 'Lire tout'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openSubmitModal(doc.id);
+                    }}
+                    disabled={submitting}
+                    className={`w-full px-3 py-2 bg-rdpc-blue text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`}
+                  >
+                    Corriger et resoumettre
+                  </button>
+                </div>
+              )}
+
               <div className="flex justify-between items-center mt-auto border-t border-slate-50 pt-4">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
                   {new Date(doc.created_at).toLocaleDateString()}
@@ -133,12 +225,13 @@ const DraftWorkspace: React.FC = () => {
                       openSubmitModal(doc.id);
                     }}
                     disabled={submitting}
-                    className="px-3 py-1 bg-rdpc-blue text-white rounded-lg text-[9px] font-bold uppercase tracking-wide hover:bg-blue-800 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`px-3 py-1 bg-rdpc-blue text-white rounded-lg text-[9px] font-bold uppercase tracking-wide hover:bg-blue-800 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`}
                   >
                     {submitting ? 'Soumission...' : 'Soumettre'}
                   </button>
                 ) : (
                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${doc.status === 'rejected' ? 'bg-red-50 text-red-700' :
+                    doc.status === 'returned' ? 'bg-orange-50 text-orange-800' :
                     doc.status === 'validated' || doc.status === 'signed' ? 'bg-green-50 text-green-600' :
                       'bg-yellow-50 text-yellow-600'
                     }`}>
@@ -165,30 +258,60 @@ const DraftWorkspace: React.FC = () => {
 
       {/* Modal Workflow Submit */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative">
+        <DialogFrame labelledBy={titleId} describedBy={hintId} onClose={closeSubmitModal} className="bg-white rounded-[2.5rem] p-6 sm:p-10 max-w-lg shadow-2xl">
             <button
-              onClick={() => {
-                setShowSubmitModal(false);
-                setDocumentToSubmit(null);
-              }}
-              className="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+              type="button"
+              onClick={closeSubmitModal}
+              aria-label="Fermer"
+              className={`absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors ${FOCUS_RING}`}
             >
               <span className="material-symbols-outlined">close</span>
             </button>
 
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Circuit de Validation</h3>
-            <p className="text-sm text-slate-500 font-medium mb-8">Choisissez la personne qui doit valider ce document.</p>
+            <h3 id={titleId} className="text-2xl font-black text-slate-800 mb-2 pr-12">{resubmitting ? 'Corriger et resoumettre' : 'Circuit de Validation'}</h3>
+            <p id={hintId} className="text-sm text-slate-500 font-medium mb-8">
+              {resubmitting
+                ? 'Joignez le fichier corrigé si besoin, puis choisissez qui doit le valider.'
+                : 'Choisissez la personne qui doit valider ce document.'}
+            </p>
 
             <div className="space-y-6">
+              {resubmitting && documentToSubmit && reasons[documentToSubmit] && (
+                <p className="max-h-40 overflow-y-auto break-words whitespace-pre-line text-sm text-red-800 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+                  <span className="font-bold">Motif : </span>{reasons[documentToSubmit]}
+                </p>
+              )}
+              {resubmitting && (
+                <div className="space-y-2">
+                  <label htmlFor="corrected-file" className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Fichier corrigé (facultatif)</label>
+                  <input
+                    id="corrected-file"
+                    type="file"
+                    aria-describedby="corrected-file-hint"
+                    aria-invalid={versionError ? true : undefined}
+                    onChange={(e) => {
+                      setCorrectedFile(e.target.files?.[0] ?? null);
+                      setVersionError(null);
+                    }}
+                    className={`w-full text-sm text-slate-600 file:mr-3 file:px-3 file:py-2 file:rounded-xl file:border-0 file:bg-slate-100 file:font-bold file:text-slate-700 rounded-xl ${FOCUS_RING}`}
+                  />
+                  <p id="corrected-file-hint" className="ml-1 text-xs text-slate-500">
+                    PDF conseillé, {MAX_UPLOAD_MB} Mo maximum. Sans fichier, le document part tel quel.
+                  </p>
+                  {versionError && (
+                    <p role="alert" className="ml-1 text-xs font-bold text-red-700">{versionError}</p>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Valideur (Manager/Directeur)</label>
+                <label htmlFor={validatorFieldId} className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Valideur</label>
                 <select
+                  id={validatorFieldId}
                   value={selectedValidator}
                   onChange={(e) => setSelectedValidator(e.target.value)}
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none focus:border-cam-yellow/50 appearance-none"
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-slate-700 outline-none focus:border-cam-yellow/50 focus-visible:ring-2 focus-visible:ring-rdpc-blue appearance-none"
                 >
-                  <option value="" disabled>-- Sélectionner un manager --</option>
+                  <option value="" disabled>-- Choisir un valideur --</option>
                   {validators.map(validator => (
                     <option key={validator.id} value={validator.id}>
                       {validator.full_name}
@@ -200,16 +323,19 @@ const DraftWorkspace: React.FC = () => {
                 )}
               </div>
 
-              <button
-                onClick={submitWorkflow}
-                disabled={submitting || !selectedValidator}
-                className="w-full py-4 bg-cam-yellow text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-yellow-200 hover:bg-yellow-600 hover:scale-[1.02] transition-all disabled:opacity-70 disabled:hover:scale-100"
-              >
-                {submitting ? 'Envoi en cours...' : 'Soumettre au visa'}
-              </button>
+              {/* Bas de fenêtre fixe (même modèle que l'envoi de document) : l'envoi reste visible quand le motif est long. */}
+              <div data-testid="resubmit-actions" className="sticky bottom-0 z-10 -mx-6 sm:-mx-10 -mb-6 sm:-mb-10 px-6 sm:px-10 pt-4 pb-6 sm:pb-10 bg-white border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={submitWorkflow}
+                  disabled={submitting || !selectedValidator}
+                  className={`w-full py-4 bg-cam-yellow text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-yellow-200 hover:bg-yellow-600 hover:scale-[1.02] transition-all disabled:opacity-70 disabled:hover:scale-100 ${FOCUS_RING}`}
+                >
+                  {submitting ? 'Envoi en cours...' : resubmitting ? 'Renvoyer pour validation' : 'Soumettre au visa'}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
+        </DialogFrame>
       )}
 
     </div>
