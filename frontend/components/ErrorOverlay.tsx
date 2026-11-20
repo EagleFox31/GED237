@@ -12,6 +12,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useErrorBus, type ErrorEntry } from '../lib/errors';
+import { copyText } from '../lib/clipboard';
 
 const SEVERITY_STYLES: Record<
   ErrorEntry['severity'],
@@ -48,9 +49,7 @@ const SEVERITY_STYLES: Record<
 };
 
 const copyToClipboard = (text: string) => {
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).catch(() => {});
-  }
+  void copyText(text);
 };
 
 const ErrorToast: React.FC<{ entry: ErrorEntry }> = ({ entry }) => {

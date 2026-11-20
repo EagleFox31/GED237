@@ -1,6 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
+import { copyText, MANUAL_COPY_HINT } from '../../../lib/clipboard';
+import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 import type { Document } from '../../../types';
 import { formatDate, formatFileSize, getFileTypeLabel, getStatusLabel } from '../../../types';
 import { ClassificationSlideOver } from '../../../components/ClassificationSlideOver';
@@ -598,13 +600,9 @@ const SpacesPage: React.FC = () => {
 
   const handleCopyPath = async (path: string) => {
     if (!path) return;
-    try {
-      await navigator.clipboard.writeText(path);
-    } catch {
-      /* no-op */
-    } finally {
-      setContextMenu(null);
-    }
+    const ok = await copyText(path);
+    setContextMenu(null);
+    if (!ok) pushClientOperationError(null, { fallbackDetail: MANUAL_COPY_HINT, severity: 'warning' });
   };
 
   return (

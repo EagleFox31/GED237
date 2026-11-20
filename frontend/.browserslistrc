@@ -1,0 +1,6 @@
+# Recopie de browserTargets.ts (build.target de Vite), pour l'autoprefixer.
+# Doit rester sous Chrome 109 et Firefox 115 ESR, les dernières versions pour Windows 7.
+chrome >= 87
+edge >= 88
+firefox >= 78
+safari >= 14
