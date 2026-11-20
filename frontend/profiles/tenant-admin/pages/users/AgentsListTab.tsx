@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal';
 import { api } from '../../../../services/api';
+import { copyText, MANUAL_COPY_HINT } from '../../../../lib/clipboard';
 import { useAuthStore } from '../../../../stores/authStore';
 
 interface AgentsListTabProps {
@@ -1019,12 +1020,14 @@ const orgUnitsById = useMemo(() => new Map(orgUnits.map((u) => [u.id, u.name])),
                   Voici le mot de passe temporaire à transmettre. Il sera changé par l&apos;agent à sa prochaine connexion.
                 </p>
                 <div className="mt-4 flex items-center gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50 px-4 py-3">
-                  <code className="flex-1 font-mono font-bold text-slate-900 text-base break-all">{tempPwDialog.password}</code>
+                  <code className="flex-1 font-mono font-bold text-slate-900 text-base break-all select-all">{tempPwDialog.password}</code>
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(tempPwDialog.password);
-                      showToast({ tone: 'success', message: 'Mot de passe copié dans le presse-papier.' });
+                    onClick={async () => {
+                      const ok = await copyText(tempPwDialog.password);
+                      showToast(ok
+                        ? { tone: 'success', message: 'Mot de passe copié dans le presse-papier.' }
+                        : { tone: 'error', message: MANUAL_COPY_HINT });
                     }}
                     className="px-3 py-2 bg-amber-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-amber-600 flex items-center gap-1.5 shrink-0"
                     aria-label="Copier le mot de passe"

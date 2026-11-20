@@ -44,6 +44,16 @@
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden">
     <div id="root"></div>
+<script nomodule>
+    // Navigateur trop ancien pour lancer l'application (sans modules JavaScript) : on remplace la
+    // page blanche par un message. Doit tourner sous IE 8 (navigateur livré avec Windows 7) :
+    // getElementById et innerHTML seulement, styles en px.
+    document.getElementById('root').innerHTML =
+        '<div style="max-width:512px;margin:64px auto;padding:24px;font-family:Arial,sans-serif;' +
+        'border:1px solid #cbd5e1;border-radius:16px;background:#fff;color:#0f172a;text-align:center">' +
+        '<p style="font-size:18px;font-weight:bold;margin:0 0 12px">Ce navigateur est trop ancien pour E-Dossier.</p>' +
+        '<p style="margin:0">Ouvrez cette page dans Chrome, Edge ou Firefox.</p></div>';
+</script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>

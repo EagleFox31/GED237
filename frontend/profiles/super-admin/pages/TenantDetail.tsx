@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../../services/api';
+import { copyText, MANUAL_COPY_HINT } from '../../../lib/clipboard';
+import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
 
 import type { DocStats, OrgUnitNode, Tab, Tenant, TenantUser, WfStats } from './tenant-detail/types';
 import { STATUS_LABELS, STATUS_STYLES, TABS } from './tenant-detail/constants';
@@ -114,11 +116,12 @@ const TenantDetail: React.FC = () => {
             <button
               type="button"
               onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(flash.password!);
+                if (await copyText(flash.password!)) {
                   setFlashCopied(true);
                   setTimeout(() => setFlashCopied(false), 2500);
-                } catch { /* ignore */ }
+                } else {
+                  pushClientOperationError(null, { fallbackDetail: MANUAL_COPY_HINT, severity: 'warning' });
+                }
               }}
               className={`px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                 flashCopied ? 'bg-emerald-500 text-white' : 'bg-rdpc-blue text-white hover:bg-blue-800'
