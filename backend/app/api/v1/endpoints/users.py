@@ -1,11 +1,14 @@
 # backend/app/api/v1/endpoints/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+import asyncio
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, false, true
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.authz import (
@@ -30,6 +33,7 @@ from app.schemas.user import (
 )
 from app.core.security import hash_password
 from app.services.email_service import send_account_created
+from app.services import totp
 import secrets
 
 router = APIRouter()
@@ -40,6 +44,23 @@ PLATFORM_TENANT_SHORT_NAME = "PLATFORM"
 
 def _role_code(user: User) -> str:
     return (getattr(getattr(user, "role", None), "code", "") or "").lower()
+
+
+async def _require_email_for_app_role(
+    db: AsyncSession, role_id: Optional[int], email: Optional[str]
+) -> None:
+    """422 when the role must use the authenticator app and there is no e-mail
+    address (DEC-2026-004): the account would never reach enrolment."""
+    if email:
+        return
+    role_code = await totp.role_code_needing_email(db, role_id)
+    if role_code is not None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Le rôle {role_code} exige une adresse e-mail : le code de "
+            "connexion y est envoyé avant l'enregistrement de l'application "
+            "d'authentification.",
+        )
 
 
 def _unit_scope(actor: User):
@@ -163,6 +184,7 @@ async def create_user(
                 status_code=422, detail=f"Unknown role_code: {user_in.role_code}"
             )
         user_in.role_id = role_row.id
+    await _require_email_for_app_role(db, user_in.role_id, user_in.email)
 
     await _assert_role_grantable(db, current_user, user_in.role_id)
 
@@ -229,7 +251,9 @@ async def create_user(
             " ".join(p for p in [db_user.first_name, db_user.last_name] if p).strip()
             or None
         )
-        send_account_created(
+        # SMTP blocks for up to the send timeout: keep it off the event loop.
+        await asyncio.to_thread(
+            send_account_created,
             to=db_user.email,
             full_name=full_name,
             matricule=db_user.matricule,
@@ -412,6 +436,13 @@ async def update_user(
         assert_org_unit_scope(update_data["org_unit_id"], current_user)
         # unit_admin: a user can only be moved inside the tree.
         await assert_unit_admin_in_tree(db, update_data["org_unit_id"], current_user)
+
+    if "role_id" in update_data or "email" in update_data:
+        await _require_email_for_app_role(
+            db,
+            update_data.get("role_id", user.role_id),
+            update_data.get("email", user.email),
+        )
 
     if "reports_to_user_id" in update_data:
         await _validate_reports_to(
@@ -632,6 +663,48 @@ async def disable_user_mfa(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.post("/{user_id}/totp/reset", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_user_totp(
+    user_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove the user's authenticator app after an in-person check (lost phone,
+    DEC-2026-004). The holder enrols a new one at the next login.
+
+    A superior only, never oneself: an agent by a tenant_admin of its own
+    institution; a tenant_admin or a super_admin by a super_admin of any
+    institution. Audited, and the holder is told by e-mail. 204 also when there
+    was no app (nothing written); 409 when the server runs without the app."""
+    if not settings.AUTH_TOTP_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=totp.DISABLED_MESSAGE
+        )
+    query = select(User).options(selectinload(User.role)).filter(User.id == user_id)
+    if _role_code(current_user) != totp.SUPER_ADMIN:
+        # Out of the caller's institution: as if it did not exist.
+        query = query.filter(User.tenant_id == current_user.tenant_id)
+    target = (await db.execute(query)).scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not totp.reset_allowed(
+        actor_id=current_user.id,
+        actor_role=_role_code(current_user),
+        actor_tenant=current_user.tenant_id,
+        target_id=target.id,
+        target_role=_role_code(target),
+        target_tenant=target.tenant_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seul un administrateur de rang supérieur peut réinitialiser "
+            "cette application, jamais le titulaire lui-même.",
+        )
+    await totp.reset(db, target, actor=current_user, request=request)
+    return None
 
 
 @router.get("/{user_id}/hierarchy-up", response_model=List[UserRead])

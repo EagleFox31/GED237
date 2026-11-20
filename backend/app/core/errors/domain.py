@@ -146,6 +146,79 @@ class AccountLockedError(AppError):
         )
 
 
+class OtpDeliveryError(AppError):
+    """The second-factor code could not be sent."""
+
+    status_code = 503
+    default_error_code = "OTP_DELIVERY_FAILED"
+    default_severity = Severity.error
+    default_retryable = True
+    default_user_message = (
+        "Le code de vérification n'a pas pu être envoyé. Réessayez dans un instant."
+    )
+
+
+class OtpContactMissingError(OtpDeliveryError):
+    """The account has no address for the configured channel."""
+
+    status_code = 409
+    default_error_code = "OTP_CONTACT_MISSING"
+    default_severity = Severity.warning
+    default_retryable = False
+    default_user_message = (
+        "Aucune adresse e-mail n'est enregistrée pour ce compte. "
+        "Contactez votre administrateur."
+    )
+
+
+class OtpResendTooSoonError(AppError):
+    """A code was sent moments ago for this login session."""
+
+    status_code = 429
+    default_error_code = "OTP_RESEND_TOO_SOON"
+    default_severity = Severity.warning
+    default_retryable = True
+
+    def __init__(self, *, retry_after: int) -> None:
+        seconds = max(1, retry_after)
+        super().__init__(
+            f"Un code vient d'être envoyé. Réessayez dans {seconds} s.",
+            technical_detail="otp resend cooldown",
+            extras_public={"retry_after": seconds},
+        )
+
+
+class TotpResendUnavailableError(AppError):
+    """The code comes from the holder's app: nothing is sent by e-mail (DEC-2026-004)."""
+
+    status_code = 409
+    default_error_code = "OTP_RESEND_UNAVAILABLE"
+    default_severity = Severity.warning
+    default_retryable = False
+    default_user_message = (
+        "Le code vient de votre application d'authentification. "
+        "Application perdue : demandez une réinitialisation à votre administrateur."
+    )
+
+
+class OtpResendQuotaError(AppError):
+    """Too many codes asked for this account lately, whatever the login session."""
+
+    status_code = 429
+    default_error_code = "OTP_RESEND_QUOTA"
+    default_severity = Severity.warning
+    default_retryable = True
+
+    def __init__(self, *, retry_after: int) -> None:
+        seconds = max(1, retry_after)
+        minutes = max(1, -(-seconds // 60))
+        super().__init__(
+            "Trop de codes demandés pour ce compte. " f"Réessayez dans {minutes} min.",
+            technical_detail="otp resend quota per account",
+            extras_public={"retry_after": seconds},
+        )
+
+
 class AuthorizationError(AppError):
     """Utilisateur identifié mais non autorisé pour cette action."""
 

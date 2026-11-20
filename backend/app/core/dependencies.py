@@ -9,6 +9,7 @@ from uuid import UUID
 from app.core.database import get_db, AsyncSessionLocal
 from app.core.security import decode_token, revoked_session_key
 from app.core.redis import get_redis
+from app.core import session_revocation
 from app.models.user import User
 
 security = HTTPBearer()
@@ -34,6 +35,13 @@ async def _access_payload(token: str) -> dict:
         )
 
     if await is_revoked(await get_redis(), token, payload):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Every session of the account revoked (authenticator app reset).
+    if await session_revocation.is_revoked(await get_redis(), payload):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been revoked",
@@ -114,6 +122,8 @@ async def get_current_user_ws(token: str) -> Optional[User]:
         return None
 
     if await is_revoked(await get_redis(), token, payload):
+        return None
+    if await session_revocation.is_revoked(await get_redis(), payload):
         return None
 
     user_id_str: str = payload.get("sub")

@@ -707,10 +707,14 @@ async def test_auth_service_patterns(monkeypatch, fake_redis_factory):
     monkeypatch.setattr(
         module, "create_refresh_token", lambda data: "refresh-" + data["sub"]
     )
-    verify_db = QueueDB(results=[FakeResult(scalar=user), FakeResult(scalar=role)])
+    # user, role, then the account changes to report since the previous login.
+    verify_db = QueueDB(
+        results=[FakeResult(scalar=user), FakeResult(scalar=role), FakeResult(rows=[])]
+    )
     verified = await service.verify_otp(verify_db, "session-token", "123456")
     assert verified["access_token"].startswith("access-")
     assert verified["user"]["role"] == "collaborator"
+    assert verified["security_notices"] == []
     # A valid code also resets the failure counter of the lockout.
     assert await verify_redis.keys("*") == []
 
