@@ -800,6 +800,7 @@ async def test_workflow_service_patterns(monkeypatch):
         id=uuid.uuid4(),
         document_id=document.id,
         step_order=1,
+        label="Visa 1",
         status="current",
         assigned_to=actor.id,
         expected_action_type=ActionType.visa,

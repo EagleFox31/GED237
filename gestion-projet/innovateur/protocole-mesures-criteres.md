@@ -74,6 +74,8 @@ restarts=$(docker inspect -f '{{.Name}}={{.RestartCount}}' $(docker ps -q --filt
 printf '%s\thealth=%s\t%s\t%s\n' "$ts" "$health" "$ps" "$restarts" >> c6.tsv
 ```
 
+**Attribuer une série à un SHA** : lancer la sonde avec `C6_EXPECT_SHA=<sha>` (et `C6_SOURCE` = checkout de ce SHA). Elle refuse de démarrer si la pile ne sert pas ce code ; une fusion sur main ne redéploie pas la démo (LESSON-2026-083).
+
 **Format d'une ligne** : `2026-11-17T08:02:11Z  health=200  edossier_api=Up 2 hours (healthy) edossier_postgres=Up 2 hours (healthy) …  edossier_api=0 edossier_worker=0 …`
 
 **Règle de calcul** : un relevé est **KO** si `health ≠ 200`, si un conteneur `edossier_api`, `edossier_postgres`, `edossier_redis` ou `edossier_nginx` n'est pas `Up … (healthy)` (le worker peut être éteint volontairement : il est exclu), ou si `RestartCount` a augmenté depuis le relevé précédent **sans** action consignée dans la passation de Q (reset, rebuild). Disponibilité = relevés OK / relevés totaux.
