@@ -55,6 +55,7 @@ export { auditApi }            from './resources/audit.api';
 export { analyticsApi }        from './resources/analytics.api';
 export { qualityApi }          from './resources/quality.api';
 export { reportsApi }          from './resources/reports.api';
+export { officialReportsApi }  from './resources/officialReports.api';
 export { searchApi }           from './resources/search.api';
 export { healthApi }           from './resources/health.api';
 export { usageApi }            from './resources/usage.api';

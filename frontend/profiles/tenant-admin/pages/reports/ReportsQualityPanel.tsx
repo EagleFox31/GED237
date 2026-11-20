@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { Empty } from '../../../../components/ui/Empty';
+import { InlineHelpButton } from '../../../../components/ui/InlineHelpButton';
+import { createSingleFlight } from '../../../../lib/singleFlight';
 import {
   qualityApi,
   type QualityAlert,
@@ -9,11 +12,18 @@ import {
   type QualityIndicatorKey,
   type QualitySummary,
 } from '../../../../services/resources/quality.api';
+import { formatDate } from '../../../../types';
+import {
+  alertsMessage,
+  documentHref,
+  documentsMessage,
+  formatCount,
+  formatPercent,
+  thresholdText,
+  type ListLoad,
+} from './qualityView';
 
 const PAGE_SIZE = 50;
-
-const percent = (value: number | null | undefined) =>
-  value === null || value === undefined ? '—' : `${Math.round(value * 10) / 10} %`;
 
 const card = 'rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm';
 
@@ -30,25 +40,32 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
   const [summary, setSummary] = useState<QualitySummary | null>(null);
   const [summaryFailed, setSummaryFailed] = useState(false);
   const [selected, setSelected] = useState<QualityIndicatorKey | null>(null);
-  const [docs, setDocs] = useState<{ items: QualityDocument[]; total: number; loading: boolean }>({
+  const [docs, setDocs] = useState<{ items: QualityDocument[]; total: number; load: ListLoad }>({
     items: [],
     total: 0,
-    loading: false,
+    load: 'ready',
   });
   const docsSeq = useRef(0);
   const [alerts, setAlerts] = useState<QualityAlert[]>([]);
+  const [alertsLoad, setAlertsLoad] = useState<ListLoad>('loading');
 
   useEffect(() => {
     let alive = true;
     setSummaryFailed(false);
+    setAlertsLoad('loading');
     qualityApi
       .getQualitySummary()
       .then((data) => alive && setSummary(data))
       .catch(() => alive && setSummaryFailed(true));
     qualityApi
       .listQualityAlerts()
-      .then((data) => alive && setAlerts(data))
-      .catch(() => undefined);
+      .then((data) => {
+        if (!alive) return;
+        setAlerts(data);
+        setAlertsLoad('ready');
+      })
+      // L'erreur HTTP passe par le bus global ; ici on évite seulement d'afficher « Aucune alerte. ».
+      .catch(() => alive && setAlertsLoad('failed'));
     return () => {
       alive = false;
     };
@@ -56,13 +73,13 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
 
   const loadDocs = useCallback(async (indicator: QualityIndicatorKey, offset: number) => {
     const seq = ++docsSeq.current;
-    setDocs((d) => ({ ...(offset === 0 ? { items: [], total: 0 } : d), loading: true }));
+    setDocs((d) => ({ ...(offset === 0 ? { items: [], total: 0 } : d), load: 'loading' }));
     try {
       const page = await qualityApi.getQualityDocuments(indicator, { limit: PAGE_SIZE, offset });
       if (seq !== docsSeq.current) return;
-      setDocs((d) => ({ items: offset === 0 ? page.items : [...d.items, ...page.items], total: page.total, loading: false }));
+      setDocs((d) => ({ items: offset === 0 ? page.items : [...d.items, ...page.items], total: page.total, load: 'ready' }));
     } catch {
-      if (seq === docsSeq.current) setDocs((d) => ({ ...d, loading: false }));
+      if (seq === docsSeq.current) setDocs((d) => ({ ...d, load: 'failed' }));
     }
   }, []);
 
@@ -87,18 +104,20 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
     );
   }
 
+  const docsNotice = documentsMessage(docs.load, docs.items.length);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className={card}>
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Documents complets</p>
-          <p className="mt-2 text-3xl font-black text-slate-800">{percent(summary.quality_rate)}</p>
+          <p className="mt-2 text-3xl font-black text-slate-800">{formatPercent(summary.quality_rate)}</p>
         </div>
         <div className={card}>
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">À compléter</p>
           <p className="mt-2 text-3xl font-black text-slate-800">
-            {summary.documents_to_fix}
-            <span className="ml-2 text-sm font-bold text-slate-400">sur {summary.total_documents}</span>
+            {formatCount(summary.documents_to_fix)}
+            <span className="ml-2 text-sm font-bold text-slate-400">sur {formatCount(summary.total_documents)}</span>
           </p>
         </div>
       </div>
@@ -121,8 +140,8 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
               >
                 <span className="text-sm font-bold text-slate-700">{indicator.label}</span>
                 <span className="ml-3 shrink-0 text-right">
-                  <span className="block text-lg font-black text-slate-900">{indicator.count}</span>
-                  <span className="block text-[10px] font-bold text-slate-400">{percent(indicator.rate)}</span>
+                  <span className="block text-lg font-black text-slate-900">{formatCount(indicator.count)}</span>
+                  <span className="block text-[10px] font-bold text-slate-400">{formatPercent(indicator.rate)}</span>
                 </span>
               </button>
             );
@@ -130,28 +149,36 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
         </div>
 
         {selected && (
-          <div className="mt-6 border-t border-slate-100 pt-4">
+          <div className="mt-6 border-t border-slate-100 pt-4" aria-busy={docs.load === 'loading'}>
             <p className="mb-3 text-xs font-black uppercase tracking-widest text-slate-500">
-              {labelOf(selected)} · {docs.total}
+              {labelOf(selected)} · {formatCount(docs.total)}
             </p>
-            {docs.items.length === 0 && !docs.loading ? (
-              <p className="text-sm text-slate-400">Aucun document.</p>
+            {docsNotice ? (
+              <p className={`text-sm ${docs.load === 'failed' ? 'font-bold text-amber-700' : 'text-slate-400'}`}>
+                {docsNotice}
+              </p>
             ) : (
               <ul aria-label={`Documents : ${labelOf(selected)}`} className="divide-y divide-slate-100">
                 {docs.items.map((doc) => (
                   <li key={doc.id} className="flex items-center justify-between gap-4 py-2 text-sm">
-                    <span className="truncate font-bold text-slate-700">{doc.title}</span>
-                    <span className="shrink-0 text-xs text-slate-400">
-                      {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : ''}
-                    </span>
+                    <Link
+                      to={documentHref(doc.id)}
+                      className="truncate font-bold text-slate-700 hover:text-rdpc-blue hover:underline"
+                    >
+                      {doc.title}
+                    </Link>
+                    <span className="shrink-0 text-xs text-slate-400">{doc.created_at ? formatDate(doc.created_at) : ''}</span>
                   </li>
                 ))}
               </ul>
             )}
+            {docs.items.length > 0 && docs.load === 'failed' && (
+              <p className="mt-3 text-sm font-bold text-amber-700">Suite indisponible pour le moment.</p>
+            )}
             {docs.items.length < docs.total && (
               <button
                 type="button"
-                disabled={docs.loading}
+                disabled={docs.load === 'loading'}
                 onClick={() => void loadDocs(selected, docs.items.length)}
                 className="mt-3 rounded-2xl border-2 border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:border-rdpc-blue hover:text-rdpc-blue disabled:opacity-50"
               >
@@ -164,6 +191,7 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
 
       <QualityAlertsCard
         alerts={alerts}
+        load={alertsLoad}
         indicators={summary.indicators.map(({ key, label }) => ({ key, label }))}
         labelOf={labelOf}
         onCreated={(alert) => setAlerts((list) => [...list, alert])}
@@ -175,13 +203,14 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
 
 interface QualityAlertsCardProps {
   alerts: QualityAlert[];
+  load: ListLoad;
   indicators: Array<{ key: QualityIndicatorKey; label: string }>;
   labelOf: (key: QualityIndicatorKey) => string;
   onCreated: (alert: QualityAlert) => void;
   onStopped: (id: string) => void;
 }
 
-const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, indicators, labelOf, onCreated, onStopped }) => {
+const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, indicators, labelOf, onCreated, onStopped }) => {
   const [name, setName] = useState('');
   const [indicator, setIndicator] = useState<QualityIndicatorKey | ''>('');
   const [measure, setMeasure] = useState<QualityAlertMeasure>('count');
@@ -189,73 +218,76 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, indicator
   const [submitting, setSubmitting] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
   const [stopping, setStopping] = useState<string | null>(null);
+  const [confirmStopId, setConfirmStopId] = useState<string | null>(null);
+  // Un seul envoi à la fois : un double clic sur « Créer » ou « Oui, arrêter » ne part qu'une fois.
+  const [flight] = useState(createSingleFlight);
 
   const value = Number(threshold);
   const valid =
     name.trim() !== '' && indicator !== '' && value > 0 && (measure === 'count' || value <= 100);
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!valid) return; // valid implique un indicateur choisi (rétrécissement TS)
-    setSubmitting(true);
-    setRefused(null);
-    try {
-      const result = await qualityApi.createQualityAlert({ name: name.trim(), indicator, measure, threshold: value });
-      if ('refused' in result) {
-        setRefused(result.refused);
-      } else {
-        onCreated(result.alert);
-        setName('');
-        setThreshold('');
-      }
-    } catch {
-      // Erreur HTTP déjà affichée par le bus global.
-    } finally {
-      setSubmitting(false);
-    }
+    const input = { name: name.trim(), indicator, measure, threshold: value };
+    void flight
+      .run(async () => {
+        setSubmitting(true);
+        setRefused(null);
+        try {
+          const result = await qualityApi.createQualityAlert(input);
+          if ('refused' in result) {
+            setRefused(result.refused);
+          } else {
+            onCreated(result.alert);
+            setName('');
+            setThreshold('');
+          }
+        } finally {
+          setSubmitting(false);
+        }
+      })
+      .catch(() => undefined); // Erreur HTTP déjà affichée par le bus global.
   };
 
-  const stop = async (id: string) => {
-    setStopping(id);
-    try {
-      await qualityApi.stopQualityAlert(id);
-      onStopped(id);
-    } catch {
-      // Erreur HTTP déjà affichée par le bus global.
-    } finally {
-      setStopping(null);
-    }
+  const stop = (id: string) => {
+    void flight
+      .run(async () => {
+        setStopping(id);
+        try {
+          await qualityApi.stopQualityAlert(id);
+          setConfirmStopId(null);
+          onStopped(id);
+        } finally {
+          setStopping(null);
+        }
+      })
+      .catch(() => undefined); // Erreur HTTP déjà affichée par le bus global.
   };
 
   const field =
     'rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-rdpc-blue focus:outline-none';
+  const notice = alertsMessage(load, alerts.length);
 
   return (
     <div className={card}>
       <div className="mb-4 flex items-center gap-2">
         <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Mes alertes</h3>
-        <span
-          className="material-symbols-outlined cursor-help text-[18px] text-slate-400 hover:text-rdpc-blue"
-          role="img"
-          aria-label="Vous recevez une notification quand le seuil est atteint, puis quand il redescend."
-          title="Vous recevez une notification quand le seuil est atteint, puis quand il redescend."
-        >
-          help
-        </span>
+        <InlineHelpButton
+          label="Aide sur les alertes"
+          content="Vous recevez une notification quand le seuil est atteint, puis quand il redescend."
+        />
       </div>
 
-      {alerts.length === 0 ? (
-        <p className="mb-4 text-sm text-slate-400">Aucune alerte.</p>
+      {notice ? (
+        <p className={`mb-4 text-sm ${load === 'failed' ? 'font-bold text-amber-700' : 'text-slate-400'}`}>{notice}</p>
       ) : (
         <ul aria-label="Mes alertes" className="mb-4 divide-y divide-slate-100">
           {alerts.map((alert) => (
             <li key={alert.id} aria-label={alert.name} className="flex items-center justify-between gap-4 py-2">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-slate-700">{alert.name}</p>
-                <p className="text-xs text-slate-400">
-                  {labelOf(alert.indicator)} ≥ {alert.threshold}
-                  {alert.measure === 'rate' ? ' %' : ' documents'}
-                </p>
+                <p className="text-xs text-slate-400">{thresholdText(labelOf(alert.indicator), alert.threshold, alert.measure)}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {alert.alerting_since && (
@@ -263,14 +295,38 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, indicator
                     Seuil atteint
                   </span>
                 )}
-                <button
-                  type="button"
-                  disabled={stopping === alert.id}
-                  onClick={() => void stop(alert.id)}
-                  className="rounded-xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-red-600 disabled:opacity-50"
-                >
-                  Arrêter
-                </button>
+                {confirmStopId === alert.id ? (
+                  <>
+                    <span className="text-xs font-bold text-slate-600">Arrêter cette alerte ?</span>
+                    <button
+                      type="button"
+                      autoFocus
+                      disabled={stopping === alert.id}
+                      aria-label={`Confirmer l’arrêt de ${alert.name}`}
+                      onClick={() => stop(alert.id)}
+                      className="rounded-xl bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Oui, arrêter
+                    </button>
+                    <button
+                      type="button"
+                      disabled={stopping === alert.id}
+                      onClick={() => setConfirmStopId(null)}
+                      className="rounded-xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Non
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Arrêter ${alert.name}`}
+                    onClick={() => setConfirmStopId(alert.id)}
+                    className="rounded-xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-red-600"
+                  >
+                    Arrêter
+                  </button>
+                )}
               </div>
             </li>
           ))}
