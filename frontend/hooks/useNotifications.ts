@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_URL } from '../constants';
+import { openNotificationsSocket } from '../lib/notificationsSocket';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 
@@ -62,8 +64,9 @@ export const useNotifications = () => {
     useEffect(() => {
         if (!token) return;
 
-        const API_WS_URL = import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8000/api/v1';
-        ws.current = new WebSocket(`${API_WS_URL}/notifications/ws?token=${token}`);
+        // API_URL : VITE_API_URL (relatif /api/v1 en image Docker). Son repli localhost:8000 ne sert qu'au dev.
+        ws.current = openNotificationsSocket(API_URL, window.location.href, token);
+        if (!ws.current) return;
 
         ws.current.onopen = () => {
             console.log('Notification WebSocket connected');
