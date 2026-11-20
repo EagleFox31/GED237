@@ -77,9 +77,11 @@ test.describe('SC-ADM-08 — Import d’un dossier', () => {
     // Étape 5 : compte rendu.
     expect(result.failed_items).toBe(0);
     expect(result.imported_documents + result.pending_review_items).toBeGreaterThanOrEqual(2);
-    await expect(page.getByText('Importés', { exact: true })).toBeVisible();
-    await expect(page.getByText('Doublons', { exact: true })).toBeVisible();
-    await expect(page.getByText('Erreurs', { exact: true })).toBeVisible();
+    // Scoped to the import report: since 17/11 the admin menu also has a « Doublons » entry.
+    const report = page.getByRole('region', { name: 'Compte rendu de l’import' });
+    await expect(report.getByText('Importés', { exact: true })).toBeVisible();
+    await expect(report.getByText('Doublons', { exact: true })).toBeVisible();
+    await expect(report.getByText('Erreurs', { exact: true })).toBeVisible();
 
     // Post-condition : le fichier couvert par la règle est classé automatiquement.
     const reviews = await adminApi.listReviews();

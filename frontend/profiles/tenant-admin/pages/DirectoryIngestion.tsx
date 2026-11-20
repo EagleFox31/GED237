@@ -2349,7 +2349,7 @@ const DirectoryIngestion: React.FC = () => {
       </div>
 
       {commitResult && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <section aria-label="Compte rendu de l’import" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <SummaryCard label="Importés" value={commitResult.imported_documents} icon="check_circle" color="bg-cam-green" />
             <SummaryCard label="À arbitrer" value={commitResult.pending_review_items} icon="rule" color="bg-amber-500" />
@@ -2411,7 +2411,7 @@ const DirectoryIngestion: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
