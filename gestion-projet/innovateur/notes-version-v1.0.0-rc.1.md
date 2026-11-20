@@ -123,9 +123,10 @@ Limites hors `fixme` :
 ### Écarts d'exploitation connus
 
 - **HTTPS (item CDC 27)** : l'accès chiffré `https://localhost:8443` utilise un certificat local (mkcert) installé sur le poste de démonstration ; aucun certificat public (pas de nom de domaine, démonstration sur place). Un autre poste affiche un avertissement tant que `mkcert -install` n'y a pas été lancé. Le HTTP sur le port 8080 reste disponible. Livré par #109 ; décision du PO du 16/11 : la démonstration se fait en HTTPS.
-- **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; la valeur retenue est celle des relevés du `c6.tsv`, sans arrondi : au moins 6 relevés verts le 19/11, 10 sur 10 le 21/11.
+- **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; relevés bruts, sans arrondi. Mesuré à ce jour :
   - **19/11, C6 verte** : 7 relevés verts consécutifs, de 21:35:19Z à 22:05:27Z, sans échec ni trou. Ils portent sur une pile construite depuis le SHA de coupe `a1c15f61`, provenance vérifiée par le contenu. Les séries lues plus tôt dans la journée mesuraient la pile de démonstration du 16/11 (`7898387b`) : elles ne sont pas retenues.
-  - **21/11** : à renseigner.
+  - **20/11, trou de sonde** : aucun relevé de 06:29:52Z à 12:40:26Z sur la pile de démonstration (Docker arrêté, disque plein). Ce trou est compté comme un trou, pas comme un succès.
+  - **21/11** : lecture à venir.
 - **Déploiement sur serveur distant (item CDC 28)** : non livré dans la rc.1, décision du PO du 9/11 (démonstration sur place, mêmes conteneurs). La preuve d'installation retenue est l'essai d'installation sans Internet du 25/11. La mise en service sur le serveur distant vient en V1.1, avec un accès par VPN seulement (#288) ; l'accès public en HTTPS suit en V1.2.
 - **Volumétrie (item CDC 8)** : 420 documents mesurés ; les 100 000 fichiers du cahier des charges sont mesurés en décembre.
 
