@@ -20,16 +20,16 @@ L'audit propose quatre conteneurs : Windows 10, Windows 7, Chromium et toxiproxy
 
 | Écart de l'audit | Ce qui le prouve | Moyen |
 |---|---|---|
-| P0 `clipboard.writeText` sans garde (HTTP LAN) | moteur Chromium 109 et Firefox 115, page servie en HTTP sur une adresse non locale | **moteurs anciens** |
-| P1 `100dvh` sans repli | moteur avant Chrome 108, à 1366×768 | **moteurs anciens** |
+| P0 `clipboard.writeText` sans garde (HTTP LAN) | page servie en HTTP sur une adresse non locale : `navigator.clipboard` y manque **sur tout navigateur**, même récent, car le contexte n'est pas sécurisé. C'est le déploiement qui le provoque, pas l'âge du moteur. | **moteurs du labo** (109, 115) en HTTP LAN |
+| P1 `100dvh` sans repli | moteur sans `dvh` : avant Chrome 108 et Firefox 101, à 1366×768 | **moteur ancien** : Chromium 107 |
 | P1 bandeau `nomodule` | un navigateur sans modules ES (IE) | **poste Windows 7** |
 | Concurrence multi-postes | trois sessions sur des postes distincts | W2 + C1 + C2 (#500), déjà possible |
 | Envoi sous 2 Mbit/s et 250 ms, puis coupure | lien toxiproxy | `link.sh` (#500), déjà possible |
 
-**Moteurs anciens (LMV-1)**
-- Une image Playwright épinglée sur une version qui embarque Chromium 109, une autre sur une version qui embarque Firefox 115 ESR. `À vérifier` : correspondance exacte des versions dans les notes de version de Playwright.
+**Moteurs du labo (LMV-1)**
+- Des images Playwright épinglées sur des versions qui embarquent Chromium 109 et Firefox 115 ESR, plus Playwright 1.27.1 pour Chromium 107. `À vérifier` : la correspondance exacte des versions dans les notes de version de Playwright.
 - Conteneur `--rm`, plafonné, sans Windows ni KVM.
-- Cela couvre les deux écarts propres au moteur : le presse-papiers et `dvh`.
+- Cela couvre P0, servi en HTTP sur une adresse non locale, et P1 sur Chromium 107.
 
 **Poste Windows 7 (LMV-2)**
 - Le seul apport propre est le test du bandeau `nomodule` sous IE.
@@ -49,7 +49,7 @@ L'audit propose quatre conteneurs : Windows 10, Windows 7, Chromium et toxiproxy
 
 | Lot | Contenu | Porteur proposé | Effort | Preuve attendue |
 |---|---|---|---|---|
-| LMV-1 | Spec e2e des deux écarts (presse-papiers en HTTP, modale de dépôt à 1366×768) sur Chromium 109 et Firefox 115 | Q | 0,5 h-s | rouge sur main avant le correctif de F, vert après |
+| LMV-1 | Spec e2e des deux écarts : presse-papiers en HTTP LAN sur Chromium 109 et Firefox 115 ; modale de dépôt à 1366×768 sur Chromium 107 | Q | 0,5 h-s | sur main : P0 rouge sur 109 et 115, P1 rouge sur 107 ; vert après #523 |
 | LMV-2 | Profil `w7` dans `ged-lab` (même réseau, même lien, hors ligne après installation, plafond de 2,5 Go), Firefox 115 ESR installé par `oem/` | 6a, après #500 | 1 h-s | bandeau `nomodule` visible sous IE, dépôt à 1366×768 sous Firefox 115 |
 | — | Décision de licence pour Windows 7 | PO | — | décision écrite avant LMV-2 |
 
