@@ -52,7 +52,10 @@ Côté apt, la chaîne de compilation (gcc-14, cpp-14, libgcc-14-dev, binutils, 
 | IMG-3 | `requirements-dev.txt` (bandit, ruff, pytest*, fakeredis, pip-audit, pre-commit) et cible `test` pour les images `gedtest-*` | ≈ 30 Mo, surtout de la surface d'attaque | B, avec Q pour la CI | 0,5 h-s | `pip show bandit` en échec dans l'image d'exécution ; jobs CI et e2e verts sur la cible `test` |
 | IMG-4 (option) | Image API sans OCR ni spacy, le worker garde tout | API vers quelques centaines de Mo | B | 1,5 h-s | démarrage de l'API sans numpy ni cv2 importés ; e2e vert |
 
-**Ordre** : IMG-1 d'abord, car il porte presque tout le gain et il est déjà décidé. IMG-2 et IMG-3 ensuite, dans la même PR si B le juge simple. IMG-4 seulement si le besoin d'une API légère est confirmé.
+**Ordre** (recommandation de O du 20/11 ; l'ordre et la date relèvent du PO) :
+- IMG-1 d'abord, car il porte presque tout le gain et il est déjà décidé. Il rend sans objet la PR courte de B qui place torch dans sa propre couche (cache de build : 20,6 Go, torch retéléchargé à chaque changement de `requirements.txt`). B n'ajoute alors que les labels `purpose=test` et `purpose=e2e`.
+- Si IMG-1 passe après les PR V1.1 en cours, B fait sa PR courte entre-temps.
+- IMG-2 à IMG-4 restent **optionnels**.
 
 **Cible réaliste après IMG-1 à IMG-3** : environ **0,9 à 1,1 Go** décompressé par image. Restent spacy, opencv, onnxruntime, tesseract et poppler, tous utilisés. « Quelques centaines de Mo » n'est atteignable que pour l'API, avec IMG-4.
 
