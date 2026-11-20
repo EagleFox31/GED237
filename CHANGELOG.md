@@ -86,7 +86,7 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 
 ### Limites connues
 
-Relevé des `fixme` encore ouverts dans `frontend/e2e/specs` (main 7ecde2b, 10/11) ; statut « corrigé avant le 19 » = une PR ouverte le couvre et doit être fusionnée avant la coupure du 19/11 18:00, sinon la ligne passe en V1.1 le 19 au soir.
+Relevé des `fixme` des specs e2e (`frontend/e2e/specs`, main 7ecde2b, 10/11), mis à jour à la coupe du 19/11 : toutes les lignes sont corrigées dans la rc.1.
 
 | Défaut (spec) | Ce que voit l'utilisateur | Statut |
 |---|---|---|
@@ -105,11 +105,14 @@ Limites hors `fixme` :
 
 - Cycle de vie manuel : corbeille, restauration et purge par l'administrateur ; pas de durée de conservation automatique.
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
-- Les documents mis à la corbeille ne sont plus comptés au tableau de bord de l'institution (#260), mais le compteur des circuits de validation les compte encore ; corrigé en V1.1 (#220).
+- Les documents mis à la corbeille ne sont plus comptés au tableau de bord de l'institution (#260), mais le compteur des circuits de validation les compte encore. Correction prévue en V1.1 (#536).
 - Renommer ou reclasser un document ne laisse pas encore de trace dans le journal d'audit. Correction prévue en V1.1 (#250).
+- Un administrateur peut désigner comme dossier de classement, à la résolution d'une revue, un dossier qui n'est pas vérifié comme appartenant à son institution. Correction prévue en V1.1 (#242).
+- Pour un manager ou un lecteur, un document hors de son service répond « accès refusé » au lieu de « introuvable » : la réponse confirme que le document existe. Correction prévue en V1.1 (#247).
+- Navigateurs pris en charge : Chrome 109 et plus, Firefox 115 et plus, Edge. Internet Explorer affiche une page blanche ; avant Chrome 108 et Firefox 101, la fenêtre de dépôt est coupée à 1366×768. Sur un autre poste en HTTP (port 8080), le bouton « Copier » ne fait rien, car le navigateur réserve le presse-papiers aux connexions chiffrées : copier l'adresse à la main, ou passer en HTTPS. Correction proposée en V1.1 (#523).
 - Écran « Gestion AuthZ », onglet des règles : il ne montre pas les droits et indique qu'ils ne sont pas modifiables sur cette installation. Le serveur garde les droits dans un fichier (`AUTHZ_BACKEND=csv`) ; c'est la personne qui installe qui les règle. En V1.1, la grille s'affiche en lecture seule tant que le serveur reste dans ce mode, puis devient modifiable par le seul super admin quand il passe en base de données.
 - Reporté en V1.2 (décision du 17/11) : désigner un lecteur d'un autre service sans lancer de circuit ; alertes de qualité et onglet « Qualité » des rapports ; accès public en HTTPS sur un serveur distant.
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
 - Traces de recette : l'artefact CI `e2e-smoke-report` (14 jours) conserve les traces Playwright des tests rejoués, donc les en-têtes d'autorisation d'un jeton e2e éphémère (30 min, environnement CI détruit après le run) ; aucun compte réel n'y figure.
 - Lots non fusionnés à la coupe du 19/11 (`release/v1.0.0` = `a1c15f61`) : aucune PR de la V1.1 n'est entrée. Ce qu'on peut voir à la démonstration et qui n'est pas livré : remplacement pendant une absence (#445, #453), recherche insensible aux accents (#436), mesure des 100 000 fichiers (#473, #497), lisibilité des badges de statut (#484), focus clavier à la connexion (#446), déblocage d'un compte par l'administrateur (#394, #405). Phrases d'écart : `plan-presentation.md` § 3.
-- Disponibilité (item CDC 29) : la C6 du 19/11 est **verte**, avec 7 relevés consécutifs de 21:35:19Z à 22:05:27Z, sans échec ni trou, sur une pile construite depuis `a1c15f61` (provenance vérifiée par le contenu, empreinte `9cd06f7b`). La lecture du 21/11 est à venir.
+- Disponibilité (item CDC 29) : la C6 du 19/11 est **verte**, avec 7 relevés consécutifs de 21:35:19Z à 22:05:27Z, sans échec ni trou, sur une pile construite depuis `a1c15f61` (provenance vérifiée par le contenu, empreinte `9cd06f7b`). Le 20/11, la sonde n'a fait aucun relevé de 06:29:52Z à 12:40:26Z (Docker arrêté, disque plein) : ce trou est compté comme un trou, pas comme un succès. La lecture du 21/11 est à venir.
