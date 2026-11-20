@@ -9,7 +9,7 @@
 
 ### Faits (Vérifié, 2026-11-09 19:05)
 
-| Mesure | VPS OVH 15.235.90.215 | Besoin GED237 (`docker-compose.yml`) |
+| Mesure | VPS OVH | Besoin GED237 (`docker-compose.yml`) |
 |---|---|---|
 | RAM | 3,8 Go total, **198 Mo libres**, 2,6 Go en cache, swap 2 Go utilisé à moitié | plafonds déclarés : postgres 768 Mo + redis 192 + migrate 512 + api 1 Go + **worker 2 Go** + frontend 768 + nginx 64 = **≈ 5,3 Go** |
 | Conteneurs | 13 déjà actifs (Précis prod, trigenys-sign, WAHA, loveink, casino, eli-bot, stack deploy-*) | 7 à ajouter |
