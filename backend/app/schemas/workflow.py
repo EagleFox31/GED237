@@ -72,6 +72,7 @@ class WorkflowStepRead(WorkflowStepBase):
     status: str
     completed_at: Optional[datetime] = None
     comment: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -82,6 +83,17 @@ class WorkflowStepWithDocument(WorkflowStepRead):
 
     document: Optional[DocumentSummary] = None
     assignment_error: Optional[str] = None
+    # Who submitted the document (submission audit, else the owner).
+    submitted_by: Optional[UUID] = None
+    submitted_by_name: Optional[str] = None
+
+
+class WorkflowCounters(BaseModel):
+    """Badges of the current user (GET /workflows/my-counters)."""
+
+    rejected: int = 0
+    returned: int = 0
+    tasks: int = 0
 
 
 class WorkflowActionCreate(BaseModel):

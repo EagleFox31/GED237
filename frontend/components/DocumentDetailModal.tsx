@@ -7,6 +7,8 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import { notifyTasksChanged } from '../lib/taskCount';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -19,14 +21,29 @@ interface DocumentDetailModalProps {
   onClose: () => void;
   /** Appelé après une modification (ex. archivage) pour rafraîchir la liste appelante. */
   onUpdated?: (document: Document) => void;
+  /** Fourni par la liste appelante : affiche « Mettre à la corbeille » et rafraîchit après succès. */
+  onTrashed?: () => void;
 }
 
-const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated }) => {
+const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated, onTrashed }) => {
   const [document, setDocument] = useState<Document>(initialDocument);
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [trashing, setTrashing] = useState(false);
+  const handleTrash = async () => {
+    setTrashing(true);
+    try {
+      await api.deleteDocument(document.id);
+      onTrashed?.();
+      onClose();
+    } catch {
+      /* message déjà affiché par le bus global */
+    } finally {
+      setTrashing(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState<'info' | 'workflow' | 'history'>('info');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [stepsLoading, setStepsLoading] = useState(false);
@@ -35,6 +52,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [commentFor, setCommentFor] = useState<{ stepId: string; actionType: string; outcome: "rejected" | "returned" } | null>(null);
+  useEscapeToClose(onClose, !confirmArchive && commentFor === null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
 
@@ -113,6 +131,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         document_version_id: document.current_version_id,
         comment: comment || undefined
       });
+      notifyTasksChanged();
       await loadWorkflowSteps();
       // Le statut du document change après un visa ou un rejet : on le relit pour l'affichage et la liste.
       try {
@@ -212,7 +231,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
+          <button type="button" onClick={onClose} aria-label="Quitter la fiche" className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-slate-400">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
@@ -431,6 +450,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
 
         {/* Footer actions */}
         <div className="p-6 bg-slate-100/50 border-t border-slate-200/50 flex justify-end gap-3">
+          {onTrashed && (
+            <button
+              type="button"
+              onClick={() => handleTrash()}
+              disabled={trashing}
+              className="mr-auto inline-flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-600 hover:text-red-700 disabled:opacity-50 transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden>delete</span>
+              Mettre à la corbeille
+            </button>
+          )}
           {canArchive && (
             <button
               type="button"
