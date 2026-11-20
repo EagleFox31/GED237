@@ -5,16 +5,18 @@ Server paths are checked against INGEST_ALLOWED_ROOTS, pointed at tmp_path.
 
 import hashlib
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.api.v1.endpoints import ingestion_sources as sources_module
 from app.core.config import settings
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.models.ingestion_source import IngestionSource
+from app.models.user import User
 
 BASE = "/api/v1/ingestion/sources"
 
@@ -147,6 +149,31 @@ async def test_path_and_credentials_must_match_the_type(admin_client, payload):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "credentials_ref",
+    ["../../etc/x", "SMB..FIN", "/etc/x", "smb/fin", ".hidden", "-x", "A" * 129],
+)
+async def test_credentials_ref_is_a_plain_name(
+    admin_client, ingest_fs, credentials_ref
+):
+    payload = {
+        "name": "Partage",
+        "source_type": "smb",
+        "path": str(ingest_fs["lot"]),
+        "credentials_ref": credentials_ref,
+    }
+    assert (await admin_client.post(BASE + "/", json=payload)).status_code == 422
+
+    payload["credentials_ref"] = "SMB_FIN.prod-2"
+    created = await admin_client.post(BASE + "/", json=payload)
+    assert created.status_code == 201, created.text
+    patched = await admin_client.patch(
+        f"{BASE}/{created.json()['id']}", json={"credentials_ref": credentials_ref}
+    )
+    assert patched.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_targets_of_another_tenant_are_refused(admin_client, ingest_fs):
     for field in ("org_unit_id", "owner_id", "document_category_id"):
         response = await admin_client.post(
@@ -262,6 +289,72 @@ async def test_run_refused_while_locked_disabled_or_for_an_agent(
     )
     agent_run = await admin_client.post(f"{BASE}/{agent.json()['id']}/run")
     assert agent_run.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_a_run_does_not_free_a_lock_taken_by_another_run(
+    admin_client, ingest_fs, run_redis, monkeypatch
+):
+    source_id = (
+        await admin_client.post(BASE + "/", json=_local(ingest_fs["lot"]))
+    ).json()["id"]
+    lock = sources_module._run_lock_key(uuid.UUID(source_id))
+
+    class _OutlivedItsLock:
+        """The first run's lock expires and a second run takes it meanwhile."""
+
+        def __init__(self, db):
+            pass
+
+        async def ingest(self, **params):
+            await run_redis.set(lock, "jeton-de-la-seconde-collecte")
+            empty = {
+                "total_found": 0,
+                "imported": 0,
+                "skipped": 0,
+                "error_count": 0,
+                "errors": [],
+                "details": [],
+                "duplicate_count": 0,
+            }
+            return SimpleNamespace(to_dict=lambda: empty)
+
+    monkeypatch.setattr(sources_module, "DirectoryIngestionService", _OutlivedItsLock)
+    assert (await admin_client.post(f"{BASE}/{source_id}/run")).status_code == 200
+    assert await run_redis.get(lock) in (
+        "jeton-de-la-seconde-collecte",
+        b"jeton-de-la-seconde-collecte",
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_refused_when_the_owner_is_disabled(
+    admin_client, db_session, db_seed, ingest_fs, run_redis
+):
+    source_id = (
+        await admin_client.post(BASE + "/", json=_local(ingest_fs["lot"]))
+    ).json()["id"]
+    owner = User.__table__.c
+    await db_session.execute(
+        update(User).where(owner.id == db_seed["user_id"]).values(is_active=False)
+    )
+    await db_session.commit()
+    try:
+        refused = await admin_client.post(f"{BASE}/{source_id}/run")
+        assert refused.status_code == 409
+        assert "owner" in refused.json()["detail"]
+        # Refused before taking the lock: nothing to free, nothing recorded.
+        assert (
+            await run_redis.get(sources_module._run_lock_key(uuid.UUID(source_id)))
+            is None
+        )
+        saved = (await admin_client.get(f"{BASE}/{source_id}")).json()
+        assert saved["last_run_at"] is None
+    finally:
+        await db_session.execute(
+            update(User).where(owner.id == db_seed["user_id"]).values(is_active=True)
+        )
+        await db_session.commit()
 
 
 @pytest.mark.asyncio

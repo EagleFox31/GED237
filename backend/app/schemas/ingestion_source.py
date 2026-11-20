@@ -1,9 +1,9 @@
 # backend/app/schemas/ingestion_source.py
 import uuid
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 
 from app.schemas.document import DirectoryIngestResponse, ProcessingMode
 
@@ -11,13 +11,25 @@ SourceType = Literal["local", "smb", "agent"]
 RunStatus = Literal["success", "partial", "failed"]
 
 
+def _no_parent_segment(value: str) -> str:
+    if ".." in value:
+        raise ValueError("credentials_ref must not contain '..'")
+    return value
+
+
+# Name of the server-side secret that mounts an SMB share; never the secret. A
+# plain name: no "/", no leading dot, no "..", so it cannot point at a path.
+CredentialsRef = Annotated[
+    str,
+    Field(max_length=128, pattern=r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$"),
+    AfterValidator(_no_parent_segment),
+]
+
+
 class IngestionSourceBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
     path: Optional[str] = Field(None, max_length=1024)
-    # Name of the server-side secret that mounts an SMB share; never the secret.
-    credentials_ref: Optional[str] = Field(
-        None, max_length=128, pattern=r"^[A-Za-z0-9_.\-/]+$"
-    )
+    credentials_ref: Optional[CredentialsRef] = None
     org_unit_id: Optional[uuid.UUID] = None
     owner_id: Optional[uuid.UUID] = None
     document_category_id: Optional[uuid.UUID] = None
@@ -48,9 +60,7 @@ class IngestionSourceUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=150)
     path: Optional[str] = Field(None, min_length=1, max_length=1024)
-    credentials_ref: Optional[str] = Field(
-        None, max_length=128, pattern=r"^[A-Za-z0-9_.\-/]+$"
-    )
+    credentials_ref: Optional[CredentialsRef] = None
     org_unit_id: Optional[uuid.UUID] = None
     owner_id: Optional[uuid.UUID] = None
     document_category_id: Optional[uuid.UUID] = None

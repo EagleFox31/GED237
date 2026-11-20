@@ -42,6 +42,15 @@ logger = logging.getLogger(__name__)
 RESOURCE = "ingestion_sources"
 # A run holds this lock; a crashed run frees the source after this delay.
 RUN_LOCK_SECONDS = 3600
+# Deletes the lock only if it still holds this run's token: a run that outlived
+# RUN_LOCK_SECONDS must not free the lock another run has taken since. Same
+# script as the watch-folder and trash locks.
+_RELEASE_LOCK = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+end
+return 0
+"""
 
 
 def _new_agent_key() -> tuple[str, str, str]:
@@ -347,10 +356,24 @@ async def run_ingestion_source(
         )
     if not source.enabled:
         raise HTTPException(status_code=409, detail="This source is disabled")
+    # The owner was active when the source was saved; collected files would be
+    # filed under an account that can no longer act on them.
+    owner_active = (
+        await db.execute(
+            select(User.is_active).where(
+                User.id == source.owner_id, User.tenant_id == source.tenant_id
+            )
+        )
+    ).scalar_one_or_none()
+    if not owner_active:
+        raise HTTPException(
+            status_code=409, detail="The owner of this source is disabled"
+        )
 
     redis = await get_redis()
     lock = _run_lock_key(source.id)
-    if not await redis.set(lock, "1", nx=True, ex=RUN_LOCK_SECONDS):
+    token = secrets.token_hex(16)
+    if not await redis.set(lock, token, nx=True, ex=RUN_LOCK_SECONDS):
         raise HTTPException(
             status_code=409, detail="This source is already being collected"
         )
@@ -417,7 +440,7 @@ async def run_ingestion_source(
         )
         await db.commit()
     finally:
-        await redis.delete(lock)
+        await redis.eval(_RELEASE_LOCK, 1, lock, token)
 
     if forbidden is not None:
         raise forbidden
