@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_URL } from '../constants';
+import { subscribeToNotifications } from '../lib/notificationsSocket';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 
@@ -20,7 +22,6 @@ export const useNotifications = () => {
     // Jeton legacy : plus écrit depuis les cookies HttpOnly, donc pas de WebSocket (V1.1).
     const token = sessionStorage.getItem('token');
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const ws = useRef<WebSocket | null>(null);
     // Utilisateur courant : une réponse arrivée après déconnexion ou changement de compte est ignorée.
     const currentUser = useRef<string | null>(null);
 
@@ -59,34 +60,14 @@ export const useNotifications = () => {
         };
     }, [userKey, loadNotifications]);
 
-    useEffect(() => {
-        if (!token) return;
-
-        const API_WS_URL = import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8000/api/v1';
-        ws.current = new WebSocket(`${API_WS_URL}/notifications/ws?token=${token}`);
-
-        ws.current.onopen = () => {
-            console.log('Notification WebSocket connected');
-        };
-
-        ws.current.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                // Prepend new notification
-                setNotifications((prev) => [data, ...prev]);
-            } catch (err) {
-                console.error('Failed to parse WebSocket message', err);
-            }
-        };
-
-        ws.current.onclose = () => {
-            console.log('Notification WebSocket closed');
-        };
-
-        return () => {
-            ws.current?.close();
-        };
-    }, [token]);
+    // API_URL : VITE_API_URL (relatif /api/v1 en image Docker). Son repli localhost:8000 ne sert qu'au dev.
+    // Nouvelle notification reçue en temps réel : ajoutée en tête de liste.
+    useEffect(
+        () => subscribeToNotifications(API_URL, window.location.href, token, (data) => {
+            setNotifications((prev) => [data as Notification, ...prev]);
+        }),
+        [token],
+    );
 
     const markAsRead = async (id: string) => {
         try {
