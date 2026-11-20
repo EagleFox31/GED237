@@ -29,6 +29,8 @@ test.describe('Onglet Qualité : règles d’affichage', () => {
     expect(alertsMessage('ready', 0)).toBe('Aucune alerte.');
     expect(alertsMessage('loading', 0)).toBe('Chargement…');
     expect(alertsMessage('ready', 2)).toBeNull();
+    // Lecture en échec puis alerte créée : la liste affichée n'est pas complète, on le dit.
+    expect(alertsMessage('failed', 1)).toBe('Liste incomplète : les autres alertes n’ont pas pu être lues.');
   });
 
   test('seuil en clair et lien vers la fiche', () => {

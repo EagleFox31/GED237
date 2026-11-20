@@ -126,6 +126,7 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
       load={alertsLoad}
       indicators={summary.indicators.map(({ key, label }) => ({ key, label }))}
       labelOf={labelOf}
+      refreshKey={refreshKey}
       onCreated={(alert) => setAlerts((list) => [...list, alert])}
       onStopped={(id) => setAlerts((list) => list.filter((a) => a.id !== id))}
     />
@@ -168,7 +169,8 @@ export const ReportsQualityPanel: React.FC<ReportsQualityPanelProps> = ({ refres
                 key={indicator.key}
                 type="button"
                 aria-pressed={active}
-                disabled={indicator.count === 0}
+                // Indicateur retombé à 0 après « Actualiser » : il reste cliquable pour refermer sa liste.
+                disabled={indicator.count === 0 && !active}
                 onClick={() => setSelected(active ? null : indicator.key)}
                 className={`flex items-center justify-between rounded-2xl border-2 px-4 py-3 text-left transition-all disabled:cursor-default disabled:opacity-50 ${
                   active ? 'border-rdpc-blue bg-blue-50' : 'border-slate-100 hover:border-slate-300'
@@ -235,11 +237,21 @@ interface QualityAlertsCardProps {
   load: ListLoad;
   indicators: Array<{ key: QualityIndicatorKey; label: string }>;
   labelOf: (key: QualityIndicatorKey) => string;
+  /** « Actualiser » de la page : efface un refus (409) devenu peut-être caduc. */
+  refreshKey: number;
   onCreated: (alert: QualityAlert) => void;
   onStopped: (id: string) => void;
 }
 
-const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, indicators, labelOf, onCreated, onStopped }) => {
+const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({
+  alerts,
+  load,
+  indicators,
+  labelOf,
+  refreshKey,
+  onCreated,
+  onStopped,
+}) => {
   const [name, setName] = useState('');
   const [indicator, setIndicator] = useState<QualityIndicatorKey | ''>('');
   const [measure, setMeasure] = useState<QualityAlertMeasure>('count');
@@ -248,8 +260,29 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
   const [refused, setRefused] = useState<string | null>(null);
   const [stopping, setStopping] = useState<string | null>(null);
   const [confirmStopId, setConfirmStopId] = useState<string | null>(null);
-  // Un seul envoi à la fois : un double clic sur « Créer » ou « Oui, arrêter » ne part qu'une fois.
-  const [flight] = useState(createSingleFlight);
+  // Un verrou par action : un double clic ne part qu'une fois, mais une création en cours
+  // ne rend pas « Oui, arrêter » muet (et inversement).
+  const [createFlight] = useState(createSingleFlight);
+  const [stopFlight] = useState(createSingleFlight);
+  // Focus rendu après « Non » (bouton « Arrêter » de la ligne) ou après un arrêt (titre de la carte),
+  // pour qu'il ne retombe pas en haut de la page.
+  const [refocusStopId, setRefocusStopId] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    setRefused(null);
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (!refocusStopId) return;
+    document.getElementById(`quality-stop-${refocusStopId}`)?.focus();
+    setRefocusStopId(null);
+  }, [refocusStopId]);
+
+  const cancelStop = (id: string) => {
+    setConfirmStopId(null);
+    setRefocusStopId(id);
+  };
 
   const problem = alertFormProblem({ name, indicator, measure, threshold });
   // Le motif ne s'affiche qu'une fois la saisie commencée : un formulaire vierge ne gronde pas.
@@ -259,7 +292,7 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
     event.preventDefault();
     if (problem !== null || indicator === '') return; // indicator === '' : rétrécissement TS
     const input = { name: name.trim(), indicator, measure, threshold: Number(threshold) };
-    void flight
+    void createFlight
       .run(async () => {
         setSubmitting(true);
         setRefused(null);
@@ -280,13 +313,14 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
   };
 
   const stop = (id: string) => {
-    void flight
+    void stopFlight
       .run(async () => {
         setStopping(id);
         try {
           await qualityApi.stopQualityAlert(id);
           setConfirmStopId(null);
           onStopped(id);
+          headingRef.current?.focus();
         } finally {
           setStopping(null);
         }
@@ -302,16 +336,19 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
   return (
     <div className={card}>
       <div className="mb-4 flex items-center gap-2">
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">Mes alertes</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="text-sm font-black uppercase tracking-widest text-slate-700 focus:outline-none">
+          Mes alertes
+        </h3>
         <InlineHelpButton
           label="Aide sur les alertes"
           content="Vous recevez une notification quand le seuil est atteint, puis quand il redescend."
         />
       </div>
 
-      {notice ? (
+      {notice && (
         <p className={`mb-4 text-sm ${load === 'failed' ? 'font-bold text-amber-700' : 'text-slate-400'}`}>{notice}</p>
-      ) : (
+      )}
+      {alerts.length > 0 && (
         <ul aria-label="Mes alertes" className="mb-4 divide-y divide-slate-100">
           {alerts.map((alert) => (
             <li key={alert.id} aria-label={alert.name} className="flex items-center justify-between gap-4 py-2">
@@ -341,7 +378,7 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
                     <button
                       type="button"
                       disabled={stopping === alert.id}
-                      onClick={() => setConfirmStopId(null)}
+                      onClick={() => cancelStop(alert.id)}
                       className="rounded-xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-50"
                     >
                       Non
@@ -350,6 +387,7 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
                 ) : (
                   <button
                     type="button"
+                    id={`quality-stop-${alert.id}`}
                     aria-label={`Arrêter ${alert.name}`}
                     onClick={() => setConfirmStopId(alert.id)}
                     className="rounded-xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-red-600"
@@ -369,7 +407,9 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
           {refused}
         </p>
       ) : (
-        <form onSubmit={submit} aria-label="Nouvelle alerte">
+        // noValidate : `alertFormProblem` est la seule règle du seuil (celle de l'API) ; le navigateur
+        // ne bloque pas en silence une valeur qu'elle accepte, comme 0,05 %.
+        <form onSubmit={submit} aria-label="Nouvelle alerte" noValidate>
           <div className="flex flex-wrap items-end gap-3">
             <label className={`${fieldLabel} min-w-[10rem] flex-1`}>
               Nom
@@ -402,7 +442,7 @@ const QualityAlertsCard: React.FC<QualityAlertsCardProps> = ({ alerts, load, ind
               <input
                 aria-label="Seuil"
                 type="number"
-                min={measure === 'rate' ? 0.1 : 1}
+                min={measure === 'rate' ? 0 : 1}
                 max={measure === 'rate' ? 100 : undefined}
                 step={measure === 'rate' ? 'any' : 1}
                 value={threshold}

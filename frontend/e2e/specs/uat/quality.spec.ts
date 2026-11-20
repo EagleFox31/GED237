@@ -46,6 +46,11 @@ test.describe('Rapports — qualité documentaire', () => {
     await expect(page.getByRole('alert').filter({ hasText: 'Les alertes ne sont pas activées.' })).toBeVisible();
     await expect(page.getByText(detail)).toHaveCount(0);
     await expect(form).toHaveCount(0);
+
+    // « Actualiser » efface le refus : le serveur a pu activer les alertes entre-temps.
+    await page.getByRole('button', { name: 'Actualiser', exact: true }).click();
+    await expect(form).toBeVisible();
+    await expect(page.getByText('Les alertes ne sont pas activées.')).toHaveCount(0);
   });
 
   test('créer puis arrêter une alerte', async ({ page, request, loginAs, adminToken, runId }) => {
@@ -79,11 +84,125 @@ test.describe('Rapports — qualité documentaire', () => {
     await row.getByRole('button', { name: `Arrêter ${name}` }).click();
     await expect(row).toContainText('Arrêter cette alerte ?');
     await row.getByRole('button', { name: 'Non' }).click();
-    await expect(row.getByRole('button', { name: `Arrêter ${name}` })).toBeVisible();
+    // Le focus revient sur « Arrêter », pas en haut de la page.
+    await expect(row.getByRole('button', { name: `Arrêter ${name}` })).toBeFocused();
 
     await row.getByRole('button', { name: `Arrêter ${name}` }).click();
     await row.getByRole('button', { name: `Confirmer l’arrêt de ${name}` }).click();
     await expect(row).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Mes alertes' })).toBeFocused();
+  });
+
+  test('liste en panne puis alerte créée à 0,05 % : la liste se dit incomplète', async ({ page, loginAs, runId }) => {
+    const posted: Array<Record<string, unknown>> = [];
+    const name = `Partielle ${runId}`;
+    await page.route(/\/analytics\/quality\/alerts\/?(\?|$)/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'GET') return route.fulfill({ status: 500, json: { detail: 'panne simulée' } });
+      if (request.method() !== 'POST') return route.fallback();
+      const body = request.postDataJSON() as Record<string, unknown>;
+      posted.push(body);
+      return route.fulfill({
+        status: 201,
+        json: { ...body, id: 'qa-p', scope: {}, is_active: true, created_at: '2026-11-20T08:00:00Z', alerting_since: null },
+      });
+    });
+    await loginAs('tenant_admin');
+    await page.goto('reports');
+    await page.getByRole('tab', { name: /Qualité/ }).click();
+    await expect(page.getByText('Alertes indisponibles pour le moment.')).toBeVisible();
+
+    // 0,05 % est accepté par l'API : le navigateur ne doit pas le bloquer en silence (min HTML).
+    const form = page.getByRole('form', { name: 'Nouvelle alerte' });
+    await form.getByLabel("Nom de l'alerte").fill(name);
+    await form.getByLabel('Indicateur').selectOption('missing_year');
+    await form.getByLabel('Unité du seuil').selectOption('rate');
+    await form.getByLabel('Seuil', { exact: true }).fill('0.05');
+    await form.getByRole('button', { name: 'Créer' }).click();
+
+    await expect(page.getByRole('list', { name: 'Mes alertes' }).getByRole('listitem')).toHaveCount(1);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]?.threshold).toBe(0.05);
+    await expect(page.getByText('Liste incomplète : les autres alertes n’ont pas pu être lues.')).toBeVisible();
+  });
+
+  test('« Oui, arrêter » pendant une création : l’arrêt part quand même', async ({ page, loginAs }) => {
+    let deletes = 0;
+    let releasePost: () => void = () => undefined;
+    const existing = {
+      id: 'qa-e',
+      name: 'Existante',
+      indicator: 'missing_year',
+      measure: 'count',
+      threshold: 3,
+      scope: {},
+      is_active: true,
+      created_at: '2026-11-20T08:00:00Z',
+      alerting_since: null,
+    };
+    await page.route(/\/analytics\/quality\/alerts(\/[^/?]+)?\/?(\?|$)/, async (route) => {
+      const method = route.request().method();
+      if (method === 'GET') return route.fulfill({ status: 200, json: [existing] });
+      if (method === 'DELETE') {
+        deletes += 1;
+        return route.fulfill({ status: 204 });
+      }
+      if (method !== 'POST') return route.fallback();
+      // La création reste en cours tant que l'arrêt n'est pas vérifié.
+      await new Promise<void>((resolve) => {
+        releasePost = resolve;
+      });
+      return route.fulfill({ status: 201, json: { ...existing, id: 'qa-n', name: 'Nouvelle' } });
+    });
+    await loginAs('tenant_admin');
+    await page.goto('reports');
+    await page.getByRole('tab', { name: /Qualité/ }).click();
+
+    const form = page.getByRole('form', { name: 'Nouvelle alerte' });
+    await form.getByLabel("Nom de l'alerte").fill('Nouvelle');
+    await form.getByLabel('Indicateur').selectOption('missing_year');
+    await form.getByLabel('Seuil', { exact: true }).fill('3');
+    await form.getByRole('button', { name: 'Créer' }).click();
+
+    const list = page.getByRole('list', { name: 'Mes alertes' });
+    const row = list.getByLabel('Existante', { exact: true });
+    await row.getByRole('button', { name: 'Arrêter Existante' }).click();
+    await row.getByRole('button', { name: 'Confirmer l’arrêt de Existante' }).click();
+    await expect(row).toHaveCount(0);
+    expect(deletes).toBe(1);
+
+    releasePost();
+    await expect(list.getByLabel('Nouvelle', { exact: true })).toBeVisible();
+  });
+
+  test('indicateur retombé à 0 après « Actualiser » : sa liste se referme encore', async ({ page, loginAs }) => {
+    let reads = 0;
+    await page.route(/\/analytics\/quality\/?(\?|$)/, (route) => {
+      reads += 1;
+      const count = reads === 1 ? 2 : 0;
+      return route.fulfill({
+        status: 200,
+        json: {
+          total_documents: 10,
+          documents_to_fix: count,
+          quality_rate: 100 - count * 10,
+          indicators: [{ key: 'missing_year', label: 'Sans année', count, rate: count * 10 }],
+        },
+      });
+    });
+    await loginAs('tenant_admin');
+    await page.goto('reports');
+    await page.getByRole('tab', { name: /Qualité/ }).click();
+
+    const indicator = page.getByRole('button', { name: /^Sans année/ });
+    await indicator.click();
+    await expect(indicator).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Actualiser', exact: true }).click();
+    await expect(indicator).toContainText('0');
+    await expect(indicator).toBeEnabled();
+    await indicator.click();
+    await expect(indicator).toHaveAttribute('aria-pressed', 'false');
+    await expect(indicator).toBeDisabled();
   });
 
   test('alertes illisibles : message de panne, pas « Aucune alerte. »', async ({ page, loginAs }) => {

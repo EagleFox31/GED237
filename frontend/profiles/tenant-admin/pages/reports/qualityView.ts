@@ -22,10 +22,13 @@ export const documentsMessage = (load: ListLoad, count: number): string | null =
   return null;
 };
 
-/** Message à la place de la liste des alertes, ou `null` quand la liste s'affiche. */
+/**
+ * Message au-dessus de la liste des alertes, ou `null`. Après une lecture en échec, une alerte
+ * créée ensuite ne fait pas croire que la liste est complète : le message reste jusqu'à la relecture.
+ */
 export const alertsMessage = (load: ListLoad, count: number): string | null => {
+  if (load === 'failed') return count > 0 ? 'Liste incomplète : les autres alertes n’ont pas pu être lues.' : 'Alertes indisponibles pour le moment.';
   if (count > 0) return null;
-  if (load === 'failed') return 'Alertes indisponibles pour le moment.';
   if (load === 'ready') return 'Aucune alerte.';
   return 'Chargement…';
 };
