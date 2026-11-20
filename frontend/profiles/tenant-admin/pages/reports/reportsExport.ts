@@ -65,7 +65,7 @@ const formatTimestamp = (value = new Date()) =>
 const getBaseFilename = (reportType: ReportsGeneratedReportType) =>
   `${REPORT_TYPE_LABELS[reportType]}-${new Date().toISOString().slice(0, 10)}`;
 
-const downloadBlob = (blob: Blob, filename: string) => {
+export const downloadBlob = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

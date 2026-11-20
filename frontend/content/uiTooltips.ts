@@ -26,6 +26,7 @@ export const UI_TOOLTIPS = {
       "Recharge les indicateurs et les tableaux visibles pour refléter l'état documentaire le plus récent.",
     exportTable:
       "Exporte la vue visible au format Excel pour une reprise rapide hors de la plateforme.",
+    officialCopy: "Exemplaire numéroté, inscrit au registre.",
     generateReport:
       "Prépare un rapport plus structuré avec le type, le format et le niveau de détail de votre choix.",
     tabSynthese:
@@ -36,5 +37,7 @@ export const UI_TOOLTIPS = {
       "Lecture du traitement des documents : validations, signatures, lenteurs visibles, retours et blocages estimés.",
     tabServices:
       "Lecture comparative par service : charge visible, retards estimés et activité récente des agents.",
+    tabQualite:
+      "Les documents incomplets (catégorie, année, texte…). Cliquez sur un indicateur pour voir les documents, ou créez une alerte.",
   },
 } as const;

@@ -1,21 +1,25 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Empty } from '../../../components/ui/Empty';
 import { useAuthStore } from '../../../stores/authStore';
 import { InlineHelpButton } from '../../../components/ui/InlineHelpButton';
 import { UI_TOOLTIPS } from '../../../content/uiTooltips';
+import { useDetailsDismiss } from '../../../lib/detailsDismiss';
 import { exportReportsRowsExcel, exportReportsSeriesCsv, generateReportsDocument } from './reports/reportsExport';
 import { ReportsDocumentPanel } from './reports/ReportsDocumentPanel';
 import { ReportsKpiGrid } from './reports/ReportsKpiGrid';
+import { OfficialReportModal } from './reports/OfficialReportModal';
+import type { OfficialReportKind } from '../../../services/resources/officialReports.api';
 import { ReportGenerationModal, type ReportGenerationRequest } from './reports/ReportGenerationModal';
 import { ReportsServiceActivityPanel } from './reports/ReportsServiceActivityPanel';
 import { ReportsSummaryPanel } from './reports/ReportsSummaryPanel';
 import { ReportsTableSection } from './reports/ReportsTableSection';
+import { ReportsQualityPanel } from './reports/ReportsQualityPanel';
 import { ReportsWorkflowPanel } from './reports/ReportsWorkflowPanel';
 import type { ReportsViewMode } from './reports/reportsViewModel';
 import { useReportsData } from './reports/useReportsData';
 import { useReportsEvolution } from './reports/useReportsEvolution';
-import { useReportsFilters } from './reports/useReportsFilters';
+import { useReportsFilters, type ReportsTab } from './reports/useReportsFilters';
 
 interface TabMeta {
   step: number;
@@ -25,7 +29,7 @@ interface TabMeta {
   empty: string;
 }
 
-const TAB_META: Record<ReportsViewMode, TabMeta> = {
+const TAB_META: Record<ReportsTab, TabMeta> = {
   synthese: {
     step: 1,
     label: 'Synthèse',
@@ -54,22 +58,50 @@ const TAB_META: Record<ReportsViewMode, TabMeta> = {
     accent: 'text-violet-600',
     empty: "Aucune activité documentaire n'est encore disponible pour cette période.",
   },
+  qualite: {
+    step: 5,
+    label: 'Qualité',
+    icon: 'fact_check',
+    accent: 'text-rose-600',
+    empty: 'Aucun document à contrôler.',
+  },
 };
 
-const TAB_ORDER: ReportsViewMode[] = ['synthese', 'workflows', 'services', 'documents'];
+const TAB_ORDER: ReportsTab[] = ['synthese', 'workflows', 'services', 'documents', 'qualite'];
 
 // Manager : vue limitée à son service, sans la synthèse ni les compteurs de l'institution.
-const UNIT_TAB_ORDER: ReportsViewMode[] = TAB_ORDER.filter((tab) => tab !== 'synthese');
+const UNIT_TAB_ORDER: ReportsTab[] = TAB_ORDER.filter((tab) => tab !== 'synthese');
 
-const TAB_HELP: Record<ReportsViewMode, string> = {
+const TAB_HELP: Record<ReportsTab, string> = {
   synthese: UI_TOOLTIPS.reports.tabSynthese,
   documents: UI_TOOLTIPS.reports.tabDocuments,
   workflows: UI_TOOLTIPS.reports.tabWorkflows,
   services: UI_TOOLTIPS.reports.tabServices,
+  qualite: UI_TOOLTIPS.reports.tabQualite,
+};
+
+const menuItemClass =
+  'flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50';
+
+/** Rapport proposé pour la copie officielle selon l'onglet ouvert (Qualité → Évolution). */
+const OFFICIAL_KIND: Record<ReportsViewMode, OfficialReportKind> = {
+  synthese: 'evolution',
+  workflows: 'workflow-activity',
+  services: 'service-activity',
+  documents: 'document-activity',
 };
 
 const ReportsPage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [qualityRefreshKey, setQualityRefreshKey] = useState(0);
+  const [isOfficialOpen, setIsOfficialOpen] = useState(false);
+  // Stable : le dialogue (DialogFrame) relance sa mise au point si onClose change.
+  const closeOfficial = useCallback(() => setIsOfficialOpen(false), []);
+  const outputsMenuRef = useRef<HTMLDetailsElement>(null);
+  const outputsSummaryRef = useRef<HTMLElement>(null);
+  useDetailsDismiss(outputsMenuRef, outputsSummaryRef);
+  // Chargement propre à l'onglet Qualité, pour que « Actualiser » tourne aussi là.
+  const [isQualityLoading, setIsQualityLoading] = useState(false);
 
   const { filters, setViewMode } = useReportsFilters();
   const isUnitScope = useAuthStore((s) => s.userProfile?.id) === 'manager';
@@ -103,11 +135,14 @@ const ReportsPage: React.FC = () => {
     if (activeTab !== filters.viewMode) setViewMode(activeTab);
   }, [activeTab, filters.viewMode, setViewMode]);
   const activeMeta = TAB_META[activeTab];
-  const isRefreshing = isLoading || isEvolutionLoading;
+  // La qualité a ses propres données : pas d'export de table ni de rapport généré depuis cet onglet.
+  const reportView: ReportsViewMode = activeTab === 'qualite' ? 'synthese' : activeTab;
+  const inQualityView = activeTab === 'qualite';
+  const isRefreshing = isLoading || isEvolutionLoading || (inQualityView && isQualityLoading);
 
   const currentRows = useMemo(
-    () => viewModel.rowsByMode[activeTab] ?? [],
-    [activeTab, viewModel.rowsByMode],
+    () => (inQualityView ? [] : (viewModel.rowsByMode[reportView] ?? [])),
+    [inQualityView, reportView, viewModel.rowsByMode],
   );
 
   const reportScopeOptions = useMemo(
@@ -163,12 +198,20 @@ const ReportsPage: React.FC = () => {
       exportReportsSeriesCsv(evolutionViewModel.points, selectedSeries);
       return;
     }
-    void exportReportsRowsExcel(currentRows, activeTab);
+    void exportReportsRowsExcel(currentRows, reportView);
+  };
+
+  const canExportView = !isUnitScope && !inQualityView;
+  // Le focus passe sur l'icône avant la fermeture : un dialogue ouvert depuis le menu le rend là.
+  const closeOutputsMenu = () => {
+    outputsSummaryRef.current?.focus();
+    if (outputsMenuRef.current) outputsMenuRef.current.open = false;
   };
 
   const handleRefresh = () => {
     void reload();
     void reloadEvolution();
+    setQualityRefreshKey((k) => k + 1);
   };
 
   const handleTablistKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -212,27 +255,56 @@ const ReportsPage: React.FC = () => {
               <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden>refresh</span>
               Actualiser
             </button>
-            {!isUnitScope && (
-              <>
+            {/* Sorties secondaires regroupées sous une icône (export de la vue, copie officielle). */}
+            <details ref={outputsMenuRef} className="relative">
+              <summary
+                ref={outputsSummaryRef}
+                aria-label="Télécharger"
+                title="Télécharger"
+                className="list-none flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 transition-colors hover:bg-slate-50 [&::-webkit-details-marker]:hidden"
+              >
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">download</span>
+              </summary>
+              <div className="absolute right-0 top-full z-20 mt-1 min-w-[240px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                {canExportView && (
+                  <button
+                    type="button"
+                    title={UI_TOOLTIPS.reports.exportTable}
+                    onClick={() => {
+                      closeOutputsMenu();
+                      handleExport();
+                    }}
+                    className={menuItemClass}
+                  >
+                    <span className="material-symbols-outlined text-[16px] text-slate-400" aria-hidden="true">table_chart</span>
+                    Exporter la vue
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={handleExport}
-                  title={UI_TOOLTIPS.reports.exportTable}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
+                  title={UI_TOOLTIPS.reports.officialCopy}
+                  onClick={() => {
+                    closeOutputsMenu();
+                    setIsOfficialOpen(true);
+                  }}
+                  className={menuItemClass}
                 >
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden>download</span>
-                  Exporter la vue
+                  <span className="material-symbols-outlined text-[16px] text-slate-400" aria-hidden="true">verified</span>
+                  Copie officielle
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setIsReportModalOpen(true)}
-                  title={UI_TOOLTIPS.reports.generateReport}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition-colors hover:bg-black"
-                >
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden>description</span>
-                  Générer un rapport
-                </button>
-              </>
+              </div>
+            </details>
+            {/* Pas de rapport généré depuis Qualité : cet onglet a ses propres données. */}
+            {canExportView && (
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(true)}
+                title={UI_TOOLTIPS.reports.generateReport}
+                className="inline-flex items-center gap-2 rounded-2xl bg-rdpc-blue px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition-colors hover:bg-black"
+              >
+                <span className="material-symbols-outlined text-[18px]" aria-hidden>description</span>
+                Générer un rapport
+              </button>
             )}
           </div>
         </div>
@@ -286,7 +358,14 @@ const ReportsPage: React.FC = () => {
           aria-labelledby={`tab-reports-${activeTab}`}
           className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 focus:outline-none"
         >
-          {error ? (
+          {/* Qualité a ses propres données : une panne des statistiques ne la masque pas. */}
+          {inQualityView ? (
+            <ReportsQualityPanel
+              refreshKey={qualityRefreshKey}
+              emptyMessage={TAB_META.qualite.empty}
+              onLoadingChange={setIsQualityLoading}
+            />
+          ) : error ? (
             <div className="rounded-[2rem] border border-red-100 bg-red-50 px-6 py-10 text-center">
               <p className="text-base font-bold text-red-600">{error}</p>
             </div>
@@ -358,7 +437,7 @@ const ReportsPage: React.FC = () => {
                     <Empty icon="monitoring" msg={activeMeta.empty} />
                   </div>
                 ) : (
-                  <ReportsTableSection rows={currentRows} viewMode={activeTab} loading={isLoading} />
+                  <ReportsTableSection rows={currentRows} viewMode={reportView} loading={isLoading} />
                 )
               ) : null}
             </div>
@@ -368,12 +447,15 @@ const ReportsPage: React.FC = () => {
 
       <ReportGenerationModal
         open={isReportModalOpen}
-        defaultViewMode={activeTab}
+        defaultViewMode={reportView}
         defaultPeriodLabel={defaultReportPeriodLabel}
         scopeOptions={reportScopeOptions}
         onClose={() => setIsReportModalOpen(false)}
         onGenerate={handleGenerateReport}
       />
+      {isOfficialOpen && (
+        <OfficialReportModal defaultKind={OFFICIAL_KIND[reportView]} onClose={closeOfficial} />
+      )}
     </div>
   );
 };

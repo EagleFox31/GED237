@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface DialogFrameProps {
@@ -13,12 +13,21 @@ interface DialogFrameProps {
 
 /**
  * Modal shell: dialog role, Escape closes, focus starts inside and Tab stays inside.
+ * On close, focus goes back to what had it before (usually the button that opened the dialog).
  * The panel scrolls on small screens so the action buttons stay reachable.
  * Mount it only while open (focus moves in on mount).
  */
 export const DialogFrame: React.FC<DialogFrameProps> = ({ labelledBy, describedBy, onClose, className = '', children }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Read during the first render, before useDialogA11y moves focus inside.
+  const returnFocusRef = useRef(typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null));
   useDialogA11y(onClose, panelRef);
+  useEffect(() => {
+    const target = returnFocusRef.current;
+    return () => {
+      if (target?.isConnected) target.focus();
+    };
+  }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div
