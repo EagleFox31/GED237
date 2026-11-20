@@ -268,3 +268,102 @@ async def test_user_filter_keeps_only_that_user(
     assert len(mine) == 5
     assert "systeme" not in {row[4] for row in mine}
     assert nobody == [HEADER]
+
+
+async def _add_agents(test_engine, db_seed) -> tuple[uuid.UUID, uuid.UUID]:
+    """Two more agents of the tenant, one upload row each (« agent deux », « agent trois »)."""
+    from app.core.security import hash_password
+    from app.models.user import User
+
+    other_id, third_id = uuid.uuid4(), uuid.uuid4()
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with session_factory() as session:
+        for user_id, matricule in ((other_id, "TEST002"), (third_id, "TEST003")):
+            session.add(
+                User(
+                    id=user_id,
+                    tenant_id=db_seed["tenant_id"],
+                    org_unit_id=db_seed["org_unit_id"],
+                    role_id=db_seed["role_id"],
+                    matricule=matricule,
+                    email=f"{matricule.lower()}@testministry.gov.cm",
+                    first_name="Autre",
+                    last_name=matricule,
+                    password_hash=hash_password("testpassword123"),
+                    is_active=True,
+                )
+            )
+        await session.flush()
+        for user_id, title in ((other_id, "agent deux"), (third_id, "agent trois")):
+            session.add(
+                AuditLog(
+                    tenant_id=db_seed["tenant_id"],
+                    user_id=user_id,
+                    table_name="documents",
+                    record_id=uuid.uuid4(),
+                    action="upload",
+                    new_data={"title": title},
+                    created_at=datetime(2026, 11, 6),
+                )
+            )
+        await session.commit()
+    return other_id, third_id
+
+
+@pytest.mark.asyncio
+async def test_several_users_match_any_of_them(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    """Repeated user_id, like table_name and action: rows of any listed agent."""
+    await _seed_logs(test_engine, db_seed)
+    other_id, _third_id = await _add_agents(test_engine, db_seed)
+
+    both = _rows(
+        await admin_client.get(
+            f"{EXPORT}?user_id={db_seed['user_id']}&user_id={other_id}"
+        )
+    )
+
+    # Header, the 3 seeded rows of the first agent and the row of the second.
+    assert len(both) == 5
+    assert "agent deux" in {row[4] for row in both}
+    assert "agent trois" not in {row[4] for row in both}
+    logged = (
+        await admin_client.get(
+            "/api/v1/audit/logs", params={"table_name": "audit_logs"}
+        )
+    ).json()
+    assert {"user_id": [str(db_seed["user_id"]), str(other_id)]} in [
+        entry["new_data"]["filters"] for entry in logged
+    ]
+
+
+@pytest.mark.asyncio
+async def test_list_filters_by_actors_on_the_server(
+    admin_client: AsyncClient, test_engine, db_seed
+):
+    """« Effectuée par » filters the paginated list itself, not only the page on screen."""
+    await _seed_logs(test_engine, db_seed)
+    other_id, third_id = await _add_agents(test_engine, db_seed)
+    logs = "/api/v1/audit/logs"
+
+    everyone = (await admin_client.get(logs, params={"limit": 500})).json()
+    two = (
+        await admin_client.get(f"{logs}?user_id={other_id}&user_id={third_id}")
+    ).json()
+    one_per_page = (
+        await admin_client.get(
+            f"{logs}?user_id={other_id}&user_id={third_id}", params={"limit": 1}
+        )
+    ).json()
+
+    assert str(db_seed["user_id"]) in {entry["user_id"] for entry in everyone}
+    assert {entry["user_id"] for entry in two} == {str(other_id), str(third_id)}
+    assert len(two) == 2
+    # The first page already holds a matching row: the filter is applied before the limit.
+    assert [entry["user_id"] for entry in one_per_page] in (
+        [str(other_id)],
+        [str(third_id)],
+    )
