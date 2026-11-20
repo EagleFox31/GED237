@@ -16,9 +16,13 @@ export interface Document {
   category_name: string | null;
   tags: string[];
   status: 'draft' | 'in_review' | 'validated' | 'signed' | 'archived' | 'rejected' | 'returned';
+  /** Comment of the last rejected or returned step; only sent by GET /documents/{id}. */
+  last_rejection_reason?: string | null;
   processing_mode?: 'archive' | 'process';
   current_version_number: string | null;
   current_version_id: string | null;
+  /** Corbeille : qui a retiré le document. */
+  deleted_by?: string | null;
   created_at: string;
   updated_at: string;
   owner_name?: string | null;

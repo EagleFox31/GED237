@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { categoriesApi } from '../services/categories.api';
 import { useAuthStore } from '../stores/authStore';
 import { pushClientOperationError } from '../lib/errors';
+import { onActivationKey } from '../lib/keyboardActivation';
 
 // Profils autorisés à déposer (parité avec « documents, create » de backend/app/core/authz/policy.csv).
 // Liste blanche : tout autre profil (lecteur, auditeur, admin unité) ne voit pas l'action.
@@ -213,7 +214,14 @@ const Documents: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredDocs.map((doc) => (
-          <div key={doc.id} onClick={() => setSelectedDoc(doc)} className="glass p-5 rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-2 transition-all group cursor-pointer border border-white flex flex-col gap-5 overflow-hidden relative">
+          <div
+            key={doc.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedDoc(doc)}
+            onKeyDown={onActivationKey(() => setSelectedDoc(doc))}
+            className="glass p-5 rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-2 transition-all group cursor-pointer border border-white flex flex-col gap-5 overflow-hidden relative focus:outline-none focus-visible:ring-4 focus-visible:ring-rdpc-blue/40"
+          >
             {/* Effet de brillance au survol */}
             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-0 group-hover:animate-shine group-hover:opacity-10" />
 
@@ -263,6 +271,7 @@ const Documents: React.FC = () => {
           document={selectedDoc}
           onClose={closeDetail}
           onUpdated={(updated) => setDocs((prev) => prev.map((doc) => (doc.id === updated.id ? { ...doc, ...updated } : doc)))}
+          onTrashed={() => setDocs((current) => current.filter((d) => d.id !== selectedDoc.id))}
         />
       )}
 

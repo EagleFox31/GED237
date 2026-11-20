@@ -166,7 +166,7 @@ test.describe('Feature: Recherche full-text dans le header', () => {
    *
    *   GIVEN  un utilisateur connecté
    *   WHEN   la page se charge
-   *   THEN   la barre de recherche "Moteur Avancé" est visible
+   *   THEN   la barre de recherche de documents est visible
    */
   test('Given connecté, When page chargée, Then barre de recherche visible', async ({ page }) => {
     const header = new HeaderPage(page);

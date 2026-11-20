@@ -5,6 +5,10 @@ import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, f
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
+import { RejectReasonDialog } from './workflow/RejectReasonDialog';
+import { downloadName } from '../lib/downloadName';
+import { notifyTasksChanged } from '../lib/taskCount';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
 // Profils autorisés à archiver (parité avec « documents, archive » de backend/app/core/authz/policy.csv,
 // super_admin via manage). Liste blanche : l'API fait foi, l'écran n'est jamais plus permissif qu'elle.
@@ -17,14 +21,29 @@ interface DocumentDetailModalProps {
   onClose: () => void;
   /** Appelé après une modification (ex. archivage) pour rafraîchir la liste appelante. */
   onUpdated?: (document: Document) => void;
+  /** Fourni par la liste appelante : affiche « Mettre à la corbeille » et rafraîchit après succès. */
+  onTrashed?: () => void;
 }
 
-const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated }) => {
+const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: initialDocument, onClose, onUpdated, onTrashed }) => {
   const [document, setDocument] = useState<Document>(initialDocument);
   const profileId = useAuthStore((s) => s.userProfile?.id);
   const canArchive = !!profileId && CAN_ARCHIVE_DOCUMENT.has(profileId) && ARCHIVABLE_STATUSES.has(document.status);
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [trashing, setTrashing] = useState(false);
+  const handleTrash = async () => {
+    setTrashing(true);
+    try {
+      await api.deleteDocument(document.id);
+      onTrashed?.();
+      onClose();
+    } catch {
+      /* message déjà affiché par le bus global */
+    } finally {
+      setTrashing(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState<'info' | 'workflow' | 'history'>('info');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [stepsLoading, setStepsLoading] = useState(false);
@@ -32,8 +51,27 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   const [versions, setVersions] = useState<any[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [commentFor, setCommentFor] = useState<{ stepId: string; actionType: string; outcome: "rejected" | "returned" } | null>(null);
+  useEscapeToClose(onClose, !confirmArchive && commentFor === null);
   const [processingMode, setProcessingMode] = useState<'archive' | 'process'>(document.processing_mode || 'process');
   const [startingWorkflow, setStartingWorkflow] = useState(false);
+
+  // Même route que le visualiseur ; l'erreur éventuelle est déjà publiée par apiCallBlob.
+  const handleDownload = async () => {
+    try {
+      const blob = await api.getDocumentContentBlob(document.id, 'attachment');
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = downloadName(document);
+      window.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    } catch {
+      /* erreur déjà publiée par apiCallBlob */
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'workflow') {
@@ -71,13 +109,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
     }
   };
 
-  const handleValidate = async (stepId: string, actionType: string, outcomeType: 'accepted' | 'acknowledged' | 'rejected' | 'returned') => {
+  type StepOutcome = 'accepted' | 'acknowledged' | 'rejected' | 'returned';
+  const handleValidate = async (stepId: string, actionType: string, outcomeType: StepOutcome, comment?: string) => {
     let finalOutcome = outcomeType;
     if (outcomeType === 'accepted' && actionType === 'read_ack') finalOutcome = 'acknowledged';
-    const comment = (outcomeType === 'rejected' || outcomeType === 'returned') ? prompt('Saisir un commentaire explicatif :') : null;
-
-    // User cancelled the prompt?
-    if ((outcomeType === 'rejected' || outcomeType === 'returned') && comment === null) return;
+    // Rejet ou renvoi : le commentaire se saisit d'abord dans la boîte dédiée.
+    if ((outcomeType === 'rejected' || outcomeType === 'returned') && !comment) {
+      setCommentFor({ stepId, actionType, outcome: outcomeType });
+      return;
+    }
     if (!document.current_version_id) {
       setActionError("Impossible d'exécuter l'action: version courante introuvable pour ce document.");
       return;
@@ -91,7 +131,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         document_version_id: document.current_version_id,
         comment: comment || undefined
       });
+      notifyTasksChanged();
       await loadWorkflowSteps();
+      // Le statut du document change après un visa ou un rejet : on le relit pour l'affichage et la liste.
+      try {
+        const refreshed = await api.getDocument(document.id);
+        setDocument(refreshed);
+        onUpdated?.(refreshed);
+      } catch (refreshErr) {
+        // L'action a réussi ; l'erreur de relecture est déjà publiée par le client HTTP.
+        console.error('Refresh after action failed:', refreshErr);
+      }
     } catch (err) {
       console.error('Validation failed:', err);
       setActionError("L'action de workflow a échoué. Veuillez réessayer.");
@@ -181,7 +231,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
+          <button type="button" onClick={onClose} aria-label="Quitter la fiche" className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-slate-400">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
@@ -212,14 +262,14 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">
           {activeTab === 'info' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+            <div className="grid grid-cols-1 gap-8 h-full">
               <div className="space-y-6">
                 <div className="glass p-6 rounded-3xl border-white space-y-4">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Métadonnées Officielles</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-slate-400 font-medium">Propriétaire</p>
-                      <p className="font-bold text-slate-700">{document.owner_name || document.owner_id}</p>
+                      <p className="font-bold text-slate-700">{document.owner_name || 'Non renseigné'}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 font-medium">Date de création</p>
@@ -252,21 +302,13 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                 </div>
                 <div className="p-6 bg-blue-600 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
                   <h3 className="text-lg font-bold mb-2">Actions rapides</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
+                  <div className="grid grid-cols-1 gap-3">
+                    <button type="button" onClick={handleDownload} data-testid="document-download" className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
                       <Icons.Documents className="w-4 h-4" /> Télécharger
-                    </button>
-                    <button className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
-                      <Icons.Search className="w-4 h-4" /> Partager
                     </button>
                   </div>
                   <Icons.Flame className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 rotate-12" />
                 </div>
-              </div>
-              <div className="glass rounded-3xl border-white bg-slate-200/50 flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
-                <Icons.Documents className="w-16 h-16 opacity-20 mb-4" />
-                <p className="text-sm font-bold">Aperçu non disponible en mode sécurisé</p>
-                <button className="mt-4 px-6 py-3 bg-white text-slate-600 rounded-2xl text-xs font-bold shadow-sm hover:shadow-md transition-all">Générer un aperçu temporaire</button>
               </div>
             </div>
           )}
@@ -399,7 +441,6 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{formatFileSize(v.file_size)}</span>
-                    <button className="text-[10px] font-black text-rdpc-blue uppercase tracking-widest hover:underline">Télécharger</button>
                   </div>
                 </div>
               ))}
@@ -409,6 +450,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
 
         {/* Footer actions */}
         <div className="p-6 bg-slate-100/50 border-t border-slate-200/50 flex justify-end gap-3">
+          {onTrashed && (
+            <button
+              type="button"
+              onClick={() => handleTrash()}
+              disabled={trashing}
+              className="mr-auto inline-flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-600 hover:text-red-700 disabled:opacity-50 transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden>delete</span>
+              Mettre à la corbeille
+            </button>
+          )}
           {canArchive && (
             <button
               type="button"
@@ -435,6 +487,17 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
           handleArchive();
         }}
         onCancel={() => setConfirmArchive(false)}
+      />
+      <RejectReasonDialog
+        documentTitle={commentFor ? document.title : null}
+        heading={commentFor?.outcome === 'returned' ? 'Renvoyer pour correction' : 'Rejeter le document'}
+        confirmLabel={commentFor?.outcome === 'returned' ? 'Confirmer le renvoi' : 'Confirmer le rejet'}
+        onCancel={() => setCommentFor(null)}
+        onConfirm={(reason) => {
+          const pending = commentFor;
+          setCommentFor(null);
+          if (pending) void handleValidate(pending.stepId, pending.actionType, pending.outcome, reason);
+        }}
       />
     </div>
   );
