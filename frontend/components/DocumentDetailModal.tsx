@@ -1,12 +1,19 @@
 // frontend/components/DocumentDetailModal.tsx
-import React, { useState, useEffect } from 'react';
-import { Icons } from '../constants';
+import React, { useState, useEffect, useRef } from 'react';
+import { API_URL, Icons } from '../constants';
 import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, formatFileSize } from '../types';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
+import {
+  BLOCKED_TAB_MESSAGE,
+  INVALID_LINK_MESSAGE,
+  openDocumentAccess,
+  openPendingTab,
+} from '../lib/documentAccess';
+import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { notifyTasksChanged } from '../lib/taskCount';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
@@ -70,6 +77,33 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
       setTimeout(() => URL.revokeObjectURL(url), 1_000);
     } catch {
       /* erreur déjà publiée par apiCallBlob */
+    }
+  };
+
+  // « Ouvrir » (F-NEXT-02) : l'onglet naît pendant le clic, puis reçoit le lien signé court.
+  // Le verrou est un ref, posé avant tout await : deux clics rapides = une demande, un onglet.
+  const openingRef = useRef(false);
+  const [opening, setOpening] = useState(false);
+  const handleOpen = async () => {
+    if (openingRef.current) return;
+    openingRef.current = true;
+    setOpening(true);
+    const tab = openPendingTab();
+    try {
+      const outcome = await openDocumentAccess(
+        tab,
+        () => api.requestDocumentAccess(document.id),
+        API_URL,
+        window.location.href,
+      );
+      // `request-failed` : erreur HTTP déjà affichée par le bus global.
+      if (outcome === 'invalid-link' || outcome === 'blocked') {
+        const message = outcome === 'blocked' ? BLOCKED_TAB_MESSAGE : INVALID_LINK_MESSAGE;
+        pushClientOperationError(new Error(message), { fallbackDetail: message, retryable: outcome === 'blocked' });
+      }
+    } finally {
+      openingRef.current = false;
+      setOpening(false);
     }
   };
 
@@ -305,6 +339,15 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
                   <div className="grid grid-cols-1 gap-3">
                     <button type="button" onClick={handleDownload} data-testid="document-download" className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
                       <Icons.Documents className="w-4 h-4" /> Télécharger
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleOpen()}
+                      disabled={opening}
+                      title="Ouvre le fichier dans un nouvel onglet. Le lien expire après quelques minutes."
+                      className="py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      <span className="material-symbols-outlined text-[16px]" aria-hidden="true">open_in_new</span> Ouvrir
                     </button>
                   </div>
                   <Icons.Flame className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 rotate-12" />
