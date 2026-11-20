@@ -1,0 +1,11 @@
+# Lab W2 : ISO d'installation hors du disque Docker (autre lecteur de l'hôte, par exemple).
+#   export LAB_W2_BOOT_ISO=D:/ged-lab/w2-iso/win11x64-enterprise-ltsc-eval.iso
+#   MSYS_NO_PATHCONV=1 docker compose -f compose.yml -f compose.iso.yml --profile w2 up -d
+# L'image démarre alors sur ce fichier (/boot.iso) sans le copier dans le volume : quelques Go
+# de moins sur le disque de Docker. Le fichier doit rester branché jusqu'au premier arrêt
+# propre après l'installation, car l'image n'écrit son marqueur windows.boot que si le média
+# est encore là (LESSON-2026-082). Ensuite, elle tolère son absence.
+services:
+  w2:
+    volumes:
+      - "${LAB_W2_BOOT_ISO:?définir LAB_W2_BOOT_ISO (chemin de l'ISO sur l'hôte)}:/boot.iso:ro"

@@ -501,6 +501,20 @@ première requête utilisateur.
 **Prévention** — (1) Un **seul substitut Redis partagé** pour toute la suite : candidat Adopt `fakeredis` (`FakeAsyncRedis`, compatible `redis.asyncio`, `ttl`, pipelines, Lua via l'extra `lua`), ce qui exercerait aussi la libération Lua de #101 aujourd'hui non testée ; à défaut, une classe unique dans `tests/conftest.py` et interdiction de redéfinir un faux Redis dans un fichier de tests (contrôle : `grep -rn "^class \w*Redis" backend/tests` ne renvoie qu'un fichier). (2) **Grille de relecture § 0** : première ligne = `gh pr checks <n>` sur la tête relue ; une PR rouge n'est pas « conforme », elle est « conforme sous réserve de CI ». (3) **Règle de mise en file** : une PR n'entre en file que si son dernier run complet est vert (un run annulé ne vaut pas vert) ; le contrôle de fusion reste le second rideau. (4) Preuve d'un auteur = suite complète en Docker, pas le fichier touché.
 **Leçon généralisée** — Un substitut de test écrit « juste pour ce fichier » devient un contrat implicite pour tout le code qui partage la dépendance : mutualiser les doubles d'infrastructure (Redis, S3, horloge) ou adopter un faux de référence. Et un statut CI se lit, il ne se suppose pas : « vert avant » doit être cité avec le numéro de run.
 
+### LESSON-2026-032 — Sortie vide de `gh` sous saturation mémoire lue comme « PR fusionnée » : 15 chaînes de fusion lancées hors ordre
+
+- **Date :** 2026-11-10
+- **Catégorie :** process / ci-cd / tooling
+- **Statut :** prevention-verified (10/11 13:40 : `queue.sh` teste les états en positif, MERGED / CLOSED / OPEN, sortie vide = rien conclu ; `grep '!= *"OPEN"'` = 0 ligne ; file relancée)
+- **Liens :** chaînes de fusion de l'orchestrateur (file de 15 PR V1.1 du 10/11), ruleset `main` (branche à jour obligatoire → `update-branch` par PR), LESSON-2026-029 (contrôle de chaîne avant fusion), LESSON-2026-031 (règle de mise en file)
+
+**Contexte** — File de fusion en série gérée hors GitHub : une boucle par chaîne attend que la PR précédente soit fusionnée (`gh pr view --json state`) avant de mettre à jour la suivante et de la fusionner. Quinze chaînes attendaient en parallèle sur un poste déjà chargé (pile Docker, suite pytest, campagne Playwright, plusieurs sessions).
+**Échec / near miss** — Sous saturation mémoire, `gh` (et `git` qu'il lance) échoue avec « ressources système insuffisantes » et renvoie une **sortie vide**, code de retour non nul. Les boucles testaient `[ "$s" != "OPEN" ]` : une chaîne vide n'est pas `OPEN`, donc chaque attente a conclu « fusionnée » au même instant. Quinze chaînes sont parties hors ordre, avec des `update-branch` en rafale sur des PR dont la base n'était pas fusionnée ; la saturation s'est aggravée d'autant. Aucune fusion erronée constatée (le ruleset et `wait_clean` ont tenu), mais la file a dû être arrêtée et reconstruite. Le même symptôme a été observé dans une autre session au même moment (`gh pr list` : « Ressources système insuffisantes pour terminer le service demandé »).
+**Cause racine** — Le test d'attente vérifiait la **négation** d'un état (`≠ OPEN`) au lieu de l'état **positif** attendu (`= MERGED`), de sorte qu'un échec d'outil (sortie vide) était indistinguable du succès ; et le parallélisme (une boucle par chaîne) multipliait la charge sur la ressource même dont dépendait la lecture.
+**Résolution** — File unique : un seul processus, une PR en vol à la fois ; relance (3 essais, attente croissante) quand `gh` renvoie vide ou un code non nul ; une PR rouge est sautée jusqu'à son push suivant, sans bloquer les autres ; les chaînes parallèles sont supprimées.
+**Prévention** — (1) Toute attente d'état teste la valeur positive attendue : `[ "$s" = "MERGED" ]` (ou `CLOSED` quand c'est l'issue voulue), jamais la négation d'une sortie qui peut être vide ; contrôle : `grep -n '!= *"OPEN"' <scripts de chaîne>` = 0 ligne. (2) Une sortie vide ou un code non nul de `gh`/`git` est un **échec à relancer**, pas une donnée. (3) Un seul orchestrateur de fusion par dépôt ; les sessions limitent leurs processus pendant une file (pas de suite de tests ni de campagne e2e lancées « en attendant » sur le même poste sans l'accord de l'orchestrateur). (4) Un relevé d'état (`gh pr list`, `gh pr checks`) cité dans un document porte l'heure et, s'il a dû être relancé, la mention de l'échec.
+**Leçon généralisée** — Un test d'attente doit échouer quand l'outil échoue : comparer à la réussite attendue, pas à l'absence de l'état précédent. Et la ressource qui manque (mémoire, API) est aussi celle que la boucle consomme : réduire le parallélisme avant d'augmenter les relances.
+
 ### LESSON-2026-033 — Reprise de la page quittée (#97) cassée par une lecture destructive dans un effet React, invisible sans StrictMode
 
 - **Date :** 2026-11-16
@@ -611,6 +625,20 @@ première requête utilisateur.
 **Résolution** — Seul un super_admin attribue super_admin ; personne n'attribue un rôle plus élevé que le sien (`hierarchy_level` plus bas) ; personne ne change son propre rôle. Refus en 403 explicite (`ROLE_GRANT_FORBIDDEN`, `OWN_ROLE_CHANGE_FORBIDDEN`). PATCH refuse aussi un e-mail déjà pris (409 `USER_EMAIL_TAKEN`).
 **Prévention** — Tests de non-régression en POST et en PATCH : tenant_admin vers super_admin refusé (sur lui-même et sur un agent), rôle inférieur et super_admin autorisés.
 **Leçon généralisée** — Un droit d'écriture sur une ressource ne couvre pas les champs qui portent eux-mêmes un privilège (rôle, institution, rattachement). Chaque champ de ce type a son contrôle de valeur et son test de refus.
+
+### LESSON-2026-045 — Verrou avec `populate_existing` : le propriétaire ne pouvait plus restaurer
+
+- **Date :** 2026-11-17
+- **Catégorie :** backend / testing
+- **Statut :** prevention-added
+- **Liens :** `backend/app/api/v1/endpoints/documents.py` (`_get_document_or_404`), `backend/tests/api/test_trash_purge.py` (`owner_client`)
+
+**Contexte** — #152 verrouille le document (`FOR UPDATE`) avant restauration ou purge, pour voir une purge concurrente.
+**Échec / near miss** — Recette : POST /documents/{id}/restore répondait 500 `MissingGreenlet` quand l'appelant était le propriétaire.
+**Cause racine** — Le verrou était posé sur la lecture complète avec `populate_existing=True`. Le chargement de `Document.owner` réécrivait alors le `current_user` de la même session et déchargeait `User.role` ; le contrôle de droits le relisait hors greenlet. Les tests ne l'ont pas vu : leur utilisateur est un faux objet hors session.
+**Résolution** — Verrou dans une requête à part, sur l'id seul ; puis lecture normale sans `populate_existing`.
+**Prévention** — `owner_client` lit l'appelant dans la session de la requête, comme en production ; le propriétaire restaure et purge son document. Le test échoue sur l'ancien code.
+**Leçon généralisée** — `populate_existing` réécrit tout objet déjà dans la session, y compris l'utilisateur courant. Verrouiller sur une requête minimale, et tester au moins un chemin avec un appelant réel tiré de la session de la requête.
 
 ### LESSON-2026-046 — Données e2e partagées consommées par une spec : la suite dépendait de l'ordre de lancement
 
@@ -911,30 +939,16 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
 **Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
 
-### LESSON-2026-081 — Poste de lab W2 : arrêt après le téléchargement, faute de RAM fixe sous le plafond du conteneur
+### LESSON-2026-083 — Série C6 attribuée à un SHA que la pile sondée ne servait pas
 
 - **Date :** 2026-11-19
-- **Catégorie :** infra / lab
-- **Statut :** resolved (numéro à recaler si une autre PR le prend avant la fusion)
-- **Liens :** PR #500 (`feat/lab-kvm-prereq`), `scripts/lab/w2/compose.yml`, `scripts/lab/test_w2_compose.sh`
+- **Catégorie :** mesure / provenance
+- **Statut :** resolved (garde `C6_EXPECT_SHA` dans `scripts/probe_c6.sh`)
+- **Liens :** `scripts/probe_c6.sh`, `scripts/test_probe_c6_provenance.sh`, `gestion-projet/innovateur/protocole-mesures-criteres.md` (section C6)
 
-**Contexte** — Le poste W2 (image `dockurr/windows:6.06`) est réglé avec `RAM_SIZE: "3G"` et un plafond `mem_limit: 3500m`. Premier lancement le 19/11 à 18:37, sur une VM Docker passée à 16 Go.
-**Échec / near miss** — À 19:07, juste après les 25 min de téléchargement de l'ISO, le conteneur s'arrête en code 16 : « Windows 10 requires at least 2.0 GB of RAM, but only 4.0 MB can be allocated ». La VM avait pourtant plus de 11 Go disponibles.
-**Cause racine** — L'image exige que RAM_SIZE plus sa réserve (0,5 Go) tiennent dans la mémoire restante du conteneur. Ici, 3 Go + 0,5 Go dépassent les 3,5 Go du plafond : RAM_SIZE passe donc en mode « max ». Ce maximum vaut `memory.max - memory.current`, et `memory.current` compte aussi le cache disque. Après l'écriture des 4,9 Go de l'ISO, le cache avait rempli le plafond et il ne restait que 4 Mo. Le message de l'image, qui conseille d'augmenter la mémoire de WSL, menait sur une fausse piste.
-**Résolution** — `RAM_CHECK: "N"` : RAM_SIZE reste fixe à 3 Go, le plafond ne change pas, et le cache se libère de lui-même sous pression. L'ISO déjà téléchargée a été déplacée en `custom.iso` dans le volume, ce qui a évité un second téléchargement. Relance à 19:10.
-**Prévention** — `scripts/lab/test_w2_compose.sh` échoue si `RAM_CHECK` n'est pas à `"N"` ou si `mem_limit` est inférieur à RAM_SIZE + 256 Mo.
-**Leçon généralisée** — Dans un conteneur plafonné, « mémoire disponible » calculée sur `memory.current` inclut le cache disque : une image qui s'auto-dimensionne sur ce chiffre se trompe après toute grosse écriture. Fixer la taille explicitement et lire le code de l'image avant de suivre le conseil affiché.
-
-### LESSON-2026-082 — Poste de lab W2 : installation effacée après le retrait de son ISO source
-
-- **Date :** 2026-11-19
-- **Catégorie :** infra / lab
-- **Statut :** resolved (numéro à recaler si une autre PR le prend avant la fusion)
-- **Liens :** PR #500 (`feat/lab-kvm-prereq`), `scripts/lab/w2/offline_up.sh`, `scripts/lab/test_w2_offline_guard.sh`, LESSON-2026-081
-
-**Contexte** — W2 (`dockurr/windows:6.06`) s'est installé le 19/11 à partir de `custom.iso`, placée dans son volume. Il a tourné en ligne de 19:10 à 19:58 sans jamais être arrêté. À 19:35, l'ISO a été supprimée pour libérer 4,9 Go, avec l'accord du PO, sur l'affirmation que cela n'aurait « aucun effet sur W2 ». À 19:58, le conteneur a été recréé avec l'overlay hors ligne (`compose.offline.yml`).
-**Échec / near miss** — Au démarrage hors ligne, l'image a vidé le volume (data.img, soit Windows installé), puis tenté de retélécharger l'ISO. Sans internet, toutes les sources ont échoué et le conteneur s'est arrêté en code 68 à 19:59. À 20:01, un compte rendu a affirmé « W2 et le relais restent allumés » sans que l'état ait été relu. L'erreur n'a été vue qu'à 21:30, après une demande de l'orchestrateur.
-**Cause racine** — L'image ne considère une installation comme terminée (`hasCompletedInstall`) qu'en présence du marqueur `windows.boot`. Elle écrit ce marqueur à l'arrêt du conteneur (`finish` → `markWindowsBooted`), et seulement si le média source est encore présent (`[ ! -f "$BOOT" ]` → sortie sans marqueur). Comme l'ISO avait été retirée avant le premier arrêt, aucun marqueur n'a été écrit. Le démarrage suivant a donc pris l'installation pour inachevée et lancé `discardPrevious`, qui supprime `data.*` et `windows.*`. L'affirmation « aucun effet » reposait sur le comportement supposé de l'image, pas sur son code.
-**Résolution** — Aucune récupération possible : le volume ne contient plus que `tmp/`. Le conteneur reste arrêté, et le volume et le conteneur sont conservés. Réinstallation en ligne le 20/11 sur décision du PO, avec un plan (RAM, disque, durée) envoyé à l'orchestrateur avant le lancement.
-**Prévention** — `scripts/lab/w2/offline_up.sh` est le seul chemin vers le mode hors ligne. Il lit le volume en lecture seule et refuse (code 3, message explicite) si le disque ou `windows.boot` manque, que custom.iso soit là ou non. Ses 7 cas sont couverts par `scripts/lab/test_w2_offline_guard.sh`, dont celui du 19/11 : data.img présent, ISO retirée, pas de marqueur. L'en-tête de `compose.offline.yml` interdit de retirer custom.iso avant le marqueur. Après toute recréation de conteneur, relire `docker ps -a` (statut et code) avant d'en rendre compte : le script le rappelle en fin d'exécution.
-**Leçon généralisée** — Une image qui « s'auto-répare » efface aussi : avant de supprimer un fichier qu'elle a produit ou consommé, lire le code qui décide d'une réinstallation, et ne jamais promettre « aucun effet » sans cette lecture. Un compte rendu d'état se fonde sur l'état relu après l'action, pas sur l'intention.
+**Contexte** — La sonde C6 relève la disponibilité de la pile de démo (`edossier_*`). Le 19/11, deux séries vertes ont été annoncées « sur d96c1e67 » puis « sur a1c15f61 », les têtes de main après les fusions du jour.
+**Échec / near miss** — Les images `edossier-api` et `edossier-frontend` dataient du 16/11 (7898387b) : aucune des deux séries ne mesurait le SHA annoncé. Repéré avant la décision de coupe ; une pile séparée construite depuis a1c15f61 a été mesurée à la place.
+**Cause racine** — Une fusion sur main ne redéploie pas une pile qui tourne. Rien ne reliait la série au code réellement servi. La date de création d'une image ne prouve rien non plus : avec le cache BuildKit, une image reconstruite peut garder une ancienne date.
+**Résolution** — Séries d96c1e67 et a1c15f61 requalifiées « pile du 16/11 » ; nouvelle série sur une pile construite depuis a1c15f61, avec comparaison du code servi à la source.
+**Prévention** — `C6_EXPECT_SHA=<sha> sh scripts/probe_c6.sh` refuse de démarrer (code 3, aucun relevé écrit) si `C6_SOURCE` n'est pas un checkout propre de ce SHA, ou si l'empreinte sha256 des `.py` de `app/` et `alembic/` servis par le conteneur API diffère de celle de la source. L'empreinte ne dépend pas du `sha256sum` de l'hôte : le format « hash *chemin » (Git Bash) est ramené au format Linux « hash  chemin » avant le calcul global, et seul le hash est comparé. `C6_EXPECT_SHA` doit compter au moins 7 caractères hexadécimaux. `scripts/test_probe_c6_provenance.sh` couvre 9 cas (sans garde, SHA court identique, autre commit, source modifiée, code servi différent, conteneur absent, formats hôte et conteneur différents, SHA trop court, SHA non hexadécimal) avec de faux `docker`, `curl` et `sha256sum`.
+**Leçon généralisée** — Une mesure n'est attribuable à une version que si la preuve de provenance porte sur le contenu servi, pas sur une date ni sur l'état de la branche.

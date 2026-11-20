@@ -23,6 +23,17 @@ check 3 "ISO supprimée avant l'arrêt (19/11)"   data.img windows.base
 check 3 "volume vidé par l'image"               tmp
 check 3 "volume vide"                           ""
 
+# --postes : C1 + C2 (2400 Mo) plus la réserve commune (2048 Mo) doivent tenir.
+check_mem() { # attendu nom mémoire_disponible_Mo
+  printf '%s\n' data.img windows.base windows.boot > "$tmp/ls"
+  local rc=0
+  LAB_W2_LISTING="$tmp/ls" LAB_MEM_AVAILABLE_MB="$3" sh "$SCRIPT" --check --postes >/dev/null 2>&1 || rc=$?
+  if [ "$rc" -eq "$1" ]; then echo "ok   $2 (code $rc)"; else echo "KO   $2 : code $rc, attendu $1"; failures=$((failures + 1)); fi
+}
+check_mem 0 "postes, mémoire suffisante"     4448
+check_mem 3 "postes, réserve entamée"        4447
+check_mem 3 "postes, VM chargée (19/11)"     1900
+
 rc=0; sh "$SCRIPT" --inconnu >/dev/null 2>&1 || rc=$?
 if [ "$rc" -eq 2 ]; then echo "ok   argument inconnu (code 2)"; else echo "KO   argument inconnu : code $rc"; failures=$((failures + 1)); fi
 

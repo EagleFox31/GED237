@@ -48,8 +48,10 @@ services:
   # Postes C1 et C2 : un Chromium dans le navigateur de l'hôte (https://127.0.0.1:3011 et 3012,
   # certificat auto-signé à accepter). Sur lab-int seulement : comme W2, ils n'ont pas
   # internet et ne joignent la GED que par le relais, donc par le lien dégradable.
+  # Profil à part (postes) : W2 + relais tiennent dans un créneau de 3,5 Go, les deux postes
+  # ajoutent 2,4 Go. offline_up.sh --postes vérifie la mémoire libre avant de les démarrer.
   c1: &poste-chrome
-    profiles: ["w2"]
+    profiles: ["postes"]
     image: lscr.io/linuxserver/chromium:075b0b99-ls64
     container_name: ged-lab-c1
     environment:
