@@ -69,15 +69,18 @@ def create_document_access_token(
     document_id: str,
     user_id: str,
     tenant_id: str,
-    session_id: Optional[str] = None,
+    session_id: str,
 ) -> tuple[str, str, datetime]:
     """Token of an "Open" link: one document, one user, DOCUMENT_ACCESS_URL_TTL_SECONDS.
 
     Its own ``type`` keeps it out of every authenticated route (they require
     "access"), and an access token is refused by the stream route in return.
     ``session_id`` (claim ``sid``) ties the link to the login session: a logout
-    revokes it with the session's tokens. Returns (token, jti, expires_at, naive UTC).
+    revokes it with the session's tokens. It is required: a link no logout could
+    revoke is never issued. Returns (token, jti, expires_at, naive UTC).
     """
+    if not session_id:
+        raise ValueError("an Open link needs the login session it belongs to")
     jti = secrets.token_urlsafe(16)
     expire = datetime.utcnow() + timedelta(
         seconds=settings.DOCUMENT_ACCESS_URL_TTL_SECONDS
@@ -88,10 +91,9 @@ def create_document_access_token(
         "sub": user_id,
         "tenant_id": tenant_id,
         "jti": jti,
+        "sid": session_id,
         "exp": expire,
     }
-    if session_id:
-        payload["sid"] = session_id
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return token, jti, expire
 
@@ -101,7 +103,7 @@ def decode_document_access_token(token: str) -> Optional[Dict[str, Any]]:
     payload = decode_token(token)
     if not payload or payload.get("type") != DOCUMENT_LINK_JWT_KIND:
         return None
-    if not all(payload.get(key) for key in ("doc", "sub", "tenant_id", "jti")):
+    if not all(payload.get(key) for key in ("doc", "sub", "tenant_id", "jti", "sid")):
         return None
     return payload
 

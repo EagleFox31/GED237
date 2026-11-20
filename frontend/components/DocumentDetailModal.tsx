@@ -1,5 +1,5 @@
 // frontend/components/DocumentDetailModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_URL, Icons } from '../constants';
 import { Document, WorkflowStep, getStatusLabel, getFileTypeLabel, formatDate, formatFileSize } from '../types';
 import { api } from '../services/api';
@@ -7,7 +7,13 @@ import { useAuthStore } from '../stores/authStore';
 import { ConfirmationModal } from './ui/ConfirmationModal';
 import { RejectReasonDialog } from './workflow/RejectReasonDialog';
 import { downloadName } from '../lib/downloadName';
-import { openPendingTab, resolveAccessUrl } from '../lib/documentAccess';
+import {
+  BLOCKED_TAB_MESSAGE,
+  INVALID_LINK_MESSAGE,
+  openDocumentAccess,
+  openPendingTab,
+} from '../lib/documentAccess';
+import { pushClientOperationError } from '../lib/errors/clientOperationError';
 import { notifyTasksChanged } from '../lib/taskCount';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 
@@ -75,17 +81,28 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document: ini
   };
 
   // « Ouvrir » (F-NEXT-02) : l'onglet naît pendant le clic, puis reçoit le lien signé court.
+  // Le verrou est un ref, posé avant tout await : deux clics rapides = une demande, un onglet.
+  const openingRef = useRef(false);
   const [opening, setOpening] = useState(false);
   const handleOpen = async () => {
-    if (opening) return;
+    if (openingRef.current) return;
+    openingRef.current = true;
     setOpening(true);
     const tab = openPendingTab();
     try {
-      const access = await api.requestDocumentAccess(document.id);
-      tab.go(resolveAccessUrl(access.url, API_URL, window.location.href));
-    } catch {
-      tab.cancel(); // erreur HTTP déjà publiée par le bus global
+      const outcome = await openDocumentAccess(
+        tab,
+        () => api.requestDocumentAccess(document.id),
+        API_URL,
+        window.location.href,
+      );
+      // `request-failed` : erreur HTTP déjà affichée par le bus global.
+      if (outcome === 'invalid-link' || outcome === 'blocked') {
+        const message = outcome === 'blocked' ? BLOCKED_TAB_MESSAGE : INVALID_LINK_MESSAGE;
+        pushClientOperationError(new Error(message), { fallbackDetail: message, retryable: outcome === 'blocked' });
+      }
     } finally {
+      openingRef.current = false;
       setOpening(false);
     }
   };

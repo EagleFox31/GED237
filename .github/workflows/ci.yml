@@ -126,6 +126,9 @@ jobs:
       # and nginx is restarted then /health checked after api restarts.
       - name: Backup and restore guards
         run: bash scripts/test_ops_backup_guards.sh
+      # nginx access log: no "Open" link token, no query string (#525).
+      - name: nginx access log masks URL secrets
+        run: bash scripts/test_nginx_log_masking.sh
       # Same script as the pre-commit hook: a gate name the map never emits would skip its job forever.
       - name: Impact map and workflow gates agree
         run: python3 scripts/check-impact-gates.py

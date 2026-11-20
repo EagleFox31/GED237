@@ -26,6 +26,28 @@ from app.models.document import Document
 from app.models.user import User
 
 CONTENT = b"signed-url-content-0123456789"
+SESSION_ID = "session-de-test"
+
+
+def _bearer(db_seed, **claims) -> str:
+    token = create_access_token(
+        {
+            "sub": str(db_seed["user_id"]),
+            "tenant_id": str(db_seed["tenant_id"]),
+            **claims,
+        }
+    )
+    return f"Bearer {token}"
+
+
+@pytest.fixture(autouse=True)
+def session_bearer(auth_client: AsyncClient, db_seed):
+    """request-access reads the login session (claim sid) from the bearer token.
+
+    The test client bypasses the JWT check, so it carries a bearer token for that
+    purpose only, as a logged-in browser does.
+    """
+    auth_client.headers["Authorization"] = _bearer(db_seed, sid=SESSION_ID)
 
 
 @pytest.fixture
@@ -81,6 +103,7 @@ async def test_link_opens_the_document_without_authorization(
     lifetime = (expires_at.replace(tzinfo=None) - datetime.utcnow()).total_seconds()
     assert 0 < lifetime <= settings.DOCUMENT_ACCESS_URL_TTL_SECONDS
 
+    auth_client.headers.pop("Authorization")
     opened = await auth_client.get(body["url"])
     assert opened.status_code == 200, opened.text
     assert opened.content == CONTENT
@@ -176,6 +199,61 @@ async def test_link_dies_with_the_login_session(
     assert (
         await auth_client.get(f"/api/v1/documents/stream/{token}")
     ).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_issued_link_dies_with_the_session_that_asked_for_it(
+    auth_client: AsyncClient, db_seed, link_redis
+):
+    document_id = await _upload(auth_client, db_seed)
+    url = await _request_url(auth_client, document_id)
+    claims = jwt.get_unverified_claims(url.rsplit("/", 1)[1])
+    assert claims["sid"] == SESSION_ID
+
+    await link_redis.set(revoked_session_key(SESSION_ID), "1")
+    assert (await auth_client.get(url)).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_no_link_without_a_login_session(
+    auth_client: AsyncClient, db_session, db_seed, link_redis
+):
+    """A link no logout could revoke is never issued, nor accepted."""
+    document_id = await _upload(auth_client, db_seed)
+    for authorization in (None, _bearer(db_seed)):
+        if authorization is None:
+            auth_client.headers.pop("Authorization", None)
+        else:
+            auth_client.headers["Authorization"] = authorization
+        refused = await auth_client.post(
+            f"/api/v1/documents/{document_id}/request-access"
+        )
+        assert refused.status_code == 401, authorization
+        assert "Login session required" in refused.text
+    assert "access_url_issued" not in await _actions(db_session, document_id)
+
+    with pytest.raises(ValueError):
+        create_document_access_token(
+            document_id=document_id,
+            user_id=str(db_seed["user_id"]),
+            tenant_id=str(db_seed["tenant_id"]),
+            session_id="",
+        )
+
+    without_sid = jwt.encode(
+        {
+            "type": "document_access",
+            "doc": document_id,
+            "sub": str(db_seed["user_id"]),
+            "tenant_id": str(db_seed["tenant_id"]),
+            "jti": "sans-session",
+            "exp": datetime.utcnow() + timedelta(minutes=5),
+        },
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+    opened = await auth_client.get(f"/api/v1/documents/stream/{without_sid}")
+    assert opened.status_code == 401
 
 
 @pytest.mark.asyncio
