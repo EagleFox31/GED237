@@ -187,3 +187,14 @@ class TrashEmptyRequest(BaseModel):
 class TrashEmptyResponse(BaseModel):
     purged: int
     remaining: int
+
+
+class DocumentAccessUrl(BaseModel):
+    """An "Open" link: GET it without an Authorization header until expires_at."""
+
+    url: str = Field(
+        ...,
+        description="Path relative to the API host: /api/v1/documents/stream/<token>",
+    )
+    expires_at: datetime = Field(..., description="Expiry, UTC (ISO 8601)")
+    expires_in: int = Field(..., description="Lifetime in seconds, from issue")

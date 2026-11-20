@@ -25,6 +25,12 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.security import (
+    create_document_access_token,
+    decode_document_access_token,
+    decode_token,
+    revoked_session_key,
+)
 from app.core.errors.domain import FileTooLargeError, IngestPathForbiddenError
 from app.core.authz import can_perform, authorize_or_403, ctx_from_resource
 from app.core.tenant_guard import assert_org_unit_scope
@@ -44,6 +50,7 @@ from app.models.user import User
 from app.models.workflow import WorkflowStep
 from app.schemas.document import (
     ClassificationStatus,
+    DocumentAccessUrl,
     DirectoryIngestRequest,
     DirectoryIngestResponse,
     IngestWatchStatus,
@@ -1438,6 +1445,14 @@ async def get_document_content(
     )
     await db.commit()
 
+    return _document_file_response(document, disposition)
+
+
+def _document_file_response(document: Document, disposition: str):
+    """Binary content of a document with its security headers (local or S3).
+
+    Shared by /{id}/content and /stream/{token}: same headers, same Range support.
+    """
     # Nom de fichier : title + extension d'origine si manquante.
     filename = document.title or "document"
     ext = os.path.splitext(document.file_path)[1]
@@ -1488,6 +1503,145 @@ async def get_document_content(
         # On laisse FileResponse poser sa propre Content-Disposition par défaut,
         # mais notre `headers` la remplace (override explicite RFC-compliant).
     )
+
+
+def _bearer_session_id(request: Request) -> Optional[str]:
+    """Login session (claim ``sid``) of the bearer token that made this request."""
+    scheme, _, credentials = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer":
+        return None
+    payload = decode_token(credentials.strip())
+    return payload.get("sid") if payload else None
+
+
+@router.post("/{document_id}/request-access", response_model=DocumentAccessUrl)
+@limiter.limit("30/minute")
+async def request_document_access(
+    request: Request,
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Short-lived "Open" link for a document (F-NEXT-02).
+
+    The link is a GET on /documents/stream/<token> that needs no Authorization
+    header: a new tab, an <iframe> or a native viewer can open it. Same rights as
+    /{id}/content (404 when unreadable); each issued link is audited.
+    """
+    document = await _get_document_or_404(db, current_user.tenant_id, document_id)
+    if (
+        not await _can_read_document(current_user, document, db)
+        or not document.file_path
+    ):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # The link dies with the login session; a bearer token without one (issued
+    # before sessions existed) would give a link no logout can revoke.
+    session_id = _bearer_session_id(request)
+    if not session_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Login session required to issue a link: log in again",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token, jti, expires_at = create_document_access_token(
+        document_id=str(document.id),
+        user_id=str(current_user.id),
+        tenant_id=str(current_user.tenant_id),
+        session_id=session_id,
+    )
+    ttl = settings.DOCUMENT_ACCESS_URL_TTL_SECONDS
+    db.add(
+        _audit_document_action(
+            user=current_user,
+            document_id=document.id,
+            action="access_url_issued",
+            details={"jti": jti, "expires_in": ttl},
+            request=request,
+        )
+    )
+    await db.commit()
+
+    return DocumentAccessUrl(
+        url=str(request.app.url_path_for("stream_document_content", token=token)),
+        expires_at=expires_at.replace(tzinfo=timezone.utc),
+        expires_in=ttl,
+    )
+
+
+def _stream_opened_key(jti: str) -> str:
+    """Redis key set at the first opening of a link: later Range requests skip the audit."""
+    return f"document_stream_opened:{jti}"
+
+
+@router.get("/stream/{token}", name="stream_document_content")
+@limiter.limit("120/minute")
+async def stream_document_content(
+    request: Request,
+    token: str,
+    disposition: str = "inline",
+    db: AsyncSession = Depends(get_db),
+):
+    """Content of a document through an "Open" link (no Authorization header).
+
+    401: link invalid, expired, revoked by a logout, or account disabled.
+    404: the document is gone or no longer readable by the link's owner (rights
+    are checked again at each request, not only when the link was issued).
+    Audited once per link (action content_opened), not once per Range request.
+    """
+    if disposition not in ("inline", "attachment"):
+        raise HTTPException(
+            status_code=400, detail="disposition must be 'inline' or 'attachment'"
+        )
+
+    payload = decode_document_access_token(token)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Link invalid or expired")
+    try:
+        user_id = UUID(payload["sub"])
+        tenant_id = UUID(payload["tenant_id"])
+        document_id = UUID(payload["doc"])
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail="Link invalid or expired") from exc
+
+    redis_client = await get_redis()
+    if await redis_client.get(revoked_session_key(payload["sid"])):
+        raise HTTPException(status_code=401, detail="Link invalid or expired")
+
+    user = (
+        await db.execute(
+            select(User)
+            .options(selectinload(User.role))
+            .where(
+                User.id == user_id,
+                User.tenant_id == tenant_id,
+                User.is_active.is_(True),
+            )
+        )
+    ).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=401, detail="Link invalid or expired")
+
+    document = await _get_document_or_404(db, user.tenant_id, document_id)
+    if not await _can_read_document(user, document, db) or not document.file_path:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    remaining = int(payload["exp"] - datetime.now(timezone.utc).timestamp())
+    if await redis_client.set(
+        _stream_opened_key(payload["jti"]), "1", nx=True, ex=max(remaining, 1)
+    ):
+        db.add(
+            _audit_document_action(
+                user=user,
+                document_id=document.id,
+                action="content_opened",
+                details={"jti": payload["jti"], "disposition": disposition},
+                request=request,
+            )
+        )
+        await db.commit()
+
+    return _document_file_response(document, disposition)
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

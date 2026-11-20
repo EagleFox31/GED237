@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # Lifetime of an "Open" link (POST /documents/{id}/request-access). The link
+    # carries its own token, so keep it short: it works in any tab until it expires.
+    DOCUMENT_ACCESS_URL_TTL_SECONDS: int = Field(default=600, ge=30, le=3600)
 
     # Auth rate limits (slowapi syntax: "<count>/<minute|hour|day>"), keyed by
     # client IP. Demo stacks raise them (docker-compose.yml); tests set them high.

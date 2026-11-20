@@ -42,6 +42,8 @@ ACTION_LABELS = {
     "login_failed": "Connexion refusée",
     "import_committed": "Import exécuté",
     "content_viewed": "Consultation du document",
+    "access_url_issued": "Lien d'ouverture créé",
+    "content_opened": "Ouverture par lien",
     "classification": "Tentative de classement",
     "needs_review": "Mise en attente pour arbitrage",
     "review_resolved": "Arbitrage de classement validé",
