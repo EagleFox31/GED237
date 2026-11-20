@@ -137,6 +137,10 @@ services:
       # Watched folders: read here only for GET /documents/ingest-watch/status.
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      # Read here by POST /reports/schedules (409 when off): same value as the worker.
+      SCHEDULED_REPORTS_ENABLED: ${SCHEDULED_REPORTS_ENABLED:-false}
+      # Read when the api loads the Celery app to queue tasks: same as the worker.
+      SCHEDULED_REPORTS_INTERVAL_SECONDS: ${SCHEDULED_REPORTS_INTERVAL_SECONDS:-3600}
       # Per-file upload cap; the frontend service reads the same variable.
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
       ALLOWED_ORIGINS: "http://localhost,http://localhost:8080,http://localhost:80"
@@ -196,6 +200,9 @@ services:
       INGEST_ALLOWED_ROOTS: /data/ingest
       INGEST_WATCH_FOLDERS: ${INGEST_WATCH_FOLDERS:-[]}
       INGEST_WATCH_INTERVAL_SECONDS: ${INGEST_WATCH_INTERVAL_SECONDS:-60}
+      # Scheduled official reports (off by default).
+      SCHEDULED_REPORTS_ENABLED: ${SCHEDULED_REPORTS_ENABLED:-false}
+      SCHEDULED_REPORTS_INTERVAL_SECONDS: ${SCHEDULED_REPORTS_INTERVAL_SECONDS:-3600}
       # Demo live import folder: never watched, even through a parent folder.
       INGEST_WATCH_PROTECTED_DIRS: ${INGEST_WATCH_PROTECTED_DIRS:-/data/ingest/live}
       # Trash retention (same values in api and worker; 0 days = kept until purged by hand).

@@ -1,0 +1,78 @@
+"""Register of official reports.
+
+Each generated official report gets an order number per institution and year
+(``N° 0001/2026/<short name>``). ``report_counters`` holds the last number given;
+``report_issues`` keeps one line per copy issued, with the file delivered and its
+SHA-256: a reprint returns that same file, and a copy can be checked later.
+"""
+
+from sqlalchemy import (
+    TIMESTAMP,
+    Column,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import deferred
+from sqlalchemy.sql import func
+
+from app.core.database import Base
+from app.models.base import UUIDMixin
+
+
+class ReportCounter(Base):
+    """Last order number given, per institution and year."""
+
+    __tablename__ = "report_counters"
+
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    year = Column(Integer, primary_key=True)
+    last_value = Column(Integer, nullable=False, default=0)
+
+
+class ReportIssue(Base, UUIDMixin):
+    """One official report copy issued."""
+
+    # RESTRICT (PO decision): an institution that issued official copies cannot
+    # be deleted; the register keeps every copy.
+
+    __tablename__ = "report_issues"
+
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    year = Column(Integer, nullable=False)
+    sequence = Column(Integer, nullable=False)
+    number = Column(String(80), nullable=False)
+    kind = Column(String(32), nullable=False)
+    format = Column(String(8), nullable=False)
+    # Effective scope and filters, as applied (ids as strings).
+    filters = Column(JSONB, nullable=False, default=dict)
+    # Header printed on the copy (institution, unit, period, author, date).
+    header = Column(JSONB, nullable=False, default=dict)
+    # SHA-256 of the report data alone, and of the file delivered.
+    content_sha256 = Column(String(64), nullable=False)
+    file_sha256 = Column(String(64), nullable=False)
+    # The file delivered, so a reprint is the very same file (no new number).
+    content = deferred(Column(LargeBinary, nullable=False))
+    issued_by = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    issued_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "year", "sequence", name="uq_report_issues_tenant_year_seq"
+        ),
+        Index("ix_report_issues_tenant_issued_at", "tenant_id", "issued_at"),
+    )

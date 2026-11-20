@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     imports,
     notifications,
     org_units,
+    quality,
     reports,
     spaces,
     search,
@@ -42,6 +43,9 @@ api_router.include_router(
     notifications.router, prefix="/notifications", tags=["Notifications"]
 )
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+api_router.include_router(
+    quality.router, prefix="/analytics/quality", tags=["Analytics"]
+)
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 api_router.include_router(gedrules.router, prefix="/gedrules", tags=["GEDRules"])
 api_router.include_router(

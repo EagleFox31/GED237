@@ -43,6 +43,12 @@ def build_beat_schedule(cfg=settings) -> dict:
             "task": "app.workers.tasks.watch_ingest_folders",
             "schedule": float(cfg.INGEST_WATCH_INTERVAL_SECONDS),
         }
+    # Scheduled official reports (post-rc1 lot 9): off unless SCHEDULED_REPORTS_ENABLED.
+    if cfg.SCHEDULED_REPORTS_ENABLED and cfg.SCHEDULED_REPORTS_INTERVAL_SECONDS > 0:
+        schedule["run-scheduled-reports"] = {
+            "task": "app.workers.tasks.run_scheduled_reports",
+            "schedule": float(cfg.SCHEDULED_REPORTS_INTERVAL_SECONDS),
+        }
     # Trash retention. TRASH_RETENTION_DAYS=0: no entry.
     if cfg.TRASH_RETENTION_DAYS > 0:
         schedule["purge-expired-trash"] = {

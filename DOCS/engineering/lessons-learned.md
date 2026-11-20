@@ -612,6 +612,21 @@ première requête utilisateur.
 **Résolution** — Une seule règle de sous-arbre, `unit_subtree_ids` / `is_within_unit_tree` : CTE récursive sur `org_units.parent_id`, toujours tenu. Les rapports, les listes de documents, la recherche, les statistiques et les imports l'utilisent.
 **Prévention** — `tests/api/test_unit_admin_read_scope.py` construit l'arbre A > A1 > A2 **sans aucune ligne de fermeture** et exige que les rapports et les listes atteignent A2. Les deux lecteurs restants de la table (`classification_rule_engine`, `space_path_builder`) sont suivis dans #201.
 **Leçon généralisée** — Avant de s'appuyer sur une table dérivée, vérifier qui l'écrit (`grep` des écritures, pas des lectures). Un test qui remplit lui-même une donnée dérivée prouve la requête, pas la règle.
+
+### LESSON-2026-043 — Drapeau transmis au seul worker : la route de l'API restait fermée
+
+- **Date :** 2026-11-17
+- **Catégorie :** config / compose / testing
+- **Statut :** prevention-added
+- **Liens :** `docker-compose.yml` (environnements `api` et `worker`), `backend/app/api/v1/endpoints/reports.py` (`SCHEDULED_REPORTS_ENABLED`), `backend/app/api/v1/endpoints/quality.py` (`QUALITY_ALERTS_ENABLED`, #183), `backend/tests/test_compose_shared_settings.py`
+
+**Contexte** — L'api et le worker exécutent le même code, mais chacun reçoit son propre bloc `environment` dans `docker-compose.yml`. Les lots 9 (rapports programmés, #180) et alertes qualité (#183) sont désactivés par défaut. Ils s'activent par un drapeau lu par le worker (tâche planifiée) et par l'api (la route refuse par 409 quand le drapeau est faux).
+**Échec / near miss** — Dans les deux PR, le drapeau et son intervalle n'étaient transmis qu'au worker. En activant la fonction dans `.env`, le worker tournait, mais l'api gardait la valeur par défaut `false` : `POST /reports/schedules` et `POST /analytics/quality/alerts` répondaient toujours 409. La relecture QA l'a trouvé, pas les tests. La même erreur s'est répétée d'une PR à l'autre.
+**Cause racine** — Les deux environnements sont deux listes séparées, sans contrôle qui les relie. Les tests de l'API modifient `settings` directement et ne passent jamais par le compose.
+**Résolution** — `SCHEDULED_REPORTS_ENABLED` est transmis aussi à l'api, avec la même valeur par défaut (#180). Même correction pour `QUALITY_ALERTS_ENABLED` dans #183.
+**Prévention** — `test_compose_shared_settings.py` (pytest backend, CI des PR) déduit du code les réglages lus à la fois sous `app/workers/` et ailleurs sous `app/` (`settings.NOM`). Il échoue si l'un d'eux est transmis à un seul des deux services, ou avec des valeurs différentes. Un nouveau drapeau partagé est contrôlé sans modifier le test.
+**Leçon généralisée** — Quand deux processus partagent un code mais pas leur configuration, la liste de ce qu'ils doivent recevoir en commun se déduit du code, pas d'une liste tenue à la main. Une erreur répétée appelle un contrôle automatique plutôt qu'un point de relecture.
+
 ### LESSON-2026-044 — Un tenant_admin pouvait se nommer super_admin
 
 - **Date :** 2026-11-17
