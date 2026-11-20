@@ -36,6 +36,7 @@ from app.schemas.classification_review import (
 )
 from app.schemas.document import DocumentRead, NeedsReviewDocument
 from app.schemas.imports import ImportJobItemRead
+from app.services.extraction import has_text_reader
 from app.services.space_path_builder import SpacePathBuilder
 from app.services.storage.factory import get_storage_service
 
@@ -621,10 +622,7 @@ class ClassificationReviewService:
             dispatch_payload = self._build_dispatch_payload(document)
 
         ocr_payload = None
-        if document.mime_type and (
-            document.mime_type.startswith("image/")
-            or document.mime_type == "application/pdf"
-        ):
+        if has_text_reader(document.mime_type):
             ocr_payload = (str(document.id), document.file_path, document.mime_type)
 
         return ClassificationReviewResolutionOutcome(

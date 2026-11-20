@@ -18,13 +18,14 @@ from app.services.ingest_watch import run_watch_pass
 from tests.api.test_imports import _seed_classification
 
 INGEST = "/api/v1/documents/ingest-directory"
-NOT_READ_BY_OCR = (
+NOT_READ_BY_OCR = ("reparation_liste.csv", "reparation_memo.txt")
+# Text read in the background: OCR for images and PDFs, direct reading for Word and Excel.
+READ_BY_OCR = (
+    "reparation_scan.pdf",
+    "reparation_photo.png",
     "reparation_note.docx",
     "reparation_devis.xlsx",
-    "reparation_liste.csv",
-    "reparation_memo.txt",
 )
-READ_BY_OCR = ("reparation_scan.pdf", "reparation_photo.png")
 
 
 @pytest.fixture
@@ -86,7 +87,7 @@ async def test_files_without_ocr_are_classified_at_import(
         assert document.classification_status == "classified", name
         assert document.classification_domain_id == domain.id, name
         assert document.classification_activity_id == activity.id, name
-    # Unchanged path for images and PDFs: OCR queued, classified after the OCR.
+    # Images, PDFs, Word and Excel: text reading queued, classified afterwards.
     for name in READ_BY_OCR:
         assert documents[name].classification_status == "pending", name
     assert sorted(args[0] for args in lot["queued"]) == sorted(

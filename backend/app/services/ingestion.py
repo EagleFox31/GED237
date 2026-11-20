@@ -7,7 +7,6 @@ Scans a local directory, imports files into the GED, and triggers classification
 import hashlib
 import os
 import shutil
-import mimetypes
 import logging
 import time
 from datetime import datetime, timezone
@@ -20,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit import AuditLog
 from app.models.document import Document
 from app.services.classification_rule_engine import ClassificationRuleEngine
+from app.services.extraction import guess_mime_type, has_text_reader
 from app.models.document_version import DocumentVersion
 from app.core.config import settings
 from app.core.errors.domain import IngestPathForbiddenError
@@ -76,11 +76,6 @@ class IngestionReport:
             "duplicate_count": len(self.duplicates),
             "duplicates": self.duplicates,
         }
-
-
-def _goes_through_ocr(mime_type: str) -> bool:
-    """Images and PDFs are read by the OCR worker, which classifies them afterwards."""
-    return mime_type.startswith("image/") or mime_type == "application/pdf"
 
 
 def _derive_file_type(filename: str, mime_type: str) -> str | None:
@@ -323,7 +318,7 @@ class DirectoryIngestionService:
         """
         filename = os.path.basename(file_path)
         file_size = os.path.getsize(file_path)
-        mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+        mime_type = guess_mime_type(file_path)
 
         # 0. Same content already in the tenant: not imported again (rescan, copy).
         checksum = _sha256_of(file_path)
@@ -431,9 +426,10 @@ class DirectoryIngestionService:
         await self.db.commit()
         await self.db.refresh(document)
 
-        # 2a. No OCR pass will ever come for DOCX, XLSX, TXT, CSV...: classify now on
-        # name, type and category, like an upload. Images and PDFs are unchanged.
-        if not _goes_through_ocr(mime_type):
+        # 2a. No text reading will ever come for TXT, CSV...: classify now on name, type
+        # and category, like an upload. Images, PDFs, Word and Excel are classified by
+        # the worker once their text is read.
+        if not has_text_reader(mime_type):
             await self._classify_without_ocr(
                 document, owner_id, os.path.basename(file_path), mime_type
             )
@@ -458,9 +454,9 @@ class DirectoryIngestionService:
 
         # 3. Supprimé: Ancien pre-OCR rules (rule_runner)
 
-        # 4. Queue OCR for images and PDFs (lazy import to avoid Celery at module level)
+        # 4. Queue text reading for images, PDFs, Word and Excel files (lazy import to avoid Celery at module level)
         ocr_queued = False
-        if _goes_through_ocr(mime_type):
+        if has_text_reader(mime_type):
             try:
                 from app.workers.tasks import process_document_ocr
 
@@ -472,8 +468,8 @@ class DirectoryIngestionService:
                 )
 
         # 5. Without an OCR pass to come, the classification is final: a document left
-        # « à vérifier » must reach the review screen, as on upload. The OCR pass does
-        # the same for images and PDFs once their text is read.
+        # « à vérifier » must reach the review screen, as on upload. The worker does
+        # the same for images, PDFs, Word and Excel once their text is read.
         if not ocr_queued:
             await self._sync_review(document)
 

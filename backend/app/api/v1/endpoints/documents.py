@@ -71,6 +71,7 @@ from app.services.classification_rule_engine import ClassificationRuleEngine
 from app.services import trash_service
 from app.services.storage.factory import get_storage_service
 from app.workers.tasks import process_document_ocr
+from app.services.extraction import has_text_reader
 
 router = APIRouter()
 storage_service = get_storage_service()
@@ -901,9 +902,7 @@ async def upload_document(
     )
     db_document = result.scalar_one()
 
-    if file_mime_type and (
-        file_mime_type.startswith("image/") or file_mime_type == "application/pdf"
-    ):
+    if has_text_reader(file_mime_type):
         try:
             process_document_ocr.delay(str(db_document.id), file_path, file_mime_type)
         except Exception as exc:
@@ -1753,10 +1752,7 @@ async def get_document_ocr(
         if document.extra_data and "ocr_confidence" in document.extra_data:
             ocr_confidence = document.extra_data["ocr_confidence"]
     else:
-        ocr_source_type = document.mime_type or document.file_type
-        if ocr_source_type and (
-            ocr_source_type.startswith("image/") or ocr_source_type == "application/pdf"
-        ):
+        if has_text_reader(document.mime_type or document.file_type):
             ocr_status = "processing"
 
     return DocumentOCRContent(
