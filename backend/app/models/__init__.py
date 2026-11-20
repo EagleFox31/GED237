@@ -29,6 +29,7 @@ from app.models.notification import Notification
 from app.models.document_category import DocumentCategory
 from app.models.casbin_rule import CasbinRule
 from app.models.authz_policy_version import AuthzPolicyVersion
+from app.models.report_issue import ReportCounter, ReportIssue
 
 __all__ = [
     "TimestampMixin",
@@ -62,4 +63,6 @@ __all__ = [
     "DocumentCategory",
     "CasbinRule",
     "AuthzPolicyVersion",
+    "ReportCounter",
+    "ReportIssue",
 ]
