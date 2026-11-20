@@ -146,6 +146,32 @@ jobs:
       - name: Check tracked files
         run: bash scripts/check-tracked-files.sh
 
+  # The lessons register is frozen (DEC-2026-009): new lessons go in DOCS/engineering/lessons/.
+  # Not gated by impact: DOCS/** is ignored by the map, and the register is exactly what is checked.
+  lessons-register:
+    name: Lessons register frozen
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v7
+      - name: Guard tests
+        run: bash scripts/test_check_lessons_frozen.sh
+      # Local push guard of LESSON-2026-075 (run on each workstation; only its tests run here).
+      - name: Git push safety tests
+        run: bash scripts/test_check_git_safety.sh
+      # Pull request: against its base. Push: against the previous tip. Manual run: tests only.
+      - name: No new lesson in the frozen register
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo "No previous commit (new branch): nothing to compare"
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          bash scripts/check-lessons-frozen.sh "$BASE_SHA"
+
   # ──────────────────────────────────────────────
   # Stage 2 — Gate (single required status check)
   # ──────────────────────────────────────────────
@@ -154,7 +180,7 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [impact, reuse, backend, frontend, security, workflows, tracked-files]
+    needs: [impact, reuse, backend, frontend, security, workflows, tracked-files, lessons-register]
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
