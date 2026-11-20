@@ -17,6 +17,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
     items: [
       { id: 'dashboard', label: 'Tableau de bord', icon: 'dashboard', subItems: ['Vue générale', 'Alertes'] },
       { id: 'needs_review', label: 'Ma bannette', icon: 'inbox', subItems: ['Documents à revoir', 'En attente de ma signature'] },
+      { id: 'tasks', label: 'Tâches & Validations', icon: 'task_alt', subItems: ['Documents à valider ou rejeter'] },
       { id: 'pending_assignments', label: 'À distribuer', icon: 'assignment_ind', subItems: ['Documents sans destinataire'] },
     ]
   },
