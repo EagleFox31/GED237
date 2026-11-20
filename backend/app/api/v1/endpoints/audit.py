@@ -29,6 +29,7 @@ TABLE_LABELS = {
     "local_organize_events": "Rangement local",
     "user_local_arrangement_snapshots": "Bibliothèque locale (compte)",
     "ingest_watch": "Dossiers surveillés",
+    "ingestion_sources": "Sources de collecte",
     "audit_logs": "Journal d'audit",
 }
 
@@ -37,6 +38,8 @@ ACTION_LABELS = {
     "create": "Création",
     "update": "Modification",
     "delete": "Suppression",
+    "ingestion_source_run": "Collecte lancée",
+    "agent_key_rotated": "Clé d'agent renouvelée",
     "upload": "Dépôt de document",
     "login": "Connexion",
     "login_failed": "Connexion refusée",
