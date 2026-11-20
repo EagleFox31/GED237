@@ -41,6 +41,7 @@ import SpacesPage from './profiles/tenant-admin/pages/SpacesPage';
 import ClassificationReviewPage from './profiles/tenant-admin/pages/ClassificationReviewPage';
 import ReportsPage from './profiles/tenant-admin/pages/ReportsPage';
 import LocalLibraryPage from './profiles/tenant-admin/pages/LocalLibraryPage';
+import IngestionSourcesPage from './profiles/tenant-admin/pages/IngestionSourcesPage';
 
 // Route → activeTab mapping (pour la compatibilité Sidebar/Header)
 const ROUTE_TO_TAB: Record<string, string> = {
@@ -62,6 +63,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   '/classification-reviews': 'needs_review',
   '/pending-assignments': 'pending_assignments',
   '/ingestion': 'ingestion',
+  '/ingestion-sources': 'ingestion_sources',
   '/local-library': 'local_library',
   '/audit': 'audit_central',
   '/reports': 'reports',
@@ -86,6 +88,7 @@ const TAB_TO_ROUTE: Record<string, string> = {
   'needs_review': '/classification-reviews',
   'pending_assignments': '/pending-assignments',
   'ingestion': '/ingestion',
+  'ingestion_sources': '/ingestion-sources',
   'local_library': '/local-library',
   'audit_central': '/audit',
   'reports': '/reports',
@@ -108,6 +111,7 @@ export const ADMIN_ROUTES = {
   '/rules': ['super', 'tenant'],
   '/classement': ['super', 'tenant'],
   '/users': ['super', 'tenant'],
+  '/ingestion-sources': ['super', 'tenant'],
 } as const satisfies Record<string, ReadonlyArray<ProfileId>>;
 
 export const ACCESS_DENIED_MESSAGE = 'Accès réservé aux administrateurs.';
@@ -267,6 +271,7 @@ const AppLayout: React.FC = () => {
             <Route path="/rules" element={guarded('/rules', <GEDRulesPage />)} />
             <Route path="/classement" element={guarded('/classement', <ClassementPage />)} />
             <Route path="/users" element={guarded('/users', <UsersPage />)} />
+            <Route path="/ingestion-sources" element={guarded('/ingestion-sources', <IngestionSourcesPage />)} />
             <Route path="/classification-reviews" element={<ClassificationReviewPage />} />
             <Route path="/needs-review" element={<Navigate to="/classification-reviews" replace />} />
             <Route path="/pending-assignments" element={<PendingAssignmentsInbox />} />

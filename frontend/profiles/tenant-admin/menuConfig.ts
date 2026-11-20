@@ -37,6 +37,7 @@ export const TENANT_ADMIN_MENU: MenuSection[] = [
       { id: 'ged_rules', label: 'Traitement des documents', icon: 'directions', subItems: ['Types de documents', 'Circuits de validation', "Règles d'aiguillage", 'Simulateur'] },
       { id: 'classement', label: 'Plan de classement', icon: 'account_tree', subItems: ['Domaines métier', 'Activités', 'Règles de classement', 'Simulateur'] },
       { id: 'ingestion', label: 'Import en masse', icon: 'drive_folder_upload', subItems: ['Scanner un dossier', 'Classement automatique'] },
+      { id: 'ingestion_sources', label: 'Sources de collecte', icon: 'sync_alt', subItems: ['Dossiers et agents'] },
       { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library', subItems: ['Recherche', 'Historique des rangements'] },
     ]
   },

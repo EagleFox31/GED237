@@ -17,6 +17,7 @@ export const SUPER_ADMIN_MENU: MenuSection[] = [
       { id: 'documents', label: 'Documents', icon: 'description' },
       { id: 'tasks', label: 'Workflows', icon: 'account_tree' },
       { id: 'ingestion', label: 'Import en masse', icon: 'drive_folder_upload' },
+      { id: 'ingestion_sources', label: 'Sources de collecte', icon: 'sync_alt' },
       { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
     ]
   },
