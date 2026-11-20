@@ -14,6 +14,16 @@ import type {
     ResolveClassificationReviewResponse,
 } from '../../types';
 
+/** Réponse de `POST /documents/{id}/request-access` (F-NEXT-02). */
+export interface DocumentAccessUrl {
+    /** Chemin relatif à l'hôte de l'API : « /api/v1/documents/stream/<token> ». */
+    url: string;
+    /** Expiration, ISO 8601 UTC. */
+    expires_at: string;
+    /** Durée de vie en secondes, depuis l'émission. */
+    expires_in: number;
+}
+
 export interface IngestWatchFolderRun {
     path: string;
     found: number;
@@ -115,6 +125,23 @@ export const documentsApi = {
             `/documents/${id}/content?disposition=${disposition}`,
             {},
             'Téléchargement du contenu impossible',
+        ),
+
+    /**
+     * Lien court pour « Ouvrir » (F-NEXT-02) : `url` est un chemin relatif à l'hôte de l'API,
+     * lisible sans Authorization jusqu'à `expires_at`. Chaque lien émis est tracé par le serveur.
+     */
+    requestDocumentAccess: (id: string): Promise<DocumentAccessUrl> =>
+        apiCall<DocumentAccessUrl>(
+            `/documents/${id}/request-access`,
+            { method: 'POST' },
+            'Ouverture du document impossible',
+            {
+                statusMessages: {
+                    404: 'Ce document ne peut pas être ouvert.',
+                    429: 'Trop d’ouvertures en peu de temps. Réessayez dans une minute.',
+                },
+            },
         ),
 
     updateDocument: (id: string, data: Partial<Document>): Promise<Document> =>
