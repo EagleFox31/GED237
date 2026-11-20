@@ -13,7 +13,7 @@
 | 3:30–6:00 | **P2** import + classement | 2:30 | B — administrateur : `/rules`, règle seed « Factures → DAF/Comptabilité » **active** (10 s) ; puis A — `/ingestion` → `/data/ingest/live` | `demo-import/live/` (≈ 30 fichiers, doublons et hors règle compris, `jeu-donnees-demo.md` § 3), chemin **`/data/ingest`** (seul autorisé, spec upload § 5) | compteur d'import, documents dans l'arborescence, **doublons refusés**, « reste à classer » non nul | « Rien n'a été classé par magie : voici la règle, et ce qui se passe avant qu'on en active une. » |
 | 6:00–7:30 | **P3** simulation de règle | 1:30 | B — administrateur, `/rules` | règle 10 « Rapports financiers » du seed, **inactive** : la simuler plutôt que créer (gagne 40 s) ; corpus 420 documents, 4 services | tableau avant/après, **aucun déplacement** tant que la règle est inactive | **Moment d'écart n° 1** (§ 3) puis : « Ce que la règle ne sait pas classer attend un humain. » |
 | 7:30–8:30 | **P6** revue manuelle | 1:00 | B — administrateur, `/needs-review` | les « sans règle » du P2 (+ ≈ 15 documents à revoir du seed) | raison affichée, choix service/domaine/activité/année, le document quitte la liste | « Le document est à sa place ; allons le retrouver comme un chef de service. » |
-| 8:30–10:00 | **P4** espaces | 1:30 | B — `MGR001` (manager DAF), `/spaces` | arbre DAF → Comptabilité → 2025 ; corpus 420 | arborescence 4 niveaux, ouverture d'un document (métadonnées, historique des versions) ; filtres/pagination **seulement si livrés** (D2 : premier sacrifice, phrase « tout tient sur une page ») | « Et quand on ne sait pas où il est ? On cherche. » |
+| 8:30–10:00 | **P4** espaces | 1:30 | B — `MGR001` (manager DAF), `/spaces`. Après la connexion, l’application ouvre « Tâches & Suivi » (`/tasks`) : c’est voulu pour un chef de service. Cliquer « Tableau de Bord » dans le menu de gauche (Espace Manager), puis aller sur `/spaces` (risque 18) | arbre DAF → Comptabilité → 2025 ; corpus 420 | arborescence 4 niveaux, ouverture d'un document (métadonnées, historique des versions) ; filtres/pagination **seulement si livrés** (D2 : premier sacrifice, phrase « tout tient sur une page ») | « Et quand on ne sait pas où il est ? On cherche. » |
 | 10:00–12:00 | **P5** recherche + cloisonnement | 2:00 | A — `MINFI002` : recherche ; puis B — `READ001` (lecteur DSI), même recherche | mot-clé présent dans DAF **et** DSI (requête n° 10 de `c3-queries.txt`, figée le 18) ; 1 document DAF à mettre en corbeille avant la seconde recherche | **temps de réponse affiché** (C3), deux listes différentes pour la même requête, document en corbeille absent | « Un document n'est pas seulement rangé : il est validé. » |
 | 12:00–14:00 | **P8** cycle de validation | 2:00 | A — `MINFI002` soumet au circuit ; B — `MGR001` vise un document, en **rejette** un autre avec motif ; retour A | circuit `E2E-WF-VALID`, 2 documents DAF dédiés (seed PR 2 de Q) | choix du validateur, tâche en attente côté manager, **motif saisi**, statut Visé / Rejeté visible chez le rédacteur | **Moment d'écart n° 2** (§ 3) puis : « Tout ce que vous venez de voir a laissé une trace. » |
 | 14:00–15:00 | **P7** journal d'audit | 1:00 | B — `AUDIT001`, `/audit`, filtre `MINFI002` + aujourd'hui | traces produites par P1→P8 | connexion, import, corbeille, revue, visa/rejet dans l'ordre de la séance ; rôle **lecture seule** | « Voilà ce qui marche. Voici ce qui manque. » |
@@ -24,7 +24,7 @@ Direct = 13:00 (P1 1:30 + P2 2:30 + P3 1:30 + P6 1:00 + P4 1:30 + P5 2:00 + P8 2
 
 ## 1 bis. Moments conditionnels V1.1 (ajout daté du 10/11, DEC-002 révision du 10/11)
 
-Règle : un moment ci-dessous ne se joue **que si sa PR est fusionnée le mer 19/11 18:00** (coupure ferme) ; sinon il est retiré du déroulé et sa phrase d'écart reste au bloc 15:00–17:00. Chaque moment livré **retire une phrase** de ce bloc : le temps ajouté (≈ 1:50 au total) se prend d'abord sur Écarts (2:00 → 1:00 si les quatre sont livrés), puis sur le tampon ± 1. Aucun repli API pour ces moments : en cas d'incident, on passe et on dit la phrase d'écart. Chronométrage le 27/11 avec le reste (§ 5).
+Règle : un moment ci-dessous ne se joue **que si sa PR est fusionnée le jeu 19/11 18:00** (coupure ferme) ; sinon il est retiré du déroulé et sa phrase d'écart reste au bloc 15:00–17:00. Chaque moment livré **retire une phrase** de ce bloc : le temps ajouté (≈ 1:50 au total) se prend d'abord sur Écarts (2:00 → 1:00 si les quatre sont livrés), puis sur le tampon ± 1. Aucun repli API pour ces moments : en cas d'incident, on passe et on dit la phrase d'écart. Chronométrage le 27/11 avec le reste (§ 5).
 
 | Moment | Quand | Fenêtre / profil | Clics | Résultat attendu sur le jeu D1 | Conditionnel |
 |---|---|---|---|---|---|
@@ -64,7 +64,7 @@ Les autres écarts se disent au bloc 15:00–17:00, jamais pendant un parcours. 
 | Un agent de la DAF voit-il les documents de la DRH ? | « Non : portée par service, étanchéité entre administrations, vous l'avez vu au P5. » | SC-SEC-01/02 (pas d'écart) |
 | Et si on supprime par erreur ? | « Corbeille puis restauration ; la purge est réservée à l'administrateur, et la restauration complète de la base a été rejouée deux fois, le 18 et le 20/11. » | écart 9 ; C7 |
 | Pourquoi pas Paperless ou Alfresco ? | « Paperless est fait pour un individu, sans service ni validation ; Alfresco exige une JVM et une équipe d'exploitation que le cahier des charges exclut. » | concurrents § 2 ; écarts 8/14/16 pour ce qu'ils font mieux |
-| L'OCR lit-il le manuscrit ou les scans dégradés ? | « L'imprimé oui ; un moteur plus léger pour les scans dégradés a été mesuré le 14/11, livraison V1.1. » | écart 14 (+ chiffre OCR-0 si bon, D3) |
+| L'OCR lit-il le manuscrit ou les scans dégradés ? | (18/11) « Le texte imprimé, oui, même en photo : c'est l'étape photo que vous venez de voir. Le manuscrit, non : il n'est pas couvert en V1. » | écart 14 ; banc de Q du 18/11 : sur le manuscrit photographié, 1 à 10 % des mots retrouvés |
 | Ces identifiants affichés à la connexion ? | « Volontaire pour la démo, retirés en V1.1 ; le code OTP reste obligatoire. » | écart 15 |
 | Combien de documents tient le système ? | « 420 aujourd'hui avec ces temps de réponse ; les 100 000 fichiers du cahier des charges sont mesurés en décembre sur un corpus étalon. » | écart 1 ; C3 du 27 |
 | Pourquoi pas de démo en ligne ? | « Décision du 9/11 : mêmes conteneurs que chez vous, aucune donnée exposée sur Internet. » | écart 5 ; `decision-po-vps-b6.md` |
@@ -79,6 +79,22 @@ Si la question porte sur un écart déjà dit : « c'est l'écart n° … annonc
 - Tenue de la session administrateur ouverte à H-5 (fenêtre B).
 - Mot-clé P5 et requête n° 10 identiques à celles de `c3-queries.txt` ; le chiffre C3 dit au jury est celui du 27 (`protocole-mesures-criteres.md`).
 - Captures du plan B regénérées depuis le run du 27, pas du 21.
+
+## Mise à jour du 18/11 (OCR et pile de démo)
+
+- **Étape photo** (5 bis, 1:00, prise sur les questions) : détail dans `scenario-demo-30-11.md` § 12. Elle n'est pas encore dans la chronologie du § 1 : à minuter à la répétition du 27.
+- **Plan B des mots de recherche** (le mot principal ne change pas ; Q, 18/11 : Tesseract seul trouve les 9 mots) : `IMG_0412` → `recenser`, `fonctionnement`, `appareil` ; `IMG_0413` → `fournitures`, `imputation`, `classeurs`.
+- **Moteur de lecture** : sur `main`, Tesseract par défaut, avec EasyOCR en secours. RapidOCR (#368, image ramenée à 1800 px) n'est pris pour le 30/11 que si Q valide la lecture de la vraie photo de démo, et s'il entre dans la rc.1 (décision le 19 à 16:00). Sinon, la démo garde Tesseract. Le moteur de la démo est fixé le 20 à 09:00 (fiche PO, questions 17 et 21).
+- **Pas de vote** entre plusieurs moteurs (décision d'O du 18/11, `decision-vote-ocr.md`).
+- **Pile** : la démo tourne sur la pile complète `docker-compose.yml`, qui a un worker et donc l'OCR. Elle ne tourne pas sur la pile e2e. La capture de secours de l'étape photo vient du test hors ligne du 25/11 (E6 bis), et non d'un run Playwright, parce que la pile e2e n'a pas de worker.
+- **Contournements de l'audit UX du parcours** (détail : `scenario-demo-30-11.md` § 13) :
+  - D1 et D2 sont envoyés au tout début de l'import, en 2 ouvertures de « Nouveau Document », car la fenêtre se ferme après chaque fichier. Si la recherche est encore vide : « L'indexation tourne en arrière-plan. »
+  - Connexion : ne pas cliquer les profils de démo (écart 15, déjà au P1).
+  - « Traitement des documents » (`/rules`) s'ouvre sur « Types de documents » : prévoir 2 clics d'onglet, « Règles d'aiguillage » puis « Simulateur ».
+  - Import : le dossier `live` figé seulement, jamais un autre dossier.
+  - P5 : si `READ001` n'a aucun résultat, dire « c'est l'étanchéité entre services, voulue, pas une panne ».
+  - Tableau de bord de l'administrateur : ses cartes ne sont pas cliquables, sauf « Doublons refusés ». Naviguer par le menu latéral.
+  - Barre de recherche : le texte d'invite devient « Rechercher un document (titre ou contenu)… » (correctif de F avant le gel).
 
 ## Sources
 
