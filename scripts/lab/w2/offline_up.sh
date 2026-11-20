@@ -8,7 +8,9 @@
 # Variables : LAB_W2_VOLUME (défaut ged-lab_w2-storage) ;
 #             LAB_W2_BOOT_ISO : ISO hors volume (compose.iso.yml), montée si le fichier existe ;
 #             LAB_W2_LISTING : fichier listant le contenu du volume, qui remplace sa lecture (tests) ;
-#             LAB_MEM_AVAILABLE_MB : mémoire disponible imposée, qui remplace sa mesure (tests).
+#             LAB_MEM_AVAILABLE_MB : mémoire disponible imposée, qui remplace sa mesure (tests) ;
+#             LAB_W2_RUNNING : true/false imposé, qui remplace l'état de ged-lab-w2 (tests) ;
+#             LAB_POSTES_NEED_MB, LAB_W2_NEED_MB, LAB_MEM_RESERVE_MB : besoins et réserve (--postes).
 # Codes de sortie : 0 = prêt (et démarré), 3 = refus (volume pas prêt pour le hors-ligne),
 #                   1 = erreur docker, 2 = usage.
 #
@@ -60,6 +62,11 @@ echo "OK : $VOLUME prêt pour le hors-ligne (disque installé, windows.boot pré
 profiles="--profile w2"
 if [ -n "$postes" ]; then
   need_mb="${LAB_POSTES_NEED_MB:-2400}"; reserve_mb="${LAB_MEM_RESERVE_MB:-2048}"
+  # W2 pas encore démarré : ses plafonds (3500 Mo + relais 64 Mo) seront pris aussi.
+  w2_running="${LAB_W2_RUNNING:-$(docker inspect -f '{{.State.Running}}' ged-lab-w2 2>/dev/null || echo false)}"
+  if [ "$w2_running" != "true" ]; then
+    need_mb=$(( need_mb + ${LAB_W2_NEED_MB:-3564} ))
+  fi
   if [ -n "${LAB_MEM_AVAILABLE_MB:-}" ]; then
     avail_mb="$LAB_MEM_AVAILABLE_MB"
   else
@@ -68,7 +75,7 @@ if [ -n "$postes" ]; then
       || { echo "ECHEC : lecture de la mémoire de la VM Docker impossible" >&2; exit 1; }
   fi
   [ "$avail_mb" -ge $(( need_mb + reserve_mb )) ] \
-    || refuse "mémoire disponible ${avail_mb} Mo < ${need_mb} Mo (C1 + C2) + ${reserve_mb} Mo de réserve. Démarrer sans --postes, ou attendre qu'une charge se termine."
+    || refuse "mémoire disponible ${avail_mb} Mo < ${need_mb} Mo (C1 + C2, plus W2 et le relais s'ils ne tournent pas) + ${reserve_mb} Mo de réserve. Démarrer sans --postes, ou attendre qu'une charge se termine."
   echo "OK : ${avail_mb} Mo disponibles pour C1 et C2."
   profiles="$profiles --profile postes"
 fi

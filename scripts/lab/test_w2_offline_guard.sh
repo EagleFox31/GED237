@@ -23,16 +23,21 @@ check 3 "ISO supprimée avant l'arrêt (19/11)"   data.img windows.base
 check 3 "volume vidé par l'image"               tmp
 check 3 "volume vide"                           ""
 
-# --postes : C1 + C2 (2400 Mo) plus la réserve commune (2048 Mo) doivent tenir.
-check_mem() { # attendu nom mémoire_disponible_Mo
+# --postes : C1 + C2 (2400 Mo) plus la réserve commune (2048 Mo) doivent tenir, et W2 + relais
+# (3564 Mo) en plus s'ils ne tournent pas encore.
+check_mem() { # attendu nom mémoire_disponible_Mo w2_en_marche
   printf '%s\n' data.img windows.base windows.boot > "$tmp/ls"
   local rc=0
-  LAB_W2_LISTING="$tmp/ls" LAB_MEM_AVAILABLE_MB="$3" sh "$SCRIPT" --check --postes >/dev/null 2>&1 || rc=$?
+  LAB_W2_LISTING="$tmp/ls" LAB_MEM_AVAILABLE_MB="$3" LAB_W2_RUNNING="$4" \
+    sh "$SCRIPT" --check --postes >/dev/null 2>&1 || rc=$?
   if [ "$rc" -eq "$1" ]; then echo "ok   $2 (code $rc)"; else echo "KO   $2 : code $rc, attendu $1"; failures=$((failures + 1)); fi
 }
-check_mem 0 "postes, mémoire suffisante"     4448
-check_mem 3 "postes, réserve entamée"        4447
-check_mem 3 "postes, VM chargée (19/11)"     1900
+check_mem 0 "postes, W2 en marche, mémoire suffisante" 4448 true
+check_mem 3 "postes, W2 en marche, réserve entamée"    4447 true
+check_mem 3 "postes, VM chargée (19/11)"               1900 true
+check_mem 3 "postes, W2 arrêté, 4448 Mo"               4448 false
+check_mem 0 "postes, W2 arrêté, mémoire suffisante"    8012 false
+check_mem 3 "postes, W2 arrêté, réserve entamée"       8011 false
 
 rc=0; sh "$SCRIPT" --inconnu >/dev/null 2>&1 || rc=$?
 if [ "$rc" -eq 2 ]; then echo "ok   argument inconnu (code 2)"; else echo "KO   argument inconnu : code $rc"; failures=$((failures + 1)); fi
