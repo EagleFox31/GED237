@@ -135,6 +135,9 @@ jobs:
       # Fake gh and a throwaway repo, no network: the push-to-main reuse decision (one skip case, every doubt runs all).
       - name: CI reuse decision
         run: bash scripts/test_ci_reuse_validated_tree.sh
+      # No docker: W2 compose caps, then the offline guard on simulated volume listings and memory.
+      - name: Windows lab guards
+        run: bash scripts/lab/test_w2_compose.sh && bash scripts/lab/test_w2_offline_guard.sh
 
   # Same script as the pre-commit hook: no case collisions, UTF-16, NUL, control characters or U+FFFD.
   tracked-files:
