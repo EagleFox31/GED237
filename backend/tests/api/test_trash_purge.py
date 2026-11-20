@@ -457,6 +457,10 @@ def _cfg(**overrides):
         "INGEST_WATCH_INTERVAL_SECONDS": 60,
         "TRASH_RETENTION_DAYS": 0,
         "TRASH_PURGE_INTERVAL_SECONDS": 3600,
+        "SCHEDULED_REPORTS_ENABLED": False,
+        "SCHEDULED_REPORTS_INTERVAL_SECONDS": 3600,
+        "QUALITY_ALERTS_ENABLED": False,
+        "QUALITY_ALERTS_INTERVAL_SECONDS": 3600,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -492,6 +496,40 @@ def test_beat_registry_merges_retention_with_the_watch():
             "schedule": 3600.0,
         },
     }
+
+
+def test_beat_registry_adds_scheduled_reports_only_when_enabled():
+    report_entry = {
+        "task": "app.workers.tasks.run_scheduled_reports",
+        "schedule": 3600.0,
+    }
+
+    assert build_beat_schedule(_cfg(SCHEDULED_REPORTS_ENABLED=True)) == {
+        "run-scheduled-reports": report_entry
+    }
+    assert (
+        build_beat_schedule(
+            _cfg(SCHEDULED_REPORTS_ENABLED=True, SCHEDULED_REPORTS_INTERVAL_SECONDS=0)
+        )
+        == {}
+    )
+
+
+def test_beat_registry_adds_quality_alerts_only_when_enabled():
+    alert_entry = {
+        "task": "app.workers.tasks.evaluate_quality_alerts",
+        "schedule": 3600.0,
+    }
+
+    assert build_beat_schedule(_cfg(QUALITY_ALERTS_ENABLED=True)) == {
+        "evaluate-quality-alerts": alert_entry
+    }
+    assert (
+        build_beat_schedule(
+            _cfg(QUALITY_ALERTS_ENABLED=True, QUALITY_ALERTS_INTERVAL_SECONDS=0)
+        )
+        == {}
+    )
 
 
 # --- documents purge: platform administrator only (PO decision, V1.1) -------
