@@ -53,6 +53,10 @@
       ],
       "gates": ["container-scan"],
       "dependsOn": ["ci-platform", "dependencies"]
+    },
+    "edge-proxy": {
+      "paths": ["nginx/**", "scripts/test_nginx_log_masking.sh"],
+      "gates": ["workflow-lint"]
     }
   }
 }

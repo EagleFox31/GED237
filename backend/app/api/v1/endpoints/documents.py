@@ -1535,11 +1535,20 @@ async def request_document_access(
     ):
         raise HTTPException(status_code=404, detail="Document not found")
 
+    # The link dies with the login session; a bearer token without one (issued
+    # before sessions existed) would give a link no logout can revoke.
+    session_id = _bearer_session_id(request)
+    if not session_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Login session required to issue a link: log in again",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token, jti, expires_at = create_document_access_token(
         document_id=str(document.id),
         user_id=str(current_user.id),
         tenant_id=str(current_user.tenant_id),
-        session_id=_bearer_session_id(request),
+        session_id=session_id,
     )
     ttl = settings.DOCUMENT_ACCESS_URL_TTL_SECONDS
     db.add(
@@ -1596,8 +1605,7 @@ async def stream_document_content(
         raise HTTPException(status_code=401, detail="Link invalid or expired") from exc
 
     redis_client = await get_redis()
-    session_id = payload.get("sid")
-    if session_id and await redis_client.get(revoked_session_key(session_id)):
+    if await redis_client.get(revoked_session_key(payload["sid"])):
         raise HTTPException(status_code=401, detail="Link invalid or expired")
 
     user = (
