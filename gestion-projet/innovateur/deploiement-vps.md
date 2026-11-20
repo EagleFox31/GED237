@@ -97,7 +97,7 @@ Le modèle est celui d'un site existant (`Mesuré`) : un bloc par site, un rever
 
 | Point | Décision |
 |---|---|
-| Nom de domaine | **À choisir par le PO** (par exemple un sous-domaine de trigenys.com). Il faut un enregistrement DNS A vers 15.235.90.215 avant de recharger Caddy : Caddy obtient alors seul un certificat Let's Encrypt. |
+| Nom de domaine | **À choisir par le PO** (par exemple un sous-domaine de trigenys.com). Il faut un enregistrement DNS A vers l'adresse du VPS avant de recharger Caddy : Caddy obtient alors seul un certificat Let's Encrypt. |
 | Port | `APP_PORT=127.0.0.1:8095` : nginx n'écoute que sur la boucle locale. Les ports publiés par Docker passent outre le pare-feu, donc ne jamais publier `8095` sans `127.0.0.1`. |
 | Taille | 101 Mo, comme `client_max_body_size 101M` de nginx et `MAX_UPLOAD_SIZE` (100 Mio) : le refus se fait dans l'application, avec un message clair. |
 | En-têtes | La CSP et les autres en-têtes de sécurité sont posés par le nginx de la pile (#267). Caddy n'en ajoute pas, pour ne pas les doubler. |
