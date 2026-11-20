@@ -2,8 +2,12 @@
 //
 // `navigator.clipboard` manque sur les navigateurs anciens et sur toute page servie en HTTP
 // simple (contexte non sécurisé), même avec un navigateur récent : c'est le cas d'un serveur
-// de labo joint par son adresse IP. On tente alors l'ancienne commande « copy » du document.
+// de labo joint par son adresse IP. On tente donc aussi l'ancienne commande « copy » du document.
 // Le résultat est un booléen : à `false`, l'appelant invite l'utilisateur à copier à la main.
+//
+// Les deux tentatives partent dans le geste de clic, avant tout `await` : Firefox n'autorise
+// `execCommand('copy')` qu'avec une activation utilisateur récente, qu'une attente peut faire perdre.
+// D'où l'ordre : commande synchrone d'abord, API asynchrone ensuite si la première échoue.
 
 export interface ClipboardEnv {
   writeText?: (text: string) => Promise<void>;
@@ -11,6 +15,8 @@ export interface ClipboardEnv {
 }
 
 export const MANUAL_COPY_HINT = 'Copie automatique impossible : sélectionnez le texte, puis Ctrl+C.';
+// Quand le texte à copier est affiché déjà sélectionné (dialogue de copie manuelle).
+export const MANUAL_COPY_SELECTED_HINT = 'Copie automatique impossible : le texte ci-dessous est sélectionné, appuyez sur Ctrl+C.';
 
 function browserLegacyCopy(text: string): boolean {
   if (typeof document === 'undefined' || typeof document.execCommand !== 'function') return false;
@@ -39,18 +45,19 @@ function browserEnv(): ClipboardEnv {
   return { writeText, legacyCopy: browserLegacyCopy };
 }
 
-export async function copyText(text: string, env: ClipboardEnv = browserEnv()): Promise<boolean> {
-  if (env.writeText) {
-    try {
-      await env.writeText(text);
-      return true;
-    } catch {
-      // Refus ou API indisponible : on tente le repli.
-    }
-  }
+// Volontairement non `async` : tout ce qui précède le `return` s'exécute dans le geste de clic.
+export function copyText(text: string, env: ClipboardEnv = browserEnv()): Promise<boolean> {
+  let copied = false;
   try {
-    return env.legacyCopy ? env.legacyCopy(text) : false;
+    copied = env.legacyCopy ? env.legacyCopy(text) : false;
   } catch {
-    return false;
+    copied = false;
+  }
+  if (copied) return Promise.resolve(true);
+  if (!env.writeText) return Promise.resolve(false);
+  try {
+    return env.writeText(text).then(() => true, () => false);
+  } catch {
+    return Promise.resolve(false);
   }
 }

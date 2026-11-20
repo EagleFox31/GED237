@@ -3,25 +3,35 @@ import { copyText } from '../../lib/clipboard';
 
 // Spec pur : exécuté par `npm run test:unit`.
 test.describe('Copie dans le presse-papiers', () => {
-  test('utilise l\'API moderne quand elle répond', async () => {
-    const copied: string[] = [];
+  test('utilise l\'ancienne commande quand elle réussit, sans appeler l\'API moderne', async () => {
     const ok = await copyText('abc', {
-      writeText: async (t) => { copied.push(t); },
-      legacyCopy: () => { throw new Error('ne doit pas servir'); },
-    });
-    expect(ok).toBe(true);
-    expect(copied).toEqual(['abc']);
-  });
-
-  test('retombe sur l\'ancienne commande quand l\'API moderne refuse', async () => {
-    const ok = await copyText('abc', {
-      writeText: async () => { throw new Error('refusé'); },
+      writeText: async () => { throw new Error('ne doit pas servir'); },
       legacyCopy: (t) => t === 'abc',
     });
     expect(ok).toBe(true);
   });
 
-  test('retombe sur l\'ancienne commande quand l\'API moderne manque (page en HTTP)', async () => {
+  test('utilise l\'API moderne quand l\'ancienne commande échoue', async () => {
+    const copied: string[] = [];
+    const ok = await copyText('abc', {
+      writeText: async (t) => { copied.push(t); },
+      legacyCopy: () => false,
+    });
+    expect(ok).toBe(true);
+    expect(copied).toEqual(['abc']);
+  });
+
+  test('les deux tentatives partent dans le geste de clic, avant toute attente (Firefox)', () => {
+    const calls: string[] = [];
+    // Aucun `await` ici : ce qui n'est pas appelé de façon synchrone n'apparaît pas dans `calls`.
+    void copyText('abc', {
+      legacyCopy: () => { calls.push('legacy'); return false; },
+      writeText: () => { calls.push('writeText'); return Promise.resolve(); },
+    });
+    expect(calls).toEqual(['legacy', 'writeText']);
+  });
+
+  test('ancienne commande seule (page en HTTP, sans API moderne)', async () => {
     expect(await copyText('abc', { legacyCopy: () => true })).toBe(true);
   });
 
@@ -29,6 +39,8 @@ test.describe('Copie dans le presse-papiers', () => {
     expect(await copyText('abc', {})).toBe(false);
     expect(await copyText('abc', { legacyCopy: () => false })).toBe(false);
     expect(await copyText('abc', { legacyCopy: () => { throw new Error('x'); } })).toBe(false);
+    expect(await copyText('abc', { legacyCopy: () => false, writeText: async () => { throw new Error('refusé'); } })).toBe(false);
+    expect(await copyText('abc', { writeText: () => { throw new Error('synchrone'); } })).toBe(false);
   });
 
   test('aucun appel direct à navigator.clipboard hors du helper', async () => {
