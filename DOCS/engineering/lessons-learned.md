@@ -924,3 +924,17 @@ Dans les deux cas, la documentation décrit un réglage qui ne fait rien en Dock
 **Résolution** — Note complétée par une entrée ajoutée en fin de fichier (rien effacé) ; branche recalée par un push normal.
 **Prévention** — Tout texte libre écrit par heredoc utilise un délimiteur protégé (`<<'EOF'`). Une valeur calculée (date) s'écrit sur une ligne séparée avant le heredoc (`echo "## $D — …" >> fichier`). Après un ajout, relire la fin du fichier : un trou dans une phrase signale une substitution.
 **Leçon généralisée** — Un texte qui cite des commandes ne doit jamais traverser un interpréteur : protéger le délimiteur ou écrire le fichier avec un outil d'édition, pas avec le shell.
+
+### LESSON-2026-083 — Série C6 attribuée à un SHA que la pile sondée ne servait pas
+
+- **Date :** 2026-11-19
+- **Catégorie :** mesure / provenance
+- **Statut :** resolved (garde `C6_EXPECT_SHA` dans `scripts/probe_c6.sh`)
+- **Liens :** `scripts/probe_c6.sh`, `scripts/test_probe_c6_provenance.sh`, `gestion-projet/innovateur/protocole-mesures-criteres.md` (section C6)
+
+**Contexte** — La sonde C6 relève la disponibilité de la pile de démo (`edossier_*`). Le 19/11, deux séries vertes ont été annoncées « sur d96c1e67 » puis « sur a1c15f61 », les têtes de main après les fusions du jour.
+**Échec / near miss** — Les images `edossier-api` et `edossier-frontend` dataient du 16/11 (7898387b) : aucune des deux séries ne mesurait le SHA annoncé. Repéré avant la décision de coupe ; une pile séparée construite depuis a1c15f61 a été mesurée à la place.
+**Cause racine** — Une fusion sur main ne redéploie pas une pile qui tourne. Rien ne reliait la série au code réellement servi. La date de création d'une image ne prouve rien non plus : avec le cache BuildKit, une image reconstruite peut garder une ancienne date.
+**Résolution** — Séries d96c1e67 et a1c15f61 requalifiées « pile du 16/11 » ; nouvelle série sur une pile construite depuis a1c15f61, avec comparaison du code servi à la source.
+**Prévention** — `C6_EXPECT_SHA=<sha> sh scripts/probe_c6.sh` refuse de démarrer (code 3, aucun relevé écrit) si `C6_SOURCE` n'est pas un checkout propre de ce SHA, ou si l'empreinte sha256 des `.py` de `app/` et `alembic/` servis par le conteneur API diffère de celle de la source. L'empreinte ne dépend pas du `sha256sum` de l'hôte : le format « hash *chemin » (Git Bash) est ramené au format Linux « hash  chemin » avant le calcul global, et seul le hash est comparé. `C6_EXPECT_SHA` doit compter au moins 7 caractères hexadécimaux. `scripts/test_probe_c6_provenance.sh` couvre 9 cas (sans garde, SHA court identique, autre commit, source modifiée, code servi différent, conteneur absent, formats hôte et conteneur différents, SHA trop court, SHA non hexadécimal) avec de faux `docker`, `curl` et `sha256sum`.
+**Leçon généralisée** — Une mesure n'est attribuable à une version que si la preuve de provenance porte sur le contenu servi, pas sur une date ni sur l'état de la branche.
