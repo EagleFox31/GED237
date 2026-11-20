@@ -82,7 +82,7 @@ Première version candidate d'E-Dossier Cameroun (GED237) pour la démonstration
 
 ### Limites connues
 
-Relevé des `fixme` encore ouverts dans `frontend/e2e/specs` (main 7ecde2b, 10/11) ; statut « corrigé avant le 19 » = une PR ouverte le couvre et doit être fusionnée avant la coupure du 19/11 18:00, sinon la ligne passe en V1.1 le 19 au soir.
+Relevé des `fixme` des specs e2e (`frontend/e2e/specs`, main 7ecde2b, 10/11), mis à jour à la coupe du 19/11 : toutes les lignes sont corrigées dans la rc.1.
 
 | Défaut (spec) | Ce que voit l'utilisateur | Statut |
 |---|---|---|
@@ -101,8 +101,10 @@ Limites hors `fixme` :
 
 - Cycle de vie manuel : corbeille, restauration et purge par l'administrateur ; pas de durée de conservation automatique.
 - Cloisonnement par profil : un collaborateur n'importe pas en masse et ne cherche que dans ses propres documents. L'import en masse, l'explorateur documentaire et la bannette de classement sont réservés à l'administrateur. C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne.
-- Les documents mis à la corbeille ne sont plus comptés au tableau de bord de l'institution (#260), mais le compteur des circuits de validation les compte encore ; corrigé en V1.1 (#220).
+- Les documents mis à la corbeille ne sont plus comptés au tableau de bord de l'institution (#260), mais le compteur des circuits de validation les compte encore. Correction prévue en V1.1 (#536).
 - Renommer ou reclasser un document ne laisse pas encore de trace dans le journal d'audit. Correction prévue en V1.1 (#250).
+- Un administrateur peut désigner comme dossier de classement, à la résolution d'une revue, un dossier qui n'est pas vérifié comme appartenant à son institution. Correction prévue en V1.1 (#242).
+- Pour un manager ou un lecteur, un document hors de son service répond « accès refusé » au lieu de « introuvable » : la réponse confirme que le document existe. Correction prévue en V1.1 (#247).
 - Écran « Gestion AuthZ », onglet des règles : il ne montre pas les droits et indique qu'ils ne sont pas modifiables sur cette installation. Le serveur garde les droits dans un fichier (`AUTHZ_BACKEND=csv`) ; c'est la personne qui installe qui les règle. En V1.1, la grille s'affiche en lecture seule tant que le serveur reste dans ce mode, puis devient modifiable par le seul super admin quand il passe en base de données.
 - Reporté en V1.2 (décision du 17/11) : désigner un lecteur d'un autre service sans lancer de circuit ; alertes de qualité et onglet « Qualité » des rapports ; accès public en HTTPS sur un serveur distant.
 - OCR léger uniquement ; le moteur complet est hors budget machine (DEC-2026-003).
@@ -120,7 +122,7 @@ Limites hors `fixme` :
 ### Écarts d'exploitation connus
 
 - **HTTPS (item CDC 27)** : l'accès chiffré `https://localhost:8443` utilise un certificat local (mkcert) installé sur le poste de démonstration ; aucun certificat public (pas de nom de domaine, démonstration sur place). Un autre poste affiche un avertissement tant que `mkcert -install` n'y a pas été lancé. Le HTTP sur le port 8080 reste disponible. Livré par #109 ; décision du PO du 16/11 : la démonstration se fait en HTTPS.
-- **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; la valeur retenue est celle des relevés du `c6.tsv` : **à renseigner le 19 au soir (≥ 6 relevés verts) puis le 21 (10 sur 10)**, sans arrondi.
+- **Disponibilité (item CDC 29)** : mesurée par `scripts/probe_c6.sh` (#106) du 17 au 21/11 ; la valeur retenue est celle des relevés du `c6.tsv`, sans arrondi : au moins 6 relevés verts le 19/11, 10 sur 10 le 21/11.
   - **19/11, C6 verte** : 7 relevés verts consécutifs, de 21:35:19Z à 22:05:27Z, sans échec ni trou. Ils portent sur une pile construite depuis le SHA de coupe `a1c15f61`, provenance vérifiée par le contenu. Les séries lues plus tôt dans la journée mesuraient la pile de démonstration du 16/11 (`7898387b`) : elles ne sont pas retenues.
   - **21/11** : à renseigner.
 - **Déploiement sur serveur distant (item CDC 28)** : non livré dans la rc.1, décision du PO du 9/11 (démonstration sur place, mêmes conteneurs). La preuve d'installation retenue est l'essai d'installation sans Internet du 25/11. La mise en service sur le serveur distant vient en V1.1, avec un accès par VPN seulement (#288) ; l'accès public en HTTPS suit en V1.2.
@@ -153,9 +155,7 @@ On ne « descend » pas les migrations à la main : deux migrations de réparati
 
 ---
 
-## Suivi des fusions à reporter ici (à tenir jusqu'au 19/11 18:00)
-
-### Delta du gel à la coupe (`2f15b6e`, 17/11 → `a1c15f61`, 19/11)
+## Delta du gel à la coupe (`2f15b6e`, 17/11 → `a1c15f61`, 19/11)
 
 70 PR sont fusionnées sur `main` entre le gel et la coupe. Il n'y a pas de nouvelle migration : la tête reste `a7c8d9e0f1b2`. Les lignes des sections ci-dessus qui en dépendent sont à jour.
 
@@ -168,15 +168,4 @@ On ne « descend » pas les migrations à la main : deux migrations de réparati
 - **Exploitation** : sauvegarde et restauration plus sûres (#482) ; import des images hors ligne (#477) ; résumé des relevés de disponibilité (#498) ; manuels d'installation et d'exploitation (#327, #328, #375, #408, #409).
 - **Recette et CI** : scénario de démonstration de bout en bout (#356, #363, #406) ; tests unitaires du frontend (#421) ; CI backend en 4 parties et sans double passage (#472, #489, #490) ; leçons (#317, #415, #461).
 
-Au 17/11 au soir (`main` 2f15b6e) : toutes les PR prévues avant le gel sont fusionnées, dont #99, #100 et #109 ; état de référence : `plans/releve-coupure-19-11.md`. Le tableau ci-dessous est l'état du 10/11, conservé pour mémoire.
-
-| PR | Lot / sujet | Ligne cible | État au 10/11 |
-|---|---|---|---|
-| #76 | année avec `_` dans les noms de fichiers | Fonctionnalités, règles | ouverte, en chaîne |
-| #78 | filtres et pagination des espaces (écran) | Fonctionnalités, espaces | ouverte |
-| #77 + #81 | lot 1, tuile « Doublons refusés » | Fonctionnalités (nouvelle ligne) | ouvertes, #77 CI rouge |
-| #79 + #84 | lot 2, export/import des règles | Fonctionnalités (nouvelle ligne) | ouvertes |
-| #80 | lot 3a, export CSV du journal | Fonctionnalités + Limites | ouverte |
-| #83 | lot 3b, verrou après 3 OTP | Fonctionnalités + Limites | ouverte |
-| #82 | activation de la vérification du jeu D1 | Recette et CI | ouverte |
-| lots 4, 5 | critères contenu/date, surveillance | Limites connues | aucune PR |
+Au 17/11 au soir (`main` 2f15b6e) : toutes les PR prévues avant le gel sont fusionnées, dont #99, #100 et #109 ; état de référence : `plans/releve-coupure-19-11.md`.

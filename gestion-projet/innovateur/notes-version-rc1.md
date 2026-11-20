@@ -1,7 +1,7 @@
 # Notes de version 1.0.0-rc.1, pour les utilisateurs
 
 Ce qui change pour les agents et les responsables, en clair, et ce qu'on en dit pendant la démonstration du 30/11.
-- **Base** : `main` 2f15b6e (18/11). Les lots non fusionnés au 19/11 à 18:00 sont ajoutés le 19 au soir.
+- **Base** : `main` 2f15b6e (18/11). Aucun lot de la V1.1 n'est entré à la coupe du 19/11 (`a1c15f61`).
 - **Version technique** (numéros de PR, commandes) : `notes-version-v1.0.0-rc.1.md`. En cas d'écart, la version technique fait foi.
 - Chaque thème se termine par **la phrase à dire en démo**.
 
@@ -73,6 +73,8 @@ Ce qui change pour les agents et les responsables, en clair, et ce qu'on en dit 
 | Un collaborateur ne fait pas d'import en masse | C'est voulu : l'administrateur prépare, chacun ne voit que ce qui le concerne. | — |
 | Le compteur des circuits de validation compte encore les documents en corbeille | Le tableau de bord de l'institution, lui, ne les compte plus. | Corrigé en 1.1 |
 | Renommer ou reclasser un document ne laisse pas de trace dans le journal | Les autres actions sont tracées. | Corrigé en 1.1 |
+| Depuis la bannette « à revoir », l'administrateur peut choisir un dossier dont le serveur ne vérifie pas qu'il appartient à son institution | Le contrôle est ajouté côté serveur. | Corrigé en 1.1 |
+| Un manager ou un lecteur qui ouvre un document hors de son service voit « accès refusé » au lieu de « introuvable » | Le document n'est pas montré, mais le message confirme qu'il existe. | Corrigé en 1.1 |
 | Les droits par rôle ne se modifient pas à l'écran | Ils sont réglés à l'installation. | Affichés en 1.1, modifiables ensuite |
 | Les documents rangés avant cette version ne sont pas rerangés | Les nouvelles règles s'appliquent aux nouveaux documents. | — |
 | Un scan de mauvaise qualité est moins bien lu | La lecture du texte des scans est volontairement légère, pour tenir sur une machine modeste. | — |
@@ -80,6 +82,6 @@ Ce qui change pour les agents et les responsables, en clair, et ce qu'on en dit 
 | Sur un autre poste que celui de la démo, le navigateur affiche un avertissement en HTTPS | Le certificat est installé sur le poste de démonstration seulement. | Adresse publique en 1.2 |
 | GED237 n'est pas encore installé sur un serveur distant | La démonstration se fait sur place, avec les mêmes logiciels. | Serveur par réseau privé en 1.1, accès public en 1.2 |
 
-Lots non fusionnés au 19/11 à 18:00 : *à compléter le 19 au soir*.
+Montré en démonstration mais livré en 1.1 : remplacement pendant une absence, recherche insensible aux accents, mesure des 100 000 fichiers, lisibilité des badges de statut, focus clavier à la connexion, déblocage d'un compte par l'administrateur.
 
 > **En démo** : « Voici ce que cette version ne fait pas encore, et quand elle le fera. Rien n'est caché. »
