@@ -86,7 +86,8 @@ export const officialReportsApi = {
     const response = await fetchWithRefresh(`${API_URL}/reports/official/issues?${query.toString()}`, {
       headers: getHeaders(false),
     });
-    if (!response.ok) throw await buildApiError(response, 'Lecture du registre impossible');
+    // 403 : le modal affiche lui-même « Vous n'avez pas accès au registre. » (pas de toast en double).
+    if (!response.ok) throw await buildApiError(response, 'Lecture du registre impossible', { handledStatuses: [403] });
     const items = (await response.json()) as OfficialReportIssue[];
     const total = Number(response.headers.get('X-Total-Count'));
     return { items, total: Number.isInteger(total) && total >= 0 ? total : items.length };

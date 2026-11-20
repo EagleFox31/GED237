@@ -7,7 +7,10 @@ test.describe('Copie officielle', () => {
   test('émettre une copie HTML puis la réimprimer depuis le registre', async ({ page, loginAs }) => {
     await loginAs('tenant_admin');
     await page.goto('reports');
-    await page.getByRole('button', { name: 'Copie officielle', exact: true }).click();
+    const openButton = page.getByRole('button', { name: 'Copie officielle', exact: true });
+    // L'aide du bouton reste lue au clavier et au toucher, pas seulement au survol (title).
+    await expect(openButton).toHaveAccessibleDescription('Exemplaire numéroté, inscrit au registre.');
+    await openButton.click();
     const dialog = page.getByRole('dialog', { name: 'Copie officielle' });
 
     await dialog.getByRole('button', { name: 'Page web' }).click();
@@ -133,13 +136,32 @@ test.describe('Copie officielle', () => {
     await expect(row).toContainText('Arrêter ce rapport ?');
     await row.getByRole('button', { name: 'Non' }).click();
     expect(deleted).toEqual([]);
+    // Le focus ne tombe pas hors du dialogue : il revient sur « Arrêter ».
+    await expect(row.getByRole('button', { name: 'Arrêter Bilan mensuel' })).toBeFocused();
 
     await row.getByRole('button', { name: 'Arrêter Bilan mensuel' }).click();
     await row.getByRole('button', { name: 'Confirmer l’arrêt de Bilan mensuel' }).click();
     await expect(dialog.getByRole('status')).toHaveText('Arrêté : Bilan mensuel');
     await expect(row).toHaveCount(0);
+    await expect(dialog.getByRole('tab', { name: 'Programmés' })).toBeFocused();
     expect(deleted).toHaveLength(1);
     expect(deleted[0]).toMatch(/\/schedules\/sch-1$/);
+  });
+
+  test('registre refusé (403) : message dans le dialogue, sans toast en double', async ({ page, loginAs }) => {
+    await page.route(/\/api\/v1\/reports\/official\/issues(\?|$)/, (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ detail: 'Registre réservé (test)' }) })
+        : route.fallback(),
+    );
+    await loginAs('tenant_admin');
+    await page.goto('reports');
+    await page.getByRole('button', { name: 'Copie officielle', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Copie officielle' });
+    await dialog.getByRole('tab', { name: 'Registre' }).click();
+    await expect(dialog.getByText("Vous n'avez pas accès au registre.")).toBeVisible();
+    // Le détail du serveur n'est relayé par aucun toast global.
+    await expect(page.getByText('Registre réservé (test)')).toHaveCount(0);
   });
 
   test('« Émettre » et « Programmés » gardent chacun leur choix ; pas de période cachée programmée', async ({ page, loginAs }) => {

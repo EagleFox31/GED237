@@ -229,11 +229,14 @@ const ReportsPage: React.FC = () => {
               type="button"
               onClick={() => setIsOfficialOpen(true)}
               title={UI_TOOLTIPS.reports.officialCopy}
+              aria-describedby="official-copy-hint"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
             >
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span>
               Copie officielle
             </button>
+            {/* Le title ne s'affiche ni au clavier ni au toucher : même texte lu par les lecteurs d'écran. */}
+            <span id="official-copy-hint" className="sr-only">{UI_TOOLTIPS.reports.officialCopy}</span>
             {!isUnitScope && (
               <>
                 <button

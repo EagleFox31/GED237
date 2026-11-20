@@ -206,7 +206,21 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
       setSchedules((current) => current.filter((s) => s.id !== item.id));
       setConfirmStopId(null);
       setNotice(`Arrêté : ${item.name}`);
+      // La ligne disparaît : le focus reste dans le dialogue, sur l'onglet « Programmés ».
+      tabRefs.current.schedules?.focus();
     });
+
+  // « Non » : le focus revient sur « Arrêter » de la même ligne (rendu au tour suivant).
+  const [refocusStopId, setRefocusStopId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!refocusStopId) return;
+    document.getElementById(`official-stop-${refocusStopId}`)?.focus();
+    setRefocusStopId(null);
+  }, [refocusStopId]);
+  const cancelStop = (item: OfficialReportSchedule) => {
+    setConfirmStopId(null);
+    setRefocusStopId(item.id);
+  };
 
   const reportChoice = (tab: ChoiceTab) => {
     const { kind, format } = choices[tab];
@@ -427,7 +441,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
                         </button>
                         <button
                           type="button"
-                          onClick={() => setConfirmStopId(null)}
+                          onClick={() => cancelStop(item)}
                           disabled={busy}
                           className="rounded-2xl px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-50"
                         >
@@ -437,6 +451,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({ onClos
                     ) : (
                       <button
                         type="button"
+                        id={`official-stop-${item.id}`}
                         onClick={() => setConfirmStopId(item.id)}
                         disabled={busy}
                         aria-label={`Arrêter ${item.name}`}
