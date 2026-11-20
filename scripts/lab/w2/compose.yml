@@ -1,0 +1,54 @@
+# Lab multi-postes — poste W2 « agence régionale » (Windows 11 LTSC, AZERTY).
+# 11l plutôt que 10l : l'évaluation Windows 10 LTSC installée le 19/11 se déclarait déjà expirée.
+# Démarrage uniquement sur demande (profil w2) :
+#   scripts/lab/kvm_prereq.sh
+#   MSYS_NO_PATHCONV=1 docker compose -f scripts/lab/w2/compose.yml --profile w2 up -d
+# Arrêt : docker compose -f scripts/lab/w2/compose.yml --profile w2 down (le volume reste).
+# Projet compose distinct (ged-lab) : rien n'est créé à côté des piles de l'application.
+name: ged-lab
+
+services:
+  w2:
+    profiles: ["w2"]
+    image: docker.io/dockurr/windows:6.06
+    container_name: ged-lab-w2
+    environment:
+      VERSION: "11l"
+      LANGUAGE: "French"
+      REGION: "fr-FR"
+      KEYBOARD: "fr-FR"
+      RAM_SIZE: "3G"
+      # Garde RAM_SIZE fixe. Sinon, 3G + la réserve de l'image (0,5 Go) dépassent mem_limit,
+      # l'image passe en mode « max » et mesure ce maximum sur limite - memory.current, cache
+      # disque compris. Après le téléchargement de l'ISO, il ne reste que 4 Mo : arrêt en code 16.
+      RAM_CHECK: "N"
+      CPU_CORES: "2"
+      DISK_SIZE: "40G"
+      BALLOONING: "Y"
+      BALLOONING_MIN_MEM: "1536M"
+      USERNAME: "${LAB_W2_USERNAME:-agent}"
+      PASSWORD: "${LAB_W2_PASSWORD:?définir LAB_W2_PASSWORD (voir .env.example de ce dossier)}"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    # Accès depuis l'hôte seulement : visionneuse web et bureau à distance.
+    ports:
+      - "127.0.0.1:${LAB_W2_WEB_PORT:-8006}:8006"
+      - "127.0.0.1:${LAB_W2_RDP_PORT:-13389}:3389/tcp"
+    volumes:
+      - w2-storage:/storage
+      - ./oem:/oem:ro
+    # Plafonds : 3 Go pour Windows + environ 0,3 Go pour QEMU.
+    mem_limit: 3500m
+    cpus: 2
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+    stop_grace_period: 2m
+    restart: "no"
+
+volumes:
+  w2-storage:
