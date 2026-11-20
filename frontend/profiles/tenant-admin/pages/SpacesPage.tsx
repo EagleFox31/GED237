@@ -1,8 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type SpaceTreeNode } from '../../../services/api';
-import { copyText, MANUAL_COPY_HINT } from '../../../lib/clipboard';
-import { pushClientOperationError } from '../../../lib/errors/clientOperationError';
+import { copyText, MANUAL_COPY_SELECTED_HINT } from '../../../lib/clipboard';
+import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import type { Document } from '../../../types';
 import { formatDate, formatFileSize, getFileTypeLabel, getStatusLabel } from '../../../types';
 import { ClassificationSlideOver } from '../../../components/ClassificationSlideOver';
@@ -205,6 +205,8 @@ const SpacesPage: React.FC = () => {
   const [documentToClassify, setDocumentToClassify] = useState<Document | null>(null);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  // Chemin à copier à la main quand le presse-papiers refuse : affiché déjà sélectionné.
+  const [manualCopyText, setManualCopyText] = useState<string | null>(null);
   // Zone des dossiers et documents : garde le focus clavier quand on change de dossier.
   const itemsRegionRef = useRef<HTMLDivElement>(null);
   // Élément à refocaliser à la fermeture de l'aperçu.
@@ -602,8 +604,10 @@ const SpacesPage: React.FC = () => {
     if (!path) return;
     const ok = await copyText(path);
     setContextMenu(null);
-    if (!ok) pushClientOperationError(null, { fallbackDetail: MANUAL_COPY_HINT, severity: 'warning' });
+    // Le menu ne montre pas le chemin : on l'affiche pour que l'utilisateur puisse le copier.
+    if (!ok) setManualCopyText(path);
   };
+  const closeManualCopy = () => setManualCopyText(null);
 
   return (
     <div className="p-8 animate-in fade-in duration-500">
@@ -1144,6 +1148,26 @@ const SpacesPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        open={manualCopyText !== null}
+        title="Copier le chemin"
+        icon="content_copy"
+        message={MANUAL_COPY_SELECTED_HINT}
+        hideConfirm
+        cancelLabel="Fermer"
+        onConfirm={closeManualCopy}
+        onCancel={closeManualCopy}
+      >
+        <input
+          readOnly
+          autoFocus
+          aria-label="Chemin à copier"
+          value={manualCopyText ?? ''}
+          onFocus={(event) => event.currentTarget.select()}
+          className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800"
+        />
+      </ConfirmationModal>
 
       {contextMenu && (
         <div

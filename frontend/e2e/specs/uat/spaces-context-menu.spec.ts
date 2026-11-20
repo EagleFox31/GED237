@@ -17,6 +17,30 @@ test.describe('Explorateur — clic droit étendu', () => {
     await expect(page.getByRole('button', { name: /^Retour vers/ })).toBeVisible();
   });
 
+  test('copie refusée par le navigateur : le chemin s’affiche, sélectionné, pour Ctrl+C', async ({ page, loginAs }) => {
+    // Navigateur ancien ou page en HTTP : ni API moderne, ni ancienne commande « copy ».
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, get: () => undefined });
+      document.execCommand = () => false;
+    });
+    await loginAs('tenant_admin');
+    await page.goto('spaces');
+
+    const folder = page.getByRole('button', { name: /Direction des Affaires Financi[eè]res/ }).first();
+    await folder.click({ button: 'right' });
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Copier le chemin' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Copier le chemin' });
+    await expect(dialog).toContainText('Ctrl+C');
+    const field = dialog.getByLabel('Chemin à copier');
+    await expect(field).toBeFocused();
+    await expect(field).not.toHaveValue('');
+    const selected = await field.evaluate((el: HTMLInputElement) => el.value.slice(el.selectionStart ?? 0, el.selectionEnd ?? 0));
+    await expect(field).toHaveValue(selected);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  });
+
   test('clic droit sur le fond : Actualiser relance le chargement', async ({ page, loginAs }) => {
     await loginAs('tenant_admin');
     await page.goto('spaces');
