@@ -113,3 +113,8 @@ Questions posées au PO (instruction du 17/11) :
 3. Au moins deux `super_admin`, et une procédure d'exploitation pour le cas où il n'en resterait qu'un.
 
 **Précision du 17/11/2026** (O, complément de procédure qui ne change pas l'option (d)) : « Avant de réinitialiser, le niveau supérieur vérifie votre carte professionnelle (ou une pièce d'identité). » Elle vaut pour chaque ligne du tableau du § 4, point 4, et figure dans `gestion-projet/innovateur/fiche-admin-verification-application.md`.
+
+**Erratum du 17/11/2026** (O ; le texte de la décision ci-dessus est inchangé) :
+
+- **Calendrier** : il a changé avec la coupe du 19/11. #193 fusionne sur `main` juste après la coupe, et non plus après le 30/11 (ligne « Calendrier » de l'en-tête et § 8 « Mise en œuvre »). Elle reste hors de la rc.1 et de la démo.
+- **Fiche admin** : `gestion-projet/innovateur/fiche-admin-verification-application.md`, citée dans la précision ci-dessus, n'arrivera sur `main` qu'après le 24/11.
