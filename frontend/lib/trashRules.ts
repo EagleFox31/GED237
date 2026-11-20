@@ -21,3 +21,15 @@ export const canEmptyTrash = (items: ReadonlyArray<Pick<Document, 'status'>>, to
  */
 export const isGoneFromTrash = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && (error as { status?: unknown }).status === 404;
+
+/**
+ * Décision PO : un document retiré par quelqu'un d'autre (un administrateur) ne se restaure
+ * que par un administrateur (`documents:delete`). Miroir du 403 de POST /restore.
+ */
+export const isRestoreReservedToAdmin = (
+  doc: Pick<Document, 'deleted_by'>,
+  myUserId: string | undefined,
+  canDelete: boolean,
+): boolean => !canDelete && Boolean(doc.deleted_by) && doc.deleted_by !== myUserId;
+
+export const RESTORE_RESERVED_HELP = 'Retiré par un administrateur. Demandez-lui de le restaurer.';

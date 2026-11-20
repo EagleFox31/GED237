@@ -3,8 +3,11 @@ import React, { useEffect, useState } from 'react';
 import { TENANT_ADMIN_MENU } from '../profiles/tenant-admin/menuConfig';
 import { SUPER_ADMIN_MENU } from '../profiles/super-admin/menuConfig';
 import { api } from '../services/api';
+import { useCan } from '../hooks/useCan';
 import { Logo } from './Logo';
 import { APP_VERSION } from '../constants';
+import { usePendingTaskCount } from '../hooks/usePendingTaskCount';
+import { taskBadgeLabel } from '../lib/taskCount';
 
 interface SidebarProps {
   activeTab: string;
@@ -15,9 +18,27 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+/** Pastille du nombre de tâches en attente ; « tâches en attente » n'est lu que par les lecteurs d'écran. */
+const TaskBadge: React.FC<{ count: number }> = ({ count }) => {
+  const label = taskBadgeLabel(count);
+  if (!label) return null;
+  return (
+    <span data-testid="task-badge" className="ml-auto shrink-0 min-w-[1.25rem] rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black text-white">
+      {label}<span className="sr-only"> tâches en attente</span>
+    </span>
+  );
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, open = false, onClose }) => {
   const [tenantLabel, setTenantLabel] = useState<string>('');
+  const pendingTasks = usePendingTaskCount();
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  // Doublons : résoudre un groupe met des copies à la corbeille. Sans l'un de ces droits
+  // (lecteur, auditeur), l'écran n'offre rien à faire : l'entrée est masquée.
+  const { 'documents:delete': canDelete, 'documents:trash_own': canTrashOwn } = useCan(
+    'documents:delete',
+    'documents:trash_own',
+  );
 
   useEffect(() => {
     if (!userProfile?.tenantId) return;
@@ -65,6 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
               <span className={`text-[11px] font-bold uppercase tracking-tight ${activeTab === item.id ? 'font-black' : ''}`}>
                 {item.label}
               </span>
+              {item.id === 'tasks' && <TaskBadge count={pendingTasks} />}
             </button>
           ))}
         </div>
@@ -89,8 +111,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           { id: 'dashboard', label: 'Tableau de Bord', icon: 'dashboard' },
           { id: 'documents', label: 'Mes Documents', icon: 'description' },
           { id: 'tasks', label: 'Tâches & Suivi', icon: 'notifications' },
-          { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
-          { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
+          // Outils de rangement local : masqués pour reader et collab (miroir des rôles : ils lisent ou déposent
+          // dans leurs brouillons, sans classer en masse). Les autres profils gardent ces entrées.
+          ...(userProfile?.id === 'reader' || userProfile?.id === 'collab'
+            ? []
+            : [
+                { id: 'ingestion', label: 'Ranger / Importer', icon: 'folder_managed' },
+                { id: 'local_library', label: 'Bibliothèque locale', icon: 'local_library' },
+              ]),
           // Manager : rapports de son service (le serveur limite les données au service).
           ...(userProfile?.id === 'manager'
             ? [{ id: 'reports', label: 'Rapports', icon: 'legend_toggle' }]
@@ -100,6 +128,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
             ? [{ id: 'audit', label: 'Audit', icon: 'analytics' }]
             : []),
           { id: 'trash', label: 'Corbeille', icon: 'delete' },
+          ...(canDelete || canTrashOwn
+            ? [{ id: 'duplicates', label: 'Doublons', icon: 'content_copy' }]
+            : []),
         ].map(item => (
           <button
             key={item.id}
@@ -108,6 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userProfile, 
           >
             <span aria-hidden="true" className="material-symbols-outlined text-xl">{item.icon}</span>
             <span className="text-[11px] font-bold uppercase">{item.label}</span>
+            {item.id === 'tasks' && <TaskBadge count={pendingTasks} />}
           </button>
         ))}
       </div>

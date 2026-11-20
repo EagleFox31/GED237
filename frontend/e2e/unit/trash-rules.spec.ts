@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { canEmptyTrash, isGoneFromTrash, isPurgeProtected } from '../../lib/trashRules';
+import { canEmptyTrash, isGoneFromTrash, isPurgeProtected, isRestoreReservedToAdmin } from '../../lib/trashRules';
 
 test.describe('Corbeille : actions définitives possibles', () => {
   test('signé et archivé sont protégés, les autres statuts non', () => {
@@ -30,5 +30,12 @@ test.describe('Corbeille : document disparu', () => {
     expect(isGoneFromTrash({ status: 500 })).toBe(false);
     expect(isGoneFromTrash(new Error('réseau'))).toBe(false);
     expect(isGoneFromTrash(null)).toBe(false);
+  });
+
+  test('restaurer : réservé à l’administrateur si quelqu’un d’autre a retiré le document', () => {
+    expect(isRestoreReservedToAdmin({ deleted_by: 'moi' }, 'moi', false)).toBe(false);
+    expect(isRestoreReservedToAdmin({ deleted_by: 'admin' }, 'moi', false)).toBe(true);
+    expect(isRestoreReservedToAdmin({ deleted_by: 'admin' }, 'moi', true)).toBe(false);
+    expect(isRestoreReservedToAdmin({ deleted_by: null }, 'moi', false)).toBe(false);
   });
 });
