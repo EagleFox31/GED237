@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/edossier/icon-small.png" />
+  <title>E-Dossier | Vos courriers et dossiers administratifs classés, signés et retrouvés en un instant</title>
+  <style>
+    :root {
+      --cam-green: #007A5E;
+      --cam-red: #CE1126;
+      --cam-yellow: #FCD116;
+      --rdpc-blue: #0055A4;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background-color: var(--slate-50);
+      color: var(--slate-900);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input { font-family: inherit; }
+
+    .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+    .tricolor-bar {
+      height: 5px;
+      width: 100%;
+      background: linear-gradient(90deg, #007A5E 0%, #007A5E 33.3%, #CE1126 33.3%, #CE1126 66.6%, #FCD116 66.6%, #FCD116 100%);
+    }
+    .flag-chip {
+      display: inline-flex;
+      width: 22px;
+      height: 14px;
+      border-radius: 3px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+      flex-shrink: 0;
+    }
+    .flag-chip span { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
+    .flag-chip .g { background: #007A5E; }
+    .flag-chip .r { background: #CE1126; color: #FCD116; font-size: 8px; line-height: 1; }
+    .flag-chip .y { background: #FCD116; }
+    .sticky-top { position: sticky; top: 0; z-index: 50; }
+    .header {
+      position: sticky;
+      top: 5px;
+      z-index: 40;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .header-inner {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-logo { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
+    .brand-title {
+      display: block;
+      font-size: 18px;
+      font-weight: 900;
+      font-style: italic;
+      text-transform: uppercase;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--slate-800);
+    }
+    .brand-sub {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--slate-500);
+      margin-top: 3px;
+    }
+    .brand-sub .red { color: var(--cam-red); }
+
+    .nav-links { display: none; gap: 28px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--slate-600); }
+    .nav-links a:hover { color: var(--rdpc-blue); }
+    @media (min-width: 860px) { .nav-links { display: flex; } }
+
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 12px;
+      font-size: 12px; font-weight: 700; color: var(--slate-600);
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .btn-ghost:hover { background: var(--slate-100); color: var(--rdpc-blue); }
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 20px; border-radius: 16px; border: 0; cursor: pointer;
+      background: var(--rdpc-blue); color: #fff;
+      font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+      box-shadow: 0 10px 24px -6px rgba(0, 85, 164, 0.35);
+      transition: background-color 0.15s, transform 0.15s;
+    }
+    .btn-primary:hover { background: #004485; }
+    .btn-secondary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 20px; border-radius: 16px; border: 1px solid var(--slate-200); cursor: pointer;
+      background: #fff; color: var(--slate-700);
+      font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+    .btn-secondary:hover { background: var(--slate-50); border-color: #cbd5e1; }
+    .btn-green {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 13px 20px; border-radius: 16px; border: 0; cursor: pointer;
+      background: var(--cam-green); color: #fff; width: 100%;
+      font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+      box-shadow: 0 10px 24px -6px rgba(0, 122, 94, 0.3);
+    }
+    .btn-green:hover { background: #00634c; }
+
+    /* Hero */
+    .hero {
+      padding: 44px 0 64px;
+      background:
+        radial-gradient(circle at 8% 12%, rgba(0, 122, 94, 0.08), transparent 36%),
+        radial-gradient(circle at 92% 18%, rgba(0, 85, 164, 0.10), transparent 40%),
+        radial-gradient(circle at 75% 88%, rgba(252, 209, 22, 0.10), transparent 35%),
+        linear-gradient(180deg, #f8fafc 0%, #ffffff 55%, #f8fafc 100%);
+    }
+    .hero-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center; }
+    @media (min-width: 1024px) { .hero-grid { grid-template-columns: 1.05fr 1fr; gap: 48px; } }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      background: rgba(0, 122, 94, 0.1); color: var(--cam-green);
+      border: 1px solid rgba(0, 122, 94, 0.2);
+      font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em;
+    }
+    .pill-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--cam-green); }
+    .hero h1 {
+      margin: 18px 0 16px;
+      font-size: clamp(28px, 3.6vw, 42px);
+      font-weight: 900;
+      line-height: 1.14;
+      letter-spacing: -0.025em;
+      color: var(--slate-900);
+    }
+    .hero h1 .accent { display: block; color: var(--rdpc-blue); margin-top: 4px; }
+    .hero-lead { font-size: 17px; color: var(--slate-600); max-width: 560px; margin: 0 0 24px; }
+    .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+    .reassure { display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 12px; font-weight: 600; color: var(--slate-500); }
+    .reassure span { display: inline-flex; align-items: center; gap: 6px; }
+
+    /* Aperçu appli */
+    .preview-wrap { position: relative; }
+    .float-badge-top, .float-badge-bottom {
+      display: none; position: absolute; z-index: 10;
+      padding: 8px 14px; border-radius: 14px; color: #fff; font-size: 12px; font-weight: 700;
+      box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.35);
+    }
+    @media (min-width: 640px) {
+      .float-badge-top { display: inline-flex; align-items: center; gap: 6px; top: -14px; right: 16px; background: var(--cam-green); }
+      .float-badge-bottom { display: inline-flex; align-items: center; gap: 6px; bottom: -14px; left: 16px; background: var(--rdpc-blue); }
+    }
+    .app-frame {
+      background: #fff;
+      border: 1px solid var(--slate-200);
+      border-radius: 28px;
+      box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.14);
+      overflow: hidden;
+    }
+    .app-bar {
+      padding: 10px 16px;
+      background: var(--slate-100);
+      border-bottom: 1px solid var(--slate-200);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .dots { display: flex; gap: 6px; }
+    .dots span { width: 10px; height: 10px; border-radius: 999px; background: #cbd5e1; }
+    .app-url {
+      padding: 4px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--slate-200);
+      font-size: 11px; font-weight: 600; color: var(--slate-500);
+    }
+    .app-tag {
+      padding: 2px 8px; border-radius: 6px; background: rgba(0, 122, 94, 0.12);
+      color: var(--cam-green); font-size: 10px; font-weight: 800;
+    }
+    .app-body { display: grid; grid-template-columns: 150px 1fr; min-height: 300px; background: var(--slate-50); }
+    @media (max-width: 520px) { .app-body { grid-template-columns: 1fr; } }
+    .app-side { background: #fff; border-right: 1px solid var(--slate-100); padding: 12px; }
+    .app-side-head { padding: 0 8px 8px; margin-bottom: 8px; border-bottom: 1px solid var(--slate-100); }
+    .app-nav-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; color: var(--slate-500); margin-bottom: 2px;
+    }
+    .app-nav-item.active { background: #eff6ff; color: var(--rdpc-blue); font-weight: 700; }
+    .badge-red { background: var(--cam-red); color: #fff; font-size: 9px; font-weight: 900; padding: 1px 6px; border-radius: 999px; }
+    .app-main { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .app-search {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 8px 12px; border-radius: 12px; background: #fff; border: 1px solid var(--slate-200);
+      font-size: 12px; color: var(--slate-600);
+    }
+    .mini-card {
+      padding: 11px 12px; border-radius: 16px; background: #fff; border: 1px solid var(--slate-100);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+    }
+    .mini-card.rejected { border-color: #fecaca; }
+    .mini-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .mini-title { font-size: 12px; font-weight: 700; color: var(--slate-800); margin: 0; }
+    .mini-meta { font-size: 10px; color: var(--slate-400); margin: 2px 0 0; }
+    .status { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 7px; white-space: nowrap; }
+    .status.ok { background: #ecfdf5; color: var(--cam-green); }
+    .status.wait { background: #fffbeb; color: #b45309; }
+    .status.ko { background: #fef2f2; color: var(--cam-red); }
+    .motif-box { margin: 6px 0 0; padding: 5px 8px; border-radius: 8px; background: #fef2f2; color: #991b1b; font-size: 10px; }
+
+    /* Stats */
+    .stats-band { background: #fff; border-top: 1px solid var(--slate-200); border-bottom: 1px solid var(--slate-200); padding: 28px 0; }
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (min-width: 900px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 22px; } }
+    .stat-card { padding: 20px; border-radius: 22px; background: var(--slate-50); border: 1px solid var(--slate-100); }
+    .stat-num { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; }
+    .stat-num.blue { color: var(--rdpc-blue); }
+    .stat-num.green { color: var(--cam-green); }
+    .stat-label { font-size: 12px; font-weight: 700; color: var(--slate-800); margin-top: 4px; }
+    .stat-desc { font-size: 12px; color: var(--slate-500); margin: 4px 0 0; }
+
+    /* Sections */
+    .section { padding: 64px 0; }
+    .section-white { padding: 64px 0; background: #fff; border-top: 1px solid var(--slate-200); border-bottom: 1px solid var(--slate-200); }
+    .kicker { display: inline-block; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: var(--rdpc-blue); }
+    .kicker.green { color: var(--cam-green); }
+    .kicker.yellow { color: var(--cam-yellow); }
+    .h2 { font-size: clamp(24px, 2.8vw, 32px); font-weight: 900; letter-spacing: -0.02em; color: var(--slate-900); margin: 8px 0 0; max-width: 680px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 36px; }
+    @media (min-width: 768px) { .grid-2 { grid-template-columns: repeat(2, 1fr); } }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid #fff;
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: 0 18px 40px -16px rgba(15, 23, 42, 0.08);
+    }
+    .icon-box { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+    .icon-box.blue { background: #eff6ff; color: var(--rdpc-blue); }
+    .icon-box.green { background: #ecfdf5; color: var(--cam-green); }
+    .card-h3 { font-size: 18px; font-weight: 900; margin: 0 0 8px; color: var(--slate-900); }
+    .before-txt { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--slate-400); margin: 0 0 10px; }
+    .card-p { font-size: 14px; color: var(--slate-600); margin: 0; }
+
+    /* Rôles */
+    .roles-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .role-btn {
+      padding: 8px 14px; border-radius: 12px; border: 0; cursor: pointer;
+      font-size: 12px; font-weight: 700; background: var(--slate-100); color: var(--slate-600);
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .role-btn.active { background: var(--rdpc-blue); color: #fff; }
+    .roles-grid { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 28px; }
+    @media (min-width: 640px) { .roles-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1024px) { .roles-grid { grid-template-columns: repeat(4, 1fr); } }
+    .role-card {
+      padding: 22px; border-radius: 24px; background: var(--slate-50); border: 1px solid var(--slate-200);
+      display: flex; flex-direction: column; justify-content: space-between; gap: 16px;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .role-badge { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; }
+    .role-foot { font-size: 12px; color: var(--slate-500); padding-top: 12px; border-top: 1px solid var(--slate-200); margin: 0; }
+
+    /* Bloc sombre Confidentialité */
+    .dark-box {
+      background: var(--slate-900); color: #fff; border-radius: 36px; padding: 40px 28px;
+      box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.35);
+    }
+    @media (min-width: 768px) { .dark-box { padding: 52px; } }
+    .dark-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 32px; }
+    @media (min-width: 640px) { .dark-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1024px) { .dark-grid { grid-template-columns: repeat(4, 1fr); } }
+    .dark-card { padding: 22px; border-radius: 22px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
+    .dark-card-title { font-size: 14px; font-weight: 800; color: var(--cam-yellow); margin-bottom: 8px; }
+    .dark-card p { font-size: 13px; color: #cbd5e1; margin: 0; }
+
+    /* 3 étapes */
+    .grid-3 { display: grid; grid-template-columns: 1fr; gap: 22px; margin-top: 32px; }
+    @media (min-width: 768px) { .grid-3 { grid-template-columns: repeat(3, 1fr); } }
+    .step-num {
+      display: inline-flex; width: 36px; height: 36px; border-radius: 12px; color: #fff;
+      font-size: 12px; font-weight: 900; align-items: center; justify-content: center; margin-bottom: 12px;
+    }
+
+    /* Formulaire & Note A4 */
+    .cta-box {
+      background: #fff; border: 1px solid var(--slate-200); border-radius: 34px; padding: 32px;
+      box-shadow: 0 22px 46px -18px rgba(15, 23, 42, 0.1);
+      display: grid; grid-template-columns: 1fr; gap: 32px;
+    }
+    @media (min-width: 960px) { .cta-box { grid-template-columns: 1.35fr 1fr; padding: 44px; } }
+    .form-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 20px; }
+    @media (min-width: 640px) { .form-grid { grid-template-columns: repeat(2, 1fr); } }
+    .form-full { grid-column: 1 / -1; }
+    .field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--slate-600); margin-bottom: 5px; }
+    .field input {
+      width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--slate-200);
+      background: var(--slate-50); font-size: 14px; outline: none;
+    }
+    .field input:focus { background: #fff; border-color: var(--rdpc-blue); }
+    .a4-box {
+      padding: 26px; border-radius: 24px; background: var(--slate-50); border: 1px solid var(--slate-200);
+      display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+    }
+
+    /* Footer */
+    .footer { background: #fff; border-top: 1px solid var(--slate-200); padding: 28px 0; font-size: 12px; color: var(--slate-500); }
+    .footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+
+    /* Modale A4 */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: rgba(15, 23, 42, 0.65); padding: 16px; overflow-y: auto;
+      align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      background: #fff; border-radius: 28px; max-width: 680px; width: 100%;
+      max-height: calc(100vh - 2rem); overflow-y: auto;
+      padding: 32px; box-shadow: 0 25px 50px rgba(15, 23, 42, 0.3);
+    }
+    .hidden { display: none; }
+    @media print { .no-print { display: none !important; } }
+  </style>
+</head>
+<body>
+
+  <div class="tricolor-bar sticky-top no-print"></div>
+
+  <header class="header no-print">
+    <div class="container header-inner">
+      <a href="#top" class="brand">
+        <img src="/edossier/icon-small.png" onerror="this.onerror=null;this.src='/icon-small.png';" alt="Logo E-Dossier" class="brand-logo" />
+        <div>
+          <span class="brand-title">E-Dossier</span>
+          <span class="brand-sub">Cameroun <span class="red">GED</span></span>
+        </div>
+      </a>
+
+      <nav aria-label="Navigation principale" class="nav-links">
+        <a href="#benefices">Ce que ça change</a>
+        <a href="#roles">Qui fait quoi</a>
+        <a href="#garanties">Confidentialité</a>
+        <a href="#demarrer">Comment démarrer</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="/edossier/" class="btn-ghost">
+          <span>Espace agents</span>
+        </a>
+        <a href="#demo" class="btn-primary">Demander une présentation</a>
+      </div>
+    </div>
+  </header>
+
+  <section id="top" class="hero no-print">
+    <div class="container hero-grid">
+      <div>
+        <div class="pill" style="background:rgba(0,85,164,0.08);color:var(--rdpc-blue);border-color:rgba(0,85,164,0.22);">
+          <span class="flag-chip" aria-hidden="true"><span class="g"></span><span class="r">★</span><span class="y"></span></span>
+          République du Cameroun · Administrations publiques
+        </div>
+        <h1>
+          Plus aucun dossier égaré.
+          <span class="accent">Chaque courrier retrouvé et suivi jusqu’au visa.</span>
+        </h1>
+        <p class="hero-lead">
+          Vos agents rangent leurs dossiers pleins de Word, Excel et PDF en désordre, envoient leurs courriers au visa du chef depuis leur bureau, et retrouvent n’importe quelle pièce — même photographiée — en deux secondes.
+        </p>
+        <div class="hero-cta">
+          <a href="#demo" class="btn-primary">Demander une présentation</a>
+          <button type="button" onclick="openPdfModal()" class="btn-secondary">Note d’une page pour le parapheur</button>
+        </div>
+        <div class="reassure">
+          <span>✓ Vos dossiers restent au Cameroun, au ministère</span>
+          <span>✓ Marche même si Internet coupe</span>
+          <span>✓ Testable sur une seule direction</span>
+        </div>
+      </div>
+
+      <div class="preview-wrap">
+        <div class="float-badge-top">Lit même les courriers scannés</div>
+        <div class="app-frame">
+          <div class="app-bar">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <div class="app-url">Espace de travail — Ministère des Finances</div>
+            <span class="app-tag">DAF</span>
+          </div>
+          <div class="app-body">
+            <aside class="app-side">
+              <div class="app-side-head">
+                <strong style="font-size:12px;font-style:italic;text-transform:uppercase;">E-Dossier</strong><br />
+                <span style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Mon bureau</span>
+              </div>
+              <div class="app-nav-item active">Tableau de Bord</div>
+              <div class="app-nav-item">Mes Documents</div>
+              <div class="app-nav-item"><span>À viser</span> <span class="badge-red">3</span></div>
+              <div class="app-nav-item">Contrôle / Audit</div>
+              <div class="app-nav-item">Corbeille</div>
+            </aside>
+            <div class="app-main">
+              <div class="app-search">
+                <span>Décret budgétaire 2026</span>
+                <span style="font-size:10px;font-weight:800;color:#007A5E;">Trouvé aussitôt</span>
+              </div>
+              <div class="mini-card">
+                <div class="mini-row">
+                  <div>
+                    <p class="mini-title">Décret budgétaire — Exercice 2026</p>
+                    <p class="mini-meta">DAF · Finances · Rangé au bon dossier</p>
+                  </div>
+                  <span class="status ok">Validé</span>
+                </div>
+              </div>
+              <div class="mini-card">
+                <div class="mini-row">
+                  <div>
+                    <p class="mini-title">Note de service n° 042 — Dotation matériel</p>
+                    <p class="mini-meta">Chez le Directeur pour signature</p>
+                  </div>
+                  <span class="status wait">En attente</span>
+                </div>
+              </div>
+              <div class="mini-card rejected">
+                <div class="mini-row">
+                  <div>
+                    <p class="mini-title">Bordereau de frais mission Garoua</p>
+                  </div>
+                  <span class="status ko">Renvoyé</span>
+                </div>
+                <p class="motif-box"><strong>Motif du chef :</strong> Pièce jointe manquante — merci d’ajouter le devis signé.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="float-badge-bottom">On sait toujours qui a fait quoi et quand</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats-band no-print">
+    <div class="container stats-grid">
+      <div class="stat-card">
+        <div class="stat-num blue">2 secondes</div>
+        <div class="stat-label">Pour retrouver un courrier</div>
+        <p class="stat-desc">Au lieu de fouiller les armoires pendant 30 minutes.</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num green">&lt; 30 sec</div>
+        <div class="stat-label">Pour lire une photo</div>
+        <p class="stat-desc">Un courrier pris en photo devient cherchable par ses mots.</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num blue">100 %</div>
+        <div class="stat-label">Des gestes enregistrés</div>
+        <p class="stat-desc">Qui a déposé, consulté, visé ou renvoyé, avec l’heure exacte.</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num green">0</div>
+        <div class="stat-label">Dossier envoyé à l’étranger</div>
+        <p class="stat-desc">Tout reste sur les ordinateurs de votre ministère.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="benefices" class="section no-print">
+    <div class="container">
+      <span class="kicker">La vie réelle du service</span>
+      <h2 class="h2">Fini les parapheurs bloqués dans un bureau et les archives introuvables.</h2>
+
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="icon-box blue">✓</div>
+          <h3 class="card-h3">On sait toujours où est le dossier</h3>
+          <p class="before-txt">Avant : on appelle trois bureaux pour savoir qui a le parapheur</p>
+          <p class="card-p">L’agent envoie son dossier au chef en un clic. Le chef le lit à l’écran, le vise ou le renvoie en expliquant exactement quelle pièce manque.</p>
+        </div>
+
+        <div class="glass-card">
+          <div class="icon-box green">⌕</div>
+          <h3 class="card-h3">Retrouver un ancien courrier en deux secondes</h3>
+          <p class="before-txt">Avant : des heures à ouvrir des classeurs ou des dossiers mal nommés</p>
+          <p class="card-p">Tapez un nom, un numéro ou un mot présent dans le texte du courrier — même s’il s’agit d’une feuille scannée ou prise en photo. Le document s’affiche aussitôt.</p>
+        </div>
+
+        <div class="glass-card">
+          <div class="icon-box blue">▤</div>
+          <h3 class="card-h3">Ranger votre ordinateur en désordre</h3>
+          <p class="before-txt">Avant : le bureau et les dossiers remplis de Word, Excel et PDF mélangés</p>
+          <p class="card-p">Choisissez un dossier rempli de fichiers en vrac sur votre PC : E-Dossier les trie tout seuls par thème et par année, range les dossiers propres sur votre ordinateur ou dans l’archive du service, et repère les copies en double.</p>
+        </div>
+
+        <div class="glass-card">
+          <div class="icon-box green">☰</div>
+          <h3 class="card-h3">Un registre clair pour l’inspection</h3>
+          <p class="before-txt">Avant : difficile de prouver qui a vu, validé ou supprimé une pièce</p>
+          <p class="card-p">L’inspection ou l’auditeur consulte l’historique complet (qui, quoi, quand), filtre par agent et télécharge un tableau prêt pour Excel.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roles" class="section-white no-print">
+    <div class="container">
+      <div class="roles-head">
+        <div>
+          <span class="kicker green">Respect de la hiérarchie</span>
+          <h2 class="h2">Chacun ne voit que ce qui concerne son poste.</h2>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Filtrer par fonction">
+          <button type="button" onclick="selectRole('all')" data-role-btn="all" class="role-btn active">Tous</button>
+          <button type="button" onclick="selectRole('agent')" data-role-btn="agent" class="role-btn">Agent / Secrétariat</button>
+          <button type="button" onclick="selectRole('manager')" data-role-btn="manager" class="role-btn">Chef / Directeur</button>
+          <button type="button" onclick="selectRole('admin')" data-role-btn="admin" class="role-btn">Responsable organisation</button>
+          <button type="button" onclick="selectRole('auditor')" data-role-btn="auditor" class="role-btn">Inspection / Audit</button>
+        </div>
+      </div>
+
+      <div class="roles-grid">
+        <article data-role-card="agent" class="role-card">
+          <div>
+            <span class="role-badge" style="background:rgba(0,122,94,0.12);color:#007A5E;">Agent / Secrétariat</span>
+            <p class="card-p">Dépose les courriers, les envoie au visa de son chef et corrige un dossier s’il est renvoyé.</p>
+          </div>
+          <p class="role-foot"><strong>Ce qu’il ne voit pas :</strong> les dossiers des autres directions et les réglages.</p>
+        </article>
+
+        <article data-role-card="manager" class="role-card">
+          <div>
+            <span class="role-badge" style="background:#fef3c7;color:#92400e;">Chef de service / Directeur</span>
+            <p class="card-p">Relit chaque pièce avant de viser ou de renvoyer avec un motif, et suit les délais de son service.</p>
+          </div>
+          <p class="role-foot"><strong>Ce qu’il ne fait pas :</strong> ne modifie pas le fichier de l’agent ; reste limité à sa direction.</p>
+        </article>
+
+        <article data-role-card="admin" class="role-card">
+          <div>
+            <span class="role-badge" style="background:#dbeafe;color:#0055A4;">Responsable organisation</span>
+            <p class="card-p">Crée les comptes des agents, tient à jour l’organigramme et importe les anciens dossiers du service.</p>
+          </div>
+          <p class="role-foot"><strong>Contrôle :</strong> chacune de ses actions est notée dans le registre.</p>
+        </article>
+
+        <article data-role-card="auditor" class="role-card">
+          <div>
+            <span class="role-badge" style="background:#e2e8f0;color:#334155;">Inspection / Audit</span>
+            <p class="card-p">Vérifie l’historique complet des opérations, filtre par agent et sort un état prêt pour Excel.</p>
+          </div>
+          <p class="role-foot"><strong>Ce qu’il ne fait pas :</strong> lecture seule stricte, ne peut rien modifier ni supprimer.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="garanties" class="section no-print">
+    <div class="container">
+      <div class="dark-box" style="position:relative;overflow:hidden;border-top:4px solid var(--rdpc-blue);">
+        <div class="tricolor-bar" style="position:absolute;top:0;left:0;right:0;height:4px;"></div>
+        <span class="kicker yellow">Souveraineté du Cameroun · Confidentialité</span>
+        <h2 class="h2" style="color:#fff;">Vos dossiers restent au Cameroun, sous votre contrôle.</h2>
+        <p style="font-size:15px;color:#cbd5e1;margin:10px 0 0;max-width:600px;">
+          Quatre garanties simples pour le Secrétariat Général comme pour votre cellule informatique.
+        </p>
+
+        <div class="dark-grid">
+          <div class="dark-card">
+            <div class="dark-card-title">1. Aucune fuite hors du ministère</div>
+            <p>L’outil est installé dans vos propres locaux. Vos courriers ne partent jamais sur des serveurs étrangers.</p>
+          </div>
+          <div class="dark-card">
+            <div class="dark-card-title">2. Chaque direction chez soi</div>
+            <p>Les Ressources Humaines ne peuvent jamais ouvrir ni chercher dans les dossiers de la Direction Financière.</p>
+          </div>
+          <div class="dark-card">
+            <div class="dark-card-title">3. Marche sur vos PC actuels</div>
+            <p>S’ouvre simplement dans le navigateur internet du bureau, même sur des postes anciens, sans logiciel à acheter.</p>
+          </div>
+          <div class="dark-card">
+            <div class="dark-card-title">4. Sauvegarde et reprise testées</div>
+            <p>Vos archives sont sauvegardées régulièrement et la remise en route en cas de panne a déjà été vérifiée.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demarrer" class="section no-print" style="padding-top:16px;">
+    <div class="container">
+      <span class="kicker">Comment démarrer sans risque</span>
+      <h2 class="h2">On commence dans une seule direction, puis on étend si vous êtes satisfaits.</h2>
+
+      <div class="grid-3">
+        <div class="glass-card">
+          <span class="step-num" style="background:var(--rdpc-blue);">01</span>
+          <h3 class="card-h3">Présentation sur vos courriers (1 h)</h3>
+          <p class="card-p">Nous faisons devant vous un dépôt, un visa, un renvoi et une recherche à partir de vrais exemples de courriers.</p>
+        </div>
+        <div class="glass-card">
+          <span class="step-num" style="background:var(--cam-green);">02</span>
+          <h3 class="card-h3">Essai dans 1 direction (2 à 4 sem.)</h3>
+          <p class="card-p">Mise en service sur une seule direction volontaire (ex. DAF ou DRH) pour vérifier le gain de temps au quotidien.</p>
+        </div>
+        <div class="glass-card">
+          <span class="step-num" style="background:var(--slate-800);">03</span>
+          <h3 class="card-h3">Ouverture aux autres services</h3>
+          <p class="card-p">Une fois l’essai validé par le Secrétariat Général, les autres directions sont ajoutées progressivement.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="section no-print" style="padding-top:16px;">
+    <div class="container">
+      <div class="cta-box">
+        <div>
+          <span class="kicker">Prendre rendez-vous</span>
+          <h2 class="h2" style="font-size:24px;">Voir E-Dossier sur vos propres dossiers.</h2>
+          <p style="font-size:14px;color:var(--slate-600);margin:6px 0 0;">Laissez vos coordonnées ou ouvrez directement l’espace de démonstration des agents.</p>
+
+          <form id="demoForm" onsubmit="submitDemo(event)" class="form-grid">
+            <div class="field">
+              <label for="f-nom">Nom et fonction *</label>
+              <input id="f-nom" required type="text" placeholder="Ex. Directeur des Affaires Financières" />
+            </div>
+            <div class="field">
+              <label for="f-min">Ministère / Organisme *</label>
+              <input id="f-min" required type="text" placeholder="Ex. Ministère des Finances" />
+            </div>
+            <div class="field">
+              <label for="f-contact">Téléphone ou email pro *</label>
+              <input id="f-contact" required type="text" placeholder="prenom.nom@ministere.cm" />
+            </div>
+            <div class="field">
+              <label for="f-dir">Direction pour l’essai (facultatif)</label>
+              <input id="f-dir" type="text" placeholder="Ex. DAF, DRH, Courrier central" />
+            </div>
+            <div class="form-full" style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding-top:4px;">
+              <button type="submit" class="btn-primary">Demander une présentation</button>
+              <a href="/edossier/" class="btn-secondary">Tester l’espace agents</a>
+              <span id="formSuccess" class="hidden" style="font-size:12px;font-weight:700;color:var(--cam-green);">
+                Demande enregistrée localement.
+              </span>
+            </div>
+          </form>
+        </div>
+
+        <div class="a4-box">
+          <div>
+            <span class="pill">Document pour le parapheur</span>
+            <h3 style="font-size:18px;font-weight:900;margin:14px 0 8px;">À soumettre au Secrétaire Général ou au Ministre ?</h3>
+            <p class="card-p">Imprimez la note de synthèse d’une page (format A4) prête à joindre au dossier de décision : avantages, garanties et proposition d’essai sur une direction.</p>
+          </div>
+          <button type="button" onclick="openPdfModal()" class="btn-green">Voir et imprimer la note (A4)</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer no-print">
+    <div class="container footer-inner">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="flag-chip" aria-hidden="true"><span class="g"></span><span class="r">★</span><span class="y"></span></span>
+        <span><strong style="font-style:italic;text-transform:uppercase;color:var(--slate-800);">E-Dossier</strong> · Modernisation des administrations publiques du Cameroun</span>
+      </div>
+      <div style="display:flex;gap:20px;font-weight:700;">
+        <a href="/edossier/" style="color:var(--rdpc-blue);">Espace agents (/edossier/)</a>
+        <a href="#demo">Demander une présentation</a>
+      </div>
+    </div>
+  </footer>
+  <div class="tricolor-bar no-print"></div>
+
+  <!-- Modale Note A4 imprimable -->
+  <div id="pdfModal" role="dialog" aria-modal="true" aria-labelledby="pdfTitle" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="tricolor-bar" style="border-radius:999px;margin-bottom:18px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+        <div>
+          <span class="kicker green">Note de synthèse · 1 page A4</span>
+          <h3 id="pdfTitle" style="font-size:20px;font-weight:900;margin:4px 0 0;">E-Dossier — Suivi des courriers et archives du ministère</h3>
+        </div>
+        <button type="button" onclick="closePdfModal()" aria-label="Fermer l'aperçu" class="btn-secondary no-print" style="padding:6px 12px;border-radius:999px;">✕</button>
+      </div>
+
+      <div style="margin:18px 0;padding:18px;border-radius:16px;background:var(--slate-50);border:1px solid var(--slate-200);font-size:13px;color:var(--slate-700);">
+        <p style="margin-top:0;"><strong>Objet :</strong> Accélérer le traitement des dossiers, éviter les pertes de pièces et garder une trace claire des visas, tout en conservant 100 % des archives au ministère.</p>
+        <div class="grid-2" style="margin-top:12px;gap:12px;">
+          <div style="padding:12px;border-radius:12px;background:#fff;border:1px solid var(--slate-100);">
+            <strong style="color:var(--rdpc-blue);display:block;margin-bottom:6px;">4 gains quotidiens</strong>
+            <ul style="margin:0;padding-left:18px;color:var(--slate-600);">
+              <li>Suivi clair de chaque visa et renvoi</li>
+              <li>Recherche en 2 s (même sur les scans)</li>
+              <li>Rangement des Word, Excel et PDF en vrac</li>
+              <li>Registre d’audit exportable pour Excel</li>
+            </ul>
+          </div>
+          <div style="padding:12px;border-radius:12px;background:#fff;border:1px solid var(--slate-100);">
+            <strong style="color:var(--cam-green);display:block;margin-bottom:6px;">4 garanties</strong>
+            <ul style="margin:0;padding-left:18px;color:var(--slate-600);">
+              <li>Installé au ministère (marche sans Internet)</li>
+              <li>Chaque direction ne voit que ses dossiers</li>
+              <li>Fonctionne sur les PC déjà en place</li>
+              <li>Sauvegardes et reprise testées</li>
+            </ul>
+          </div>
+        </div>
+        <p style="margin-bottom:0;margin-top:12px;"><strong>Proposition :</strong> Essai sur une seule direction (DAF ou DRH) pendant 2 à 4 semaines avant toute décision de généralisation.</p>
+      </div>
+
+      <div class="no-print" style="display:flex;justify-content:flex-end;gap:10px;">
+        <button type="button" onclick="closePdfModal()" class="btn-secondary">Fermer</button>
+        <button type="button" onclick="window.print()" class="btn-primary">Imprimer / Enregistrer en PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function selectRole(role) {
+      var btns = document.querySelectorAll('.role-btn');
+      for (var i = 0; i < btns.length; i++) {
+        var active = btns[i].getAttribute('data-role-btn') === role;
+        btns[i].className = active ? 'role-btn active' : 'role-btn';
+      }
+      var cards = document.querySelectorAll('[data-role-card]');
+      for (var j = 0; j < cards.length; j++) {
+        var match = role === 'all' || cards[j].getAttribute('data-role-card') === role;
+        cards[j].style.opacity = match ? '1' : '0.32';
+        cards[j].style.transform = match && role !== 'all' ? 'scale(1.02)' : 'scale(1)';
+      }
+    }
+
+    function submitDemo(e) {
+      e.preventDefault();
+      var el = document.getElementById('formSuccess');
+      if (el) el.className = '';
+    }
+
+    function openPdfModal() {
+      var m = document.getElementById('pdfModal');
+      if (m) m.className = 'modal-backdrop open';
+    }
+
+    function closePdfModal() {
+      var m = document.getElementById('pdfModal');
+      if (m) m.className = 'modal-backdrop';
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closePdfModal();
+    });
+  </script>
+</body>
+</html>
+
