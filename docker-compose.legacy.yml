@@ -1,0 +1,64 @@
+# LMV-1 — moteurs anciens sur la vraie API (gestion-projet/innovateur/labo-multi-versions.md).
+# Surcharge de docker-compose.e2e.yml : postgres, redis et api restent ceux de la pile e2e.
+#   web : build de production (VITE_API_URL=/api/v1) servi par vite preview, proxy /api comme nginx.
+#   e2e : image Playwright épinglée qui embarque le moteur ancien ; elle ouvre l'app par l'IP du
+#         conteneur web, en HTTP, comme un poste du réseau local (contexte non sécurisé).
+#
+# Un moteur par passe (LEGACY_PW = tag de l'image, sa version fixe celle de @playwright/test) :
+#   LEGACY_PW=1.29.2-focal LEGACY_ENGINE=chromium LEGACY_LABEL=chromium-109 \
+#     docker compose -f docker-compose.e2e.yml -f docker-compose.legacy.yml -p lmv1 up --build --abort-on-container-exit --exit-code-from e2e
+#   LEGACY_PW=1.36.2-jammy  LEGACY_ENGINE=firefox  LEGACY_LABEL=firefox-115   (même commande)
+#   LEGACY_PW=1.27.1-focal  LEGACY_ENGINE=chromium LEGACY_LABEL=chromium-107  (moteur sans dvh)
+#   docker compose -f docker-compose.e2e.yml -f docker-compose.legacy.yml -p lmv1 down -v
+# Le moteur réellement lancé est affiché en tête de passe (« moteur : ... »).
+
+services:
+  web:
+    image: node:22-bookworm-slim
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1.5
+    logging: { driver: json-file, options: { max-size: "1m", max-file: "2" } }
+    working_dir: /app
+    environment:
+      HUSKY: "0"
+      VITE_API_URL: /api/v1
+      LEGACY_API_TARGET: http://api:8000
+      NODE_OPTIONS: --max-old-space-size=768
+    volumes:
+      - ./frontend:/src:ro
+    command: >-
+      bash -c "tar -C /src --exclude=./node_modules --exclude=./dist --exclude=./e2e-out
+      --exclude=./playwright-report --exclude=./test-results --exclude=./.auth -cf - . | tar -xf -
+      && npm ci --no-audit --no-fund --loglevel=error
+      && npx vite build --config e2e-legacy/vite.legacy.config.ts --logLevel warn
+      && npx vite preview --config e2e-legacy/vite.legacy.config.ts"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/edossier/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 120s
+    depends_on:
+      api:
+        condition: service_healthy
+
+  e2e:
+    image: mcr.microsoft.com/playwright:v${LEGACY_PW:-1.29.2-focal}
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    environment:
+      LEGACY_PW: ${LEGACY_PW:-1.29.2-focal}
+      LEGACY_ENGINE: ${LEGACY_ENGINE:-chromium}
+      LEGACY_LABEL: ${LEGACY_LABEL:-}
+    command: >-
+      bash -c "tar -C /src/e2e-legacy -cf - . | tar -xf -
+      && npm init -y >/dev/null
+      && npm i --no-save --no-audit --no-fund --loglevel=error @playwright/test@$${LEGACY_PW%%-*}
+      && node -e \"const pw=require('@playwright/test');const b=pw[process.env.LEGACY_ENGINE];b.launch().then(async x=>{console.log('moteur : '+process.env.LEGACY_ENGINE+' '+x.version());await x.close()})\"
+      && export LEGACY_BASE_URL=http://$$(getent hosts web | awk '{print $$1}'):4173/edossier/
+      && echo \"app : $$LEGACY_BASE_URL\"
+      && npx playwright test -c playwright.config.ts --output=/out/legacy-results"
+    depends_on:
+      web:
+        condition: service_healthy
