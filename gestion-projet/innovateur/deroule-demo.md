@@ -4,8 +4,13 @@
 - **Règle de lecture** : ce déroulé **renvoie**, il ne recopie pas. Étapes détaillées d'un parcours → `parcours-demo.md` § 2 ; état et preuves → `matrice-recette.md` ; phrases d'écart et questions complètes → `plan-presentation.md` § 3-4 ; préparation des postes et conduite de séance → `checklist-demo.md` § B-C. Les comptes sont désignés par **identifiant seul** (`seed_db.py`), jamais par mot de passe.
 - **Révision du 21/11 (recette rec10)** :
   - REC-06 : l'import du P2 est fait par l'administrateur `MINFI001`, car `MINFI002` n'a pas accès à `/ingestion` (`frontend/App.tsx:273`).
-  - P4 : libellés de l'arbre réel ; geste en deux variantes (§ 1 ter), en attente de la décision du PO sur REC-04 et REC-05.
+  - P4 : libellés de l'arbre réel ; geste du manager après les correctifs REC-04 et REC-05 accordés par le PO (§ 1 ter).
+  - P2 : ré-import après REC-07 (`parcours-demo.md` P2, étape 8).
   - P7 : traces lues par agent.
+  - REC-08 : le P5 commence avec `MGR001`, pas `MINFI002` (un collaborateur ne cherche que dans ses propres documents).
+  - REC-09 : l'écran n'affiche pas le temps de réponse ; il se montre par le repli `GET /search` (`took_ms`).
+  - REC-10 : requête de contrôle n° 10 = « lettre » (4 documents à la DAF, 8 à la DSI).
+  - P4 : l'historique des versions s'ouvre par « Mes Documents », pas par « Espaces ».
 - **Cadre** (plan § 1) : 20 min = ouverture 2 + **direct 13 ± 1** + écarts 2 + questions 3. Deux fenêtres de navigateur sur le poste principal : **fenêtre A** = rédacteur `MINFI002` (collaborateur DAF), connectée en direct au P1 et gardée jusqu'à la fin ; **fenêtre B** = profils qui changent (administrateur `MINFI001` → `MGR001` → `READ001` → `AUDIT001`), l'administrateur étant connecté **avant** la séance (H-5). Quatre connexions en direct au total, loin de la limite « 4 par minute » (checklist § C Pendant). *À vérifier le 27* : la session administrateur ouverte à H-5 tient-elle 20 min sans reconnexion (durée du jeton d'accès) ? sinon la connecter à H-1 min.
 
 ## 1. Chronologie
@@ -17,8 +22,8 @@
 | 3:30–6:00 | **P2** import + classement | 2:30 | B — administrateur `MINFI001` : `/rules`, règle seed « Factures » (`demo_rule_05` → DAF, Finances et comptabilité) **active** (10 s) ; puis, toujours en B, `/ingestion` → `/data/ingest/live`. Pas en A : le rédacteur `MINFI002` n'a pas accès à `/ingestion` (REC-06, `App.tsx:273`) | `demo-import/live/` (≈ 30 fichiers, doublons et hors règle compris, `jeu-donnees-demo.md` § 3), chemin **`/data/ingest`** (seul autorisé, spec upload § 5) | compteur d'import, documents dans l'arborescence, **doublons refusés**, « reste à classer » non nul | « Rien n'a été classé par magie : voici la règle, et ce qui se passe avant qu'on en active une. » |
 | 6:00–7:30 | **P3** simulation de règle | 1:30 | B — administrateur, `/rules` | règle 10 « Rapports financiers » du seed, **inactive** : la simuler plutôt que créer (gagne 40 s) ; corpus 420 documents, 4 services | tableau avant/après, **aucun déplacement** tant que la règle est inactive | **Moment d'écart n° 1** (§ 3) puis : « Ce que la règle ne sait pas classer attend un humain. » |
 | 7:30–8:30 | **P6** revue manuelle | 1:00 | B — administrateur, `/needs-review` | les « sans règle » du P2 (+ ≈ 15 documents à revoir du seed) | raison affichée, choix service/domaine/activité/année, le document quitte la liste | « Le document est à sa place ; allons le retrouver comme un chef de service. » |
-| 8:30–10:00 | **P4** espaces | 1:30 | B — `MGR001` (manager DAF), `/spaces` | arbre DAF → Finances et comptabilité → Marchés publics → 2025 ; 137 documents à la DAF, dont 62 en 2025 (relevé de B, recette du 21/11) ; corpus 420 | geste selon la variante retenue au **§ 1 ter** ; dans les deux cas : classement sur 4 niveaux, ouverture d'un document (métadonnées, historique des versions) ; pagination **seulement si livrée** (D2 : premier sacrifice, phrase « tout tient sur une page ») | « Et quand on ne sait pas où il est ? On cherche. » |
-| 10:00–12:00 | **P5** recherche + cloisonnement | 2:00 | A — `MINFI002` : recherche ; puis B — `READ001` (lecteur DSI), même recherche | mot-clé présent dans DAF **et** DSI (requête n° 10 de `c3-queries.txt`, figée le 18) ; 1 document DAF à mettre en corbeille avant la seconde recherche | **temps de réponse affiché** (C3), deux listes différentes pour la même requête, document en corbeille absent | « Un document n'est pas seulement rangé : il est validé. » |
+| 8:30–10:00 | **P4** espaces | 1:30 | B — `MGR001` (manager DAF), `/spaces` | arbre DAF → Finances et comptabilité → Marchés publics → 2025 ; 137 documents à la DAF, dont 62 en 2025 (relevé de B, recette du 21/11) ; corpus 420 | geste selon la variante retenue au **§ 1 ter** ; dans les deux cas : classement sur 4 niveaux, ouverture d'un document (métadonnées) ; historique des versions par « Mes Documents » → document → onglet « Historique des Versions » ; pagination **seulement si livrée** (D2 : premier sacrifice, phrase « tout tient sur une page ») | « Et quand on ne sait pas où il est ? On cherche. » |
+| 10:00–12:00 | **P5** recherche + cloisonnement | 2:00 | B — `MGR001` (manager DAF) : recherche ; puis B — `READ001` (lecteur DSI), même recherche. Pas `MINFI002` : un collaborateur ne cherche que dans ses propres documents (REC-08, `search.py:61-62`) | « facture » : 21 résultats pour `MGR001` ; requête de contrôle « lettre », présente dans DAF **et** DSI : 4 documents DAF, 8 DSI (REC-10) ; 1 document DAF à mettre en corbeille avant la seconde recherche | deux listes différentes pour la même requête, document en corbeille absent ; l'écran n'affiche pas le temps de réponse : il se montre par le repli (`GET /search`, `took_ms`, 6 à 15 ms mesurés à la recette ; REC-09) | « Un document n'est pas seulement rangé : il est validé. » |
 | 12:00–14:00 | **P8** cycle de validation | 2:00 | A — `MINFI002` soumet au circuit ; B — `MGR001` vise un document, en **rejette** un autre avec motif ; retour A | circuit `E2E-WF-VALID`, 2 documents DAF dédiés (seed PR 2 de Q) | choix du validateur, tâche en attente côté manager, **motif saisi**, statut Visé / Rejeté visible chez le rédacteur | **Moment d'écart n° 2** (§ 3) puis : « Tout ce que vous venez de voir a laissé une trace. » |
 | 14:00–15:00 | **P7** journal d'audit | 1:00 | B — `AUDIT001`, `/audit`, filtre `MINFI002` + aujourd'hui | traces produites par P1→P8 | d'abord le filtre « aujourd'hui » seul : les actions de la séance dans l'ordre, avec leur auteur (`MINFI002` connexion et soumission ; `MINFI001` import et revue ; `MGR001` visa et rejet) ; puis le filtre `MINFI002` : ses seules actions. Rôle **lecture seule** | « Voilà ce qui marche. Voici ce qui manque. » |
 | 15:00–17:00 | Écarts | 2:00 | aucune | — | les écarts non encore dits de la liste plan § 3 (1, 5, 6, 8, 12, 13, 14, 15) : une phrase chacun, date ou appui | « Vos questions. » |
@@ -26,27 +31,15 @@
 
 Direct = 13:00 (P1 1:30 + P2 2:30 + P3 1:30 + P6 1:00 + P4 1:30 + P5 2:00 + P8 2:00 + P7 1:00). Tampon ± 1 min : se prend sur P2 (import plus long) et se rend sur P4/P7. Si le direct dépasse 14:00 à la fin de P5, **P8 réduit à visa seul** (le rejet motivé passe en capture) et P7 à 0:45.
 
-## 1 ter. P4 : geste selon la décision du PO sur REC-04 et REC-05 (ajout du 21/11, à trancher)
+## 1 ter. P4 : geste du manager dans les espaces (ajout du 21/11)
 
-À la recette du 21/11 :
-- REC-04 : `MGR001` arrive sur la racine `MINFI-CAB`, qui n'est pas son service. Il voit un bandeau rouge en anglais (403 sur les documents de l'unité) et un message « Action read sur users refusée » (403 `GET /users/`).
-- REC-05 : les filtres Domaine et Activité sont vides pour le manager (403 sur `/classification-rules/domains` et `/activities`).
-
-Une seule variante sera gardée après la décision du PO ; l'autre sera retirée par ajout daté.
-
-**Variante 1 : avec correctifs** (REC-04 et REC-05 fusionnés avant le tag, recette rejouée)
-1. `MGR001` ouvre `/spaces` : il arrive sur la DAF, son service, sans aucun message.
+Décision du PO du 21/11 : les correctifs REC-04 (arrivée du manager sur son service) et REC-05 (filtres Domaines et Activités pour le manager) sont accordés. Ce geste suppose leur fusion avant le tag.
+1. `MGR001` ouvre « Espaces » : il arrive directement sur la DAF, son service, sans bandeau ni message.
 2. Filtre Domaine « Finances et comptabilité », puis Activité « Marchés publics », puis année 2025.
-3. Ouvrir un document de la liste : classement sur 4 niveaux dans l'aperçu, métadonnées, historique des versions.
+3. Ouvrir un document de la liste : classement sur 4 niveaux dans l'aperçu, métadonnées.
+4. Historique des versions : il ne s'ouvre pas depuis « Espaces ». Aller dans « Mes Documents », cliquer le document, puis l'onglet « Historique des Versions » (précision de B, recette du 21/11).
 - Phrase : « Le chef de service arrive dans son service et descend l'arborescence : domaine, activité, année. »
-
-**Variante 2 : avec contournement** (REC-04 et REC-05 restent des limites connues)
-1. `MGR001` ouvre `/spaces` : un message apparaît. Le fermer sans le commenter.
-2. Cliquer la carte **DAF** (137 documents), puis l'année **2025** (62 documents). Ne pas utiliser les filtres Domaine et Activité, qui sont vides pour ce profil.
-3. Ouvrir un document : le classement sur 4 niveaux (DAF → Finances et comptabilité → Marchés publics → 2025) se lit dans l'aperçu. Puis métadonnées et historique des versions.
-4. **Ne pas cliquer** les cartes DRH, DSI ni SG : un manager n'y a pas accès, et le refus s'affiche en anglais.
-- Phrase : « Le chef de service retrouve le document dans son service, rangé sur quatre niveaux. »
-- Repli : si le message ne se ferme pas, F5 une fois, puis la variante 2 depuis l'étape 2.
+- Repli : un message s'affiche ou un filtre reste vide → F5 une fois, puis l'arbre DAF → 2025 sans les filtres (repli § 2).
 
 ## 1 bis. Moments conditionnels V1.1 (ajout daté du 10/11, DEC-002 révision du 10/11)
 
@@ -70,7 +63,7 @@ Les lots 4 (critères contenu/date) et 5 (surveillance d'un répertoire) n'ont p
 | P3 | simulation vide → simuler la règle seed active (résultat garanti) | `POST …/simulate` : lire `moved` / destinations dans la réponse | `rules-simulation.spec` : tableau avant/après |
 | P6 | liste vide (P2 a tout classé) → ouvrir un des ≈ 15 « à revoir » du seed | `POST /documents/{id}/resolve-review` puis `/spaces` | `needs-review.spec` |
 | P4 | filtres absents → arbre + ouverture d'un document seulement ; pagination → « tout tient sur une page » | `GET /spaces/documents?limit=…` : montrer `total` | `spaces.spec` |
-| P5 | corbeille UI absente → le document a été mis en corbeille **à H-30** (checklist § C) et on le dit | `GET /search?q=…` avec les deux comptes : `took_ms` et `total` différents | `search-scope.spec` (SC-SEC-01/02) |
+| P5 | corbeille UI absente → le document a été mis en corbeille **à H-30** (checklist § C) et on le dit | `GET /search?q=…` avec les deux comptes (`MGR001`, `READ001`) : `took_ms` et `total` différents ; c'est aussi là que se montre le temps de réponse (REC-09) | `search-scope.spec` (SC-SEC-01/02) |
 | P8 | 422 ou action refusée → visa seul ; motif absent → dire l'écart 17 | `GET /workflows/pending` puis `POST …/actions` : statut dans la réponse | `validation-cycle` du `smoke` : tâche, motif, statut |
 | P7 | filtre vide → retirer le filtre agent, garder la journée | `GET /documents/{id}/audit-logs` d'un document de P6 | `audit.spec` |
 
@@ -103,7 +96,7 @@ Si la question porte sur un écart déjà dit : « c'est l'écart n° … annonc
 - Durée réelle de chaque ligne du § 1 (chrono O) ; P2 est la seule ligne élastique.
 - Route de l'écran des tâches de validation (P8) et libellés exacts Viser / Rejeter (F, `fix/validation-cycle-ui`) ; ajouter la route aux 7 favoris de la checklist § B si elle n'y est pas.
 - Tenue de la session administrateur ouverte à H-5 (fenêtre B).
-- Mot-clé P5 et requête n° 10 identiques à celles de `c3-queries.txt` ; le chiffre C3 dit au jury est celui du 27 (`protocole-mesures-criteres.md`).
+- Mot-clé P5 : « facture » ; requête de contrôle n° 10 : « lettre » (révision du 21/11, REC-10). Le jeu de requêtes C3 figé (`c3-queries.txt`) n'a pas été écrit : la liste la plus proche est `gestion-projet/recette/c3-queries-repetition-d1.txt`, avec « lettre » en n° 10 ; Q fige le jeu définitif ; le chiffre C3 dit au jury est celui du 27 (`protocole-mesures-criteres.md`).
 - Captures du plan B regénérées depuis le run du 27, pas du 21.
 
 ## Sources

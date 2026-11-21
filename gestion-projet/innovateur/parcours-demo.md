@@ -55,7 +55,7 @@ Correspondance avec la liste de DEC-002 (AUTH-01/02/03, RED-01, VAL-01, ADM-01, 
 ### P2 — Import d'un dossier et classement automatique par règle
 
 - **Rôle** : `admin@minfi` pour la règle **et** pour l'import (révision du 21/11, REC-06 : le collaborateur n'a pas accès à `/ingestion`).
-- **Étapes** : 1) admin → `/rules` → vérifier qu'une règle « Factures » (DAF, Finances et comptabilité) (critère type + nom de fichier) est **active** avec sa priorité ; 2) admin → `/ingestion` ; 3) étape 1 : choisir le dossier de démo (sous-ensemble du corpus, ~30 fichiers, 3 domaines) ; 4) étape 2 : lancer l'import ; 5) attendre la fin (compteur importés / doublons / en attente) ; 6) `/spaces` → DAF → Finances et comptabilité : les factures sont rangées dans l'année attendue ; 7) un fichier sans règle apparaît dans `/needs-review` (prépare P6) ; 8) ré-importer le même dossier → tous refusés comme doublons.
+- **Étapes** : 1) admin → `/rules` → vérifier qu'une règle « Factures » (DAF, Finances et comptabilité) (critère type + nom de fichier) est **active** avec sa priorité ; 2) admin → `/ingestion` ; 3) étape 1 : choisir le dossier de démo (sous-ensemble du corpus, ~30 fichiers, 3 domaines) ; 4) étape 2 : lancer l'import ; 5) attendre la fin (compteur importés / doublons / en attente) ; 6) `/spaces` → DAF → Finances et comptabilité : les factures sont rangées dans l'année attendue ; 7) un fichier sans règle apparaît dans `/needs-review` (prépare P6) ; 8) ré-importer le même dossier → l'écran affiche « 0 prêt • 0 à revoir • 30 déjà présents » (après REC-07, révision du 21/11).
 - **Résultat observable** : compteur d'import, documents visibles dans la bonne arborescence, doublons refusés, reste à classer non nul.
 - **UAT** : SC-ADM-08 (ingestion de répertoire), SC-RED-01 (dépôt rédacteur), SC-E2E-01 (chaîne import → classement).
 - **Spec** : `ingestion.spec.ts` existe mais **mocke** l'API (`Vérifié`) → **réécrire** sans mock ; `bulk-upload.spec.ts` à fusionner ou retirer.
@@ -81,6 +81,7 @@ Correspondance avec la liste de DEC-002 (AUTH-01/02/03, RED-01, VAL-01, ADM-01, 
 
 ### P5 — Recherche plein texte bornée au service, corbeille exclue (sécurité)
 
+- **Révision du 21/11 (recette rec10)** : rôle `MGR001` (manager DAF) puis `READ001` (DSI), car un collaborateur ne cherche que dans ses propres documents (REC-08, `search.py:61-62`) ; mots-clés « facture » (21 résultats pour `MGR001`) et « lettre » (4 DAF, 8 DSI ; REC-10) ; l'écran n'affiche pas le temps de réponse, il se lit dans `took_ms` de `GET /search` (6 à 15 ms à la recette ; REC-09). Les étapes ci-dessous gardent leur texte d'origine.
 - **Rôle** : `collab@minfi` (DAF) puis `reader@minfi` (DSI).
 - **Étapes** : 1) collab : barre de recherche de l'en-tête (`Header.tsx`, `Vérifié`) → « marché public » ; 2) résultats avec `took_ms` affiché (appui démo du critère < 2 s) ; 3) ouvrir un résultat ; 4) mettre un document DAF à la corbeille (API `POST /documents/{id}/trash`, ou UI si livrée) ; 5) relancer la même recherche : le document a disparu ; 6) se déconnecter, se connecter en `reader@minfi` (DSI) ; 7) même recherche : aucun document DAF dans les résultats ; 8) isolation tenant : un terme présent uniquement chez MINESUP ne renvoie rien.
 - **Résultat observable** : même requête, deux listes différentes selon le service ; document en corbeille absent ; temps de réponse affiché.
