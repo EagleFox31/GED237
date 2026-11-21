@@ -54,8 +54,8 @@ Correspondance avec la liste de DEC-002 (AUTH-01/02/03, RED-01, VAL-01, ADM-01, 
 
 ### P2 — Import d'un dossier et classement automatique par règle
 
-- **Rôle** : `admin@minfi` pour la règle, puis `collab@minfi` pour l'import.
-- **Étapes** : 1) admin → `/rules` → vérifier qu'une règle « Factures → DAF/Comptabilité » (critère type + nom de fichier) est **active** avec sa priorité ; 2) collab → `/ingestion` ; 3) étape 1 : choisir le dossier de démo (sous-ensemble du corpus, ~30 fichiers, 3 domaines) ; 4) étape 2 : lancer l'import ; 5) attendre la fin (compteur importés / doublons / en attente) ; 6) `/spaces` → DAF → Comptabilité : les factures sont rangées dans l'année attendue ; 7) un fichier sans règle apparaît dans `/needs-review` (prépare P6) ; 8) ré-importer le même dossier → tous refusés comme doublons.
+- **Rôle** : `admin@minfi` pour la règle **et** pour l'import (révision du 21/11, REC-06 : le collaborateur n'a pas accès à `/ingestion`).
+- **Étapes** : 1) admin → `/rules` → vérifier qu'une règle « Factures » (DAF, Finances et comptabilité) (critère type + nom de fichier) est **active** avec sa priorité ; 2) admin → `/ingestion` ; 3) étape 1 : choisir le dossier de démo (sous-ensemble du corpus, ~30 fichiers, 3 domaines) ; 4) étape 2 : lancer l'import ; 5) attendre la fin (compteur importés / doublons / en attente) ; 6) `/spaces` → DAF → Finances et comptabilité : les factures sont rangées dans l'année attendue ; 7) un fichier sans règle apparaît dans `/needs-review` (prépare P6) ; 8) ré-importer le même dossier → tous refusés comme doublons.
 - **Résultat observable** : compteur d'import, documents visibles dans la bonne arborescence, doublons refusés, reste à classer non nul.
 - **UAT** : SC-ADM-08 (ingestion de répertoire), SC-RED-01 (dépôt rédacteur), SC-E2E-01 (chaîne import → classement).
 - **Spec** : `ingestion.spec.ts` existe mais **mocke** l'API (`Vérifié`) → **réécrire** sans mock ; `bulk-upload.spec.ts` à fusionner ou retirer.
@@ -73,7 +73,7 @@ Correspondance avec la liste de DEC-002 (AUTH-01/02/03, RED-01, VAL-01, ADM-01, 
 ### P4 — Espaces : parcourir, filtrer, paginer (Lot C9)
 
 - **Rôle** : `manager@minfi` (DAF).
-- **Étapes** : 1) `/spaces` ; 2) arbre : DAF → Comptabilité → 2025 ; 3) filtre type = « Facture » ; 4) filtre période ; 5) tri par date ; 6) pagination : page 2 sur un corpus de 500 ; 7) ouvrir un document → `DocumentDetailModal` : métadonnées, onglet « Historique des Versions », onglet workflow ; 8) « Télécharger ».
+- **Étapes** : 1) `/spaces` ; 2) arbre : DAF → Finances et comptabilité → Marchés publics → 2025 (libellés réels, recette du 21/11) ; 3) filtre type = « Facture » ; 4) filtre période ; 5) tri par date ; 6) pagination : page 2 sur un corpus de 500 ; 7) ouvrir un document → `DocumentDetailModal` : métadonnées, onglet « Historique des Versions », onglet workflow ; 8) « Télécharger ».
 - **Résultat observable** : compteur de résultats cohérent après chaque filtre ; pagination serveur (une requête réseau par page) ; téléchargement.
 - **UAT** : SC-LEC-02 (navigation espaces), SC-VAL-03 (consultation par le manager), critère CDC « arborescence service > domaine > activité > année ».
 - **Spec** : `spaces.spec.ts` **mocke** (`Vérifié`) → **réécrire** sans mock après livraison de l'ordre 4 (B : API 13–14/11 ; F : UI 17/11). Avant cette date : spec limité à la navigation et à l'ouverture d'un document.

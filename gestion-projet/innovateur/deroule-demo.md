@@ -2,25 +2,51 @@
 
 - **Pour** : P (présente), O (clavier de secours, chrono), Q (plan B captures). Rédigé par l'innovateur le 2026-11-09 soir ; à chronométrer le 27/11 (répétition générale) et à corriger **par ajout daté**.
 - **Règle de lecture** : ce déroulé **renvoie**, il ne recopie pas. Étapes détaillées d'un parcours → `parcours-demo.md` § 2 ; état et preuves → `matrice-recette.md` ; phrases d'écart et questions complètes → `plan-presentation.md` § 3-4 ; préparation des postes et conduite de séance → `checklist-demo.md` § B-C. Les comptes sont désignés par **identifiant seul** (`seed_db.py`), jamais par mot de passe.
-- **Cadre** (plan § 1) : 20 min = ouverture 2 + **direct 13 ± 1** + écarts 2 + questions 3. Deux fenêtres de navigateur sur le poste principal : **fenêtre A** = rédacteur `MINFI002` (collaborateur DAF), connectée en direct au P1 et gardée jusqu'à la fin ; **fenêtre B** = profils qui changent (administrateur du seed → `MGR001` → `READ001` → `AUDIT001`), l'administrateur étant connecté **avant** la séance (H-5). Quatre connexions en direct au total, loin de la limite « 4 par minute » (checklist § C Pendant). *À vérifier le 27* : la session administrateur ouverte à H-5 tient-elle 20 min sans reconnexion (durée du jeton d'accès) ? sinon la connecter à H-1 min.
+- **Révision du 21/11 (recette rec10)** :
+  - REC-06 : l'import du P2 est fait par l'administrateur `MINFI001`, car `MINFI002` n'a pas accès à `/ingestion` (`frontend/App.tsx:273`).
+  - P4 : libellés de l'arbre réel ; geste en deux variantes (§ 1 ter), en attente de la décision du PO sur REC-04 et REC-05.
+  - P7 : traces lues par agent.
+- **Cadre** (plan § 1) : 20 min = ouverture 2 + **direct 13 ± 1** + écarts 2 + questions 3. Deux fenêtres de navigateur sur le poste principal : **fenêtre A** = rédacteur `MINFI002` (collaborateur DAF), connectée en direct au P1 et gardée jusqu'à la fin ; **fenêtre B** = profils qui changent (administrateur `MINFI001` → `MGR001` → `READ001` → `AUDIT001`), l'administrateur étant connecté **avant** la séance (H-5). Quatre connexions en direct au total, loin de la limite « 4 par minute » (checklist § C Pendant). *À vérifier le 27* : la session administrateur ouverte à H-5 tient-elle 20 min sans reconnexion (durée du jeton d'accès) ? sinon la connecter à H-1 min.
 
 ## 1. Chronologie
 
 | Min | Parcours | Durée | Fenêtre / profil | Données du seed utilisées | Ce que le jury doit voir | Phrase de transition (vers la suite) |
 |---|---|---|---|---|---|---|
 | 0:00–2:00 | Ouverture | 2:00 | aucune (diapositive « où se situe GED237 », `sources/concurrents-ged.md` § 4) | — | le problème, la promesse, les 4 rôles (plan § 1 ligne 0–2) | « Entrons comme un agent de la DAF. » |
-| 2:00–3:30 | **P1** connexion OTP | 1:30 | A — `MINFI002` | compte seed, code OTP | écran de connexion, code, nom et rôle dans l'en-tête ; **ne pas** cliquer un profil pré-rempli (écart 15 : le dire si le jury le remarque) | « Ce rédacteur reçoit une trentaine de fichiers d'un service : importons-les. » |
-| 3:30–6:00 | **P2** import + classement | 2:30 | B — administrateur : `/rules`, règle seed « Factures → DAF/Comptabilité » **active** (10 s) ; puis A — `/ingestion` → `/data/ingest/live` | `demo-import/live/` (≈ 30 fichiers, doublons et hors règle compris, `jeu-donnees-demo.md` § 3), chemin **`/data/ingest`** (seul autorisé, spec upload § 5) | compteur d'import, documents dans l'arborescence, **doublons refusés**, « reste à classer » non nul | « Rien n'a été classé par magie : voici la règle, et ce qui se passe avant qu'on en active une. » |
+| 2:00–3:30 | **P1** connexion OTP | 1:30 | A — `MINFI002` | compte seed, code OTP | écran de connexion, code, nom et rôle dans l'en-tête ; **ne pas** cliquer un profil pré-rempli (écart 15 : le dire si le jury le remarque) | « Ce rédacteur reçoit une trentaine de fichiers d'un service : l'administrateur les importe pour lui. » |
+| 3:30–6:00 | **P2** import + classement | 2:30 | B — administrateur `MINFI001` : `/rules`, règle seed « Factures » (`demo_rule_05` → DAF, Finances et comptabilité) **active** (10 s) ; puis, toujours en B, `/ingestion` → `/data/ingest/live`. Pas en A : le rédacteur `MINFI002` n'a pas accès à `/ingestion` (REC-06, `App.tsx:273`) | `demo-import/live/` (≈ 30 fichiers, doublons et hors règle compris, `jeu-donnees-demo.md` § 3), chemin **`/data/ingest`** (seul autorisé, spec upload § 5) | compteur d'import, documents dans l'arborescence, **doublons refusés**, « reste à classer » non nul | « Rien n'a été classé par magie : voici la règle, et ce qui se passe avant qu'on en active une. » |
 | 6:00–7:30 | **P3** simulation de règle | 1:30 | B — administrateur, `/rules` | règle 10 « Rapports financiers » du seed, **inactive** : la simuler plutôt que créer (gagne 40 s) ; corpus 420 documents, 4 services | tableau avant/après, **aucun déplacement** tant que la règle est inactive | **Moment d'écart n° 1** (§ 3) puis : « Ce que la règle ne sait pas classer attend un humain. » |
 | 7:30–8:30 | **P6** revue manuelle | 1:00 | B — administrateur, `/needs-review` | les « sans règle » du P2 (+ ≈ 15 documents à revoir du seed) | raison affichée, choix service/domaine/activité/année, le document quitte la liste | « Le document est à sa place ; allons le retrouver comme un chef de service. » |
-| 8:30–10:00 | **P4** espaces | 1:30 | B — `MGR001` (manager DAF), `/spaces` | arbre DAF → Comptabilité → 2025 ; corpus 420 | arborescence 4 niveaux, ouverture d'un document (métadonnées, historique des versions) ; filtres/pagination **seulement si livrés** (D2 : premier sacrifice, phrase « tout tient sur une page ») | « Et quand on ne sait pas où il est ? On cherche. » |
+| 8:30–10:00 | **P4** espaces | 1:30 | B — `MGR001` (manager DAF), `/spaces` | arbre DAF → Finances et comptabilité → Marchés publics → 2025 ; 137 documents à la DAF, dont 62 en 2025 (relevé de B, recette du 21/11) ; corpus 420 | geste selon la variante retenue au **§ 1 ter** ; dans les deux cas : classement sur 4 niveaux, ouverture d'un document (métadonnées, historique des versions) ; pagination **seulement si livrée** (D2 : premier sacrifice, phrase « tout tient sur une page ») | « Et quand on ne sait pas où il est ? On cherche. » |
 | 10:00–12:00 | **P5** recherche + cloisonnement | 2:00 | A — `MINFI002` : recherche ; puis B — `READ001` (lecteur DSI), même recherche | mot-clé présent dans DAF **et** DSI (requête n° 10 de `c3-queries.txt`, figée le 18) ; 1 document DAF à mettre en corbeille avant la seconde recherche | **temps de réponse affiché** (C3), deux listes différentes pour la même requête, document en corbeille absent | « Un document n'est pas seulement rangé : il est validé. » |
 | 12:00–14:00 | **P8** cycle de validation | 2:00 | A — `MINFI002` soumet au circuit ; B — `MGR001` vise un document, en **rejette** un autre avec motif ; retour A | circuit `E2E-WF-VALID`, 2 documents DAF dédiés (seed PR 2 de Q) | choix du validateur, tâche en attente côté manager, **motif saisi**, statut Visé / Rejeté visible chez le rédacteur | **Moment d'écart n° 2** (§ 3) puis : « Tout ce que vous venez de voir a laissé une trace. » |
-| 14:00–15:00 | **P7** journal d'audit | 1:00 | B — `AUDIT001`, `/audit`, filtre `MINFI002` + aujourd'hui | traces produites par P1→P8 | connexion, import, corbeille, revue, visa/rejet dans l'ordre de la séance ; rôle **lecture seule** | « Voilà ce qui marche. Voici ce qui manque. » |
+| 14:00–15:00 | **P7** journal d'audit | 1:00 | B — `AUDIT001`, `/audit`, filtre `MINFI002` + aujourd'hui | traces produites par P1→P8 | d'abord le filtre « aujourd'hui » seul : les actions de la séance dans l'ordre, avec leur auteur (`MINFI002` connexion et soumission ; `MINFI001` import et revue ; `MGR001` visa et rejet) ; puis le filtre `MINFI002` : ses seules actions. Rôle **lecture seule** | « Voilà ce qui marche. Voici ce qui manque. » |
 | 15:00–17:00 | Écarts | 2:00 | aucune | — | les écarts non encore dits de la liste plan § 3 (1, 5, 6, 8, 12, 13, 14, 15) : une phrase chacun, date ou appui | « Vos questions. » |
 | 17:00–20:00 | Questions | 3:00 | — | — | § 4 | — |
 
 Direct = 13:00 (P1 1:30 + P2 2:30 + P3 1:30 + P6 1:00 + P4 1:30 + P5 2:00 + P8 2:00 + P7 1:00). Tampon ± 1 min : se prend sur P2 (import plus long) et se rend sur P4/P7. Si le direct dépasse 14:00 à la fin de P5, **P8 réduit à visa seul** (le rejet motivé passe en capture) et P7 à 0:45.
+
+## 1 ter. P4 : geste selon la décision du PO sur REC-04 et REC-05 (ajout du 21/11, à trancher)
+
+À la recette du 21/11 :
+- REC-04 : `MGR001` arrive sur la racine `MINFI-CAB`, qui n'est pas son service. Il voit un bandeau rouge en anglais (403 sur les documents de l'unité) et un message « Action read sur users refusée » (403 `GET /users/`).
+- REC-05 : les filtres Domaine et Activité sont vides pour le manager (403 sur `/classification-rules/domains` et `/activities`).
+
+Une seule variante sera gardée après la décision du PO ; l'autre sera retirée par ajout daté.
+
+**Variante 1 : avec correctifs** (REC-04 et REC-05 fusionnés avant le tag, recette rejouée)
+1. `MGR001` ouvre `/spaces` : il arrive sur la DAF, son service, sans aucun message.
+2. Filtre Domaine « Finances et comptabilité », puis Activité « Marchés publics », puis année 2025.
+3. Ouvrir un document de la liste : classement sur 4 niveaux dans l'aperçu, métadonnées, historique des versions.
+- Phrase : « Le chef de service arrive dans son service et descend l'arborescence : domaine, activité, année. »
+
+**Variante 2 : avec contournement** (REC-04 et REC-05 restent des limites connues)
+1. `MGR001` ouvre `/spaces` : un message apparaît. Le fermer sans le commenter.
+2. Cliquer la carte **DAF** (137 documents), puis l'année **2025** (62 documents). Ne pas utiliser les filtres Domaine et Activité, qui sont vides pour ce profil.
+3. Ouvrir un document : le classement sur 4 niveaux (DAF → Finances et comptabilité → Marchés publics → 2025) se lit dans l'aperçu. Puis métadonnées et historique des versions.
+4. **Ne pas cliquer** les cartes DRH, DSI ni SG : un manager n'y a pas accès, et le refus s'affiche en anglais.
+- Phrase : « Le chef de service retrouve le document dans son service, rangé sur quatre niveaux. »
+- Repli : si le message ne se ferme pas, F5 une fois, puis la variante 2 depuis l'étape 2.
 
 ## 1 bis. Moments conditionnels V1.1 (ajout daté du 10/11, DEC-002 révision du 10/11)
 
@@ -40,7 +66,7 @@ Les lots 4 (critères contenu/date) et 5 (surveillance d'un répertoire) n'ont p
 | Parcours | Repli **manuel** (même poste) | Repli **API** (poste de secours, client REST préparé, jeton jamais affiché) | Capture (plan B, rapport Playwright du 27 ouvert en onglet 2) |
 |---|---|---|---|
 | P1 | OTP refusé → relire le code dans la réponse `development` ; 429 → attendre 60 s en commentant l'écran (checklist) | `POST /auth/login` puis `/auth/verify-otp` : montrer le jeton tronqué, puis recharger A | `auth.spec` : écran OTP + en-tête connecté |
-| P2 | import qui échoue → déposer **3 fichiers** à la main via `/ingestion` étape 1 (dont un doublon) | `POST /documents/ingest-directory` sur `/data/ingest/live` ; 403 hors racine = **argument**, pas incident | `ingestion.spec` : compteur + doublons refusés |
+| P2 | import qui échoue → déposer **3 fichiers** à la main via `/ingestion` étape 1 (dont un doublon), en fenêtre B avec `MINFI001` | `POST /documents/ingest-directory` sur `/data/ingest/live` ; 403 hors racine = **argument**, pas incident | `ingestion.spec` : compteur + doublons refusés |
 | P3 | simulation vide → simuler la règle seed active (résultat garanti) | `POST …/simulate` : lire `moved` / destinations dans la réponse | `rules-simulation.spec` : tableau avant/après |
 | P6 | liste vide (P2 a tout classé) → ouvrir un des ≈ 15 « à revoir » du seed | `POST /documents/{id}/resolve-review` puis `/spaces` | `needs-review.spec` |
 | P4 | filtres absents → arbre + ouverture d'un document seulement ; pagination → « tout tient sur une page » | `GET /spaces/documents?limit=…` : montrer `total` | `spaces.spec` |
