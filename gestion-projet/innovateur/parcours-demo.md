@@ -73,7 +73,7 @@ Correspondance avec la liste de DEC-002 (AUTH-01/02/03, RED-01, VAL-01, ADM-01, 
 ### P4 — Espaces : parcourir, filtrer, paginer (Lot C9)
 
 - **Rôle** : `manager@minfi` (DAF).
-- **Étapes** : 1) `/spaces` ; 2) arbre : DAF → Finances et comptabilité → Marchés publics → 2025 (libellés réels, recette du 21/11) ; 3) filtre type = « Facture » ; 4) filtre période ; 5) tri par date ; 6) pagination : page 2 sur un corpus de 500 ; 7) ouvrir un document → `DocumentDetailModal` : métadonnées, onglet « Historique des Versions », onglet workflow ; 8) « Télécharger ».
+- **Étapes** : 1) `/spaces` ; 2) arbre : DAF → Finances et comptabilité → Marchés publics → 2025 (libellés réels, recette du 21/11) ; 3) filtre type = « Facture » ; 4) filtre période ; 5) tri par date ; 6) pagination : page 2 sur un corpus de 500 ; 7) ouvrir un document → `DocumentDetailModal` : métadonnées, onglet « Historique des Versions » (depuis « Mes Documents » ; une seule version, V1.0 actuelle, dans le jeu de démo — révision du 21/11), onglet workflow ; 8) « Télécharger ».
 - **Résultat observable** : compteur de résultats cohérent après chaque filtre ; pagination serveur (une requête réseau par page) ; téléchargement.
 - **UAT** : SC-LEC-02 (navigation espaces), SC-VAL-03 (consultation par le manager), critère CDC « arborescence service > domaine > activité > année ».
 - **Spec** : `spaces.spec.ts` **mocke** (`Vérifié`) → **réécrire** sans mock après livraison de l'ordre 4 (B : API 13–14/11 ; F : UI 17/11). Avant cette date : spec limité à la navigation et à l'ouverture d'un document.
@@ -81,7 +81,7 @@ Correspondance avec la liste de DEC-002 (AUTH-01/02/03, RED-01, VAL-01, ADM-01, 
 
 ### P5 — Recherche plein texte bornée au service, corbeille exclue (sécurité)
 
-- **Révision du 21/11 (recette rec10)** : rôle `MGR001` (manager DAF) puis `READ001` (DSI), car un collaborateur ne cherche que dans ses propres documents (REC-08, `search.py:61-62`) ; mots-clés « facture » (21 résultats pour `MGR001`) et « lettre » (4 DAF, 8 DSI ; REC-10) ; l'écran n'affiche pas le temps de réponse, il se lit dans `took_ms` de `GET /search` (6 à 15 ms à la recette ; REC-09). Les étapes ci-dessous gardent leur texte d'origine.
+- **Révision du 21/11 (recette rec10)** : rôle `MGR001` (manager DAF) puis `READ001` (DSI), car un collaborateur ne cherche que dans ses propres documents (REC-08, `search.py:61-62`) ; mots-clés « facture » (21 résultats pour `MGR001`) et « lettre » (4 DAF, 8 DSI ; REC-10 ; après la mise en corbeille : 3 pour `MGR001`, 8 DSI pour `READ001`, aucun en commun) ; l'écran n'affiche pas le temps de réponse, il se lit dans `took_ms` de `GET /search` (6 à 15 ms à la recette ; REC-09). Les étapes ci-dessous gardent leur texte d'origine.
 - **Rôle** : `collab@minfi` (DAF) puis `reader@minfi` (DSI).
 - **Étapes** : 1) collab : barre de recherche de l'en-tête (`Header.tsx`, `Vérifié`) → « marché public » ; 2) résultats avec `took_ms` affiché (appui démo du critère < 2 s) ; 3) ouvrir un résultat ; 4) mettre un document DAF à la corbeille (API `POST /documents/{id}/trash`, ou UI si livrée) ; 5) relancer la même recherche : le document a disparu ; 6) se déconnecter, se connecter en `reader@minfi` (DSI) ; 7) même recherche : aucun document DAF dans les résultats ; 8) isolation tenant : un terme présent uniquement chez MINESUP ne renvoie rien.
 - **Résultat observable** : même requête, deux listes différentes selon le service ; document en corbeille absent ; temps de réponse affiché.
